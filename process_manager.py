@@ -5,6 +5,7 @@ Handles the creation, management, and monitoring of FFmpeg processes
 """
 
 import os
+import subprocess
 import time
 from typing import Dict, List, Tuple, Any, Optional
 
@@ -358,10 +359,6 @@ class ProcessManager(QObject):
     def can_start_gpu_encode(self) -> bool:
         """Check if there's enough VRAM to start a new GPU encode."""
         available_vram = self.get_available_vram()
-        
-        # Count current GPU processes
-        gpu_processes = sum(1 for _, path in self.processes 
-                          if self.codec_map.get(path, 0) in [0, 1, 2])  # NVENC codecs
         
         # Estimate VRAM needed for new encode
         estimated_vram_per_encode = self._min_vram_mb
