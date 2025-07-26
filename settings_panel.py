@@ -477,22 +477,59 @@ class SettingsPanel(QObject):
         assert self.priority_combo is not None
         assert self.hevc_10bit_checkbox is not None
         
+        # Disconnect each signal individually to avoid issues
         try:
             self.codec_combo.currentIndexChanged.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.preset_combo.currentIndexChanged.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.hwdecode_combo.currentIndexChanged.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.crf_spinbox.valueChanged.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.threads_spinbox.valueChanged.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.parallel_checkbox.toggled.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.max_parallel_spinbox.valueChanged.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.delete_source_checkbox.toggled.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.overwrite_checkbox.toggled.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.smart_buffer_checkbox.toggled.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.auto_balance_checkbox.toggled.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.priority_combo.currentIndexChanged.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
             self.hevc_10bit_checkbox.toggled.disconnect()
-        except TypeError:
-            pass  # Already disconnected
+        except (TypeError, RuntimeError):
+            pass
     
     def _save_settings(self) -> None:
         """Save current settings to QSettings"""
