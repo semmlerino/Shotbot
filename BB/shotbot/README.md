@@ -56,6 +56,10 @@ python shotbot.py
 - `Ctrl + +` - Increase thumbnail size
 - `Ctrl + -` - Decrease thumbnail size
 - `Ctrl + Mouse Wheel` - Zoom thumbnails
+- `Arrow Keys` - Navigate between shots
+- `Home` - Jump to first shot
+- `End` - Jump to last shot
+- `Enter` - Launch default app (Nuke) for selected shot
 - `Double-click` on shot - Launch default app (Nuke)
 
 ### Shot Thumbnails

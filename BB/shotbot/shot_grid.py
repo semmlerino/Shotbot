@@ -3,7 +3,7 @@
 from typing import Dict, Optional
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QResizeEvent, QWheelEvent
+from PySide6.QtGui import QKeyEvent, QResizeEvent, QWheelEvent
 from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -72,6 +72,9 @@ class ShotGrid(QWidget):
 
         self.scroll_area.setWidget(self.container)
         layout.addWidget(self.scroll_area)
+        
+        # Enable keyboard focus
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def refresh_shots(self):
         """Refresh the shot display."""
@@ -179,3 +182,64 @@ class ShotGrid(QWidget):
             event.accept()
         else:
             super().wheelEvent(event)
+    
+    def keyPressEvent(self, event: QKeyEvent):
+        """Handle keyboard navigation."""
+        if not self.shot_model.shots:
+            super().keyPressEvent(event)
+            return
+        
+        # Get current selection index
+        current_index = -1
+        if self.selected_shot:
+            for i, shot in enumerate(self.shot_model.shots):
+                if shot.full_name == self.selected_shot.full_name:
+                    current_index = i
+                    break
+        
+        # Calculate grid dimensions
+        columns = self._get_column_count()
+        total_shots = len(self.shot_model.shots)
+        
+        new_index = current_index
+        
+        # Handle arrow keys
+        if event.key() == Qt.Key.Key_Right:
+            new_index = min(current_index + 1, total_shots - 1) if current_index >= 0 else 0
+        elif event.key() == Qt.Key.Key_Left:
+            new_index = max(current_index - 1, 0) if current_index >= 0 else 0
+        elif event.key() == Qt.Key.Key_Down:
+            if current_index >= 0:
+                new_index = min(current_index + columns, total_shots - 1)
+            else:
+                new_index = 0
+        elif event.key() == Qt.Key.Key_Up:
+            if current_index >= 0:
+                new_index = max(current_index - columns, 0)
+            else:
+                new_index = 0
+        elif event.key() == Qt.Key.Key_Home:
+            new_index = 0
+        elif event.key() == Qt.Key.Key_End:
+            new_index = total_shots - 1
+        elif event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
+            # Double-click on current selection
+            if self.selected_shot:
+                self.shot_double_clicked.emit(self.selected_shot)
+            event.accept()
+            return
+        else:
+            super().keyPressEvent(event)
+            return
+        
+        # Select new shot if index changed
+        if new_index != current_index and 0 <= new_index < total_shots:
+            new_shot = self.shot_model.shots[new_index]
+            self.select_shot(new_shot)
+            
+            # Ensure the selected thumbnail is visible
+            if new_shot.full_name in self.thumbnails:
+                thumbnail = self.thumbnails[new_shot.full_name]
+                self.scroll_area.ensureWidgetVisible(thumbnail)
+        
+        event.accept()
