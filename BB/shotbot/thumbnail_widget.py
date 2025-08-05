@@ -35,15 +35,31 @@ class ThumbnailWidget(ThumbnailWidgetBase):
         font = self.name_label.font()
         font.setPointSize(9)
         self.name_label.setFont(font)
-        
-        self.layout.addWidget(self.name_label)
-        
+
+        # Add to content container instead of main layout
+        self.content_layout.addWidget(self.name_label)
+
+        # Add spacers to maintain consistent height with 3DE thumbnails
+        # This ensures uniform grid cell heights
+        spacer_label1 = QLabel(" ")
+        spacer_label1.setObjectName("spacer")
+        spacer_font1 = spacer_label1.font()
+        spacer_font1.setPointSize(8)
+        spacer_label1.setFont(spacer_font1)
+        spacer_label1.setMinimumHeight(16)
+
+        spacer_label2 = QLabel(" ")
+        spacer_label2.setObjectName("spacer")
+        spacer_font2 = spacer_label2.font()
+        spacer_font2.setPointSize(9)
+        spacer_label2.setFont(spacer_font2)
+        spacer_label2.setMinimumHeight(18)
+
+        self.content_layout.addWidget(spacer_label1)
+        self.content_layout.addWidget(spacer_label2)
+
         # Apply initial style
         self._update_style()
-
-
-
-
 
     def _get_selected_style(self) -> str:
         """Get the CSS style for selected state."""
@@ -62,11 +78,16 @@ class ThumbnailWidget(ThumbnailWidgetBase):
                 border-radius: 4px;
                 padding: 2px;
             }
+            QLabel#spacer {
+                color: transparent;
+                background-color: transparent;
+                border: none;
+            }
             QLabel {
                 background-color: transparent;
             }
         """
-    
+
     def _get_unselected_style(self) -> str:
         """Get the CSS style for unselected state."""
         return """
@@ -79,19 +100,23 @@ class ThumbnailWidget(ThumbnailWidgetBase):
                 background-color: #3a3a3a;
                 border: 2px solid #888;
             }
+            QLabel#spacer {
+                color: transparent;
+                background-color: transparent;
+                border: none;
+            }
             QLabel {
                 border: none;
                 background-color: transparent;
             }
         """
 
-
     def _create_context_menu(self) -> QMenu:
         """Create and return the context menu for this widget."""
         menu = QMenu(self)
-        
+
         # Add "Open Shot Folder" action
         open_folder_action = menu.addAction("Open Shot Folder")
         open_folder_action.triggered.connect(self._open_shot_folder)
-        
+
         return menu

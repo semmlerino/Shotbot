@@ -1,9 +1,9 @@
 """Unit tests for launcher dialog functionality."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialogButtonBox
 
 from launcher_dialog import (
     LauncherEditDialog,
@@ -72,6 +72,7 @@ class TestLauncherPreviewPanel:
             id="test-1",
             name="Test Launcher",
             command="echo test",
+            description="Test launcher for signals",
         )
         panel.set_launcher(launcher)
 
@@ -153,7 +154,10 @@ class TestLauncherEditDialog:
 
         # Test duplicate name
         mock_manager.get_launcher_by_name.return_value = CustomLauncher(
-            id="existing", name="Valid Name", command="test"
+            id="existing",
+            name="Valid Name",
+            command="test",
+            description="Existing launcher",
         )
         assert not dialog._validate_name()
 
@@ -184,7 +188,7 @@ class TestLauncherEditDialog:
         assert call_kwargs["name"] == "New Launcher"
         assert call_kwargs["command"] == "echo 'test'"
         assert call_kwargs["category"] == "Test"
-        assert call_kwargs["persist_terminal"] is True
+        assert call_kwargs["terminal"].persist is True
         assert call_kwargs["environment"].type == "rez"
         assert call_kwargs["environment"].packages == ["package1", "package2"]
 
@@ -201,17 +205,20 @@ class TestLauncherManagerDialog:
                 id="test-1",
                 name="Launcher 1",
                 command="echo 1",
+                description="First test launcher",
                 category="Category A",
             ),
             CustomLauncher(
                 id="test-2",
                 name="Launcher 2",
                 command="echo 2",
+                description="Second test launcher",
                 category="Category B",
             ),
         ]
         manager.get_launcher.side_effect = lambda lid: next(
-            (l for l in manager.list_launchers() if l.id == lid), None
+            (launcher for launcher in manager.list_launchers() if launcher.id == lid),
+            None,
         )
         return manager
 
@@ -232,7 +239,7 @@ class TestLauncherManagerDialog:
 
         # Check items are loaded
         assert dialog.launcher_list.count() == 2
-        
+
         item1 = dialog.launcher_list.item(0)
         assert item1.text() == "Launcher 1"
         assert item1.data(Qt.ItemDataRole.UserRole) == "test-1"
@@ -291,7 +298,7 @@ class TestLauncherManagerDialog:
 
         # Click add button
         dialog.add_button.click()
-        
+
         # Verify edit dialog was created
         mock_edit_dialog.assert_called_once_with(mock_manager, parent=dialog)
         mock_edit_dialog.return_value.exec.assert_called_once()
@@ -306,6 +313,8 @@ class TestLauncherManagerDialog:
 
         # Mock the confirmation dialog
         with patch("launcher_dialog.QMessageBox.question") as mock_question:
+            from PySide6.QtWidgets import QMessageBox
+
             mock_question.return_value = QMessageBox.StandardButton.Yes
             mock_manager.delete_launcher.return_value = True
 

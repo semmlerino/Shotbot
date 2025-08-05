@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -19,20 +20,20 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from threede_scene_worker import ThreeDESceneWorker
 
 from cache_manager import CacheManager
 from command_launcher import CommandLauncher
 from config import Config
+from launcher_dialog import LauncherManagerDialog
+from launcher_manager import LauncherManager
 from log_viewer import LogViewer
 from shot_grid import ShotGrid
 from shot_grid_optimized import ShotGridOptimized
 from shot_info_panel import ShotInfoPanel
 from shot_model import Shot, ShotModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
-from threede_scene_worker import ThreeDESceneWorker
 from threede_shot_grid import ThreeDEShotGrid
-from launcher_manager import LauncherManager
-from launcher_dialog import LauncherManagerDialog
 
 
 class MainWindow(QMainWindow):
@@ -116,7 +117,7 @@ class MainWindow(QMainWindow):
         # App launcher buttons
         self.launcher_group = QGroupBox("Launch Applications")
         launcher_layout = QVBoxLayout(self.launcher_group)
-        
+
         # Style the launcher group to make it more visible
         self.launcher_group.setStyleSheet("""
             QGroupBox {
@@ -146,12 +147,15 @@ class MainWindow(QMainWindow):
         # Add informational label at the top
         info_label = QLabel("Select a shot to enable app launching")
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("QLabel { color: #888; font-style: italic; padding: 5px; }")
+        info_label.setStyleSheet(
+            "QLabel { color: #888; font-style: italic; padding: 5px; }"
+        )
         launcher_layout.addWidget(info_label)
         self.launcher_info_label = info_label
-        
+
         for app_name, command in Config.APPS.items():
             button = QPushButton(app_name.upper())
+            button.setObjectName("builtInLauncherButton")
             button.clicked.connect(lambda checked, app=app_name: self._launch_app(app))
             button.setEnabled(False)  # Disabled until shot selected
 
@@ -159,6 +163,31 @@ class MainWindow(QMainWindow):
             shortcut = app_shortcuts.get(app_name, "")
             if shortcut:
                 button.setToolTip(f"Launch {app_name.upper()} (Shortcut: {shortcut})")
+
+            # Apply styling to built-in launchers
+            button.setStyleSheet("""
+                QPushButton#builtInLauncherButton {
+                    background-color: #2b3e50;
+                    color: #ecf0f1;
+                    border: 1px solid #34495e;
+                    border-radius: 4px;
+                    padding: 6px;
+                    font-weight: bold;
+                }
+                QPushButton#builtInLauncherButton:hover {
+                    background-color: #34495e;
+                    border-color: #4e6d8c;
+                }
+                QPushButton#builtInLauncherButton:pressed {
+                    background-color: #1a252f;
+                    border-color: #2b3e50;
+                }
+                QPushButton#builtInLauncherButton:disabled {
+                    background-color: #1e2a35;
+                    color: #666;
+                    border-color: #1e2a35;
+                }
+            """)
 
             launcher_layout.addWidget(button)
             self.app_buttons[app_name] = button
@@ -177,8 +206,13 @@ class MainWindow(QMainWindow):
         )
         launcher_layout.addWidget(self.raw_plate_checkbox)
 
+        # Add custom launchers section
+        self._add_custom_launchers_section(launcher_layout)
+
         # Ensure launcher group has minimum height and doesn't get hidden
-        self.launcher_group.setMinimumHeight(250)
+        self.launcher_group.setMinimumHeight(
+            350
+        )  # Increased to accommodate custom launchers
         right_layout.addWidget(self.launcher_group)
 
         # Log viewer
@@ -233,19 +267,19 @@ class MainWindow(QMainWindow):
 
         # Tools menu
         tools_menu = menubar.addMenu("&Tools")
-        
+
         # Launcher manager
         self.launcher_manager_action = QAction("&Manage Custom Launchers...", self)
         self.launcher_manager_action.setShortcut("Ctrl+L")
         self.launcher_manager_action.triggered.connect(self._show_launcher_manager)
         tools_menu.addAction(self.launcher_manager_action)
-        
+
         tools_menu.addSeparator()
-        
+
         # Custom launchers submenu
         self.custom_launcher_menu = tools_menu.addMenu("Custom &Launchers")
         self._update_launcher_menu()
-        
+
         # Help menu
         help_menu = menubar.addMenu("&Help")
 
@@ -277,11 +311,14 @@ class MainWindow(QMainWindow):
         # Command launcher
         self.command_launcher.command_executed.connect(self.log_viewer.add_command)
         self.command_launcher.command_error.connect(self.log_viewer.add_error)
-        
+
         # Custom launcher manager
         self.launcher_manager.launchers_changed.connect(self._update_launcher_menu)
+        self.launcher_manager.launchers_changed.connect(
+            self._update_custom_launcher_buttons
+        )
         self.launcher_manager.execution_started.connect(
-            lambda launcher_id: self._update_status(f"Launching custom command...")
+            lambda launcher_id: self._update_status("Launching custom command...")
         )
         self.launcher_manager.execution_finished.connect(
             lambda launcher_id, success: self._update_status(
@@ -504,9 +541,12 @@ class MainWindow(QMainWindow):
         for button in self.app_buttons.values():
             button.setEnabled(True)
         self.launcher_info_label.hide()
-        
+
         # Update custom launcher menu availability
         self._update_launcher_menu_availability(True)
+
+        # Enable custom launcher buttons
+        self._enable_custom_launcher_buttons(True)
 
         # Update window title
         self.setWindowTitle(f"{Config.APP_NAME} - {shot.full_name} ({shot.show})")
@@ -542,9 +582,12 @@ class MainWindow(QMainWindow):
         for button in self.app_buttons.values():
             button.setEnabled(True)
         self.launcher_info_label.hide()
-        
+
         # Update custom launcher menu availability
         self._update_launcher_menu_availability(True)
+
+        # Enable custom launcher buttons
+        self._enable_custom_launcher_buttons(True)
 
         # Update window title with scene info
         self.setWindowTitle(
@@ -713,7 +756,7 @@ class MainWindow(QMainWindow):
         """Show the launcher manager dialog."""
         if self._launcher_dialog is None:
             self._launcher_dialog = LauncherManagerDialog(self.launcher_manager, self)
-        
+
         self._launcher_dialog.show()
         self._launcher_dialog.raise_()
         self._launcher_dialog.activateWindow()
@@ -722,17 +765,17 @@ class MainWindow(QMainWindow):
         """Update the custom launcher menu with available launchers."""
         # Clear existing menu items
         self.custom_launcher_menu.clear()
-        
+
         # Get all launchers grouped by category
         launchers = self.launcher_manager.list_launchers()
-        
+
         if not launchers:
             # Add disabled placeholder
             no_launchers_action = QAction("No custom launchers", self)
             no_launchers_action.setEnabled(False)
             self.custom_launcher_menu.addAction(no_launchers_action)
             return
-        
+
         # Group by category
         categories = {}
         for launcher in launchers:
@@ -740,11 +783,11 @@ class MainWindow(QMainWindow):
             if category not in categories:
                 categories[category] = []
             categories[category].append(launcher)
-        
+
         # Add menu items
         for category in sorted(categories.keys()):
             category_launchers = categories[category]
-            
+
             if len(categories) > 1:
                 # Add category as submenu if multiple categories
                 category_menu = self.custom_launcher_menu.addMenu(category.title())
@@ -752,7 +795,11 @@ class MainWindow(QMainWindow):
                     action = QAction(launcher.name, self)
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
-                    action.triggered.connect(lambda checked, lid=launcher.id: self._execute_custom_launcher(lid))
+                    action.triggered.connect(
+                        lambda checked, lid=launcher.id: self._execute_custom_launcher(
+                            lid
+                        )
+                    )
                     category_menu.addAction(action)
             else:
                 # Add directly to main menu if only one category
@@ -760,16 +807,19 @@ class MainWindow(QMainWindow):
                     action = QAction(launcher.name, self)
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
-                    action.triggered.connect(lambda checked, lid=launcher.id: self._execute_custom_launcher(lid))
+                    action.triggered.connect(
+                        lambda checked, lid=launcher.id: self._execute_custom_launcher(
+                            lid
+                        )
+                    )
                     self.custom_launcher_menu.addAction(action)
-        
+
         # Update menu availability
         has_shot_or_scene = (
-            hasattr(self, '_last_selected_shot_name') or 
-            self._current_scene is not None
+            hasattr(self, "_last_selected_shot_name") or self._current_scene is not None
         )
         self._update_launcher_menu_availability(has_shot_or_scene)
-    
+
     def _update_launcher_menu_availability(self, has_context: bool):
         """Update custom launcher menu item availability based on context."""
         for action in self.custom_launcher_menu.actions():
@@ -780,14 +830,14 @@ class MainWindow(QMainWindow):
             else:
                 # Regular action
                 action.setEnabled(has_context)
-    
+
     def _execute_custom_launcher(self, launcher_id: str):
         """Execute a custom launcher."""
         launcher = self.launcher_manager.get_launcher(launcher_id)
         if not launcher:
             self._update_status(f"Launcher not found: {launcher_id}")
             return
-        
+
         # Check if we have a current scene selected
         if self._current_scene:
             # Create a Shot object from the scene for context
@@ -809,17 +859,25 @@ class MainWindow(QMainWindow):
                 )
                 return
             shot = current_shot
-        
+
         # Execute the launcher
         success = self.launcher_manager.execute_in_shot_context(launcher_id, shot)
-        
+
         if success:
             self._update_status(f"Launched '{launcher.name}'")
             # Log the execution
-            self.log_viewer.add_command(f"Custom launcher: {launcher.name}")
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.log_viewer.add_command(timestamp, f"Custom launcher: {launcher.name}")
         else:
             self._update_status(f"Failed to launch '{launcher.name}'")
-            self.log_viewer.add_error(f"Failed to launch custom launcher: {launcher.name}")
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.log_viewer.add_error(
+                timestamp, f"Failed to launch custom launcher: {launcher.name}"
+            )
 
     def _load_settings(self):
         """Load settings from file."""
@@ -893,6 +951,139 @@ class MainWindow(QMainWindow):
                 json.dump(settings, f, indent=2)
         except Exception as e:
             print(f"Error saving settings: {e}")
+
+    def _add_custom_launchers_section(self, parent_layout: QVBoxLayout) -> None:
+        """Add custom launchers section to the launcher panel."""
+        # Add separator
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setStyleSheet("QFrame { color: #555; margin: 10px 0; }")
+        parent_layout.addWidget(separator)
+
+        # Add custom launchers label
+        custom_label = QLabel("Custom Launchers")
+        custom_label.setObjectName("customLaunchersLabel")
+        custom_label.setStyleSheet("""
+            QLabel#customLaunchersLabel {
+                color: #aaa;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 5px 0 2px 0;
+            }
+        """)
+        parent_layout.addWidget(custom_label)
+
+        # Container for custom launcher buttons
+        self.custom_launcher_container = QVBoxLayout()
+        self.custom_launcher_container.setSpacing(5)
+        parent_layout.addLayout(self.custom_launcher_container)
+
+        # Dictionary to store custom launcher buttons
+        self.custom_launcher_buttons: dict[str, QPushButton] = {}
+
+        # Initial update
+        self._update_custom_launcher_buttons()
+
+    def _update_custom_launcher_buttons(self) -> None:
+        """Update the custom launcher buttons based on available launchers."""
+        # Clear existing buttons
+        while self.custom_launcher_container.count():
+            item = self.custom_launcher_container.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self.custom_launcher_buttons.clear()
+
+        # Get all launchers
+        launchers = self.launcher_manager.list_launchers()
+
+        if not launchers:
+            # Add placeholder text
+            no_launchers_label = QLabel("No custom launchers configured")
+            no_launchers_label.setStyleSheet("""
+                QLabel {
+                    color: #666;
+                    font-style: italic;
+                    padding: 10px;
+                }
+            """)
+            self.custom_launcher_container.addWidget(no_launchers_label)
+            return
+
+        # Group by category
+        categories = {}
+        for launcher in launchers:
+            category = launcher.category or "custom"
+            if category not in categories:
+                categories[category] = []
+            categories[category].append(launcher)
+
+        # Add buttons for each launcher
+        for category in sorted(categories.keys()):
+            category_launchers = categories[category]
+
+            # Add category header if multiple categories
+            if len(categories) > 1:
+                category_label = QLabel(category.title())
+                category_label.setStyleSheet("""
+                    QLabel {
+                        color: #888;
+                        font-size: 10px;
+                        padding: 5px 0 2px 0;
+                    }
+                """)
+                self.custom_launcher_container.addWidget(category_label)
+
+            for launcher in category_launchers:
+                button = QPushButton(f"🚀 {launcher.name}")
+                button.setObjectName("customLauncherButton")
+                button.setToolTip(launcher.description or f"Launch {launcher.name}")
+                button.clicked.connect(
+                    lambda checked, lid=launcher.id: self._execute_custom_launcher(lid)
+                )
+
+                # Apply custom styling
+                button.setStyleSheet("""
+                    QPushButton#customLauncherButton {
+                        background-color: #1a4d2e;
+                        color: #e0e0e0;
+                        border: 1px solid #245938;
+                        border-radius: 4px;
+                        padding: 6px;
+                        text-align: left;
+                        font-weight: normal;
+                    }
+                    QPushButton#customLauncherButton:hover {
+                        background-color: #245938;
+                        border-color: #2d6b47;
+                    }
+                    QPushButton#customLauncherButton:pressed {
+                        background-color: #0f3620;
+                        border-color: #1a4d2e;
+                    }
+                    QPushButton#customLauncherButton:disabled {
+                        background-color: #1a2e20;
+                        color: #666;
+                        border-color: #1a2e20;
+                    }
+                """)
+
+                # Initially disabled until shot selected
+                button.setEnabled(False)
+
+                self.custom_launcher_container.addWidget(button)
+                self.custom_launcher_buttons[launcher.id] = button
+
+        # Update button states based on current selection
+        has_selection = (
+            hasattr(self, "_last_selected_shot_name") or self._current_scene is not None
+        )
+        self._enable_custom_launcher_buttons(has_selection)
+
+    def _enable_custom_launcher_buttons(self, enabled: bool) -> None:
+        """Enable or disable all custom launcher buttons."""
+        for button in self.custom_launcher_buttons.values():
+            button.setEnabled(enabled)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle close event."""

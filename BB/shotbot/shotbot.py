@@ -33,7 +33,7 @@ def setup_logging():
 
     # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG)  # Set to DEBUG to allow all messages through
 
     # File handler for all logs
     file_handler = logging.FileHandler(log_file)

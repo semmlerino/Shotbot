@@ -28,6 +28,11 @@ copy/
 *.log
 .shotbot/
 
+# Obsolete archived files
+archive/
+launcher_config.py
+launcher_model.py
+
 # OS
 .DS_Store
 Thumbs.db

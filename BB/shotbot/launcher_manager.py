@@ -10,13 +10,13 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import QObject, Signal
 
 from config import Config
 from shot_model import Shot
-from utils import PathUtils, ValidationUtils
+from utils import PathUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -28,10 +28,17 @@ class LauncherValidation:
 
     check_executable: bool = True
     required_files: List[str] = field(default_factory=list)
-    forbidden_patterns: List[str] = field(default_factory=lambda: [
-        r';\s*rm\s', r';\s*sudo\s', r';\s*su\s', r'&&\s*rm\s',
-        r'\|\s*rm\s', r'`rm\s', r'\$\(rm\s'
-    ])
+    forbidden_patterns: List[str] = field(
+        default_factory=lambda: [
+            r";\s*rm\s",
+            r";\s*sudo\s",
+            r";\s*su\s",
+            r"&&\s*rm\s",
+            r"\|\s*rm\s",
+            r"`rm\s",
+            r"\$\(rm\s",
+        ]
+    )
 
 
 @dataclass
@@ -83,7 +90,7 @@ class CustomLauncher:
             data["terminal"] = LauncherTerminal(**data["terminal"])
         if "validation" in data and isinstance(data["validation"], dict):
             data["validation"] = LauncherValidation(**data["validation"])
-        
+
         return cls(**data)
 
 
@@ -110,14 +117,14 @@ class LauncherConfig:
             return {}
 
         try:
-            with open(self.config_file, 'r') as f:
+            with open(self.config_file, "r") as f:
                 data = json.load(f)
-            
+
             launchers = {}
             for launcher_id, launcher_data in data.get("launchers", {}).items():
                 launcher_data["id"] = launcher_id
                 launchers[launcher_id] = CustomLauncher.from_dict(launcher_data)
-            
+
             logger.info(f"Loaded {len(launchers)} launchers from config")
             return launchers
 
@@ -131,7 +138,7 @@ class LauncherConfig:
             config_data = {
                 "version": "1.0",
                 "launchers": {},
-                "terminal_preferences": ["gnome-terminal", "konsole", "xterm"]
+                "terminal_preferences": ["gnome-terminal", "konsole", "xterm"],
             }
 
             for launcher_id, launcher in launchers.items():
@@ -140,7 +147,7 @@ class LauncherConfig:
                 launcher_dict.pop("id", None)
                 config_data["launchers"][launcher_id] = launcher_dict
 
-            with open(self.config_file, 'w') as f:
+            with open(self.config_file, "w") as f:
                 json.dump(config_data, f, indent=2)
 
             logger.info(f"Saved {len(launchers)} launchers to config")
@@ -167,6 +174,9 @@ class LauncherManager(QObject):
         super().__init__()
         self.config = LauncherConfig()
         self._launchers: Dict[str, CustomLauncher] = {}
+        self._active_processes: Dict[
+            str, subprocess.Popen
+        ] = {}  # Track active processes
         self._load_launchers()
 
     def _load_launchers(self) -> None:
@@ -182,10 +192,7 @@ class LauncherManager(QObject):
         return str(uuid.uuid4())
 
     def _validate_launcher_data(
-        self, 
-        name: str, 
-        command: str, 
-        exclude_id: Optional[str] = None
+        self, name: str, command: str, exclude_id: Optional[str] = None
     ) -> List[str]:
         """Validate launcher data and return list of errors."""
         errors = []
@@ -209,21 +216,30 @@ class LauncherManager(QObject):
             # Check for security patterns
             cmd_lower = command.lower()
             security_patterns = [
-                'rm -rf', 'sudo rm', 'rm /', 'format c:', 'del /s',
-                '> /dev/sda', 'dd if=', 'mkfs.', 'fdisk'
+                "rm -rf",
+                "sudo rm",
+                "rm /",
+                "format c:",
+                "del /s",
+                "> /dev/sda",
+                "dd if=",
+                "mkfs.",
+                "fdisk",
             ]
             for pattern in security_patterns:
                 if pattern in cmd_lower:
-                    errors.append(f"Command contains potentially dangerous pattern: {pattern}")
+                    errors.append(
+                        f"Command contains potentially dangerous pattern: {pattern}"
+                    )
                     break
 
         return errors
 
     def _substitute_variables(
-        self, 
-        text: str, 
-        shot: Optional[Shot] = None, 
-        custom_vars: Optional[Dict[str, str]] = None
+        self,
+        text: str,
+        shot: Optional[Shot] = None,
+        custom_vars: Optional[Dict[str, str]] = None,
     ) -> str:
         """Perform variable substitution in text."""
         if not text:
@@ -231,27 +247,31 @@ class LauncherManager(QObject):
 
         # Build substitution context
         context = {}
-        
+
         # Add shot context variables
         if shot:
-            context.update({
-                'show': shot.show,
-                'sequence': shot.sequence,
-                'shot': shot.shot,
-                'full_name': shot.full_name,
-                'workspace_path': shot.workspace_path
-            })
+            context.update(
+                {
+                    "show": shot.show,
+                    "sequence": shot.sequence,
+                    "shot": shot.shot,
+                    "full_name": shot.full_name,
+                    "workspace_path": shot.workspace_path,
+                }
+            )
 
         # Add custom variables
         if custom_vars:
             context.update(custom_vars)
 
         # Add environment variables
-        context.update({
-            'HOME': os.environ.get('HOME', ''),
-            'USER': os.environ.get('USER', ''),
-            'SHOTBOT_VERSION': Config.APP_VERSION
-        })
+        context.update(
+            {
+                "HOME": os.environ.get("HOME", ""),
+                "USER": os.environ.get("USER", ""),
+                "SHOTBOT_VERSION": Config.APP_VERSION,
+            }
+        )
 
         # Use string.Template for safe substitution
         try:
@@ -264,7 +284,7 @@ class LauncherManager(QObject):
     def _validate_security(self, command: str) -> List[str]:
         """Validate command for security issues."""
         errors = []
-        
+
         # Parse command safely
         try:
             tokens = shlex.split(command)
@@ -278,10 +298,19 @@ class LauncherManager(QObject):
 
         # Check for dangerous commands
         dangerous_commands = {
-            'rm', 'rmdir', 'del', 'format', 'fdisk', 'mkfs',
-            'dd', 'shutdown', 'reboot', 'halt', 'init'
+            "rm",
+            "rmdir",
+            "del",
+            "format",
+            "fdisk",
+            "mkfs",
+            "dd",
+            "shutdown",
+            "reboot",
+            "halt",
+            "init",
         }
-        
+
         base_command = Path(tokens[0]).name.lower()
         if base_command in dangerous_commands:
             errors.append(f"Potentially dangerous command: {base_command}")
@@ -297,10 +326,10 @@ class LauncherManager(QObject):
         variables: Optional[Dict[str, str]] = None,
         environment: Optional[LauncherEnvironment] = None,
         terminal: Optional[LauncherTerminal] = None,
-        validation: Optional[LauncherValidation] = None
+        validation: Optional[LauncherValidation] = None,
     ) -> Optional[str]:
         """Create a new launcher.
-        
+
         Args:
             name: Display name for the launcher
             command: Command to execute
@@ -310,7 +339,7 @@ class LauncherManager(QObject):
             environment: Environment configuration
             terminal: Terminal configuration
             validation: Validation configuration
-            
+
         Returns:
             Launcher ID if successful, None otherwise
         """
@@ -339,7 +368,7 @@ class LauncherManager(QObject):
             variables=variables or {},
             environment=environment or LauncherEnvironment(),
             terminal=terminal or LauncherTerminal(),
-            validation=validation or LauncherValidation()
+            validation=validation or LauncherValidation(),
         )
 
         # Store launcher
@@ -354,7 +383,9 @@ class LauncherManager(QObject):
         else:
             # Remove from memory if save failed
             del self._launchers[launcher_id]
-            self.validation_error.emit("general", "Failed to save launcher configuration")
+            self.validation_error.emit(
+                "general", "Failed to save launcher configuration"
+            )
             return None
 
     def update_launcher(
@@ -367,10 +398,10 @@ class LauncherManager(QObject):
         variables: Optional[Dict[str, str]] = None,
         environment: Optional[LauncherEnvironment] = None,
         terminal: Optional[LauncherTerminal] = None,
-        validation: Optional[LauncherValidation] = None
+        validation: Optional[LauncherValidation] = None,
     ) -> bool:
         """Update an existing launcher.
-        
+
         Args:
             launcher_id: ID of launcher to update
             name: New name (if provided)
@@ -381,7 +412,7 @@ class LauncherManager(QObject):
             environment: New environment config (if provided)
             terminal: New terminal config (if provided)
             validation: New validation config (if provided)
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -394,7 +425,7 @@ class LauncherManager(QObject):
         # Validate changes if name or command are being updated
         update_name = name if name is not None else launcher.name
         update_command = command if command is not None else launcher.command
-        
+
         errors = self._validate_launcher_data(update_name, update_command, launcher_id)
         if errors:
             for error in errors:
@@ -436,15 +467,17 @@ class LauncherManager(QObject):
             self.launchers_changed.emit()
             return True
         else:
-            self.validation_error.emit("general", "Failed to save launcher configuration")
+            self.validation_error.emit(
+                "general", "Failed to save launcher configuration"
+            )
             return False
 
     def delete_launcher(self, launcher_id: str) -> bool:
         """Delete a launcher.
-        
+
         Args:
             launcher_id: ID of launcher to delete
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -462,41 +495,125 @@ class LauncherManager(QObject):
             self.launchers_changed.emit()
             return True
         else:
-            self.validation_error.emit("general", "Failed to save launcher configuration")
+            self.validation_error.emit(
+                "general", "Failed to save launcher configuration"
+            )
             return False
 
     def get_launcher(self, launcher_id: str) -> Optional[CustomLauncher]:
         """Get a launcher by ID.
-        
+
         Args:
             launcher_id: ID of launcher to retrieve
-            
+
         Returns:
             CustomLauncher if found, None otherwise
         """
         return self._launchers.get(launcher_id)
 
+    def get_launcher_by_name(self, name: str) -> Optional[CustomLauncher]:
+        """Get a launcher by name.
+
+        Args:
+            name: Name of launcher to retrieve
+
+        Returns:
+            CustomLauncher if found, None otherwise
+        """
+        if not name:
+            return None
+
+        name = name.strip()
+        for launcher in self._launchers.values():
+            if launcher.name == name:
+                return launcher
+        return None
+
+    def validate_command_syntax(self, command: str) -> tuple[bool, Optional[str]]:
+        """Validate command syntax for variable substitutions.
+
+        Args:
+            command: Command string to validate
+
+        Returns:
+            Tuple of (is_valid, error_message). If valid, error_message is None.
+        """
+        if not command:
+            return False, "Command cannot be empty"
+
+        # Define valid placeholder variables
+        valid_variables = {
+            # Shot context variables
+            "show",
+            "sequence",
+            "shot",
+            "full_name",
+            "workspace_path",
+            # Environment variables
+            "HOME",
+            "USER",
+            "SHOTBOT_VERSION",
+        }
+
+        try:
+            # Use string.Template to validate syntax
+            template = string.Template(command)
+
+            # Extract all placeholders from the command
+            placeholders = set()
+            import re
+
+            # Find all $identifier and ${identifier} patterns
+            for match in re.finditer(r"\$(?:(\w+)|\{(\w+)\})", command):
+                placeholder = match.group(1) or match.group(2)
+                if placeholder:
+                    placeholders.add(placeholder)
+
+            # Check for invalid variable names
+            invalid_vars = placeholders - valid_variables
+            if invalid_vars:
+                invalid_list = ", ".join(sorted(invalid_vars))
+                valid_list = ", ".join(sorted(valid_variables))
+                return (
+                    False,
+                    f"Invalid variables: {invalid_list}. Valid variables are: {valid_list}",
+                )
+
+            # Try to perform a safe substitution to catch syntax errors
+            # Use empty context to catch any malformed patterns
+            try:
+                template.safe_substitute({})
+            except ValueError as e:
+                return False, f"Invalid template syntax: {e}"
+
+            return True, None
+
+        except Exception as e:
+            return False, f"Command validation failed: {e}"
+
     def list_launchers(self, category: Optional[str] = None) -> List[CustomLauncher]:
         """Get list of all launchers, optionally filtered by category.
-        
+
         Args:
             category: Optional category filter
-            
+
         Returns:
             List of CustomLauncher objects
         """
         launchers = list(self._launchers.values())
-        
+
         if category:
-            launchers = [l for l in launchers if l.category == category]
-            
+            launchers = [
+                launcher for launcher in launchers if launcher.category == category
+            ]
+
         # Sort by name
         launchers.sort(key=lambda x: x.name.lower())
         return launchers
 
     def get_categories(self) -> List[str]:
         """Get list of all categories in use.
-        
+
         Returns:
             Sorted list of category names
         """
@@ -504,18 +621,18 @@ class LauncherManager(QObject):
         return sorted(categories)
 
     def execute_launcher(
-        self, 
-        launcher_id: str, 
+        self,
+        launcher_id: str,
         custom_vars: Optional[Dict[str, str]] = None,
-        dry_run: bool = False
+        dry_run: bool = False,
     ) -> bool:
         """Execute a launcher with optional custom variables.
-        
+
         Args:
             launcher_id: ID of launcher to execute
             custom_vars: Optional custom variables for substitution
             dry_run: If True, only validate and log the command without executing
-            
+
         Returns:
             True if execution started successfully, False otherwise
         """
@@ -524,12 +641,12 @@ class LauncherManager(QObject):
             return False
 
         launcher = self._launchers[launcher_id]
-        
+
         try:
             # Substitute variables in command
             merged_vars = {**launcher.variables, **(custom_vars or {})}
             command = self._substitute_variables(launcher.command, None, merged_vars)
-            
+
             if dry_run:
                 logger.info(f"DRY RUN - Would execute: {command}")
                 return True
@@ -539,17 +656,27 @@ class LauncherManager(QObject):
             logger.info(f"Executing launcher '{launcher.name}': {command}")
 
             # Use shell execution for complex commands
+            # Use DEVNULL to prevent pipe buffer deadlocks when apps close
             process = subprocess.Popen(
                 command,
                 shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
             )
 
             # Don't wait for completion to avoid blocking UI
-            logger.info(f"Started process for launcher '{launcher.name}' (PID: {process.pid})")
+            # Store process reference for tracking
+            process_key = f"{launcher_id}_{process.pid}"
+            self._active_processes[process_key] = process
+
+            logger.info(
+                f"Started process for launcher '{launcher.name}' (PID: {process.pid})"
+            )
             self.execution_finished.emit(launcher_id, True)
+
+            # Clean up any finished processes
+            self._cleanup_finished_processes()
             return True
 
         except Exception as e:
@@ -558,20 +685,20 @@ class LauncherManager(QObject):
             return False
 
     def execute_in_shot_context(
-        self, 
-        launcher_id: str, 
+        self,
+        launcher_id: str,
         shot: Shot,
         custom_vars: Optional[Dict[str, str]] = None,
-        dry_run: bool = False
+        dry_run: bool = False,
     ) -> bool:
         """Execute a launcher with shot context variables.
-        
+
         Args:
             launcher_id: ID of launcher to execute
             shot: Shot object providing context
             custom_vars: Optional additional custom variables
             dry_run: If True, only validate and log the command without executing
-            
+
         Returns:
             True if execution started successfully, False otherwise
         """
@@ -580,14 +707,16 @@ class LauncherManager(QObject):
             return False
 
         launcher = self._launchers[launcher_id]
-        
+
         try:
             # Substitute variables in command with shot context
             merged_vars = {**launcher.variables, **(custom_vars or {})}
             command = self._substitute_variables(launcher.command, shot, merged_vars)
-            
+
             if dry_run:
-                logger.info(f"DRY RUN - Would execute in shot context {shot.full_name}: {command}")
+                logger.info(
+                    f"DRY RUN - Would execute in shot context {shot.full_name}: {command}"
+                )
                 return True
 
             # Change to shot workspace directory
@@ -595,7 +724,7 @@ class LauncherManager(QObject):
             workspace_exists = PathUtils.validate_path_exists(
                 shot.workspace_path, "Shot workspace"
             )
-            
+
             if workspace_exists:
                 os.chdir(shot.workspace_path)
                 logger.info(f"Changed to workspace directory: {shot.workspace_path}")
@@ -603,21 +732,33 @@ class LauncherManager(QObject):
             try:
                 # Execute command
                 self.execution_started.emit(launcher_id)
-                logger.info(f"Executing launcher '{launcher.name}' in shot {shot.full_name}: {command}")
+                logger.info(
+                    f"Executing launcher '{launcher.name}' in shot {shot.full_name}: {command}"
+                )
 
                 # For shot context, use ws command if available
                 full_command = f"bash -i -c 'ws {shot.workspace_path} && {command}'"
 
+                # Use DEVNULL to prevent pipe buffer deadlocks when apps close
                 process = subprocess.Popen(
                     full_command,
                     shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
                 )
 
-                logger.info(f"Started process for launcher '{launcher.name}' in shot context (PID: {process.pid})")
+                # Store process reference for tracking
+                process_key = f"{launcher_id}_{process.pid}"
+                self._active_processes[process_key] = process
+
+                logger.info(
+                    f"Started process for launcher '{launcher.name}' in shot context (PID: {process.pid})"
+                )
                 self.execution_finished.emit(launcher_id, True)
+
+                # Clean up any finished processes
+                self._cleanup_finished_processes()
                 return True
 
             finally:
@@ -625,17 +766,21 @@ class LauncherManager(QObject):
                 os.chdir(original_cwd)
 
         except Exception as e:
-            logger.error(f"Failed to execute launcher '{launcher.name}' in shot context: {e}")
+            logger.error(
+                f"Failed to execute launcher '{launcher.name}' in shot context: {e}"
+            )
             self.execution_finished.emit(launcher_id, False)
             return False
 
-    def validate_launcher_paths(self, launcher_id: str, shot: Optional[Shot] = None) -> List[str]:
+    def validate_launcher_paths(
+        self, launcher_id: str, shot: Optional[Shot] = None
+    ) -> List[str]:
         """Validate that required files exist for a launcher.
-        
+
         Args:
             launcher_id: ID of launcher to validate
             shot: Optional shot context for variable substitution
-            
+
         Returns:
             List of validation error messages
         """
@@ -647,9 +792,13 @@ class LauncherManager(QObject):
 
         # Check required files
         for file_path in launcher.validation.required_files:
-            resolved_path = self._substitute_variables(file_path, shot, launcher.variables)
-            
-            if not PathUtils.validate_path_exists(resolved_path, f"Required file {file_path}"):
+            resolved_path = self._substitute_variables(
+                file_path, shot, launcher.variables
+            )
+
+            if not PathUtils.validate_path_exists(
+                resolved_path, f"Required file {file_path}"
+            ):
                 errors.append(f"Required file not found: {resolved_path}")
 
         # Check executable if enabled
@@ -662,25 +811,56 @@ class LauncherManager(QObject):
                     resolved_executable = self._substitute_variables(
                         executable, shot, launcher.variables
                     )
-                    
+
                     # Check if it's an absolute path
                     if os.path.isabs(resolved_executable):
-                        if not PathUtils.validate_path_exists(resolved_executable, "Executable"):
-                            errors.append(f"Executable not found: {resolved_executable}")
+                        if not PathUtils.validate_path_exists(
+                            resolved_executable, "Executable"
+                        ):
+                            errors.append(
+                                f"Executable not found: {resolved_executable}"
+                            )
                     else:
                         # Check if it's in PATH
                         import shutil
+
                         if not shutil.which(resolved_executable):
-                            errors.append(f"Executable not found in PATH: {resolved_executable}")
+                            errors.append(
+                                f"Executable not found in PATH: {resolved_executable}"
+                            )
 
             except ValueError as e:
                 errors.append(f"Failed to parse command: {e}")
 
         return errors
 
+    def _cleanup_finished_processes(self) -> None:
+        """Clean up finished processes from tracking."""
+        finished_keys = []
+        for process_key, process in self._active_processes.items():
+            # Check if process has finished
+            if process.poll() is not None:
+                finished_keys.append(process_key)
+
+        # Remove finished processes
+        for key in finished_keys:
+            del self._active_processes[key]
+
+        if finished_keys:
+            logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
+
+    def get_active_process_count(self) -> int:
+        """Get the number of currently active launcher processes.
+
+        Returns:
+            Number of active processes
+        """
+        self._cleanup_finished_processes()
+        return len(self._active_processes)
+
     def reload_config(self) -> bool:
         """Reload launcher configuration from file.
-        
+
         Returns:
             True if reload was successful, False otherwise
         """

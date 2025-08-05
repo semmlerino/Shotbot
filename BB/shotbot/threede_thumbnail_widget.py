@@ -27,9 +27,6 @@ class ThreeDEThumbnailWidget(ThumbnailWidgetBase):
 
     def _setup_custom_ui(self):
         """Set up custom UI elements specific to 3DE scene thumbnails."""
-        # Adjust layout spacing for additional labels
-        self.layout.setSpacing(3)
-        
         # Shot name label (larger, bold)
         self.shot_label = QLabel(self.scene.full_name)
         self.shot_label.setObjectName("shot")
@@ -39,9 +36,9 @@ class ThreeDEThumbnailWidget(ThumbnailWidgetBase):
         shot_font.setPointSize(10)
         shot_font.setBold(True)
         self.shot_label.setFont(shot_font)
-        
-        self.layout.addWidget(self.shot_label)
-        
+
+        self.content_layout.addWidget(self.shot_label)
+
         # User label (smaller)
         self.user_label = QLabel(self.scene.user)
         self.user_label.setObjectName("user")
@@ -49,9 +46,9 @@ class ThreeDEThumbnailWidget(ThumbnailWidgetBase):
         user_font = self.user_label.font()
         user_font.setPointSize(8)
         self.user_label.setFont(user_font)
-        
-        self.layout.addWidget(self.user_label)
-        
+
+        self.content_layout.addWidget(self.user_label)
+
         # Plate label (highlighted)
         self.plate_label = QLabel(self.scene.plate)
         self.plate_label.setObjectName("plate")
@@ -60,15 +57,11 @@ class ThreeDEThumbnailWidget(ThumbnailWidgetBase):
         plate_font.setPointSize(9)
         plate_font.setBold(True)
         self.plate_label.setFont(plate_font)
-        
-        self.layout.addWidget(self.plate_label)
-        
+
+        self.content_layout.addWidget(self.plate_label)
+
         # Apply initial style
         self._update_style()
-
-
-
-
 
     def _get_selected_style(self) -> str:
         """Get the CSS style for selected state."""
@@ -101,7 +94,7 @@ class ThreeDEThumbnailWidget(ThumbnailWidgetBase):
                 background-color: transparent;
             }
         """
-    
+
     def _get_unselected_style(self) -> str:
         """Get the CSS style for unselected state."""
         return """
@@ -136,14 +129,12 @@ class ThreeDEThumbnailWidget(ThumbnailWidgetBase):
             }
         """
 
-
     def _create_context_menu(self) -> QMenu:
         """Create and return the context menu for this widget."""
         menu = QMenu(self)
-        
+
         # Add "Open Shot Folder" action only - matching ThumbnailWidget behavior
         open_folder_action = menu.addAction("Open Shot Folder")
         open_folder_action.triggered.connect(self._open_shot_folder)
-        
-        return menu
 
+        return menu

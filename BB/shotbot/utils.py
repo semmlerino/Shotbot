@@ -467,7 +467,10 @@ class ImageUtils:
 
     @staticmethod
     def validate_image_dimensions(
-        width: int, height: int, max_dimension: Optional[int] = None, max_memory_mb: Optional[int] = None
+        width: int,
+        height: int,
+        max_dimension: Optional[int] = None,
+        max_memory_mb: Optional[int] = None,
     ) -> bool:
         """Validate image dimensions and estimated memory usage.
 
@@ -505,7 +508,9 @@ class ImageUtils:
         return True
 
     @staticmethod
-    def get_safe_dimensions_for_thumbnail(max_size: Optional[int] = None) -> Tuple[int, int]:
+    def get_safe_dimensions_for_thumbnail(
+        max_size: Optional[int] = None,
+    ) -> Tuple[int, int]:
         """Get safe dimensions for thumbnail generation.
 
         Args:

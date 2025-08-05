@@ -1,11 +1,10 @@
 """Custom launcher management dialog for ShotBot."""
 
 import logging
-from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QAction, QShortcut
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -26,7 +25,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from launcher_manager import CustomLauncher, LauncherEnvironment, LauncherManager
+from launcher_manager import (
+    CustomLauncher,
+    LauncherEnvironment,
+    LauncherManager,
+    LauncherTerminal,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +149,12 @@ class LauncherPreviewPanel(QWidget):
 class LauncherEditDialog(QDialog):
     """Dialog for creating/editing launchers."""
 
-    def __init__(self, launcher_manager: LauncherManager, launcher: Optional[CustomLauncher] = None, parent=None):
+    def __init__(
+        self,
+        launcher_manager: LauncherManager,
+        launcher: Optional[CustomLauncher] = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.launcher_manager = launcher_manager
         self.launcher = launcher
@@ -230,7 +239,8 @@ class LauncherEditDialog(QDialog):
 
         # Buttons
         self.button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
         )
         self.button_box.accepted.connect(self._save)
         self.button_box.rejected.connect(self.reject)
@@ -249,12 +259,17 @@ class LauncherEditDialog(QDialog):
         if self.launcher.environment:
             self.env_type_combo.setCurrentText(self.launcher.environment.type)
             if self.launcher.environment.type == "rez":
-                self.env_spec_field.setText(" ".join(self.launcher.environment.packages or []))
+                self.env_spec_field.setText(
+                    " ".join(self.launcher.environment.packages or [])
+                )
             elif self.launcher.environment.type == "conda":
-                self.env_spec_field.setText(self.launcher.environment.name or "")
+                # Conda environments use command_prefix for environment name
+                self.env_spec_field.setText(
+                    self.launcher.environment.command_prefix or ""
+                )
 
         if self.launcher.terminal:
-            self.persist_terminal.setChecked(self.launcher.terminal.persist_terminal)
+            self.persist_terminal.setChecked(self.launcher.terminal.persist)
 
     def _connect_signals(self):
         """Connect signals for validation."""
@@ -269,7 +284,7 @@ class LauncherEditDialog(QDialog):
             return False
 
         # Check uniqueness
-        if not self.is_editing or name != self.launcher.name:
+        if not self.is_editing or (self.launcher and name != self.launcher.name):
             if self.launcher_manager.get_launcher_by_name(name):
                 self.name_field.setStyleSheet("border: 1px solid #f44336;")
                 return False
@@ -303,6 +318,7 @@ class LauncherEditDialog(QDialog):
         test_launcher = CustomLauncher(
             id="test",
             name="Test",
+            description="Test launcher",
             command=command,
         )
 
@@ -316,7 +332,7 @@ class LauncherEditDialog(QDialog):
         }
 
         try:
-            result = self.launcher_manager.execute_launcher(
+            self.launcher_manager.execute_launcher(
                 test_launcher.id, variables, dry_run=True
             )
             self.test_output.setText("✓ Command validated successfully")
@@ -328,7 +344,9 @@ class LauncherEditDialog(QDialog):
     def _save(self):
         """Save the launcher."""
         if not self._validate_name() or not self._validate_command():
-            QMessageBox.warning(self, "Validation Error", "Please fix the highlighted fields.")
+            QMessageBox.warning(
+                self, "Validation Error", "Please fix the highlighted fields."
+            )
             return
 
         # Gather data
@@ -344,27 +362,24 @@ class LauncherEditDialog(QDialog):
 
         if env_type != "none" and env_spec:
             if env_type == "rez":
-                environment = LauncherEnvironment(
-                    type="rez",
-                    packages=env_spec.split()
-                )
+                environment = LauncherEnvironment(type="rez", packages=env_spec.split())
             elif env_type == "conda":
-                environment = LauncherEnvironment(
-                    type="conda",
-                    name=env_spec
-                )
+                environment = LauncherEnvironment(type="conda", command_prefix=env_spec)
+
+        # Create terminal settings
+        terminal = LauncherTerminal(persist=self.persist_terminal.isChecked())
 
         try:
-            if self.is_editing:
+            if self.is_editing and self.launcher:
                 # Update existing
                 success = self.launcher_manager.update_launcher(
                     self.launcher.id,
                     name=name,
                     command=command,
-                    description=description or None,
-                    category=category or None,
+                    description=description or "",
+                    category=category or "custom",
                     environment=environment,
-                    persist_terminal=self.persist_terminal.isChecked(),
+                    terminal=terminal,
                 )
                 if success:
                     self.accept()
@@ -375,10 +390,10 @@ class LauncherEditDialog(QDialog):
                 launcher_id = self.launcher_manager.create_launcher(
                     name=name,
                     command=command,
-                    description=description or None,
-                    category=category or None,
+                    description=description or "",
+                    category=category or "custom",
                     environment=environment,
-                    persist_terminal=self.persist_terminal.isChecked(),
+                    terminal=terminal,
                 )
                 if launcher_id:
                     self.accept()
@@ -606,11 +621,11 @@ class LauncherManagerDialog(QDialog):
             # Create list item
             item = QListWidgetItem()
             item.setText(launcher.name)
-            
+
             # Store launcher data
             item.setData(Qt.ItemDataRole.UserRole, launcher.id)
             self._launchers_cache[launcher.id] = launcher
-            
+
             # Add to list
             self.launcher_list.addItem(item)
 
@@ -623,17 +638,17 @@ class LauncherManagerDialog(QDialog):
     def _filter_launchers(self, text: str):
         """Filter launchers based on search text."""
         search_text = text.lower()
-        
+
         for i in range(self.launcher_list.count()):
             item = self.launcher_list.item(i)
             launcher_id = item.data(Qt.ItemDataRole.UserRole)
             launcher = self._launchers_cache.get(launcher_id)
-            
+
             if launcher:
                 # Search in name and command
                 visible = (
-                    search_text in launcher.name.lower() or
-                    search_text in launcher.command.lower()
+                    search_text in launcher.name.lower()
+                    or search_text in launcher.command.lower()
                 )
                 item.setHidden(not visible)
 
@@ -675,7 +690,7 @@ class LauncherManagerDialog(QDialog):
             "Delete Launcher",
             f"Are you sure you want to delete '{launcher.name}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
 
         if reply == QMessageBox.StandardButton.Yes:
