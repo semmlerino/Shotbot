@@ -78,8 +78,10 @@ class PathUtils:
         Returns:
             Path to thumbnail directory
         """
+        # VFX convention: shot directory is named {sequence}_{shot}
+        shot_dir = f"{sequence}_{shot}"
         return PathUtils.build_path(
-            shows_root, show, "shots", sequence, shot, *Config.THUMBNAIL_SEGMENTS
+            shows_root, show, "shots", sequence, shot_dir, *Config.THUMBNAIL_SEGMENTS
         )
 
     @staticmethod

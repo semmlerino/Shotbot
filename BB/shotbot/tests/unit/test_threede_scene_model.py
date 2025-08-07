@@ -68,6 +68,7 @@ class TestThreeDEScene:
             scene_path=Path("/path/to/scene.3de"),
         )
 
+        # VFX convention: shot directory is named {sequence}_{shot}
         expected = Path(
             "/shows/test_show/shots/AB_123/AB_123_0010/publish/editorial/cutref/v001/jpg/1920x1080"
         )
