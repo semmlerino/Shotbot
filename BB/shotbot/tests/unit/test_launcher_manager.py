@@ -436,10 +436,12 @@ class TestLauncherManager(unittest.TestCase):
         )
 
         # Execute launcher (will use worker thread)
-        with patch.object(self.manager, "_execute_with_worker", return_value=True) as mock_worker:
+        with patch.object(
+            self.manager, "_execute_with_worker", return_value=True
+        ) as mock_worker:
             success = self.manager.execute_launcher(launcher_id)
             self.assertTrue(success)
-            
+
             # Verify worker was called with correct arguments
             mock_worker.assert_called_once()
             args = mock_worker.call_args[0]
@@ -474,10 +476,12 @@ class TestLauncherManager(unittest.TestCase):
         with patch(
             "launcher_manager.PathUtils.validate_path_exists", return_value=True
         ):
-            with patch.object(self.manager, "_execute_with_worker", return_value=True) as mock_worker:
+            with patch.object(
+                self.manager, "_execute_with_worker", return_value=True
+            ) as mock_worker:
                 success = self.manager.execute_in_shot_context(launcher_id, shot)
                 self.assertTrue(success)
-                
+
                 # Verify worker was called with correct arguments
                 mock_worker.assert_called_once()
                 args = mock_worker.call_args[0]
@@ -485,7 +489,9 @@ class TestLauncherManager(unittest.TestCase):
                 self.assertEqual(args[1], "Shot Context Test")
                 # Check that variable substitution happened
                 self.assertIn("testseq_001", args[2])  # Variable substituted
-                self.assertIn("ws /shows/testshow/shots/testseq/001", args[2])  # ws command
+                self.assertIn(
+                    "ws /shows/testshow/shots/testseq/001", args[2]
+                )  # ws command
                 self.assertEqual(args[3], shot.workspace_path)  # Working directory
 
         # Verify directory change

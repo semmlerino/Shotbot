@@ -1,0 +1,51 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0 -- /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/bin/python
+cachedir: .pytest_cache
+PySide6 6.9.1 -- Qt runtime 6.9.1 -- Qt compiled 6.9.1
+rootdir: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot
+configfile: pytest.ini
+plugins: cov-6.2.1, qt-4.5.0
+collecting ... collected 580 items / 6 skipped
+
+tests/integration/test_caching_workflow.py::TestCachingWorkflow::test_shot_model_cache_on_refresh PASSED [  0%]
+tests/integration/test_caching_workflow.py::TestCachingWorkflow::test_shot_model_loads_from_cache PASSED [  0%]
+tests/integration/test_caching_workflow.py::TestCachingWorkflow::test_shot_model_change_detection PASSED [  0%]
+tests/integration/test_caching_workflow.py::TestCachingWorkflow::test_thumbnail_caching_workflow PASSED [  0%]
+tests/integration/test_caching_workflow.py::TestCachingWorkflow::test_cache_expiry PASSED [  0%]
+tests/integration/test_caching_workflow.py::TestCachingWorkflow::test_cache_clear_and_recreate PASSED [  1%]
+tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_concurrent_cache_operations_stress PASSED [  1%]
+tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_concurrent_filesystem_stress PASSED [  1%]
+tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_concurrent_launcher_stress FAILED [  1%]
+tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_concurrent_ui_widget_stress FAILED [  1%]
+tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_resource_exhaustion_recovery FAILED [  1%]
+tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_concurrent_error_handling_stress FAILED [  2%]
+tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_long_running_stability_stress Fatal Python error: Segmentation fault
+
+Current thread 0x00007f2e43364080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pytestqt/plugin.py", line 220 in _process_events
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pytestqt/plugin.py", line 188 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 152 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 367 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/config/__init__.py", line 175 in main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/run_tests.py", line 45 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest (total: 5)

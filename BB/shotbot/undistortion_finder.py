@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 class UndistortionFinder:
     """Finds the latest undistortion .nk file for a shot."""
 
+    # Pattern for version directories (v001, v002, etc.)
+    VERSION_PATTERN = VersionUtils.VERSION_PATTERN
+
     @staticmethod
     def find_latest_undistortion(
         shot_workspace_path: str, shot_name: str, username: Optional[str] = None

@@ -17,12 +17,37 @@ class TestMainWindowNewFeatures:
     @pytest.fixture
     def main_window(self, qapp, monkeypatch):
         """Create MainWindow instance."""
-        # Mock the timer to prevent actual background refresh
+        # Mock QTimer.singleShot to prevent delayed execution
+        monkeypatch.setattr(QTimer, "singleShot", lambda *args: None)
+        # Mock the timer start to prevent actual background refresh
         monkeypatch.setattr(QTimer, "start", Mock())
+        # Mock QMessageBox to prevent dialogs during tests
+        from PySide6.QtWidgets import QMessageBox
+
+        monkeypatch.setattr(QMessageBox, "warning", Mock())
+        monkeypatch.setattr(QMessageBox, "information", Mock())
 
         # Create window
         window = MainWindow()
+
+        # Mock the 3DE scene refresh to prevent thread issues
+        window._refresh_threede_scenes = Mock()
+
+        # Ensure refresh_shots won't fail and trigger warnings
+        window.shot_model.refresh_shots = Mock(return_value=(True, False))
+
         yield window
+
+        # Stop any running timers
+        if hasattr(window, "refresh_timer"):
+            window.refresh_timer.stop()
+
+        # Ensure proper cleanup of any running threads
+        if hasattr(window, "_threede_worker") and window._threede_worker:
+            if not window._threede_worker.isFinished():
+                window._threede_worker.stop()
+                window._threede_worker.wait(1000)
+
         window.close()
 
     def test_shot_info_panel_integration(self, main_window):
@@ -114,6 +139,11 @@ class TestMainWindowNewFeatures:
         window.status_bar = MagicMock()
         window._update_status = Mock()
 
+        # Mock threede_scene_model
+        window.threede_scene_model = MagicMock()
+        window.threede_scene_model.scenes = []
+        window.threede_shot_grid = MagicMock()
+
         # Call the actual method we want to test from MainWindow
         MainWindow._initial_load(window)
 
@@ -190,6 +220,9 @@ class TestMainWindowNewFeatures:
         # Ensure no previous selection to avoid selection restoration
         if hasattr(main_window, "_last_selected_shot_name"):
             delattr(main_window, "_last_selected_shot_name")
+
+        # Mock _refresh_threede_scenes to prevent it from changing status
+        main_window._refresh_threede_scenes = Mock()
 
         # First refresh with changes
         main_window._refresh_shots()

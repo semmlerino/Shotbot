@@ -37,3 +37,60 @@ skip-magic-trailing-comma = false
 
 # Format docstrings
 docstring-code-format = true
+
+[tool.basedpyright]
+# Type checking mode
+typeCheckingMode = "basic"
+
+# Python version
+pythonVersion = "3.8"
+
+# Virtual environment
+venvPath = "."
+venv = "venv"
+
+# Files to include
+include = [
+    "shot_model.py",
+    "cache_manager.py", 
+    "utils.py",
+    "raw_plate_finder.py",
+    "threede_scene_finder.py",
+    "threede_scene_model.py",
+    "main_window.py",
+    "config.py"
+]
+
+# Files to exclude
+exclude = [
+    "venv",
+    "**/__pycache__",
+    "build",
+    "dist"
+]
+
+# Stub path
+stubPath = "."
+
+# Error reporting levels
+reportMissingImports = "warning"
+reportMissingTypeStubs = "warning"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportIgnoreCommentWithoutRule = "error"
+reportPrivateUsage = "warning"
+reportUnknownMemberType = "information"
+reportUnknownArgumentType = "information"
+reportUnknownLambdaType = "information"
+reportUnknownVariableType = "information"
+reportUntypedFunctionDecorator = "warning"
+reportUntypedClassDecorator = "warning"
+reportUntypedBaseClass = "error"
+reportUntypedNamedTuple = "error"
+reportCallInDefaultInitializer = "warning"
+reportImplicitStringConcatenation = "warning"
+reportMissingSuperCall = "warning"
+reportPropertyTypeMismatch = "error"
+reportFunctionMemberAccess = "error"
+reportIncompatibleMethodOverride = "error"
+reportIncompatibleVariableOverride = "error"
+reportOverlappingOverload = "error"

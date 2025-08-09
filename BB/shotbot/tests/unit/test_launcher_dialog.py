@@ -292,16 +292,16 @@ class TestLauncherManagerDialog:
         # Ensure dialog has focus first
         dialog.activateWindow()
         dialog.raise_()
-        
+
         # Process events to ensure focus changes are applied
         QApplication.processEvents()
 
         # Test Ctrl+F focuses search
         qtbot.keyClick(dialog, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
-        
+
         # Give time for focus change
         QApplication.processEvents()
-        
+
         # In test environment, focus might not change, so just check the shortcut was triggered
         # by verifying the search field exists and is visible
         assert dialog.search_field is not None

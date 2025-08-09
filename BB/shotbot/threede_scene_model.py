@@ -1,5 +1,7 @@
 """3DE scene data model for tracking scenes from other users."""
 
+import logging
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -8,6 +10,8 @@ from cache_manager import CacheManager
 from config import Config
 from shot_model import Shot
 from utils import FileUtils, PathUtils, ValidationUtils
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,8 +33,9 @@ class ThreeDEScene:
 
     @property
     def display_name(self) -> str:
-        """Get display name including user and plate."""
-        return f"{self.full_name} - {self.user} ({self.plate})"
+        """Get display name (simplified for deduplicated scenes)."""
+        # Since we show only one scene per shot, we don't need plate info
+        return f"{self.full_name} - {self.user}"
 
     @property
     def thumbnail_dir(self) -> Path:
@@ -50,7 +55,7 @@ class ThreeDEScene:
         return FileUtils.get_first_image_file(self.thumbnail_dir)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for caching."""
+        """Convert scene to dictionary for caching."""
         return {
             "show": self.show,
             "sequence": self.sequence,
@@ -95,8 +100,14 @@ class ThreeDESceneModel:
         if cached_data:
             self.scenes = []
             for scene_data in cached_data:
-                self.scenes.append(ThreeDEScene.from_dict(scene_data))
-            return True
+                try:
+                    # Skip invalid cached entries (e.g., from old format)
+                    self.scenes.append(ThreeDEScene.from_dict(scene_data))
+                except (KeyError, TypeError, ValueError) as e:
+                    # Skip invalid cached entry
+                    print(f"Skipping invalid cached 3DE scene: {e}")
+                    continue
+            return len(self.scenes) > 0
         return False
 
     def refresh_scenes(self, shots: list[Shot]) -> tuple[bool, bool]:
@@ -134,12 +145,14 @@ class ThreeDESceneModel:
             has_changes = old_scene_data != new_scene_data
 
             if has_changes:
-                self.scenes = new_scenes
-                # Sort by shot name, then user, then plate
-                self.scenes.sort(key=lambda s: (s.full_name, s.user, s.plate))
-                # Cache the results
-                if self.scenes:
-                    self.cache_manager.cache_threede_scenes(self.to_dict())
+                # Apply deduplication - keep only one scene per shot
+                self.scenes = self._deduplicate_scenes_by_shot(new_scenes)
+                # Sort deduplicated scenes
+                self.scenes.sort(key=lambda s: (s.full_name, s.user))
+
+            # ALWAYS cache results to refresh TTL and ensure persistence
+            # This fixes the issue where cache wasn't persisting across restarts
+            self.cache_manager.cache_threede_scenes(self.to_dict())
 
             return True, has_changes
 
@@ -163,3 +176,69 @@ class ThreeDESceneModel:
     def to_dict(self) -> list[dict[str, Any]]:
         """Convert scenes to dictionary format for caching."""
         return [scene.to_dict() for scene in self.scenes]
+
+    def _deduplicate_scenes_by_shot(
+        self, scenes: list[ThreeDEScene]
+    ) -> list[ThreeDEScene]:
+        """Keep only the latest/best scene per shot.
+
+        Priority order:
+        1. Latest file modification time
+        2. Specific plate preference (FG01 > BG01 > others)
+        3. Alphabetical plate name as tiebreaker
+
+        Args:
+            scenes: List of all discovered scenes
+
+        Returns:
+            Deduplicated list with one scene per shot
+        """
+        # Group scenes by shot
+        scenes_by_shot = defaultdict(list)
+        for scene in scenes:
+            shot_key = f"{scene.show}/{scene.sequence}/{scene.shot}"
+            scenes_by_shot[shot_key].append(scene)
+
+        deduplicated = []
+        for shot_scenes in scenes_by_shot.values():
+            if len(shot_scenes) == 1:
+                deduplicated.append(shot_scenes[0])
+            else:
+                # Select best scene for this shot
+                best_scene = self._select_best_scene(shot_scenes)
+                deduplicated.append(best_scene)
+                logger.debug(
+                    f"Selected {best_scene.display_name} from {len(shot_scenes)} scenes"
+                )
+
+        return deduplicated
+
+    def _select_best_scene(self, scenes: list[ThreeDEScene]) -> ThreeDEScene:
+        """Select the best scene from multiple options.
+
+        Args:
+            scenes: List of scenes for the same shot
+
+        Returns:
+            Best scene based on priority criteria
+        """
+
+        # Priority 1: Latest modification time
+        def get_mtime(scene):
+            try:
+                return scene.scene_path.stat().st_mtime
+            except (OSError, AttributeError):
+                return 0
+
+        # Priority 2: Plate preference
+        plate_priority = {
+            "fg01": 3,
+            "bg01": 2,
+        }  # lowercase for case-insensitive comparison
+
+        def scene_score(scene):
+            mtime = get_mtime(scene)
+            plate_score = plate_priority.get(scene.plate.lower(), 1)
+            return (mtime, plate_score, scene.plate)
+
+        return max(scenes, key=scene_score)

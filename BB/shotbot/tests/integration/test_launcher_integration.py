@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Automated integration test for custom launcher integration in ShotBot."""
 
-import pytest
 from PySide6.QtCore import QTimer
 
-from launcher_dialog import LauncherManagerDialog  
+from launcher_dialog import LauncherManagerDialog
 from launcher_manager import LauncherManager, LauncherTerminal
 
 
@@ -18,7 +17,7 @@ def test_launcher_integration(qtbot):
         manager.delete_launcher(launcher.id)
 
     # Test creating launchers with different configurations
-    
+
     # ShotBot Debug launcher (terminal required)
     launcher1_id = manager.create_launcher(
         name="ShotBot Debug Mode",
@@ -35,7 +34,7 @@ def test_launcher_integration(qtbot):
     launcher2_id = manager.create_launcher(
         name="Nuke Shot",
         command="echo 'Nuke: $workspace_path/$shot'",  # Safe test command
-        description="Launch Nuke with shot file", 
+        description="Launch Nuke with shot file",
         category="Applications",
     )
     assert launcher2_id is not None
@@ -55,7 +54,7 @@ def test_launcher_integration(qtbot):
     # Verify all launchers were created
     launchers = manager.list_launchers()
     assert len(launchers) == 3
-    
+
     # Test categories
     categories = manager.get_categories()
     assert "Debug" in categories
@@ -65,28 +64,28 @@ def test_launcher_integration(qtbot):
     # Test launcher dialog creation and basic functionality
     dialog = LauncherManagerDialog(manager)
     qtbot.addWidget(dialog)
-    
+
     # Verify dialog initializes properly
     assert dialog.launcher_manager == manager
     assert dialog.launcher_list is not None
-    
+
     # Test dialog shows and can be closed
     dialog.show()
     qtbot.waitExposed(dialog)
-    
+
     # Use QTimer to close dialog after a short delay
     def close_dialog():
         dialog.close()
-    
+
     QTimer.singleShot(100, close_dialog)
     qtbot.waitUntil(lambda: not dialog.isVisible(), timeout=1000)
 
     # Clean up test launchers
     for launcher in manager.list_launchers():
         manager.delete_launcher(launcher.id)
-    
+
     assert len(manager.list_launchers()) == 0
-    
+
     # Ensure proper cleanup
     manager.shutdown()
 
@@ -95,10 +94,11 @@ def test_launcher_integration(qtbot):
 def manual_launcher_integration():
     """Interactive version for manual testing."""
     import sys
+
     from PySide6.QtWidgets import QApplication
-    
+
     app = QApplication(sys.argv)
-    
+
     # Create launcher manager
     manager = LauncherManager()
 

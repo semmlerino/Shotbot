@@ -6,16 +6,17 @@ import re
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from config import Config
+from performance_monitor import timed_operation
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 
 # Cache for path existence checks (with TTL)
 _path_cache: Dict[str, Tuple[bool, float]] = {}
-_PATH_CACHE_TTL = 30.0  # seconds
+_PATH_CACHE_TTL = 300.0  # seconds - increased from 30 to 300 for better performance
 
 
 def clear_all_caches():
@@ -28,9 +29,9 @@ def clear_all_caches():
     logger.info("Cleared all utility caches")
 
 
-def get_cache_stats():
+def get_cache_stats() -> Dict[str, Any]:
     """Get statistics about current cache usage."""
-    stats = {
+    stats: Dict[str, Any] = {
         "path_cache_size": len(_path_cache),
         "version_cache_size": len(VersionUtils._version_cache),
         "extract_version_cache_info": VersionUtils.extract_version_from_path.cache_info(),
@@ -107,7 +108,7 @@ class PathUtils:
         Returns:
             Path to undistortion directory
         """
-        segments = ["user", username] + Config.UNDISTORTION_BASE_SEGMENTS[2:]
+        segments = ["user", username] + Config.UNDISTORTION_BASE_SEGMENTS[1:]
         return PathUtils.build_path(workspace_path, *segments)
 
     @staticmethod
@@ -125,6 +126,7 @@ class PathUtils:
         return PathUtils.build_path(workspace_path, *segments)
 
     @staticmethod
+    @timed_operation("validate_path_exists", log_threshold_ms=10)
     def validate_path_exists(path: Union[str, Path], description: str = "Path") -> bool:
         """Validate that a path exists.
 
@@ -161,7 +163,8 @@ class PathUtils:
         _path_cache[path_str] = (exists, current_time)
 
         # Clean old cache entries (simple cleanup)
-        if len(_path_cache) > 1000:  # Prevent unlimited growth
+        # Increased threshold from 1000 to 5000 for better performance
+        if len(_path_cache) > 5000:  # Prevent unlimited growth
             PathUtils._cleanup_path_cache()
 
         if not exists:
@@ -171,16 +174,30 @@ class PathUtils:
 
     @staticmethod
     def _cleanup_path_cache():
-        """Clean expired entries from path cache."""
+        """Clean expired entries from path cache.
+
+        Optimized to only clean when cache is getting large,
+        and to keep frequently accessed paths.
+        """
         current_time = time.time()
-        expired_keys = [
-            key
-            for key, (_, timestamp) in _path_cache.items()
-            if current_time - timestamp >= _PATH_CACHE_TTL
-        ]
-        for key in expired_keys:
-            del _path_cache[key]
-        logger.debug(f"Cleaned {len(expired_keys)} expired path cache entries")
+
+        # Only clean if cache is significantly over limit
+        if len(_path_cache) <= 2500:  # Keep some headroom
+            return
+
+        # Sort by timestamp to keep most recently accessed
+        sorted_items = sorted(
+            _path_cache.items(),
+            key=lambda x: x[1][1],  # Sort by timestamp
+            reverse=True,  # Most recent first
+        )
+
+        # Keep the most recent 2500 entries
+        _path_cache.clear()
+        for key, value in sorted_items[:2500]:
+            _path_cache[key] = value
+
+        logger.debug(f"Cleaned path cache, kept {len(_path_cache)} most recent entries")
 
     @staticmethod
     def batch_validate_paths(paths: List[Union[str, Path]]) -> Dict[str, bool]:
@@ -192,9 +209,9 @@ class PathUtils:
         Returns:
             Dictionary mapping path strings to existence status
         """
-        results = {}
+        results: Dict[str, bool] = {}
         current_time = time.time()
-        paths_to_check = []
+        paths_to_check: List[Tuple[Union[str, Path], str]] = []
 
         # First pass - check cache
         for path in paths:
@@ -208,13 +225,14 @@ class PathUtils:
 
         # Second pass - check filesystem for uncached paths
         for path, path_str in paths_to_check:
-            path_obj = Path(path) if isinstance(path, str) else path
-            exists = path_obj.exists()
+            path_obj: Path = Path(path) if isinstance(path, str) else path
+            exists: bool = path_obj.exists()
             results[path_str] = exists
             _path_cache[path_str] = (exists, current_time)
 
         # Clean cache if needed
-        if len(_path_cache) > 1000:
+        # Increased threshold from 1000 to 5000 for better performance
+        if len(_path_cache) > 5000:
             PathUtils._cleanup_path_cache()
 
         return results
@@ -242,6 +260,40 @@ class PathUtils:
             logger.error(f"Failed to create {description} {path_obj}: {e}")
             return False
 
+    @staticmethod
+    def discover_plate_directories(
+        base_path: Union[str, Path],
+    ) -> List[Tuple[str, int]]:
+        """Discover available plate directories and return them in priority order.
+
+        Args:
+            base_path: Base path to search for plate directories
+
+        Returns:
+            List of (plate_name, priority) tuples sorted by priority
+        """
+        if not PathUtils.validate_path_exists(base_path, "Plate base path"):
+            return []
+
+        path_obj = Path(base_path) if isinstance(base_path, str) else base_path
+        found_plates: List[Tuple[str, int]] = []
+
+        # Check for each possible plate pattern
+        for pattern in Config.PLATE_DISCOVERY_PATTERNS:
+            plate_path = path_obj / pattern
+            if plate_path.exists() and plate_path.is_dir():
+                # Get priority from config or use default
+                priority = Config.PLATE_PRIORITY_ORDER.get(pattern, 0)
+                found_plates.append((pattern, priority))
+                logger.debug(
+                    f"Found plate directory: {pattern} with priority {priority}"
+                )
+
+        # Sort by priority (higher numbers first)
+        found_plates.sort(key=lambda x: x[1], reverse=True)
+
+        return found_plates
+
 
 class VersionUtils:
     """Utilities for handling versioned directories and files."""
@@ -253,6 +305,7 @@ class VersionUtils:
     _version_cache: Dict[str, Tuple[List[Tuple[int, str]], float]] = {}
 
     @staticmethod
+    @timed_operation("find_version_directories", log_threshold_ms=20)
     def find_version_directories(base_path: Union[str, Path]) -> List[Tuple[int, str]]:
         """Find all version directories in a path.
 
@@ -270,10 +323,10 @@ class VersionUtils:
         path_str = str(base_path)
         current_time = time.time()
 
-        # Check cache first
+        # Check cache first - use the longer TTL for version cache too
         if path_str in VersionUtils._version_cache:
             version_dirs, timestamp = VersionUtils._version_cache[path_str]
-            if current_time - timestamp < _PATH_CACHE_TTL:
+            if current_time - timestamp < _PATH_CACHE_TTL:  # Use same TTL as path cache
                 return version_dirs.copy()  # Return a copy to prevent modification
 
         path_obj = Path(base_path) if isinstance(base_path, str) else base_path
@@ -296,24 +349,39 @@ class VersionUtils:
         # Cache the result
         VersionUtils._version_cache[path_str] = (version_dirs.copy(), current_time)
 
-        # Clean cache if it gets too large
-        if len(VersionUtils._version_cache) > 100:
+        # Clean cache if it gets too large - increased from 100 to 500
+        if len(VersionUtils._version_cache) > 500:
             VersionUtils._cleanup_version_cache()
 
         return version_dirs
 
     @staticmethod
     def _cleanup_version_cache():
-        """Clean expired entries from version cache."""
+        """Clean expired entries from version cache.
+
+        Optimized to keep frequently accessed version directories.
+        """
         current_time = time.time()
-        expired_keys = [
-            key
-            for key, (_, timestamp) in VersionUtils._version_cache.items()
-            if current_time - timestamp >= _PATH_CACHE_TTL
-        ]
-        for key in expired_keys:
-            del VersionUtils._version_cache[key]
-        logger.debug(f"Cleaned {len(expired_keys)} expired version cache entries")
+
+        # Only clean if cache is significantly over limit
+        if len(VersionUtils._version_cache) <= 250:
+            return
+
+        # Sort by timestamp to keep most recently accessed
+        sorted_items = sorted(
+            VersionUtils._version_cache.items(),
+            key=lambda x: x[1][1],  # Sort by timestamp
+            reverse=True,  # Most recent first
+        )
+
+        # Keep the most recent 250 entries
+        VersionUtils._version_cache.clear()
+        for key, value in sorted_items[:250]:
+            VersionUtils._version_cache[key] = value
+
+        logger.debug(
+            f"Cleaned version cache, kept {len(VersionUtils._version_cache)} most recent entries"
+        )
 
     @staticmethod
     def get_latest_version(base_path: Union[str, Path]) -> Optional[str]:
@@ -367,15 +435,53 @@ class FileUtils:
     ) -> List[Path]:
         """Find files with specific extensions in a directory.
 
-        Optimized to stop early when limit is reached and use set lookup for extensions.
+        This method performs optimized file discovery with early termination
+        when limits are reached and uses set-based lookups for extension
+        matching to achieve O(1) performance per file check.
 
         Args:
-            directory: Directory to search
-            extensions: File extension(s) to search for (with or without dots)
-            limit: Maximum number of files to return
+            directory: Directory path to search. Accepts both string paths
+                and pathlib.Path objects for flexibility.
+            extensions: File extension(s) to match. Can be a single extension
+                string like "jpg" or ".jpg", or a list of extensions like
+                ["jpg", "jpeg", "png"]. Leading dots are optional and normalized.
+            limit: Maximum number of matching files to return. If None,
+                returns all matching files. Used for performance optimization
+                in large directories.
 
         Returns:
-            List of matching file paths
+            List[Path]: List of pathlib.Path objects for all matching files.
+                Returns empty list if directory doesn't exist or no matches found.
+                Results are ordered by directory iteration order (not sorted).
+
+        Raises:
+            No exceptions are raised. Permission errors and OS errors are
+            caught and logged as warnings, returning partial results.
+
+        Examples:
+            Single extension search:
+                >>> files = FileUtils.find_files_by_extension("/tmp", "txt")
+                >>> assert all(f.suffix == ".txt" for f in files)
+
+            Multiple extensions with limit:
+                >>> images = FileUtils.find_files_by_extension(
+                ...     Path("/images"), ["jpg", "jpeg", "png"], limit=10
+                ... )
+                >>> assert len(images) <= 10
+
+            Type-safe directory handling:
+                >>> from pathlib import Path
+                >>> path_obj = Path("/some/directory")
+                >>> string_path = "/some/directory"
+                >>> # Both work identically due to Union[str, Path] type
+                >>> files1 = FileUtils.find_files_by_extension(path_obj, "py")
+                >>> files2 = FileUtils.find_files_by_extension(string_path, "py")
+
+        Performance:
+            - O(n) time complexity where n is number of files in directory
+            - Early termination when limit is reached reduces actual runtime
+            - Set-based extension lookup provides O(1) extension matching
+            - Path validation uses TTL caching to avoid repeated stat calls
         """
         if not PathUtils.validate_path_exists(directory, "Search directory"):
             return []
@@ -384,7 +490,7 @@ class FileUtils:
         if isinstance(extensions, str):
             extensions = [extensions]
 
-        normalized_extensions = set()
+        normalized_extensions: Set[str] = set()
         for ext in extensions:
             if not ext.startswith("."):
                 ext = "." + ext

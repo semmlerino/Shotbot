@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """CLI test for ShotBot modules."""
 
-from .test_mock import MockShotModel
+from .mock_demo import MockShotModel
 
 
 def test_shot_model():

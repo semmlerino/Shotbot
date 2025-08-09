@@ -3,10 +3,12 @@
 import logging
 import os
 import re
+import time
 from pathlib import Path
-from typing import Any, List, Optional, Set
+from typing import Any, Generator, List, Optional, Set, Tuple
 
 from config import Config
+from performance_monitor import timed_operation
 from threede_scene_model import ThreeDEScene
 from utils import PathUtils, ValidationUtils
 
@@ -122,7 +124,36 @@ class PathDiagnostics:
 class ThreeDESceneFinder:
     """Static utility class for discovering 3DE scene files."""
 
+    # Pre-compiled regex patterns for performance
+    # Compile patterns once at class level to avoid repeated compilation in loops
+    _BG_FG_PATTERN = re.compile(r"^[bf]g\d{2}$", re.IGNORECASE)
+    _PLATE_PATTERNS = [
+        re.compile(r"^[bf]g\d{2}$", re.IGNORECASE),  # bg01, fg01, etc.
+        re.compile(r"^plate_?\d+$", re.IGNORECASE),  # plate01, plate_01
+        re.compile(r"^comp_?\d+$", re.IGNORECASE),  # comp01, comp_01
+        re.compile(r"^shot_?\d+$", re.IGNORECASE),  # shot01, shot_01
+        re.compile(r"^sc\d+$", re.IGNORECASE),  # sc01, sc02
+        re.compile(r"^[\w]+_v\d{3}$", re.IGNORECASE),  # anything_v001
+    ]
+
+    # Convert generic directory names to uppercase set for O(1) lookup
+    _GENERIC_DIRS = {
+        "3de",
+        "scenes",
+        "scene",
+        "mm",
+        "matchmove",
+        "tracking",
+        "work",
+        "wip",
+        "exports",
+        "user",
+        "files",
+        "data",
+    }
+
     @staticmethod
+    @timed_operation("extract_plate_from_path", log_threshold_ms=5)
     def extract_plate_from_path(file_path: Path, user_path: Path) -> str:
         """Extract meaningful plate/grouping identifier from an arbitrary path.
 
@@ -138,29 +169,23 @@ class ThreeDESceneFinder:
             relative_path = file_path.relative_to(user_path)
             path_parts = relative_path.parts
 
-            # Common VFX plate patterns to look for
-            plate_patterns = (
-                Config.PLATE_NAME_PATTERNS
-                if hasattr(Config, "PLATE_NAME_PATTERNS")
-                else [
-                    r"^[bf]g\d{2}$",  # bg01, fg01, etc.
-                    r"^plate_?\d+$",  # plate01, plate_01
-                    r"^comp_?\d+$",  # comp01, comp_01
-                    r"^shot_?\d+$",  # shot01, shot_01
-                    r"^sc\d+$",  # sc01, sc02
-                    r"^[\w]+_v\d{3}$",  # anything_v001
-                ]
-            )
-
-            # Look through path parts for meaningful names
+            # First pass: Look for BG/FG plate patterns (highest priority)
             for i, part in enumerate(path_parts[:-1]):  # Exclude the filename
-                part_lower = part.lower()
+                if ThreeDESceneFinder._BG_FG_PATTERN.match(part):
+                    logger.debug(f"Found BG/FG plate pattern match: {part}")
+                    return part
 
+            # Second pass: Look for other plate patterns using pre-compiled patterns
+            for i, part in enumerate(path_parts[:-1]):  # Exclude the filename
                 # Check if this part matches common plate patterns
-                for pattern in plate_patterns:
-                    if re.match(pattern, part_lower):
+                for pattern in ThreeDESceneFinder._PLATE_PATTERNS:
+                    if pattern.match(part):
                         logger.debug(f"Found plate pattern match: {part}")
                         return part
+
+            # Third pass: Look for directories after VFX markers (fallback)
+            for i, part in enumerate(path_parts[:-1]):  # Exclude the filename
+                part_lower = part.lower()
 
                 # Check for common VFX directory names that indicate grouping
                 if part_lower in [
@@ -180,23 +205,9 @@ class ThreeDESceneFinder:
 
             # If no pattern matched, use intelligent fallback
             # Prefer directories that aren't generic tool/process names
-            generic_dirs = {
-                "3de",
-                "scenes",
-                "scene",
-                "mm",
-                "matchmove",
-                "tracking",
-                "work",
-                "wip",
-                "exports",
-                "user",
-                "files",
-                "data",
-            }
-
+            # Use pre-computed set for O(1) lookup instead of O(n) list membership
             for part in reversed(path_parts[:-1]):
-                if part.lower() not in generic_dirs:
+                if part.lower() not in ThreeDESceneFinder._GENERIC_DIRS:
                     logger.debug(f"Using non-generic directory as plate: {part}")
                     return part
 
@@ -213,6 +224,7 @@ class ThreeDESceneFinder:
             return file_path.parent.name
 
     @staticmethod
+    @timed_operation("find_scenes_for_shot", log_threshold_ms=100)
     def find_scenes_for_shot(
         shot_workspace_path: str,
         show: str,
@@ -338,6 +350,7 @@ class ThreeDESceneFinder:
         return scenes
 
     @staticmethod
+    @timed_operation("discover_all_shots_in_show", log_threshold_ms=500)
     def discover_all_shots_in_show(
         show_root: str, show: str
     ) -> List[tuple[str, str, str, str]]:
@@ -433,6 +446,7 @@ class ThreeDESceneFinder:
         return shots
 
     @staticmethod
+    @timed_operation("find_all_scenes_in_shows", log_threshold_ms=1000)
     def find_all_scenes_in_shows(
         user_shots: List[Any],  # List of Shot objects
         excluded_users: Optional[Set[str]] = None,
@@ -554,6 +568,302 @@ class ThreeDESceneFinder:
 
         logger.info(f"Found total of {len(all_scenes)} 3DE scenes across all shots")
         return all_scenes
+
+    @staticmethod
+    def find_scenes_progressive(
+        user_path: Path,
+        show: str,
+        sequence: str,
+        shot: str,
+        user_name: str,
+        batch_size: Optional[int] = None,
+        excluded_users: Optional[Set[str]] = None,
+    ) -> Generator[List[ThreeDEScene], None, None]:
+        """Yield 3DE scenes in batches for responsive UI updates.
+
+        This generator-based approach processes .3de files incrementally,
+        yielding batches of discovered scenes to prevent UI blocking during
+        large scans.
+
+        Args:
+            user_path: User's directory path to scan
+            show: Show name for scene creation
+            sequence: Sequence name for scene creation
+            shot: Shot name for scene creation
+            user_name: User name for scene creation
+            batch_size: Number of scenes per batch (uses config default if None)
+            excluded_users: Set of users to exclude (not used in single-user scan)
+
+        Yields:
+            Lists of ThreeDEScene objects in batches
+        """
+        if batch_size is None:
+            batch_size = Config.PROGRESSIVE_SCAN_BATCH_SIZE
+
+        # Validate batch size
+        batch_size = max(
+            Config.PROGRESSIVE_SCAN_MIN_BATCH_SIZE,
+            min(batch_size, Config.PROGRESSIVE_SCAN_MAX_BATCH_SIZE),
+        )
+
+        logger.debug(
+            f"Starting progressive scan of {user_path} with batch size {batch_size}"
+        )
+
+        batch = []
+        processed_count = 0
+
+        try:
+            # Use rglob for recursive search - this returns a generator already
+            threede_files = user_path.rglob("*.3de")
+
+            for threede_file in threede_files:
+                # Verify file exists and is accessible
+                if not ThreeDESceneFinder.verify_scene_exists(threede_file):
+                    logger.debug(f"Skipping inaccessible file: {threede_file}")
+                    continue
+
+                # Extract meaningful plate/grouping from path
+                plate = ThreeDESceneFinder.extract_plate_from_path(
+                    threede_file, user_path
+                )
+
+                # Create scene object
+                scene = ThreeDEScene(
+                    show=show,
+                    sequence=sequence,
+                    shot=shot,
+                    workspace_path=str(user_path.parent.parent),  # Back up to shot root
+                    user=user_name,
+                    plate=plate,
+                    scene_path=threede_file,
+                )
+
+                batch.append(scene)
+                processed_count += 1
+
+                logger.debug(
+                    f"Added to batch: {user_name}/{plate} -> {threede_file.name}"
+                )
+
+                # Yield batch when it reaches target size
+                if len(batch) >= batch_size:
+                    logger.debug(f"Yielding batch of {len(batch)} scenes")
+                    yield batch
+                    batch = []
+
+                    # Yield to other threads periodically
+                    if processed_count % Config.PROGRESSIVE_IO_YIELD_INTERVAL == 0:
+                        time.sleep(0.001)  # Brief yield to prevent thread starvation
+
+        except PermissionError as e:
+            logger.warning(f"Permission denied accessing {user_path}: {e}")
+        except Exception as e:
+            logger.error(f"Error during progressive scan of {user_path}: {e}")
+
+        # Yield remaining scenes if any
+        if batch:
+            logger.debug(f"Yielding final batch of {len(batch)} scenes")
+            yield batch
+
+        logger.debug(f"Progressive scan complete: processed {processed_count} files")
+
+    @staticmethod
+    def find_all_scenes_progressive(
+        shots: List[Tuple[str, str, str, str]],
+        excluded_users: Optional[Set[str]] = None,
+        batch_size: Optional[int] = None,
+    ) -> Generator[Tuple[List[ThreeDEScene], int, int, str], None, None]:
+        """Progressive discovery of 3DE scenes across multiple shots.
+
+        This method provides detailed progress information and yields results
+        in batches for responsive UI updates during large-scale discovery operations.
+
+        Args:
+            shots: List of (workspace_path, show, sequence, shot) tuples
+            excluded_users: Set of usernames to exclude
+            batch_size: Number of scenes per batch
+
+        Yields:
+            Tuples of (scene_batch, current_shot, total_shots, status_message)
+        """
+        if batch_size is None:
+            batch_size = Config.PROGRESSIVE_SCAN_BATCH_SIZE
+
+        if excluded_users is None:
+            excluded_users = ValidationUtils.get_excluded_users()
+
+        total_shots = len(shots)
+        current_shot_index = 0
+
+        logger.info(f"Starting progressive scan of {total_shots} shots")
+
+        for workspace_path, show, sequence, shot in shots:
+            current_shot_index += 1
+
+            # Create status message
+            status_msg = f"Scanning shot {show}/{sequence}/{shot}"
+
+            user_dir = PathUtils.build_path(workspace_path, "user")
+
+            # Check if user directory exists
+            if not PathUtils.validate_path_exists(user_dir, "User directory"):
+                logger.debug(f"User directory missing for {show}/{sequence}/{shot}")
+                # Yield empty batch with progress info
+                yield ([], current_shot_index, total_shots, f"{status_msg} (no users)")
+                continue
+
+            logger.debug(f"Scanning users in {user_dir}")
+
+            try:
+                # Iterate through user directories
+                for user_path in user_dir.iterdir():
+                    if not user_path.is_dir():
+                        continue
+
+                    user_name = user_path.name
+
+                    # Skip excluded users
+                    if user_name in excluded_users:
+                        logger.debug(f"Skipping excluded user: {user_name}")
+                        continue
+
+                    # Use progressive scanning for this user
+                    user_status = f"{status_msg} - user {user_name}"
+
+                    # Generator for this user's scenes
+                    for scene_batch in ThreeDESceneFinder.find_scenes_progressive(
+                        user_path,
+                        show,
+                        sequence,
+                        shot,
+                        user_name,
+                        batch_size,
+                        excluded_users,
+                    ):
+                        # Yield the batch with current progress
+                        yield (
+                            scene_batch,
+                            current_shot_index,
+                            total_shots,
+                            user_status,
+                        )
+
+            except PermissionError:
+                logger.warning(
+                    f"Permission denied accessing user directories for {show}/{sequence}/{shot}"
+                )
+                yield (
+                    [],
+                    current_shot_index,
+                    total_shots,
+                    f"{status_msg} (access denied)",
+                )
+            except Exception as e:
+                logger.error(f"Error scanning shot {show}/{sequence}/{shot}: {e}")
+                yield ([], current_shot_index, total_shots, f"{status_msg} (error)")
+
+        logger.info("Progressive scan complete")
+
+    @staticmethod
+    def _create_scene(
+        threede_file: Path,
+        user_path: Path,
+        show: str,
+        sequence: str,
+        shot: str,
+        user_name: str,
+        workspace_path: str,
+    ) -> ThreeDEScene:
+        """Helper method to create a ThreeDEScene object.
+
+        Args:
+            threede_file: Path to the .3de file
+            user_path: User's directory path
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
+            user_name: User name
+            workspace_path: Shot workspace path
+
+        Returns:
+            Created ThreeDEScene object
+        """
+        # Extract meaningful plate/grouping from path
+        plate = ThreeDESceneFinder.extract_plate_from_path(threede_file, user_path)
+
+        return ThreeDEScene(
+            show=show,
+            sequence=sequence,
+            shot=shot,
+            workspace_path=workspace_path,
+            user=user_name,
+            plate=plate,
+            scene_path=threede_file,
+        )
+
+    @staticmethod
+    def estimate_scan_size(
+        shots: List[Tuple[str, str, str, str]],
+        excluded_users: Optional[Set[str]] = None,
+    ) -> Tuple[int, int]:
+        """Estimate the number of users and files to scan for progress calculation.
+
+        This performs a quick directory listing without accessing files to provide
+        accurate progress estimation for the progressive scan.
+
+        Args:
+            shots: List of (workspace_path, show, sequence, shot) tuples
+            excluded_users: Set of usernames to exclude
+
+        Returns:
+            Tuple of (estimated_users, estimated_files)
+        """
+        if excluded_users is None:
+            excluded_users = ValidationUtils.get_excluded_users()
+
+        total_users = 0
+        total_files_estimate = 0
+
+        for workspace_path, show, sequence, shot in shots:
+            user_dir = PathUtils.build_path(workspace_path, "user")
+
+            if not PathUtils.validate_path_exists(user_dir, "User directory"):
+                continue
+
+            try:
+                # Count users and estimate files
+                shot_users = 0
+                for user_path in user_dir.iterdir():
+                    if not user_path.is_dir():
+                        continue
+
+                    user_name = user_path.name
+                    if user_name in excluded_users:
+                        continue
+
+                    shot_users += 1
+
+                    # Quick estimate of .3de files (using glob count without reading)
+                    try:
+                        # Use a simple count - don't verify files yet
+                        file_count = len(list(user_path.rglob("*.3de")))
+                        total_files_estimate += file_count
+                    except (PermissionError, OSError):
+                        # Estimate based on average if we can't access
+                        total_files_estimate += 5  # Conservative estimate
+
+                total_users += shot_users
+
+            except (PermissionError, OSError):
+                # Estimate based on typical shot structure
+                total_users += 3  # Estimate 3 users per shot
+                total_files_estimate += 10  # Estimate 10 files total
+
+        logger.debug(
+            f"Scan estimation: {total_users} users, ~{total_files_estimate} files"
+        )
+        return total_users, total_files_estimate
 
     @staticmethod
     def verify_scene_exists(scene_path: Path) -> bool:

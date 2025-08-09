@@ -33,4 +33,13 @@ if "--cov" in sys.argv:
         ]
     )
 
-sys.exit(pytest.main(args + sys.argv[1:]))
+# Filter out script name and pass remaining arguments
+test_args = sys.argv[1:] if len(sys.argv) > 1 else []
+
+# Debug print
+if os.environ.get("DEBUG_TESTS"):
+    print(f"Base args: {args}")
+    print(f"Test args: {test_args}")
+    print(f"Final args: {args + test_args}")
+
+sys.exit(pytest.main(args + test_args))

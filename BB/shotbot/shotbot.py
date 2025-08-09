@@ -1,8 +1,62 @@
 #!/usr/bin/env python3
-"""ShotBot - VFX Shot Launcher
+"""ShotBot - VFX Shot Launcher Application Entry Point.
 
-A PySide6 GUI application for browsing shots and launching applications
-in shot context.
+This module serves as the main entry point for the ShotBot VFX shot browsing
+and application launcher. ShotBot provides a graphical interface for VFX artists
+to browse shots, view thumbnails, discover 3DE scenes, and launch applications
+in the correct shot workspace context.
+
+Application Overview:
+    ShotBot integrates with VFX pipeline tools using the `ws` (workspace) command
+    to list and navigate shots. It provides visual thumbnail grids, background
+    scene discovery, and a flexible custom launcher system for workflow automation.
+
+Key Components Initialized:
+    - Qt Application: PySide6 QApplication with proper platform settings
+    - Logging System: File and console logging with environment-based levels
+    - Main Window: Tabbed interface with shot grids and launcher management
+    - Cache Manager: Thread-safe caching for thumbnails and data persistence
+    - Background Workers: Non-blocking threads for scene discovery and data refresh
+
+Environment Variables:
+    SHOTBOT_DEBUG: Set to enable debug-level console logging
+        Example: SHOTBOT_DEBUG=1 python shotbot.py
+
+    QT_QPA_PLATFORM: Qt platform abstraction (auto-detected)
+    DISPLAY: X11 display for Linux environments (WSL compatibility)
+
+Usage:
+    Command line execution:
+        $ python shotbot.py                    # Standard execution
+        $ SHOTBOT_DEBUG=1 python shotbot.py    # Debug mode
+        $ rez env PySide6_Essentials -- python3 shotbot.py  # Rez environment
+
+    Programmatic usage:
+        >>> import sys
+        >>> from PySide6.QtWidgets import QApplication
+        >>> from main_window import MainWindow
+        >>> app = QApplication(sys.argv)
+        >>> window = MainWindow()
+        >>> window.show()
+        >>> sys.exit(app.exec())
+
+Dependencies:
+    - PySide6: Qt for Python GUI framework
+    - Python 3.8+: Modern Python with type annotation support
+    - ws command: VFX workspace tool (must be available in shell)
+    - Standard library: pathlib, logging, subprocess, threading
+
+Error Handling:
+    The application includes comprehensive error handling for:
+    - Missing workspace commands (graceful degradation)
+    - File system permission issues (user notification)
+    - Qt platform initialization failures (fallback strategies)
+    - Network and I/O timeouts (configurable limits)
+
+Thread Safety:
+    All background operations use Qt's thread-safe signal/slot mechanism.
+    The main UI thread remains responsive during intensive operations like
+    thumbnail loading and scene discovery.
 """
 
 import logging

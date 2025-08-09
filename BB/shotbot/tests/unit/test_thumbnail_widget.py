@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import QPoint, Qt, QUrl
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QMouseEvent, QPixmap
 
 from shot_model import Shot
@@ -309,19 +309,30 @@ class TestThumbnailWidget:
         assert thumbnail_widget.loading_indicator.x() == expected_pos
         assert thumbnail_widget.loading_indicator.y() == expected_pos
 
-    def test_open_shot_folder_direct(self, thumbnail_widget):
-        """Test _open_shot_folder method directly."""
-        with patch("thumbnail_widget_base.QDesktopServices.openUrl") as mock_open_url:
-            # Call the method directly
+    def test_open_shot_folder_direct(self, thumbnail_widget, qtbot):
+        """Test _open_shot_folder method directly (now non-blocking)."""
+        from unittest.mock import MagicMock, patch
+
+        # Since folder opening is now non-blocking, we need to test differently
+        # We'll patch the FolderOpenerWorker to verify it's created correctly
+        with patch("thumbnail_widget_base.FolderOpenerWorker") as mock_worker_class:
+            mock_worker = MagicMock()
+            mock_worker_class.return_value = mock_worker
+
+            # Call the method
             thumbnail_widget._open_shot_folder()
 
-            # Verify it was called with the correct URL
-            expected_url = QUrl.fromLocalFile(thumbnail_widget.shot.workspace_path)
-            mock_open_url.assert_called_once()
+            # Verify worker was created with correct path
+            mock_worker_class.assert_called_once_with(
+                thumbnail_widget.shot.workspace_path
+            )
 
-            # Compare URLs as strings
-            called_url = mock_open_url.call_args[0][0]
-            assert called_url.toString() == expected_url.toString()
+            # Verify signals were connected
+            mock_worker.signals.error.connect.assert_called_once()
+            mock_worker.signals.success.connect.assert_called_once()
+
+            # Process events to ensure the worker starts
+            qtbot.wait(10)  # Small wait to let thread pool process
 
 
 class TestBaseThumbnailLoader:

@@ -1,12 +1,23 @@
 """Base class for thumbnail widgets to eliminate code duplication."""
 
 import logging
+import subprocess
+import sys
 from abc import abstractmethod
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Protocol, TypeVar
 
-from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThreadPool, QUrl, Signal
+from PySide6.QtCore import (
+    QObject,
+    QRunnable,
+    QSize,
+    Qt,
+    QThreadPool,
+    QUrl,
+    Signal,
+    Slot,
+)
 from PySide6.QtGui import (
     QColor,
     QContextMenuEvent,
@@ -27,6 +38,82 @@ logger = logging.getLogger(__name__)
 
 # Type variable for data objects
 T = TypeVar("T", bound="ThumbnailDataProtocol")
+
+
+class FolderOpenerSignals(QObject):
+    """Signals for the folder opener worker."""
+
+    error = Signal(str)
+    success = Signal()
+
+
+class FolderOpenerWorker(QRunnable):
+    """Worker to open folders in a non-blocking way."""
+
+    def __init__(self, folder_path: str):
+        """Initialize the worker.
+
+        Args:
+            folder_path: Path to the folder to open
+        """
+        super().__init__()
+        self.folder_path = folder_path
+        self.signals = FolderOpenerSignals()
+
+    @Slot()
+    def run(self):
+        """Open the folder using the appropriate method for the platform."""
+        try:
+            # Ensure we have a proper absolute path
+            folder_path = self.folder_path
+            if not folder_path.startswith("/"):
+                folder_path = "/" + folder_path
+
+            # Check if path exists
+            if not Path(folder_path).exists():
+                self.signals.error.emit(f"Path does not exist: {folder_path}")
+                return
+
+            # Try Qt method first (cross-platform)
+            url = QUrl()
+            url.setScheme("file")
+            url.setPath(folder_path)
+
+            logger.debug(f"Opening folder: {folder_path} with URL: {url.toString()}")
+
+            # Use QDesktopServices but with proper error handling
+            success = QDesktopServices.openUrl(url)
+
+            if not success:
+                # Fallback to system-specific commands
+                logger.debug("QDesktopServices failed, trying system command")
+
+                if sys.platform == "darwin":  # macOS
+                    subprocess.run(["open", folder_path], check=True)
+                elif sys.platform == "win32":  # Windows
+                    subprocess.run(["explorer", folder_path], check=True)
+                else:  # Linux/Unix
+                    # Try xdg-open first, then alternatives
+                    try:
+                        subprocess.run(["xdg-open", folder_path], check=True)
+                    except (subprocess.CalledProcessError, FileNotFoundError):
+                        # Try gio as fallback
+                        subprocess.run(["gio", "open", folder_path], check=True)
+
+            self.signals.success.emit()
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Failed to open folder: {e}"
+            logger.error(error_msg)
+            self.signals.error.emit(error_msg)
+        except FileNotFoundError as e:
+            error_msg = f"File manager not found: {e}"
+            logger.error(error_msg)
+            self.signals.error.emit(error_msg)
+        except Exception as e:
+            error_msg = f"Unexpected error opening folder: {e}"
+            logger.error(error_msg)
+            self.signals.error.emit(error_msg)
 
 
 class LoadingState(Enum):
@@ -155,7 +242,6 @@ class ThumbnailWidgetBase(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(5)
-        self.layout = layout
 
         # Thumbnail label
         self.thumbnail_label = QLabel()
@@ -347,13 +433,33 @@ class ThumbnailWidgetBase(QFrame):
 
     # Base context menu actions
     def _open_shot_folder(self):
-        """Open the shot's workspace folder in system file manager."""
+        """Open the shot's workspace folder in system file manager (non-blocking)."""
         folder_path = self.data.workspace_path
-        # Ensure we have an absolute path for proper file:/// URL generation
-        if not folder_path.startswith("/"):
-            folder_path = "/" + folder_path
-        url = QUrl.fromLocalFile(folder_path)
-        QDesktopServices.openUrl(url)
+
+        # Create worker to open folder in background
+        worker = FolderOpenerWorker(folder_path)
+
+        # Connect signals for error handling
+        worker.signals.error.connect(self._on_folder_open_error)
+        worker.signals.success.connect(self._on_folder_open_success)
+
+        # Start the worker
+        QThreadPool.globalInstance().start(worker)
+
+    @Slot(str)
+    def _on_folder_open_error(self, error_msg: str):
+        """Handle folder opening errors.
+
+        Args:
+            error_msg: Error message to display
+        """
+        logger.error(f"Failed to open folder: {error_msg}")
+        # Could emit a signal here to show error in UI if needed
+
+    @Slot()
+    def _on_folder_open_success(self):
+        """Handle successful folder opening."""
+        logger.debug("Folder opened successfully")
 
     # Mouse events
     def mousePressEvent(self, event: QMouseEvent):

@@ -30,54 +30,32 @@ class TestThreeDESceneFinder:
 
     def test_find_scenes_for_shot_with_scenes(self):
         """Test finding scenes successfully."""
-        with patch("threede_scene_finder.Path") as mock_path_class:
-            # Create mock scene file
-            mock_scene_file = Mock(spec=Path)
-            mock_scene_file.relative_to.return_value = Path("BG01/subfolder/scene.3de")
-            mock_scene_file.parent.name = "subfolder"
+        # Create mock user with proper rglob
+        mock_user = Mock()
+        mock_user.is_dir.return_value = True
+        mock_user.name = "john-d"
 
-            # Create mock scene base that exists
-            mock_scene_base = Mock()
-            mock_scene_base.exists.return_value = True
-            mock_scene_base.rglob.return_value = [mock_scene_file]
+        # Create mock scene file
+        mock_scene_file = Mock(spec=Path)
+        mock_scene_file.relative_to.return_value = Path("BG01/subfolder/scene.3de")
+        mock_scene_file.parent.name = "subfolder"
+        mock_user.rglob.return_value = [mock_scene_file]
 
-            # Create mock user directory structure
-            mock_user = Mock()
-            mock_user.is_dir.return_value = True
-            mock_user.name = "john-d"
+        # Create mock user directory
+        mock_user_dir = Mock()
+        mock_user_dir.iterdir.return_value = [mock_user]
 
-            # Mock the path construction chain
-            # user/john-d/mm/3de/mm-default/scenes/scene
-            mock_mm = Mock()
-            mock_3de = Mock()
-            mock_mm_default = Mock()
-            mock_scenes = Mock()
-
-            # Set up the path chain
-            mock_user.__truediv__ = Mock(
-                side_effect=lambda x: {"mm": mock_mm}.get(x, Mock())
-            )
-            mock_mm.__truediv__ = Mock(
-                side_effect=lambda x: {"3de": mock_3de}.get(x, Mock())
-            )
-            mock_3de.__truediv__ = Mock(
-                side_effect=lambda x: {"mm-default": mock_mm_default}.get(x, Mock())
-            )
-            mock_mm_default.__truediv__ = Mock(
-                side_effect=lambda x: {"scenes": mock_scenes}.get(x, Mock())
-            )
-            mock_scenes.__truediv__ = Mock(
-                side_effect=lambda x: {"scene": mock_scene_base}.get(x, Mock())
-            )
-
-            # Create mock user directory
-            mock_user_dir = Mock()
-            mock_user_dir.exists.return_value = True
-            mock_user_dir.iterdir.return_value = [mock_user]
-
-            # Setup Path mock
-            mock_path_class.return_value.__truediv__.return_value = mock_user_dir
-
+        with patch(
+            "threede_scene_finder.PathUtils.validate_path_exists", return_value=True
+        ), patch(
+            "threede_scene_finder.PathUtils.build_path", return_value=mock_user_dir
+        ), patch(
+            "threede_scene_finder.ThreeDESceneFinder.verify_scene_exists",
+            return_value=True,
+        ), patch(
+            "threede_scene_finder.ThreeDESceneFinder.extract_plate_from_path",
+            return_value="BG01",
+        ):
             scenes = ThreeDESceneFinder.find_scenes_for_shot(
                 "/shows/test/shots/AB_123/AB_123_0010",
                 "test_show",
@@ -207,10 +185,13 @@ class TestThreeDESceneFinder:
 
     def test_verify_scene_exists(self):
         """Test verifying scene file exists."""
-        with patch("threede_scene_finder.os.access") as mock_access:
+        with patch("threede_scene_finder.os.access") as mock_access, patch(
+            "threede_scene_finder.PathUtils.validate_path_exists", return_value=True
+        ):
             mock_path = Mock()
             mock_path.exists.return_value = True
             mock_path.is_file.return_value = True
+            mock_path.suffix.lower.return_value = ".3de"
             mock_access.return_value = True
 
             result = ThreeDESceneFinder.verify_scene_exists(mock_path)
@@ -274,57 +255,36 @@ class TestThreeDESceneFinder:
 
     def test_find_scenes_single_part_path(self):
         """Test handling 3DE files with single-part relative paths."""
-        with patch("threede_scene_finder.Path") as mock_path_class:
-            # Create mock scene file directly in scene base (single part path)
-            mock_scene_file = Mock(spec=Path)
-            # Only one part in relative path - "scene.3de"
-            mock_scene_file.relative_to.return_value = Path("scene.3de")
-            # Parent directory would be used as plate name
-            mock_parent = Mock()
-            mock_parent.name = "custom_plate"
-            mock_scene_file.parent = mock_parent
+        # Create mock user with proper rglob
+        mock_user = Mock()
+        mock_user.is_dir.return_value = True
+        mock_user.name = "john-d"
 
-            # Create mock scene base that exists
-            mock_scene_base = Mock()
-            mock_scene_base.exists.return_value = True
-            mock_scene_base.rglob.return_value = [mock_scene_file]
+        # Create mock scene file directly in scene base (single part path)
+        mock_scene_file = Mock(spec=Path)
+        # Only one part in relative path - "scene.3de"
+        mock_scene_file.relative_to.return_value = Path("scene.3de")
+        # Parent directory would be used as plate name
+        mock_parent = Mock()
+        mock_parent.name = "custom_plate"
+        mock_scene_file.parent = mock_parent
+        mock_user.rglob.return_value = [mock_scene_file]
 
-            # Create mock user directory structure
-            mock_user = Mock()
-            mock_user.is_dir.return_value = True
-            mock_user.name = "john-d"
+        # Create mock user directory
+        mock_user_dir = Mock()
+        mock_user_dir.iterdir.return_value = [mock_user]
 
-            # Mock the path construction chain
-            mock_mm = Mock()
-            mock_3de = Mock()
-            mock_mm_default = Mock()
-            mock_scenes = Mock()
-
-            # Set up the path chain
-            mock_user.__truediv__ = Mock(
-                side_effect=lambda x: {"mm": mock_mm}.get(x, Mock())
-            )
-            mock_mm.__truediv__ = Mock(
-                side_effect=lambda x: {"3de": mock_3de}.get(x, Mock())
-            )
-            mock_3de.__truediv__ = Mock(
-                side_effect=lambda x: {"mm-default": mock_mm_default}.get(x, Mock())
-            )
-            mock_mm_default.__truediv__ = Mock(
-                side_effect=lambda x: {"scenes": mock_scenes}.get(x, Mock())
-            )
-            mock_scenes.__truediv__ = Mock(
-                side_effect=lambda x: {"scene": mock_scene_base}.get(x, Mock())
-            )
-
-            # Create mock user directory
-            mock_user_dir = Mock()
-            mock_user_dir.exists.return_value = True
-            mock_user_dir.iterdir.return_value = [mock_user]
-
-            # Setup Path mock
-            mock_path_class.return_value.__truediv__.return_value = mock_user_dir
-
+        with patch(
+            "threede_scene_finder.PathUtils.validate_path_exists", return_value=True
+        ), patch(
+            "threede_scene_finder.PathUtils.build_path", return_value=mock_user_dir
+        ), patch(
+            "threede_scene_finder.ThreeDESceneFinder.verify_scene_exists",
+            return_value=True,
+        ), patch(
+            "threede_scene_finder.ThreeDESceneFinder.extract_plate_from_path",
+            return_value="custom_plate",
+        ):
             scenes = ThreeDESceneFinder.find_scenes_for_shot(
                 "/shows/test/shots/AB_123/AB_123_0010",
                 "test_show",
@@ -337,8 +297,8 @@ class TestThreeDESceneFinder:
             assert scenes[0].plate == "custom_plate"  # Should use parent.name
             assert scenes[0].user == "john-d"
 
-    def test_find_scenes_skip_non_directories(self):
-        """Test that non-directory entries in user dir are skipped."""
+    def test_find_scenes_ignores_non_directories(self):
+        """Test that non-directory entries in user dir are ignored."""
         with patch("threede_scene_finder.Path") as mock_path_class:
             # Create mock file (not directory)
             mock_file = Mock()

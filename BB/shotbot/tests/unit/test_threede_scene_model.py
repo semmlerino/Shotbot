@@ -54,7 +54,8 @@ class TestThreeDEScene:
             scene_path=Path("/path/to/scene.3de"),
         )
 
-        assert scene.display_name == "AB_123_0010 - john-d (FG01)"
+        # Display name no longer includes plate after deduplication
+        assert scene.display_name == "AB_123_0010 - john-d"
 
     def test_thumbnail_dir_property(self):
         """Test thumbnail_dir property."""
@@ -124,7 +125,11 @@ class TestThreeDESceneModel:
         model = ThreeDESceneModel()
 
         assert model.scenes == []
-        assert model._excluded_users == {"gabriel-h"}
+        # Check that current user is excluded (get from environment)
+        import os
+
+        current_user = os.environ.get("USER", "default-user")
+        assert model._excluded_users == {current_user}
         mock_cache.get_cached_threede_scenes.assert_called_once()
 
     @patch("threede_scene_model.CacheManager")
@@ -153,7 +158,7 @@ class TestThreeDESceneModel:
 
     @patch("threede_scene_model.CacheManager")
     @patch("threede_scene_finder.ThreeDESceneFinder")
-    def test_refresh_scenes(self, mock_finder, mock_cache_manager):
+    def test_refresh_scenes(self, mock_finder_class, mock_cache_manager):
         """Test refreshing scenes."""
         from shot_model import Shot
 
@@ -162,8 +167,8 @@ class TestThreeDESceneModel:
         mock_cache.get_cached_threede_scenes.return_value = None
         mock_cache_manager.return_value = mock_cache
 
-        # Mock the finder
-        mock_finder.find_scenes_for_shot.return_value = [
+        # Mock the finder class method
+        mock_finder_class.find_all_scenes_in_shows.return_value = [
             ThreeDEScene(
                 show="test_show",
                 sequence="AB_123",
@@ -231,7 +236,8 @@ class TestThreeDESceneModel:
             )
         ]
 
-        scene = model.find_scene_by_display_name("AB_123_0010 - john-d (FG01)")
+        # Display name no longer includes plate after deduplication
+        scene = model.find_scene_by_display_name("AB_123_0010 - john-d")
         assert scene is not None
         assert scene.user == "john-d"
 

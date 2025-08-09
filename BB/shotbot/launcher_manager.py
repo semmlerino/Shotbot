@@ -40,7 +40,7 @@ class LauncherWorker(QThread):
         self.launcher_id = launcher_id
         self.command = command
         self.working_dir = working_dir
-        self._process: Optional[subprocess.Popen] = None
+        self._process: Optional[subprocess.Popen[Any]] = None
         self._should_stop = False
 
     def run(self):
@@ -231,7 +231,7 @@ class LauncherConfig:
             logger.info(f"Saved {len(launchers)} launchers to config")
             return True
 
-        except (OSError, json.JSONEncodeError) as e:
+        except (OSError, TypeError, ValueError) as e:
             logger.error(f"Failed to save launcher config: {e}")
             return False
 
@@ -241,7 +241,7 @@ class ProcessInfo:
 
     def __init__(
         self,
-        process: subprocess.Popen,
+        process: subprocess.Popen[Any],
         launcher_id: str,
         launcher_name: str,
         command: str,
@@ -281,6 +281,7 @@ class LauncherManager(QObject):
         self._active_processes: Dict[str, ProcessInfo] = {}
         self._active_workers: Dict[str, LauncherWorker] = {}  # Track worker threads
         self._process_lock = threading.RLock()
+        self._cleanup_in_progress = threading.Event()  # Prevent concurrent cleanups
 
         # Periodic cleanup timer
         self._cleanup_timer = QTimer()
@@ -823,7 +824,7 @@ class LauncherManager(QObject):
                     except (FileNotFoundError, OSError):
                         continue
 
-                if not launched:
+                if not launched or process is None:
                     # If no terminal worked, use worker thread as fallback
                     logger.warning(
                         "No terminal emulator found, falling back to worker thread"
@@ -833,6 +834,8 @@ class LauncherManager(QObject):
                     )
 
                 # Validate process started successfully
+                # At this point, process is guaranteed to be not None
+                assert process is not None
                 success = self._validate_process_startup(process)
                 if not success:
                     try:
@@ -970,7 +973,7 @@ class LauncherManager(QObject):
                         except (FileNotFoundError, OSError):
                             continue
 
-                    if not launched:
+                    if not launched or process is None:
                         # If no terminal worked, use worker thread as fallback
                         logger.warning(
                             "No terminal emulator found, falling back to worker thread"
@@ -982,6 +985,8 @@ class LauncherManager(QObject):
                             shot.workspace_path,
                         )
                     # Validate process started successfully
+                    # At this point, process is guaranteed to be not None
+                    assert process is not None
                     success = self._validate_process_startup(process)
                     if not success:
                         try:
@@ -1097,7 +1102,7 @@ class LauncherManager(QObject):
 
         return errors
 
-    def _validate_process_startup(self, process: subprocess.Popen) -> bool:
+    def _validate_process_startup(self, process: subprocess.Popen[Any]) -> bool:
         """Validate that a process started successfully.
 
         Args:
@@ -1134,28 +1139,32 @@ class LauncherManager(QObject):
         finished_keys = []
 
         with self._process_lock:
-            for process_key, process_info in self._active_processes.items():
-                try:
-                    # Check if process has finished
-                    if process_info.process.poll() is not None:
-                        finished_keys.append(process_key)
-                except (OSError, AttributeError) as e:
-                    # Process may have been cleaned up already
-                    logger.debug(f"Error checking process {process_key}: {e}")
+            # Create a snapshot to avoid iteration issues
+            processes_snapshot = list(self._active_processes.items())
+
+        # Check processes outside lock to prevent blocking
+        for process_key, process_info in processes_snapshot:
+            try:
+                # Check if process has finished
+                if process_info.process.poll() is not None:
                     finished_keys.append(process_key)
+            except (OSError, AttributeError) as e:
+                # Process may have been cleaned up already
+                logger.debug(f"Error checking process {process_key}: {e}")
+                finished_keys.append(process_key)
 
-            # Remove finished processes
-            for key in finished_keys:
-                if key in self._active_processes:
-                    process_info = self._active_processes[key]
-                    logger.debug(
-                        f"Cleaning up finished process: {process_info.launcher_name} "
-                        f"(PID: {process_info.process.pid}, Key: {key})"
-                    )
-                    del self._active_processes[key]
-
+        # Remove finished processes with lock held
         if finished_keys:
-            logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
+            with self._process_lock:
+                for key in finished_keys:
+                    if key in self._active_processes:
+                        process_info = self._active_processes[key]
+                        logger.debug(
+                            f"Cleaning up finished process: {process_info.launcher_name} "
+                            f"(PID: {process_info.process.pid}, Key: {key})"
+                        )
+                        del self._active_processes[key]
+                logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
 
     def _periodic_cleanup(self) -> None:
         """Periodic cleanup of finished processes and old entries."""
@@ -1166,35 +1175,41 @@ class LauncherManager(QObject):
             current_time = time.time()
             old_threshold = current_time - 3600  # 1 hour ago
 
+            # Clean up processes and workers (they have their own locking)
+            self._cleanup_finished_processes()
+            self._cleanup_finished_workers()
+
+            # Get snapshot for checking old entries
             with self._process_lock:
-                # First, clean up finished processes
-                self._cleanup_finished_processes()
-                # Also clean up finished workers
-                self._cleanup_finished_workers()
+                processes_snapshot = list(self._active_processes.items())
 
-                # Then remove very old entries (safety cleanup)
-                old_keys = []
-                for process_key, process_info in self._active_processes.items():
-                    if process_info.timestamp < old_threshold:
-                        try:
-                            # Check if process is still running
-                            if process_info.process.poll() is not None:
-                                old_keys.append(process_key)
-                            else:
-                                # Process is old but still running, log it
-                                logger.info(
-                                    f"Long-running process: {process_info.launcher_name} "
-                                    f"(PID: {process_info.process.pid}, Age: {current_time - process_info.timestamp:.0f}s)"
-                                )
-                        except (OSError, AttributeError):
+            # Check for old entries outside the lock
+            old_keys = []
+            for process_key, process_info in processes_snapshot:
+                if process_info.timestamp < old_threshold:
+                    try:
+                        # Check if process is still running
+                        if process_info.process.poll() is not None:
                             old_keys.append(process_key)
+                        else:
+                            # Process is old but still running, log it
+                            logger.info(
+                                f"Long-running process: {process_info.launcher_name} "
+                                f"(PID: {process_info.process.pid}, Age: {current_time - process_info.timestamp:.0f}s)"
+                            )
+                    except (OSError, AttributeError):
+                        old_keys.append(process_key)
 
-                for key in old_keys:
-                    if key in self._active_processes:
-                        logger.debug(f"Removing old process entry: {key}")
-                        del self._active_processes[key]
+            # Remove old entries with lock held
+            if old_keys:
+                with self._process_lock:
+                    for key in old_keys:
+                        if key in self._active_processes:
+                            logger.debug(f"Removing old process entry: {key}")
+                            del self._active_processes[key]
 
-                # Log current process count
+            # Log current process count
+            with self._process_lock:
                 active_count = len(self._active_processes)
                 if active_count > 0:
                     logger.debug(
@@ -1210,9 +1225,12 @@ class LauncherManager(QObject):
         Returns:
             Number of active processes
         """
+        # Trigger cleanup but don't wait for it
+        self._cleanup_finished_processes()
+        self._cleanup_finished_workers()
+
+        # Return current count
         with self._process_lock:
-            self._cleanup_finished_processes()
-            self._cleanup_finished_workers()
             return len(self._active_processes) + len(self._active_workers)
 
     def get_active_process_info(self) -> List[Dict[str, Any]]:
@@ -1221,11 +1239,11 @@ class LauncherManager(QObject):
         Returns:
             List of dictionaries containing process information
         """
+        # Trigger cleanup but don't wait for it
+        self._cleanup_finished_processes()
+
         process_info = []
-
         with self._process_lock:
-            self._cleanup_finished_processes()
-
             for process_key, info in self._active_processes.items():
                 try:
                     process_info.append(
@@ -1420,9 +1438,20 @@ class LauncherManager(QObject):
 
     def _cleanup_finished_workers(self):
         """Clean up finished worker threads."""
-        with self._process_lock:
+        # Prevent concurrent cleanup operations
+        if self._cleanup_in_progress.is_set():
+            logger.debug("Worker cleanup already in progress, skipping")
+            return
+
+        self._cleanup_in_progress.set()
+        try:
+            # Create a snapshot of workers to check - prevents iteration issues
+            with self._process_lock:
+                workers_to_check = dict(self._active_workers)
+
+            # Second pass: check workers outside the lock to avoid blocking
             finished_workers = []
-            for worker_key, worker in self._active_workers.items():
+            for worker_key, worker in workers_to_check.items():
                 try:
                     # Check if worker is finished
                     if worker.isFinished():
@@ -1463,22 +1492,32 @@ class LauncherManager(QObject):
                     # Mark for cleanup anyway to prevent accumulation
                     finished_workers.append(worker_key)
 
-            # Remove finished workers from tracking
-            for key in finished_workers:
-                if key in self._active_workers:
-                    del self._active_workers[key]
-
+            # Third pass: remove finished workers with lock held
             if finished_workers:
-                logger.debug(f"Cleaned up {len(finished_workers)} finished workers")
+                with self._process_lock:
+                    for key in finished_workers:
+                        if key in self._active_workers:
+                            del self._active_workers[key]
+                    logger.debug(f"Cleaned up {len(finished_workers)} finished workers")
+        finally:
+            self._cleanup_in_progress.clear()
 
     def stop_all_workers(self) -> None:
         """Stop all active worker threads."""
+        # Get snapshot of workers to stop
+        workers_to_stop = {}
         with self._process_lock:
-            for worker in self._active_workers.values():
-                if not worker.isFinished():
-                    worker.stop()
-                    if not worker.wait(1000):  # Wait up to 1 second
-                        worker.terminate()
-                        worker.wait()
+            workers_to_stop = dict(self._active_workers)
+
+        # Stop workers outside the lock to avoid blocking
+        for worker in workers_to_stop.values():
+            if not worker.isFinished():
+                worker.stop()
+                if not worker.wait(1000):  # Wait up to 1 second
+                    worker.terminate()
+                    worker.wait()
+
+        # Clear the dictionary with lock held
+        with self._process_lock:
             self._active_workers.clear()
             logger.info("Stopped all worker threads")

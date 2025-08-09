@@ -10,8 +10,8 @@ from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
 
-class TestableMemoryOptimizedGrid(MemoryOptimizedGrid):
-    """Testable implementation of MemoryOptimizedGrid."""
+class _TestableMemoryOptimizedGrid(MemoryOptimizedGrid):
+    """Testable implementation of MemoryOptimizedGrid (not a test class)."""
 
     def __init__(self):
         super().__init__()
@@ -43,7 +43,7 @@ class TestMemoryOptimizedGrid:
     @pytest.fixture
     def grid(self):
         """Create testable grid instance."""
-        return TestableMemoryOptimizedGrid()
+        return _TestableMemoryOptimizedGrid()
 
     @pytest.fixture
     def sample_shot(self):
@@ -87,7 +87,8 @@ class TestMemoryOptimizedGrid:
     def test_get_item_key_scene(self, grid, sample_scene):
         """Test getting key for 3DE scene."""
         key = grid._get_item_key(sample_scene)
-        assert key == "seq01_shot001 - user1 (plate01)"
+        # Display name no longer includes plate after deduplication
+        assert key == "seq01_shot001 - user1"
 
     def test_create_thumbnail_shot(self, qtbot, grid, sample_shot):
         """Test creating thumbnail for shot."""

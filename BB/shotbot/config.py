@@ -1,4 +1,53 @@
-"""Configuration constants for ShotBot application."""
+"""Configuration constants and settings for ShotBot application.
+
+This module provides centralized configuration management for the ShotBot VFX
+application. All constants are organized within the Config class to eliminate
+magic numbers and provide a single source of truth for application settings.
+
+Configuration Categories:
+    - Application Info: Version, name, and metadata
+    - Window Settings: Default dimensions, minimum sizes, and layout preferences
+    - Thumbnail Settings: Size constraints, spacing, colors, and visual properties
+    - File System Paths: Show directories, thumbnail paths, and workspace patterns
+    - Application Commands: Executable names and launcher configurations
+    - Performance Tuning: Thread counts, memory limits, and optimization flags
+    - Cache Management: TTL values, size limits, and cleanup thresholds
+    - UI Behavior: Update intervals, timeouts, and responsive design parameters
+
+Path Pattern System:
+    The configuration uses Python string formatting for flexible path construction:
+        THUMBNAIL_PATH_PATTERN = "{shows_root}/{show}/shots/{sequence}/{shot}/..."
+
+    This allows for easy customization of VFX pipeline directory structures
+    without modifying core application logic.
+
+Threading Configuration:
+    Thread limits are carefully tuned for the target hardware:
+        - MAX_THUMBNAIL_THREADS: Balances I/O throughput with memory usage
+        - Background workers use separate thread pools for non-blocking operations
+        - Qt thread safety considerations built into concurrent access patterns
+
+Examples:
+    Accessing configuration values:
+        >>> from config import Config
+        >>> thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        >>> shows_path = Config.SHOWS_ROOT
+        >>> app_commands = Config.APPS
+
+    Customizing for different pipelines:
+        >>> # For custom show directory structure
+        >>> Config.SHOWS_ROOT = "/mnt/projects"
+        >>> Config.THUMBNAIL_PATH_PATTERN = "{shows_root}/{show}/shots/{sequence}..."
+
+    Runtime configuration validation:
+        >>> from pathlib import Path
+        >>> assert Path(Config.SHOWS_ROOT).exists(), "Shows root not accessible"
+        >>> assert Config.MIN_THUMBNAIL_SIZE <= Config.DEFAULT_THUMBNAIL_SIZE
+
+Thread Safety:
+    Configuration values are read-only after import and safe for concurrent
+    access. Runtime modifications should be avoided in production environments.
+"""
 
 from pathlib import Path
 
@@ -68,6 +117,31 @@ class Config:
     CACHE_EXPIRY_MINUTES = 30  # How long to keep cached data
     CACHE_THUMBNAIL_SIZE = 512  # Size for cached thumbnails
 
+    # Enhanced cache settings
+    PATH_CACHE_TTL_SECONDS = 300  # 5 minutes for path validation (10x improvement)
+    DIR_CACHE_TTL_SECONDS = 60  # 1 minute for directory listings
+    SCENE_CACHE_TTL_SECONDS = 1800  # 30 minutes for 3DE scenes
+
+    # Cache size limits
+    PATH_CACHE_MAX_SIZE = 5000  # Maximum path cache entries
+    DIR_CACHE_MAX_SIZE = 500  # Maximum directory cache entries
+    SCENE_CACHE_MAX_SIZE = 2000  # Maximum scene cache entries
+
+    # Memory limits (MB)
+    PATH_CACHE_MAX_MEMORY_MB = 1.0
+    DIR_CACHE_MAX_MEMORY_MB = 5.0
+    SCENE_CACHE_MAX_MEMORY_MB = 5.0
+    THUMB_CACHE_MAX_MEMORY_MB = 2.0
+
+    # Memory pressure thresholds (percentage)
+    MEMORY_PRESSURE_NORMAL = 70.0  # Below this is normal
+    MEMORY_PRESSURE_MODERATE = 85.0  # Start considering eviction
+    MEMORY_PRESSURE_HIGH = 95.0  # Aggressive eviction needed
+
+    # Performance monitoring
+    ENABLE_PERFORMANCE_MONITORING = True
+    CACHE_STATS_LOG_INTERVAL = 300  # Log cache stats every 5 minutes
+
     # VFX pipeline settings
     DEFAULT_USERNAME = "gabriel-h"  # Default username for pipeline paths
     UNDISTORTION_SUBPATH = "mm"  # Subdirectory for undistortion files
@@ -79,7 +153,34 @@ class Config:
 
     # Path construction segments
     THUMBNAIL_SEGMENTS = ["publish", "editorial", "cutref", "v001", "jpg", "1920x1080"]
-    RAW_PLATE_SEGMENTS = ["publish", "turnover", "plate", "input_plate", "bg01"]
+    RAW_PLATE_SEGMENTS = [
+        "publish",
+        "turnover",
+        "plate",
+        "input_plate",
+    ]  # Removed bg01 for flexible discovery
+
+    # Plate discovery patterns and priorities
+    PLATE_DISCOVERY_PATTERNS = [
+        "FG01",
+        "FG02",
+        "BG01",
+        "BG02",
+        "bg01",
+        "fg01",
+        "plate",
+    ]  # Common plate naming
+    PLATE_PRIORITY_ORDER = {
+        "BG01": 10,
+        "bg01": 9,
+        "BG02": 8,
+        "FG01": 7,
+        "fg01": 6,
+        "FG02": 5,
+    }  # Higher value = higher priority
+
+    # Common color space patterns in plate names
+    COLOR_SPACE_PATTERNS = ["aces", "lin_sgamut3cine", "lin_rec709", "rec709", "srgb"]
     UNDISTORTION_BASE_SEGMENTS = [
         "user",
         "mm",
@@ -137,3 +238,26 @@ class Config:
     MAX_SHOTS_PER_SHOW = 1000  # Limit to prevent excessive searching in huge shows
     SKIP_SEQUENCE_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]
     SKIP_SHOT_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]
+
+    # Progressive file scanning configuration
+    PROGRESSIVE_SCAN_ENABLED = True  # Enable progressive/batched file scanning
+    PROGRESSIVE_SCAN_BATCH_SIZE = 20  # Number of files to process per batch
+    PROGRESSIVE_SCAN_MIN_BATCH_SIZE = 5  # Minimum batch size for last batch
+    PROGRESSIVE_SCAN_MAX_BATCH_SIZE = 100  # Maximum batch size limit
+
+    # Progress reporting configuration
+    PROGRESS_UPDATE_INTERVAL_MS = 500  # Minimum time between progress updates (ms)
+    PROGRESS_FILES_PER_UPDATE = 10  # Update progress every N files processed
+    PROGRESS_ENABLE_ETA = True  # Enable ETA calculation and display
+    PROGRESS_ETA_SMOOTHING_WINDOW = 5  # Number of samples for ETA smoothing
+
+    # Worker thread configuration
+    WORKER_CANCELLATION_CHECK_INTERVAL = 50  # Check for cancellation every N files
+    WORKER_PAUSE_CHECK_INTERVAL_MS = 100  # Check for pause/resume every N ms
+    WORKER_THREAD_PRIORITY = 0  # QThread priority (0=normal, -1=low, +1=high)
+    WORKER_SHUTDOWN_TIMEOUT_MS = 5000  # Maximum time to wait for worker shutdown
+
+    # Performance tuning for progressive scanning
+    PROGRESSIVE_IO_YIELD_INTERVAL = 25  # Yield to other threads every N files
+    PROGRESSIVE_MEMORY_CHECK_INTERVAL = 100  # Check memory usage every N files
+    PROGRESSIVE_MAX_MEMORY_MB = 512  # Maximum memory usage during scanning

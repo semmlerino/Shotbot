@@ -139,7 +139,7 @@ class TestThreeDESceneDiscoveryIntegration:
         assert alice_scene.sequence == "seq001"
         assert alice_scene.shot == "0010"
         assert alice_scene.plate == "mm-default"
-        assert alice_scene.display_name == "seq001_0010 - alice (mm-default)"
+        assert alice_scene.display_name == "seq001_0010 - alice"
         assert alice_scene.scene_path.name == "alice_scene.3de"
 
     def test_scene_model_refresh_and_caching(

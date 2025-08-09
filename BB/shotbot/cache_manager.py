@@ -3,9 +3,10 @@
 import json
 import logging
 import shutil
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
 from PySide6.QtCore import QObject, QRunnable, Qt, Signal
 from PySide6.QtGui import QPixmap
@@ -20,18 +21,49 @@ logger = logging.getLogger(__name__)
 
 
 class CacheManager(QObject):
-    """Manages caching of shot data and thumbnails."""
+    """Manages caching of shot data and thumbnails with thread safety and memory monitoring."""
 
     # Signals
     cache_updated = Signal()
 
+    # Thread safety for cache operations
+    _lock = threading.RLock()
+
+    # Memory tracking
+    _memory_usage_bytes = 0
+    _max_memory_bytes = 100 * 1024 * 1024  # 100MB limit for cache
+
     # Cache settings - use Config values
     @property
-    def CACHE_THUMBNAIL_SIZE(self):
+    def CACHE_THUMBNAIL_SIZE(self) -> int:
+        """Get the cached thumbnail size from configuration.
+
+        Returns:
+            int: Thumbnail size in pixels for cached images. This determines
+                both the width and height of square thumbnail images stored
+                in the cache directory.
+
+        Note:
+            This property delegates to Config.CACHE_THUMBNAIL_SIZE to ensure
+            cache behavior remains consistent with application configuration.
+            Changes to the config value will be reflected immediately.
+        """
         return Config.CACHE_THUMBNAIL_SIZE
 
     @property
-    def CACHE_EXPIRY_MINUTES(self):
+    def CACHE_EXPIRY_MINUTES(self) -> int:
+        """Get cache expiry time in minutes from configuration.
+
+        Returns:
+            int: Number of minutes after which cached data expires and
+                requires refreshing. This applies to both shot data and
+                3DE scene cache entries.
+
+        Note:
+            Cache expiry is checked during read operations. Expired entries
+            are automatically refreshed from source data. This property
+            delegates to Config.CACHE_EXPIRY_MINUTES for centralized control.
+        """
         return Config.CACHE_EXPIRY_MINUTES
 
     def __init__(self, cache_dir: Optional[Path] = None):
@@ -43,6 +75,9 @@ class CacheManager(QObject):
         self.threede_scenes_cache_file = self.cache_dir / "threede_scenes.json"
         self._ensure_cache_dirs()
 
+        # Track cached thumbnails for memory management
+        self._cached_thumbnails: Dict[str, int] = {}  # path -> size in bytes
+
     def _ensure_cache_dirs(self):
         """Ensure cache directories exist."""
         self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
@@ -50,11 +85,12 @@ class CacheManager(QObject):
     def get_cached_thumbnail(
         self, show: str, sequence: str, shot: str
     ) -> Optional[Path]:
-        """Get path to cached thumbnail if it exists."""
-        cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
-        if cache_path.exists():
-            return cache_path
-        return None
+        """Get path to cached thumbnail if it exists (thread-safe)."""
+        with self._lock:
+            cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
+            if cache_path.exists():
+                return cache_path
+            return None
 
     def cache_thumbnail(
         self, source_path: Path, show: str, sequence: str, shot: str
@@ -120,9 +156,25 @@ class CacheManager(QObject):
                 logger.warning(f"Failed to scale thumbnail: {source_path}")
                 return None
 
-            # Save to cache
+            # Save to cache with memory tracking
             if scaled.save(str(cache_path), "JPEG", 85):
-                logger.debug(f"Cached thumbnail: {cache_path}")
+                # Track memory usage
+                with self._lock:
+                    try:
+                        file_size = cache_path.stat().st_size
+                        self._cached_thumbnails[str(cache_path)] = file_size
+                        self._memory_usage_bytes += file_size
+
+                        # Check if we need to evict old thumbnails
+                        if self._memory_usage_bytes > self._max_memory_bytes:
+                            self._evict_old_thumbnails()
+
+                    except (OSError, IOError):
+                        pass  # Ignore errors in memory tracking
+
+                logger.debug(
+                    f"Cached thumbnail: {cache_path} (total cache: {self._memory_usage_bytes / 1024 / 1024:.1f}MB)"
+                )
                 return cache_path
             else:
                 logger.warning(f"Failed to save thumbnail to: {cache_path}")
@@ -138,11 +190,13 @@ class CacheManager(QObject):
             logger.exception(f"Unexpected error caching thumbnail {source_path}: {e}")
             return None
         finally:
-            # Clean up Qt objects to prevent memory leaks
-            # Note: QPixmap is automatically managed by Qt, but explicit cleanup helps
-            del pixmap, scaled
+            # Safe cleanup with existence checks to prevent memory leaks
+            if "pixmap" in locals() and pixmap is not None:
+                pixmap = None
+            if "scaled" in locals() and scaled is not None:
+                scaled = None
 
-    def get_cached_shots(self) -> Optional[List[Dict[str, str]]]:
+    def get_cached_shots(self) -> Optional[List[Dict[str, Any]]]:
         """Get cached shot list if valid.
 
         Returns:
@@ -154,16 +208,18 @@ class CacheManager(QObject):
 
         try:
             with open(self.shots_cache_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
+                data: Any = json.load(f)
 
             # Validate cache structure
             if not isinstance(data, dict) or "timestamp" not in data:
                 logger.warning("Invalid shot cache structure - missing timestamp")
                 return None
 
+            cache_data: Dict[str, Any] = data  # type: ignore[assignment]
+
             # Check if cache is expired
             try:
-                cache_time = datetime.fromisoformat(data["timestamp"])
+                cache_time = datetime.fromisoformat(cache_data["timestamp"])
             except (ValueError, TypeError) as e:
                 logger.warning(f"Invalid timestamp in shot cache: {e}")
                 return None
@@ -174,11 +230,13 @@ class CacheManager(QObject):
                 logger.debug(f"Shot cache expired (age: {datetime.now() - cache_time})")
                 return None
 
-            shots = data.get("shots", [])
-            if not isinstance(shots, list):
+            shots_data = cache_data.get("shots", [])
+            if not isinstance(shots_data, list):
                 logger.warning("Invalid shot cache structure - shots is not a list")
                 return None
 
+            # Type assertion since we validated it's a list above
+            shots: List[Dict[str, Any]] = shots_data  # type: ignore[assignment]
             logger.debug(f"Loaded {len(shots)} shots from cache")
             return shots
 
@@ -198,7 +256,7 @@ class CacheManager(QObject):
             logger.exception(f"Unexpected error reading shot cache: {e}")
             return None
 
-    def cache_shots(self, shots: Union[List["Shot"], List[Dict[str, str]]]):
+    def cache_shots(self, shots: Sequence["Shot"]):
         """Cache shot list to file.
 
         Args:
@@ -220,7 +278,7 @@ class CacheManager(QObject):
             else:
                 # It's a list of Shot objects - convert using to_dict()
                 try:
-                    shot_dicts = [shot.to_dict() for shot in shots]  # type: ignore[attr-defined]
+                    shot_dicts = [shot.to_dict() for shot in shots]
                 except AttributeError as e:
                     logger.error(f"Shot objects missing to_dict() method: {e}")
                     return
@@ -322,22 +380,72 @@ class CacheManager(QObject):
         except Exception as e:
             logger.exception(f"Unexpected error caching 3DE scenes: {e}")
 
+    def _evict_old_thumbnails(self):
+        """Evict oldest thumbnails when memory limit is exceeded."""
+        # Sort thumbnails by modification time
+        thumbnail_stats: List[Tuple[str, int, float]] = []
+        for path_str, size in self._cached_thumbnails.items():
+            try:
+                path = Path(path_str)
+                if path.exists():
+                    mtime = path.stat().st_mtime
+                    thumbnail_stats.append((path_str, size, mtime))
+            except (OSError, IOError):
+                # Remove from tracking if file doesn't exist
+                del self._cached_thumbnails[path_str]
+                self._memory_usage_bytes -= size
+
+        # Sort by modification time (oldest first)
+        thumbnail_stats.sort(key=lambda x: x[2])
+
+        # Remove oldest thumbnails until we're under 80% of limit
+        target_size = int(self._max_memory_bytes * 0.8)
+        for path_str, size, _ in thumbnail_stats:
+            if self._memory_usage_bytes <= target_size:
+                break
+
+            try:
+                Path(path_str).unlink()
+                del self._cached_thumbnails[path_str]
+                self._memory_usage_bytes -= size
+                logger.debug(f"Evicted old thumbnail: {path_str}")
+            except (OSError, IOError):
+                pass
+
+    def get_memory_usage(self) -> Dict[str, Any]:
+        """Get current cache memory usage statistics."""
+        with self._lock:
+            return {
+                "total_bytes": self._memory_usage_bytes,
+                "total_mb": self._memory_usage_bytes / 1024 / 1024,
+                "max_mb": self._max_memory_bytes / 1024 / 1024,
+                "usage_percent": (self._memory_usage_bytes / self._max_memory_bytes)
+                * 100,
+                "thumbnail_count": len(self._cached_thumbnails),
+            }
+
     def clear_cache(self):
         """Clear all cached data."""
-        try:
-            if self.thumbnails_dir.exists():
-                shutil.rmtree(self.thumbnails_dir)
-            if self.shots_cache_file.exists():
-                self.shots_cache_file.unlink()
-            if self.threede_scenes_cache_file.exists():
-                self.threede_scenes_cache_file.unlink()
-            self._ensure_cache_dirs()
-        except PermissionError as e:
-            logger.error(f"Permission denied while clearing cache: {e}")
-        except (OSError, IOError) as e:
-            logger.error(f"I/O error while clearing cache: {e}")
-        except Exception as e:
-            logger.exception(f"Unexpected error clearing cache: {e}")
+        with self._lock:
+            try:
+                if self.thumbnails_dir.exists():
+                    shutil.rmtree(self.thumbnails_dir)
+                if self.shots_cache_file.exists():
+                    self.shots_cache_file.unlink()
+                if self.threede_scenes_cache_file.exists():
+                    self.threede_scenes_cache_file.unlink()
+                self._ensure_cache_dirs()
+
+                # Reset memory tracking
+                self._cached_thumbnails.clear()
+                self._memory_usage_bytes = 0
+
+            except PermissionError as e:
+                logger.error(f"Permission denied while clearing cache: {e}")
+            except (OSError, IOError) as e:
+                logger.error(f"I/O error while clearing cache: {e}")
+            except Exception as e:
+                logger.exception(f"Unexpected error clearing cache: {e}")
 
 
 class ThumbnailCacheLoader(QRunnable):

@@ -6,14 +6,69 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional
 
-from cache_manager import CacheManager
+if TYPE_CHECKING:
+    from cache_manager import CacheManager
+
 from config import Config
 from utils import FileUtils, PathUtils, ValidationUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
+
+
+class RefreshResult(NamedTuple):
+    """Result of shot refresh operation with success status and change detection.
+
+    This NamedTuple provides type-safe results from ShotModel.refresh_shots() operations,
+    allowing callers to determine both operation success and whether the shot list
+    actually changed. This enables efficient UI updates that only occur when needed.
+
+    Attributes:
+        success (bool): Whether the refresh operation completed successfully.
+            True indicates the workspace command executed without errors and
+            the shot list was parsed. False indicates command failure, timeout,
+            or parsing errors that prevented shot list updates.
+
+        has_changes (bool): Whether the shot list changed compared to the previous
+            refresh. True indicates new shots were added, existing shots were
+            removed, or shot metadata changed. False indicates the shot list
+            is identical to the previous state. Only meaningful when success=True.
+
+    Examples:
+        Basic usage with tuple unpacking:
+            >>> result = shot_model.refresh_shots()
+            >>> success, has_changes = result
+            >>> if success and has_changes:
+            ...     update_ui_with_new_shots()
+
+        Explicit attribute access:
+            >>> result = shot_model.refresh_shots()
+            >>> if result.success:
+            ...     logger.info(f"Refresh successful, changes: {result.has_changes}")
+            ... else:
+            ...     logger.error("Shot refresh failed")
+
+        Conditional UI updates:
+            >>> result = shot_model.refresh_shots()
+            >>> if result.success and result.has_changes:
+            ...     shot_grid.update_shots(shot_model.get_shots())
+            ... elif result.success:
+            ...     logger.debug("Shot list unchanged, skipping UI update")
+            ... else:
+            ...     show_error_dialog("Failed to refresh shots")
+
+    Type Safety:
+        This NamedTuple enforces type safety at runtime and provides IDE
+        autocompletion. It replaces the previous tuple return type:
+
+        Before: tuple[bool, bool]  # Unclear which bool means what
+        After:  RefreshResult      # Self-documenting with named fields
+    """
+
+    success: bool
+    has_changes: bool
 
 
 @dataclass
@@ -71,9 +126,13 @@ class ShotModel:
     """Manages shot data and parsing."""
 
     def __init__(
-        self, cache_manager: Optional[CacheManager] = None, load_cache: bool = True
+        self, cache_manager: Optional["CacheManager"] = None, load_cache: bool = True
     ):
-        self.shots: list[Shot] = []
+        from cache_manager import (
+            CacheManager,  # Runtime import to avoid circular dependency
+        )
+
+        self.shots: List[Shot] = []
         self.cache_manager = cache_manager or CacheManager()
         self._parse_pattern = re.compile(
             r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))"
@@ -90,11 +149,11 @@ class ShotModel:
             return True
         return False
 
-    def refresh_shots(self) -> tuple[bool, bool]:
+    def refresh_shots(self) -> RefreshResult:
         """Fetch and parse shot list from ws -sg command.
 
         Returns:
-            (success, has_changes) - whether refresh succeeded and if shots changed
+            RefreshResult with success status and change indicator
         """
         try:
             # Save current shots for comparison (include workspace path)
@@ -118,14 +177,14 @@ class ShotModel:
                 if result.stderr:
                     error_msg += f": {result.stderr.strip()}"
                 logger.error(error_msg)
-                return False, False
+                return RefreshResult(success=False, has_changes=False)
 
             # Parse output
             try:
                 new_shots = self._parse_ws_output(result.stdout)
             except ValueError as e:
                 logger.error(f"Failed to parse ws -sg output: {e}")
-                return False, False
+                return RefreshResult(success=False, has_changes=False)
 
             new_shot_data = {
                 (shot.full_name, shot.workspace_path) for shot in new_shots
@@ -141,36 +200,36 @@ class ShotModel:
                 # Cache the results - pass Shot objects directly
                 if self.shots:
                     try:
-                        self.cache_manager.cache_shots(self.shots)
+                        self.cache_manager.cache_shots(self.shots)  # type: ignore[arg-type]
                     except (OSError, IOError) as e:
                         logger.warning(f"Failed to cache shots: {e}")
                         # Continue without caching - not critical for operation
 
-            return True, has_changes
+            return RefreshResult(success=True, has_changes=has_changes)
 
         except subprocess.TimeoutExpired:
             logger.error("Timeout while running ws -sg command (>10 seconds)")
-            return False, False
+            return RefreshResult(success=False, has_changes=False)
         except FileNotFoundError as e:
             if "bash" in str(e):
                 logger.error("bash shell not found - cannot execute ws command")
             else:
                 logger.error("ws command not found in PATH")
-            return False, False
+            return RefreshResult(success=False, has_changes=False)
         except PermissionError as e:
             logger.error(f"Permission denied while executing ws command: {e}")
-            return False, False
+            return RefreshResult(success=False, has_changes=False)
         except subprocess.SubprocessError as e:
             logger.error(f"Subprocess error while running ws -sg: {e}")
-            return False, False
+            return RefreshResult(success=False, has_changes=False)
         except MemoryError:
             logger.error("Out of memory while processing shot list")
-            return False, False
+            return RefreshResult(success=False, has_changes=False)
         except Exception as e:
             logger.exception(f"Unexpected error while fetching shots: {e}")
-            return False, False
+            return RefreshResult(success=False, has_changes=False)
 
-    def _parse_ws_output(self, output: str) -> list[Shot]:
+    def _parse_ws_output(self, output: str) -> List[Shot]:
         """Parse ws -sg output to extract shots.
 
         Args:
@@ -185,7 +244,7 @@ class ShotModel:
         if not isinstance(output, str):
             raise ValueError(f"Expected string output, got {type(output)}")
 
-        shots: list[Shot] = []
+        shots: List[Shot] = []
         lines = output.strip().split("\n")
 
         # If output is completely empty, that might indicate an issue
