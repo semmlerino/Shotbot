@@ -279,7 +279,6 @@ def memory_detector():
     return MemoryLeakDetector()
 
 
-
 @pytest.mark.performance
 class TestShotModelPerformance:
     """Performance tests for ShotModel."""
@@ -288,82 +287,44 @@ class TestShotModelPerformance:
         """Test performance of shot refresh operation."""
         from shot_model import ShotModel
 
-        # Create model without loading cache for clean test
-        model = ShotModel(load_cache=False)
+        model = ShotModel()
 
-        # Mock the subprocess to avoid actual ws command
-        mock_output = """workspace /shows/ygsk/shots/108_CHV_0001
-workspace /shows/ygsk/shots/108_CHV_0002
-workspace /shows/ygsk/shots/108_CHV_0003
-workspace /shows/ygsk/shots/108_CHV_0004
-workspace /shows/ygsk/shots/108_CHV_0005"""
+        # Benchmark refresh operation
+        metrics = performance_benchmark.benchmark(model.refresh_shots)
 
-        def mock_run(*args, **kwargs):
-            from unittest.mock import Mock
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = mock_output
-            mock_result.stderr = ""
-            return mock_result
-
-        from unittest.mock import patch
-        with patch("subprocess.run", side_effect=mock_run):
-            # Benchmark refresh operation
-            metrics = performance_benchmark.benchmark(model.refresh_shots)
-
-        # Assert performance thresholds (more relaxed for mocked operations)
-        assert metrics["median_time"] < 0.1, f"Shot refresh too slow: {metrics['median_time']:.3f}s"
-        assert metrics["p95_time"] < 0.2, f"Shot refresh P95 too slow: {metrics['p95_time']:.3f}s"
+        # Assert performance thresholds
+        assert metrics["median_time"] < 2.0, "Shot refresh too slow"
+        assert metrics["p95_time"] < 3.0, "Shot refresh P95 too slow"
 
     def test_shot_model_memory_usage(self, performance_benchmark):
         """Test memory usage of shot model with large dataset."""
-        from shot_model import Shot, ShotModel
+        from unittest.mock import patch
 
-        # Create model without loading cache
-        model = ShotModel(load_cache=False)
+        from shot_model import ShotModel
 
-        # Create many Shot objects to simulate large dataset
-        large_shots = []
-        for i in range(1000):  # Reduced from 10000 for reasonable test time
-            shot = Shot(
-                show="ygsk",
-                sequence="108",
-                shot=f"{i:04d}",
-                workspace_path=f"/shows/ygsk/shots/108_CHV_{i:04d}"
-            )
-            large_shots.append(shot)
+        model = ShotModel()
 
-        def populate_shots():
-            model.shots = large_shots.copy()
+        # Mock large shot list
+        large_shot_list = [f"SHOT_{i:04d}" for i in range(10000)]
 
-        metrics = performance_benchmark.benchmark_memory(populate_shots)
+        with patch.object(model, "_parse_shot_output", return_value=large_shot_list):
+            metrics = performance_benchmark.benchmark_memory(model.refresh_shots)
 
-        # Assert memory thresholds (more realistic for 1000 shots)
-        assert metrics["peak_memory_mb"] < 50, f"Excessive memory usage: {metrics['peak_memory_mb']:.1f}MB"
+        # Assert memory thresholds
+        assert metrics["peak_memory_mb"] < 100, "Excessive memory usage"
 
     def test_shot_model_memory_leak(self, memory_detector):
         """Test for memory leaks in shot model operations."""
         from shot_model import ShotModel
 
-        def create_and_access():
-            model = ShotModel(load_cache=False)
-            # Mock a simple refresh that doesn't call subprocess
-            mock_output = "workspace /shows/ygsk/shots/108_CHV_0001"
-            from unittest.mock import patch, Mock
-            with patch("subprocess.run") as mock_run:
-                mock_result = Mock()
-                mock_result.returncode = 0
-                mock_result.stdout = mock_output
-                mock_result.stderr = ""
-                mock_run.return_value = mock_result
-                
-                model.refresh_shots()
-                # Access shots attribute (equivalent to get_shots())
-                _ = model.shots
+        def create_and_refresh():
+            model = ShotModel()
+            model.refresh_shots()
+            model.get_shots()
             return model
 
-        # Check for leaks with fewer iterations for faster test
-        result = memory_detector.check_leak(create_and_access, iterations=20)
+        # Check for leaks
+        result = memory_detector.check_leak(create_and_refresh, iterations=50)
 
         assert not result["has_leak"], (
             f"Memory leak detected: {result['total_increase_mb']:.2f} MB increase"
@@ -374,100 +335,91 @@ workspace /shows/ygsk/shots/108_CHV_0005"""
 class TestCachePerformance:
     """Performance tests for cache manager."""
 
-    def test_cache_shot_storage_performance(self, performance_benchmark):
-        """Test cache storage performance for shot data."""
+    def test_cache_lookup_performance(self, performance_benchmark):
+        """Test cache lookup performance with many entries."""
         from cache_manager import CacheManager
-        from shot_model import Shot
 
         cache = CacheManager()
 
-        # Create test shots
-        test_shots = []
-        for i in range(100):
-            shot = Shot(
-                show="ygsk",
-                sequence="108", 
-                shot=f"{i:04d}",
-                workspace_path=f"/shows/ygsk/shots/108_CHV_{i:04d}"
-            )
-            test_shots.append(shot)
+        # Populate cache with many entries
+        for i in range(1000):
+            cache.set(f"key_{i}", f"value_{i}", ttl=300)
 
-        # Benchmark shot caching
-        metrics = performance_benchmark.benchmark(cache.cache_shots, test_shots)
+        # Benchmark lookup
+        def lookup_operations():
+            for i in range(100):
+                cache.get(f"key_{i % 1000}")
 
-        # Assert cache operations are fast
-        assert metrics["mean_time"] < 0.1, f"Cache storage too slow: {metrics['mean_time']:.3f}s"
+        metrics = performance_benchmark.benchmark(lookup_operations)
 
-    def test_cache_shot_retrieval_performance(self, performance_benchmark):
-        """Test cache retrieval performance for shot data."""
-        from cache_manager import CacheManager
-        from shot_model import Shot
-
-        cache = CacheManager()
-
-        # Pre-populate cache with test data
-        test_shots = []
-        for i in range(100):
-            shot = Shot(
-                show="ygsk",
-                sequence="108",
-                shot=f"{i:04d}", 
-                workspace_path=f"/shows/ygsk/shots/108_CHV_{i:04d}"
-            )
-            test_shots.append(shot)
-        
-        cache.cache_shots(test_shots)
-
-        # Benchmark retrieval
-        def retrieve_shots():
-            return cache.get_cached_shots()
-
-        metrics = performance_benchmark.benchmark(retrieve_shots)
-
-        # Assert retrieval is fast
-        assert metrics["mean_time"] < 0.05, f"Cache retrieval too slow: {metrics['mean_time']:.3f}s"
+        # Assert lookup is fast
+        assert metrics["mean_time"] < 0.01, "Cache lookup too slow"
 
     def test_cache_memory_efficiency(self, performance_benchmark):
-        """Test memory efficiency of cache with shot data."""
+        """Test memory efficiency of cache with large values."""
         from cache_manager import CacheManager
-        from shot_model import Shot
 
         cache = CacheManager()
 
-        # Create moderate number of shots with realistic data
+        # Create large cached values
+        large_value = "x" * 10000  # 10KB string
+
         def populate_cache():
-            shots = []
-            for i in range(50):  # Reduced for realistic test
-                shot = Shot(
-                    show="ygsk",
-                    sequence="108",
-                    shot=f"{i:04d}",
-                    workspace_path=f"/shows/ygsk/shots/108_CHV_{i:04d}"
-                )
-                shots.append(shot)
-            cache.cache_shots(shots)
+            for i in range(100):
+                cache.set(f"large_{i}", large_value, ttl=300)
 
         metrics = performance_benchmark.benchmark_memory(populate_cache)
 
-        # Check memory usage is reasonable for shot caching
-        assert metrics["memory_delta_mb"] < 5, f"Cache using too much memory: {metrics['memory_delta_mb']:.1f}MB"
+        # Check memory usage is reasonable
+        assert metrics["memory_delta_mb"] < 10, "Cache using too much memory"
+
+    def test_cache_expiration_performance(self, performance_benchmark):
+        """Test performance of cache expiration checks."""
+        import time
+
+        from cache_manager import CacheManager
+
+        cache = CacheManager()
+
+        # Add many expired entries
+        for i in range(1000):
+            cache.set(f"expire_{i}", "value", ttl=0.001)
+
+        time.sleep(0.002)
+
+        # Benchmark expiration checks
+        def check_expired():
+            for i in range(1000):
+                cache.get(f"expire_{i}")
+
+        metrics = performance_benchmark.benchmark(check_expired)
+
+        # Expiration checks should be fast
+        assert metrics["mean_time"] < 0.1, "Expiration checks too slow"
 
 
-@pytest.mark.performance  
+@pytest.mark.performance
 class TestFinderPerformance:
     """Performance tests for finder components."""
 
     def test_plate_finder_performance(self, performance_benchmark):
         """Test raw plate finder performance."""
         from unittest.mock import patch
+
         from raw_plate_finder import RawPlateFinder
 
-        # Mock all filesystem operations for consistent performance testing
-        with patch("raw_plate_finder.PathUtils.validate_path_exists", return_value=True):
-            with patch("raw_plate_finder.PathUtils.discover_plate_directories", 
-                      return_value=[("FG01", 0), ("BG01", 1)]):
-                with patch("raw_plate_finder.VersionUtils.get_latest_version", 
-                          return_value="v001"):
+        # Mock filesystem operations
+        with patch(
+            "raw_plate_finder.PathUtils.validate_path_exists", return_value=True
+        ):
+            with patch(
+                "raw_plate_finder.PathUtils.discover_plate_directories",
+                return_value=[("FG01", 0), ("BG01", 1)],
+            ):
+                with patch(
+                    "raw_plate_finder.VersionUtils.get_latest_version",
+                    return_value="v001",
+                ):
                     with patch("pathlib.Path.exists", return_value=True):
                         with patch("pathlib.Path.iterdir", return_value=[]):
                             metrics = performance_benchmark.benchmark(
@@ -477,140 +429,98 @@ class TestFinderPerformance:
                             )
 
         # Should be very fast with mocked I/O
-        assert metrics["mean_time"] < 0.01, f"Plate finder too slow: {metrics['mean_time']:.3f}s"
+        assert metrics["mean_time"] < 0.01, "Plate finder too slow"
 
-    def test_threede_scene_parsing_performance(self, performance_benchmark):
-        """Test 3DE scene data parsing performance."""
-        from threede_scene_model import ThreeDEScene
-        from pathlib import Path
+    def test_threede_finder_performance(self, performance_benchmark):
+        """Test 3DE scene finder performance."""
+        from unittest.mock import patch
 
-        # Benchmark creating many scene objects
-        def create_scenes():
-            scenes = []
-            for i in range(100):
-                scene = ThreeDEScene(
-                    show="ygsk",
-                    sequence="108", 
-                    shot=f"{i:04d}",
-                    workspace_path=f"/shows/ygsk/shots/108_CHV_{i:04d}",
-                    user=f"user{i % 5}",
-                    plate=f"FG{i % 3 + 1:02d}",
-                    scene_path=Path(f"/path/to/scene_{i:03d}.3de")
+        from threede_scene_finder import ThreeDESceneFinder
+
+        finder = ThreeDESceneFinder()
+
+        # Mock filesystem operations
+        with patch.object(finder, "_discover_users", return_value=["user1", "user2"]):
+            with patch.object(finder, "_find_user_scenes", return_value=[]):
+                metrics = performance_benchmark.benchmark(
+                    finder.find_other_users_scenes, "/test/workspace"
                 )
-                scenes.append(scene)
-            return scenes
 
-        metrics = performance_benchmark.benchmark(create_scenes)
+        # Should be fast with mocked I/O
+        assert metrics["mean_time"] < 0.05, "3DE finder too slow"
 
-        # Should handle object creation efficiently
-        assert metrics["mean_time"] < 0.05, f"Scene creation too slow: {metrics['mean_time']:.3f}s"
-
-    def test_scene_deduplication_performance(self, performance_benchmark):
-        """Test performance of 3DE scene deduplication logic."""
-        from collections import defaultdict
+    def test_threede_deduplication_performance(self, performance_benchmark):
+        """Test performance of 3DE scene deduplication."""
+        from threede_scene_finder import ThreeDESceneFinder
         from threede_scene_model import ThreeDEScene
-        from pathlib import Path
+
+        finder = ThreeDESceneFinder()
 
         # Create many duplicate scenes
-        all_scenes = []
-        for i in range(50):  # Reduced for reasonable test time
-            for j in range(3):  # 3 duplicates each
-                scene = ThreeDEScene(
-                    show="ygsk",
-                    sequence="108",
-                    shot=f"{i:04d}",
-                    workspace_path=f"/shows/ygsk/shots/108_CHV_{i:04d}",
-                    user=f"user{j}",
-                    plate=f"FG{j + 1:02d}",
-                    scene_path=Path(f"/path/user{j}/scene_{i:03d}.3de")
+        scenes = []
+        for i in range(100):
+            for j in range(5):  # 5 duplicates each
+                scenes.append(
+                    ThreeDEScene(
+                        path=f"/path/user{j}/scene_{i:03d}.3de",
+                        user=f"user{j}",
+                        shot_name=f"SHOT_{i:04d}",
+                        plate_name=f"plate_{i}",
+                        file_size=1000 * (j + 1),
+                        modified_time=time.time() - j * 3600,
+                    )
                 )
-                all_scenes.append(scene)
 
-        def deduplicate_scenes():
-            # Simple deduplication logic similar to what's used in the app
-            shot_scenes = defaultdict(list)
-            for scene in all_scenes:
-                shot_scenes[scene.full_name].append(scene)
-            
-            # Keep only one scene per shot (latest modified)
-            deduplicated = []
-            for scenes_for_shot in shot_scenes.values():
-                # Sort by scene_path modification time (simulated)
-                latest = max(scenes_for_shot, key=lambda s: hash(str(s.scene_path)))
-                deduplicated.append(latest)
-            
-            return deduplicated
-
-        metrics = performance_benchmark.benchmark(deduplicate_scenes)
+        # Benchmark deduplication
+        metrics = performance_benchmark.benchmark(finder._deduplicate_scenes, scenes)
 
         # Should handle deduplication efficiently
-        assert metrics["mean_time"] < 0.1, f"Deduplication too slow: {metrics['mean_time']:.3f}s"
+        assert metrics["mean_time"] < 0.1, "Deduplication too slow"
 
 
 @pytest.mark.performance
 class TestUIPerformance:
     """Performance tests for UI components."""
 
-    def test_shot_grid_creation_performance(self, qtbot, performance_benchmark):
-        """Test shot grid creation performance."""
+    def test_grid_widget_scaling(self, qtbot, performance_benchmark):
+        """Test grid widget performance with many items."""
         from shot_grid import ShotGrid
-        from shot_model import Shot, ShotModel
 
-        # Create a shot model with test data
-        model = ShotModel(load_cache=False)
-        test_shots = []
-        for i in range(20):  # Reduced for UI test performance
-            shot = Shot(
-                show="ygsk",
-                sequence="108",
-                shot=f"{i:04d}",
-                workspace_path=f"/shows/ygsk/shots/108_CHV_{i:04d}"
-            )
-            test_shots.append(shot)
-        model.shots = test_shots
+        grid = ShotGrid()
+        qtbot.addWidget(grid)
 
-        def create_grid():
-            grid = ShotGrid(model)
-            qtbot.addWidget(grid)
-            return grid
+        # Benchmark adding many items
+        def add_many_shots():
+            for i in range(100):
+                grid.add_shot(f"SHOT_{i:04d}", f"/path/{i}")
 
-        metrics = performance_benchmark.benchmark(create_grid)
+        metrics = performance_benchmark.benchmark(add_many_shots)
 
-        # Should create UI efficiently
-        assert metrics["mean_time"] < 0.5, f"Grid creation too slow: {metrics['mean_time']:.3f}s"
+        # Should scale well
+        assert metrics["mean_time"] < 1.0, "Grid scaling poor"
 
-    def test_thumbnail_widget_creation_performance(self, qtbot, performance_benchmark):
-        """Test thumbnail widget creation performance."""
+    def test_thumbnail_loading_performance(self, qtbot, performance_benchmark):
+        """Test thumbnail widget loading performance."""
+        from unittest.mock import MagicMock, patch
+
         from thumbnail_widget import ThumbnailWidget
-        from shot_model import Shot
 
-        # Create test shot
-        test_shot = Shot(
-            show="ygsk",
-            sequence="108", 
-            shot="0001",
-            workspace_path="/shows/ygsk/shots/108_CHV_0001"
-        )
-
-        def create_thumbnails():
-            widgets = []
-            for i in range(10):  # Reduced for reasonable test time
-                widget = ThumbnailWidget(test_shot, size=150)
-                qtbot.addWidget(widget)
-                widgets.append(widget)
-            return widgets
-
-        # Mock image loading to focus on widget creation performance
-        from unittest.mock import patch, MagicMock
+        # Mock image loading
+        mock_pixmap = MagicMock()
         with patch("PySide6.QtGui.QPixmap.load", return_value=True):
-            with patch("PySide6.QtGui.QPixmap.scaled") as mock_scaled:
-                mock_pixmap = MagicMock()
-                mock_scaled.return_value = mock_pixmap
-                
-                metrics = performance_benchmark.benchmark(create_thumbnails)
 
-        # Should handle widget creation efficiently
-        assert metrics["mean_time"] < 0.3, f"Thumbnail creation too slow: {metrics['mean_time']:.3f}s"
+            def create_thumbnails():
+                widgets = []
+                for i in range(50):
+                    widget = ThumbnailWidget(f"SHOT_{i:04d}")
+                    qtbot.addWidget(widget)
+                    widgets.append(widget)
+                return widgets
+
+            metrics = performance_benchmark.benchmark(create_thumbnails)
+
+        # Should handle many thumbnails efficiently
+        assert metrics["mean_time"] < 0.5, "Thumbnail creation too slow"
 
 
 class PerformanceReporter:

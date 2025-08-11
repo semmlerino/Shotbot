@@ -141,18 +141,16 @@ class ThreeDESceneFactory(Factory):
         if file_size is None:
             file_size = random.randint(1000, 1000000)
 
-        import time
         if modified_time is None:
             modified_time = time.time() - random.randint(0, 86400 * 30)
 
         return ThreeDEScene(
-            show="ygsk",
-            sequence="108", 
-            shot=shot_name.split("_")[-1] if "_" in shot_name else shot_name,
-            workspace_path=f"/shows/ygsk/shots/{shot_name}",
+            path=path,
             user=user,
-            plate=plate_name,
-            scene_path=Path(path),
+            shot_name=shot_name,
+            plate_name=plate_name,
+            file_size=file_size,
+            modified_time=modified_time,
             **kwargs,
         )
 
@@ -287,7 +285,7 @@ class ShotModelBuilder(Builder):
         """
         from shot_model import ShotModel
 
-        model = ShotModel(load_cache=False)  # Start with clean state
+        model = ShotModel()
 
         # Configure model
         if not self._cache_enabled:
@@ -295,15 +293,7 @@ class ShotModelBuilder(Builder):
 
         # Add shots
         for shot in self._shots:
-            from shot_model import Shot
-            # Convert shot dict to Shot object and add to shots list
-            shot_obj = Shot(
-                show=shot.get("show", "ygsk"),
-                sequence=shot.get("sequence", "108"),
-                shot=shot.get("shot", shot["name"].split("_")[-1] if "_" in shot["name"] else shot["name"]),
-                workspace_path=shot.get("workspace_path", f"/shows/ygsk/shots/{shot['name']}")
-            )
-            model.shots.append(shot_obj)
+            model._shots.append(shot["name"])
 
         # Mock ws command if specified
         if self._mock_ws_output:
@@ -366,11 +356,7 @@ class CacheBuilder(Builder):
 
         # Add entries
         for key, (value, ttl) in self._entries.items():
-            # Note: CacheManager doesn't have a generic set method
-            # Store entries for test purposes in a test attribute
-            if not hasattr(cache, "_test_entries"):
-                cache._test_entries = {}
-            cache._test_entries[key] = (value, ttl)
+            cache.set(key, value, ttl)
 
             # If entry should be expired, wait
             if ttl <= 0.001:
@@ -582,7 +568,7 @@ class TestWithFactories:
         model = ShotModelBuilder().with_shots(shots).with_cache_disabled().build()
 
         # Verify
-        assert len(model.shots) == 10
+        assert len(model._shots) == 10
         assert all(s["status"] == "pending" for s in shots)
 
     def test_cache_with_builder(self):
@@ -596,12 +582,10 @@ class TestWithFactories:
             .build()
         )
 
-        # Verify state (using test attribute since cache doesn't have generic get)
-        assert hasattr(cache, "_test_entries")
-        assert cache._test_entries["key1"][0] == "value1"
-        assert cache._test_entries["key2"][0] == "value2"
-        # Expired entry should still exist in test entries, but would be None in real usage
-        assert cache._test_entries["expired"][0] == "old_value"
+        # Verify state
+        assert cache.get("key1") == "value1"
+        assert cache.get("key2") == "value2"
+        assert cache.get("expired") is None
 
 
 @pytest.mark.quality
@@ -696,7 +680,7 @@ class TestShotWorkflow(TestSuite):
         with isolated_test.isolated_filesystem() as tmpdir:
             # Create test data
             shot = shot_factory.create()
-            scenes = [scene_factory.create() for _ in range(5)]
+            scenes = scene_factory.create_batch(5)
 
             # Test workflow steps
             self._test_shot_discovery(shot)
@@ -735,7 +719,7 @@ if __name__ == "__main__":
         .with_cache_disabled()
         .build()
     )
-    print(f"Built model with {len(model.shots)} shots")
+    print(f"Built model with {len(model._shots)} shots")
 
     # Create isolated test
     test = IsolatedTest()
