@@ -1,5 +1,6 @@
 """Utility for finding 3DE scene files from other users."""
 
+import itertools
 import logging
 import os
 import re
@@ -294,7 +295,9 @@ class ThreeDESceneFinder:
 
                 # Recursively find ALL .3de files in the user's directory
                 try:
+                    # Search for both lowercase and uppercase extensions
                     threede_files = list(user_path.rglob("*.3de"))
+                    threede_files.extend(list(user_path.rglob("*.3DE")))
 
                     if threede_files:
                         logger.info(
@@ -614,8 +617,12 @@ class ThreeDESceneFinder:
         processed_count = 0
 
         try:
-            # Use rglob for recursive search - this returns a generator already
-            threede_files = user_path.rglob("*.3de")
+            # Use rglob for recursive search - handle both cases
+            # Combine both lowercase and uppercase extensions
+            threede_files = itertools.chain(
+                user_path.rglob("*.3de"),
+                user_path.rglob("*.3DE")
+            )
 
             for threede_file in threede_files:
                 # Verify file exists and is accessible
@@ -847,7 +854,8 @@ class ThreeDESceneFinder:
                     # Quick estimate of .3de files (using glob count without reading)
                     try:
                         # Use a simple count - don't verify files yet
-                        file_count = len(list(user_path.rglob("*.3de")))
+                        # Count both lowercase and uppercase extensions
+                        file_count = len(list(user_path.rglob("*.3de"))) + len(list(user_path.rglob("*.3DE")))
                         total_files_estimate += file_count
                     except (PermissionError, OSError):
                         # Estimate based on average if we can't access
