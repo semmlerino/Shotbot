@@ -356,7 +356,7 @@ class ThreeDESceneFinder:
     @timed_operation("discover_all_shots_in_show", log_threshold_ms=500)
     def discover_all_shots_in_show(
         show_root: str, show: str
-    ) -> List[tuple[str, str, str, str]]:
+    ) -> List[Tuple[str, str, str, str]]:
         """Discover all shots in a show by scanning the filesystem.
 
         Args:
@@ -544,7 +544,7 @@ class ThreeDESceneFinder:
 
     @staticmethod
     def find_all_scenes(
-        shots: List[tuple[str, str, str, str]],
+        shots: List[Tuple[str, str, str, str]],
         excluded_users: Optional[Set[str]] = None,
     ) -> List[ThreeDEScene]:
         """Find 3DE scenes for multiple shots.

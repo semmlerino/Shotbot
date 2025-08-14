@@ -8,7 +8,7 @@ import threading
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from PySide6.QtCore import QObject, QRunnable, Qt, Signal
 from PySide6.QtGui import QImage
@@ -346,7 +346,7 @@ class CacheManager(QObject):
             logger.exception(f"Unexpected error reading shot cache: {e}")
             return None
 
-    def cache_shots(self, shots: Sequence["Shot"]):
+    def cache_shots(self, shots: Union[Sequence["Shot"], Sequence[Dict[str, str]]]):
         """Cache shot list to file.
 
         Args:

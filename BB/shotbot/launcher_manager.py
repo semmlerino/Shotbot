@@ -1244,7 +1244,7 @@ class LauncherManager(QObject):
                         process_info = self._active_processes[key]
                         logger.debug(
                             f"Cleaning up finished process: {process_info.launcher_name} "
-                            f"(PID: {process_info.process.pid}, Key: {key})"
+                            + f"(PID: {process_info.process.pid}, Key: {key})"
                         )
                         del self._active_processes[key]
                 logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
@@ -1278,7 +1278,7 @@ class LauncherManager(QObject):
                             # Process is old but still running, log it
                             logger.info(
                                 f"Long-running process: {process_info.launcher_name} "
-                                f"(PID: {process_info.process.pid}, Age: {current_time - process_info.timestamp:.0f}s)"
+                                + f"(PID: {process_info.process.pid}, Age: {current_time - process_info.timestamp:.0f}s)"
                             )
                     except (OSError, AttributeError):
                         old_keys.append(process_key)

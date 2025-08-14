@@ -951,8 +951,8 @@ class MainWindow(QMainWindow):
             self,
             f"About {Config.APP_NAME}",
             f"{Config.APP_NAME} v{Config.APP_VERSION}\n\n"
-            "VFX Shot Launcher\n\n"
-            "A tool for browsing and launching applications in shot context.",
+            + "VFX Shot Launcher\n\n"
+            + "A tool for browsing and launching applications in shot context.",
         )
 
     def _show_launcher_manager(self):
@@ -1299,8 +1299,6 @@ class MainWindow(QMainWindow):
         # Stop the background refresh timer first to prevent it firing on closed window
         if hasattr(self, "refresh_timer") and self.refresh_timer:
             self.refresh_timer.stop()
-        if hasattr(self, "_refresh_timer") and self._refresh_timer:
-            self._refresh_timer.stop()
 
         # Mark that we're closing to prevent new operations
         with QMutexLocker(self._worker_mutex):
@@ -1340,9 +1338,8 @@ class MainWindow(QMainWindow):
         if hasattr(self.launcher_manager, "shutdown"):
             self.launcher_manager.shutdown()
 
-        # Shutdown cache if it exists
-        if hasattr(self, "cache_manager") and self.cache_manager:
-            self.cache_manager.shutdown()
+        # Shutdown cache manager
+        self.cache_manager.shutdown()
 
         self._save_settings()
         event.accept()
