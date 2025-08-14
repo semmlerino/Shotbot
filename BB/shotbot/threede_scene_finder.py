@@ -154,6 +154,57 @@ class ThreeDESceneFinder:
     }
 
     @staticmethod
+    def quick_3de_exists_check(base_paths: List[str], timeout_seconds: int = 5) -> bool:
+        """Quick check if ANY .3de files exist in the given paths.
+        
+        Uses 'find' command with -quit to exit as soon as first file is found.
+        This is much faster than full directory traversal.
+        
+        Args:
+            base_paths: List of base paths to check
+            timeout_seconds: Maximum time to search before giving up
+            
+        Returns:
+            True if at least one .3de file exists, False otherwise
+        """
+        import subprocess
+        
+        for base_path in base_paths:
+            if not os.path.exists(base_path):
+                continue
+                
+            try:
+                # Use find with -quit to exit on first match (very fast)
+                # -name "*.3de" -o -name "*.3DE" to catch both cases
+                result = subprocess.run(
+                    ["find", base_path, "-type", "f", "(", "-name", "*.3de", "-o", "-name", "*.3DE", ")", "-print", "-quit"],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout_seconds
+                )
+                
+                # If find returns any output, a .3de file exists
+                if result.stdout.strip():
+                    logger.debug(f"Quick check found .3de file: {result.stdout.strip()}")
+                    return True
+                    
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Quick .3de check timed out after {timeout_seconds}s for {base_path}")
+                # Assume files might exist if timeout (better to scan than miss files)
+                return True
+            except FileNotFoundError:
+                # 'find' command not available (Windows?), assume files might exist
+                logger.debug("'find' command not available, assuming .3de files might exist")
+                return True
+            except Exception as e:
+                logger.warning(f"Quick .3de check failed: {e}")
+                # On error, assume files might exist
+                return True
+                
+        logger.debug("Quick check found no .3de files in any path")
+        return False
+    
+    @staticmethod
     @timed_operation("extract_plate_from_path", log_threshold_ms=5)
     def extract_plate_from_path(file_path: Path, user_path: Path) -> str:
         """Extract meaningful plate/grouping identifier from an arbitrary path.

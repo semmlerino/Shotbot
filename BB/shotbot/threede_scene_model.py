@@ -122,6 +122,31 @@ class ThreeDESceneModel:
         from threede_scene_finder import ThreeDESceneFinder
 
         try:
+            # First do a quick check if any .3de files exist at all
+            # This avoids expensive traversal when there are no scenes
+            base_paths = []
+            for shot in shots[:5]:  # Check first few shots as sample
+                shot_path = Path(shot.workspace_path) if shot.workspace_path else None
+                if shot_path and shot_path.exists():
+                    base_paths.append(str(shot_path / "user"))
+            
+            # If quick check finds no files, skip the full scan
+            if base_paths:
+                has_any_3de = ThreeDESceneFinder.quick_3de_exists_check(base_paths, timeout_seconds=2)
+                if not has_any_3de:
+                    logger.info("Quick check found no .3de files - skipping full scan")
+                    # If we already had no scenes, no changes
+                    had_scenes = len(self.scenes) > 0
+                    if had_scenes:
+                        self.scenes = []  # Clear scenes since none exist
+                    # Cache the "no scenes" result with metadata
+                    self.cache_manager.cache_threede_scenes([], {
+                        "scan_type": "quick_check",
+                        "result": "no_files_found",
+                        "paths_checked": len(base_paths)
+                    })
+                    return True, had_scenes  # Changes only if we had scenes before
+            
             # Save current scenes for comparison
             old_scene_data = {
                 (scene.full_name, scene.user, scene.plate, str(scene.scene_path))

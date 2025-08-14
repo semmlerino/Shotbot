@@ -423,10 +423,16 @@ class MainWindow(QMainWindow):
         else:
             self._update_status("Loading shots and scenes...")
             
-        # Start 3DE discovery immediately if we have shots
-        # This will use cached data if available and refresh in background
+        # Only start 3DE discovery if we have shots AND cache is invalid/expired
+        # This avoids unnecessary scans when we already know there are no scenes
         if has_cached_shots:
-            QTimer.singleShot(100, self._refresh_threede_scenes)
+            # Check if we have a valid cache (including valid empty results)
+            if not self.cache_manager.has_valid_threede_cache():
+                logger.info("3DE cache invalid/expired - starting discovery")
+                QTimer.singleShot(100, self._refresh_threede_scenes)
+            else:
+                logger.info("3DE cache is valid - skipping initial scan")
+                # Cache is valid but might be empty - that's OK, we cached the "no scenes" state
 
     def _refresh_shots(self):
         """Refresh shot list."""

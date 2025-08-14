@@ -449,13 +449,70 @@ class CacheManager(QObject):
         except Exception as e:
             logger.exception(f"Unexpected error reading 3DE scene cache: {e}")
             return None
+    
+    def has_valid_threede_cache(self) -> bool:
+        """Check if we have a valid 3DE cache (including valid empty results).
+        
+        Returns:
+            True if cache exists and is not expired (even if empty), False otherwise
+        """
+        if not self.threede_scenes_cache_file.exists():
+            return False
+            
+        try:
+            with open(self.threede_scenes_cache_file, "r") as f:
+                data = json.load(f)
+                
+            # Check if cache is expired
+            cache_time = datetime.fromisoformat(data.get("timestamp", "1970-01-01"))
+            age = datetime.now() - cache_time
+            
+            # Cache is valid if not expired (even if scenes list is empty)
+            is_valid = age <= timedelta(minutes=self.CACHE_EXPIRY_MINUTES)
+            
+            if is_valid:
+                scene_count = len(data.get("scenes", []))
+                logger.debug(
+                    f"3DE cache is valid (age: {age.total_seconds()/60:.1f} min, "
+                    f"scenes: {scene_count})"
+                )
+            
+            return is_valid
+        except FileNotFoundError:
+            logger.debug("3DE scene cache file not found")
+            return False
+        except PermissionError as e:
+            logger.error(f"Permission denied reading 3DE scene cache: {e}")
+            return False
+        except json.JSONDecodeError as e:
+            logger.warning(f"Corrupted 3DE scene cache file: {e}")
+            return False
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid timestamp in 3DE scene cache: {e}")
+            return False
+        except (OSError, IOError) as e:
+            logger.error(f"I/O error reading 3DE scene cache: {e}")
+            return False
+        except Exception as e:
+            logger.exception(f"Unexpected error reading 3DE scene cache: {e}")
+            return False
 
-    def cache_threede_scenes(self, scenes: List[Dict[str, Any]]):
-        """Cache 3DE scene list to file."""
+    def cache_threede_scenes(self, scenes: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None):
+        """Cache 3DE scene list to file with optional metadata.
+        
+        Args:
+            scenes: List of scene dictionaries to cache
+            metadata: Optional metadata about the scan (e.g., paths checked, quick check result)
+        """
         try:
             data: dict[str, Any] = {
                 "timestamp": datetime.now().isoformat(),
                 "scenes": scenes,
+                "metadata": metadata or {
+                    "scan_type": "full" if scenes else "empty",
+                    "scene_count": len(scenes),
+                    "cached_at": datetime.now().isoformat()
+                }
             }
 
             # Ensure directory exists
