@@ -116,8 +116,9 @@ class Config:
     MAX_FILE_SIZE_MB = 100  # Maximum file size for image loading
 
     # Cache settings
-    CACHE_EXPIRY_MINUTES = 30  # How long to keep cached data
+    CACHE_EXPIRY_MINUTES = 1440  # Cache for 24 hours (1 day) - data persists longer
     CACHE_THUMBNAIL_SIZE = 512  # Size for cached thumbnails
+    CACHE_REFRESH_INTERVAL_MINUTES = 10  # Background refresh check interval
 
     # Enhanced cache settings
     PATH_CACHE_TTL_SECONDS = 300  # 5 minutes for path validation (10x improvement)

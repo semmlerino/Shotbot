@@ -50,7 +50,7 @@ import json
 import logging
 from typing import Any, Optional
 
-from PySide6.QtCore import QMutex, QMutexLocker, Qt, QTimer
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -116,13 +116,17 @@ class MainWindow(QMainWindow):
         self._connect_signals()
         self._load_settings()
 
-        # Initial shot load
-        QTimer.singleShot(100, self._initial_load)
+        # Initial shot load - immediately, no delay
+        self._initial_load()
 
-        # Set up background refresh timer (every 5 minutes)
-        self.refresh_timer = QTimer()
-        self.refresh_timer.timeout.connect(self._background_refresh)
-        self.refresh_timer.start(5 * 60 * 1000)  # 5 minutes in milliseconds
+        # Set up background refresh worker thread (every 10 minutes)
+        self._background_refresh_worker = BackgroundRefreshWorker(
+            self.shot_model, self.threede_scene_model
+        )
+        self._background_refresh_worker.shots_changed.connect(self._on_background_shots_changed)
+        self._background_refresh_worker.scenes_changed.connect(self._on_background_scenes_changed)
+        self._background_refresh_worker.status_update.connect(self._update_status)
+        self._background_refresh_worker.start()
 
     def _setup_ui(self):
         """Set up the main UI."""
@@ -384,29 +388,45 @@ class MainWindow(QMainWindow):
         )
 
     def _initial_load(self):
-        """Initial shot loading."""
-        # First, show cached shots immediately if available
-        if self.shot_model.shots:
+        """Initial shot loading - instant from cache."""
+        has_cached_shots = bool(self.shot_model.shots)
+        has_cached_scenes = bool(self.threede_scene_model.scenes)
+        
+        # Show cached shots immediately if available
+        if has_cached_shots:
             self._refresh_shot_display()
-            self._update_status(
-                f"Loaded {len(self.shot_model.shots)} shots (from cache)"
-            )
-
+            
             # Restore last selected shot if available
             if hasattr(self, "_last_selected_shot_name"):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
                     self.shot_grid.select_shot_by_name(shot.full_name)
 
-        # Also show cached 3DE scenes immediately if available
-        if self.threede_scene_model.scenes:
+        # Show cached 3DE scenes immediately if available
+        if has_cached_scenes:
             self.threede_shot_grid.refresh_scenes()
+            
+        # Update status with what was loaded from cache
+        if has_cached_shots and has_cached_scenes:
             self._update_status(
-                f"Loaded {len(self.shot_model.shots)} shots and {len(self.threede_scene_model.scenes)} 3DE scenes (from cache)"
+                f"Loaded {len(self.shot_model.shots)} shots and "
+                f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
             )
-
-        # Then refresh in background
-        QTimer.singleShot(500, self._refresh_shots)
+        elif has_cached_shots:
+            self._update_status(
+                f"Loaded {len(self.shot_model.shots)} shots from cache"
+            )
+        elif has_cached_scenes:
+            self._update_status(
+                f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache"
+            )
+        else:
+            self._update_status("Loading shots and scenes...")
+            
+        # Start 3DE discovery immediately if we have shots
+        # This will use cached data if available and refresh in background
+        if has_cached_shots:
+            QTimer.singleShot(100, self._refresh_threede_scenes)
 
     def _refresh_shots(self):
         """Refresh shot list."""
@@ -677,36 +697,7 @@ class MainWindow(QMainWindow):
         """Handle worker resume signal."""
         self._update_status("3DE scene discovery resumed")
 
-    def _background_refresh(self):
-        """Refresh shots in background without interrupting user."""
-        # Save current selection
-        current_shot_name = None
-        if hasattr(self, "_last_selected_shot_name"):
-            current_shot_name = self._last_selected_shot_name
-
-        # Refresh quietly
-        success, has_changes = self.shot_model.refresh_shots()
-
-        if success and has_changes:
-            # Only update UI if there were actual changes
-            self._refresh_shot_display()
-            self._update_status(
-                f"Updated: {len(self.shot_model.shots)} shots (new changes)"
-            )
-
-            # Restore selection if possible
-            if current_shot_name:
-                shot = self.shot_model.find_shot_by_name(current_shot_name)
-                if shot:
-                    self.shot_grid.select_shot_by_name(shot.full_name)
-
-        # Also refresh 3DE scenes if shots were successful
-        if success:
-            scene_success, scene_changes = self.threede_scene_model.refresh_scenes(
-                self.shot_model.shots
-            )
-            if scene_success and scene_changes:
-                self.threede_shot_grid.refresh_scenes()
+    # Note: _background_refresh method removed - now handled by BackgroundRefreshWorker thread
 
     def _refresh_shot_display(self):
         """Refresh the shot display using Model/View implementation."""
@@ -1296,9 +1287,10 @@ class MainWindow(QMainWindow):
 
         Ensures proper cleanup without double termination of workers.
         """
-        # Stop the background refresh timer first to prevent it firing on closed window
-        if hasattr(self, "refresh_timer") and self.refresh_timer:
-            self.refresh_timer.stop()
+        # Stop the background refresh worker thread
+        if hasattr(self, "_background_refresh_worker") and self._background_refresh_worker:
+            self._background_refresh_worker.stop()
+            self._background_refresh_worker.wait(3000)  # Wait up to 3 seconds
 
         # Mark that we're closing to prevent new operations
         with QMutexLocker(self._worker_mutex):
@@ -1343,3 +1335,100 @@ class MainWindow(QMainWindow):
 
         self._save_settings()
         event.accept()
+    
+    def _on_background_shots_changed(self):
+        """Handle background refresh detecting shot changes."""
+        # Save current selection
+        current_shot_name = None
+        if hasattr(self, "_last_selected_shot_name"):
+            current_shot_name = self._last_selected_shot_name
+            
+        # Update UI with new shots
+        self._refresh_shot_display()
+        self._update_status(
+            f"Updated: {len(self.shot_model.shots)} shots (background refresh)"
+        )
+        
+        # Restore selection if possible  
+        if current_shot_name:
+            shot = self.shot_model.find_shot_by_name(current_shot_name)
+            if shot:
+                self.shot_grid.select_shot_by_name(shot.full_name)
+                
+        # Also trigger 3DE refresh since shots changed
+        QTimer.singleShot(100, self._refresh_threede_scenes)
+    
+    def _on_background_scenes_changed(self):
+        """Handle background refresh detecting 3DE scene changes."""
+        # Update UI with new scenes
+        self.threede_shot_grid.refresh_scenes()
+        self._update_status(
+            f"Updated: {len(self.threede_scene_model.scenes)} 3DE scenes (background refresh)"
+        )
+
+
+class BackgroundRefreshWorker(QThread):
+    """Background worker thread for discrete cache refresh.
+    
+    This worker runs on a separate thread and periodically checks for updates
+    to shots and 3DE scenes. It only emits signals when actual changes are detected,
+    minimizing UI disruption.
+    """
+    
+    shots_changed = Signal()  # Emitted when shot list changes
+    scenes_changed = Signal()  # Emitted when 3DE scenes change
+    status_update = Signal(str)  # Status messages
+    
+    def __init__(self, shot_model, threede_scene_model, parent=None):
+        super().__init__(parent)
+        self.shot_model = shot_model
+        self.threede_scene_model = threede_scene_model
+        self._stop_requested = False
+        self._refresh_interval_ms = Config.CACHE_REFRESH_INTERVAL_MINUTES * 60 * 1000
+        
+    def stop(self):
+        """Request the worker to stop."""
+        self._stop_requested = True
+        
+    def run(self):
+        """Main worker thread execution."""
+        logger.info("Background refresh worker started")
+        
+        while not self._stop_requested:
+            # Wait for the refresh interval
+            self.msleep(self._refresh_interval_ms)
+            
+            if self._stop_requested:
+                break
+                
+            # Check for shot updates
+            try:
+                logger.debug("Background refresh: checking for shot updates")
+                success, has_changes = self.shot_model.refresh_shots()
+                
+                if success and has_changes:
+                    logger.info(f"Background refresh: detected {len(self.shot_model.shots)} shot changes")
+                    self.shots_changed.emit()
+                    
+                    # Also refresh scenes since shots changed
+                    if self.shot_model.shots:
+                        scene_success, scene_changes = self.threede_scene_model.refresh_scenes(
+                            self.shot_model.shots
+                        )
+                        if scene_success and scene_changes:
+                            logger.info(f"Background refresh: detected {len(self.threede_scene_model.scenes)} scene changes")
+                            self.scenes_changed.emit()
+                elif success:
+                    # No shot changes, but still check scenes periodically
+                    if self.shot_model.shots:
+                        scene_success, scene_changes = self.threede_scene_model.refresh_scenes(
+                            self.shot_model.shots
+                        )
+                        if scene_success and scene_changes:
+                            logger.info(f"Background refresh: detected {len(self.threede_scene_model.scenes)} scene changes")
+                            self.scenes_changed.emit()
+                            
+            except Exception as e:
+                logger.error(f"Background refresh error: {e}")
+                
+        logger.info("Background refresh worker stopped")
