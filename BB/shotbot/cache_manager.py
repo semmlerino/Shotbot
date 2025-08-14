@@ -368,7 +368,7 @@ class CacheManager(QObject):
             else:
                 # It's a list of Shot objects - convert using to_dict()
                 try:
-                    shot_dicts = [shot.to_dict() for shot in shots]
+                    shot_dicts = [shot.to_dict() for shot in shots]  # type: ignore[attr-defined]
                 except AttributeError as e:
                     logger.error(f"Shot objects missing to_dict() method: {e}")
                     return
@@ -727,7 +727,7 @@ class CacheManager(QObject):
                     "error": str(e),
                 }
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Gracefully shutdown the cache manager.
 
         This method is called during application shutdown to ensure

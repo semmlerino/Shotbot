@@ -70,12 +70,12 @@ class ThreeDEScene:
     def from_dict(cls, data: Dict[str, Union[str, Path]]) -> "ThreeDEScene":
         """Create from dictionary."""
         return cls(
-            show=data["show"],
-            sequence=data["sequence"],
-            shot=data["shot"],
-            workspace_path=data["workspace_path"],
-            user=data["user"],
-            plate=data["plate"],
+            show=str(data["show"]),
+            sequence=str(data["sequence"]),
+            shot=str(data["shot"]),
+            workspace_path=str(data["workspace_path"]),
+            user=str(data["user"]),
+            plate=str(data["plate"]),
             scene_path=Path(data["scene_path"]),
         )
 
