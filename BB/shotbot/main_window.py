@@ -422,6 +422,9 @@ class MainWindow(QMainWindow):
             )
         else:
             self._update_status("Loading shots and scenes...")
+            # No cache exists - trigger immediate fetch
+            logger.info("No cached data found - fetching fresh shots")
+            QTimer.singleShot(0, self._refresh_shots)
             
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
         # This avoids unnecessary scans when we already know there are no scenes
@@ -1400,9 +1403,16 @@ class BackgroundRefreshWorker(QThread):
         """Main worker thread execution."""
         logger.info("Background refresh worker started")
         
+        # Do an immediate check on startup (after a short delay to let UI settle)
+        self.msleep(2000)  # 2 second delay to let initial load complete
+        
+        first_run = True
         while not self._stop_requested:
-            # Wait for the refresh interval
-            self.msleep(self._refresh_interval_ms)
+            # Only wait for interval after first run
+            if not first_run:
+                self.msleep(self._refresh_interval_ms)
+            else:
+                first_run = False
             
             if self._stop_requested:
                 break
