@@ -173,13 +173,23 @@ class Config:
         "fg01",
         "plate",
     ]  # Common plate naming
+    
+    # Turnover plate preferences (lower value = higher priority)
+    TURNOVER_PLATE_PRIORITY = {
+        "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
+        "BG": 1,  # BG plates second priority (BG01, BG02, etc.)
+        "EL": 2,  # Element plates third
+        "*": 3,   # All others lowest priority
+    }
+    
+    # Legacy plate priority (for backward compatibility)
     PLATE_PRIORITY_ORDER = {
-        "BG01": 10,
-        "bg01": 9,
-        "BG02": 8,
-        "FG01": 7,
-        "fg01": 6,
-        "FG02": 5,
+        "FG01": 10,
+        "fg01": 9,
+        "FG02": 8,
+        "BG01": 7,
+        "bg01": 6,
+        "BG02": 5,
     }  # Higher value = higher priority
 
     # Common color space patterns in plate names

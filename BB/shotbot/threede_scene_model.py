@@ -45,14 +45,23 @@ class ThreeDEScene:
         )
 
     def get_thumbnail_path(self) -> Optional[Path]:
-        """Get first available thumbnail or None."""
-        if not PathUtils.validate_path_exists(
+        """Get first available thumbnail or None.
+        
+        Tries editorial directory first, then falls back to turnover plates.
+        """
+        # Try editorial thumbnail first
+        if PathUtils.validate_path_exists(
             self.thumbnail_dir, "Thumbnail directory"
         ):
-            return None
-
-        # Use utility to find first image file
-        return FileUtils.get_first_image_file(self.thumbnail_dir)
+            # Use utility to find first image file
+            thumbnail = FileUtils.get_first_image_file(self.thumbnail_dir)
+            if thumbnail:
+                return thumbnail
+        
+        # Fall back to turnover plate thumbnails
+        return PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
+        )
 
     def to_dict(self) -> Dict[str, Union[str, Path]]:
         """Convert scene to dictionary for caching."""

@@ -86,6 +86,108 @@ class PathUtils:
         )
 
     @staticmethod
+    def find_turnover_plate_thumbnail(
+        shows_root: str, show: str, sequence: str, shot: str
+    ) -> Optional[Path]:
+        """Find thumbnail from turnover plate directories with preference order.
+        
+        Searches for plate files in:
+        /shows/{show}/shots/{sequence}/{shot}/publish/turnover/plate/input_plate/{PLATE}/v001/exr/{resolution}/
+        
+        Plate preference order:
+        1. FG plates (FG01, FG02, etc.)
+        2. BG plates (BG01, BG02, etc.) 
+        3. Any other available plates (EL01, etc.)
+        
+        Args:
+            shows_root: Root shows directory
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
+            
+        Returns:
+            Path to first frame of best available plate, or None if not found
+        """
+        # Build base path to turnover plates
+        shot_dir = f"{sequence}_{shot}"
+        base_path = PathUtils.build_path(
+            shows_root, show, "shots", sequence, shot_dir,
+            "publish", "turnover", "plate", "input_plate"
+        )
+        
+        if not PathUtils.validate_path_exists(base_path, "Turnover plate base"):
+            return None
+            
+        # Find all available plate directories
+        try:
+            plate_dirs = [d for d in base_path.iterdir() if d.is_dir()]
+        except (OSError, PermissionError) as e:
+            logger.debug(f"Error accessing turnover plates: {e}")
+            return None
+            
+        if not plate_dirs:
+            logger.debug(f"No plate directories found in {base_path}")
+            return None
+            
+        # Sort plates by preference
+        def plate_priority(plate_dir: Path) -> Tuple[int, str]:
+            """Return priority tuple for sorting plates."""
+            name = plate_dir.name.upper()
+            # Priority: (order, name)
+            # Lower order = higher priority
+            if name.startswith("FG"):
+                return (0, name)  # FG plates highest priority
+            elif name.startswith("BG"):
+                return (1, name)  # BG plates second priority
+            else:
+                return (2, name)  # All others lowest priority
+                
+        sorted_plates = sorted(plate_dirs, key=plate_priority)
+        
+        # Try each plate in priority order
+        for plate_dir in sorted_plates:
+            plate_name = plate_dir.name
+            
+            # Look for v001/exr/*/
+            version_path = plate_dir / "v001" / "exr"
+            if not version_path.exists():
+                continue
+                
+            # Find resolution directories (e.g., 4312x2304)
+            try:
+                resolution_dirs = [d for d in version_path.iterdir() if d.is_dir()]
+            except (OSError, PermissionError):
+                continue
+                
+            for res_dir in resolution_dirs:
+                # Find first frame (typically .1001.exr or .0001.exr)
+                exr_files = FileUtils.find_files_by_extension(res_dir, ".exr", limit=10)
+                if not exr_files:
+                    continue
+                    
+                # Sort to get the first frame number
+                # Files like: GG_000_0050_turnover-plate_EL01_lin_sgamut3cine_v001.1001.exr
+                def extract_frame_number(path: Path) -> int:
+                    """Extract frame number from filename."""
+                    # Match pattern like .1001.exr or .0001.exr
+                    match = re.search(r'\.(\d{4})\.exr$', path.name, re.IGNORECASE)
+                    if match:
+                        return int(match.group(1))
+                    return 99999  # Sort non-matching files last
+                    
+                sorted_frames = sorted(exr_files, key=extract_frame_number)
+                
+                if sorted_frames:
+                    first_frame = sorted_frames[0]
+                    logger.info(
+                        f"Found turnover plate thumbnail: {plate_name} - {first_frame.name}"
+                    )
+                    return first_frame
+                    
+        logger.debug(f"No suitable turnover plates found for {sequence}_{shot}")
+        return None
+
+    @staticmethod
     def build_raw_plate_path(workspace_path: str) -> Path:
         """Build raw plate base path.
 

@@ -202,16 +202,28 @@ class CacheManager(QObject):
         scaled = None
 
         try:
+            # Check if this is a large EXR file that needs special handling
+            file_size_mb = source_path.stat().st_size / (1024 * 1024)
+            is_exr = source_path.suffix.lower() == '.exr'
+            
+            if is_exr and file_size_mb > 10:
+                logger.info(f"Processing large EXR file ({file_size_mb:.1f}MB): {source_path.name}")
+            
             # Load image using QImage (thread-safe)
             image = QImage(str(source_path))
             if image.isNull():
                 logger.warning(f"Failed to load image: {source_path}")
+                # For EXR files, provide helpful message about potential missing plugin
+                if is_exr:
+                    logger.info("Note: EXR support requires Qt imageformats plugin")
                 return None
 
             # Validate image dimensions to prevent memory issues
-            if image.width() > 10000 or image.height() > 10000:
+            # Be more lenient with EXR files as they're often high-res plates
+            max_dim = 20000 if is_exr else 10000
+            if image.width() > max_dim or image.height() > max_dim:
                 logger.warning(
-                    f"Image too large ({image.width()}x{image.height()}): {source_path}"
+                    f"Image too large ({image.width()}x{image.height()} > {max_dim}): {source_path}"
                 )
                 return None
 
@@ -235,7 +247,9 @@ class CacheManager(QObject):
             temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
 
             try:
-                if scaled.save(str(temp_path), "JPEG", 85):  # type: ignore[call-overload]
+                # Use higher quality for EXR-derived thumbnails
+                quality = 95 if is_exr else 85
+                if scaled.save(str(temp_path), "JPEG", quality):  # type: ignore[call-overload]
                     # Atomic move - replace if exists
                     temp_path.replace(cache_path)
 
