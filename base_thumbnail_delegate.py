@@ -465,11 +465,62 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         )
 
     def _update_loading_animation(self) -> None:
-        """Update the loading animation angle."""
+        """Update the loading animation with targeted repaints."""
         self._loading_angle = (self._loading_angle + 10) % 360
-        # Trigger repaint for all loading items
-        if (parent := self.parent()) and isinstance(parent, QWidget):
-            parent.update()
+
+        # Replace parent.update() with targeted updates for only loading items
+        # Get model from parent view (QListView/QTreeView)
+        parent = self.parent()
+        if not parent:
+            return
+
+        # Check if parent is a view with a model() method
+        if not hasattr(parent, 'model') or not callable(getattr(parent, 'model', None)):
+            return
+
+        model = parent.model()  # type: ignore[attr-defined]
+        if not model:
+            return
+
+        # Only repaint items that are actually loading
+        for row in self._get_loading_rows():
+            index = model.index(row, 0)  # type: ignore[attr-defined]
+            model.dataChanged.emit(  # type: ignore[attr-defined]
+                index, index, [Qt.ItemDataRole.DecorationRole]
+            )
+
+    def _get_loading_rows(self) -> list[int]:
+        """Get rows currently in loading state.
+
+        Returns:
+            List of row indices that are currently loading thumbnails
+        """
+        loading_rows: list[int] = []
+
+        # Get model from parent view
+        parent = self.parent()
+        if not parent:
+            return loading_rows
+
+        # Check if parent is a view with a model() method
+        if not hasattr(parent, 'model') or not callable(getattr(parent, 'model', None)):
+            return loading_rows
+
+        model = parent.model()  # type: ignore[attr-defined]
+        if not model:
+            return loading_rows
+
+        # Import here to avoid circular imports at module level
+        from base_item_model import BaseItemRole
+
+        for row in range(model.rowCount()):  # type: ignore[attr-defined]
+            index = model.index(row, 0)  # type: ignore[attr-defined]
+            # Check loading state via model data
+            loading_state = index.data(BaseItemRole.LoadingStateRole)  # type: ignore[attr-defined]
+            if loading_state == "loading":
+                loading_rows.append(row)
+
+        return loading_rows
 
     @override
     def sizeHint(
