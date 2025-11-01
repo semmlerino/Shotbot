@@ -109,6 +109,35 @@ def real_cache_manager(cache_manager: object) -> Iterator[object]:
 
 
 # ==============================================================================
+# Qt Cleanup (Critical for Test Isolation)
+# ==============================================================================
+
+
+@pytest.fixture(autouse=True)
+def qt_cleanup(qapp: QApplication) -> Iterator[None]:
+    """Ensure Qt state is clean between tests.
+
+    This autouse fixture processes Qt events before and after each test
+    to ensure widgets are fully cleaned up and Qt is in a stable state.
+    
+    Critical for preventing Qt state pollution that causes crashes when
+    running the full test suite (tests pass individually but crash together).
+    
+    See TESTING.md section "Test Isolation and Parallel Execution" for details.
+    """
+    # Process any pending events before test
+    qapp.processEvents()
+    # Process all pending deleteLater() calls from previous tests
+    qapp.sendPostedEvents(None, 0)  # QEvent::DeferredDelete = 0
+    
+    yield
+    
+    # Process events after test to ensure all deleteLater() calls are executed
+    qapp.processEvents()
+    qapp.sendPostedEvents(None, 0)  # Process DeferredDelete events
+
+
+# ==============================================================================
 # Mock Environment Setup
 # ==============================================================================
 
