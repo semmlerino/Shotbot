@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/scene_cache.py
+# hypothesis_version: 6.137.1
+
+[0.0, 100, 1000, 1800, 'access_count', 'age_seconds', 'average_age_seconds', 'cache_warmings', 'evictions', 'hit_rate_percent', 'hits', 'invalidations', 'is_expired', 'misses', 'scene_count', 'total_entries', 'total_scenes_cached', 'ttl_seconds']

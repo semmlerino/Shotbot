@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/simplified_launcher.py
+# hypothesis_version: 6.137.1
+
+[1800, '"', '$', '%H:%M:%S', '&', "'", "'\\''", '(', ')', '*.3de', '*.ma', '*.nk', '--', '-c', '-e', '-i', '/bin/bash', '3de', ';', 'Custom', 'No shot selected', 'SHOT', 'SHOT_WORKSPACE', 'SHOW', 'active_processes', 'bash', 'cache_size', 'cache_ttl_seconds', 'create_new', 'create_new_file', 'files', 'gnome-terminal', 'include_plate', 'include_raw_plate', 'include_undistortion', 'konsole', 'maya', 'nuke', 'open_latest', 'open_latest_scene', 'plate', 'plates', 'raw', 'rv', 'which', 'workspace', 'ws -sg', 'xterm', '|']

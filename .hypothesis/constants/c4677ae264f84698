@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/performance_monitor.py
+# hypothesis_version: 6.137.1
+
+[0.0, 0.8, 1.0, 300.0, 100, 500, 1000, '\nCACHE PERFORMANCE:', '\nMEMORY PERFORMANCE:', '\nOPERATION TIMINGS:', '-', '=', 'PERFORMANCE REPORT', 'PerformanceMonitor', 'dynamic_misses', 'hit_rate', 'static_hits']

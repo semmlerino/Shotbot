@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/process_pool_manager.py
+# hypothesis_version: 6.137.1
+
+[0.0, 0.001, 0.01, 0.1, 0.2, 0.3, 2.0, 5.0, 100, 1000, 4096, '*.txt', '-i', '/bin/bash', '/tmp', '1', 'EXECUTING', 'PS1', 'PS2', 'ProcessPoolManager', 'READY', 'Running command', 'SHOTBOT_INIT_', 'STARTING', 'Session initialized', 'TERM', 'WAITING_MARKER', '\\]777;[^\\x07\\n]*', '\\x1b[>=]', '\\x1b\\([B0UK]', '__main__', '_initialized', 'alive', 'average_response_ms', 'cache_stats', 'calls_per_minute', 'commands_executed', 'dumb', "echo 'one'", "echo 'test'", "echo 'three'", "echo 'two'", 'hit_rate', 'hits', 'idle_seconds', 'misses', 'pool_size', 'python_operations', 'select', 'session_id', 'sessions', 'set_blocking', 'size', 'subprocess_calls', 'total_requests', 'true', 'uptime_seconds', 'workspace', 'workspace_1', 'workspace_2', 'yes']

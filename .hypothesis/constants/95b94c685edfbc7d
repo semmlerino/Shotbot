@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py
+# hypothesis_version: 6.137.1
+
+[100, 200, 360, 400, 500, 840, 1000, 2000, '&About', '&Edit', '&Exit', '&Export Settings...', '&File', '&Help', '&Import Settings...', '&Keyboard Shortcuts', '&Preferences...', '&Refresh Shots', '&Reset Layout', '&Tools', '&View', '1', '3DE scenes', '3de', 'Command Log', 'Ctrl+,', 'Ctrl+L', 'Custom &Launchers', 'Failed to Load Shots', 'Keyboard Shortcuts', 'MainWindowProtocol', 'My Shots', 'No shot selected', 'Other 3DE scenes', 'PYTEST_CURRENT_TEST', 'Previous Shots', 'Ready', 'Refreshing shots', 'Refreshing shots...', 'SHOTBOT_MOCK', 'Shot cache updated', 'VFX Shot Launcher\n\n', '_session_warmer', 'cleanup', 'cleanup_fifo_only', 'echo warming', 'false', 'is_zombie', 'persistent_terminal', 'previous', 'previous_shots_model', 'pytest', 'shot_item_model', 'shots', 'shutdown', 'true', 'unittest', 'yes', '🧪 MOCK MODE ACTIVE']

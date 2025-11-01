@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache/thumbnail_processor.py
+# hypothesis_version: 6.137.1
+
+[255, 256, 1024, 20000, '-colorspace', '-quality', '-resize', '-version', '.exr', '.jpg', '.tif', '.tiff', '/tmp', '90', 'B', 'G', 'Imath', 'JPEG', 'L', 'OpenEXR', 'R', 'REZ_', 'REZ_IMAGEIO_ROOT', 'REZ_OPENEXR_ROOT', 'REZ_USED_RESOLVE', 'RGB', 'RGBA', 'Using imageio.v3 API', '_', 'alternative', 'channels', 'convert', 'dataWindow', 'exrinfo', 'file_size_mb', 'imageio_root', 'in_rez_env', 'is_heavy_format', 'official', 'openexr_root', 'python_path', 'rez_variables', 'sRGB', 'suffix_lower', 'thumbnails', 'use_pil', 'used_resolve']

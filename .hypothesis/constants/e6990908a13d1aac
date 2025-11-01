@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cleanup_manager.py
+# hypothesis_version: 6.137.1
+
+[100, 200, 1000, 2000, '_session_warmer', 'cache_manager', 'cleanup', 'cleanup_fifo_only', 'is_zombie', 'launcher_manager', 'persistent_terminal', 'previous_shots_model', 'pytest', 'shot_model', 'shutdown', 'threede_controller']

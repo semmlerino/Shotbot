@@ -1,0 +1,11 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0 -- /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/bin/python
+cachedir: .pytest_cache
+hypothesis profile 'default'
+PySide6 6.9.1 -- Qt runtime 6.9.1 -- Qt compiled 6.9.1
+rootdir: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot
+configfile: pytest.ini
+plugins: hypothesis-6.137.1, cov-6.2.1, mock-3.14.1, qt-4.5.0
+collecting ... collected 0 items
+
+============================ no tests ran in 2.47s =============================

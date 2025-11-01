@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache/thumbnail_processor_optimized.py
+# hypothesis_version: 6.137.1
+
+[0.0, 1000, 2000, '-colorspace', '-quality', '-thumbnail', '-version', '.bmp', '.dpx', '.exr', '.hdr', '.jpeg', '.jpg', '.png', '.tif', '.tiff', '50-70%', '90', 'JPEG', 'Processing failed', 'RGB', 'RGBA', 'ThumbnailWorker', 'auto', 'average_time_ms', 'backend_usage', 'batch_size', 'convert', 'draft', 'exr_specialized', 'imageio', 'imagemagick', 'max_workers', 'openexr', 'performance_gain', 'pil', 'pil_optimized', 'qt', 'qt_fast', 'sRGB', 'total_processed', 'total_time_ms']

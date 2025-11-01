@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/mock_workspace_pool.py
+# hypothesis_version: 6.140.2
+
+[0.0, '/tmp/mock_vfx', '0010', '_', '__main__', 'config', 'demo', 'demo_shots.json', 'dict[str, object]', 'dict[str, str]', 'echo', 'echo ', 'list[object]', 'object', 'seq', 'seq01', 'shot', 'shots', 'show', 'shows', 'tools', 'utf-8', 'workspace', 'ws -sg']

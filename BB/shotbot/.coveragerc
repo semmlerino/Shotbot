@@ -1,0 +1,23 @@
+[run]
+source = .
+omit = 
+    */tests/*
+    */venv/*
+    */__pycache__/*
+    */test_*.py
+    setup.py
+    conftest.py
+    shibokensupport/*
+    signature_bootstrap.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if __name__ == .__main__.:
+    raise AssertionError
+    raise NotImplementedError
+    pass
+    except ImportError:
+    @abstractmethod

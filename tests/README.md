@@ -1,156 +1,145 @@
-# ShotBot Test Suite
+# PyFFMPEG Test Suite
 
-## 🎯 Overview
+This directory contains comprehensive tests for the PyFFMPEG video converter application.
 
-The ShotBot test suite contains **775+ tests** across unit, integration, and performance categories. All tests have been fixed and are syntactically correct.
-
-## ⚡ Quick Start (WSL Optimized)
-
-Due to WSL filesystem performance limitations on `/mnt/c`, we provide optimized test runners:
-
-```bash
-# Quick validation (no pytest overhead)
-python3 quick_test.py
-
-# Run fast tests only (~30 seconds)
-python3 run_tests_wsl.py --fast
-
-# Run critical tests only
-python3 run_tests_wsl.py --critical
-
-# Test a single file (minimal I/O)
-python3 run_tests_wsl.py --file tests/unit/test_utils.py
-
-# Run tests matching a pattern
-python3 run_tests_wsl.py -k test_shot_model
-```
-
-## 📊 Test Categories
-
-Tests are categorized for efficient execution:
-
-- **Fast Tests (31 files)**: Basic unit tests that run quickly
-- **Slow Tests (16 files)**: Integration and threading tests
-- **Critical Tests (12 files)**: Core functionality that must work
-- **Qt Tests (21 files)**: Tests requiring Qt event loop
-
-Run `python3 mark_test_speed.py` to see the categorization report.
-
-## 🏥 Health Check
-
-Check the test suite status:
-
-```bash
-./test_health_check.sh
-```
-
-## ⚠️ WSL Performance Note
-
-The test suite experiences significant slowdowns on WSL when accessing Windows drives (`/mnt/c`). This is a known WSL limitation. For best performance:
-
-1. **Run tests during low system load** (evenings/weekends)
-2. **Use the optimized runners** provided (`run_tests_wsl.py`)
-3. **Test single files** to minimize I/O operations
-4. **Consider moving to native Linux filesystem** (`~/projects/`) for 10-100x speedup
-
-## 🔧 Test Infrastructure Status
-
-### ✅ Completed Fixes
-- Fixed 52 files with incorrect pytest import ordering
-- Fixed 30+ files with malformed docstrings
-- Fixed 70+ files with missing imports
-- Fixed all type annotation issues
-- All 775+ tests are now syntactically correct and collectible
-
-### 📝 Known Issues
-- **WSL filesystem performance**: Tests may timeout on `/mnt/c` due to slow I/O
-- **Signal race conditions**: Some tests in `test_previous_shots_worker.py` need fixing
-- **Excessive mocking**: ~60% of mocks can be replaced with real components per UNIFIED_TESTING_GUIDE
-
-## 🚀 Running Full Test Suite
-
-When system load is low, you can run the full suite:
-
-```bash
-# Run all tests in batches (recommended for WSL)
-python3 run_tests_wsl.py --all
-
-# Standard pytest (may timeout on WSL)
-uv run pytest tests/unit -v --tb=short
-
-# With coverage
-uv run pytest tests/ --cov=. --cov-report=html
-```
-
-## 📁 Test Structure
+## Test Structure
 
 ```
 tests/
-├── unit/           # 59 unit test files
-├── integration/    # 6 integration test files  
-├── performance/    # 4 performance test files
-├── threading/      # 2 threading test files
-├── conftest.py     # Shared fixtures
-└── README.md       # This file
+├── conftest.py              # Test configuration and fixtures
+├── fixtures/
+│   ├── mocks.py             # Mock objects and utilities
+│   └── __init__.py
+├── unit/
+│   ├── test_codec_helpers.py       # CodecHelpers class tests
+│   ├── test_progress_tracker.py    # ProgressTracker class tests
+│   ├── test_process_manager.py     # ProcessManager class tests
+│   ├── test_conversion_controller.py # ConversionController class tests
+│   └── __init__.py
+├── integration/             # [Future] End-to-end tests
+└── README.md
 ```
 
-## 🛠️ Configuration Files
+## Running Tests
 
-- `pytest.ini`: Standard pytest configuration
-- `pytest_wsl.ini`: Optimized for WSL with reduced I/O
-- `pytest_fast.ini`: Minimal configuration for speed
-- `pytest_minimal.ini`: Bare minimum for debugging
-- `pytest_optimized.ini`: Balanced performance config
+### Prerequisites
 
-## 💡 Tips for Test Development
-
-1. **Mark new tests appropriately**:
-   ```python
-   pytestmark = [pytest.mark.fast, pytest.mark.unit]
-   ```
-
-2. **Follow UNIFIED_TESTING_GUIDE principles**:
-   - Test behavior, not implementation
-   - Use real components instead of mocks where possible
-   - Mock only at system boundaries (subprocess, network, filesystem)
-
-3. **Avoid Qt threading violations**:
-   - Never use QPixmap in threads (use QImage instead)
-   - Use QSignalSpy for signal testing
-   - Set up signal waiters BEFORE triggering actions
-
-4. **Keep tests fast**:
-   - Avoid `time.sleep()` - use `qtbot.wait()` or signals
-   - Use small test data sets
-   - Mock expensive operations (network, large file I/O)
-
-## 📈 Test Coverage
-
-Current test distribution:
-- **Unit Tests**: 59 files covering core components
-- **Integration Tests**: 6 files testing component interactions
-- **Performance Tests**: 4 files for regression testing
-- **Threading Tests**: 2 files for concurrency
-
-Target coverage: 80%+ for critical components
-
-## 🔄 Continuous Testing
-
-For development, use the quick test runner:
-
+Install testing dependencies:
 ```bash
-# After making changes
-python3 quick_test.py  # Instant feedback
-
-# Before committing
-python3 run_tests_wsl.py --fast  # ~30 seconds
-
-# Before merging
-python3 run_tests_wsl.py --all  # Full validation
+pip install -r requirements.txt
 ```
 
-## 📚 Further Reading
+### Run All Tests
+```bash
+pytest
+```
 
-- [UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md](../UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md) - Testing best practices
-- [run_tests.py](../run_tests.py) - Standard test runner
-- [run_tests_wsl.py](../run_tests_wsl.py) - WSL-optimized test runner
+### Run Specific Test Categories
+```bash
+# Unit tests only
+pytest tests/unit/
+
+# Specific component tests
+pytest tests/unit/test_codec_helpers.py
+pytest tests/unit/test_progress_tracker.py
+pytest tests/unit/test_process_manager.py
+pytest tests/unit/test_conversion_controller.py
+
+# Tests requiring Qt GUI
+pytest -m qt
+
+# Hardware-specific tests
+pytest -m hardware
+```
+
+### Coverage Report
+```bash
+pytest --cov=. --cov-report=html
+```
+
+## Test Coverage
+
+### Completed Components (High Priority)
+
+1. **CodecHelpers** (170+ tests)
+   - ✅ Hardware acceleration detection and fallbacks
+   - ✅ Encoder configuration for all codec types
+   - ✅ Audio codec passthrough logic
+   - ✅ Thread optimization algorithms
+   - ✅ Caching mechanisms for expensive operations
+   - ✅ RTX 40 series detection for AV1 support
+   - ✅ Edge cases and error handling
+
+2. **ProgressTracker** (90+ tests)
+   - ✅ FFmpeg output regex parsing
+   - ✅ Progress percentage calculations
+   - ✅ ETA estimation algorithms
+   - ✅ Batch processing coordination
+   - ✅ Duration probing with ffprobe
+   - ✅ Performance with large datasets
+
+3. **ProcessManager** (110+ tests)
+   - ✅ QProcess lifecycle management
+   - ✅ Queue processing (FIFO, parallel limits)
+   - ✅ Smart timer management with adaptive intervals
+   - ✅ Resource cleanup and memory management
+   - ✅ Process output handling and buffering
+   - ✅ Error handling and timeout management
+
+4. **ConversionController** (80+ tests)
+   - ✅ Conversion workflow orchestration
+   - ✅ Auto-balance workload distribution
+   - ✅ FFmpeg argument construction
+   - ✅ Signal emission and coordination
+   - ✅ Source file deletion (optional)
+   - ✅ Process management integration
+
+### Pending Components (Medium Priority)
+
+5. **Integration Tests** - End-to-end workflows with mocked FFmpeg
+6. **Qt Widget Tests** - SettingsPanel and FileListWidget
+7. **Hardware Mocking** - Test matrix for different hardware configurations
+
+## Test Features
+
+### Mock Objects
+- **MockFFmpegProcess**: Simulates realistic FFmpeg behavior
+- **MockGPUDetection**: Various GPU scenarios (RTX40, RTX30, Intel, No GPU)
+- **MockEncoderDetection**: Different encoder availability scenarios
+- **MockQProcessManager**: Advanced QProcess simulation
+
+### Fixtures
+- **temp_video_file**: Temporary test video files
+- **mock_ffmpeg_subprocess**: Mocked subprocess calls
+- **codec_helpers_with_cache**: Pre-populated cache scenarios
+- **conversion_test_data**: Common test scenarios
+
+### Hardware Test Matrix
+Tests cover various hardware configurations:
+- RTX 4090 with full NVENC support (including AV1)
+- RTX 3080 with limited NVENC support (no AV1)
+- Intel QSV support scenarios
+- Software-only encoding fallbacks
+
+## Key Testing Principles
+
+1. **Isolation**: Each test is independent with proper setup/teardown
+2. **Mocking**: External dependencies (FFmpeg, nvidia-smi) are mocked
+3. **Coverage**: Edge cases, error conditions, and performance scenarios
+4. **Realistic**: Mock data reflects real-world FFmpeg behavior
+5. **Fast**: Tests run quickly without actual video processing
+
+## Performance Considerations
+
+- Tests complete in under 30 seconds on typical hardware
+- Memory usage is bounded through proper mock cleanup
+- No actual video files or FFmpeg processes are created
+- Hardware detection is cached to avoid repeated subprocess calls
+
+## Future Enhancements
+
+1. **Integration Tests**: Complete conversion workflows
+2. **Performance Benchmarks**: Stress testing with large file batches
+3. **UI Tests**: Qt widget interaction testing
+4. **Cross-Platform**: Windows/Linux/macOS compatibility tests
+5. **Hardware Validation**: Real hardware acceleration testing

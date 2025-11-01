@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/type_definitions.py
+# hypothesis_version: 6.137.1
+
+[100, 5000, 'error', 'finished', 'running', 'tuple[str, str, str]']

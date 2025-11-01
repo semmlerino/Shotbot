@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_workspace_manager.py
+# hypothesis_version: 6.137.1
+
+['(\\d{3})', '*', '.', '.*_v(\\d{3})\\.nk$', '.nk', 'PL01', 'USER', '\\.', '_logger_instance', 'gabriel-h', 'mm', 'mm-default', 'nuke', 'scene', 'scripts', 'user']

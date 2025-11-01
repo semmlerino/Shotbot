@@ -1,0 +1,480 @@
+"""Threading utilities for robust concurrency management.
+
+This module provides utilities for managing threads, cancellation, and resource
+cleanup in multi-threaded operations. The CancellationEvent system addresses
+common issues with ThreadPoolExecutor cleanup and provides graceful shutdown
+mechanisms.
+
+Key Features:
+- Thread-safe cancellation signaling using threading.Event
+- Cleanup callback system for guaranteed resource management
+- Exception-safe callback execution to prevent cascade failures
+- Timeout support for graceful shutdown operations
+- Integration with existing ThreadingConfig patterns
+
+Usage Example:
+    from threading_utils import CancellationEvent
+    import concurrent.futures
+    
+    # Create cancellation event
+    cancel_event = CancellationEvent()
+    
+    # Register cleanup callbacks
+    cancel_event.add_cleanup_callback(lambda: print("Cleaning up resources"))
+    
+    # Use with ThreadPoolExecutor
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        cancel_event.add_cleanup_callback(
+            lambda: executor.shutdown(wait=True, timeout=5.0)
+        )
+        
+        # Submit work
+        futures = [executor.submit(work_function, data, cancel_event) 
+                  for data in work_items]
+        
+        # Handle cancellation
+        if should_cancel:
+            cancel_event.cancel()  # Triggers all cleanup callbacks
+"""
+
+from __future__ import annotations
+
+import concurrent.futures
+import logging
+import threading
+import time
+import uuid
+from typing import Any, Callable, Dict, List, Optional
+
+from config import ThreadingConfig
+
+logger = logging.getLogger(__name__)
+
+
+class ThreadSafeProgressTracker:
+    """Thread-safe progress tracking for concurrent operations.
+    
+    This is a placeholder implementation. The actual ThreadSafeProgressTracker
+    should be implemented based on specific progress tracking requirements.
+    """
+    
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._progress = 0.0
+        self._message = ""
+        
+    def update(self, progress: float, message: str = "") -> None:
+        """Update progress in a thread-safe manner."""
+        with self._lock:
+            self._progress = progress
+            self._message = message
+    
+    def get_progress(self) -> tuple[float, str]:
+        """Get current progress and message thread-safely."""
+        with self._lock:
+            return self._progress, self._message
+
+
+class CancellationEvent:
+    """Thread-safe cancellation event with resource cleanup support.
+    
+    This class provides a robust cancellation mechanism for multi-threaded
+    operations with guaranteed resource cleanup. It addresses common issues
+    with ThreadPoolExecutor shutdown and ensures proper cleanup even when
+    exceptions occur.
+    
+    Features:
+    - Thread-safe cancellation signaling using threading.Event
+    - Cleanup callback registration for resource management
+    - Exception-safe callback execution (failures don't stop other callbacks)
+    - Timeout support for cancellation operations
+    - Comprehensive logging for debugging
+    
+    Example:
+        # Create cancellation event
+        cancel_event = CancellationEvent()
+        
+        # Register cleanup callbacks
+        cancel_event.add_cleanup_callback(cleanup_resources)
+        
+        # Check for cancellation in worker threads
+        def worker_function(data, cancel_event):
+            while processing_data:
+                if cancel_event.is_cancelled():
+                    return  # Exit gracefully
+                # Do work...
+        
+        # Cancel and cleanup
+        cancel_event.cancel()  # All cleanup callbacks executed
+    """
+    
+    def __init__(self) -> None:
+        """Initialize cancellation event."""
+        self._event = threading.Event()
+        self._callbacks: List[Callable[[], None]] = []
+        self._callbacks_lock = threading.Lock()
+        self._cancelled = False
+        self._cancel_lock = threading.Lock()
+        self._cancel_time: Optional[float] = None
+        self._id = str(uuid.uuid4())[:8]
+        
+        logger.debug(f"CancellationEvent {self._id} initialized")
+    
+    def cancel(self) -> None:
+        """Cancel the operation and execute all cleanup callbacks.
+        
+        This method is thread-safe and idempotent. Multiple calls to cancel()
+        will only execute cleanup callbacks once. All callbacks are executed
+        even if some fail with exceptions.
+        """
+        with self._cancel_lock:
+            if self._cancelled:
+                logger.debug(f"CancellationEvent {self._id} already cancelled")
+                return
+            
+            self._cancelled = True
+            self._cancel_time = time.time()
+            
+        logger.info(f"CancellationEvent {self._id} cancellation requested")
+        
+        # Signal cancellation to all waiting threads
+        self._event.set()
+        
+        # Execute cleanup callbacks
+        self._execute_cleanup_callbacks()
+        
+        logger.info(f"CancellationEvent {self._id} cancellation completed")
+    
+    def is_cancelled(self) -> bool:
+        """Check if the operation has been cancelled.
+        
+        Returns:
+            True if cancelled, False otherwise.
+        """
+        return self._cancelled
+    
+    def add_cleanup_callback(self, callback: Callable[[], None]) -> None:
+        """Add a cleanup callback to be executed on cancellation.
+        
+        Cleanup callbacks are executed in the order they were registered.
+        If a callback raises an exception, it will be logged but will not
+        prevent other callbacks from executing.
+        
+        Args:
+            callback: Function to call during cleanup. Should take no arguments
+                     and return None.
+        """
+        if not callable(callback):
+            raise ValueError("Callback must be callable")
+        
+        with self._callbacks_lock:
+            self._callbacks.append(callback)
+            callback_count = len(self._callbacks)
+        
+        logger.debug(f"CancellationEvent {self._id} registered cleanup callback "
+                    f"({callback_count} total)")
+    
+    def wait_for_cancellation(self, timeout: float | None = None) -> bool:
+        """Wait for cancellation event with optional timeout.
+        
+        Args:
+            timeout: Maximum time to wait in seconds. None for unlimited wait.
+                    Defaults to ThreadingConfig.WORKER_STOP_TIMEOUT_MS / 1000.
+        
+        Returns:
+            True if cancelled, False if timeout occurred.
+        """
+        if timeout is None:
+            timeout = ThreadingConfig.WORKER_STOP_TIMEOUT_MS / 1000.0
+        
+        logger.debug(f"CancellationEvent {self._id} waiting for cancellation "
+                    f"(timeout={timeout}s)")
+        
+        result = self._event.wait(timeout)
+        
+        if result:
+            logger.debug(f"CancellationEvent {self._id} cancellation detected")
+        else:
+            logger.warning(f"CancellationEvent {self._id} wait timeout after {timeout}s")
+        
+        return result
+    
+    def _execute_cleanup_callbacks(self) -> None:
+        """Execute all registered cleanup callbacks.
+        
+        This method is called internally by cancel(). It executes all callbacks
+        in order, logging any exceptions but continuing to execute remaining
+        callbacks to ensure maximum cleanup coverage.
+        """
+        with self._callbacks_lock:
+            callbacks = self._callbacks.copy()
+        
+        if not callbacks:
+            logger.debug(f"CancellationEvent {self._id} no cleanup callbacks to execute")
+            return
+        
+        logger.info(f"CancellationEvent {self._id} executing {len(callbacks)} cleanup callbacks")
+        
+        executed = 0
+        failed = 0
+        
+        for i, callback in enumerate(callbacks):
+            try:
+                logger.debug(f"CancellationEvent {self._id} executing callback {i+1}/{len(callbacks)}")
+                callback()
+                executed += 1
+            except Exception as e:
+                failed += 1
+                logger.error(f"CancellationEvent {self._id} cleanup callback {i+1} failed: {e}", 
+                           exc_info=True)
+        
+        logger.info(f"CancellationEvent {self._id} cleanup completed: "
+                   f"{executed} succeeded, {failed} failed")
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cancellation event statistics for debugging.
+        
+        Returns:
+            Dictionary containing event statistics including:
+            - id: Event identifier
+            - cancelled: Whether the event is cancelled
+            - cancel_time: When cancellation occurred (if cancelled)
+            - callback_count: Number of registered callbacks
+        """
+        with self._callbacks_lock:
+            callback_count = len(self._callbacks)
+        
+        return {
+            "id": self._id,
+            "cancelled": self._cancelled,
+            "cancel_time": self._cancel_time,
+            "callback_count": callback_count,
+        }
+    
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        stats = self.get_stats()
+        return f"CancellationEvent(id={stats['id']}, cancelled={stats['cancelled']}, callbacks={stats['callback_count']})"
+
+
+class ThreadPoolManager:
+    """Enhanced ThreadPoolExecutor manager with cancellation support.
+    
+    This class provides a wrapper around ThreadPoolExecutor with integrated
+    cancellation support and automatic cleanup. It addresses the resource
+    leak issues in parallel processing operations.
+    
+    Example:
+        cancel_event = CancellationEvent()
+        
+        with ThreadPoolManager(max_workers=4, cancel_event=cancel_event) as pool:
+            futures = [pool.submit(work_function, data, cancel_event) 
+                      for data in work_items]
+            
+            # Process results with cancellation checks
+            for future in concurrent.futures.as_completed(futures):
+                if cancel_event.is_cancelled():
+                    break  # Cleanup handled automatically
+                
+                result = future.result()
+                # Process result...
+        
+        # All resources cleaned up automatically
+    """
+    
+    def __init__(self, max_workers: int | None = None, 
+                 cancel_event: Optional[CancellationEvent] = None,
+                 shutdown_timeout: float | None = None):
+        """Initialize ThreadPoolManager.
+        
+        Args:
+            max_workers: Maximum number of worker threads. None for default.
+            cancel_event: Optional cancellation event for cleanup integration.
+            shutdown_timeout: Timeout for executor shutdown. None for default.
+        """
+        self.max_workers = max_workers or ThreadingConfig.MAX_WORKER_THREADS
+        self.cancel_event = cancel_event
+        self.shutdown_timeout = shutdown_timeout or ThreadingConfig.THREAD_POOL_TIMEOUT
+        self.executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+        self._entered = False
+        
+        logger.debug(f"ThreadPoolManager created with max_workers={self.max_workers}, "
+                    f"timeout={self.shutdown_timeout}s")
+    
+    def __enter__(self) -> concurrent.futures.ThreadPoolExecutor:
+        """Enter context manager and create executor."""
+        if self._entered:
+            raise RuntimeError("ThreadPoolManager already entered")
+        
+        self._entered = True
+        self.executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.max_workers
+        )
+        
+        # Register cleanup with cancellation event if provided
+        if self.cancel_event:
+            self.cancel_event.add_cleanup_callback(self._shutdown_executor)
+        
+        logger.debug(f"ThreadPoolManager executor created with {self.max_workers} workers")
+        return self.executor
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager and cleanup executor."""
+        if not self._entered:
+            return
+        
+        self._shutdown_executor()
+        self._entered = False
+    
+    def _shutdown_executor(self) -> None:
+        """Shutdown executor with proper timeout and cleanup."""
+        if not self.executor:
+            return
+        
+        logger.debug(f"ThreadPoolManager shutting down executor (timeout={self.shutdown_timeout}s)")
+        
+        try:
+            # First try graceful shutdown
+            self.executor.shutdown(wait=True, timeout=self.shutdown_timeout)
+            logger.debug("ThreadPoolManager executor shutdown completed gracefully")
+        except Exception as e:
+            logger.error(f"ThreadPoolManager executor shutdown failed: {e}")
+        finally:
+            self.executor = None
+
+
+def create_cancellation_context(max_workers: int | None = None,
+                              shutdown_timeout: float | None = None) -> tuple[CancellationEvent, ThreadPoolManager]:
+    """Create a cancellation event and thread pool manager pair.
+    
+    This convenience function creates a properly configured cancellation event
+    and thread pool manager that work together for robust resource management.
+    
+    Args:
+        max_workers: Maximum number of worker threads. None for default.
+        shutdown_timeout: Timeout for executor shutdown. None for default.
+    
+    Returns:
+        Tuple of (CancellationEvent, ThreadPoolManager)
+    
+    Example:
+        cancel_event, pool_manager = create_cancellation_context(max_workers=4)
+        
+        with pool_manager as executor:
+            # Submit work with cancellation support
+            futures = [executor.submit(worker, data, cancel_event) 
+                      for data in work_items]
+            
+            # Handle cancellation
+            if should_cancel:
+                cancel_event.cancel()  # Triggers cleanup
+    """
+    cancel_event = CancellationEvent()
+    pool_manager = ThreadPoolManager(
+        max_workers=max_workers,
+        cancel_event=cancel_event,
+        shutdown_timeout=shutdown_timeout
+    )
+    
+    logger.debug(f"Created cancellation context with {pool_manager.max_workers} workers")
+    return cancel_event, pool_manager
+
+
+# Example usage and integration patterns
+def example_parallel_processing_with_cancellation():
+    """Example showing how to replace problematic parallel processing.
+    
+    This example demonstrates how to replace the problematic pattern in
+    find_all_3de_files_in_show_parallel() with proper cancellation and cleanup.
+    """
+    # Create cancellation context
+    cancel_event, pool_manager = create_cancellation_context(max_workers=4)
+    
+    # Simulate external cancellation trigger (e.g., from UI)
+    def external_cancel_check():
+        # This would be your existing cancel_flag() function
+        return False  # Replace with actual cancellation logic
+    
+    work_items = ["item1", "item2", "item3", "item4", "item5"]
+    results = []
+    
+    try:
+        with pool_manager as executor:
+            # Submit all work
+            future_to_item = {}
+            
+            for item in work_items:
+                if cancel_event.is_cancelled() or external_cancel_check():
+                    break
+                
+                future = executor.submit(example_worker_function, item, cancel_event)
+                future_to_item[future] = item
+            
+            # Process completed futures with cancellation checks
+            for future in concurrent.futures.as_completed(future_to_item):
+                if cancel_event.is_cancelled() or external_cancel_check():
+                    # Trigger cancellation - cleanup handled automatically
+                    cancel_event.cancel()
+                    break
+                
+                item = future_to_item[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                    logger.debug(f"Processed {item}: {result}")
+                except Exception as e:
+                    logger.error(f"Error processing {item}: {e}")
+                    continue
+    
+    except Exception as e:
+        logger.error(f"Error in parallel processing: {e}")
+        cancel_event.cancel()  # Ensure cleanup on exception
+    
+    return results
+
+
+def example_worker_function(data: str, cancel_event: CancellationEvent) -> str:
+    """Example worker function that respects cancellation.
+    
+    Args:
+        data: Work item to process
+        cancel_event: Cancellation event to check
+    
+    Returns:
+        Processed result or raises exception if cancelled
+    """
+    # Simulate work with cancellation checks
+    for i in range(10):
+        if cancel_event.is_cancelled():
+            logger.debug(f"Worker for {data} cancelled at step {i}")
+            return f"cancelled:{data}"
+        
+        time.sleep(0.1)  # Simulate work
+    
+    return f"completed:{data}"
+
+
+if __name__ == "__main__":
+    # Simple test of the cancellation system
+    logging.basicConfig(level=logging.DEBUG)
+    
+    print("Testing CancellationEvent system...")
+    
+    # Test basic cancellation
+    cancel_event = CancellationEvent()
+    cleanup_called = []
+    
+    cancel_event.add_cleanup_callback(lambda: cleanup_called.append("callback1"))
+    cancel_event.add_cleanup_callback(lambda: cleanup_called.append("callback2"))
+    
+    print(f"Before cancel: {cancel_event}")
+    cancel_event.cancel()
+    print(f"After cancel: {cancel_event}")
+    print(f"Cleanup callbacks called: {cleanup_called}")
+    
+    # Test thread pool integration
+    print("\nTesting ThreadPoolManager...")
+    results = example_parallel_processing_with_cancellation()
+    print(f"Results: {results}")
+    
+    print("CancellationEvent system test completed!")

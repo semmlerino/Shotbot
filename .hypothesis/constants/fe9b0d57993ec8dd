@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/secure_command_executor.py
+# hypothesis_version: 6.140.2
+
+[100, 1024, '\x00', '%2e%2e', '-', '-1', '-c', '-i', '-info', '-l', '-la', '-list', '-maxdepth', '-mindepth', '-name', '-path', '-sg', '-type', '..', '../../', '/', '/bin/bash', '/mnt/projects', '/mnt/shows', '/shows', '/tmp', '>\\s*/dev/', 'Empty command', 'HOME', 'LANG', 'LC_ALL', 'PATH', 'PROJECT_ROOT', 'SHOWS_ROOT', 'USER', 'WS_CONFIG', '[;&|`$]', '\\$\\(.*\\)', 'echo', 'en_US.UTF-8', 'find', 'ls', 'no stderr', 'nobody', 'pwd', 'rm\\s+-rf', 'unknown', 'ws', 'ws ', '~']

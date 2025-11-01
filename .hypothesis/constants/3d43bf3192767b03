@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/filesystem_scanner.py
+# hypothesis_version: 6.137.1
+
+[0.0, 100, 300, 1000, 2000, '(', ')', '*.3DE', '*.3de', '*/*/publish/**/*.3DE', '*/*/publish/**/*.3de', '*/*/user/**/*.3DE', '*/*/user/**/*.3de', '*/publish/*', '*/user/*', '-maxdepth', '-name', '-not', '-o', '-path', '-print', '-type', '.3de', '.cache', '.git', '.hg', '.svn', '.tmp', '.venv', '10', 'Scan complete', '__pycache__', 'evictions', 'f', 'find', 'hit_rate_percent', 'hits', 'misses', 'node_modules', 'parser', 'shots', 'temp', 'tmp', 'total_entries', 'user', 'venv']

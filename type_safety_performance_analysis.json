@@ -1,0 +1,119 @@
+{
+  "timestamp": "2025-08-28 09:37:57",
+  "analysis_version": "1.0",
+  "typeddict_analysis": {
+    "iterations": 100000,
+    "plain_dict_creation_time": 0.07982180200087896,
+    "typed_dict_creation_time": 0.06820665700070094,
+    "creation_overhead_percent": -14.551344005050296,
+    "plain_access_time": 3.284199920017272e-05,
+    "typed_access_time": 2.1639998522005044e-05,
+    "access_overhead_percent": -34.10876606473081,
+    "plain_memory_bytes": 3352846,
+    "typed_memory_bytes": 3353198,
+    "memory_overhead_percent": 0.010498543625326066
+  },
+  "cache_architecture": {
+    "modular_init_time": 0.010681596999347676,
+    "storage_backend_time": 8.740007615415379e-07,
+    "memory_manager_time": 4.501000148593448e-06,
+    "shot_cache_time": 1.6424000932602212e-05,
+    "total_component_time": 2.1799001842737198e-05,
+    "cache_operation_time": 0.00047107200043683406,
+    "retrieval_time": 0.00021697899865102954,
+    "shots_cached": 100,
+    "shots_retrieved": 100
+  },
+  "thread_safety": {
+    "iterations": 10000,
+    "single_thread_time": 0.015973302000929834,
+    "multi_thread_time": 0.15703110700087564,
+    "thread_safety_overhead_percent": 883.0848186037839,
+    "operations_per_second_single": 626044.6336905095,
+    "operations_per_second_multi": 63681.65003093456
+  },
+  "memory_patterns": {
+    "complex_structure_bytes": 1579650,
+    "simple_structure_bytes": 371324,
+    "complex_peak_bytes": 1579690,
+    "simple_peak_bytes": 371364,
+    "structure_overhead_percent": 325.4101539356465,
+    "items_tested": 1000
+  },
+  "detailed_profiling": {
+    "top_functions": [
+      {
+        "function": "<method 'append' of 'list' objects>:0",
+        "file": "~",
+        "cumulative_time": 9.67e-07,
+        "total_time": 9.67e-07,
+        "calls": 6
+      },
+      {
+        "function": "<method 'extend' of 'list' objects>:0",
+        "file": "~",
+        "cumulative_time": 8.87e-07,
+        "total_time": 8.87e-07,
+        "calls": 5
+      },
+      {
+        "function": "<method 'count' of 'list' objects>:0",
+        "file": "~",
+        "cumulative_time": 5.450000000000001e-07,
+        "total_time": 5.450000000000001e-07,
+        "calls": 1
+      },
+      {
+        "function": "<built-in method from_bytes>:0",
+        "file": "~",
+        "cumulative_time": 4.88e-07,
+        "total_time": 4.88e-07,
+        "calls": 1
+      },
+      {
+        "function": "<method 'get' of 'dict' objects>:0",
+        "file": "~",
+        "cumulative_time": 2.573e-06,
+        "total_time": 2.573e-06,
+        "calls": 17
+      },
+      {
+        "function": "<method 'items' of 'dict' objects>:0",
+        "file": "~",
+        "cumulative_time": 6.07e-06,
+        "total_time": 6.07e-06,
+        "calls": 52
+      },
+      {
+        "function": "<built-in method __new__ of type object at 0xa44b40>:0",
+        "file": "~",
+        "cumulative_time": 1.319e-06,
+        "total_time": 1.319e-06,
+        "calls": 7
+      },
+      {
+        "function": "<method 'split' of 'str' objects>:0",
+        "file": "~",
+        "cumulative_time": 7.94e-07,
+        "total_time": 7.94e-07,
+        "calls": 2
+      },
+      {
+        "function": "<method 'join' of 'str' objects>:0",
+        "file": "~",
+        "cumulative_time": 1.345e-06,
+        "total_time": 1.345e-06,
+        "calls": 4
+      },
+      {
+        "function": "<method 'rfind' of 'str' objects>:0",
+        "file": "~",
+        "cumulative_time": 3.8600000000000004e-07,
+        "total_time": 3.8600000000000004e-07,
+        "calls": 1
+      }
+    ],
+    "total_operations": 50,
+    "cached_successfully": 50
+  }
+}

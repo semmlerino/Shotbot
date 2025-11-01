@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/version_mixin.py
+# hypothesis_version: 6.140.2
+
+['FALLBACK_PATTERNS', '\\.(\\d{4})\\.', '\\.v(\\d{3})', '_(\\d{3})$', '_v(\\d{3})', '_ver(\\d{3})']

@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_script_generator.py
+# hypothesis_version: 6.137.1
+
+[480, 640, 1001, 1100, 2304, 4312, 4320, 8192, '####', '%04d', '(\\d{4})', '.nk', '/', 'ACES - ACEScg', 'LensDistortion', 'LensDistortion {', 'Output - Rec.709', 'Output - sRGB', '[^\\w\\-_.]', '\\', '_', 'aces', 'acescg', 'lin_', 'lin_sgamut3cine', 'linear', 'r', 'rec709', 'scene_linear', 'sgamut', 'srgb', 'utf-8', 'w', '{', '}']

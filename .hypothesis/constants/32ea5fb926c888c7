@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/optimized_shot_parser.py
+# hypothesis_version: 6.137.1
+
+[100, 50000, 100000, 3000000, '_', '__main__', 'improvement_percent', 'optimized_time', 'original_ops_per_sec', 'original_time', 'target_ops_per_sec']

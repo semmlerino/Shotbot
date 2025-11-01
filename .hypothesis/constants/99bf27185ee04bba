@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher/config_manager.py
+# hypothesis_version: 6.140.2
+
+['.shotbot', '1.0', 'gnome-terminal', 'id', 'konsole', 'launchers', 'terminal_preferences', 'version', 'w', 'xterm']

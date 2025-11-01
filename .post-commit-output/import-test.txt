@@ -1,0 +1,4 @@
+Testing critical imports...
+✗ process_pool_manager import failed: No module named 'PySide6'
+✗ shot_model import failed: No module named 'PySide6'
+✗ main_window import failed: No module named 'PySide6'

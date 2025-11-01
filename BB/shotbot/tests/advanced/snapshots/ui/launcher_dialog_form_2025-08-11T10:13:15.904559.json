@@ -1,0 +1,233 @@
+{
+  "id": "launcher_dialog_form",
+  "timestamp": "2025-08-11T10:13:15.904559",
+  "data": {
+    "class": "LauncherEditDialog",
+    "enabled": true,
+    "visible": false,
+    "children": [
+      {
+        "class": "QLabel",
+        "enabled": true,
+        "visible": false,
+        "text": "Name:"
+      },
+      {
+        "class": "QLineEdit",
+        "enabled": true,
+        "visible": false,
+        "text": ""
+      },
+      {
+        "class": "QLabel",
+        "enabled": true,
+        "visible": false,
+        "text": "Command:"
+      },
+      {
+        "class": "QTextEdit",
+        "enabled": true,
+        "visible": false,
+        "children": [
+          {
+            "class": "QWidget",
+            "enabled": true,
+            "visible": false
+          },
+          {
+            "class": "QWidget",
+            "enabled": true,
+            "visible": false,
+            "children": [
+              {
+                "class": "QScrollBar",
+                "enabled": true,
+                "visible": false,
+                "value": 0
+              }
+            ]
+          },
+          {
+            "class": "QWidget",
+            "enabled": true,
+            "visible": false,
+            "children": [
+              {
+                "class": "QScrollBar",
+                "enabled": true,
+                "visible": false,
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "class": "QLabel",
+        "enabled": true,
+        "visible": false,
+        "text": "Description:"
+      },
+      {
+        "class": "QLineEdit",
+        "enabled": true,
+        "visible": false,
+        "text": ""
+      },
+      {
+        "class": "QLabel",
+        "enabled": true,
+        "visible": false,
+        "text": "Category:"
+      },
+      {
+        "class": "QLineEdit",
+        "enabled": true,
+        "visible": false,
+        "text": ""
+      },
+      {
+        "class": "QGroupBox",
+        "enabled": true,
+        "visible": false,
+        "checked": false,
+        "children": [
+          {
+            "class": "QLabel",
+            "enabled": true,
+            "visible": false,
+            "text": "Environment:"
+          },
+          {
+            "class": "QComboBox",
+            "enabled": true,
+            "visible": false,
+            "currentIndex": 0,
+            "count": 4,
+            "children": [
+              {
+                "class": "QFrame",
+                "enabled": true,
+                "visible": false,
+                "children": [
+                  {
+                    "class": "QListView",
+                    "enabled": true,
+                    "visible": false,
+                    "currentIndex": "<PySide6.QtCore.QModelIndex(0,0,0x3315ce0,QStandardItemModel(0x3315d00)) at 0x7fdf4b5a9d80>",
+                    "children": [
+                      {
+                        "class": "QWidget",
+                        "enabled": true,
+                        "visible": false
+                      },
+                      {
+                        "class": "QWidget",
+                        "enabled": true,
+                        "visible": false,
+                        "children": [
+                          {
+                            "class": "QScrollBar",
+                            "enabled": true,
+                            "visible": false,
+                            "value": 0
+                          }
+                        ]
+                      },
+                      {
+                        "class": "QWidget",
+                        "enabled": true,
+                        "visible": false,
+                        "children": [
+                          {
+                            "class": "QScrollBar",
+                            "enabled": true,
+                            "visible": false,
+                            "value": 0
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "class": "QWidget",
+                    "enabled": true,
+                    "visible": false
+                  },
+                  {
+                    "class": "QWidget",
+                    "enabled": true,
+                    "visible": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "class": "QLabel",
+            "enabled": true,
+            "visible": false,
+            "text": "Packages/Env:"
+          },
+          {
+            "class": "QLineEdit",
+            "enabled": true,
+            "visible": false,
+            "text": ""
+          }
+        ]
+      },
+      {
+        "class": "QGroupBox",
+        "enabled": true,
+        "visible": false,
+        "checked": false,
+        "children": [
+          {
+            "class": "QCheckBox",
+            "enabled": true,
+            "visible": false,
+            "text": "Keep terminal open after command exits",
+            "checked": false
+          }
+        ]
+      },
+      {
+        "class": "QPushButton",
+        "enabled": true,
+        "visible": false,
+        "text": "Test Command",
+        "checked": false
+      },
+      {
+        "class": "QLabel",
+        "enabled": true,
+        "visible": false,
+        "text": ""
+      },
+      {
+        "class": "QDialogButtonBox",
+        "enabled": true,
+        "visible": false,
+        "children": [
+          {
+            "class": "QPushButton",
+            "enabled": true,
+            "visible": false,
+            "text": "Save",
+            "checked": false
+          },
+          {
+            "class": "QPushButton",
+            "enabled": true,
+            "visible": false,
+            "text": "Cancel",
+            "checked": false
+          }
+        ]
+      }
+    ]
+  },
+  "metadata": {},
+  "checksum": "c23e63a5a7ecc78f7f0a5671dc2decbfecfa746cfdce846cc719b01da4afd19e"
+}

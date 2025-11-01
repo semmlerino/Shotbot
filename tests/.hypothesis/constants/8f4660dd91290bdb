@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/exceptions.py
+# hypothesis_version: 6.137.1
+
+['$', '&&', ', ', '..', ';', '<', '>', 'CACHE_ERROR', 'CONFIG_ERROR', 'LAUNCHER_ERROR', 'NETWORK_ERROR', 'SECURITY_ERROR', 'SHOTBOT_ERROR', 'THUMBNAIL_ERROR', 'VALIDATION_ERROR', 'WORKSPACE_ERROR', '\\', '`', 'access', 'actual', 'attempted_command', 'cache_file', 'cache_key', 'command', 'config_file', 'config_key', 'constraint', 'exit_code', 'expected', 'field', 'image_path', 'launcher_command', 'launcher_name', 'operation', 'path_traversal', 'reason', 'status_code', 'thumbnail_path', 'timeout', 'unauthorized_command', 'url', 'value', 'violation_type', 'workspace_path', '|', '||']

@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/threede_scene_finder_optimized.py
+# hypothesis_version: 6.137.1
+
+[0.0, 100, 300, 1000, 2000, '# Test 3DE Scene', '(', ')', '*.3DE', '*.3de', '-maxdepth', '-name', '-not', '-o', '-path', '-type', '.3de', '.cache', '.git', '.hg', '.svn', '.tmp', '.venv', '/', '/shows', '10', '3de', 'Scan complete', '^[\\w]+_v\\d{3}$', '^[bf]g\\d{2}$', '^comp_?\\d+$', '^plate_?\\d+$', '^sc\\d+$', '^shot_?\\d+$', '_', '__main__', '__pycache__', 'data', 'evictions', 'exports', 'f', 'files', 'find', 'hit_rate_percent', 'hits', 'matchmove', 'misses', 'mm', 'node_modules', 'publish', 'scene', 'scenes', 'shots', 'shows', 'temp', 'test_scene.3de', 'test_seq', 'test_shot', 'test_show', 'testuser', 'tmp', 'total_entries', 'tracking', 'unknown', 'user', 'venv', 'wip', 'work']

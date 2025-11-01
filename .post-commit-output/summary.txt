@@ -1,0 +1,11 @@
+
+Post-Commit Hook Summary
+========================
+Output directory: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.post-commit-output
+Files created:
+drwxrwxrwx 1 gabrielh gabrielh 512 Nov  1 09:39 .
+drwxrwxrwx 1 gabrielh gabrielh 512 Nov  1 09:39 ..
+-rwxrwxrwx 1 gabrielh gabrielh 228 Nov  1 09:39 bundle.txt
+-rwxrwxrwx 1 gabrielh gabrielh 207 Nov  1 09:39 import-test.txt
+-rwxrwxrwx 1 gabrielh gabrielh 211 Nov  1 09:39 info.txt
+-rwxrwxrwx 1 gabrielh gabrielh 152 Nov  1 09:39 summary.txt

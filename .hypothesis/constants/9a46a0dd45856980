@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_script_generator.py
+# hypothesis_version: 6.137.1
+
+[-200, 400, 480, 640, 1001, 1100, 2304, 4312, 4320, 8192, '\n=== IMPORT TEST ===', '\nImport Analysis:', '# ', '#!', '####', '%04d', '(\\d{4})', '-', '..', '...', '.nk', '/', 'ERROR: File is empty', 'Exiting Python block', 'Root {', '[^\\w\\-_]', '\\', '_', 'alexa', 'class ', 'colorspace "linear"', 'def ', 'define_window_layout', 'false', 'from ', 'import ', 'inputs 0', 'inputs 1', 'lin_', 'linear', 'log', 'logc', 'logc3ei800', 'push', 'push 0', 'python {', 'rec709', 'sRGB', 'set cut_paste_input', 'srgb', 'true', 'utf-8', 'version ', 'w', 'ypos', 'ypos\\s+(-?\\d+)', '{', '}']

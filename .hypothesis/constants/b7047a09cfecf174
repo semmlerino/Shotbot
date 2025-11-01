@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/headless_mode.py
+# hypothesis_version: 6.140.2
+
+[100, '--run', '/.dockerenv', '/usr/share/fonts', '1', 'CI', 'CIRCLECI', 'DISPLAY', 'GITHUB_ACTIONS', 'GITLAB_CI', 'JENKINS_URL', 'P', 'QT_LOGGING_RULES', 'QT_QPA_FONTDIR', 'QT_QPA_PLATFORM', 'QT_QUICK_BACKEND', 'SHOTBOT_HEADLESS', 'ShotBot-Headless', 'T', 'TEAMCITY_VERSION', 'TRAVIS', 'VFX', '__main__', 'activateWindow', 'microsoft-standard', 'none', 'offscreen', 'raise_', 'repaint', 'setFocus', 'show', 'software', 'true', 'update', 'win32', 'yes']

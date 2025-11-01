@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher_manager.py
+# hypothesis_version: 6.140.2
+
+['USER', 'custom', 'general', 'process_error', 'process_finished', 'process_started', 'shot_name', 'shot_path', 'true', 'unknown', 'user']

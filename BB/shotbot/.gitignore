@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Project specific
+copy/
+*.log
+.shotbot/
+
+# Obsolete archived files
+archive/
+archived/
+launcher_config.py
+launcher_model.py
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Transfer hook output
+encoded_releases/
+.skip-transfer-hook
+encoded_app_*.txt

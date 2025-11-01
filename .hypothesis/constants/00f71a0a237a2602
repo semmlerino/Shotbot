@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_script_generator.py
+# hypothesis_version: 6.137.1
+
+[-200, 480, 640, 1001, 1100, 2304, 4312, 4320, 8192, ' name ', '# ', '#!', '####', '%04d', '(\\d{4})', '(\\s+name\\s+)([^\\s]+)', '.nk', '/', 'Exiting Python block', 'PL01', 'Root {', 'USER', '[^\\w\\-_]', '[^a-zA-Z0-9_]', '\\', '_', 'alexa', 'class ', 'def ', 'define_window_layout', 'false', 'from ', 'gabriel-h', 'import ', 'inputs 0', 'inputs 1', 'lin_', 'linear', 'log', 'logc', 'logc3ei800', 'mm-default', 'n', 'push', 'push 0', 'python {', 'rec709', 'sRGB', 'set cut_paste_input', 'srgb', 'true', 'utf-8', 'version ', 'w', 'ypos', 'ypos\\s+(-?\\d+)', '{', '}']

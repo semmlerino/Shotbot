@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache_manager.py
+# hypothesis_version: 6.137.1
+
+[0.8, 100, 1024, 10000, 20000, '*.jpg', '.exr', '.shotbot', '.tif', '.tiff', '1970-01-01', 'JPEG', 'RGB', 'RGBA', 'Shot', 'cache', 'cached_at', 'empty', 'error', 'full', 'image', 'invalid_entries', 'issues_fixed', 'max_mb', 'memory_usage_bytes', 'metadata', 'orphaned_files', 'r', 'scaled', 'scan_type', 'scene_count', 'scenes', 'shotbot_cache_', 'shots', 'shots.json', 'signals', 'threede_scenes.json', 'thumbnail_count', 'thumbnails', 'timestamp', 'total_bytes', 'total_mb', 'tracked_files', 'usage_percent', 'utf-8', 'valid', 'w']

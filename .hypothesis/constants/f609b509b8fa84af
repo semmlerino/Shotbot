@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_item_model.py
+# hypothesis_version: 6.137.1
+
+[b'fullName', b'isSelected', b'loadingState', b'sequence', b'shotName', b'shotObject', b'show', b'thumbnailPath', b'thumbnailPixmap', b'workspacePath', 30.0, 100, 30000, 'All Shows', 'failed', 'idle', 'loaded', 'loading']

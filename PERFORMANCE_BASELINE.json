@@ -1,0 +1,97 @@
+{
+  "timestamp": "2025-08-27 14:06:47",
+  "python_version": "3.12.3 (main, Aug 14 2025, 17:47:21) [GCC 13.3.0]",
+  "platform": "linux",
+  "import_times": {
+    "PySide6": 1.2154925750000984,
+    "config": 0.014820478001638548,
+    "utils": 0.011693235999700846,
+    "shot_model": 0.052536491999489954,
+    "cache_manager": 0.190844406002725,
+    "launcher_manager": 0.032365174000005936,
+    "previous_shots_worker": 0.017594130000361474,
+    "main_window": 0.35755494800105225
+  },
+  "startup_metrics": {
+    "window_creation": 0.6808847180000157,
+    "initial_refresh": 0.023025109003356192
+  },
+  "memory_metrics": {
+    "total_blocks": 2015,
+    "total_size_mb": 0.12130355834960938,
+    "top_consumers": [
+      {
+        "file": "  File \"/usr/lib/python3.12/json/decoder.py\", line 353",
+        "size_kb": 18.994140625,
+        "count": 218
+      },
+      {
+        "file": "  File \"/usr/lib/python3.12/subprocess.py\", line 1021",
+        "size_kb": 4.3828125,
+        "count": 6
+      },
+      {
+        "file": "  File \"/usr/lib/python3.12/subprocess.py\", line 1016",
+        "size_kb": 4.3828125,
+        "count": 6
+      },
+      {
+        "file": "  File \"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py\", line 249",
+        "size_kb": 3.0078125,
+        "count": 75
+      },
+      {
+        "file": "  File \"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py\", line 251",
+        "size_kb": 1.873046875,
+        "count": 38
+      },
+      {
+        "file": "  File \"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_item_model.py\", line 81",
+        "size_kb": 1.4921875,
+        "count": 31
+      },
+      {
+        "file": "  File \"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache_manager.py\", line 77",
+        "size_kb": 1.3515625,
+        "count": 6
+      },
+      {
+        "file": "  File \"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py\", line 252",
+        "size_kb": 1.2890625,
+        "count": 15
+      },
+      {
+        "file": "  File \"/usr/lib/python3.12/pathlib.py\", line 1169",
+        "size_kb": 1.21875,
+        "count": 12
+      },
+      {
+        "file": "  File \"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py\", line 1548",
+        "size_kb": 1.203125,
+        "count": 30
+      }
+    ]
+  },
+  "cache_metrics": {
+    "cache_100_shots": 0.000864940997416852,
+    "read_100_shots": 9.597999815014191e-05,
+    "cache_10_thumbnails": 0.0004234970001562033
+  },
+  "test_metrics": {
+    "test_shot_model_time": 7.633196373000828,
+    "test_shot_model_passed": true,
+    "test_cache_manager_time": 10.790158944000723,
+    "test_cache_manager_passed": true,
+    "test_launcher_manager_time": 6.9273556289990665,
+    "test_launcher_manager_passed": true,
+    "test_previous_shots_worker_time": 8.526473621997866,
+    "test_previous_shots_worker_passed": false
+  },
+  "summary": {
+    "total_import_time": 1.8929014390050725,
+    "total_startup_time": 0.7039098270033719,
+    "total_memory_mb": 0.12130355834960938,
+    "cache_write_speed": 115614.82262795982,
+    "cache_read_speed": 1041883.7458568147
+  }
+}

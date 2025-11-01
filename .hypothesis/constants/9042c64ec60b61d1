@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache_manager.py
+# hypothesis_version: 6.140.2
+
+[b'JPEG', 0.0, 256, 1024, '*', '.shotbot', '.tmp', 'JPEG', 'JSONValue', 'RGB', 'SHOTBOT_MODE', 'cache', 'cached_at', 'data', 'file_count', 'mock', 'previous_shots', 'previous_shots.json', 'production', 'scenes', 'sequence', 'shot', 'shots', 'shots.json', 'show', 'source_path', 'test', 'threede_scenes.json', 'thumbnail_count', 'thumbnail_dir', 'thumbnails', 'total_mb', 'w']

@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/process_pool_manager.py
+# hypothesis_version: 6.137.1
+
+[0.0, 0.1, 0.3, 100, 1000, '*.txt', '/tmp', '1', '__class__', '__main__', 'average_response_ms', 'cache_hit_count', 'cache_hit_rate', 'cache_hits', 'cache_miss_count', 'cache_misses', 'calls_per_minute', "echo 'one'", "echo 'test'", "echo 'three'", "echo 'two'", 'hit_rate', 'hits', 'last_refresh_time', 'loading_in_progress', 'misses', 'python_operations', 'session_warmed', 'size', 'subprocess_calls', 'total_refreshes', 'total_requests', 'total_shots', 'true', 'uptime_seconds', 'workspace', 'yes']

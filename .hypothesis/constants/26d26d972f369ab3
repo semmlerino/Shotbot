@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/base_shot_model.py
+# hypothesis_version: 6.137.1
+
+[0.0, '1', 'Shot | None', '_', 'cache_hit_count', 'cache_hit_rate', 'cache_hits', 'cache_miss_count', 'cache_misses', 'expected', 'got', 'last_refresh_time', 'list[Shot]', 'loading_in_progress', 'sequence', 'session_warmed', 'shot_dir', 'show', 'str', 'total_refreshes', 'total_shots', 'true', 'workspace_path', 'ws -sg', 'yes']

@@ -1,0 +1,1330 @@
+"""Main window for ShotBot application.
+
+This module contains the MainWindow class, which serves as the primary user interface
+for the ShotBot VFX shot browsing and launcher application. The MainWindow integrates
+all core components including shot grids, 3DE scene discovery, custom launchers,
+and application management.
+
+The MainWindow follows a tabbed interface design with:
+- My Shots: Visual grid of user's assigned shots with thumbnails
+- Other 3DE scenes: Grid of discovered 3DE scenes from user directories
+- Shot Info: Details panel showing current shot information
+- Custom Launchers: Management interface for creating custom application launchers
+
+Key Features:
+    - Real-time shot data refresh with caching
+    - Background 3DE scene discovery with progress reporting
+    - Thread-safe custom launcher management with race condition protection
+    - Persistent UI state and settings storage
+    - Memory-optimized thumbnail loading and caching
+    - Cross-platform file system operations
+
+Architecture:
+    The MainWindow uses Qt's signal-slot mechanism for loose coupling between
+    components. It maintains a single CacheManager instance shared across all
+    thumbnail widgets and data models for memory efficiency. Thread safety is
+    ensured through proper mutex usage and state management.
+
+Examples:
+    Basic usage:
+        >>> from main_window import MainWindow
+        >>> from cache_manager import CacheManager
+        >>> cache = CacheManager()
+        >>> window = MainWindow(cache_manager=cache)
+        >>> window.show()
+
+    With custom configuration:
+        >>> from config import Config
+        >>> Config.DEFAULT_THUMBNAIL_SIZE = 250
+        >>> window = MainWindow()
+        >>> window.resize(1600, 1000)
+        >>> window.show()
+
+Type Safety:
+    This module uses comprehensive type annotations with Optional types for
+    nullable Qt widgets and proper signal type declarations. All public methods
+    include full type hints for parameters and return values.
+"""
+
+import json
+import logging
+from typing import Any, Optional
+
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, QTimer
+from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QStatusBar,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
+from cache_manager import CacheManager
+from command_launcher import CommandLauncher
+from config import Config
+from launcher_dialog import LauncherManagerDialog
+from launcher_manager import LauncherManager
+from log_viewer import LogViewer
+from shot_grid import ShotGrid
+from shot_grid_optimized import ShotGridOptimized
+from shot_info_panel import ShotInfoPanel
+from shot_model import Shot, ShotModel
+from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+from threede_scene_worker import ThreeDESceneWorker
+from threede_shot_grid import ThreeDEShotGrid
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
+
+
+class MainWindow(QMainWindow):
+    """Main application window."""
+
+    def __init__(self, cache_manager: Optional[CacheManager] = None):
+        super().__init__()
+        # Create single cache manager for the application
+        self.cache_manager = cache_manager or CacheManager()
+
+        # Configure thumbnail widgets to use our cache manager
+        from threede_thumbnail_widget import ThreeDEThumbnailWidget
+        from thumbnail_widget import ThumbnailWidget
+
+        ThumbnailWidget.set_cache_manager(self.cache_manager)
+        ThreeDEThumbnailWidget.set_cache_manager(self.cache_manager)
+
+        # Pass to models
+        self.shot_model = ShotModel(self.cache_manager)
+        self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
+        self.command_launcher = CommandLauncher()
+        self.launcher_manager = LauncherManager()
+        self._current_scene: Optional[ThreeDEScene] = None
+        self._threede_worker: Optional[ThreeDESceneWorker] = None
+        self._worker_mutex = QMutex()  # Protect worker access
+        self._closing = False  # Track shutdown state
+        self._launcher_dialog: Optional[LauncherManagerDialog] = None
+        self._setup_ui()
+        self._setup_menu()
+        self._connect_signals()
+        self._load_settings()
+
+        # Initial shot load
+        QTimer.singleShot(100, self._initial_load)
+
+        # Set up background refresh timer (every 5 minutes)
+        self.refresh_timer = QTimer()
+        self.refresh_timer.timeout.connect(self._background_refresh)
+        self.refresh_timer.start(5 * 60 * 1000)  # 5 minutes in milliseconds
+
+    def _setup_ui(self):
+        """Set up the main UI."""
+        self.setWindowTitle(f"{Config.APP_NAME} v{Config.APP_VERSION}")
+        self.resize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
+
+        # Central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        # Main layout
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+
+        # Splitter
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_layout.addWidget(self.splitter)
+
+        # Left side - Tab widget for different views
+        self.tab_widget = QTabWidget()
+        self.splitter.addWidget(self.tab_widget)
+
+        # Tab 1: My Shots
+        # Use optimized grid if enabled in config
+        if Config.USE_MEMORY_OPTIMIZED_GRID:
+            self.shot_grid = ShotGridOptimized(self.shot_model)
+        else:
+            self.shot_grid = ShotGrid(self.shot_model)
+        self.tab_widget.addTab(self.shot_grid, "My Shots")
+
+        # Tab 2: Other 3DE scenes
+        self.threede_shot_grid = ThreeDEShotGrid(self.threede_scene_model)
+        self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
+
+        # Right side - Controls and log
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Shot info panel
+        self.shot_info_panel = ShotInfoPanel(self.cache_manager)
+        right_layout.addWidget(self.shot_info_panel)
+
+        # App launcher buttons
+        self.launcher_group = QGroupBox("Launch Applications")
+        launcher_layout = QVBoxLayout(self.launcher_group)
+
+        # Style the launcher group to make it more visible
+        self.launcher_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #444;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
+
+        self.app_buttons: dict[str, QPushButton] = {}
+        # Keyboard shortcuts for each app
+        app_shortcuts = {
+            "3de": "3",
+            "nuke": "N",
+            "maya": "M",
+            "rv": "R",
+            "publish": "P",
+        }
+
+        # Add informational label at the top
+        info_label = QLabel("Select a shot to enable app launching")
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet(
+            "QLabel { color: #888; font-style: italic; padding: 5px; }"
+        )
+        launcher_layout.addWidget(info_label)
+        self.launcher_info_label = info_label
+
+        for app_name, command in Config.APPS.items():
+            button = QPushButton(app_name.upper())
+            button.setObjectName("builtInLauncherButton")
+            button.clicked.connect(lambda checked, app=app_name: self._launch_app(app))
+            button.setEnabled(False)  # Disabled until shot selected
+
+            # Add tooltip with keyboard shortcut
+            shortcut = app_shortcuts.get(app_name, "")
+            if shortcut:
+                button.setToolTip(f"Launch {app_name.upper()} (Shortcut: {shortcut})")
+
+            # Apply styling to built-in launchers
+            button.setStyleSheet("""
+                QPushButton#builtInLauncherButton {
+                    background-color: #2b3e50;
+                    color: #ecf0f1;
+                    border: 1px solid #34495e;
+                    border-radius: 4px;
+                    padding: 6px;
+                    font-weight: bold;
+                }
+                QPushButton#builtInLauncherButton:hover {
+                    background-color: #34495e;
+                    border-color: #4e6d8c;
+                }
+                QPushButton#builtInLauncherButton:pressed {
+                    background-color: #1a252f;
+                    border-color: #2b3e50;
+                }
+                QPushButton#builtInLauncherButton:disabled {
+                    background-color: #1e2a35;
+                    color: #666;
+                    border-color: #1e2a35;
+                }
+            """)
+
+            launcher_layout.addWidget(button)
+            self.app_buttons[app_name] = button
+
+        # Add undistortion checkbox
+        self.undistortion_checkbox = QCheckBox("Include undistortion nodes (Nuke)")
+        self.undistortion_checkbox.setToolTip(
+            "When launching Nuke, automatically include the latest undistortion .nk file"
+        )
+        launcher_layout.addWidget(self.undistortion_checkbox)
+
+        # Add raw plate checkbox
+        self.raw_plate_checkbox = QCheckBox("Include raw plate (Nuke)")
+        self.raw_plate_checkbox.setToolTip(
+            "When launching Nuke, automatically create a Read node for the raw plate"
+        )
+        launcher_layout.addWidget(self.raw_plate_checkbox)
+
+        # Add custom launchers section
+        self._add_custom_launchers_section(launcher_layout)
+
+        # Ensure launcher group has minimum height and doesn't get hidden
+        self.launcher_group.setMinimumHeight(
+            350
+        )  # Increased to accommodate custom launchers
+        right_layout.addWidget(self.launcher_group)
+
+        # Log viewer
+        log_group = QGroupBox("Command Log")
+        log_layout = QVBoxLayout(log_group)
+        self.log_viewer = LogViewer()
+        log_layout.addWidget(self.log_viewer)
+
+        right_layout.addWidget(log_group)
+
+        self.splitter.addWidget(right_widget)
+
+        # Set splitter sizes (70/30 split)
+        self.splitter.setSizes([840, 360])
+
+        # Status bar
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self._update_status("Ready")
+
+    def _setup_menu(self):
+        """Set up menu bar."""
+        menubar = self.menuBar()
+
+        # File menu
+        file_menu = menubar.addMenu("&File")
+
+        refresh_action = QAction("&Refresh Shots", self)
+        refresh_action.setShortcut(QKeySequence.StandardKey.Refresh)
+        refresh_action.triggered.connect(self._refresh_shots)
+        file_menu.addAction(refresh_action)
+
+        file_menu.addSeparator()
+
+        exit_action = QAction("&Exit", self)
+        exit_action.setShortcut(QKeySequence.StandardKey.Quit)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        # View menu
+        view_menu = menubar.addMenu("&View")
+
+        increase_size_action = QAction("&Increase Thumbnail Size", self)
+        increase_size_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
+        increase_size_action.triggered.connect(self._increase_thumbnail_size)
+        view_menu.addAction(increase_size_action)
+
+        decrease_size_action = QAction("&Decrease Thumbnail Size", self)
+        decrease_size_action.setShortcut(QKeySequence.StandardKey.ZoomOut)
+        decrease_size_action.triggered.connect(self._decrease_thumbnail_size)
+        view_menu.addAction(decrease_size_action)
+
+        # Tools menu
+        tools_menu = menubar.addMenu("&Tools")
+
+        # Launcher manager
+        self.launcher_manager_action = QAction("&Manage Custom Launchers...", self)
+        self.launcher_manager_action.setShortcut("Ctrl+L")
+        self.launcher_manager_action.triggered.connect(self._show_launcher_manager)
+        tools_menu.addAction(self.launcher_manager_action)
+
+        tools_menu.addSeparator()
+
+        # Custom launchers submenu
+        self.custom_launcher_menu = tools_menu.addMenu("Custom &Launchers")
+        self._update_launcher_menu()
+
+        # Help menu
+        help_menu = menubar.addMenu("&Help")
+
+        shortcuts_action = QAction("&Keyboard Shortcuts", self)
+        shortcuts_action.setShortcut(QKeySequence.StandardKey.HelpContents)
+        shortcuts_action.triggered.connect(self._show_shortcuts)
+        help_menu.addAction(shortcuts_action)
+
+        help_menu.addSeparator()
+
+        about_action = QAction("&About", self)
+        about_action.triggered.connect(self._show_about)
+        help_menu.addAction(about_action)
+
+    def _connect_signals(self):
+        """Connect signals."""
+        # Shot selection
+        self.shot_grid.shot_selected.connect(self._on_shot_selected)
+        self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
+        self.shot_grid.app_launch_requested.connect(self._launch_app)
+
+        # 3DE scene selection
+        self.threede_shot_grid.scene_selected.connect(self._on_scene_selected)
+        self.threede_shot_grid.scene_double_clicked.connect(
+            self._on_scene_double_clicked
+        )
+        self.threede_shot_grid.app_launch_requested.connect(self._launch_app)
+
+        # Command launcher
+        self.command_launcher.command_executed.connect(self.log_viewer.add_command)
+        self.command_launcher.command_error.connect(self.log_viewer.add_error)
+
+        # Custom launcher manager
+        self.launcher_manager.launchers_changed.connect(self._update_launcher_menu)
+        self.launcher_manager.launchers_changed.connect(
+            self._update_custom_launcher_buttons
+        )
+        self.launcher_manager.execution_started.connect(
+            lambda launcher_id: self._update_status("Launching custom command...")
+        )
+        self.launcher_manager.execution_finished.connect(
+            lambda launcher_id, success: self._update_status(
+                f"Custom launcher {'completed' if success else 'failed'}"
+            )
+        )
+
+        # Synchronize thumbnail sizes between tabs
+        self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
+        self.threede_shot_grid.size_slider.valueChanged.connect(
+            self._sync_thumbnail_sizes
+        )
+
+    def _initial_load(self):
+        """Initial shot loading."""
+        # First, show cached shots immediately if available
+        if self.shot_model.shots:
+            self.shot_grid.refresh_shots()
+            self._update_status(
+                f"Loaded {len(self.shot_model.shots)} shots (from cache)"
+            )
+
+            # Restore last selected shot if available
+            if hasattr(self, "_last_selected_shot_name"):
+                shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
+                if shot:
+                    self.shot_grid.select_shot(shot)
+
+        # Also show cached 3DE scenes immediately if available
+        if self.threede_scene_model.scenes:
+            self.threede_shot_grid.refresh_scenes()
+            self._update_status(
+                f"Loaded {len(self.shot_model.shots)} shots and {len(self.threede_scene_model.scenes)} 3DE scenes (from cache)"
+            )
+
+        # Then refresh in background
+        QTimer.singleShot(500, self._refresh_shots)
+
+    def _refresh_shots(self):
+        """Refresh shot list."""
+        self._update_status("Refreshing shots...")
+
+        success, has_changes = self.shot_model.refresh_shots()
+
+        if success:
+            if has_changes:
+                self.shot_grid.refresh_shots()
+                self._update_status(f"Loaded {len(self.shot_model.shots)} shots")
+            else:
+                self._update_status(f"{len(self.shot_model.shots)} shots (no changes)")
+
+            # Restore last selected shot if available
+            if hasattr(self, "_last_selected_shot_name"):
+                shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
+                if shot:
+                    self.shot_grid.select_shot(shot)
+
+            # Also refresh 3DE scenes
+            self._refresh_threede_scenes()
+        else:
+            self._update_status("Failed to load shots")
+            QMessageBox.warning(
+                self,
+                "Error",
+                "Failed to load shots. Make sure 'ws -sg' command is available.",
+            )
+
+    def _refresh_threede_scenes(self):
+        """Thread-safe refresh of 3DE scene list using background worker."""
+        with QMutexLocker(self._worker_mutex):
+            # Don't start new work during shutdown
+            if self._closing:
+                logger.debug("Ignoring refresh request during shutdown")
+                return
+            
+            # Check existing worker state
+            if self._threede_worker:
+                # Check if worker is still active
+                if not self._threede_worker.isFinished():
+                    logger.debug("3DE worker still running, stopping before starting new one")
+                    self._threede_worker.stop()
+                    # Release mutex while waiting to avoid deadlock
+                    self._worker_mutex.unlock()
+                    try:
+                        if not self._threede_worker.wait(1000):  # Wait up to 1 second
+                            logger.warning("Failed to stop 3DE worker gracefully, terminating")
+                            self._threede_worker.terminate()
+                            self._threede_worker.wait(500)
+                    finally:
+                        self._worker_mutex.lock()  # Re-acquire mutex
+                    
+                    # Check again if we're closing (could have changed while waiting)
+                    if self._closing:
+                        return
+                
+                # Clean up old worker
+                self._threede_worker.deleteLater()
+                self._threede_worker = None
+            
+            # Show loading state
+            self.threede_shot_grid.set_loading(True)
+            self._update_status("Starting enhanced 3DE scene discovery...")
+            
+            # Create enhanced worker with progressive scanning enabled
+            self._threede_worker = ThreeDESceneWorker(
+                shots=self.shot_model.shots,
+                enable_progressive=True,  # Enable progressive scanning for better UI responsiveness
+                batch_size=None,  # Use config default
+            )
+            
+            # Connect enhanced worker signals using safe_connect method for proper cleanup
+            self._threede_worker.safe_connect(
+                self._threede_worker.started,
+                self._on_threede_discovery_started,
+                Qt.QueuedConnection
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.batch_ready,
+                self._on_threede_batch_ready,
+                Qt.QueuedConnection
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.progress,
+                self._on_threede_discovery_progress,
+                Qt.QueuedConnection
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.scan_progress,
+                self._on_threede_scan_progress,
+                Qt.QueuedConnection
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.finished,
+                self._on_threede_discovery_finished,
+                Qt.QueuedConnection
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.error,
+                self._on_threede_discovery_error,
+                Qt.QueuedConnection
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.paused,
+                self._on_threede_discovery_paused,
+                Qt.QueuedConnection
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.resumed,
+                self._on_threede_discovery_resumed,
+                Qt.QueuedConnection
+            )
+            
+            # Start the worker
+            self._threede_worker.start()
+
+    def _on_threede_discovery_started(self):
+        """Handle 3DE discovery worker started signal."""
+        self._update_status("3DE scene discovery started...")
+
+    def _on_threede_discovery_progress(
+        self, current: int, total: int, percentage: float, description: str, eta: str
+    ):
+        """Handle enhanced 3DE discovery progress updates.
+
+        Args:
+            current: Current progress value
+            total: Total progress value
+            percentage: Completion percentage (0.0-100.0)
+            description: Progress description
+            eta: Estimated time to completion
+        """
+        # Format progress message with percentage and ETA
+        progress_msg = f"3DE discovery: {description} ({current}/{total})"
+        if percentage > 0:
+            progress_msg += f" - {percentage:.1f}%"
+        if eta:
+            progress_msg += f" {eta}"
+
+        self._update_status(progress_msg)
+
+    def _on_threede_discovery_finished(self, scenes: list):
+        """Handle 3DE discovery worker completion.
+
+        Args:
+            scenes: List of discovered ThreeDEScene objects
+        """
+        # Hide loading state
+        self.threede_shot_grid.set_loading(False)
+
+        # Update model with discovered scenes (compare with existing)
+        old_scene_data = {
+            (scene.full_name, scene.user, scene.plate, str(scene.scene_path))
+            for scene in self.threede_scene_model.scenes
+        }
+
+        new_scene_data = {
+            (scene.full_name, scene.user, scene.plate, str(scene.scene_path))
+            for scene in scenes
+        }
+
+        has_changes = old_scene_data != new_scene_data
+
+        if has_changes:
+            # Update the model with new scenes (deduplication happens in model)
+            self.threede_scene_model.scenes = (
+                self.threede_scene_model._deduplicate_scenes_by_shot(scenes)
+            )
+            # Sort deduplicated scenes
+            self.threede_scene_model.scenes.sort(key=lambda s: (s.full_name, s.user))
+
+            # ALWAYS cache results, even if empty, to avoid re-scanning
+            self.threede_scene_model.cache_manager.cache_threede_scenes(
+                self.threede_scene_model.to_dict()
+            )
+
+            # Update UI
+            self.threede_shot_grid.refresh_scenes()
+
+            # Update status
+            scene_count = len(scenes)
+            if scene_count > 0:
+                self._update_status(f"Found {scene_count} 3DE scenes from other users")
+            else:
+                self._update_status("No 3DE scenes found from other users")
+        else:
+            # No changes, but still cache the current state to refresh TTL
+            # This ensures cache persists across restarts
+            self.threede_scene_model.cache_manager.cache_threede_scenes(
+                self.threede_scene_model.to_dict()
+            )
+
+            # Ensure UI is populated if this is the first load
+            # (scenes might have been loaded from cache but UI not yet updated)
+            if (
+                not self.threede_shot_grid.thumbnails
+                and self.threede_scene_model.scenes
+            ):
+                self.threede_shot_grid.refresh_scenes()
+            self._update_status("3DE scene discovery complete (no changes)")
+
+    def _on_threede_discovery_error(self, error_message: str):
+        """Handle 3DE discovery worker error.
+
+        Args:
+            error_message: Error message from worker
+        """
+        # Hide loading state
+        self.threede_shot_grid.set_loading(False)
+
+        # Update status with error
+        self._update_status(f"3DE discovery error: {error_message}")
+
+        # Show error dialog for serious issues
+        QMessageBox.warning(
+            self,
+            "3DE Discovery Error",
+            f"Failed to discover 3DE scenes:\n{error_message}",
+        )
+
+    def _on_threede_batch_ready(self, scene_batch: list):
+        """Handle batch of scenes ready from progressive scanning.
+
+        Args:
+            scene_batch: List of ThreeDEScene objects in this batch
+        """
+        if scene_batch:
+            # Add batch to the model (model will handle deduplication)
+            self.threede_scene_model.scenes.extend(scene_batch)
+
+            # For now, we'll do a full refresh when batches are ready
+            # In future, we could implement incremental UI updates
+            # self.threede_shot_grid.refresh_scenes()  # Uncomment for real-time updates
+
+            logger.debug(f"Processed batch of {len(scene_batch)} scenes")
+
+    def _on_threede_scan_progress(
+        self, current_shot: int, total_shots: int, status: str
+    ):
+        """Handle fine-grained scan progress updates.
+
+        Args:
+            current_shot: Current shot being processed
+            total_shots: Total number of shots
+            status: Current status message
+        """
+        # This provides more frequent updates than the main progress signal
+        # Useful for showing which specific shot/user is being scanned
+        self._update_status(f"Scanning ({current_shot}/{total_shots}): {status}")
+
+    def _on_threede_discovery_paused(self):
+        """Handle worker pause signal."""
+        self._update_status("3DE scene discovery paused")
+
+    def _on_threede_discovery_resumed(self):
+        """Handle worker resume signal."""
+        self._update_status("3DE scene discovery resumed")
+
+    def _background_refresh(self):
+        """Refresh shots in background without interrupting user."""
+        # Save current selection
+        current_shot_name = None
+        if hasattr(self, "_last_selected_shot_name"):
+            current_shot_name = self._last_selected_shot_name
+
+        # Refresh quietly
+        success, has_changes = self.shot_model.refresh_shots()
+
+        if success and has_changes:
+            # Only update UI if there were actual changes
+            self.shot_grid.refresh_shots()
+            self._update_status(
+                f"Updated: {len(self.shot_model.shots)} shots (new changes)"
+            )
+
+            # Restore selection if possible
+            if current_shot_name:
+                shot = self.shot_model.find_shot_by_name(current_shot_name)
+                if shot:
+                    self.shot_grid.select_shot(shot)
+
+        # Also refresh 3DE scenes if shots were successful
+        if success:
+            scene_success, scene_changes = self.threede_scene_model.refresh_scenes(
+                self.shot_model.shots
+            )
+            if scene_success and scene_changes:
+                self.threede_shot_grid.refresh_scenes()
+
+    def _on_shot_selected(self, shot: Shot):
+        """Handle shot selection."""
+        # Clear any 3DE scene context when selecting a regular shot
+        self._current_scene = None
+        self.command_launcher.set_current_shot(shot)
+
+        # Update shot info panel
+        self.shot_info_panel.set_shot(shot)
+
+        # Enable app buttons and hide info label
+        for button in self.app_buttons.values():
+            button.setEnabled(True)
+        self.launcher_info_label.hide()
+
+        # Update custom launcher menu availability
+        self._update_launcher_menu_availability(True)
+
+        # Enable custom launcher buttons
+        self._enable_custom_launcher_buttons(True)
+
+        # Update window title
+        self.setWindowTitle(f"{Config.APP_NAME} - {shot.full_name} ({shot.show})")
+
+        # Update status
+        self._update_status(f"Selected: {shot.full_name} ({shot.show})")
+
+        # Save selection
+        self._last_selected_shot_name = shot.full_name
+        self._save_settings()
+
+    def _on_shot_double_clicked(self, shot: Shot):
+        """Handle shot double click - launch default app."""
+        self._launch_app(Config.DEFAULT_APP)
+
+    def _on_scene_selected(self, scene: ThreeDEScene):
+        """Handle 3DE scene selection."""
+        self._current_scene = scene
+        self.command_launcher.set_current_shot(None)  # Clear regular shot
+
+        # Create a Shot object from the scene for compatibility
+        shot = Shot(
+            show=scene.show,
+            sequence=scene.sequence,
+            shot=scene.shot,
+            workspace_path=scene.workspace_path,
+        )
+
+        # Update shot info panel
+        self.shot_info_panel.set_shot(shot)
+
+        # Enable all app buttons (not just 3de) and hide info label
+        for button in self.app_buttons.values():
+            button.setEnabled(True)
+        self.launcher_info_label.hide()
+
+        # Update custom launcher menu availability
+        self._update_launcher_menu_availability(True)
+
+        # Enable custom launcher buttons
+        self._enable_custom_launcher_buttons(True)
+
+        # Update window title with scene info
+        self.setWindowTitle(
+            f"{Config.APP_NAME} - {scene.full_name} ({scene.user} - {scene.plate})"
+        )
+
+        # Update status
+        self._update_status(
+            f"Selected: {scene.full_name} - {scene.user} ({scene.plate})"
+        )
+
+    def _on_scene_double_clicked(self, scene: ThreeDEScene):
+        """Handle 3DE scene double click - launch 3de with the scene."""
+        # Set the current scene first, then launch
+        self._current_scene = scene
+        self._launch_app("3de")
+
+    def _launch_app(self, app_name: str):
+        """Launch an application."""
+        # Check if we have a current 3DE scene selected
+        if self._current_scene:
+            # Launch with scene context
+            if app_name == "3de":
+                # For 3DE, use the scene file directly
+                success = self._launch_app_with_scene(app_name, self._current_scene)
+            else:
+                # For other apps, launch in shot context with undistortion/raw plate support
+                success = self._launch_app_with_scene_context(
+                    app_name, self._current_scene
+                )
+        else:
+            # Regular shot launch
+            # Check if we should include undistortion and/or raw plate for Nuke
+            include_undistortion = (
+                app_name == "nuke" and self.undistortion_checkbox.isChecked()
+            )
+            include_raw_plate = (
+                app_name == "nuke" and self.raw_plate_checkbox.isChecked()
+            )
+
+            success = self.command_launcher.launch_app(
+                app_name, include_undistortion, include_raw_plate
+            )
+
+        if success:
+            self._update_status(f"Launched {app_name}")
+        else:
+            self._update_status(f"Failed to launch {app_name}")
+
+    def _launch_app_with_scene(self, app_name: str, scene: ThreeDEScene):
+        """Launch an application with a specific 3DE scene."""
+        if self.command_launcher.launch_app_with_scene(app_name, scene):
+            self._update_status(f"Launched {app_name} with {scene.user}'s scene")
+            return True
+        else:
+            self._update_status(f"Failed to launch {app_name} with scene")
+            return False
+
+    def _launch_app_with_scene_context(self, app_name: str, scene: ThreeDEScene):
+        """Launch an application in the context of a 3DE scene (without the scene file itself)."""
+        # Check if we should include undistortion and/or raw plate for Nuke
+        include_undistortion = (
+            app_name == "nuke" and self.undistortion_checkbox.isChecked()
+        )
+        include_raw_plate = app_name == "nuke" and self.raw_plate_checkbox.isChecked()
+
+        if self.command_launcher.launch_app_with_scene_context(
+            app_name, scene, include_undistortion, include_raw_plate
+        ):
+            return True
+        else:
+            return False
+
+    def _increase_thumbnail_size(self):
+        """Increase thumbnail size."""
+        # Get current size from active tab
+        if self.tab_widget.currentIndex() == 0:
+            current = self.shot_grid.size_slider.value()
+        else:
+            current = self.threede_shot_grid.size_slider.value()
+
+        new_size = min(current + 20, Config.MAX_THUMBNAIL_SIZE)
+        # This will trigger _sync_thumbnail_sizes to update both
+        if self.tab_widget.currentIndex() == 0:
+            self.shot_grid.size_slider.setValue(new_size)
+        else:
+            self.threede_shot_grid.size_slider.setValue(new_size)
+
+    def _decrease_thumbnail_size(self):
+        """Decrease thumbnail size."""
+        # Get current size from active tab
+        if self.tab_widget.currentIndex() == 0:
+            current = self.shot_grid.size_slider.value()
+        else:
+            current = self.threede_shot_grid.size_slider.value()
+
+        new_size = max(current - 20, Config.MIN_THUMBNAIL_SIZE)
+        # This will trigger _sync_thumbnail_sizes to update both
+        if self.tab_widget.currentIndex() == 0:
+            self.shot_grid.size_slider.setValue(new_size)
+        else:
+            self.threede_shot_grid.size_slider.setValue(new_size)
+
+    def _sync_thumbnail_sizes(self, value: int):
+        """Synchronize thumbnail sizes between both tabs."""
+        # Prevent recursive calls by temporarily disconnecting signals
+        # Use try/except to handle case where signals might not be connected
+        try:
+            self.shot_grid.size_slider.valueChanged.disconnect(
+                self._sync_thumbnail_sizes
+            )
+        except (RuntimeError, TypeError):
+            pass  # Signal was not connected
+
+        try:
+            self.threede_shot_grid.size_slider.valueChanged.disconnect(
+                self._sync_thumbnail_sizes
+            )
+        except (RuntimeError, TypeError):
+            pass  # Signal was not connected
+
+        # Update both sliders
+        self.shot_grid.size_slider.setValue(value)
+        self.threede_shot_grid.size_slider.setValue(value)
+
+        # Reconnect signals
+        try:
+            self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
+        except (RuntimeError, TypeError):
+            logger.warning("Failed to reconnect shot_grid size slider signal")
+
+        try:
+            self.threede_shot_grid.size_slider.valueChanged.connect(
+                self._sync_thumbnail_sizes
+            )
+        except (RuntimeError, TypeError):
+            logger.warning("Failed to reconnect threede_shot_grid size slider signal")
+
+    def _update_status(self, message: str):
+        """Update status bar."""
+        self.status_bar.showMessage(message)
+
+    def _show_shortcuts(self):
+        """Show keyboard shortcuts dialog."""
+        shortcuts_text = """<h3>Keyboard Shortcuts</h3>
+        <table cellpadding="5">
+        <tr><td><b>Navigation:</b></td><td></td></tr>
+        <tr><td>Arrow Keys</td><td>Navigate through shots/scenes</td></tr>
+        <tr><td>Home/End</td><td>Jump to first/last shot</td></tr>
+        <tr><td>Enter</td><td>Launch default app (3de)</td></tr>
+        <tr><td>Ctrl+Wheel</td><td>Adjust thumbnail size</td></tr>
+        <tr><td>&nbsp;</td><td></td></tr>
+        <tr><td><b>Applications:</b></td><td></td></tr>
+        <tr><td>3</td><td>Launch 3de</td></tr>
+        <tr><td>N</td><td>Launch Nuke</td></tr>
+        <tr><td>M</td><td>Launch Maya</td></tr>
+        <tr><td>R</td><td>Launch RV</td></tr>
+        <tr><td>P</td><td>Launch Publish</td></tr>
+        <tr><td>&nbsp;</td><td></td></tr>
+        <tr><td><b>View:</b></td><td></td></tr>
+        <tr><td>Ctrl++</td><td>Increase thumbnail size</td></tr>
+        <tr><td>Ctrl+-</td><td>Decrease thumbnail size</td></tr>
+        <tr><td>&nbsp;</td><td></td></tr>
+        <tr><td><b>General:</b></td><td></td></tr>
+        <tr><td>F5</td><td>Refresh shots</td></tr>
+        <tr><td>F1</td><td>Show this help</td></tr>
+        </table>
+        """
+
+        QMessageBox.information(self, "Keyboard Shortcuts", shortcuts_text)
+
+    def _show_about(self):
+        """Show about dialog."""
+        QMessageBox.about(
+            self,
+            f"About {Config.APP_NAME}",
+            f"{Config.APP_NAME} v{Config.APP_VERSION}\n\n"
+            "VFX Shot Launcher\n\n"
+            "A tool for browsing and launching applications in shot context.",
+        )
+
+    def _show_launcher_manager(self):
+        """Show the launcher manager dialog."""
+        if self._launcher_dialog is None:
+            self._launcher_dialog = LauncherManagerDialog(self.launcher_manager, self)
+
+        self._launcher_dialog.show()
+        self._launcher_dialog.raise_()
+        self._launcher_dialog.activateWindow()
+
+    def _update_launcher_menu(self):
+        """Update the custom launcher menu with available launchers."""
+        # Clear existing menu items
+        self.custom_launcher_menu.clear()
+
+        # Get all launchers grouped by category
+        launchers = self.launcher_manager.list_launchers()
+
+        if not launchers:
+            # Add disabled placeholder
+            no_launchers_action = QAction("No custom launchers", self)
+            no_launchers_action.setEnabled(False)
+            self.custom_launcher_menu.addAction(no_launchers_action)
+            return
+
+        # Group by category
+        categories = {}
+        for launcher in launchers:
+            category = launcher.category or "custom"
+            if category not in categories:
+                categories[category] = []
+            categories[category].append(launcher)
+
+        # Add menu items
+        for category in sorted(categories.keys()):
+            category_launchers = categories[category]
+
+            if len(categories) > 1:
+                # Add category as submenu if multiple categories
+                category_menu = self.custom_launcher_menu.addMenu(category.title())
+                for launcher in category_launchers:
+                    action = QAction(launcher.name, self)
+                    action.setToolTip(launcher.description)
+                    action.setData(launcher.id)
+                    action.triggered.connect(
+                        lambda checked, lid=launcher.id: self._execute_custom_launcher(
+                            lid
+                        )
+                    )
+                    category_menu.addAction(action)
+            else:
+                # Add directly to main menu if only one category
+                for launcher in category_launchers:
+                    action = QAction(launcher.name, self)
+                    action.setToolTip(launcher.description)
+                    action.setData(launcher.id)
+                    action.triggered.connect(
+                        lambda checked, lid=launcher.id: self._execute_custom_launcher(
+                            lid
+                        )
+                    )
+                    self.custom_launcher_menu.addAction(action)
+
+        # Update menu availability
+        has_shot_or_scene = (
+            hasattr(self, "_last_selected_shot_name") or self._current_scene is not None
+        )
+        self._update_launcher_menu_availability(has_shot_or_scene)
+
+    def _update_launcher_menu_availability(self, has_context: bool):
+        """Update custom launcher menu item availability based on context."""
+        for action in self.custom_launcher_menu.actions():
+            menu = action.menu()
+            if menu and isinstance(menu, QMenu):
+                # It's a submenu, update its actions
+                for sub_action in menu.actions():
+                    sub_action.setEnabled(has_context)
+            else:
+                # Regular action
+                action.setEnabled(has_context)
+
+    def _execute_custom_launcher(self, launcher_id: str):
+        """Execute a custom launcher."""
+        launcher = self.launcher_manager.get_launcher(launcher_id)
+        if not launcher:
+            self._update_status(f"Launcher not found: {launcher_id}")
+            return
+
+        # Check if we have a current scene selected
+        if self._current_scene:
+            # Create a Shot object from the scene for context
+            shot = Shot(
+                show=self._current_scene.show,
+                sequence=self._current_scene.sequence,
+                shot=self._current_scene.shot,
+                workspace_path=self._current_scene.workspace_path,
+            )
+        else:
+            # Get current shot
+            current_shot = self.command_launcher.current_shot
+            if not current_shot:
+                self._update_status("No shot or scene selected")
+                QMessageBox.warning(
+                    self,
+                    "No Context",
+                    "Please select a shot or 3DE scene before launching custom commands.",
+                )
+                return
+            shot = current_shot
+
+        # Execute the launcher
+        success = self.launcher_manager.execute_in_shot_context(launcher_id, shot)
+
+        if success:
+            self._update_status(f"Launched '{launcher.name}'")
+            # Log the execution
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.log_viewer.add_command(timestamp, f"Custom launcher: {launcher.name}")
+        else:
+            self._update_status(f"Failed to launch '{launcher.name}'")
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.log_viewer.add_error(
+                timestamp, f"Failed to launch custom launcher: {launcher.name}"
+            )
+
+    def _load_settings(self):
+        """Load settings from file."""
+        if Config.SETTINGS_FILE.exists():
+            try:
+                with open(Config.SETTINGS_FILE, "r") as f:
+                    settings = json.load(f)
+
+                # Restore window geometry
+                if "geometry" in settings:
+                    self.restoreGeometry(bytes.fromhex(settings["geometry"]))
+
+                # Restore splitter state
+                if "splitter" in settings:
+                    self.splitter.restoreState(bytes.fromhex(settings["splitter"]))
+
+                # Restore last selected shot
+                if "last_shot" in settings:
+                    self._last_selected_shot_name = settings["last_shot"]
+
+                # Restore thumbnail size
+                if "thumbnail_size" in settings:
+                    self.shot_grid.size_slider.setValue(settings["thumbnail_size"])
+                    self.threede_shot_grid.size_slider.setValue(
+                        settings["thumbnail_size"]
+                    )
+
+                # Restore undistortion checkbox state
+                if "include_undistortion" in settings:
+                    self.undistortion_checkbox.setChecked(
+                        settings["include_undistortion"]
+                    )
+
+                # Restore raw plate checkbox state
+                if "include_raw_plate" in settings:
+                    self.raw_plate_checkbox.setChecked(settings["include_raw_plate"])
+
+                # Restore active tab
+                if "active_tab" in settings:
+                    self.tab_widget.setCurrentIndex(settings["active_tab"])
+
+            except Exception as e:
+                print(f"Error loading settings: {e}")
+
+    def _save_settings(self):
+        """Save settings to file."""
+        # Convert QByteArray to string for JSON serialization
+        geometry_hex = self.saveGeometry().toHex()
+        splitter_hex = self.splitter.saveState().toHex()
+
+        # Convert QByteArray to string
+        settings: dict[str, Any] = {
+            "geometry": str(geometry_hex.data(), "ascii"),
+            "splitter": str(splitter_hex.data(), "ascii"),
+            "thumbnail_size": self.shot_grid.size_slider.value(),
+            "include_undistortion": self.undistortion_checkbox.isChecked(),
+            "include_raw_plate": self.raw_plate_checkbox.isChecked(),
+            "active_tab": self.tab_widget.currentIndex(),
+        }
+
+        # Save last selected shot
+        if hasattr(self, "_last_selected_shot_name"):
+            settings["last_shot"] = self._last_selected_shot_name
+
+        # Create settings directory
+        Config.SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save to file
+        try:
+            with open(Config.SETTINGS_FILE, "w") as f:
+                json.dump(settings, f, indent=2)
+        except Exception as e:
+            print(f"Error saving settings: {e}")
+
+    def _add_custom_launchers_section(self, parent_layout: QVBoxLayout) -> None:
+        """Add custom launchers section to the launcher panel."""
+        # Add separator
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setStyleSheet("QFrame { color: #555; margin: 10px 0; }")
+        parent_layout.addWidget(separator)
+
+        # Add custom launchers label
+        custom_label = QLabel("Custom Launchers")
+        custom_label.setObjectName("customLaunchersLabel")
+        custom_label.setStyleSheet("""
+            QLabel#customLaunchersLabel {
+                color: #aaa;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 5px 0 2px 0;
+            }
+        """)
+        parent_layout.addWidget(custom_label)
+
+        # Container for custom launcher buttons
+        self.custom_launcher_container = QVBoxLayout()
+        self.custom_launcher_container.setSpacing(5)
+        parent_layout.addLayout(self.custom_launcher_container)
+
+        # Dictionary to store custom launcher buttons
+        self.custom_launcher_buttons: dict[str, QPushButton] = {}
+
+        # Initial update
+        self._update_custom_launcher_buttons()
+
+    def _update_custom_launcher_buttons(self) -> None:
+        """Update the custom launcher buttons based on available launchers."""
+        # Clear existing buttons with immediate deletion to prevent memory leaks
+        while self.custom_launcher_container.count():
+            item = self.custom_launcher_container.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)  # Remove from parent immediately
+                widget.deleteLater()  # Schedule for deletion
+        self.custom_launcher_buttons.clear()
+
+        # Get all launchers
+        launchers = self.launcher_manager.list_launchers()
+
+        if not launchers:
+            # Add placeholder text
+            no_launchers_label = QLabel("No custom launchers configured")
+            no_launchers_label.setStyleSheet("""
+                QLabel {
+                    color: #666;
+                    font-style: italic;
+                    padding: 10px;
+                }
+            """)
+            self.custom_launcher_container.addWidget(no_launchers_label)
+            return
+
+        # Group by category
+        categories = {}
+        for launcher in launchers:
+            category = launcher.category or "custom"
+            if category not in categories:
+                categories[category] = []
+            categories[category].append(launcher)
+
+        # Add buttons for each launcher
+        for category in sorted(categories.keys()):
+            category_launchers = categories[category]
+
+            # Add category header if multiple categories
+            if len(categories) > 1:
+                category_label = QLabel(category.title())
+                category_label.setStyleSheet("""
+                    QLabel {
+                        color: #888;
+                        font-size: 10px;
+                        padding: 5px 0 2px 0;
+                    }
+                """)
+                self.custom_launcher_container.addWidget(category_label)
+
+            for launcher in category_launchers:
+                button = QPushButton(f"🚀 {launcher.name}")
+                button.setObjectName("customLauncherButton")
+                button.setToolTip(launcher.description or f"Launch {launcher.name}")
+                button.clicked.connect(
+                    lambda checked, lid=launcher.id: self._execute_custom_launcher(lid)
+                )
+
+                # Apply custom styling
+                button.setStyleSheet("""
+                    QPushButton#customLauncherButton {
+                        background-color: #1a4d2e;
+                        color: #e0e0e0;
+                        border: 1px solid #245938;
+                        border-radius: 4px;
+                        padding: 6px;
+                        text-align: left;
+                        font-weight: normal;
+                    }
+                    QPushButton#customLauncherButton:hover {
+                        background-color: #245938;
+                        border-color: #2d6b47;
+                    }
+                    QPushButton#customLauncherButton:pressed {
+                        background-color: #0f3620;
+                        border-color: #1a4d2e;
+                    }
+                    QPushButton#customLauncherButton:disabled {
+                        background-color: #1a2e20;
+                        color: #666;
+                        border-color: #1a2e20;
+                    }
+                """)
+
+                # Initially disabled until shot selected
+                button.setEnabled(False)
+
+                self.custom_launcher_container.addWidget(button)
+                self.custom_launcher_buttons[launcher.id] = button
+
+        # Update button states based on current selection
+        has_selection = (
+            hasattr(self, "_last_selected_shot_name") or self._current_scene is not None
+        )
+        self._enable_custom_launcher_buttons(has_selection)
+
+    def _enable_custom_launcher_buttons(self, enabled: bool) -> None:
+        """Enable or disable all custom launcher buttons."""
+        for button in self.custom_launcher_buttons.values():
+            button.setEnabled(enabled)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Thread-safe close event handler.
+        
+        Ensures proper cleanup without double termination of workers.
+        """
+        # Stop the background refresh timer first to prevent it firing on closed window
+        if hasattr(self, "refresh_timer") and self.refresh_timer:
+            self.refresh_timer.stop()
+        if hasattr(self, "_refresh_timer") and self._refresh_timer:
+            self._refresh_timer.stop()
+        
+        # Mark that we're closing to prevent new operations
+        with QMutexLocker(self._worker_mutex):
+            self._closing = True
+            
+            # Stop and cleanup worker if running
+            if self._threede_worker:
+                # Check if it's a real worker (not a Mock in tests)
+                # Use isinstance check for better type safety
+                from threede_scene_worker import ThreeDESceneWorker
+                
+                if isinstance(self._threede_worker, ThreeDESceneWorker):
+                    # Only stop if not already finished
+                    if not self._threede_worker.isFinished():
+                        logger.debug("Stopping 3DE worker during shutdown")
+                        self._threede_worker.stop()
+                        
+                        # Release mutex while waiting to avoid deadlock
+                        self._worker_mutex.unlock()
+                        try:
+                            if not self._threede_worker.wait(3000):  # Wait up to 3 seconds
+                                logger.warning("3DE worker didn't stop gracefully, terminating")
+                                self._threede_worker.terminate()
+                                self._threede_worker.wait(1000)
+                        finally:
+                            self._worker_mutex.lock()  # Re-acquire for cleanup
+                    
+                    # Clean up the worker reference
+                    self._threede_worker.deleteLater()
+                    self._threede_worker = None
+        
+        # Shutdown launcher manager to stop all worker threads
+        if hasattr(self.launcher_manager, "shutdown"):
+            self.launcher_manager.shutdown()
+        
+        # Shutdown cache if it exists
+        if hasattr(self, "cache_manager") and self.cache_manager:
+            self.cache_manager.shutdown()
+        
+        self._save_settings()
+        event.accept()

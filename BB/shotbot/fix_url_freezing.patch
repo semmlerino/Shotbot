@@ -1,0 +1,165 @@
+--- a/thumbnail_widget_base.py
++++ b/thumbnail_widget_base.py
+@@ -3,11 +3,13 @@
+ import logging
+ from abc import abstractmethod
+ from enum import Enum
+ from pathlib import Path
++import subprocess
++import sys
+ from typing import Optional, Protocol, TypeVar
+ 
+-from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThreadPool, QUrl, Signal
++from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThread, QThreadPool, QUrl, Signal
+ from PySide6.QtGui import (
+     QColor,
+     QContextMenuEvent,
+     QDesktopServices,
+@@ -117,6 +119,105 @@ class BaseThumbnailLoader(QRunnable):
+             # Clean up Qt objects
+             del pixmap
+ 
++
++class FolderOpenerThread(QThread):
++    """Thread to open folders without blocking the UI."""
++    
++    finished_signal = Signal(bool, str)  # success, error_message
++    
++    def __init__(self, folder_path: str):
++        super().__init__()
++        self.folder_path = folder_path
++    
++    def run(self):
++        """Open folder in background thread."""
++        try:
++            # Create proper file URL
++            url = self._create_file_url(self.folder_path)
++            logger.debug(f"Opening folder with URL: {url.toString()}")
++            
++            # Try Qt's method first
++            success = QDesktopServices.openUrl(url)
++            
++            if success:
++                logger.debug(f"Successfully opened folder: {self.folder_path}")
++                self.finished_signal.emit(True, "")
++            else:
++                # Fallback to system command
++                logger.debug("QDesktopServices failed, trying system command")
++                self._open_with_system_command()
++                
++        except Exception as e:
++            error_msg = f"Error opening folder: {e}"
++            logger.error(error_msg)
++            self.finished_signal.emit(False, str(e))
++    
++    def _create_file_url(self, folder_path: str) -> QUrl:
++        """Create a proper file:// URL that works across all platforms."""
++        # Handle empty path
++        if not folder_path:
++            folder_path = "/"
++            logger.warning("Empty folder path provided, using root")
++        
++        # Normalize backslashes to forward slashes for consistency
++        folder_path = folder_path.replace("\\", "/")
++        
++        # Check for different path types
++        is_unc = folder_path.startswith("//")
++        is_windows = (
++            len(folder_path) >= 2 and 
++            folder_path[1] == ":" and 
++            folder_path[0].isalpha()
++        )
++        
++        if is_unc:
++            # UNC path: //network/share/folder
++            url = QUrl()
++            url.setScheme("file")
++            path_parts = folder_path[2:].split("/", 1)
++            if path_parts:
++                url.setHost(path_parts[0])
++                if len(path_parts) > 1:
++                    url.setPath("/" + path_parts[1])
++                else:
++                    url.setPath("/")
++        elif is_windows:
++            # Windows path: C:/folder or D:/folder
++            url = QUrl()
++            url.setScheme("file")
++            if not folder_path.startswith("/"):
++                folder_path = "/" + folder_path
++            url.setPath(folder_path)
++        else:
++            # Unix path (absolute or relative)
++            if not folder_path.startswith("/"):
++                folder_path = "/" + folder_path
++            
++            url = QUrl()
++            url.setScheme("file")
++            url.setPath(folder_path)
++        
++        return url
++    
++    def _open_with_system_command(self):
++        """Fallback to system command for opening folders."""
++        system = sys.platform
++        
++        try:
++            if system == "darwin":  # macOS
++                subprocess.run(["open", self.folder_path], check=False, timeout=5)
++                self.finished_signal.emit(True, "")
++            elif system == "win32":  # Windows
++                subprocess.run(["explorer", self.folder_path], check=False, timeout=5)
++                self.finished_signal.emit(True, "")
++            else:  # Linux/Unix
++                for cmd in ["xdg-open", "nautilus", "dolphin", "thunar"]:
++                    try:
++                        subprocess.run([cmd, self.folder_path], check=False, timeout=5)
++                        self.finished_signal.emit(True, "")
++                        break
++                    except (FileNotFoundError, subprocess.TimeoutExpired):
++                        continue
++        except Exception as e:
++            self.finished_signal.emit(False, str(e))
+ 
+ class ThumbnailWidgetBase(QFrame):
+@@ -347,20 +448,26 @@ class ThumbnailWidgetBase(QFrame):
+ 
+     # Base context menu actions
+     def _open_shot_folder(self):
+-        """Open the shot's workspace folder in system file manager."""
++        """Open the shot's workspace folder in system file manager (non-blocking)."""
+         folder_path = self.data.workspace_path
+         
+-        # Ensure we have a proper absolute path for file:// URL generation
+-        if not folder_path.startswith("/"):
+-            folder_path = "/" + folder_path
+-        
+-        # Create URL with explicit file:/// scheme to ensure proper formatting
+-        # Using QUrl() with setScheme and setPath ensures correct file:/// URLs
+-        url = QUrl()
+-        url.setScheme("file")
+-        url.setPath(folder_path)
++        # Create and start the folder opener thread
++        self.folder_opener = FolderOpenerThread(folder_path)
++        self.folder_opener.finished_signal.connect(self._on_folder_opened)
++        self.folder_opener.start()
+         
+-        logger.debug(f"Opening folder: {folder_path} with URL: {url.toString()}")
+-        QDesktopServices.openUrl(url)
++        logger.info(f"Opening folder: {folder_path}")
++
++    def _on_folder_opened(self, success: bool, error: str):
++        """Handle the result of folder opening attempt."""
++        if success:
++            logger.debug("Folder opened successfully")
++        else:
++            logger.warning(f"Failed to open folder: {error}")
++        
++        # Clean up the thread
++        if hasattr(self, 'folder_opener'):
++            self.folder_opener.quit()
++            self.folder_opener.wait()
++            self.folder_opener.deleteLater()
++            self.folder_opener = None
+ 
+     # Mouse events

@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher_panel.py
+# hypothesis_version: 6.140.2
+
+[0.8, 1.2, 120, 255, 3000, '#', '#2b3e50', '#2b4d6f', '#2b5d4d', '#4d2b5d', '#5d2b2b', '#5d4d2b', '3', '3de', 'Create new file', 'Custom Launchers', 'Include raw plate', 'Launch Applications', 'Launch publish tool', 'M', 'N', 'No plates available', 'Open latest scene', 'P', 'Plate:', 'R', 'create_new_file', 'customLaunchersLabel', 'include_raw_plate', 'include_undistortion', 'launch_button', 'maya', 'nuke', 'open_latest_maya', 'open_latest_scene', 'open_latest_threede', 'publish', 'publish_standalone', 'rv', '🎨', '🎬', '🎭', '📦', '📽️']

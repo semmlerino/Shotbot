@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/threede_scene_finder.py
+# hypothesis_version: 6.137.1
+
+[0.001, 100, 200, 500, 1000, 10000, '(', ')', '*.3DE', '*.3de', '-maxdepth', '-name', '-o', '-print', '-quit', '-type', '.', '/', '/shows', '3DE scene file', '3de', 'EXISTS', 'MAX_SHOTS_PER_SHOW', 'MISSING', 'SHOWS_ROOT', 'SHOW_ROOT_PATHS', 'SHOW_SEARCH_ENABLED', 'SKIP_SHOT_PATTERNS', 'THREEDE_SCAN_MODE', 'User directory', '^[\\w]+_v\\d{3}$', '^[bf]g\\d{2}$', '^comp_?\\d+$', '^plate_?\\d+$', '^sc\\d+$', '^shot_?\\d+$', 'data', 'exports', 'f', 'files', 'find', 'find_scenes_for_shot', 'matchmove', 'mm', 'scene', 'scenes', 'shots', 'shows', 'smart', 'temp', 'test', 'tmp', 'tracking', 'user', 'user_sequences', 'wip', 'work', 'workspace_path']

@@ -1,0 +1,31 @@
+{
+  "pythonVersion": "3.12",
+  "venvPath": ".",
+  "venv": "venv",
+  "include": [
+    "conversion_controller.py",
+    "process_monitor.py", 
+    "settings_panel.py",
+    "main_window_refactored.py",
+    "config.py",
+    "file_list_widget.py",
+    "process_manager.py",
+    "progress_tracker.py",
+    "codec_helpers.py"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "venv/**",
+    "PyMPEG.py"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownVariableType": false,
+  "reportUnannotatedClassAttribute": false,
+  "reportUndefinedVariable": "warning"
+}

@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/error_handling_mixin.py
+# hypothesis_version: 6.140.2
+
+[1.0, 2.0, 'No errors', 'P', 'T', 'T | None', 'Validation failed', '__name__', '_default', '_log_error', '_reraise', 'debug', 'error', 'info', 'result', 'warning']

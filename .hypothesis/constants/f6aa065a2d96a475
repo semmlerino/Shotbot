@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/terminal_launcher.py
+# hypothesis_version: 6.137.1
+
+['$()', '%Y-%m-%d_%H-%M-%S', '&&', '-', '--', '--geometry', '--title', '--workdir', '--working-directory', '-Command', '-NoExit', '-c', '-d', '-e', '-geometry', '-i', '-title', '-x', '.', '/k', ':', ';', 'Empty command', 'ShotBot Debug', 'Terminal', 'USER', 'USERNAME', '_', '`', 'alacritty', 'bash', 'cd', 'cmd', 'cmd.exe', 'custom', 'darwin', 'date', 'debug', 'echo', 'export', 'gnome-terminal', 'home', 'iTerm', 'konsole', 'linux', 'osascript', 'powershell', 'powershell.exe', 'sh', 'source', 'terminator', 'time', 'timestamp', 'unknown', 'user', 'windows', 'wt', 'wt.exe', 'x-terminal-emulator', 'xterm', '|']

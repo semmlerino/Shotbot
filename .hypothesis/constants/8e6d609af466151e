@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/previous_shots_model.py
+# hypothesis_version: 6.137.1
+
+[1000, 2000, 'previous_shots', 'progress', 'refresh_cache', 'sequence', 'shot', 'show', 'workspace_path']

@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/previous_shots_model.py
+# hypothesis_version: 6.140.2
+
+[1000, 2000, 'Acquired scan lock', 'Released scan lock', 'Reset scanning flag', 'previous_shots', 'progress', 'refresh_cache', 'sequence', 'shot', 'show', 'workspace_path']

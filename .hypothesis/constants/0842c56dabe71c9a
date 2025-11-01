@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_script_templates.py
+# hypothesis_version: 6.137.1
+
+[-300, 100, '####', '%04d', '/', '0x00aa00ff', '0xff000001', 'Color Correction', 'Grade_CC', 'Note', 'Read_Plate', 'Viewer1', '\\', 'false', 'true']

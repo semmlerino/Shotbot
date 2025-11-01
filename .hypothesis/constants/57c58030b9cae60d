@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/memory_optimized_grid.py
+# hypothesis_version: 6.137.1
+
+['loaded_thumbnails', 'max_allowed', 'total_items', 'visible_count']

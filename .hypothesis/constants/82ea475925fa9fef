@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher/models.py
+# hypothesis_version: 6.140.2
+
+['&&\\s*rm\\s', ';\\s*rm\\s', ';\\s*su\\s', ';\\s*sudo\\s', '\\$\\(rm\\s', '\\|\\s*rm\\s', '`rm\\s', 'bash', 'boolean', 'check_executable', 'choice', 'command_prefix', 'custom', 'directory', 'environment', 'file', 'float', 'forbidden_patterns', 'integer', 'packages', 'param_type', 'path', 'persist', 'required', 'required_files', 'resolve_paths', 'source_files', 'string', 'terminal', 'title', 'type', 'validation', 'working_directory']

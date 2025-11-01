@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/qprocess_manager.py
+# hypothesis_version: 6.137.1
+
+[100, 1000, 2000, 3000, 3600, 5000, 30000, '--', '--version', '-c', '-e', '-i', '-version', '/bin/bash', '/bin/sh', 'Timeout exceeded', 'args_prefix', 'bash', 'check', 'command', 'crashed', 'failed', 'finished', 'gnome-terminal', 'konsole', 'name', 'pending', 'replace', 'running', 'starting', 'terminated', 'utf-8', 'xfce4-terminal', 'xterm']

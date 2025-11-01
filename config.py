@@ -1,465 +1,160 @@
-"""Configuration constants and settings for ShotBot application.
-
-This module provides centralized configuration management for the ShotBot VFX
-application. All constants are organized within the Config class to eliminate
-magic numbers and provide a single source of truth for application settings.
-
-Configuration Categories:
-    - Application Info: Version, name, and metadata
-    - Window Settings: Default dimensions, minimum sizes, and layout preferences
-    - Thumbnail Settings: Size constraints, spacing, colors, and visual properties
-    - File System Paths: Show directories, thumbnail paths, and workspace patterns
-    - Application Commands: Executable names and launcher configurations
-    - Performance Tuning: Thread counts, memory limits, and optimization flags
-    - Cache Management: TTL values, size limits, and cleanup thresholds
-    - UI Behavior: Update intervals, timeouts, and responsive design parameters
-
-Path Pattern System:
-    The configuration uses Python string formatting for flexible path construction:
-        THUMBNAIL_PATH_PATTERN = "{shows_root}/{show}/shots/{sequence}/{shot}/..."
-
-    This allows for easy customization of VFX pipeline directory structures
-    without modifying core application logic.
-
-Threading Configuration:
-    Thread limits are carefully tuned for the target hardware:
-        - MAX_THUMBNAIL_THREADS: Balances I/O throughput with memory usage
-        - Background workers use separate thread pools for non-blocking operations
-        - Qt thread safety considerations built into concurrent access patterns
-
-Examples:
-    Accessing configuration values:
-        >>> from config import Config
-        >>> thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
-        >>> shows_path = Config.SHOWS_ROOT
-        >>> app_commands = Config.APPS
-
-    Customizing for different pipelines:
-        >>> # For custom show directory structure
-        >>> Config.SHOWS_ROOT = "/mnt/projects"
-        >>> Config.THUMBNAIL_PATH_PATTERN = "{shows_root}/{show}/shots/{sequence}..."
-
-    Runtime configuration validation:
-        >>> from pathlib import Path
-        >>> assert Path(Config.SHOWS_ROOT).exists(), "Shows root not accessible"
-        >>> assert Config.MIN_THUMBNAIL_SIZE <= Config.DEFAULT_THUMBNAIL_SIZE
-
-Thread Safety:
-    Configuration values are read-only after import and safe for concurrent
-    access. Runtime modifications should be avoided in production environments.
+#!/usr/bin/env python3
+"""
+Configuration Constants for PyFFMPEG
+Centralizes all magic numbers and configuration values for better maintainability
 """
 
-# Standard library imports
-import multiprocessing
-import os
-from pathlib import Path
-from typing import ClassVar
+
+# Process Management Constants
+class ProcessConfig:
+    """Process and threading related constants"""
+
+    # Maximum parallel processes for different system tiers
+    MAX_PARALLEL_HIGH_END = 14  # For high-end systems (RTX 4090, etc.) - Optimized for i9-14900HX + RTX 4090
+    MAX_PARALLEL_DEFAULT = 4  # Default maximum parallel processes
+
+    # GPU encoding limits
+    MAX_GPU_SLOTS = (
+        12  # RTX 4090 can handle up to 12 encodes (4 per NVENC engine) with 16GB VRAM
+    )
+    NVENC_ENGINES_PER_GPU = 3  # Number of NVENC engines per GPU
+
+    # Thread management
+    MIN_THREADS_PER_PROCESS = 2  # Minimum threads for any encoding process
+    OPTIMAL_CPU_THREADS = (
+        32  # Optimal thread count for CPU encoding on i9-14900HX (32 threads)
+    )
+
+    # Process timeout values (in seconds)
+    SUBPROCESS_TIMEOUT = 30  # Timeout for subprocess calls
+    PROCESS_START_TIMEOUT = 5  # Timeout for process startup
+    PROCESS_KILL_TIMEOUT = 3  # Timeout when killing processes
 
 
-class Config:
-    """Application configuration."""
+# UI Update and Timer Constants
+class UIConfig:
+    """UI update timing and behavior constants"""
 
-    # App info
-    APP_NAME = "ShotBot"
-    APP_VERSION = "1.0.2"  # Added third thumbnail fallback for EXR files
+    # Timer intervals (in milliseconds)
+    UI_UPDATE_DEFAULT = (
+        400  # Default UI update interval - optimized for high-end system
+    )
+    UI_UPDATE_HIGH_ACTIVITY = (
+        150  # Fast updates for high activity (4+ processes) - smoother on RTX 4090
+    )
+    UI_UPDATE_LOW_ACTIVITY = 1000  # Slow updates for low activity
+    UI_UPDATE_FALLBACK = 1000  # Fallback timer interval for MainWindow
+
+    # UI response delays
+    WIDGET_REMOVAL_DELAY = 5000  # Delay before removing process widgets (ms)
+    STOPPED_WIDGET_DELAY = 3000  # Delay for stopped process widgets (ms)
+
+    # Activity timing
+    LOW_ACTIVITY_THRESHOLD = (
+        5  # Seconds of inactivity before considering "low activity"
+    )
+    FORCE_UPDATE_INTERVAL = 3  # Force ETA update every N seconds
+
+
+# Memory and Log Management Constants
+class LogConfig:
+    """Log size limits and memory management"""
+
+    # Main application log limits
+    MAIN_LOG_MAX_SIZE = 20000  # Maximum characters in main log - optimized for 32GB RAM
+    MAIN_LOG_TRUNCATE_LINES = 100  # Lines to keep when truncating main log
+
+    # Process-specific log limits
+    PROCESS_LOG_MAX_SIZE = (
+        10000  # Maximum characters per process log - optimized for 32GB RAM
+    )
+    PROCESS_LOG_TRUNCATE_LINES = 50  # Lines to keep when truncating process logs
+
+    # Log history limits for ProcessManager
+    MAX_LOG_HISTORY = (
+        5000  # Maximum log entries to keep in memory - optimized for 32GB RAM
+    )
+    TRUNCATE_LOG_HISTORY = 2500  # Truncate to this many entries
+
+    # Memory cleanup thresholds
+    MAX_PROCESS_WIDGETS = (
+        16  # Maximum concurrent process widgets - matches parallel capacity
+    )
+    MAX_LOG_TABS = 14  # Maximum process log tabs - optimized for high-end system
+
+
+# Encoding and Quality Constants
+class EncodingConfig:
+    """Video encoding quality and performance settings"""
+
+    # Default quality settings
+    DEFAULT_CRF_H264 = (
+        16  # Default CRF for H.264 - higher quality for powerful hardware
+    )
+    DEFAULT_CRF_FALLBACK = 23  # Fallback CRF value
+
+    # Bitrate settings (in kbps)
+    AUDIO_BITRATE_DEFAULT = (
+        256  # Default audio bitrate - higher quality for powerful hardware
+    )
+
+    # Performance presets
+    PRESET_FAST = "fast"  # Fast encoding preset
+    PRESET_MEDIUM = "medium"  # Medium encoding preset
+    PRESET_SLOW = "slow"  # Slow encoding preset
+
+    # Auto-balance distribution ratios
+    GPU_RATIO_DEFAULT = 0.85  # 85% of files to GPU for RTX 4090 (exceptional GPU power)
+    CPU_RATIO_DEFAULT = 0.15  # 15% of files to CPU by default
+
+
+# Hardware Detection Constants
+class HardwareConfig:
+    """Hardware detection and capability constants"""
+
+    # System capability thresholds
+    HIGH_END_CPU_CORES = 24  # CPU cores to consider "high-end" - matches i9-14900HX
+
+    # RTX GPU models that support AV1 NVENC
+    RTX40_MODELS = ["RTX 40", "4090", "4080", "4070"]
+
+    # Hardware acceleration timeout
+    GPU_DETECTION_TIMEOUT = 10  # Seconds to wait for GPU detection
+
+
+# File and Path Constants
+class FileConfig:
+    """File handling and path constants"""
+
+    # Supported file extensions
+    SUPPORTED_VIDEO_EXTENSIONS = [".ts", ".mp4", ".m4v", ".mov"]
+
+    # Output file suffix
+    OUTPUT_SUFFIX = "_RC"  # Suffix added to converted files
+
+    # File size estimation factors (MB per minute)
+    SIZE_FACTOR_H264 = 8  # H.264 estimated size
+    SIZE_FACTOR_HEVC = 8  # HEVC estimated size
+    SIZE_FACTOR_AV1 = 6  # AV1 estimated size
+    SIZE_FACTOR_X264 = 5  # x264 estimated size
+    SIZE_FACTOR_PRORES_422 = 50  # ProRes 422 estimated size
+    SIZE_FACTOR_PRORES_4444 = 80  # ProRes 4444 estimated size
+    SIZE_FACTOR_DEFAULT = 10  # Default fallback size factor
+
+
+# Application Settings
+class AppConfig:
+    """Application-wide configuration"""
+
+    # Application metadata
+    APP_NAME = "PyFFMPEG Video Converter"
+    APP_VERSION = "2.1"
+    APP_DESCRIPTION = "RTX Advanced Hybrid Encoding"
 
     # Window settings
-    DEFAULT_WINDOW_WIDTH = 1200
-    DEFAULT_WINDOW_HEIGHT = 800
-    MIN_WINDOW_WIDTH = 800
-    MIN_WINDOW_HEIGHT = 600
+    DEFAULT_WINDOW_WIDTH = 1000
+    DEFAULT_WINDOW_HEIGHT = 700
 
-    # Thumbnail settings
-    DEFAULT_THUMBNAIL_SIZE = 350
-    MIN_THUMBNAIL_SIZE = 250
-    MAX_THUMBNAIL_SIZE = 600
-    THUMBNAIL_SPACING = 20  # Increased to accommodate selection highlight
-    PLACEHOLDER_COLOR = "#444444"
-
-    # Shot paths (configurable via SHOWS_ROOT environment variable)
-    SHOWS_ROOT: str = os.environ.get("SHOWS_ROOT", "/shows")
-    THUMBNAIL_PATH_PATTERN = "{shows_root}/{show}/shots/{sequence}/{shot}/publish/editorial/cutref/v001/jpg/1920x1080/"
-
-    # Commands
-    APPS: ClassVar[dict[str, str]] = {
-        "3de": "3de",
-        "nuke": "nuke",
-        "maya": "maya",
-        "rv": "rv",
-        "publish": "publish_standalone",
-    }
-    DEFAULT_APP = "nuke"
-
-    # Rez Environment Configuration
-    USE_REZ_ENVIRONMENT = True  # Enable rez environment wrapper when available
-    REZ_AUTO_DETECT = True  # Automatically detect rez availability via REZ_USED env var
-    REZ_NUKE_PACKAGES: ClassVar[list[str]] = [
-        "nuke",
-        "python-3.11",
-    ]  # Default rez packages for Nuke with Python 3.11 compatibility
-    REZ_MAYA_PACKAGES: ClassVar[list[str]] = ["maya"]  # Default rez packages for Maya
-    REZ_3DE_PACKAGES: ClassVar[list[str]] = ["3de"]  # Default rez packages for 3DE
-
-    # Nuke Undistortion Handling
-    NUKE_UNDISTORTION_MODE = (
-        "direct"  # Options: "direct" (open file), "parse" (old method)
-    )
-    NUKE_USE_LOADER_SCRIPT = (
-        True  # Use loader script when combining plate + undistortion
-    )
-    NUKE_FIX_OCIO_CRASH = (
-        False  # Whether to apply environment fixes to prevent OCIO plugin crashes
-    )
-    NUKE_SKIP_PROBLEMATIC_PLUGINS = (
-        False  # Whether to skip known problematic plugins that cause crashes
-    )
-    NUKE_PROBLEMATIC_PLUGIN_PATHS: ClassVar[list[str]] = [
-        "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4.0.0rc9/python-3.11/init",
-        "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4.0.3/python-3.11",  # Disable ShotGrid bootstrap errors
-        # Add other problematic plugin paths here
-    ]
-    NUKE_OCIO_FALLBACK_CONFIG = "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
-
-    # Persistent Terminal Settings
-    PERSISTENT_TERMINAL_ENABLED = (
-        True  # Master switch to enable/disable persistent terminal
-    )
-    USE_PERSISTENT_TERMINAL = (
-        True  # Use single terminal for all commands (when enabled)
-    )
-    PERSISTENT_TERMINAL_FIFO = "/tmp/shotbot_commands.fifo"  # FIFO path for commands
-    PERSISTENT_TERMINAL_TITLE = "ShotBot Terminal"  # Terminal window title
-    AUTO_BACKGROUND_GUI_APPS = True  # Auto-append & for GUI applications
-    KEEP_TERMINAL_ON_EXIT = False  # Keep terminal open when ShotBot closes
-    CLEAR_TERMINAL_BEFORE_COMMAND = False  # Clear screen before each command
-    TERMINAL_DISPATCHER_SCRIPT = "terminal_dispatcher.sh"  # Dispatcher script name
-
-    # Settings file
-    SETTINGS_FILE = Path.home() / ".shotbot" / "settings.json"
-
-    # UI settings
-    LOG_MAX_LINES = 1000
-    GRID_COLUMNS = 4  # Default columns, will be dynamic based on width
-
-    # Threading
-    MAX_THUMBNAIL_THREADS = 4
-    CPU_COUNT = multiprocessing.cpu_count()  # Number of CPU cores available
-    WORKER_STOP_TIMEOUT_MS = 5000  # Timeout for worker.wait() calls (5 seconds)
-
-    # Thumbnail unloading settings
-    THUMBNAIL_UNLOAD_DELAY_MS = 5000  # Delay before unloading invisible thumbnails
-
-    # Process and command settings
-    SUBPROCESS_TIMEOUT_SECONDS = 10  # Timeout for subprocess calls
-    WS_COMMAND_TIMEOUT_SECONDS = 10  # Timeout for ws -sg command specifically
-
-    # Image and memory limits
-    MAX_THUMBNAIL_DIMENSION_PX = 4096  # Maximum dimension for thumbnail images
-    MAX_INFO_PANEL_DIMENSION_PX = 2048  # Maximum dimension for info panel thumbnails
-    MAX_CACHE_DIMENSION_PX = 10000  # Maximum dimension for cached images
-    MAX_THUMBNAIL_MEMORY_MB = 50  # Maximum memory usage for thumbnail images
-    MAX_FILE_SIZE_MB = 100  # Maximum file size for image loading
-
-    # Cache settings
-    CACHE_EXPIRY_MINUTES = 1440  # Cache for 24 hours (1 day) - data persists longer
-    CACHE_THUMBNAIL_SIZE = 512  # Size for cached thumbnails
-    CACHE_REFRESH_INTERVAL_MINUTES = (
-        60  # Background refresh check interval (once per hour)
-    )
-    ENABLE_BACKGROUND_REFRESH = (
-        True  # Can be overridden by SHOTBOT_NO_BACKGROUND_REFRESH env var
-    )
-
-    # Enhanced cache settings
-    PATH_CACHE_TTL_SECONDS = (
-        0  # Path validation (0 = no automatic expiry, manual refresh only)
-    )
-    DIR_CACHE_TTL_SECONDS = (
-        0  # Directory listings (0 = no automatic expiry, manual refresh only)
-    )
-    SCENE_CACHE_TTL_SECONDS = (
-        0  # 3DE scenes (0 = no automatic expiry, manual refresh only)
-    )
-
-    # Cache size limits
-    PATH_CACHE_MAX_SIZE = 5000  # Maximum path cache entries
-    DIR_CACHE_MAX_SIZE = 500  # Maximum directory cache entries
-    SCENE_CACHE_MAX_SIZE = 2000  # Maximum scene cache entries
-
-    # Memory limits (MB)
-    PATH_CACHE_MAX_MEMORY_MB = 1.0
-    DIR_CACHE_MAX_MEMORY_MB = 5.0
-    SCENE_CACHE_MAX_MEMORY_MB = 5.0
-    THUMB_CACHE_MAX_MEMORY_MB = 2.0
-
-    # Memory pressure thresholds (percentage)
-    MEMORY_PRESSURE_NORMAL = 70.0  # Below this is normal
-    MEMORY_PRESSURE_MODERATE = 85.0  # Start considering eviction
-    MEMORY_PRESSURE_HIGH = 95.0  # Aggressive eviction needed
-
-    # Performance monitoring
-    ENABLE_PERFORMANCE_MONITORING = True
-    CACHE_STATS_LOG_INTERVAL = 300  # Log cache stats every 5 minutes
-
-    # Notification settings
-    NOTIFICATION_TOAST_DURATION_MS = 4000  # Auto-dismiss time for toast notifications
-    NOTIFICATION_SUCCESS_TIMEOUT_MS = 3000  # Success message timeout in status bar
-    NOTIFICATION_ERROR_TIMEOUT_MS = 5000  # Error message timeout in status bar
-    NOTIFICATION_MAX_TOASTS = 5  # Maximum simultaneous toast notifications
-
-    # VFX pipeline settings
-    DEFAULT_USERNAME = "gabriel-h"  # Default username for pipeline paths
-    UNDISTORTION_SUBPATH = "mm"  # Subdirectory for undistortion files
-
-    # File extensions
-    # Thumbnail discovery strategy
-    # Primary: Lightweight formats that can be loaded directly
-    THUMBNAIL_EXTENSIONS: ClassVar[list[str]] = [".jpg", ".jpeg", ".png"]
-
-    # Fallback: Heavy formats that require PIL resizing before use
-    THUMBNAIL_FALLBACK_EXTENSIONS: ClassVar[list[str]] = [".tiff", ".tif", ".exr"]
-
-    # Maximum file size (MB) for direct loading without resizing
-    THUMBNAIL_MAX_DIRECT_SIZE_MB = 10
-
-    # Keep IMAGE_EXTENSIONS for general image handling (includes EXR for Nuke, not for thumbnails)
-    IMAGE_EXTENSIONS: ClassVar[list[str]] = [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".exr"]
-    NUKE_EXTENSIONS: ClassVar[list[str]] = [".nk", ".nknc"]
-    THREEDE_EXTENSIONS: ClassVar[list[str]] = [".3de"]
-
-    # Path construction segments
-    THUMBNAIL_SEGMENTS: ClassVar[list[str]] = ["publish", "editorial", "cutref", "v001", "jpg", "1920x1080"]
-    RAW_PLATE_SEGMENTS: ClassVar[list[str]] = [
-        "publish",
-        "turnover",
-        "plate",
-        "input_plate",
-    ]  # Removed bg01 for flexible discovery
-
-    # Plate discovery patterns and priorities
-    PLATE_DISCOVERY_PATTERNS: ClassVar[list[str]] = [
-        "FG01",
-        "FG02",
-        "BG01",
-        "BG02",
-        "PL01",  # Primary turnover plate
-        "PL02",  # Secondary turnover plate
-        "PL03",  # Tertiary turnover plate
-        "COMP01",  # Composite plate 01
-        "COMP02",  # Composite plate 02
-        "COMP03",  # Composite plate 03
-        "bg01",
-        "fg01",
-        "plate",
-    ]  # Common plate naming including PL## turnover patterns
-
-    # Turnover plate preferences (lower value = higher priority)
-    # For primary workflow: use FG (foreground), PL (turnover), and BG (background) plates
-    TURNOVER_PLATE_PRIORITY: ClassVar[dict[str, float]] = {
-        "FG": 0,  # Primary foreground plates (FG01, FG02) - USE THESE
-        "PL": 0.5,  # Primary turnover plates (PL01, PL02) - USE THESE
-        "BG": 1,  # Primary background plates (BG01, BG02) - USE THESE
-        "COMP": 1.5,  # Composite plates - USE IF NEEDED
-        "EL": 2,  # Element plates - USE IF NEEDED
-        "BC": 10,  # Background clean plates (BC01) - SKIP (reference only)
-        "*": 12,  # All others lowest priority
-    }
-
-    # Legacy plate priority (for backward compatibility)
-    PLATE_PRIORITY_ORDER: ClassVar[dict[str, float]] = {
-        "FG01": 10,
-        "fg01": 9,
-        "FG02": 8,
-        "PL01": 7,  # Primary turnover plate - high priority
-        "PL02": 6,  # Secondary turnover plate
-        "PL03": 5,  # Tertiary turnover plate
-        "COMP01": 4.5,  # Composite plates - between PL and BG
-        "COMP02": 4.4,
-        "COMP03": 4.3,
-        "BG01": 4.0,
-        "bg01": 3.5,
-        "BG02": 2,
-    }  # Higher value = higher priority
-
-    # Common color space patterns in plate names
-    COLOR_SPACE_PATTERNS: ClassVar[list[str]] = [
-        "aces",
-        "lin_sgamut3cine",
-        "lin_rec709",
-        "rec709",
-        "srgb",
-        "film_lin",
-    ]
-
-    # Undistortion plate discovery configuration
-    UNDISTORTION_PLATE_PREFIXES: ClassVar[list[str]] = [
-        "FG",
-        "BG",
-        "BC",
-        "PL",
-        "COMP",
-    ]  # Plate prefixes to search for undistortion files
-
-    # Undistortion plate priorities (lower value = higher priority)
-    UNDISTORTION_PLATE_PRIORITY: ClassVar[dict[str, float]] = {
-        "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
-        "PL": 1,  # PL plates second priority (PL01, PL02, PL03 - primary turnover plates)
-        "COMP": 1.5,  # COMP plates - between PL and BG
-        "BG": 2,  # BG plates third priority (BG01, BG02, etc.)
-        "BC": 3,  # BC plates lowest priority (BC01 - background clean plates)
-    }
-
-    UNDISTORTION_BASE_SEGMENTS: ClassVar[list[str]] = [
-        "user",
-        "mm",
-        "3de",
-        "mm-default",
-        "exports",
-        "scene",
-        "bg01",
-        "nuke_lens_distortion",
-    ]
-    THREEDE_SCENE_SEGMENTS: ClassVar[list[str]] = ["mm", "3de", "mm-default", "scenes", "scene"]
-
-    # Alternative 3DE scene path patterns to try if main pattern fails
-    THREEDE_ALTERNATIVE_PATTERNS: ClassVar[list[list[str]]] = [
-        ["mm", "3de", "scenes"],
-        ["mm", "3de", "scene"],
-        ["3de", "scenes"],
-        ["3de", "scene"],
-        ["matchmove", "3de", "scenes"],
-        ["matchmove", "3de", "scene"],
-        ["mm", "scenes"],
-        ["mm", "scene"],
-        ["scenes"],
-        ["scene"],
-    ]
-
-    # Environment variables that may contain 3DE path information
-    THREEDE_ENV_VARS: ClassVar[list[str]] = [
-        "THREEDE_SCENE_PATH",
-        "3DE_SCENE_PATH",
-        "TDE_SCENE_PATH",
-        "MM_SCENE_PATH",
-        "MATCHMOVE_SCENE_PATH",
-    ]
-
-    # Common VFX plate name patterns for intelligent grouping
-    PLATE_NAME_PATTERNS: ClassVar[list[str]] = [
-        r"^[bf]g\d{2}$",  # bg01, fg01, bg02, fg02, etc.
-        r"^plate_?\d+$",  # plate01, plate_01, plate02
-        r"^comp_?\d+$",  # comp01, comp_01, comp02
-        r"^shot_?\d+$",  # shot01, shot_01, shot010
-        r"^sc\d+$",  # sc01, sc02, sc10
-        r"^[\w]+_v\d{3}$",  # anything_v001, test_v002
-        r"^elem_?\d+$",  # elem01, elem_01
-        r"^cam_?\d+$",  # cam01, cam_01, cam1
-        r"^tk\d+$",  # tk01, tk02 (take numbers)
-        r"^roto_?\d+$",  # roto01, roto_01
-    ]
-
-    # Show-wide search configuration
-    SHOW_SEARCH_ENABLED = (
-        True  # Enable searching all shots in shows (not just user's shots)
-    )
-    SHOW_ROOT_PATHS: ClassVar[list[str]] = [
-        SHOWS_ROOT
-    ]  # Root directories where shows are stored (uses configured SHOWS_ROOT)
-    MAX_SHOTS_PER_SHOW = 1000  # Limit to prevent excessive searching in huge shows
-    SKIP_SEQUENCE_PATTERNS: ClassVar[list[str]] = ["tmp", "temp", "test", "old", "archive", "_dev"]
-    SKIP_SHOT_PATTERNS: ClassVar[list[str]] = ["tmp", "temp", "test", "old", "archive", "_dev"]
-
-    # Progressive file scanning configuration
-    PROGRESSIVE_SCAN_ENABLED = True  # Enable progressive/batched file scanning
-    PROGRESSIVE_SCAN_BATCH_SIZE = 20  # Number of files to process per batch
-    PROGRESSIVE_SCAN_MIN_BATCH_SIZE = 5  # Minimum batch size for last batch
-    PROGRESSIVE_SCAN_MAX_BATCH_SIZE = 100  # Maximum batch size limit
-
-    # Backward compatibility constant for tests
-    THREEDE_BATCH_SIZE = PROGRESSIVE_SCAN_BATCH_SIZE  # Alias for backward compatibility
-
-    # Progress reporting configuration
-    PROGRESS_UPDATE_INTERVAL_MS = 500  # Minimum time between progress updates (ms)
-    PROGRESS_FILES_PER_UPDATE = 10  # Update progress every N files processed
-    PROGRESS_ENABLE_ETA = True  # Enable ETA calculation and display
-    PROGRESS_ETA_SMOOTHING_WINDOW = 5  # Number of samples for ETA smoothing
-
-    # Worker thread configuration
-    WORKER_CANCELLATION_CHECK_INTERVAL = 50  # Check for cancellation every N files
-    WORKER_PAUSE_CHECK_INTERVAL_MS = 100  # Check for pause/resume every N ms
-    WORKER_THREAD_PRIORITY = 0  # QThread priority (0=normal, -1=low, +1=high)
-    WORKER_SHUTDOWN_TIMEOUT_MS = 5000  # Maximum time to wait for worker shutdown
-
-    # Performance tuning for progressive scanning
-    PROGRESSIVE_IO_YIELD_INTERVAL = 25  # Yield to other threads every N files
-    PROGRESSIVE_MEMORY_CHECK_INTERVAL = 100  # Check memory usage every N files
-    PROGRESSIVE_MAX_MEMORY_MB = 512  # Maximum memory usage during scanning
-
-    # 3DE Scene Discovery Configuration (NEW - Efficient scanning)
-    THREEDE_SCAN_MODE = "full_show"  # Options: "full_show", "user_sequences", "smart"
-    # - "full_show": Scan entire show (old behavior, can be slow)
-    # - "user_sequences": Only scan sequences where user has shots
-    # - "smart": Only scan shots that actually have .3de files (most efficient)
-
-    THREEDE_MAX_SHOTS_TO_SCAN = 1000  # Increased: scan more shots
-    THREEDE_SCAN_RELATED_SEQUENCES = (
-        True  # Only scan user's sequences (when in user_sequences mode)
-    )
-    THREEDE_FILE_FIRST_DISCOVERY = True  # Use new efficient file-first discovery
-    THREEDE_SCAN_TIMEOUT_SECONDS = 60  # Extended timeout for large/slow filesystems
-    THREEDE_SCAN_MAX_DEPTH = (
-        15  # Max directory depth for find command (increased for deeply nested files)
-    )
-    THREEDE_SCAN_PARALLEL_SEQUENCES = 4  # Number of sequences to search in parallel
-    THREEDE_SCAN_MAX_FILES_PER_SHOT = 1  # Stop after finding ONE .3de file per shot
-    THREEDE_STOP_AFTER_FIRST = True  # New: stop searching shot after first .3de found
-    THREEDE_CACHE_DISCOVERED_SHOTS = True  # Cache which shots have .3de files
-    THREEDE_INCREMENTAL_SCAN = False  # Only scan for changes (future feature)
-
-
-class ThreadingConfig:
-    """Threading and timeout configuration constants.
-
-    This class centralizes all threading-related configuration to prevent
-    deadlocks and ensure consistent timing across the application.
-    """
-
-    # Worker timeouts
-    WORKER_STOP_TIMEOUT_MS = 2000  # Time to wait for graceful worker stop
-    WORKER_TERMINATE_TIMEOUT_MS = 1000  # Time to wait before force termination
-    WORKER_POLL_INTERVAL = 0.1  # Polling interval for worker state checks
-
-    # Cleanup timings
-    CLEANUP_RETRY_DELAY_MS = 500  # Delay between cleanup retry attempts
-    CLEANUP_INITIAL_DELAY_MS = 1000  # Initial delay before cleanup starts
-
-    # Process pool configuration
-    SESSION_INIT_TIMEOUT = 2.0  # Timeout for session initialization
-    SESSION_MAX_RETRIES = 5  # Maximum retry attempts for session operations
-    SUBPROCESS_TIMEOUT = 30.0  # General subprocess timeout
-
-    # Polling configuration
-    INITIAL_POLL_INTERVAL = 0.01  # 10ms - Initial polling interval
-    MAX_POLL_INTERVAL = 0.5  # 500ms - Maximum polling interval
-    POLL_BACKOFF_FACTOR = 1.5  # Exponential backoff multiplier
-
-    # Cache configuration
-    CACHE_MAX_MEMORY_MB = 100  # Maximum memory for caching
-    CACHE_CLEANUP_INTERVAL = 30  # Cache cleanup interval in minutes
-
-    # Thread pool settings
-    MAX_WORKER_THREADS = 4  # Maximum number of worker threads
-    THREAD_POOL_TIMEOUT = 5.0  # Thread pool operation timeout
-
-    # Previous shots parallel scanning
-    PREVIOUS_SHOTS_PARALLEL_WORKERS = 4  # Number of parallel workers for shot scanning
-    PREVIOUS_SHOTS_SCAN_TIMEOUT = 30  # Timeout per show (seconds)
-    PREVIOUS_SHOTS_CACHE_TTL = (
-        0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)
-    )
-
-    # 3DE scene discovery parallel scanning
-    THREEDE_PARALLEL_WORKERS = 4  # Number of parallel workers for 3DE file discovery
-    THREEDE_PROGRESS_INTERVAL = 10  # Number of files between progress updates
-    THREEDE_SCAN_CHUNK_SIZE = 100  # Files per batch for processing
-    THREEDE_SCAN_TIMEOUT = 60  # Timeout per directory scan (seconds)
+    # Settings keys for QSettings
+    SETTINGS_ORG = "MyCompany"
+    SETTINGS_APP = "TsConverterGuiSeq"

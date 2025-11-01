@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/refresh_orchestrator.py
+# hypothesis_version: 6.137.1
+
+['Failed to Load Shots', 'Refreshing shots', 'Refreshing shots...', '_update_status', 'previous_shots_model', 'shot_grid', 'shot_item_model', 'threede_controller']

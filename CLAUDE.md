@@ -2,468 +2,236 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## IMPORTANT: Security Context
+## Core Application Architecture
 
-**This is a personal VFX pipeline tool running on a secure, isolated network.** Security hardening is NOT a concern. See `SECURITY_CONTEXT.md` for details.
+PyFFMPEG is a PySide6-based GUI application for batch video conversion using FFmpeg. The application has been refactored from a monolithic design into focused, composable modules:
 
-**DO NOT raise security issues about:**
-- Command validation or subprocess execution patterns
-- The launcher system's command whitelist implementation  
-- Shell command execution
-- Any "vulnerabilities" in `launcher/worker.py` or related files
+### Primary Architecture (Refactored Components)
+- **`main_window_refactored.py`**: Simplified main window using component coordination. Reduced from 1393 lines to 371 lines while preserving all functionality through signal-slot architecture.
+- **`conversion_controller.py`**: Core conversion logic and process orchestration (219 lines). Handles auto-balance workload between GPU/CPU encoders and conversion workflow management.
+- **`settings_panel.py`**: Complete UI controls and settings management (419 lines). Maintains all codec options with comprehensive type safety and validation.
+- **`process_monitor.py`**: Real-time process monitoring and progress display (312 lines). Creates and manages process progress widgets with proper lifecycle management.
+- **`config.py`**: Centralized configuration constants eliminating magic numbers throughout the codebase. Contains ProcessConfig, UIConfig, LogConfig, EncodingConfig, HardwareConfig, and AppConfig classes.
 
-Focus on functionality, performance, and VFX workflow optimization instead.
+### Supporting Modules
+- **`process_manager.py`**: `ProcessManager` class handles FFmpeg process creation, monitoring, and lifecycle management. Emits signals for UI updates with enhanced timer management.
+- **`progress_tracker.py`**: `ProcessProgressTracker` class parses FFmpeg output to calculate progress percentages and ETAs using regex patterns with smoothing algorithms.
+- **`codec_helpers.py`**: `CodecHelpers` static class with caching for expensive operations. Provides codec selection, hardware acceleration detection, and encoder configuration utilities.
+- **`file_list_widget.py`**: `FileListWidget` extends QListWidget with drag-and-drop support, status tracking, progress display, and comprehensive method implementation.
 
-## Project Overview
+### Legacy Module
+- **`PyMPEG.py`**: Original monolithic main window (1393 lines). Kept for reference but excluded from type checking. Use `main_window_refactored.py` for new development.
 
-ShotBot is a PySide6-based GUI application for VFX shot browsing and application launching. It integrates with VFX pipeline tools using the `ws` (workspace) command to list and navigate shots. The application provides a visual interface for artists to browse shots, view thumbnails, and launch VFX applications (3DE, Nuke, Maya, RV) in the correct shot context.
+### Key Features
+- Hardware-accelerated encoding (NVENC, QSV, VAAPI)
+- Parallel processing with load balancing between GPU and CPU encoders
+- Real-time progress tracking with ETA calculations
+- Support for multiple codecs: H.264, HEVC, AV1, ProRes
+- Smart buffer mode for performance optimization
+- Auto-balance feature for hybrid GPU/CPU encoding workloads
 
-## Development Philosophy & Scope
-
-**Personal VFX Tool**: This is a single-user desktop application for personal VFX workflow needs. While it follows professional coding standards (type safety, testing, clean architecture), it optimizes for maintainability and pragmatic solutions over enterprise concerns.
-
-**What still matters:**
-- **Code quality**: Type safety, readable code, proper architecture (future-you deserves good code)
-- **Testing**: Comprehensive tests prevent regressions and enable confident refactoring
-- **Performance**: Responsive UI, efficient algorithms (this is interactive software)
-- **Maintainability**: Clear patterns, good documentation, low technical debt
-- **Robustness**: Handle corrupt files, validate inputs, graceful error recovery
-
-**Not applicable (single-user desktop context):**
-- **Enterprise security**: No authentication, authorization, or adversarial threat modeling
-- **Scale engineering**: No distributed systems, cloud deployment, or ops infrastructure
-- **Multi-user patterns**: No concurrent access, locking, or team coordination features
-- **Runtime extensibility**: No plugin systems or runtime module loading
-
-**Decision-making guidance**: When choosing between solutions, prefer:
-- Simple and working over theoretically perfect
-- Pragmatic over defensive (e.g., trust local filesystem, validate user input but not for adversarial attacks)
-- Readable over clever (but don't sacrifice performance where it matters)
-- "Good enough for single-user" over "scales to enterprise"
-- **Example**: Direct JSON serialization is fine; you don't need schema versioning, migration systems, or backward-compatibility layers unless there's a specific reason.
-
-**Professional-quality code for a personal tool, not enterprise software.**
-
-**See also**: `SECURITY_CONTEXT.md` for security-specific guidance on this isolated VFX network environment.
-
-## Critical Commands
+## Development Commands
 
 ### Running the Application
-
 ```bash
-# Production mode (requires VFX environment)
-uv run python shotbot.py
+# Run the refactored version (recommended)
+python main_window_refactored.py
 
-# Mock mode (no VFX infrastructure needed - 432 production shots)
-uv run python shotbot.py --mock
-# Or better, with recreated VFX filesystem:
-uv run python shotbot_mock.py
-
-# Headless mode (for automated testing)
-uv run python shotbot.py --headless --mock
-
-# Debug mode
-SHOTBOT_DEBUG=1 uv run python shotbot.py
+# Run the legacy version (for comparison)
+python PyMPEG.py
 ```
-
-### Mock VFX Environment
-
-The project includes a sophisticated mock environment system:
-
-```bash
-# Recreate VFX filesystem structure (11,386 dirs, 29,335 files)
-uv run python recreate_vfx_structure.py vfx_structure_complete.json
-
-# Verify mock environment (shows 432 real production shots)
-uv run python verify_mock_environment.py
-
-# Run with full mock environment
-uv run python run_mock_vfx_env.py
-```
-
-### Testing
-
-```bash
-# Recommended: Full test suite with parallel execution (~67 seconds)
-uv run pytest tests/unit/ -n auto --timeout=5
-
-# Quick validation
-uv run python tests/utilities/quick_test.py
-
-# Specific test files (sequential)
-uv run pytest tests/unit/test_shot_model.py -v
-
-# Categories
-uv run pytest tests/ -m fast       # Tests under 100ms
-uv run pytest tests/ -m unit       # Unit tests only
-uv run pytest tests/ -m integration # Integration tests
-```
-
-**Known Issues:**
-- Sequential execution may timeout due to Qt resource accumulation
-- 2-3 tests fail in parallel mode due to isolation issues (pass when run individually)
-- Use parallel execution (`-n auto`) for best results
-
-### Code Quality
-
-```bash
-# Format code
-uv run ruff format .
-
-# Lint and auto-fix
-uv run ruff check --fix .
-
-# Type checking
-uv run basedpyright
-```
-
-**Configuration**: All tool settings are centralized in `pyproject.toml`:
-- `[tool.ruff]` - Linting and formatting rules
-- `[tool.basedpyright]` - Type checking configuration (includes Qt-specific suppressions)
-- `[tool.pytest.ini_options]` - Test runner settings
-- `[tool.coverage.*]` - Coverage configuration
-
-**Do not create** separate config files (`pyrightconfig.json`, `.ruff.toml`, `pytest.ini`) - use `pyproject.toml` instead.
 
 ### Development Environment Setup
-
 ```bash
-# Initial setup (creates .venv, installs dependencies, generates uv.lock)
-uv sync
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# or
+venv\Scripts\activate     # Windows
 
-# Add a new dependency
-uv add package-name
-
-# Add a development dependency
-uv add --dev package-name
-
-# Update all dependencies
-uv lock --upgrade
-
-# Update specific package
-uv lock --upgrade-package package-name
+# Install dependencies
+pip install PySide6
 ```
 
-## Python Compatibility
-
-- **Minimum**: Python 3.11
-- **Uses**: Modern type annotations with union syntax (`str | None`)
-- **Critical**: Import `override` from `typing_extensions`, NOT `typing`
-
-```python
-# CORRECT (Python 3.11 compatible)
-from typing_extensions import override
-
-# WRONG (Python 3.12+ only)
-from typing import override  # Will fail on Python 3.11!
-```
-
-## High-Level Architecture
-
-### Core Design Pattern: Model-View with Qt Signal-Slot
-
-The application uses Qt's signal-slot mechanism for loose coupling between components. This is critical for understanding how data flows through the application.
-
-### Key Architectural Components
-
-#### 1. Process Pool Management with Dependency Injection
-- **`ProcessPoolManager`**: Singleton that manages all subprocess calls with caching and session pooling
-- **`ProcessPoolFactory`**: Factory pattern for dependency injection (allows mock injection)
-- **`MockWorkspacePool`**: Sophisticated mock that simulates 432 real production shots
-- **Critical**: The `ws` command is a shell function, requires interactive bash: `["/bin/bash", "-i", "-c", "ws -sg"]`
-
-#### 2. Unified Model/View Architecture
-
-The application uses a layered Qt Model/View architecture with shared base classes to eliminate duplication while preserving tab-specific optimizations.
-
-**Architecture Layers:**
-```
-Data Layer (domain models)
-  ↓
-BaseItemModel[T] (generic Qt model infrastructure)
-  ↓
-Specific Item Models (explicit, focused implementations)
-  - ShotItemModel
-  - ThreeDEItemModel
-  - PreviousShotsItemModel
-  ↓
-View Layer (grid views with custom delegates)
-```
-
-**BaseItemModel[T]** - Generic base providing common Qt Model/View infrastructure:
-- Atomic thumbnail loading (eliminates race conditions with check-and-mark in single lock)
-- Lazy thumbnail loading with visibility tracking
-- Thread-safe caching (QMutex-protected QImage storage)
-- Selection management and show filtering
-- Reduces code duplication by 70-80% across models
-
-**Specific Item Models** - Three explicit, focused implementations:
-- **ShotItemModel**: Shot-specific model with shots_updated signal
-- **ThreeDEItemModel**: 3DE scene model with loading progress tracking
-- **PreviousShotsItemModel**: Previous shots with underlying model integration
-- Each model is ~200 lines of clear, single-purpose code
-- Zero conditional logic based on item type
-- Type-safe with explicit interfaces
-
-**BaseShotModel** - Abstract base for shot data sources:
-- Common shot parsing, caching, and performance metrics
-- Shared signals and filtering infrastructure
-- Uses OptimizedShotParser for performance
-
-**Tab-Specific Stacks:**
-
-**My Shots (Workspace Integration)**
-- ShotModel (extends BaseShotModel): Executes `ws -sg` via ProcessPool (30s TTL)
-- ShotItemModel: Qt model integration with lazy thumbnails
-- ShotGridView: QListView with custom delegate
-- Refresh: Synchronous with progress indication
-
-**Other 3DE Scenes (Filesystem Discovery)**
-- ThreeDESceneModel: Manages discovered .3de files
-- ThreeDEItemModel: Provides filtered view with progressive loading
-- ThreeDEGridView: Custom delegate for scene metadata
-- ThreeDESceneWorker: QThread for non-blocking filesystem scan
-- Refresh: Asynchronous with progressive batch updates
-
-**Previous Shots (Historical Data)**
-- PreviousShotsModel (extends BaseShotModel): Finds user's approved/completed shots
-- PreviousShotsItemModel: Filters out currently active shots
-- PreviousShotsView: Display with auto-refresh timer
-- PreviousShotsWorker: Background thread for filesystem traversal
-- Refresh: Asynchronous with 5-minute auto-refresh
-
-#### 3. Cache System with Incremental Caching
-
-**CacheManager** - Streamlined cache for local VFX tool with incremental shot merging:
-- **API**: Maintains full backward compatibility with all public methods
-- **Implementation**: Simplified for secure network environment (no platform-specific locking, atomic writes, or complex failure tracking)
-- **Thumbnail Support**: Multi-format (Qt/PIL/OpenEXR) with HDR for VFX workflows
-- **Caching Strategy**:
-  - **My Shots**: Persistent cache with incremental merging (no TTL)
-    - `merge_shots_incremental()`: Adds new shots, updates metadata, detects removals
-    - `migrate_shots_to_previous()`: Auto-migrates removed shots to Previous Shots
-    - Uses composite key `(show, sequence, shot)` for global uniqueness
-  - **Previous Shots**: Merges migrated + filesystem-scanned shots with deduplication
-  - **3DE Scenes**: Persistent cache until manually invalidated
-  - **Thumbnails**: Persistent cache with on-demand generation
-  - Thread-safe: Basic QMutex protection
-- **Cache directories**: Mode-separated (production, mock, test via `SHOTBOT_MODE` env var)
-- **Storage**: Direct JSON I/O and PIL/OpenEXR processing
-- **Migration**: Removed shots from My Shots automatically preserved in `migrated_shots.json`
-- **Verification**: Run `python verify_incremental_caching.py` to test system
-
-#### 4. Thread-Safe Background Operations
-- **Workers**: `ThreeDESceneWorker`, `PreviousShotsWorker` use `QThread` for background scanning
-- **Thread safety**: Qt components use `QMutex`/`QMutexLocker` for basic thread protection
-- **Signal connections**: Use `Qt.ConnectionType.QueuedConnection` for cross-thread communication
-- **Resource cleanup**: Workers properly disconnect signals and delete on completion
-
-#### 5. Launcher System
-- **`LauncherManager`**: Manages custom launchers with thread-safe process tracking
-- **Process keys**: Timestamp + UUID prevent collisions
-- **Terminal integration**: Uses gnome-terminal/konsole for command execution
-
-### Critical Implementation Details
-
-#### QSettings Storage Pattern
-```python
-# CORRECT - Use .data().decode('ascii')
-hex_string = byte_array.data().decode('ascii')
-# WRONG - Will corrupt settings
-str(byte_array) or byte_array.hex()
-```
-
-#### Change Detection Pattern
-```python
-# refresh_shots() returns RefreshResult(success, has_changes)
-success, has_changes = shot_model.refresh_shots()
-if success and has_changes:
-    # Update UI only when needed
-```
-
-#### Resource Management
-- QPixmap cleanup prevents memory leaks
-- 30-second subprocess timeout prevents hangs
-- QThread cleanup with `quit()` and `wait()`
-
-### Key Signals for Component Communication
-- `shot_model.shots_updated` → UI refreshes shot grid
-- `launcher_manager.command_started/finished` → Progress indicators
-- `threede_worker.scene_found` → Progressive UI updates
-- `thumbnail_widget.shot_selected` → Updates info panel
-- **Show Filter Signals (added to all tabs)**:
-  - `shot_grid.show_filter_requested` → `_on_shot_show_filter_requested`
-  - `threede_grid.show_filter_requested` → `_on_show_filter_requested`
-  - `previous_shots_grid.show_filter_requested` → `_on_previous_show_filter_requested`
-
-## Tab Architecture: Three Distinct Data Sources
-
-Each tab has its own data source and optimized architecture:
-
-- **My Shots**: `ws -sg` command (fast, 30s TTL, sync refresh)
-- **Other 3DE Scenes**: Filesystem scan (slow, permanent cache, async/progressive)
-- **Previous Shots**: User work directories (medium, session cache, 5min auto-refresh)
-
-## Feature Implementation Map
-
-### Show Filtering
-- **Implementation**: Pure functional filters in `shot_filter.py` (Protocol-based, composable)
-- **My Shots**: shot_grid_view.py → shot_item_model.py → base_shot_model.py → shot_filter.py
-- **Other 3DE**: threede_grid_view.py → threede_item_model.py → threede_scene_model.py
-- **Previous**: previous_shots_view.py → previous_shots_item_model.py → previous_shots_model.py → shot_filter.py
-- **Signal handlers**: main_window.py
-
-### Data Refresh Paths
-- **My Shots**: shot_model.py:refresh_strategy() → ProcessPool.execute_workspace_command()
-- **Other 3DE**: threede_scene_worker.py → ThreeDESceneFinder (parallel filesystem scan)
-- **Previous**: previous_shots_worker.py → ParallelShotsFinder.find_user_shots()
-
-### Cross-Tab Features
-- **Synchronized thumbnail sizing**: All tabs share slider synchronization
-- **Show filter**: Available on all tabs with consistent UI (QComboBox)
-- **Cache manager**: Shared instance across all tabs
-
-## Mock Environment System
-
-The project includes a complete VFX environment simulation:
-
-1. **Capture**: `capture_vfx_structure.py` runs on VFX workstation, outputs JSON
-2. **Recreate**: `recreate_vfx_structure.py` rebuilds structure locally
-3. **Mock Pool**: `MockWorkspacePool` simulates `ws -sg` with 432 real shots
-4. **Dependency Injection**: `ProcessPoolFactory` cleanly swaps implementations
-5. **Headless Mode**: Full Qt offscreen support for CI/CD
-
-The mock environment includes:
-- 3 shows: broken_eggs (190 shots), gator (69 shots), jack_ryan (173 shots)
-- Complete directory structure from production
-- Placeholder thumbnails and 3DE files
-- Separate cache directories prevent contamination
-
-## Performance Optimizations
-
-- **Atomic thumbnail loading**: Eliminates duplicate loads with bulk check-and-mark in single lock
-- **Parallel filesystem scanning** with `ThreadPoolExecutor`
-- **Adaptive UI timers** adjust update frequency based on activity
-- **Tab-specific caching strategies**:
-  - My Shots: 30-second TTL for `ws -sg` command results
-  - Other 3DE: Permanent cache until manually invalidated
-  - Previous Shots: Session-based caching with 5-minute refresh
-  - Thumbnails: Permanent cache across all tabs
-- **Progressive loading**: UI shows immediately, data loads in background
-- **Optimized painting**: Custom delegates minimize redraws
-
-## Common Development Tasks
-
-### Adding a New Application Launcher
-Edit `APPS` in `config.py`:
-```python
-APPS = {
-    "3de": "3de",
-    "nuke": "nuke",
-    "maya": "maya",
-    "your_app": "your_command",  # Add here
-}
-```
-
-### Debugging Issues
-1. Enable debug: `SHOTBOT_DEBUG=1 python shotbot.py`
-2. Check process output in log viewer
-3. Test workspace: `bash -i -c "ws -sg"`
-4. Verify mock environment: `python verify_mock_environment.py`
-
-## Test Organization
-
-### Test Suite Status (Updated 2025-10-14)
-
-- **1,919 passing tests** (100% pass rate) - comprehensive coverage enables confident refactoring
-- **118 test files** covering core functionality and edge cases
-- **Markers**: `fast`, `slow`, `unit`, `integration`, `qt`, `gui`, `critical`
-- **Execution time**: ~71 seconds with parallel execution (`-n auto --timeout=5`)
-- **Coverage**: 90% weighted (100% of critical components)
-
-### Recent Improvements (October 2025)
-
-**Test Suite Expansion** (+80 tests, +1,714 lines):
-1. **test_plate_discovery.py** (26 tests, 527 lines)
-   - NEW: Comprehensive coverage for plate-based Nuke workflow
-   - Plate priority validation (prevents PL=10 bug regression)
-   - Version detection and incrementing logic
-   - Edge cases: resolution selection, permissions, validation
-
-2. **test_shot_item_model.py** (28 tests, 609 lines)
-   - NEW: Qt Model/View testing for main "My Shots" tab
-   - Atomic thumbnail loading (race condition prevention)
-   - Show filtering with signal verification
-   - Selection synchronization and Qt integration
-
-3. **test_config.py** (27 tests, 578 lines)
-   - NEW: Configuration validation preventing silent misconfigurations
-   - Plate priority ordering (would catch PL=10 bug)
-   - Path, timeout, memory, thread configuration validation
-   - 29+ configuration constraints validated
-
-**Bug Fixes**:
-- Fixed all 8 failing tests from previous session
-- Resolved type errors with `HasAvailableShows` Protocol
-- Fixed PL plate priority (10→0.5) with regression test
-- Added cache isolation for parallel execution
-
-### Test Coverage by Component
-
-**Critical Components** (100% coverage):
-- ✅ `plate_discovery.py` (26 tests) - Plate-based workflow
-- ✅ `shot_item_model.py` (28 tests) - Shot grid Model/View
-- ✅ `config.py` (27 tests) - Configuration validation
-- ✅ `cache_manager.py` (42 tests) - Cache system
-- ✅ `shot_model.py` (33 tests) - Shot data model
-- ✅ `base_item_model.py` (48 tests) - Generic Model/View base
-- ✅ `raw_plate_finder.py` (23 tests) - Plate discovery
-- ✅ `undistortion_finder.py` (24 tests) - Undistortion handling
-- ✅ `threede_scene_model.py` (16 tests) - 3DE scene management
-- ✅ `launcher_panel.py` (21 tests) - Launcher UI
-- ✅ `main_window.py` (16 tests) - Main window integration
-- ✅ `process_pool_manager.py` (14 tests) - Process management
-- ✅ `nuke_launch_handler.py` (14 tests) - Nuke launcher
-
-**High-Priority Components** (tested via integration):
-- `optimized_shot_parser.py` - Performance-critical parsing
-- `threede_scene_finder_optimized.py` - Optimized discovery
-- `scene_discovery_coordinator.py` - Discovery coordination
-- `persistent_bash_session.py` - Terminal management
-- `secure_command_executor.py` - Command execution
-
-**Note**: UI views and delegates verified visually (QPainter code difficult to unit test)
-
-## Type System
-
-- Uses `RefreshResult` NamedTuple for clear return types
-- `Union[str, Path]` for flexible path APIs
-- Comprehensive `Optional[QWidget]` handling
-- Type checking: `basedpyright` (config in `pyproject.toml` under `[tool.basedpyright]`)
-
-## Bundling and Distribution System
-
-Automated post-commit hooks create base64-encoded releases in `encoded-releases/` branch.
-
-### Configuration
-**File:** `transfer_config.json` - Controls which files get bundled
-- **Include**: `*.py`, `*.json`, `*.md`, `wrapper/*` (for extension-less scripts)
-- **Exclude**: `test_*.py`, `*_test.py`, `tests/`, `venv*/`
-
-### Critical Issue Fixed
-**Bug**: Pattern `test_*.py` matched ANY file containing "test" (e.g., `threede_latest_finder.py`)
-**Fix**: Anchored regex patterns to start: `test_*.py` → `^test_.*\.py$` not `test_.*\.py$`
-
-### Debugging Commands
+### Code Quality and Type Checking
 ```bash
-# Verify file inclusion before committing
-python3 bundle_app.py --list-files -c transfer_config.json | grep "your_file"
+# Install development tools
+pip install ruff basedpyright
 
-# Test specific file
-python3 -c "from bundle_app import ApplicationBundler; print(ApplicationBundler('transfer_config.json').should_include_file('file.py'))"
+# Run linting and formatting from virtual environment
+./venv/bin/ruff check .
+./venv/bin/ruff format .
+
+# Run type checking (configured for refactored modules only) from virtual environment
+./venv/bin/basedpyright --typeshedpath venv/lib/python3.12/site-packages/basedpyright/dist/typeshed-fallback
 ```
 
-### Bundle Verification
-- Expected: ~189 files, ~1.8MB compressed
-- Always verify new files appear in bundle after adding them
-- Extension-less files need explicit directory patterns (`wrapper/*`)
+### Dependencies
+The application requires:
+- Python 3.8+ (developed with 3.12)
+- PySide6 (Qt for Python)
+- FFmpeg (must be in PATH)
+- Optional: nvidia-smi for GPU detection
+
+## Development Hardware Specifications
+
+The application is developed and optimized for the following high-performance system:
+
+### CPU: Intel Core i9-14900HX (2024)
+- **Cores**: 24 total (8 P-cores + 16 E-cores)
+- **Threads**: 32 threads
+- **Base Clock**: P-cores: 2.2 GHz, E-cores: 1.6 GHz
+- **Boost Clock**: Up to 5.8 GHz (P-cores), 4.1 GHz (E-cores)
+- **Cache**: 36 MB L3 cache
+- **TDP**: 55W base, up to 157W under load
+- **Architecture**: Raptor Lake-HX Refresh (10nm)
+
+### GPU: NVIDIA GeForce RTX 4090 Laptop
+- **CUDA Cores**: 9,728
+- **VRAM**: 16 GB GDDR6
+- **Memory Interface**: 256-bit
+- **Memory Bandwidth**: ~640 GB/s
+- **TGP**: 80-175W (175W for maximum performance)
+- **Architecture**: Ada Lovelace (5nm)
+- **Ray Tracing Cores**: 76
+- **Tensor Cores**: 304
+- **Capabilities**: AV1 NVENC support, 8K encoding
+
+### Memory & Storage
+- **RAM**: 32 GB DDR5
+- **Storage**: Dual 2TB SSDs (4TB total)
+- **Display**: 18" WQXGA (2560x1600) @ 240Hz, Mini LED
+
+This hardware configuration enables:
+- Parallel encoding of multiple 4K/8K streams
+- Hardware-accelerated AV1 encoding via RTX 40-series NVENC
+- Efficient CPU/GPU workload balancing with auto-balance feature
+- High-speed processing with minimal bottlenecks
+
+### Testing Hardware Acceleration
+```bash
+# Check NVIDIA GPU availability
+nvidia-smi -L
+
+# Test FFmpeg encoders
+ffmpeg -encoders | grep -E "(nvenc|qsv|vaapi)"
+
+# Probe media file duration (used by progress tracker)
+ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 input.mp4
+```
+
+## Code Architecture Notes
+
+### Refactored Architecture Benefits
+The modular architecture provides several advantages:
+- **Separation of Concerns**: Each class has a single, well-defined responsibility
+- **Type Safety**: Comprehensive type hints with 0 basedpyright errors across all refactored modules
+- **Maintainability**: Configuration centralized in `config.py` eliminates magic numbers
+- **Performance**: Caching in `CodecHelpers` and adaptive timer management reduce system overhead
+- **Testability**: Focused classes with clear interfaces enable easier unit testing
+
+### Signal-Slot Communication
+The application uses Qt's signal-slot pattern extensively for loose coupling:
+- `ConversionController` emits `conversion_started`, `conversion_finished`, `log_message`, and `progress_updated`
+- `SettingsPanel` emits `settings_changed` and `auto_balance_toggled`
+- `ProcessManager` emits `output_ready`, `process_finished`, and `update_progress` signals
+- `ProcessMonitor` emits `widget_created`, `widget_removed`, and `progress_updated`
+- UI updates are batched using adaptive `QTimer` intervals for performance optimization
+
+### Progress Tracking System
+Progress calculation uses regex parsing of FFmpeg output:
+- `TIME_RE = re.compile(r'time=(\d{2}):(\d{2}):(\d{2}\.\d{2})')` for time progress
+- `FPS_RE = re.compile(r'fps=\s*(\d+)')` for frames per second
+- ETA smoothing using weighted moving averages with configurable window sizes
+
+### Hardware Acceleration Detection
+`CodecHelpers` class provides cached hardware detection:
+- RTX 40-series detection for AV1 NVENC support using `detect_rtx40_series()`
+- Fallback chain: NVENC → QSV → VAAPI → software encoding
+- Auto-balance distributes files between GPU (70%) and CPU (30%) based on system capabilities
+- Caching prevents repeated expensive subprocess calls to `nvidia-smi` and `ffmpeg -encoders`
+
+### Thread Optimization
+Thread allocation managed by `CodecHelpers.optimize_threads_for_codec()`:
+- NVENC encoders: 2 threads (minimal CPU usage)
+- Single CPU job: 0 (auto-detect, uses all threads)
+- Parallel CPU jobs: `(cpu_count() or ProcessConfig.OPTIMAL_CPU_THREADS) // cpu_jobs` (evenly distributed with None safety)
+
+### Error Handling and Reliability
+The application includes comprehensive error handling:
+- All subprocess calls use `ProcessConfig.SUBPROCESS_TIMEOUT` (30s) to prevent hangs
+- MPEGTS timing issues automatically trigger `-fflags +genpts` flag
+- Process failures are tracked and displayed in the UI with status indicators
+- Hardware acceleration gracefully falls back to software encoding on detection failures
+- Process state race conditions resolved with `QProcess.waitForStarted()`
+- Guaranteed resource cleanup prevents memory leaks
+
+## UI Components and Architecture
+
+### Refactored MainWindow Layout (`main_window_refactored.py`)
+- **Left Panel**: File list with drag-and-drop support and settings panel
+- **Right Panel**: Tabbed interface with active processes and conversion log
+- **Control Bar**: Start/stop buttons with visual state feedback
+- **Progress Bar**: Overall conversion progress with ETA display
+- **Status Bar**: Real-time status updates and conversion statistics
+
+### Component Responsibilities
+- **SettingsPanel**: Manages all codec options, threading controls, and hardware acceleration settings with type-safe validation
+- **ProcessMonitor**: Creates individual monitoring widgets for each active process with automatic cleanup
+- **ConversionController**: Orchestrates the conversion workflow and auto-balance logic
+- **FileListWidget**: Handles file management with status tracking (pending, processing, completed, failed)
+
+### Process Monitoring System
+Each encoding process gets its own dedicated widget displaying:
+- File name and codec type with visual indicators
+- Progress bar with percentage completion and color-coded status
+- FPS counter and processing speed metrics
+- ETA calculation with smoothed time estimates
+- Condensed log output for debugging with size limits
+
+## Configuration and State Management
+
+### Centralized Configuration (`config.py`)
+All constants are centralized to eliminate magic numbers:
+- **ProcessConfig**: Timeouts, threading limits, parallel processing constraints
+- **UIConfig**: Timer intervals, widget delays, activity thresholds
+- **LogConfig**: Memory limits, truncation sizes, history management
+- **EncodingConfig**: Quality settings, presets, audio bitrates
+- **HardwareConfig**: GPU detection, RTX model lists, capability thresholds
+- **AppConfig**: Application metadata, window dimensions, settings keys
+
+### QSettings Storage
+Application state is persisted using Qt's QSettings with backwards compatibility:
+- Window geometry and splitter positions
+- Last used directory for file selection
+- User preferences (delete source files, hardware decode options, etc.)
+- Settings panel maintains compatibility with original key names
+
+### Performance Optimizations
+- **Adaptive Timers**: UI update intervals adjust based on activity (250ms-1000ms)
+- **Smart Buffer Mode**: Reduces UI update frequency during intensive processing
+- **Process Output Batching**: Prevents UI blocking during FFmpeg output parsing
+- **Memory Management**: Rolling log buffers with configurable size limits (`LogConfig`)
+- **Hardware Detection Caching**: Expensive operations cached in `CodecHelpers` static variables
+
+## Type Safety and Code Quality
+
+### Type Checking Configuration
+The project uses basedpyright for comprehensive type checking:
+- Configured in `pyrightconfig.json` with `typeCheckingMode: "basic"`
+- Includes only refactored modules, excludes legacy `PyMPEG.py`
+- Custom typeshed path for WSL compatibility: `--typeshedpath venv/lib/python3.12/site-packages/basedpyright/dist/typeshed-fallback`
+- Achieved **perfect type safety**: 0 errors, 0 warnings, 0 notes across all modules
+
+### Type Annotations Standards
+All refactored modules include comprehensive type hints:
+- Optional widget types: `Optional[QWidget]` with assertion guards
+- Signal type declarations: `Signal(str)`, `Signal(dict)`, `Signal()`
+- Method parameter and return types for all public APIs
+- Qt enum access: `Qt.ItemDataRole.UserRole` instead of `Qt.UserRole`
+
+### Code Quality Practices
+- **Ruff Integration**: Configured for linting and formatting with automatic fixes
+- **Configuration Centralization**: All magic numbers extracted to `config.py` classes
+- **Error Handling**: Specific exception types instead of bare `except:` blocks
+- **Resource Management**: Guaranteed cleanup with proper widget deletion and subprocess timeouts

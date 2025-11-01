@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/threede_grid_delegate.py
+# hypothesis_version: 6.140.2
+
+['#00c9ff', '#0a5f73', '#2b2b3b', '#3a3a4a', '#445', '#889', '#a0a0a0', '#ffffff', '%Y-%m-%d %H:%M', 'Unknown', 'float', 'is_selected', 'loading_state', 'name', 'sequence', 'shot', 'show', 'thumbnail', 'timestamp', 'user']

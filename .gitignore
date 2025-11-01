@@ -3,82 +3,42 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.bak
-*.backup
-*.orig
-*.rej
-*.save
-*.tmp
 .Python
-venv/
-ENV/
-env/
-.venv
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-*.cover
-.hypothesis/
+# Virtual environments
+venv/
+env/
+ENV/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# Project specific
-copy/
+# Logs
+logs/
 *.log
-.shotbot/
 
-# Obsolete archived files
+# Archive directory
 archive/
-archived/
-launcher_config.py
-launcher_model.py
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Transfer hook output
-encoded_releases/
-.skip-transfer-hook
-encoded_app_*.txt
-
-# Post-commit hook output (fixed location)
-.post-commit-output/
-
-# Large generated JSON files
-ruff_output.json
-vfx_structure_complete.json
-vfxstructure*.json
-
-# Baseline and output files
-*_baseline.txt
-*_output.txt
-baseline_*.txt
-test_baseline.txt
-shotbot_latest.txt
-
-# Analysis and profile results
-*_profile_results.json
-*_analysis.json
-PERFORMANCE_BASELINE.json
-performance_optimizations.json
-detailed_bottleneck_analysis.txt
-startup_profile_results.json
-type_safety_performance_analysis.json
 
 # Temporary files
-temp_*.txt
-
-# Deprecated/redundant config files (superseded by pyproject.toml)
-.isort.cfg
-.coveragerc
-pytest_*.ini
-requirements.txt
-requirements-dev.txt
+*.tmp
+*.temp

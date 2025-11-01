@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_script_generator.py
+# hypothesis_version: 6.137.1
+
+[-300, -200, 100, 200, '.nk', '0xff8800ff', 'Note_Undistortion', 'PL01', 'PythonExecutor', 'USER', 'gabriel-h', 'inputs 0', 'inputs 1', 'loader', 'mm-default', 'n', 'standard', 'utf-8', 'w', 'with_undistortion']

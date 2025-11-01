@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/plate_discovery.py
+# hypothesis_version: 6.140.2
+
+['(\\d{3})', '*', '.', '.nk', 'BG', 'FG', 'Plate base path', 'USER', '\\.', '^(\\d+)x(\\d+)$', 'exr', 'gabriel-h', 'mm', 'nuke', 'scripts', 'user']

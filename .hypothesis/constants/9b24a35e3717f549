@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache/thumbnail_manager.py
+# hypothesis_version: 6.137.1
+
+[0.0, 0.8, 100, 120, 255, 1024, 3600, 30000, '.exr', '.png', '.tif', '.tiff', 'B', 'G', 'JPEG', 'L', 'Processing failed', 'R', 'RGB', 'attempts', 'average_item_kb', 'cache', 'convert', 'dataWindow', 'error', 'file_size_mb', 'invalid_files', 'is_heavy_format', 'issues_fixed', 'last_failure', 'memory_limit_mb', 'next_retry', 'size_mismatches', 'source', 'source_path', 'suffix_lower', 'thumbnail_processing', 'total_items', 'total_size_mb', 'type', 'usage_percent', 'use_pil']

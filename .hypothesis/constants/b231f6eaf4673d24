@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/controllers/launcher_controller.py
+# hypothesis_version: 6.140.2
+
+[5000, '%H:%M:%S', '3de', 'CommandLauncher', 'Custom Launchers', 'Custom command', 'Launch Failed', 'No Context Selected', 'No Shot Selected', 'No custom launchers', 'Permission Denied', 'create_new_file', 'custom', 'include_raw_plate', 'include_undistortion', 'maya', 'no shot selected', 'no such file', 'not found', 'nuke', 'open_latest_maya', 'open_latest_scene', 'open_latest_threede', 'permission']

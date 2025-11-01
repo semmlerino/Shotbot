@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/scene_discovery_strategy.py
+# hypothesis_version: 6.137.1
+
+['*.3DE', '*.3de', 'No shots found', 'local', 'network', 'parallel', 'progressive', 'publish', 'shots', 'unknown', 'user']

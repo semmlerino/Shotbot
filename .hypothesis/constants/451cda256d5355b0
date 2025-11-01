@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/threede_scene_finder.py
+# hypothesis_version: 6.137.1
+
+['DirectoryCache', 'ThreeDEScene', 'ThreeDESceneFinder', '_directory_cache', 'clear_cache', 'evictions', 'get_cache_stats', 'hits', 'misses']

@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache/memory_manager.py
+# hypothesis_version: 6.137.1
+
+[0.8, 100, 1024, 'CacheEntry', 'actual_usage_bytes', 'average_item_kb', 'invalid_files', 'issues_fixed', 'max_mb', 'size_mismatches', 'total_bytes', 'total_mb', 'tracked_items', 'tracked_usage_bytes', 'usage_percent', 'valid']

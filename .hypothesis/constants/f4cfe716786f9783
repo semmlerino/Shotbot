@@ -1,0 +1,4 @@
+# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher_dialog.py
+# hypothesis_version: 6.137.1
+
+[100, 300, 400, 500, 600, 900, '0010', 'Add New Launcher', 'Category:', 'Close', 'Command:', 'Ctrl+F', 'Ctrl+N', 'Custom Launchers', 'Delete', 'Delete Launcher', 'Description:', 'Edit', 'Edit Launcher', 'Environment Settings', 'Environment:', 'Error', 'Launch', 'Launch Error', 'Name:', 'New Launcher', 'No command to test', 'No description', 'Optional description', 'Packages/Env:', 'Search launchers...', 'Select a launcher', 'Terminal Settings', 'Test', 'Test Command', 'Test launcher', 'Validation Error', 'bash', 'commandPreview', 'conda', 'custom', 'deleteButton', 'font-weight: bold;', 'full_name', 'launchButton', 'launcherList', 'launcherName', 'none', 'previewPanel', 'rez', 'searchField', 'seq001', 'seq001_0010', 'sequence', 'shot', 'show', 'test', 'test_show', 'titleLabel', 'workspace_path']
