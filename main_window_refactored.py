@@ -7,7 +7,6 @@ Uses focused classes for better separation of concerns
 import os
 import sys
 import shutil
-from typing import Optional
 
 from PySide6.QtCore import Qt, QSettings
 from PySide6.QtGui import QAction, QIcon
@@ -64,13 +63,13 @@ class MainWindow(QMainWindow):
         self.ui_update_manager.start()
 
         # UI Components (will be created in _init_ui)
-        self.file_list: Optional[FileListWidget] = None
-        self.process_monitor: Optional[ProcessMonitor] = None
-        self.main_log: Optional[QPlainTextEdit] = None
-        self.overall_progress_bar: Optional[QProgressBar] = None
-        self.start_btn: Optional[QPushButton] = None
-        self.stop_btn: Optional[QPushButton] = None
-        self.status_bar: Optional[QStatusBar] = None
+        self.file_list: FileListWidget
+        self.process_monitor: ProcessMonitor
+        self.main_log: QPlainTextEdit
+        self.overall_progress_bar: QProgressBar
+        self.start_btn: QPushButton
+        self.stop_btn: QPushButton
+        self.status_bar: QStatusBar
 
         self._init_ui()
         self._connect_signals()

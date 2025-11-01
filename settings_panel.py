@@ -33,20 +33,20 @@ class SettingsPanel(QObject):
         self.settings = QSettings(AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP)
 
         # UI Controls (will be set by create_settings_widget)
-        self.codec_combo: Optional[QComboBox] = None
-        self.preset_combo: Optional[QComboBox] = None
-        self.hwdecode_combo: Optional[QComboBox] = None
-        self.crf_spinbox: Optional[QSpinBox] = None
-        self.crf_label: Optional[QLabel] = None
-        self.threads_spinbox: Optional[QSpinBox] = None
-        self.parallel_checkbox: Optional[QCheckBox] = None
-        self.max_parallel_spinbox: Optional[QSpinBox] = None
-        self.delete_source_checkbox: Optional[QCheckBox] = None
-        self.overwrite_checkbox: Optional[QCheckBox] = None
-        self.smart_buffer_checkbox: Optional[QCheckBox] = None
-        self.auto_balance_checkbox: Optional[QCheckBox] = None
-        self.hevc_10bit_checkbox: Optional[QCheckBox] = None
-        self.nvenc_settings_button: Optional[QPushButton] = None
+        self.codec_combo: QComboBox
+        self.preset_combo: QComboBox
+        self.hwdecode_combo: QComboBox
+        self.crf_spinbox: QSpinBox
+        self.crf_label: QLabel
+        self.threads_spinbox: QSpinBox
+        self.parallel_checkbox: QCheckBox
+        self.max_parallel_spinbox: QSpinBox
+        self.delete_source_checkbox: QCheckBox
+        self.overwrite_checkbox: QCheckBox
+        self.smart_buffer_checkbox: QCheckBox
+        self.auto_balance_checkbox: QCheckBox
+        self.hevc_10bit_checkbox: QCheckBox
+        self.nvenc_settings_button: QPushButton
 
         # Advanced NVENC settings
         self.nvenc_b_adapt: int = 2
@@ -55,6 +55,7 @@ class SettingsPanel(QObject):
         self.nvenc_aq_strength: int = 1
 
         self._widget: Optional[QWidget] = None
+        self.priority_combo: QComboBox
 
     def create_settings_widget(self) -> QWidget:
         """Create and return the settings widget"""

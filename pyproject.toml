@@ -1,8 +1,13 @@
+[project]
+name = "shotbot"
+version = "1.0.0"
+requires-python = ">=3.12"
+
 [tool.basedpyright]
 include = [
     "*.py",
     "conversion_controller.py",
-    "process_monitor.py", 
+    "process_monitor.py",
     "settings_panel.py",
     "main_window_refactored.py",
     "config.py",
@@ -12,7 +17,7 @@ include = [
     "codec_helpers.py"
 ]
 exclude = [
-    "venv/**",
+    ".venv/**",
     "__pycache__/**"
 ]
 ignore = [
@@ -20,7 +25,6 @@ ignore = [
 ]
 
 pythonVersion = "3.12"
-venvPath = "venv"
 typeCheckingMode = "basic"
 
 reportMissingImports = false

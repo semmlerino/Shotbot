@@ -1,7 +1,7 @@
 {
-  "pythonVersion": "3.12",
-  "venvPath": ".",
-  "venv": "venv",
+  "pythonVersion": "3.13",
+  "venvPath": "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot",
+  "venv": ".venv",
   "include": [
     "conversion_controller.py",
     "process_monitor.py", 
