@@ -332,38 +332,33 @@ class TestAsyncWorkflowIntegration:
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
-        """Test thread safety when components operate concurrently."""
-        item_model, info_panel, _cache_manager = integration_components()
+        """Test thread safety - verify Qt operations only allowed on main thread."""
+        from base_item_model import QtThreadError
 
-        # Set up concurrent operations
+        item_model, _info_panel, _cache_manager = integration_components()
+
+        # Test that set_shots() correctly raises error when called from background thread
+        error_raised = threading.Event()
+
         def model_operations() -> None:
-            for i in range(5):
-                item_model.set_shots(test_shots[i % len(test_shots) :])
-                simulate_work_without_sleep(50)
+            try:
+                item_model.set_shots(test_shots[:1])
+            except QtThreadError:
+                error_raised.set()  # Expected behavior - operation blocked
 
-        def panel_operations() -> None:
-            for i in range(5):
-                info_panel.set_shot(test_shots[i % len(test_shots)])
-                simulate_work_without_sleep(50)
-
-        # Run operations in separate threads
+        # Run operation in separate thread
         model_thread = threading.Thread(target=model_operations)
-        panel_thread = threading.Thread(target=panel_operations)
-
         model_thread.start()
-        panel_thread.start()
-
-        # Wait for threads to complete
         model_thread.join(timeout=5.0)
-        panel_thread.join(timeout=5.0)
+
+        # Verify the thread safety check worked
+        assert error_raised.is_set(), "set_shots() should raise QtThreadError from background thread"
 
         # Allow Qt to process any pending events
         qtbot.wait(500)
 
-        # Components should remain stable
+        # Model should remain stable
         assert item_model.rowCount() >= 0
-        # info_panel._current_shot may be None or one of the test shots
-        assert info_panel._current_shot in [None, *test_shots]
 
 
 class TestAsyncCallbackIntegration:
@@ -411,7 +406,9 @@ class TestAsyncCallbackIntegration:
 
             # Model should be in consistent state
             assert model.rowCount() == 1
-            assert len(model._thumbnail_cache) == 0  # Cache cleared during reset
+            # Cache is filtered - old items removed, new items may have loaded thumbnails
+            # The new shot's thumbnail may have been loaded asynchronously
+            assert len(model._thumbnail_cache) <= 1
 
         finally:
             model.deleteLater()

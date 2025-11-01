@@ -91,6 +91,23 @@ def temp_cache_dir() -> Iterator[Path]:
         yield cache_dir
 
 
+@pytest.fixture
+def cache_manager(temp_cache_dir: Path) -> Iterator[object]:
+    """Create CacheManager instance for testing."""
+    from cache_manager import CacheManager
+
+    manager = CacheManager(cache_dir=temp_cache_dir)
+    yield manager
+    # Cleanup
+    manager.clear_cache()
+
+
+@pytest.fixture
+def real_cache_manager(cache_manager: object) -> Iterator[object]:
+    """Alias for cache_manager fixture (for compatibility)."""
+    yield cache_manager
+
+
 # ==============================================================================
 # Mock Environment Setup
 # ==============================================================================
