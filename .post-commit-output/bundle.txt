@@ -1,7 +1,9 @@
 Creating application bundle...
-Encoded bundle saved to: encoded_app_20251101_093820.txt
+Encoded bundle saved to: encoded_app_20251101_125910.txt
 ✓ Bundle created successfully
-Bundle file: encoded_app_20251101_093820.txt
+Bundle file: encoded_app_20251101_125910.txt
 Bundle size: 1004K
+✓ Copied bundle to encoded_releases/
 
-Auto-pushing to encoded-releases branch...
+Launching background push to encoded-releases...
+✓ Background push initiated (PID: 67125, check .post-commit-output/bundle-push.log)

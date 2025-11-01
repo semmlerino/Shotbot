@@ -3,9 +3,13 @@ Post-Commit Hook Summary
 ========================
 Output directory: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.post-commit-output
 Files created:
-drwxrwxrwx 1 gabrielh gabrielh 512 Nov  1 09:39 .
-drwxrwxrwx 1 gabrielh gabrielh 512 Nov  1 09:39 ..
--rwxrwxrwx 1 gabrielh gabrielh 228 Nov  1 09:39 bundle.txt
--rwxrwxrwx 1 gabrielh gabrielh 207 Nov  1 09:39 import-test.txt
--rwxrwxrwx 1 gabrielh gabrielh 211 Nov  1 09:39 info.txt
--rwxrwxrwx 1 gabrielh gabrielh 152 Nov  1 09:39 summary.txt
+drwxrwxrwx 1 gabrielh gabrielh 512 Nov  1  2025 .
+drwxrwxrwx 1 gabrielh gabrielh 512 Nov  1 12:59 ..
+-rwxrwxrwx 1 gabrielh gabrielh   0 Nov  1  2025 background-startup.log
+-rwxrwxrwx 1 gabrielh gabrielh 359 Nov  1  2025 bundle.txt
+-rwxrwxrwx 1 gabrielh gabrielh  48 Nov  1  2025 commit_msg.txt
+-rwxrwxrwx 1 gabrielh gabrielh   7 Nov  1  2025 current_branch.txt
+-rwxrwxrwx 1 gabrielh gabrielh  41 Nov  1  2025 current_commit.txt
+-rwxrwxrwx 1 gabrielh gabrielh 147 Nov  1 12:59 import-test.txt
+-rwxrwxrwx 1 gabrielh gabrielh 216 Nov  1 12:58 info.txt
+-rwxrwxrwx 1 gabrielh gabrielh 152 Nov  1  2025 summary.txt
