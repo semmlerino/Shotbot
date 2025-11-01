@@ -7,7 +7,7 @@
   "chunk_size_kb": 5120,
   "total_chunks": 1,
   "compression_ratio": 3.2176387658341516,
-  "source_commit": "0509cc0b1ae7662cd6a4edf21801a57f1c16dac6",
+  "source_commit": "e8319329f930930a6bcb3671279055c393fd69d9",
   "source_branch": "master",
-  "bundle_timestamp": "2025-11-01T10:55:42.086979Z"
+  "bundle_timestamp": "2025-11-01T11:06:55.081170Z"
 }
