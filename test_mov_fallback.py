@@ -143,8 +143,8 @@ def test_mov_fallback(fake_exr_path: Path) -> None:
         logger.error("❌ Failed to find MOV file")
         return
 
-    # Step 2: Extract first frame
-    logger.info("\n🎬 Step 2: Extracting first frame from MOV...")
+    # Step 2: Extract frame #5
+    logger.info("\n🎬 Step 2: Extracting frame #5 from MOV...")
     extracted_frame = ImageUtils.extract_first_frame_from_mov(mov_path)
 
     if extracted_frame:
