@@ -126,7 +126,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         self.logger.info(f"Shots loaded signal received: {len(shots)} shots")
         self._refresh_shot_display()
         self._update_status(f"Loaded {len(shots)} shots")
-        NotificationManager.info(f"{len(shots)} shots loaded from cache")
+        NotificationManager.info(f"{len(shots)} shots loaded")
 
     def handle_shots_changed(self, shots: list[Shot]) -> None:
         """Handle shots changed signal from model.

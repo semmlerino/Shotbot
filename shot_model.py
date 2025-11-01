@@ -217,7 +217,15 @@ class ShotModel(BaseShotModel):
 
         if not cache_loaded:
             self._cache_miss_count += 1
-            self.logger.info("No cached shots, starting background load")
+            # Check if cache file exists but is expired
+            persistent_cache = self.cache_manager.get_persistent_shots()
+            if persistent_cache:
+                self.logger.info(
+                    f"Cache expired ({len(persistent_cache)} shots exist), "
+                    "starting background refresh for fresh data"
+                )
+            else:
+                self.logger.info("No cached shots, starting background load")
             # No cache, but still return immediately
             self.shots = []
             self.shots_loaded.emit(self.shots)
@@ -289,6 +297,12 @@ class ShotModel(BaseShotModel):
             # Load persistent cache (returns ShotDict list or None)
             cached_dicts = self.cache_manager.get_persistent_shots() or []
             fresh_dicts = [s.to_dict() for s in fresh_shots]
+
+            # Log the data sources for clarity
+            self.logger.info(
+                f"Background refresh: {len(fresh_dicts)} shots from workspace, "
+                f"{len(cached_dicts)} shots from persistent cache"
+            )
 
             # Merge incremental changes (no conversion needed - cached_dicts already ShotDict)
             merge_result = self.cache_manager.merge_shots_incremental(
@@ -369,13 +383,15 @@ class ShotModel(BaseShotModel):
             except OSError as e:
                 self.logger.warning(f"Failed to cache shots: {e}")
 
-            # Emit structural change signal ONLY if shots added/removed
-            if merge_result.has_changes:
-                self.shots_changed.emit(self.shots)
-
-            # Special case for first load
+            # Choose the appropriate signal based on context:
+            # - First load (0 → N): Use shots_loaded
+            # - Subsequent updates with changes: Use shots_changed
             if old_count == 0 and len(self.shots) > 0:
+                # Special case for first load - emit shots_loaded
                 self.shots_loaded.emit(self.shots)
+            elif merge_result.has_changes:
+                # Structural change after initial load - emit shots_changed
+                self.shots_changed.emit(self.shots)
         else:
             self.logger.info("Async refresh: no changes detected")
 

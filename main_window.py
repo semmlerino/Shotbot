@@ -259,9 +259,23 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Initialize async loading for immediate UI display
         init_result = self.shot_model.initialize_async()
         if init_result.success:
-            self.logger.debug(
-                f"Model initialized with {len(self.shot_model.shots)} cached shots"
-            )
+            cached_count = len(self.shot_model.shots)
+            if cached_count > 0:
+                self.logger.debug(
+                    f"Model initialized with {cached_count} cached shots (valid cache)"
+                )
+            else:
+                # Check if cache exists but expired
+                persistent_cache = self.cache_manager.get_persistent_shots()
+                if persistent_cache:
+                    self.logger.debug(
+                        f"Model initialized: cache expired ({len(persistent_cache)} shots), "
+                        "background refresh in progress"
+                    )
+                else:
+                    self.logger.debug(
+                        "Model initialized: no cache file, background refresh in progress"
+                    )
 
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
         # Cast to BaseShotModel for type safety (ShotModel inherits from BaseShotModel)
