@@ -18,6 +18,7 @@ Runs independently after the commit completes:
 - Copies bundles to `/tmp` directory (avoids branch-switching issues)
 - Switches to `encoded-releases` branch
 - Copies `shotbot_latest.txt` and metadata from temp to branch
+- **Updates metadata with source commit hash and timestamp** (ensures changes on every commit)
 - Creates commit with original commit reference
 - Pushes to `origin/encoded-releases`
 - Switches back to original branch
