@@ -137,6 +137,32 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
     qapp.sendPostedEvents(None, 0)  # Process DeferredDelete events
 
 
+
+@pytest.fixture(autouse=True)
+def prevent_gui_popups(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent actual GUI windows and dialogs from showing during tests.
+    
+    This fixture mocks Qt methods that would create visible GUI elements:
+    - QWidget.show() - Prevents windows from appearing
+    - QMessageBox.exec() - Prevents modal dialogs
+    - QDialog.exec() - Prevents modal dialogs
+    
+    Tests can still create and test widgets, but they won't actually display.
+    """
+    # Mock QWidget.show() to prevent windows from appearing
+    monkeypatch.setattr("PySide6.QtWidgets.QWidget.show", lambda self: None)
+    
+    # Mock QMessageBox methods to prevent dialogs
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.exec", lambda self: 0)
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", lambda *args, **kwargs: None)
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.critical", lambda *args, **kwargs: None)
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.question", lambda *args, **kwargs: 0)
+    
+    # Mock QDialog.exec() to prevent modal dialogs
+    monkeypatch.setattr("PySide6.QtWidgets.QDialog.exec", lambda self: 0)
+
+
 # ==============================================================================
 # Mock Environment Setup
 # ==============================================================================
