@@ -1502,7 +1502,7 @@ class ImageUtils:
         mov_path: Path,
         output_path: Path | None = None,
     ) -> Path | None:
-        """Extract the first frame from a MOV file using FFmpeg.
+        """Extract frame #5 from a MOV file using FFmpeg.
 
         Args:
             mov_path: Path to the MOV file
@@ -1528,9 +1528,10 @@ class ImageUtils:
             output_path = Path(temp_path)
 
         try:
-            # Extract first frame using FFmpeg
+            # Extract frame #5 using FFmpeg (frame numbering is 0-indexed, so frame 4 = 5th frame)
             # -i: input file
             # -an: disable audio (avoids audio codec library issues)
+            # -vf "select=eq(n\,4)": select frame number 4 (the 5th frame)
             # -vframes 1: extract only 1 frame
             # -q:v 2: quality (2 is high quality for JPEG)
             # -y: overwrite output file
@@ -1539,6 +1540,8 @@ class ImageUtils:
                 "-i",
                 str(mov_path),
                 "-an",  # Disable audio - only need video frame
+                "-vf",
+                "select=eq(n\\,4)",  # Select frame 4 (5th frame, 0-indexed)
                 "-vframes",
                 "1",
                 "-q:v",
@@ -1557,7 +1560,7 @@ class ImageUtils:
 
             if result.returncode == 0 and output_path.exists():
                 logger.debug(
-                    f"Successfully extracted first frame from MOV: {mov_path.name}"
+                    f"Successfully extracted frame #5 from MOV: {mov_path.name}"
                 )
                 return output_path
             else:
