@@ -1,1 +1,1 @@
-build: Final bundle after BB/shotbot removal
+fix: Disable pytest-rerunfailures plugin (incompatible with Qt)

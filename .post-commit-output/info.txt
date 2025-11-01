@@ -1,5 +1,5 @@
-Post-commit hook executed at Sat Nov  1 13:51:02 GMT 2025
-Commit: 066f9eb8ae0f240869599474297ec0ffe81b6357
+Post-commit hook executed at Sat Nov  1 20:41:22 GMT 2025
+Commit: 30f06dd14b24a287cc3c4e189052111b376bedb1
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: build: Final bundle after BB/shotbot removal
+Message: fix: Disable pytest-rerunfailures plugin (incompatible with Qt)
