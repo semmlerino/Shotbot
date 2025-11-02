@@ -37,6 +37,10 @@ is_gui_app() {
 # Default to enabled for investigating corruption issues
 DEBUG_MODE=${SHOTBOT_TERMINAL_DEBUG:-1}
 
+# Signal handling for defense in depth
+# Ignore signals from backgrounded jobs to prevent read loop interruption
+trap '' SIGCHLD SIGHUP SIGPIPE
+
 # Main command loop
 while true; do
     # Read command from FIFO
@@ -99,6 +103,33 @@ while true; do
             continue
         fi
         
+        # Strip trailing & patterns added by command_launcher.py
+        # CRITICAL FIX for double-backgrounding bug
+        # Must preserve closing quotes for rez commands
+        original_cmd="$cmd"
+        if [[ "$cmd" == *' &"' ]]; then
+            # Rez command ending with ' &"'
+            # Strip ' &"' and restore the closing quote
+            cmd="${cmd% &\"}\""
+        elif [[ "$cmd" == *' &' ]]; then
+            # Direct command ending with ' &'
+            cmd="${cmd% &}"
+        elif [[ "$cmd" == *'&' ]]; then
+            # Edge case ending with '&' (no space)
+            cmd="${cmd%&}"
+        fi
+
+        # Debug logging to verify stripping
+        if [ "$DEBUG_MODE" = "1" ]; then
+            if [ "$original_cmd" != "$cmd" ]; then
+                echo "[DEBUG] Stripped trailing & pattern" >&2
+                echo "[DEBUG] Original: $original_cmd" >&2
+                echo "[DEBUG] Stripped: $cmd" >&2
+            else
+                echo "[DEBUG] No & pattern to strip" >&2
+            fi
+        fi
+
         # Display command being executed
         echo ""
         echo "────────────────────────────────────────────────────────────────"
@@ -106,23 +137,18 @@ while true; do
         echo "  $cmd"
         echo "────────────────────────────────────────────────────────────────"
         echo ""
-        
-        # Execute command
-        # Auto-append & for GUI applications to run in background
+
+        # Execute command with dispatcher-controlled backgrounding
+        # GUI apps are backgrounded here, after stripping any & from command_launcher.py
         if is_gui_app "$cmd"; then
-            # Check if & is already present
-            if [[ "$cmd" != *"&"* ]]; then
-                echo "[Auto-backgrounding GUI application]"
-                if [ "$DEBUG_MODE" = "1" ]; then
-                    echo "[DEBUG] Executing GUI command: $cmd &" >&2
-                fi
-                eval "$cmd &"
-                # Give a moment for the app to start
-                sleep 0.5
-                echo "✓ Launched in background (PID: $!)"
-            else
-                eval "$cmd"
+            echo "[Auto-backgrounding GUI application]"
+            if [ "$DEBUG_MODE" = "1" ]; then
+                echo "[DEBUG] Executing GUI command: $cmd &" >&2
             fi
+            eval "$cmd &"
+            # Give a moment for the app to start
+            sleep 0.5
+            echo "✓ Launched in background (PID: $!)"
         else
             # Execute command normally (blocking for non-GUI commands)
             if [ "$DEBUG_MODE" = "1" ]; then
