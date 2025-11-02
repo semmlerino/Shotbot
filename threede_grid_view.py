@@ -62,6 +62,7 @@ class ThreeDEGridView(BaseGridView):
     scene_double_clicked = Signal(object)  # ThreeDEScene object
     # Override to add scene parameter
     app_launch_requested = Signal(str, object)  # app_name, scene
+    recover_crashes_requested = Signal()  # User clicked recover crashes button
 
     def __init__(
         self,
@@ -124,11 +125,24 @@ class ThreeDEGridView(BaseGridView):
         layout.addLayout(loading_layout)
 
     def _customize_size_layout(self, layout: QHBoxLayout) -> None:
-        """Add scene count label to size layout.
+        """Add scene count label and recovery button to size layout.
 
         Args:
             layout: The size control horizontal layout
         """
+        # Import QPushButton here to avoid adding to top-level imports
+        from PySide6.QtWidgets import QPushButton
+
+        # Recovery button
+        self.recover_button = QPushButton("Recover Crashes...")
+        self.recover_button.setToolTip(
+            "Scan for and recover 3DE crash files in the current workspace"
+        )
+        self.recover_button.clicked.connect(
+            lambda: self.recover_crashes_requested.emit()
+        )
+        layout.addWidget(self.recover_button)
+
         # Scene count label
         layout.addStretch()
         self.count_label = QLabel("0 scenes")
