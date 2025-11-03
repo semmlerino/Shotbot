@@ -9,11 +9,10 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING
 
-from typing_compat import override
-
 from PySide6.QtCore import QModelIndex, QObject, Signal
 
 from base_item_model import BaseItemModel
+from typing_compat import override
 
 
 if TYPE_CHECKING:

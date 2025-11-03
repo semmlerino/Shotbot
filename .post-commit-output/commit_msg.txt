@@ -1,1 +1,1 @@
-refactor: Upgrade to basedpyright recommended mode with type safety improvements
+fix: Add Python 3.11 compatibility for override decorator

@@ -13,8 +13,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import cast
 
-from typing_compat import override
-
 # Third-party imports
 from PySide6.QtCore import (
     QModelIndex,
@@ -47,6 +45,7 @@ from typing_extensions import TypedDict
 # Local application imports
 from config import Config
 from logging_mixin import get_module_logger
+from typing_compat import override
 
 
 # Module-level logger

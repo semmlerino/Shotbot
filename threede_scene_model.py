@@ -80,10 +80,10 @@ class ThreeDEScene:
 
         # DEBUG: Log thumbnail search for 3DE scenes
         logger.debug(
-            (
+
                 f"ThreeDEScene.get_thumbnail_path() called for {self.full_name} "
                 f"(show={self.show}, seq={self.sequence}, shot={self.shot})"
-            )
+
         )
 
         # Use the unified thumbnail discovery method
@@ -299,10 +299,10 @@ class ThreeDESceneModel:
             ]
 
         logger.debug(
-            (
+
                 f"Filtered {len(self.scenes)} scenes to {len(scenes)} "
                 f"(show='{self._filter_show}', text='{self._filter_text}')"
-            )
+
         )
         return scenes
 

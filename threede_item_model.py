@@ -8,11 +8,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from typing_compat import override
-
 from PySide6.QtCore import QModelIndex, QObject, QPersistentModelIndex, Signal
 
 from base_item_model import BaseItemModel, BaseItemRole
+from typing_compat import override
 
 
 if TYPE_CHECKING:

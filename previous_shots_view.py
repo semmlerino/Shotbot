@@ -10,8 +10,6 @@ from __future__ import annotations
 # Standard library imports
 from typing import TYPE_CHECKING, cast
 
-from typing_compat import override
-
 # Third-party imports
 from PySide6.QtCore import (
     QModelIndex,
@@ -36,6 +34,7 @@ from base_item_model import BaseItemRole
 from progress_manager import ProgressManager
 from shot_grid_delegate import ShotGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
+from typing_compat import override
 
 
 # Backward compatibility alias

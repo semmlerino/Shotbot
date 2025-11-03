@@ -336,10 +336,10 @@ class TargetedShotsFinder(ShotFinderBase):
 
         elapsed = time.time() - start_time
         self.logger.info(
-            (
+
                 f"Targeted search found {len(approved_shots)} approved shots "
                 f"in {elapsed:.1f} seconds (was 60-120s with global search)"
-            )
+
         )
 
         self._report_progress(100, 100, "Targeted search complete")

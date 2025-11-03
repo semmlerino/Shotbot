@@ -285,9 +285,9 @@ def main() -> None:
     args = parser.parse_args()
 
     # Extract typed arguments from argparse Namespace
-    shows: list[str] | None = getattr(args, 'shows', None)
-    stdout_flag: bool = getattr(args, 'stdout', False)
-    output_file_arg: str | None = getattr(args, 'output', None)
+    shows: list[str] | None = getattr(args, "shows", None)
+    stdout_flag: bool = getattr(args, "stdout", False)
+    output_file_arg: str | None = getattr(args, "output", None)
 
     # Capture structure
     structure = capture_structure(shows)

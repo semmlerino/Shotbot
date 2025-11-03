@@ -185,10 +185,10 @@ class PreviousShotsFinder(ShotFinderBase):
         ]
 
         self.logger.info(
-            (
+
                 f"Filtered {len(all_user_shots)} user shots to "
                 f"{len(approved_shots)} approved shots"
-            )
+
         )
 
         return approved_shots

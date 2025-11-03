@@ -166,10 +166,10 @@ class LauncherController(LoggingMixin):
         """
         if scene:
             self.logger.info(
-                (
+
                     f"🎬 LauncherController.set_current_scene() called with scene: {scene.full_name} "
                     f"(user: {scene.user}, path: {scene.scene_path})"
-                )
+
             )
             # Clear shot context to maintain mutual exclusivity
             self._current_shot = None

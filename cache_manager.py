@@ -495,19 +495,19 @@ class CacheManager(LoggingMixin, QObject):
 
             if write_success:
                 self.logger.info(
-                    (
+
                         f"Migrated {len(to_migrate)} shots to Previous "
                         f"(total: {len(merged)} after dedup)"
-                    )
+
                 )
                 # Emit specific signal (NOT generic cache_updated)
                 self.shots_migrated.emit(to_migrate)
             else:
                 self.logger.error(
-                    (
+
                         f"Failed to persist {len(to_migrate)} migrated shots to disk. "
                         "Migration will be lost on restart."
-                    )
+
                 )
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:

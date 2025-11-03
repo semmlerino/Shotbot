@@ -167,10 +167,10 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
                     # Log what we extracted for debugging
                     self.logger.debug(
-                        (
+
                             f"Parsed line {line_num}: workspace_path={workspace_path}, "
                             f"show={show}, sequence={sequence}, shot={shot}"
-                        )
+
                     )
 
                     # Validate extracted components using utility
@@ -334,10 +334,10 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         )
 
         self.logger.debug(
-            (
+
                 f"Filtered {len(self.shots)} shots to {len(filtered)} "
                 f"(show='{self._filter_show}', text='{self._filter_text}')"
-            )
+
         )
         return filtered
 

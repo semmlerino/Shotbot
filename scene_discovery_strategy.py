@@ -632,8 +632,8 @@ def create_discovery_strategy(
         network_timeout = kwargs.get("network_timeout", 30)
         return NetworkAwareStrategy(network_timeout=network_timeout)
     raise ValueError(
-        (
+
             f"Unknown strategy type: {strategy_type}. "
             f"Available: local, parallel, progressive, network"
-        )
+
     )

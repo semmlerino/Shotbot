@@ -114,10 +114,10 @@ class CleanupManager(QObject, LoggingMixin):
 
             if not warmer.wait(session_timeout_ms):
                 self.logger.warning(
-                    (
+
                         f"Session warmer didn't finish gracefully within {session_timeout_ms}ms, "
                         "using safe termination"
-                    )
+
                 )
                 warmer.safe_terminate()
 

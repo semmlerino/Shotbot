@@ -1,5 +1,5 @@
-Post-commit hook executed at Mon Nov  3 08:01:29 GMT 2025
-Commit: df4eac45ef0d64033d0785b2dbaa9f185b9a116f
+Post-commit hook executed at Mon Nov  3 13:09:31 GMT 2025
+Commit: c213ccc1bbddc4723f9ae690ddc8033a23b92f5f
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: refactor: Upgrade to basedpyright recommended mode with type safety improvements
+Message: fix: Add Python 3.11 compatibility for override decorator

@@ -288,10 +288,10 @@ except Exception as e:
             else:
                 # Fallback to reference if import failed
                 logger.warning(
-                    (
+
                         f"Failed to import undistortion nodes from {undistortion_path}, "
                         "creating reference note instead"
-                    )
+
                 )
                 escaped_undist_path = self.templates.escape_path(undistortion_path)
                 script_parts.append(
@@ -607,10 +607,10 @@ except Exception as e:
             )
             if not script_dir:
                 logger.error(
-                    (
+
                         f"Failed to get workspace script directory for {plate_name} "
                         f"in workspace {workspace_path}"
-                    )
+
                 )
                 return None
 

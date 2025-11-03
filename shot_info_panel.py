@@ -52,11 +52,11 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         main_thread = app_instance.thread()
         if current_thread != main_thread:
             raise RuntimeError(
-                (
+
                     f"ShotInfoPanel must be created in the main thread. "
                     f"Current thread: {current_thread}, "
                     f"Main thread: {main_thread}"
-                )
+
             )
 
         # Additional safety check for QApplication type (relaxed for tests)
@@ -68,10 +68,10 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
 
         if not isinstance(app_instance, QApplication) and not is_test_environment:
             raise RuntimeError(
-                (
+
                     f"ShotInfoPanel: QCoreApplication instance is not a QApplication. "
                     f"Type: {type(app_instance)}"
-                )
+
             )
 
         super().__init__(parent)

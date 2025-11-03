@@ -11,7 +11,6 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -29,10 +28,8 @@ from shot_model import Shot
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Standard library imports
-from typing import NoReturn
 
 # Local application imports
-from tests.test_doubles_library import TestSubprocess
 from tests.test_doubles_previous_shots import create_test_shot, create_test_shots
 
 

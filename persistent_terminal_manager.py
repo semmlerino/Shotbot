@@ -269,10 +269,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         if not self._is_dispatcher_running():
             terminal_alive = self._is_terminal_alive()
             self.logger.warning(
-                (
+
                     f"Terminal dispatcher not reading from FIFO {self.fifo_path}. "
                     f"Terminal process alive: {terminal_alive}"
-                )
+
             )
 
             # If terminal is alive but dispatcher is dead, we need to force restart
@@ -314,13 +314,13 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Debug logging: log command details before sending
         self.logger.debug(
-            (
+
                 f"Preparing to send command to FIFO:\n"
                 f"  Command: {command!r}\n"
                 f"  Length: {len(command)} chars\n"
                 f"  FIFO: {self.fifo_path}\n"
                 f"  Terminal PID: {self.terminal_pid}"
-            )
+
         )
 
         # Acquire lock to serialize FIFO writes (prevents corruption from concurrent calls)

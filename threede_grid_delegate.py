@@ -10,8 +10,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, cast
 
-from typing_compat import override
-
 # Third-party imports
 from PySide6.QtGui import QColor
 
@@ -24,6 +22,7 @@ from base_thumbnail_delegate import (
     ThumbnailItemData,
 )
 from logging_mixin import get_module_logger
+from typing_compat import override
 
 
 # Backward compatibility alias

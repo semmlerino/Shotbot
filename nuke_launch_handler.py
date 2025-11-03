@@ -370,10 +370,10 @@ class NukeLaunchHandler(LoggingMixin):
             and Config.NUKE_PROBLEMATIC_PLUGIN_PATHS
         ):
             self.logger.info(
-                (
+
                     f"Setting up runtime filter for {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
                     f"plugin paths in NUKE_PATH"
-                )
+
             )
 
             # Build grep patterns for all problematic paths

@@ -271,10 +271,10 @@ class UnifiedMockPool(LoggingMixin):
         self.commands_executed: list[str] = []
 
         self.logger.info(
-            (
+
                 f"UnifiedMockPool initialized with {len(self.shots)} shots "
                 f"using {self.strategy.__class__.__name__}"
-            )
+
         )
 
     @staticmethod

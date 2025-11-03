@@ -5,8 +5,6 @@ from __future__ import annotations
 # Standard library imports
 from typing import TYPE_CHECKING, cast
 
-from typing_compat import override
-
 # Third-party imports
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QKeyEvent, QShortcut
@@ -39,6 +37,7 @@ from launcher.models import (
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
 from qt_widget_mixin import QtWidgetMixin
+from typing_compat import override
 
 
 if TYPE_CHECKING:
@@ -195,10 +194,10 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Command field
         self.command_field = QTextEdit()
         self.command_field.setPlaceholderText(
-            (
+
                 "e.g., nuke --nc {workspace_path}/nuke/{shot}_v001.nk\n"
                 "Available variables: {show}, {sequence}, {shot}, {full_name}, {workspace_path}"
-            )
+
         )
         self.command_field.setMaximumHeight(100)
         form_layout.addRow("Command:", self.command_field)

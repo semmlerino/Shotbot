@@ -48,7 +48,7 @@ from __future__ import annotations
 # Standard library imports
 import json
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import Qt, Signal, Slot

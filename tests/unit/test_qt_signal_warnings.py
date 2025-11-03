@@ -7,12 +7,11 @@ that only manifest as runtime warnings.
 import sys
 from io import StringIO
 
-from typing_compat import override
-
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QApplication
 
 from thread_safe_worker import ThreadSafeWorker
+from typing_compat import override
 
 
 class DummyWorker(ThreadSafeWorker):
