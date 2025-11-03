@@ -431,11 +431,11 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Enhanced debug logging for command integrity verification
         self.logger.debug(
-            f"Constructed command for {app_name}:\n"
+            (f"Constructed command for {app_name}:\n"
             f"  Command: {full_command!r}\n"
             f"  Length: {len(full_command)} chars\n"
             f"  Workspace: {self.current_shot.workspace_path if self.current_shot else 'None'}\n"
-            f"  Shot: {self.current_shot.full_name if self.current_shot else 'None'}"
+            f"  Shot: {self.current_shot.full_name if self.current_shot else 'None'}")
         )
 
         # Use persistent terminal if available and enabled
@@ -462,11 +462,11 @@ class CommandLauncher(LoggingMixin, QObject):
                 f"Sending command to persistent terminal: {command_to_send}"
             )
             self.logger.debug(
-                f"Command details:\n"
+                (f"Command details:\n"
                 f"  Original: {full_command!r}\n"
                 f"  To send: {command_to_send!r}\n"
                 f"  Is GUI app: {self._is_gui_app(app_name)}\n"
-                f"  Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
+                f"  Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}")
             )
 
             success = self.persistent_terminal.send_command(command_to_send)
@@ -517,8 +517,8 @@ class CommandLauncher(LoggingMixin, QObject):
             # Type-safe: e.filename can be None - Task 6.3
             filename = e.filename if e.filename else "unknown"
             self._emit_error(
-                f"Cannot launch {app_name}: Application or terminal not found. "
-                f"Details: {filename}"
+                (f"Cannot launch {app_name}: Application or terminal not found. "
+                f"Details: {filename}")
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -531,8 +531,8 @@ class CommandLauncher(LoggingMixin, QObject):
             # Type-safe: e.filename can be None - Task 6.3
             filename = e.filename if e.filename else "unknown"
             self._emit_error(
-                f"Cannot launch {app_name}: Permission denied. "
-                f"Check file permissions for: {filename}"
+                (f"Cannot launch {app_name}: Permission denied. "
+                f"Check file permissions for: {filename}")
             )
             return False
 
@@ -723,8 +723,8 @@ class CommandLauncher(LoggingMixin, QObject):
             # Type-safe: e.filename can be None - Task 6.3
             filename = e.filename if e.filename else "unknown"
             self._emit_error(
-                f"Cannot launch {app_name} with scene: Application or terminal not found. "
-                f"Details: {filename}"
+                (f"Cannot launch {app_name} with scene: Application or terminal not found. "
+                f"Details: {filename}")
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -737,8 +737,8 @@ class CommandLauncher(LoggingMixin, QObject):
             # Type-safe: e.filename can be None - Task 6.3
             filename = e.filename if e.filename else "unknown"
             self._emit_error(
-                f"Cannot launch {app_name} with scene: Permission denied. "
-                f"Check file permissions for: {filename}"
+                (f"Cannot launch {app_name} with scene: Permission denied. "
+                f"Check file permissions for: {filename}")
             )
             return False
 
@@ -923,8 +923,8 @@ class CommandLauncher(LoggingMixin, QObject):
             # Type-safe: e.filename can be None - Task 6.3
             filename = e.filename if e.filename else "unknown"
             self._emit_error(
-                f"Cannot launch {app_name} in scene context: Application or terminal not found. "
-                f"Details: {filename}"
+                (f"Cannot launch {app_name} in scene context: Application or terminal not found. "
+                f"Details: {filename}")
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -937,8 +937,8 @@ class CommandLauncher(LoggingMixin, QObject):
             # Type-safe: e.filename can be None - Task 6.3
             filename = e.filename if e.filename else "unknown"
             self._emit_error(
-                f"Cannot launch {app_name} in scene context: Permission denied. "
-                f"Check file permissions for: {filename}"
+                (f"Cannot launch {app_name} in scene context: Permission denied. "
+                f"Check file permissions for: {filename}")
             )
             return False
 

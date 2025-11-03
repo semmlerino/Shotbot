@@ -340,7 +340,7 @@ class AccessibilityManager:
         """
 
     @staticmethod
-    def announce_to_screen_reader(message: str) -> None:
+    def announce_to_screen_reader(_message: str) -> None:
         """Announce a message to screen readers.
 
         Args:

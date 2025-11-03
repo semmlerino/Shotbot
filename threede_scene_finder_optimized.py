@@ -157,7 +157,7 @@ class OptimizedThreeDESceneFinder:
         show_root: str,
         show: str,
         excluded_users: set[str] | None = None,
-        num_workers: int | None = None,
+        _num_workers: int | None = None,
         progress_callback: Callable[[int, str], None] | None = None,
         cancel_flag: Callable[[], bool] | None = None,
     ) -> list[tuple[Path, str, str, str, str, str]]:

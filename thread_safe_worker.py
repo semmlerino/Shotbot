@@ -543,8 +543,8 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS * 3,
                 ):  # Extended timeout
                     self.logger.error(
-                        f"Worker {id(self)}: Failed to stop gracefully after 5s total. "
-                        "Thread will be abandoned (NOT terminated) to prevent crashes.",
+                        f(((("Worker {id(self)}: Failed to stop gracefully after 5s total. "
+                        "Thread will be abandoned (NOT terminated) to prevent crashes."))))
                     )
                     # DO NOT call terminate() - it's unsafe!
                     # Instead, mark as zombie and add to class collection to prevent GC
@@ -558,8 +558,8 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                         zombie_count = len(ThreadSafeWorker._zombie_threads)
 
                     self.logger.warning(
-                        f"Worker {id(self)}: Added to zombie collection "
-                        f"({zombie_count} total zombies)"
+                        (f"Worker {id(self)}: Added to zombie collection "
+                        f"({zombie_count} total zombies)")
                     )
                 else:
                     self.logger.info(f"Worker {id(self)}: Stopped after extended wait")

@@ -165,8 +165,8 @@ class LauncherController(LoggingMixin):
         """
         if scene:
             self.logger.info(
-                f"🎬 LauncherController.set_current_scene() called with scene: {scene.full_name} "
-                f"(user: {scene.user}, path: {scene.scene_path})"
+                (f"🎬 LauncherController.set_current_scene() called with scene: {scene.full_name} "
+                f"(user: {scene.user}, path: {scene.scene_path})")
             )
             # Clear shot context to maintain mutual exclusivity
             self._current_shot = None
@@ -499,7 +499,7 @@ class LauncherController(LoggingMixin):
         launcher_list = [(launcher.id, launcher.name) for launcher in launchers]
         self.window.launcher_panel.update_custom_launchers(launcher_list)
 
-    def enable_custom_launcher_buttons(self, enabled: bool) -> None:
+    def enable_custom_launcher_buttons(self, _enabled: bool) -> None:
         """Enable or disable all custom launcher buttons.
 
         Args:
@@ -516,8 +516,8 @@ class LauncherController(LoggingMixin):
                     "QWidget", cast("object", self.window)
                 ),  # Cast through object for Protocol
                 "Custom Launchers",
-                "Custom launchers are not available when using simplified launcher mode.\n"
-                "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers.",
+                ("Custom launchers are not available when using simplified launcher mode.\n"
+                "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers.")
             )
             return
 
@@ -615,7 +615,7 @@ class LauncherController(LoggingMixin):
                 # Regular action
                 action.setEnabled(has_context)
 
-    def _on_command_error(self, timestamp: str, error: str) -> None:
+    def _on_command_error(self, _timestamp: str, error: str) -> None:
         """Handle command launcher errors with notifications.
 
         Args:
@@ -660,7 +660,7 @@ class LauncherController(LoggingMixin):
         launcher_name = launcher.name if launcher else "Custom command"
         _ = ProgressManager.start_operation(f"Launching {launcher_name}")
 
-    def _on_launcher_finished(self, launcher_id: str, success: bool) -> None:
+    def _on_launcher_finished(self, _launcher_id: str, success: bool) -> None:
         """Handle custom launcher completion with notifications.
 
         Args:

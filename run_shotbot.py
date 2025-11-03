@@ -19,7 +19,7 @@ print("Press Ctrl+C to stop")
 
 
 # Set up a signal handler for clean shutdown
-def signal_handler(sig: int, frame: FrameType | None) -> None:
+def signal_handler(_sig: int, _frame: FrameType | None) -> None:
     print("\nShutting down Shotbot...")
     sys.exit(0)
 

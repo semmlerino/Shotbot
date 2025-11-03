@@ -37,7 +37,7 @@
     "screenshot_*.py",
     "logging_config.py"
   ],
-  "typeCheckingMode": "basic",
+  "typeCheckingMode": "recommended",
   "reportMissingImports": false,
   "reportMissingTypeStubs": false,
   "reportUnknownMemberType": false,
@@ -45,5 +45,9 @@
   "reportUnknownArgumentType": false,
   "reportUnknownVariableType": false,
   "reportUnannotatedClassAttribute": false,
-  "reportUndefinedVariable": "warning"
+  "reportUndefinedVariable": "warning",
+  "reportImplicitStringConcatenation": "warning",
+  "reportUnsafeMultipleInheritance": false,
+  "reportUnusedCallResult": false,
+  "reportImplicitOverride": false
 }

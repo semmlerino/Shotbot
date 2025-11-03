@@ -188,9 +188,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         main_thread = app_instance.thread()
         if current_thread != main_thread:
             raise RuntimeError(
-                f"MainWindow must be created in the main thread. "
+                (f"MainWindow must be created in the main thread. "
                 f"Current thread: {current_thread}, "
-                f"Main thread: {main_thread}"
+                f"Main thread: {main_thread}")
             )
 
         # Additional safety check for QApplication type (relaxed for tests)
@@ -202,8 +202,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         if not isinstance(app_instance, QApplication) and not is_test_environment:
             raise RuntimeError(
-                f"MainWindow: QCoreApplication instance is not a QApplication. "
-                f"Type: {type(app_instance)}"
+                (f"MainWindow: QCoreApplication instance is not a QApplication. "
+                f"Type: {type(app_instance)}")
             )
 
         super().__init__()
@@ -269,8 +269,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 persistent_cache = self.cache_manager.get_persistent_shots()
                 if persistent_cache:
                     self.logger.debug(
-                        f"Model initialized: cache expired ({len(persistent_cache)} shots), "
-                        "background refresh in progress"
+                        f(("Model initialized: cache expired ({len(persistent_cache)} shots), "
+                        "background refresh in progress"))
                     )
                 else:
                     self.logger.debug(
@@ -1139,7 +1139,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._last_selected_shot_name = shot.full_name
             self.settings_controller.save_settings()
 
-    def _on_shot_double_clicked(self, shot: Shot) -> None:
+    def _on_shot_double_clicked(self, _shot: Shot) -> None:
         """Handle shot double click - launch default app."""
         self.launcher_controller.launch_app(Config.DEFAULT_APP)
 

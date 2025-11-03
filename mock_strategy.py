@@ -268,8 +268,8 @@ class UnifiedMockPool(LoggingMixin):
         self.commands_executed: list[str] = []
 
         self.logger.info(
-            f"UnifiedMockPool initialized with {len(self.shots)} shots "
-            f"using {self.strategy.__class__.__name__}"
+            (f"UnifiedMockPool initialized with {len(self.shots)} shots "
+            f"using {self.strategy.__class__.__name__}")
         )
 
     @staticmethod
@@ -307,7 +307,7 @@ class UnifiedMockPool(LoggingMixin):
         self,
         command: str,
         cache_ttl: int = 30,
-        timeout: int | None = None,
+        _timeout: int | None = None,
     ) -> str:
         """Execute workspace command.
 
@@ -347,7 +347,7 @@ class UnifiedMockPool(LoggingMixin):
         self,
         commands: list[str],
         cache_ttl: int = 30,
-        session_type: str = "workspace",
+        _session_type: str = "workspace",  # type: ignore[reportUnusedParameter]
     ) -> dict[str, str | None]:
         """Execute multiple commands.
 

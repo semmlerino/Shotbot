@@ -742,8 +742,8 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         reply = QMessageBox.question(
             self,
             "Reset All Settings",
-            "Are you sure you want to reset all settings to defaults?\n"
-            "This action cannot be undone.",
+            ("Are you sure you want to reset all settings to defaults?\n"
+            "This action cannot be undone."),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )

@@ -74,7 +74,7 @@ class ThreadingManager(QObject):
 
     def start_threede_discovery(
         self,
-        threede_model: ThreeDESceneModel,
+        _threede_model: ThreeDESceneModel,
         shot_model: BaseShotModel,
     ) -> bool:
         """Start 3DE scene discovery in background thread.
@@ -142,9 +142,9 @@ class ThreadingManager(QObject):
         self,
         current: int,
         total: int,
-        percentage: float,
+        _percentage: float,
         description: str,
-        eta: str,
+        _eta: str,
     ) -> None:
         """Map worker progress signal to our simplified signal.
 

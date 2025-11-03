@@ -388,7 +388,7 @@ class FileSystemScanner(LoggingMixin):
         return files
 
     def quick_3de_exists_check(
-        self, base_paths: list[str], timeout_seconds: int = 15
+        self, base_paths: list[str], _timeout_seconds: int = 15
     ) -> bool:
         """Optimized quick check for .3de file existence."""
 
@@ -729,9 +729,9 @@ class FileSystemScanner(LoggingMixin):
                         if file_count <= 5 or file_count % 50 == 0:
                             elapsed = time.time() - start_time
                             self.logger.info(
-                                f"Progress: Found {file_count} .3de files, "
+                                (f"Progress: Found {file_count} .3de files, "
                                 f"parsed {parsed_count} valid scenes from {len(unique_shots)} shots "
-                                f"({elapsed:.1f}s)"
+                                f"({elapsed:.1f}s)")
                             )
 
                         # Parse the file path using the extracted parser

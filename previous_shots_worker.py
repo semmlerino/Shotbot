@@ -196,8 +196,8 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
             elapsed = time.time() - start_time
             self.logger.info(
-                f"Previous shots scan completed in {elapsed:.2f}s. "
-                f"Found {len(approved_shots)} approved shots."
+                (f"Previous shots scan completed in {elapsed:.2f}s. "
+                f"Found {len(approved_shots)} approved shots.")
             )
 
             # Emit final results

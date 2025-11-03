@@ -123,7 +123,7 @@ class MockWorkspacePool(LoggingMixin):
         self,
         command: str,
         cache_ttl: int = 30,
-        timeout: int | None = None,
+        _timeout: int | None = None,  # type: ignore[reportUnusedParameter]
     ) -> str:
         """Execute workspace command.
 
@@ -166,7 +166,7 @@ class MockWorkspacePool(LoggingMixin):
         self,
         commands: list[str],
         cache_ttl: int = 30,
-        session_type: str = "workspace",
+        _session_type: str = "workspace",  # type: ignore[reportUnusedParameter]
     ) -> dict[str, str | None]:
         """Execute multiple commands.
 

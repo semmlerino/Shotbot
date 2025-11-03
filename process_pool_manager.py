@@ -413,8 +413,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
     def _execute_with_session_pool(
         self,
         command: str,
-        cache_ttl: int,
-        session_type: str,
+        _cache_ttl: int,
+        _session_type: str,
     ) -> str:
         """Execute command using session pool for true parallelism.
 

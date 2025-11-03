@@ -226,7 +226,7 @@ class ErrorHandlingMixin(LoggingMixin):
     def handle_timeout(
         self,
         operation: Callable[..., T],
-        timeout_seconds: float,
+        _timeout_seconds: float,
         *args: object,
         default: T | None = None,
         **kwargs: object,
@@ -291,8 +291,8 @@ class ErrorHandlingMixin(LoggingMixin):
             except Exception as e:
                 if attempt < max_retries:
                     self.logger.warning(
-                        f"{operation.__name__} attempt {attempt + 1} failed: {e}. "
-                        f"Retrying in {current_delay:.1f}s..."
+                        (f"{operation.__name__} attempt {attempt + 1} failed: {e}. "
+                        f"Retrying in {current_delay:.1f}s...")
                     )
                     time.sleep(current_delay)
                     current_delay *= backoff_factor

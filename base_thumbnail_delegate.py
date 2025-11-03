@@ -152,7 +152,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         raise NotImplementedError("Subclasses must implement get_theme()")
 
     def get_item_data(
-        self, index: QModelIndex | QPersistentModelIndex
+        self, _index: QModelIndex | QPersistentModelIndex
     ) -> ThumbnailItemData:
         """Extract item data from model index.
 

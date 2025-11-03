@@ -71,8 +71,8 @@ class FilesystemCoordinator(LoggingMixin):
                 if now - timestamp < self._ttl_seconds:
                     self._cache_hits += 1
                     self.logger.debug(
-                        f"Cache hit for {path.name} "
-                        f"(hit rate: {self._get_hit_rate():.1%})"
+                        (f"Cache hit for {path.name} "
+                        f"(hit rate: {self._get_hit_rate():.1%})")
                     )
                     return listing.copy()  # Return copy to prevent mutation
 
@@ -88,8 +88,8 @@ class FilesystemCoordinator(LoggingMixin):
                 self._directory_cache[path] = (listing, now)
 
             self.logger.debug(
-                f"Cached {len(listing)} items from {path.name} "
-                f"(hit rate: {self._get_hit_rate():.1%})"
+                (f"Cached {len(listing)} items from {path.name} "
+                f"(hit rate: {self._get_hit_rate():.1%})")
             )
             return listing
 

@@ -210,7 +210,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
     # Template methods for subclasses to override
 
-    def _add_top_widgets(self, layout: QVBoxLayout) -> None:
+    def _add_top_widgets(self, _layout: QVBoxLayout) -> None:
         """Add widgets at the top of the layout.
 
         Override in subclasses to add headers, loading bars, etc.
@@ -219,7 +219,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             layout: The main vertical layout
         """
 
-    def _customize_size_layout(self, layout: QHBoxLayout) -> None:
+    def _customize_size_layout(self, _layout: QHBoxLayout) -> None:
         """Customize the size control layout.
 
         Override in subclasses to add additional widgets.
@@ -238,7 +238,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         raise NotImplementedError
 
-    def _on_item_clicked(self, index: QModelIndex) -> None:
+    def _on_item_clicked(self, _index: QModelIndex) -> None:
         """Handle item click.
 
         Must be implemented by subclasses to handle specific data types.
@@ -248,7 +248,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         raise NotImplementedError
 
-    def _on_item_double_clicked(self, index: QModelIndex) -> None:
+    def _on_item_double_clicked(self, _index: QModelIndex) -> None:
         """Handle item double-click.
 
         Must be implemented by subclasses to handle specific data types.
@@ -339,7 +339,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         if first_index.isValid() and last_index.isValid():
             self._handle_visible_range_update(first_index.row(), last_index.row() + 1)
 
-    def _handle_visible_range_update(self, start: int, end: int) -> None:
+    def _handle_visible_range_update(self, _start: int, _end: int) -> None:
         """Handle the visible range update.
 
         Override in subclasses to update their specific models.

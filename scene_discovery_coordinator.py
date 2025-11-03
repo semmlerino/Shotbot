@@ -408,7 +408,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             return self.cache.clear_cache()
         return 0
 
-    def invalidate_shot(self, show: str, sequence: str, shot: str) -> bool:
+    def invalidate_shot(self, _show: str, _sequence: str, _shot: str) -> bool:
         """Invalidate cached results for a specific shot.
 
         Returns:
@@ -458,7 +458,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             self.logger.warning("Caching is disabled, cannot warm cache")
             return
 
-        def cache_warmer(show: str, sequence: str, shot: str) -> list[ThreeDEScene]:
+        def cache_warmer(_show: str, _sequence: str, _shot: str) -> list[ThreeDEScene]:
             """Cache warmer function for the scene cache."""
             # This would need to be implemented to discover scenes
             # For now, return empty list

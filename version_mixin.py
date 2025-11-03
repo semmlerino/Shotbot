@@ -88,8 +88,8 @@ class VersionHandlingMixin(LoggingMixin):
                 if match:
                     version = int(match.group(1))
                     self.logger.debug(
-                        f"Extracted version {version} from {Path(path).name} "
-                        f"using fallback pattern"
+                        (f"Extracted version {version} from {Path(path).name} "
+                        f"using fallback pattern")
                     )
                     return version
 
@@ -204,8 +204,8 @@ class VersionHandlingMixin(LoggingMixin):
         sorted_files.extend(sorted(unversioned))
 
         self.logger.debug(
-            f"Sorted {len(versioned)} versioned and "
-            f"{len(unversioned)} unversioned files"
+            (f"Sorted {len(versioned)} versioned and "
+            f"{len(unversioned)} unversioned files")
         )
 
         return sorted_files
@@ -264,8 +264,8 @@ class VersionHandlingMixin(LoggingMixin):
                 filtered.append(file)
 
         self.logger.debug(
-            f"Filtered to {len(filtered)} files in version range "
-            f"[{min_version or 'any'}, {max_version or 'any'}]"
+            (f"Filtered to {len(filtered)} files in version range "
+            f"[{min_version or 'any'}, {max_version or 'any'}]")
         )
 
         return filtered

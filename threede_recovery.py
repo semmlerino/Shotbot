@@ -150,8 +150,8 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
             crash_files.append(info)
             self.logger.debug(
-                f"Found crash file: {crash_file.name} "
-                f"(v{current_version:03d} → v{next_version:03d})"
+                (f"Found crash file: {crash_file.name} "
+                f"(v{current_version:03d} → v{next_version:03d})")
             )
 
         # Sort by modification time (newest first)
@@ -185,8 +185,8 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
         latest = sorted_files[0]
         self.logger.info(
-            f"Latest crash file: {latest.crash_path.name} "
-            f"(modified: {latest.modification_time})"
+            (f"Latest crash file: {latest.crash_path.name} "
+            f"(modified: {latest.modification_time})")
         )
         return latest
 
@@ -220,8 +220,8 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
         if recovery_path.exists():
             raise FileExistsError(
-                f"Recovery target already exists: {recovery_path}\n"
-                f"Please remove or rename the existing file first."
+                (f"Recovery target already exists: {recovery_path}\n"
+                f"Please remove or rename the existing file first.")
             )
 
         # Rename crash file to recovery version
@@ -315,8 +315,8 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
         if recovery_path.exists():
             raise FileExistsError(
-                f"Recovery target already exists: {recovery_path}\n"
-                f"Please remove or rename the existing file first."
+                (f"Recovery target already exists: {recovery_path}\n"
+                f"Please remove or rename the existing file first.")
             )
 
         # Step 1: Copy crash file to recovery version
@@ -329,8 +329,8 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         archived_path = self.archive_crash_file(crash_info)
 
         self.logger.info(
-            f"Recovery complete: {recovery_path.name}\n"
-            f"Archived: {archived_path.name}"
+            (f"Recovery complete: {recovery_path.name}\n"
+            f"Archived: {archived_path.name}")
         )
 
         return (recovery_path, archived_path)

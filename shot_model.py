@@ -221,8 +221,8 @@ class ShotModel(BaseShotModel):
             persistent_cache = self.cache_manager.get_persistent_shots()
             if persistent_cache:
                 self.logger.info(
-                    f"Cache expired ({len(persistent_cache)} shots exist), "
-                    "starting background refresh for fresh data"
+                    f(("Cache expired ({len(persistent_cache)} shots exist), "
+                    "starting background refresh for fresh data"))
                 )
             else:
                 self.logger.info("No cached shots, starting background load")
@@ -300,8 +300,8 @@ class ShotModel(BaseShotModel):
 
             # Log the data sources for clarity
             self.logger.info(
-                f"Background refresh: {len(fresh_dicts)} shots from workspace, "
-                f"{len(cached_dicts)} shots from persistent cache"
+                (f"Background refresh: {len(fresh_dicts)} shots from workspace, "
+                f"{len(cached_dicts)} shots from persistent cache")
             )
 
             # Merge incremental changes (no conversion needed - cached_dicts already ShotDict)
@@ -328,9 +328,9 @@ class ShotModel(BaseShotModel):
 
         # Log merge statistics
         self.logger.info(
-            f"Shot merge: {len(merge_result.new_shots)} new, "
+            (f"Shot merge: {len(merge_result.new_shots)} new, "
             f"{len(merge_result.removed_shots)} removed, "
-            f"{len(merge_result.updated_shots)} total"
+            f"{len(merge_result.updated_shots)} total")
         )
 
         # Migrate removed shots to Previous Shots
@@ -342,8 +342,8 @@ class ShotModel(BaseShotModel):
                     for s in merge_result.removed_shots[:3]
                 ]
                 self.logger.info(
-                    f"Migrated {len(merge_result.removed_shots)} shots to Previous: "
-                    f"{removed_names}{'...' if len(merge_result.removed_shots) > 3 else ''}"
+                    (f"Migrated {len(merge_result.removed_shots)} shots to Previous: "
+                    f"{removed_names}{'...' if len(merge_result.removed_shots) > 3 else ''}")
                 )
             except OSError as e:
                 # Log migration failure but don't abort refresh
@@ -371,9 +371,9 @@ class ShotModel(BaseShotModel):
             self.shots = new_shot_objects
 
             self.logger.info(
-                f"Background load complete: {old_count} → {len(self.shots)} shots "
+                (f"Background load complete: {old_count} → {len(self.shots)} shots "
                 f"(+{len(merge_result.new_shots)} new, "
-                f"-{len(merge_result.removed_shots)} removed)"
+                f"-{len(merge_result.removed_shots)} removed)")
             )
 
             # Cache the updated shots (persistent, no TTL)
@@ -626,9 +626,9 @@ class ShotModel(BaseShotModel):
 
             # Log merge statistics
             self.logger.info(
-                f"Shot merge (sync): {len(merge_result.new_shots)} new, "
+                (f"Shot merge (sync): {len(merge_result.new_shots)} new, "
                 f"{len(merge_result.removed_shots)} removed, "
-                f"{len(merge_result.updated_shots)} total"
+                f"{len(merge_result.updated_shots)} total")
             )
 
             # Migrate removed shots to Previous Shots
@@ -642,8 +642,8 @@ class ShotModel(BaseShotModel):
                         for s in merge_result.removed_shots[:3]
                     ]
                     self.logger.info(
-                        f"Migrated {len(merge_result.removed_shots)} shots to Previous: "
-                        f"{removed_names}{'...' if len(merge_result.removed_shots) > 3 else ''}"
+                        (f"Migrated {len(merge_result.removed_shots)} shots to Previous: "
+                        f"{removed_names}{'...' if len(merge_result.removed_shots) > 3 else ''}")
                     )
                 except OSError as e:
                     # Log migration failure but don't abort refresh
@@ -673,9 +673,9 @@ class ShotModel(BaseShotModel):
                 self.shots = new_shot_objects
 
                 self.logger.info(
-                    f"Sync refresh complete: {old_count} → {len(self.shots)} shots "
+                    (f"Sync refresh complete: {old_count} → {len(self.shots)} shots "
                     f"(+{len(merge_result.new_shots)} new, "
-                    f"-{len(merge_result.removed_shots)} removed)"
+                    f"-{len(merge_result.removed_shots)} removed)")
                 )
 
                 # Emit structural change signal ONLY if shots added/removed

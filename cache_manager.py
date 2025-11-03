@@ -494,15 +494,15 @@ class CacheManager(LoggingMixin, QObject):
 
             if write_success:
                 self.logger.info(
-                    f"Migrated {len(to_migrate)} shots to Previous "
-                    f"(total: {len(merged)} after dedup)"
+                    (f"Migrated {len(to_migrate)} shots to Previous "
+                    f"(total: {len(merged)} after dedup)")
                 )
                 # Emit specific signal (NOT generic cache_updated)
                 self.shots_migrated.emit(to_migrate)
             else:
                 self.logger.error(
-                    f"Failed to persist {len(to_migrate)} migrated shots to disk. "
-                    "Migration will be lost on restart."
+                    f(("Failed to persist {len(to_migrate)} migrated shots to disk. "
+                    "Migration will be lost on restart."))
                 )
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
@@ -634,7 +634,7 @@ class CacheManager(LoggingMixin, QObject):
     def cache_threede_scenes(
         self,
         scenes: list[ThreeDESceneDict],
-        metadata: dict[str, object] | None = None,
+        _metadata: dict[str, object] | None = None,
     ) -> None:
         """Cache 3DE scene list to file.
 
@@ -791,7 +791,7 @@ class CacheManager(LoggingMixin, QObject):
     # Stub Methods (for backward compatibility, no-ops in simple implementation)
     # ========================================================================
 
-    def clear_failed_attempts(self, cache_key: str | None = None) -> None:
+    def clear_failed_attempts(self, _cache_key: str | None = None) -> None:
         """Clear failed attempts (no-op in simple implementation).
 
         Args:
@@ -807,7 +807,7 @@ class CacheManager(LoggingMixin, QObject):
         """
         return {}
 
-    def set_memory_limit(self, max_memory_mb: int) -> None:
+    def set_memory_limit(self, _max_memory_mb: int) -> None:
         """Set memory limit (no-op in simple implementation).
 
         Args:

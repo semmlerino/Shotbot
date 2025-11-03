@@ -208,7 +208,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
 
         return " ".join(command_parts)
 
-    def _get_app_environment(self, app_name: str, shot: Shot | None) -> dict[str, str]:
+    def _get_app_environment(self, _app_name: str, shot: Shot | None) -> dict[str, str]:
         """Get environment variables for launching an application."""
         env: dict[str, str] = {}
 
@@ -559,8 +559,8 @@ class SimplifiedLauncher(LoggingMixin, QObject):
     def batch_execute(
         self,
         commands: list[str],
-        cache_ttl: int = 30,
-        session_type: str = "workspace",
+        _cache_ttl: int = 30,
+        _session_type: str = "workspace",
     ) -> dict[str, str | None]:
         """Execute multiple commands in parallel.
 

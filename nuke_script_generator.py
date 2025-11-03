@@ -277,8 +277,8 @@ except Exception as e:
                 script_parts.append(imported_nodes)
                 script_parts.append(
                     self.templates.get_sticky_note(
-                        f"Undistortion imported from:\\n"
-                        f"{self.templates.escape_path(undistortion_path)}",
+                        (f"Undistortion imported from:\\n"
+                        f"{self.templates.escape_path(undistortion_path)}"),
                         200,
                         -300,
                         "Note_Undistortion_Source",
@@ -293,8 +293,8 @@ except Exception as e:
                 escaped_undist_path = self.templates.escape_path(undistortion_path)
                 script_parts.append(
                     self.templates.get_sticky_note(
-                        f"UNDISTORTION AVAILABLE\\nFile > Import Script:\\n"
-                        f"{escaped_undist_path}",
+                        (f"UNDISTORTION AVAILABLE\\nFile > Import Script:\\n"
+                        f"{escaped_undist_path}"),
                         200,
                         -300,
                         "Note_Undistortion",
@@ -604,8 +604,8 @@ except Exception as e:
             )
             if not script_dir:
                 logger.error(
-                    f"Failed to get workspace script directory for {plate_name} "
-                    f"in workspace {workspace_path}"
+                    (f"Failed to get workspace script directory for {plate_name} "
+                    f"in workspace {workspace_path}")
                 )
                 return None
 

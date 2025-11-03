@@ -307,9 +307,9 @@ class ThreeDEController(LoggingMixin):
         self,
         current: int,
         total: int,
-        percentage: float,
+        _percentage: float,
         description: str,
-        eta: str,
+        _eta: str,
     ) -> None:
         """Handle enhanced 3DE discovery progress updates.
 
