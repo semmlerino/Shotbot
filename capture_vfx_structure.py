@@ -28,12 +28,12 @@ import time
 from pathlib import Path
 
 # Third-party imports
-from typing_extensions import TypedDict
+from typing_extensions import TypeAlias, TypedDict
 
 
 # Type alias for directory/file node structures
 # Using object for the recursive structure to avoid overly complex union types
-type DirectoryNode = dict[str, object]
+DirectoryNode: TypeAlias = dict[str, object]
 
 
 class ShowStructure(TypedDict):

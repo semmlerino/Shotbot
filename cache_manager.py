@@ -46,7 +46,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast
 
 # Third-party imports
 from PIL import Image
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from type_definitions import ShotDict, ThreeDESceneDict
 
 # Type alias for JSON data (used for runtime validation) - Python 3.11 compatible
-type JSONValue = (
+JSONValue: TypeAlias = (
     dict[str, "JSONValue"] | list["JSONValue"] | str | int | float | bool | None
 )
 
