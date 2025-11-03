@@ -7,7 +7,10 @@ and behavior for ShotGridView, ThreeDEGridView, and PreviousShotsView.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, Protocol, override
+from typing import TYPE_CHECKING, Protocol
+
+# Local imports
+from typing_compat import override
 
 # Third-party imports
 from PySide6.QtCore import (

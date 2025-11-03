@@ -8,7 +8,9 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
-from typing import override
+
+# Local imports
+from typing_compat import override
 
 # Third-party imports
 from PySide6.QtCore import (
