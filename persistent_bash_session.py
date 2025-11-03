@@ -125,26 +125,25 @@ class PersistentBashSession(LoggingMixin):
                 )
             self._kill_session()
 
-        if with_backoff:
+        if with_backoff and self._retry_count > 0:
             # Apply exponential backoff if this is a retry
-            if self._retry_count > 0:
-                current_time = time.time()
-                time_since_last_retry = current_time - self._last_retry_time
+            current_time = time.time()
+            time_since_last_retry = current_time - self._last_retry_time
 
-                # Only apply delay if we're retrying quickly
-                if time_since_last_retry < self._retry_delay:
-                    sleep_time = self._retry_delay - time_since_last_retry
-                    self.logger.info(
-                        f"Backing off for {sleep_time:.2f}s before retry {self._retry_count}",
-                    )
-                    time.sleep(sleep_time)
-
-                # Update retry delay with exponential backoff
-                self._retry_delay = min(
-                    self._retry_delay * self.BACKOFF_MULTIPLIER,
-                    self.MAX_RETRY_DELAY,
+            # Only apply delay if we're retrying quickly
+            if time_since_last_retry < self._retry_delay:
+                sleep_time = self._retry_delay - time_since_last_retry
+                self.logger.info(
+                    f"Backing off for {sleep_time:.2f}s before retry {self._retry_count}",
                 )
-                self._last_retry_time = current_time
+                time.sleep(sleep_time)
+
+            # Update retry delay with exponential backoff
+            self._retry_delay = min(
+                self._retry_delay * self.BACKOFF_MULTIPLIER,
+                self.MAX_RETRY_DELAY,
+            )
+            self._last_retry_time = current_time
 
         try:
             # Use interactive bash (required for ws command)

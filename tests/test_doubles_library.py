@@ -107,7 +107,7 @@ class TestSubprocess:
         """Exit context manager."""
 
     def communicate(
-        self, input: bytes | None = None, timeout: float | None = None
+        self, input_data: bytes | None = None, timeout: float | None = None
     ) -> tuple[str, str]:
         """Simulate communicate method for subprocess compatibility."""
         return (self.stdout, self.stderr)
@@ -263,7 +263,7 @@ class PopenDouble:
         self._killed = True
 
     def communicate(
-        self, input: bytes | None = None, timeout: float | None = None
+        self, input_data: bytes | None = None, timeout: float | None = None
     ) -> tuple[str, str]:
         """Communicate with process."""
         if timeout:
@@ -555,9 +555,8 @@ class TestCacheManager(QObject):
         """Cache shot data."""
         self._cached_shots.clear()
         for shot in shots:
-            if isinstance(shot, dict):
-                shot = TestShot(**shot)
-            self._cached_shots.append(shot)
+            shot_obj = TestShot(**shot) if isinstance(shot, dict) else shot
+            self._cached_shots.append(shot_obj)
         self.cache_updated.emit()
         return True
 
@@ -682,11 +681,11 @@ class TestLauncherEnvironment:
 
     def __init__(
         self,
-        type: str = "none",
+        env_type: str = "none",
         packages: list[str] | None = None,
         command_prefix: str = "",
     ) -> None:
-        self.type = type
+        self.type = env_type
         self.packages = packages or []
         self.command_prefix = command_prefix
 
@@ -707,7 +706,7 @@ class TestLauncher:
 
     def __init__(
         self,
-        id: str = "test_launcher",
+        launcher_id: str = "test_launcher",
         name: str = "Test Launcher",
         command: str = "echo {shot_name}",
         description: str = "Test launcher",
@@ -717,7 +716,7 @@ class TestLauncher:
         terminal=None,
     ) -> None:
         """Initialize test launcher."""
-        self.id = id
+        self.id = launcher_id
         self.name = name
         self.command = command
         self.description = description

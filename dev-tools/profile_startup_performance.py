@@ -252,8 +252,8 @@ def main() -> None:
     print("4. Connection pooling: Reuse bash session")
 
     # Save results
-    output_file = "startup_profile_results.json"
-    with open(output_file, "w") as f:
+    output_file = Path("startup_profile_results.json")
+    with output_file.open("w") as f:
         json.dump(results, f, indent=2, default=str)
 
     print(f"\nDetailed results saved to: {output_file}")

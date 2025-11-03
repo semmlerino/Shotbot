@@ -14,7 +14,7 @@ def patch_threede_scene_worker() -> bool:
         print(f"Warning: {file_path} not found")
         return False
 
-    with open(file_path) as f:
+    with file_path.open() as f:
         content = f.read()
 
     # Check if already patched
@@ -138,7 +138,7 @@ def patch_threede_scene_worker() -> bool:
         )
 
     # Write back
-    with open(file_path, "w") as f:
+    with file_path.open("w") as f:
         f.write(content)
 
     print(f"✓ Patched {file_path}")

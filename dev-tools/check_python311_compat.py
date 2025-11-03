@@ -12,7 +12,7 @@ def check_file_syntax(filepath: Path) -> list[str]:
     issues = []
 
     try:
-        with open(filepath, encoding="utf-8") as f:
+        with filepath.open(encoding="utf-8") as f:
             content = f.read()
 
         # Parse the AST
@@ -30,25 +30,26 @@ def check_file_syntax(filepath: Path) -> list[str]:
 
             # Check for improved f-strings (PEP 701) - Python 3.12+
             if isinstance(node, ast.JoinedStr):
-                for value in node.values:
-                    if isinstance(value, ast.FormattedValue):
-                        # Check for nested f-strings or multiline expressions
-                        if hasattr(value, "format_spec") and value.format_spec:
-                            if isinstance(value.format_spec, ast.JoinedStr):
-                                issues.append(
-                                    f"Nested f-string at line {node.lineno} (Python 3.12+)"
-                                )
+                issues.extend(
+                    f"Nested f-string at line {node.lineno} (Python 3.12+)"
+                    for value in node.values
+                    if (
+                        isinstance(value, ast.FormattedValue)
+                        and hasattr(value, "format_spec")
+                        and value.format_spec
+                        and isinstance(value.format_spec, ast.JoinedStr)
+                    )
+                )
 
         # Check imports
         for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom):
-                if node.module == "typing":
-                    # Check for Python 3.12+ only imports from typing
-                    for alias in node.names:
-                        if alias.name == "override":
-                            issues.append(
-                                f"Line {node.lineno}: 'override' imported from typing (Python 3.12+ only)"
-                            )
+            if isinstance(node, ast.ImportFrom) and node.module == "typing":
+                # Check for Python 3.12+ only imports from typing
+                issues.extend(
+                    f"Line {node.lineno}: 'override' imported from typing (Python 3.12+ only)"
+                    for alias in node.names
+                    if alias.name == "override"
+                )
 
     except SyntaxError as e:
         issues.append(f"Syntax error: {e}")
@@ -61,11 +62,12 @@ def check_file_syntax(filepath: Path) -> list[str]:
 def main() -> int:
     """Check all Python files in the project."""
     # Get all Python files, excluding venv and test_venv
-    python_files = []
-    for pattern in ["*.py", "**/*.py"]:
-        for path in Path().glob(pattern):
-            if "venv" not in str(path) and "test_venv" not in str(path):
-                python_files.append(path)
+    python_files = [
+        path
+        for pattern in ["*.py", "**/*.py"]
+        for path in Path().glob(pattern)
+        if "venv" not in str(path) and "test_venv" not in str(path)
+    ]
 
     print(f"Checking {len(python_files)} Python files for Python 3.11 compatibility...")
     print()
@@ -89,7 +91,7 @@ def main() -> int:
     print("\n📝 Files using match/case (Python 3.10+, compatible with 3.11):")
     for filepath in sorted(python_files):
         try:
-            with open(filepath) as f:
+            with filepath.open() as f:
                 content = f.read()
                 if "match " in content and "case " in content:
                     print(f"  - {filepath}")

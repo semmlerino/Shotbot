@@ -70,13 +70,13 @@ def mock_subprocess_popen():
 @pytest.fixture
 def mock_launcher_worker():
     """Mock LauncherWorker to avoid threading complexity."""
-    with patch("launcher.process_manager.LauncherWorker") as MockWorker:
+    with patch("launcher.process_manager.LauncherWorker") as mock_worker_class:
         mock_worker = Mock()
         mock_worker.isRunning.return_value = True
         mock_worker.wait.return_value = True
 
-        MockWorker.return_value = mock_worker
-        yield MockWorker, mock_worker
+        mock_worker_class.return_value = mock_worker
+        yield mock_worker_class, mock_worker
 
 
 # ============================================================================
@@ -174,7 +174,7 @@ class TestSubprocessExecution:
         qtbot: QtBot
     ) -> None:
         """Test subprocess is tracked in active processes."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
 
         process_key = process_manager.execute_with_subprocess(
             launcher_id="test_launcher",
@@ -254,7 +254,7 @@ class TestWorkerExecution:
         qtbot: QtBot
     ) -> None:
         """Test successful worker thread execution."""
-        MockWorker, mock_worker = mock_launcher_worker
+        mock_worker_class, mock_worker = mock_launcher_worker
 
         spy = QSignalSpy(process_manager.worker_created)
 
@@ -267,7 +267,7 @@ class TestWorkerExecution:
 
         # Verify worker was created
         assert result is True
-        MockWorker.assert_called_once_with("test_launcher", "echo hello", "/tmp")
+        mock_worker_class.assert_called_once_with("test_launcher", "echo hello", "/tmp")
 
         # Verify worker was started
         mock_worker.start.assert_called_once()
@@ -282,7 +282,7 @@ class TestWorkerExecution:
         qtbot: QtBot
     ) -> None:
         """Test worker is tracked in active workers."""
-        MockWorker, mock_worker = mock_launcher_worker
+        _mock_worker_class, mock_worker = mock_launcher_worker
 
         process_manager.execute_with_worker(
             launcher_id="test_launcher",
@@ -307,7 +307,7 @@ class TestWorkerExecution:
         qtbot: QtBot
     ) -> None:
         """Test worker signals are connected properly."""
-        MockWorker, mock_worker = mock_launcher_worker
+        _mock_worker_class, mock_worker = mock_launcher_worker
 
         process_manager.execute_with_worker(
             launcher_id="test",
@@ -328,8 +328,8 @@ class TestWorkerExecution:
         """Test worker creation failure handling."""
         spy_error = QSignalSpy(process_manager.process_error)
 
-        with patch("launcher.process_manager.LauncherWorker") as MockWorker:
-            MockWorker.side_effect = Exception("Worker creation failed")
+        with patch("launcher.process_manager.LauncherWorker") as mock_worker_class:
+            mock_worker_class.side_effect = Exception("Worker creation failed")
 
             result = process_manager.execute_with_worker(
                 launcher_id="test",
@@ -357,7 +357,7 @@ class TestProcessLifecycle:
         qtbot: QtBot
     ) -> None:
         """Test worker cleanup on finished signal."""
-        MockWorker, mock_worker = mock_launcher_worker
+        _mock_worker_class, _mock_worker = mock_launcher_worker
         spy_removed = QSignalSpy(process_manager.worker_removed)
         spy_finished = QSignalSpy(process_manager.process_finished)
 
@@ -390,7 +390,7 @@ class TestProcessLifecycle:
         qtbot: QtBot
     ) -> None:
         """Test cleanup removes finished processes."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
 
         # Create a process
         process_key = process_manager.execute_with_subprocess(
@@ -415,7 +415,7 @@ class TestProcessLifecycle:
         qtbot: QtBot
     ) -> None:
         """Test cleanup removes finished workers."""
-        MockWorker, mock_worker = mock_launcher_worker
+        _mock_worker_class, mock_worker = mock_launcher_worker
         spy_removed = QSignalSpy(process_manager.worker_removed)
 
         # Create a worker
@@ -442,7 +442,7 @@ class TestProcessLifecycle:
         qtbot: QtBot
     ) -> None:
         """Test periodic cleanup is triggered automatically."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
 
         # Create a process
         process_key = process_manager.execute_with_subprocess(
@@ -538,7 +538,7 @@ class TestSignalEmissions:
         qtbot: QtBot
     ) -> None:
         """Test worker_removed signal emission."""
-        MockWorker, mock_worker = mock_launcher_worker
+        _mock_worker_class, mock_worker = mock_launcher_worker
         spy = QSignalSpy(process_manager.worker_removed)
 
         # Create worker
@@ -599,7 +599,7 @@ class TestProcessTermination:
         qtbot: QtBot
     ) -> None:
         """Test graceful subprocess termination."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
 
         # Create process
         process_key = process_manager.execute_with_subprocess(
@@ -622,7 +622,7 @@ class TestProcessTermination:
         qtbot: QtBot
     ) -> None:
         """Test force kill of subprocess."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
 
         # Create process
         process_key = process_manager.execute_with_subprocess(
@@ -644,7 +644,7 @@ class TestProcessTermination:
         qtbot: QtBot
     ) -> None:
         """Test worker termination."""
-        MockWorker, mock_worker = mock_launcher_worker
+        _mock_worker_class, mock_worker = mock_launcher_worker
         spy = QSignalSpy(process_manager.worker_removed)
 
         # Create worker
@@ -682,7 +682,7 @@ class TestProcessTermination:
         qtbot: QtBot
     ) -> None:
         """Test force kill fallback when graceful termination times out."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
 
         # Make wait timeout once, then succeed
         mock_process.wait.side_effect = [
@@ -745,7 +745,7 @@ class TestProcessInformation:
         qtbot: QtBot
     ) -> None:
         """Test getting subprocess information."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, _mock_process = mock_subprocess_popen
 
         process_manager.execute_with_subprocess(
             launcher_id="nuke",
@@ -771,7 +771,7 @@ class TestProcessInformation:
         qtbot: QtBot
     ) -> None:
         """Test getting worker information."""
-        MockWorker, mock_worker = mock_launcher_worker
+        _mock_worker_class, mock_worker = mock_launcher_worker
 
         # Set launcher_id on mock worker (it's accessed via getattr in get_active_process_info)
         mock_worker.launcher_id = "maya"
@@ -888,7 +888,7 @@ class TestThreadSafety:
         qtbot: QtBot
     ) -> None:
         """Test cleanup doesn't interfere with process creation."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, _mock_process = mock_subprocess_popen
 
         # Create process
         process_manager.execute_with_subprocess(
@@ -932,7 +932,7 @@ class TestResourceCleanup:
         qtbot: QtBot
     ) -> None:
         """Test stopping all workers terminates subprocesses."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
 
         # Create process
         process_manager.execute_with_subprocess(
@@ -953,7 +953,7 @@ class TestResourceCleanup:
         qtbot: QtBot
     ) -> None:
         """Test stopping all workers stops worker threads."""
-        MockWorker, mock_worker = mock_launcher_worker
+        _mock_worker_class, mock_worker = mock_launcher_worker
 
         # Create worker
         process_manager.execute_with_worker(
@@ -1045,7 +1045,7 @@ class TestEdgeCases:
         qtbot: QtBot
     ) -> None:
         """Test cleanup during shutdown doesn't execute."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, _mock_process = mock_subprocess_popen
 
         # Create process
         process_key = process_manager.execute_with_subprocess(
@@ -1095,7 +1095,7 @@ class TestEdgeCases:
         qtbot: QtBot
     ) -> None:
         """Test signal disconnection handles already disconnected signals."""
-        MockWorker, mock_worker = mock_launcher_worker
+        _mock_worker_class, mock_worker = mock_launcher_worker
 
         # Make disconnect raise RuntimeError (already disconnected)
         mock_worker.command_started.disconnect.side_effect = RuntimeError("Not connected")

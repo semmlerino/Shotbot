@@ -770,10 +770,11 @@ class TestImageUtils:
 
     def test_validate_image_dimensions_uses_config_defaults(self) -> None:
         """Test that image validation uses config defaults when not specified."""
-        with patch.object(Config, "MAX_THUMBNAIL_DIMENSION_PX", 2048):
-            with patch.object(Config, "MAX_THUMBNAIL_MEMORY_MB", 10):
-                result = ImageUtils.validate_image_dimensions(1920, 1080)
-                assert result is True
+        with patch.object(
+            Config, "MAX_THUMBNAIL_DIMENSION_PX", 2048
+        ), patch.object(Config, "MAX_THUMBNAIL_MEMORY_MB", 10):
+            result = ImageUtils.validate_image_dimensions(1920, 1080)
+            assert result is True
 
     def test_get_safe_dimensions_for_thumbnail(self) -> None:
         """Test getting safe thumbnail dimensions."""

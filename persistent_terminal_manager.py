@@ -79,11 +79,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         Returns:
             True if FIFO exists or was created successfully, False otherwise
         """
-        if not os.path.exists(self.fifo_path):
+        if not Path(self.fifo_path).exists():
             try:
                 # Remove any existing file first (in case it's not a FIFO)
                 with contextlib.suppress(FileNotFoundError):
-                    os.unlink(self.fifo_path)
+                    Path(self.fifo_path).unlink()
 
                 os.mkfifo(self.fifo_path, 0o600)  # Only user can read/write
                 self.logger.debug(f"Created FIFO at {self.fifo_path}")
@@ -92,7 +92,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 return False
 
         # Verify it's actually a FIFO
-        if not os.path.exists(self.fifo_path):
+        if not Path(self.fifo_path).exists():
             self.logger.error(
                 f"FIFO does not exist after creation attempt: {self.fifo_path}"
             )
@@ -100,7 +100,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Check if path is a FIFO using cross-platform compatible method
         try:
-            file_stat = os.stat(self.fifo_path)
+            file_stat = Path(self.fifo_path).stat()
             if not stat.S_ISFIFO(file_stat.st_mode):
                 self.logger.error(f"Path exists but is not a FIFO: {self.fifo_path}")
                 return False
@@ -116,7 +116,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         Returns:
             True if dispatcher appears to be running, False otherwise
         """
-        if not os.path.exists(self.fifo_path):
+        if not Path(self.fifo_path).exists():
             return False
 
         try:
@@ -156,7 +156,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         Returns:
             True if terminal launched successfully, False otherwise
         """
-        if not os.path.exists(self.dispatcher_path):
+        if not Path(self.dispatcher_path).exists():
             self.logger.error(f"Dispatcher script not found: {self.dispatcher_path}")
             return False
 
@@ -252,7 +252,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             time.sleep(1.5)
 
         # Ensure FIFO exists before trying to use it
-        if not os.path.exists(self.fifo_path):
+        if not Path(self.fifo_path).exists():
             self.logger.warning(
                 f"FIFO missing, attempting to recreate: {self.fifo_path}"
             )
@@ -458,9 +458,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Clean up and recreate FIFO to prevent stale file handle issues
         self.logger.debug("Cleaning up FIFO before restart")
-        if os.path.exists(self.fifo_path):
+        if Path(self.fifo_path).exists():
             try:
-                os.unlink(self.fifo_path)
+                Path(self.fifo_path).unlink()
                 self.logger.debug(f"Removed stale FIFO at {self.fifo_path}")
             except OSError as e:
                 self.logger.warning(f"Could not remove stale FIFO: {e}")
@@ -494,9 +494,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             self.close_terminal()
 
         # Remove FIFO if it exists
-        if os.path.exists(self.fifo_path):
+        if Path(self.fifo_path).exists():
             try:
-                os.unlink(self.fifo_path)
+                Path(self.fifo_path).unlink()
                 self.logger.debug(f"Removed FIFO at {self.fifo_path}")
             except OSError as e:
                 self.logger.warning(f"Could not remove FIFO: {e}")
@@ -508,9 +508,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         after the application exits.
         """
         # Only remove FIFO, leave terminal running
-        if os.path.exists(self.fifo_path):
+        if Path(self.fifo_path).exists():
             try:
-                os.unlink(self.fifo_path)
+                Path(self.fifo_path).unlink()
                 self.logger.debug(
                     f"Removed FIFO at {self.fifo_path}, terminal left running"
                 )
@@ -521,7 +521,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         """Cleanup on deletion."""
         try:
             # Only cleanup FIFO, leave terminal running
-            if hasattr(self, "fifo_path") and os.path.exists(self.fifo_path):
-                os.unlink(self.fifo_path)
+            if hasattr(self, "fifo_path") and Path(self.fifo_path).exists():
+                Path(self.fifo_path).unlink()
         except Exception:
             pass

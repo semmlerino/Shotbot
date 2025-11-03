@@ -73,7 +73,7 @@ class TestNukeScriptGenerator:
             assert Path(script_path).exists()
 
             # Read script content
-            with open(script_path) as f:
+            with Path(script_path).open() as f:
                 content = f.read()
 
             # Test basic script structure
@@ -100,7 +100,7 @@ class TestNukeScriptGenerator:
             assert script_path is not None
             assert Path(script_path).exists()
 
-            with open(script_path) as f:
+            with Path(script_path).open() as f:
                 content = f.read()
 
             # Test undistortion is included
@@ -147,7 +147,7 @@ class TestNukeScriptGenerator:
             assert script_path is not None
             assert Path(script_path).exists()
 
-            with open(script_path) as f:
+            with Path(script_path).open() as f:
                 content = f.read()
 
             # Test that problematic characters are handled
@@ -251,7 +251,7 @@ class TestNukeScriptGenerator:
                 plate_path=str(plate_path), shot_name="test_shot"
             )
 
-            with open(script_path) as f:
+            with Path(script_path).open() as f:
                 content = f.read()
 
             # Test colorspace is properly quoted/handled
@@ -277,7 +277,7 @@ class TestNukeScriptGenerator:
             original_node_name = (
                 "LD_3DE4_BRX_170_0100_turnover-plate_PL01_film_lin_v001"
             )
-            with open(undist_path, "w") as f:
+            with undist_path.open("w") as f:
                 f.write(f"""# Mock undistortion node with hyphen in name
 Group {{
  name {original_node_name}
@@ -296,7 +296,7 @@ Group {{
             assert script_path is not None
             assert Path(script_path).exists()
 
-            with open(script_path) as f:
+            with Path(script_path).open() as f:
                 content = f.read()
 
             # Test that the node name has been sanitized (hyphens replaced with underscores)
@@ -340,7 +340,7 @@ Lens2 {
             assert script_path is not None
             assert Path(script_path).exists()
 
-            with open(script_path) as f:
+            with Path(script_path).open() as f:
                 content = f.read()
 
             # Test script structure includes plate and undistortion

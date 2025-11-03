@@ -275,7 +275,7 @@ class TestConcurrentThumbnailRaceConditions:
             print(f"✓ Double-checked locking prevented {3 * len(shots) - discovery_count} redundant calls")
 
             # Validate all results are consistent (no corruption)
-            for worker_id, thumbnail in results:
+            for _worker_id, thumbnail in results:
                 if thumbnail is not None:
                     assert isinstance(thumbnail, Path), f"Invalid thumbnail type: {type(thumbnail)}"
 
@@ -357,7 +357,7 @@ class TestConcurrentThumbnailRaceConditions:
         print(f"\n{'='*70}")
         print("STRESS TEST RESULTS (Production Scenario)")
         print(f"{'='*70}")
-        print(f"✓ 3 models × 95 shots = {total_operations} concurrent operations")
+        print(f"✓ 3 models x 95 shots = {total_operations} concurrent operations")
         print(f"✓ Completed in {elapsed:.2f}s without corruption")
         print(f"✓ Path cache size: {len(_path_cache)} entries")
         print(f"✓ Version cache size: {VersionUtils.get_version_cache_size()} entries")
@@ -400,7 +400,7 @@ class TestConcurrentThumbnailRaceConditions:
             concurrent.futures.wait(futures)
 
         assert not corruption_detected.is_set()
-        print(f"✓ {num_workers} workers × {num_iterations} iterations = no corruption")
+        print(f"✓ {num_workers} workers x {num_iterations} iterations = no corruption")
 
 
 if __name__ == "__main__":

@@ -336,7 +336,7 @@ class TestSettingsManager:
         assert export_path.exists()
 
         # Verify content
-        with open(export_path) as f:
+        with export_path.open() as f:
             exported = json.load(f)
 
         assert "window" in exported
@@ -352,7 +352,7 @@ class TestSettingsManager:
         }
 
         import_path = tmp_path / "settings_import.json"
-        with open(import_path, "w") as f:
+        with import_path.open("w") as f:
             json.dump(import_data, f)
 
         # Import
@@ -370,7 +370,7 @@ class TestSettingsManager:
 
         # Invalid JSON
         bad_json_path = tmp_path / "bad.json"
-        with open(bad_json_path, "w") as f:
+        with bad_json_path.open("w") as f:
             f.write("not valid json{")
 
         result = settings_manager.import_settings(str(bad_json_path))

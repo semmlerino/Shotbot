@@ -16,7 +16,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -43,7 +43,7 @@ class GitIgnoreParser:
         """Initialize with optional .gitignore file path."""
         super().__init__()
         self.patterns: list[str] = []
-        self.always_exclude = {
+        self.always_exclude: set[str] = {
             "__pycache__",
             ".git",
             ".pytest_cache",
@@ -61,17 +61,17 @@ class GitIgnoreParser:
             ".hypothesis",
         }
 
-        if gitignore_path and os.path.exists(gitignore_path):
+        if gitignore_path and Path(gitignore_path).exists():
             self._parse_gitignore(gitignore_path)
 
     def _parse_gitignore(self, gitignore_path: str) -> None:
         """Parse .gitignore file and extract patterns."""
-        with open(gitignore_path) as f:
+        with Path(gitignore_path).open() as f:
             for line in f:
-                line = line.strip()
+                stripped_line = line.strip()
                 # Skip comments and empty lines
-                if line and not line.startswith("#"):
-                    self.patterns.append(line)
+                if stripped_line and not stripped_line.startswith("#"):
+                    self.patterns.append(stripped_line)
 
     def should_exclude(self, path: str, is_dir: bool = False) -> bool:
         """Check if a path should be excluded based on patterns.
@@ -84,7 +84,7 @@ class GitIgnoreParser:
             True if the path should be excluded
         """
         path_parts = Path(path).parts
-        path_name = os.path.basename(path)
+        path_name = Path(path).name
 
         # Check always exclude patterns
         for pattern in self.always_exclude:
@@ -126,9 +126,9 @@ class ApplicationBundler:
             verbose: Enable verbose output
         """
         super().__init__()
-        self.verbose = verbose
+        self.verbose: bool = verbose
         self.config: BundleConfig = self._load_config(config_path)
-        self.gitignore_parser = GitIgnoreParser(".gitignore")
+        self.gitignore_parser: GitIgnoreParser = GitIgnoreParser(".gitignore")
 
     def _load_config(self, config_path: str | None) -> BundleConfig:
         """Load configuration from file or use defaults.
@@ -202,9 +202,9 @@ class ApplicationBundler:
             "output_dir": "encoded_releases",
         }
 
-        if config_path and os.path.exists(config_path):
+        if config_path and Path(config_path).exists():
             try:
-                with open(config_path) as f:
+                with Path(config_path).open() as f:
                     user_config = cast("BundleConfig", json.load(f))
                     default_config.update(user_config)
                     if self.verbose:
@@ -230,7 +230,7 @@ class ApplicationBundler:
         if self.gitignore_parser.should_exclude(file_path):
             return False
 
-        file_name = os.path.basename(file_path)
+        file_name = Path(file_path).name
 
         # Check exclude patterns from config
         exclude_patterns: list[str] = self.config.get("exclude_patterns", [])
@@ -298,7 +298,7 @@ class ApplicationBundler:
             List of (source_path, relative_path) tuples
         """
         files_to_bundle: list[tuple[str, str]] = []
-        source_dir = os.path.abspath(source_dir)
+        source_dir = str(Path(source_dir).resolve())
         max_size_bytes = self.config["max_file_size_mb"] * 1024 * 1024
 
         for root, dirs, files in os.walk(source_dir):
@@ -311,14 +311,15 @@ class ApplicationBundler:
             ]
 
             for file in files:
-                file_path = os.path.join(root, file)
+                file_path = str(Path(root) / file)
                 relative_path = os.path.relpath(file_path, source_dir)
 
                 # Skip files that are too large
                 try:
-                    if os.path.getsize(file_path) > max_size_bytes:
+                    file_path_obj = Path(file_path)
+                    if file_path_obj.stat().st_size > max_size_bytes:
                         if self.verbose:
-                            size_mb = os.path.getsize(file_path) / (1024 * 1024)
+                            size_mb = file_path_obj.stat().st_size / (1024 * 1024)
                             print(
                                 f"Skipping large file ({size_mb:.1f}MB): {relative_path}",
                                 file=sys.stderr,
@@ -353,37 +354,38 @@ class ApplicationBundler:
         # Create output directory
         if output_dir:
             bundle_dir = output_dir
-            os.makedirs(bundle_dir, exist_ok=True)
+            Path(bundle_dir).mkdir(parents=True, exist_ok=True)
         else:
             # Use a fixed temp directory name to avoid accumulation and race conditions
             # This will be overwritten on each run
-            bundle_dir = os.path.join(tempfile.gettempdir(), "shotbot_bundle_temp")
+            bundle_dir_path = Path(tempfile.gettempdir()) / "shotbot_bundle_temp"
             # Clean up any existing directory first
-            if os.path.exists(bundle_dir):
-                shutil.rmtree(bundle_dir)
-            os.makedirs(bundle_dir)
+            if bundle_dir_path.exists():
+                shutil.rmtree(bundle_dir_path)
+            bundle_dir_path.mkdir(exist_ok=True)
+            bundle_dir = str(bundle_dir_path)
 
         # Copy files to bundle directory
         for source_path, relative_path in files_to_bundle:
-            dest_path = os.path.join(bundle_dir, relative_path)
-            dest_dir = os.path.dirname(dest_path)
+            dest_path = Path(bundle_dir) / relative_path
+            dest_dir = dest_path.parent
 
-            os.makedirs(dest_dir, exist_ok=True)
-            shutil.copy2(source_path, dest_path)
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            _ = shutil.copy2(source_path, dest_path)
 
             if self.verbose:
                 print(f"Bundled: {relative_path}", file=sys.stderr)
 
         # Create bundle metadata
         metadata = {
-            "created": datetime.now().isoformat(),
+            "created": datetime.now(tz=UTC).isoformat(),
             "files_count": len(files_to_bundle),
             "files": [rel_path for _, rel_path in files_to_bundle],
-            "source_dir": os.getcwd(),
+            "source_dir": str(Path.cwd()),
         }
 
-        metadata_path = os.path.join(bundle_dir, ".bundle_metadata.json")
-        with open(metadata_path, "w") as f:
+        metadata_path = Path(bundle_dir) / ".bundle_metadata.json"
+        with metadata_path.open("w") as f:
             json.dump(metadata, f, indent=2)
 
         return bundle_dir
@@ -399,18 +401,18 @@ class ApplicationBundler:
             Path to the encoded file
         """
         if not output_file:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
             output_file = f"encoded_app_{timestamp}.txt"
 
         # Build transfer_cli command
-        transfer_cli_path = os.path.join(os.path.dirname(__file__), "transfer_cli.py")
+        transfer_cli_path = Path(__file__).parent / "transfer_cli.py"
 
-        if not os.path.exists(transfer_cli_path):
+        if not transfer_cli_path.exists():
             raise FileNotFoundError(f"transfer_cli.py not found at {transfer_cli_path}")
 
         cmd = [
             sys.executable,
-            transfer_cli_path,
+            str(transfer_cli_path),
             bundle_dir,
             "-o",
             output_file,
@@ -441,38 +443,38 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Bundle application files for base64 encoding",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "-c",
         "--config",
         help="Configuration file path",
         default="transfer_config.json",
         type=str,
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "-o",
         "--output",
         help="Output file for encoded bundle",
         default=None,
         type=str,
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--bundle-dir",
         help="Directory to create bundle in (temp dir if not specified)",
         default=None,
         type=str,
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--keep-bundle",
         action="store_true",
         help="Keep the bundle directory after encoding",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
         help="Enable verbose output",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--list-files",
         action="store_true",
         help="List files that would be bundled without creating bundle",
@@ -485,7 +487,7 @@ def main() -> None:
         config_str = cast("str", args.config)
         verbose_bool = cast("bool", args.verbose)
         bundler = ApplicationBundler(
-            config_path=config_str if os.path.exists(config_str) else None,
+            config_path=config_str if Path(config_str).exists() else None,
             verbose=verbose_bool,
         )
 
@@ -495,7 +497,7 @@ def main() -> None:
             files = bundler.collect_files()
             print(f"Found {len(files)} files to bundle:")
             for source_path, relative_path in sorted(files, key=lambda x: x[1]):
-                size_kb = os.path.getsize(source_path) / 1024
+                size_kb = Path(source_path).stat().st_size / 1024
                 print(f"  {relative_path} ({size_kb:.1f} KB)")
             sys.exit(0)
 

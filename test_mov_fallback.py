@@ -195,8 +195,8 @@ def main() -> int:
         test_mov_fallback(fake_exr_path)
         # Success - path discovery worked (extraction may need FFmpeg on VFX server)
         return 0
-    except Exception as e:
-        logger.exception(f"Test failed: {e}")
+    except Exception:
+        logger.exception("Test failed")
         return 1
 
 

@@ -253,7 +253,7 @@ def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> Moc
     if pool.demo_shots_path.exists():
         logger.info("Loading demo shots for user-assigned simulation")
         try:
-            with open(pool.demo_shots_path, encoding="utf-8") as f:
+            with pool.demo_shots_path.open(encoding="utf-8") as f:
                 # json.load() returns Any - cast to object for type safety
                 raw_data = cast("object", json.load(f))
 

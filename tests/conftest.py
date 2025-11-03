@@ -90,10 +90,10 @@ def mock_settings() -> Iterator[Mock]:
     """Mock QSettings for testing settings persistence."""
     settings_data: dict[str, object] = {}
 
-    def mock_value(key: str, default: object = None, type: type | None = None) -> object:
+    def mock_value(key: str, default: object = None, value_type: type | None = None) -> object:
         value = settings_data.get(key, default)
-        if type and value is not None:
-            return type(value)
+        if value_type and value is not None:
+            return value_type(value)
         return value
 
     def mock_set_value(key: str, value: object) -> None:
@@ -219,15 +219,17 @@ def mock_subprocess_run() -> Iterator[None]:
         cmd = args[0] if args else kwargs.get("args", [])
 
         # Handle different command patterns
-        if isinstance(cmd, list) and len(cmd) >= 2:
-            # Check for workspace commands like: ['/bin/bash', '-i', '-c', 'ws -sg']
-            if "ws -sg" in " ".join(cmd) or "ws" in cmd[-1]:
-                # Return realistic workspace command output
-                mock_result = Mock()
-                mock_result.returncode = 0
-                mock_result.stdout = "workspace /shows/test_show/shots/seq01/seq01_0010"
-                mock_result.stderr = ""
-                return mock_result
+        if (
+            isinstance(cmd, list)
+            and len(cmd) >= 2
+            and ("ws -sg" in " ".join(cmd) or "ws" in cmd[-1])
+        ):
+            # Return realistic workspace command output
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_result.stdout = "workspace /shows/test_show/shots/seq01/seq01_0010"
+            mock_result.stderr = ""
+            return mock_result
 
         # Default: return empty but successful result
         mock_result = Mock()
@@ -535,7 +537,7 @@ def make_test_launcher():
         command: str = "echo {shot_name}",
         description: str = "Test launcher",
         category: str = "test",
-        id: str | None = None,
+        launcher_id: str | None = None,
     ) -> CustomLauncher:
         """Create a CustomLauncher instance for testing.
 
@@ -544,16 +546,16 @@ def make_test_launcher():
             command: Command to execute (default: "echo {shot_name}")
             description: Launcher description (default: "Test launcher")
             category: Launcher category (default: "test")
-            id: Launcher ID (default: auto-generated UUID)
+            launcher_id: Launcher ID (default: auto-generated UUID)
 
         Returns:
             CustomLauncher instance
         """
-        if id is None:
-            id = str(uuid.uuid4())
+        if launcher_id is None:
+            launcher_id = str(uuid.uuid4())
 
         return CustomLauncher(
-            id=id,
+            id=launcher_id,
             name=name,
             command=command,
             description=description,

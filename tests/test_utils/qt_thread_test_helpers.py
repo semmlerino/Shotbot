@@ -203,9 +203,11 @@ class WorkerTestFramework:
                 results["final_state"] = worker.get_state()
 
             # Verify expected final state
-            if expected_final_state is not None:
-                if results["final_state"] != expected_final_state:
-                    results["success"] = False
+            if (
+                expected_final_state is not None
+                and results["final_state"] != expected_final_state
+            ):
+                results["success"] = False
 
         except Exception as e:
             results["success"] = False

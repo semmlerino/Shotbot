@@ -18,7 +18,7 @@ def apply_logging_mixin(file_path: Path) -> bool:
     Returns:
         True if changes were made, False otherwise
     """
-    with open(file_path) as f:
+    with file_path.open() as f:
         content = f.read()
         original_content = content
 
@@ -40,20 +40,19 @@ def apply_logging_mixin(file_path: Path) -> bool:
         return False
 
     # Find all class definitions
-    classes: list[dict[str, object]] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef):
-            classes.append(
-                {
-                    "name": node.name,
-                    "line": node.lineno,
-                    "has_qobject": any(
-                        (isinstance(base, ast.Name) and base.id == "QObject")
-                        or (isinstance(base, ast.Attribute) and base.attr == "QObject")
-                        for base in node.bases
-                    ),
-                }
-            )
+    classes: list[dict[str, object]] = [
+        {
+            "name": node.name,
+            "line": node.lineno,
+            "has_qobject": any(
+                (isinstance(base, ast.Name) and base.id == "QObject")
+                or (isinstance(base, ast.Attribute) and base.attr == "QObject")
+                for base in node.bases
+            ),
+        }
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef)
+    ]
 
     if not classes:
         print(f"  ⚠ {file_path.name} has no classes to update")
@@ -77,23 +76,22 @@ def apply_logging_mixin(file_path: Path) -> bool:
             in_type_checking_block = False
 
         # Track imports that are not in TYPE_CHECKING
-        if not in_type_checking_block:
-            if stripped.startswith(("import ", "from ")):
-                last_regular_import = i
+        if not in_type_checking_block and stripped.startswith(("import ", "from ")):
+            last_regular_import = i
 
     # Add the import after the last regular import
-    if last_regular_import >= 0:
-        # Check if there's already a from logging_mixin import
-        if not any("from logging_mixin import" in line for line in lines):
-            # Find a good place - after the last import but before any blank lines
-            insert_pos = last_regular_import + 1
+    if last_regular_import >= 0 and not any(
+        "from logging_mixin import" in line for line in lines
+    ):
+        # Find a good place - after the last import but before any blank lines
+        insert_pos = last_regular_import + 1
 
-            # Skip any trailing blank lines after imports
-            while insert_pos < len(lines) and not lines[insert_pos].strip():
-                insert_pos += 1
+        # Skip any trailing blank lines after imports
+        while insert_pos < len(lines) and not lines[insert_pos].strip():
+            insert_pos += 1
 
-            # Insert the import
-            lines.insert(insert_pos, "from logging_mixin import LoggingMixin")
+        # Insert the import
+        lines.insert(insert_pos, "from logging_mixin import LoggingMixin")
 
     content = "\n".join(lines)
 
@@ -171,7 +169,7 @@ def apply_logging_mixin(file_path: Path) -> bool:
 
     # Only write if changes were made
     if content != original_content:
-        with open(file_path, "w") as f:
+        with file_path.open("w") as f:
             f.write(content)
         print(f"  ✓ Updated {file_path.name}")
         return True
@@ -188,7 +186,7 @@ def main() -> int:
         if file_path.name == "apply_logging_mixin.py":
             continue
 
-        with open(file_path) as f:
+        with file_path.open() as f:
             content = f.read()
             if (
                 "logger = logging.getLogger(__name__)" in content

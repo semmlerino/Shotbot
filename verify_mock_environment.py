@@ -174,7 +174,7 @@ def verify_filesystem() -> bool:
     # Check marker file
     marker = mock_root / "MOCK_VFX_ENVIRONMENT.txt"
     if marker.exists():
-        with open(marker) as f:
+        with marker.open() as f:
             content = f.read()
             if "tempest.blue-bolt.lan" in content:
                 logger.info(

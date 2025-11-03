@@ -22,7 +22,7 @@ def test_mock_setup() -> None:
     assert demo_shots_path.exists(), "demo_shots.json not found!"
 
     try:
-        with open(demo_shots_path) as f:
+        with demo_shots_path.open() as f:
             demo_data = json.load(f)
             shots = demo_data.get("shots", [])
             print(f"✅ Found demo_shots.json with {len(shots)} shots")

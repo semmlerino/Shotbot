@@ -77,13 +77,13 @@ def main() -> int:
         "type_definitions.py",
     ]
 
-    for file in key_files:
-        if Path(file).exists():
-            results.append(
-                run_command(
-                    ["python3", "-m", "basedpyright", file], f"Type checking {file}"
-                )
-            )
+    results.extend(
+        run_command(
+            ["python3", "-m", "basedpyright", file], f"Type checking {file}"
+        )
+        for file in key_files
+        if Path(file).exists()
+    )
 
     # Summary
     print(f"\n{'=' * 60}")

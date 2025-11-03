@@ -505,7 +505,7 @@ class TestThreadSafety:
 
         # All operations should succeed
         assert all(results)
-        assert len(results) == 15  # 3 threads × 5 operations
+        assert len(results) == 15  # 3 threads x 5 operations
 
     def test_concurrent_cache_clearing(
         self, cache_manager: CacheManager, sample_shots: list[Shot]
@@ -553,7 +553,7 @@ class TestThreadSafety:
             clears.append(clear_queue.get())
 
         # Verify no crashes or corruption
-        assert len(reads) == 30  # 3 threads × 10 reads
+        assert len(reads) == 30  # 3 threads x 10 reads
         assert len(clears) == 5
 
 
@@ -798,7 +798,7 @@ class TestPersistentPreviousShotsCache:
             results.append(results_queue.get())
 
         # All reads should succeed and return correct count
-        assert len(results) == 30  # 3 threads × 10 reads
+        assert len(results) == 30  # 3 threads x 10 reads
         assert all(r == 3 for r in results)  # All should see 3 shots
 
     def test_persistent_cache_survives_manager_recreation(

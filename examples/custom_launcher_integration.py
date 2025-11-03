@@ -5,7 +5,7 @@
 import os
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
@@ -18,7 +18,7 @@ sys.modules["PySide6.QtCore"].QObject = object
 sys.modules["PySide6.QtCore"].Signal = Mock()
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Local application imports
 # Import the persistent terminal manager
@@ -254,7 +254,7 @@ def demo_integration() -> None:
 
     for category, launchers in categories.items():
         print(f"\n  📁 {category.title()}:")
-        for launcher_id, launcher in launchers:
+        for _launcher_id, launcher in launchers:
             print(f"    • {launcher.name}")
             print(f"      {launcher.description}")
             print(f"      Command: {launcher.command}")
@@ -287,7 +287,7 @@ def demo_integration() -> None:
             {
                 "user": "demo_user",
                 "shotbot_path": "/path/to/shotbot.py",
-                "timestamp": datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+                "timestamp": datetime.now(tz=UTC).strftime("%Y-%m-%d_%H-%M-%S"),
             },
         )
 
@@ -336,7 +336,7 @@ class CommandLauncher(QObject):
         )
 
         if result.success:
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = datetime.now(tz=timezone.utc).strftime("%H:%M:%S")
             self.command_executed.emit(timestamp, result.command)
             return True
         else:
@@ -349,5 +349,5 @@ class CommandLauncher(QObject):
 
 if __name__ == "__main__":
     # Create examples directory if it doesn't exist
-    os.makedirs(os.path.dirname(os.path.abspath(__file__)), exist_ok=True)
+    Path(__file__).resolve().parent.mkdir(parents=True, exist_ok=True)
     demo_integration()

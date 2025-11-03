@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Third-party imports
@@ -82,15 +83,16 @@ class HeadlessMode:
             return True
 
         # Check if running in Docker/container (common for CI)
-        if os.path.exists("/.dockerenv"):
+        if Path("/.dockerenv").exists():
             logger.info("Docker environment detected - assuming headless")
             return True
 
         # Check for WSL without display
-        if "microsoft-standard" in os.uname().release.lower():
-            if not os.environ.get("DISPLAY"):
-                logger.info("WSL without DISPLAY - assuming headless")
-                return True
+        if "microsoft-standard" in os.uname().release.lower() and not os.environ.get(
+            "DISPLAY"
+        ):
+            logger.info("WSL without DISPLAY - assuming headless")
+            return True
 
         return False
 

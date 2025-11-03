@@ -58,10 +58,10 @@ def create_test_shot(
 
 def create_test_shots(count: int = 3) -> list[Shot]:
     """Create multiple test shots."""
-    shots = []
-    for i in range(count):
-        shots.append(create_test_shot("show1", "seq01", f"{(i + 1) * 10:04d}"))
-    return shots
+    return [
+        create_test_shot("show1", "seq01", f"{(i + 1) * 10:04d}")
+        for i in range(count)
+    ]
 
 
 class FakePreviousShotsModel(QObject):

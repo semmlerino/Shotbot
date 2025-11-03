@@ -701,7 +701,7 @@ def test_generate_performance_report(profiler) -> None:
     # Save report to file
     report_path = Path("tests/performance/threede_finder_performance_report.txt")
     report_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
-    with open(report_path, "w") as f:
+    with report_path.open("w") as f:
         f.write(report)
 
     print(f"\nPerformance report saved to: {report_path}")

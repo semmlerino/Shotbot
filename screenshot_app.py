@@ -6,6 +6,7 @@ Script to run ShotBot in mock mode and capture a screenshot.
 # Standard library imports
 import os
 import sys
+from pathlib import Path
 
 # Third-party imports
 from PySide6.QtCore import QTimer
@@ -25,7 +26,6 @@ from main_window import MainWindow
 def capture_screenshot() -> None:
     """Capture screenshot of the ShotBot main window."""
     # Standard library imports
-    import glob
 
     app = QApplication.instance()
     if not app:
@@ -57,7 +57,7 @@ def capture_screenshot() -> None:
     pixmap = main_window.grab()
 
     # Find the next available screenshot number
-    existing_screenshots = glob.glob("shotbot_screenshot_*.png")
+    existing_screenshots = [p.name for p in Path().glob("shotbot_screenshot_*.png")]
     next_num: int = 1
     if existing_screenshots:
         numbers: list[int] = []

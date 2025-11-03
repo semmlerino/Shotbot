@@ -151,10 +151,9 @@ def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
         workspace_path, show, sequence, shot_dir = match.groups()
 
         # Original logic
-        if shot_dir.startswith(sequence):
-            if len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == "_":
-                shot = shot_dir[len(sequence) + 1 :]
-                return ParseResult(show, sequence, shot, workspace_path)
+        if shot_dir.startswith(sequence) and len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == "_":
+            shot = shot_dir[len(sequence) + 1 :]
+            return ParseResult(show, sequence, shot, workspace_path)
         if "_" in shot_dir:
             shot = shot_dir.rsplit("_", 1)[-1]
             return ParseResult(show, sequence, shot, workspace_path)

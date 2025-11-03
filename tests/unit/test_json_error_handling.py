@@ -30,7 +30,7 @@ def test_json_error_handling() -> None:
 
         # Test 1: Invalid JSON syntax
         print("\n1. Testing invalid JSON syntax...")
-        with open(demo_path, "w") as f:
+        with demo_path.open("w") as f:
             f.write('{"shots": [{"show": "test"')  # Missing closing brackets
         pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
         assert pool is not None, "Should create pool even with invalid JSON"
@@ -38,7 +38,7 @@ def test_json_error_handling() -> None:
 
         # Test 2: Not a dict at root
         print("\n2. Testing non-dict root structure...")
-        with open(demo_path, "w") as f:
+        with demo_path.open("w") as f:
             json.dump(["not", "a", "dict"], f)
         pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
         assert pool is not None, "Should handle non-dict root gracefully"
@@ -46,7 +46,7 @@ def test_json_error_handling() -> None:
 
         # Test 3: Missing 'shots' key
         print("\n3. Testing missing 'shots' key...")
-        with open(demo_path, "w") as f:
+        with demo_path.open("w") as f:
             json.dump({"other_key": []}, f)
         pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
         assert pool is not None, "Should handle missing 'shots' key gracefully"
@@ -54,7 +54,7 @@ def test_json_error_handling() -> None:
 
         # Test 4: 'shots' is not a list
         print("\n4. Testing 'shots' as non-list...")
-        with open(demo_path, "w") as f:
+        with demo_path.open("w") as f:
             json.dump({"shots": "not a list"}, f)
         pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
         assert pool is not None, "Should handle non-list 'shots' gracefully"
@@ -62,7 +62,7 @@ def test_json_error_handling() -> None:
 
         # Test 5: Shot without required fields
         print("\n5. Testing shot missing required fields...")
-        with open(demo_path, "w") as f:
+        with demo_path.open("w") as f:
             json.dump(
                 {
                     "shots": [
@@ -77,7 +77,7 @@ def test_json_error_handling() -> None:
 
         # Test 6: Shot is not a dict
         print("\n6. Testing shot as non-dict...")
-        with open(demo_path, "w") as f:
+        with demo_path.open("w") as f:
             json.dump({"shots": ["not a dict"]}, f)
         pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
         assert pool is not None, "Should handle non-dict shot gracefully"
@@ -85,7 +85,7 @@ def test_json_error_handling() -> None:
 
         # Test 7: Valid JSON structure
         print("\n7. Testing valid JSON structure...")
-        with open(demo_path, "w") as f:
+        with demo_path.open("w") as f:
             json.dump(
                 {
                     "shots": [
@@ -102,7 +102,7 @@ def test_json_error_handling() -> None:
         # Test 8: File permissions error (simulate)
         print("\n8. Testing file permissions error...")
         # We can't easily simulate this without root, so we'll just verify the error handling code exists
-        with open("mock_workspace_pool.py") as f:
+        with Path("mock_workspace_pool.py").open() as f:
             content = f.read()
             assert "except (IOError, OSError) as e:" in content or "except OSError as e:" in content, "Missing OSError handling"
             print("   ✓ OSError handling code present")

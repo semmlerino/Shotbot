@@ -252,7 +252,7 @@ class ThumbnailProcessorProtocol(Protocol):
         """Load and resize a thumbnail."""
         ...
 
-    def supports_format(self, format: str) -> bool:
+    def supports_format(self, image_format: str) -> bool:
         """Check if processor supports given format."""
         ...
 

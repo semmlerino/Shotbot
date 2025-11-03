@@ -66,7 +66,7 @@ class LauncherWorker(ThreadSafeWorker):
             SecurityError: If command contains dangerous patterns or isn't whitelisted
         """
         # Whitelist of allowed base commands
-        ALLOWED_COMMANDS = {
+        allowed_commands = {
             "3de",
             "3de4",
             "3dequalizer",
@@ -89,7 +89,7 @@ class LauncherWorker(ThreadSafeWorker):
         }
 
         # Dangerous patterns that indicate potential injection attempts
-        DANGEROUS_PATTERNS = [
+        dangerous_patterns = [
             r";\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
             r"&&\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
             r"\|\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
@@ -101,7 +101,7 @@ class LauncherWorker(ThreadSafeWorker):
         ]
 
         # Check for dangerous patterns
-        for pattern in DANGEROUS_PATTERNS:
+        for pattern in dangerous_patterns:
             if re.search(pattern, command, re.IGNORECASE):
                 raise SecurityError(
                     f"Command contains dangerous pattern and was blocked: {command[:100]}"
@@ -116,10 +116,10 @@ class LauncherWorker(ThreadSafeWorker):
                 base_command = cmd_list[0].split("/")[
                     -1
                 ]  # Get command name without path
-                if base_command not in ALLOWED_COMMANDS:
+                if base_command not in allowed_commands:
                     # Check if it's a full path to an allowed command
                     allowed = False
-                    for allowed_cmd in ALLOWED_COMMANDS:
+                    for allowed_cmd in allowed_commands:
                         if allowed_cmd in cmd_list[0]:
                             allowed = True
                             break

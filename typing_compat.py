@@ -9,7 +9,7 @@ import sys
 
 if sys.version_info >= (3, 12):
     from typing import override
-else:
+else:  # pragma: no cover
     from typing_extensions import override
 
 

@@ -16,7 +16,8 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, cast
 
 # Local application imports
@@ -240,13 +241,13 @@ class SystemDiagnostics(LoggingMixin):
             Dictionary with system information (values can be primitives, lists, or nested dicts)
         """
         info: dict[str, str | int | float | list[str] | dict[str, float]] = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "platform": platform.platform(),
             "python": sys.version,
             "python_executable": sys.executable,
             "hostname": socket.gethostname(),
             "user": os.environ.get("USER", "unknown"),
-            "cwd": os.getcwd(),
+            "cwd": str(Path.cwd()),
             "pid": os.getpid(),
         }
 
@@ -255,9 +256,9 @@ class SystemDiagnostics(LoggingMixin):
         info["PATH"] = path_entries[:5] if path_entries else []
 
         # File descriptor count (Linux only)
-        if os.path.exists("/proc/self/fd"):
+        if Path("/proc/self/fd").exists():
             try:
-                info["fd_count"] = len(os.listdir("/proc/self/fd"))
+                info["fd_count"] = len(list(Path("/proc/self/fd").iterdir()))
             except (OSError, PermissionError):
                 info["fd_count"] = "N/A"
 

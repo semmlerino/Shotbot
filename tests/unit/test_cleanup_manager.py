@@ -109,34 +109,29 @@ class TestCleanupOrchestration:
         self, cleanup_manager: CleanupManager, qtbot: QtBot
     ) -> None:
         """Test perform_cleanup emits started and finished signals."""
-        with qtbot.waitSignal(cleanup_manager.cleanup_started):
-            with qtbot.waitSignal(cleanup_manager.cleanup_finished):
-                cleanup_manager.perform_cleanup()
+        with qtbot.waitSignal(cleanup_manager.cleanup_started), qtbot.waitSignal(
+            cleanup_manager.cleanup_finished
+        ):
+            cleanup_manager.perform_cleanup()
 
     def test_perform_cleanup_calls_all_steps_in_order(
         self, cleanup_manager: CleanupManager, mock_main_window: Mock
     ) -> None:
         """Test perform_cleanup calls cleanup steps in correct order."""
-        with patch.object(cleanup_manager, "_mark_closing") as mock_mark:
-            with patch.object(
-                cleanup_manager, "_cleanup_threede_controller"
-            ) as mock_3de:
-                with patch.object(
-                    cleanup_manager, "_cleanup_session_warmer"
-                ) as mock_session:
-                    with patch.object(
-                        cleanup_manager, "_cleanup_managers"
-                    ) as mock_managers:
-                        with patch.object(
-                            cleanup_manager, "_cleanup_models"
-                        ) as mock_models:
-                            with patch.object(
-                                cleanup_manager, "_cleanup_terminal"
-                            ) as mock_terminal:
-                                with patch.object(
-                                    cleanup_manager, "_final_cleanup"
-                                ) as mock_final:
-                                    cleanup_manager.perform_cleanup()
+        with patch.object(cleanup_manager, "_mark_closing") as mock_mark, patch.object(
+            cleanup_manager, "_cleanup_threede_controller"
+        ) as mock_3de, patch.object(
+            cleanup_manager, "_cleanup_session_warmer"
+        ) as mock_session, patch.object(
+            cleanup_manager, "_cleanup_managers"
+        ) as mock_managers, patch.object(
+            cleanup_manager, "_cleanup_models"
+        ) as mock_models, patch.object(
+            cleanup_manager, "_cleanup_terminal"
+        ) as mock_terminal, patch.object(
+            cleanup_manager, "_final_cleanup"
+        ) as mock_final:
+            cleanup_manager.perform_cleanup()
 
         # Verify all steps called
         mock_mark.assert_called_once()
@@ -153,9 +148,10 @@ class TestCleanupOrchestration:
         """Test cleanup_finished signal emitted even if exception occurs."""
         with patch.object(
             cleanup_manager, "_mark_closing", side_effect=RuntimeError("Test error")
-        ), pytest.raises(RuntimeError):
-            with qtbot.waitSignal(cleanup_manager.cleanup_finished):
-                cleanup_manager.perform_cleanup()
+        ), pytest.raises(RuntimeError), qtbot.waitSignal(
+            cleanup_manager.cleanup_finished
+        ):
+            cleanup_manager.perform_cleanup()
 
 
 # =============================================================================
@@ -479,10 +475,10 @@ class TestFinalCleanup:
         self, cleanup_manager: CleanupManager
     ) -> None:
         """Test final cleanup calls cleanup_all_runnables."""
-        with patch("runnable_tracker.cleanup_all_runnables") as mock_cleanup:
-            with patch("cleanup_manager.QApplication.instance", return_value=Mock()):
-                with patch("gc.collect"):
-                    cleanup_manager._final_cleanup()
+        with patch("runnable_tracker.cleanup_all_runnables") as mock_cleanup, patch(
+            "cleanup_manager.QApplication.instance", return_value=Mock()
+        ), patch("gc.collect"):
+            cleanup_manager._final_cleanup()
 
         mock_cleanup.assert_called_once()
 
@@ -491,10 +487,10 @@ class TestFinalCleanup:
     ) -> None:
         """Test final cleanup processes pending Qt events."""
         mock_app = Mock()
-        with patch("runnable_tracker.cleanup_all_runnables"):
-            with patch("cleanup_manager.QApplication.instance", return_value=mock_app):
-                with patch("gc.collect"):
-                    cleanup_manager._final_cleanup()
+        with patch("runnable_tracker.cleanup_all_runnables"), patch(
+            "cleanup_manager.QApplication.instance", return_value=mock_app
+        ), patch("gc.collect"):
+            cleanup_manager._final_cleanup()
 
         mock_app.processEvents.assert_called_once()
 
@@ -502,10 +498,10 @@ class TestFinalCleanup:
         self, cleanup_manager: CleanupManager
     ) -> None:
         """Test final cleanup runs garbage collection."""
-        with patch("runnable_tracker.cleanup_all_runnables"):
-            with patch("cleanup_manager.QApplication.instance", return_value=Mock()):
-                with patch("gc.collect") as mock_gc:
-                    cleanup_manager._final_cleanup()
+        with patch("runnable_tracker.cleanup_all_runnables"), patch(
+            "cleanup_manager.QApplication.instance", return_value=Mock()
+        ), patch("gc.collect") as mock_gc:
+            cleanup_manager._final_cleanup()
 
         mock_gc.assert_called_once()
 
@@ -513,11 +509,11 @@ class TestFinalCleanup:
         self, cleanup_manager: CleanupManager
     ) -> None:
         """Test final cleanup handles missing QApplication gracefully."""
-        with patch("runnable_tracker.cleanup_all_runnables"):
-            with patch("cleanup_manager.QApplication.instance", return_value=None):
-                with patch("gc.collect"):
-                    # Should not raise
-                    cleanup_manager._final_cleanup()
+        with patch("runnable_tracker.cleanup_all_runnables"), patch(
+            "cleanup_manager.QApplication.instance", return_value=None
+        ), patch("gc.collect"):
+            # Should not raise
+            cleanup_manager._final_cleanup()
 
 
 # =============================================================================
@@ -535,14 +531,16 @@ class TestCleanupIntegration:
         # Save references before they're set to None
         session_warmer = mock_main_window.session_warmer
 
-        with qtbot.waitSignal(cleanup_manager.cleanup_started):
-            with qtbot.waitSignal(cleanup_manager.cleanup_finished):
-                with patch("runnable_tracker.cleanup_all_runnables"):
-                    with patch(
-                        "cleanup_manager.QApplication.instance", return_value=Mock()
-                    ):
-                        with patch("gc.collect"):
-                            cleanup_manager.perform_cleanup()
+        with qtbot.waitSignal(
+            cleanup_manager.cleanup_started
+        ), qtbot.waitSignal(
+            cleanup_manager.cleanup_finished
+        ), patch(
+            "runnable_tracker.cleanup_all_runnables"
+        ), patch(
+            "cleanup_manager.QApplication.instance", return_value=Mock()
+        ), patch("gc.collect"):
+            cleanup_manager.perform_cleanup()
 
         # Verify all cleanup methods called
         assert mock_main_window.closing is True
@@ -564,11 +562,11 @@ class TestCleanupIntegration:
 
         manager = CleanupManager(window)
 
-        with patch("runnable_tracker.cleanup_all_runnables"):
-            with patch("cleanup_manager.QApplication.instance", return_value=Mock()):
-                with patch("gc.collect"):
-                    # Should not raise
-                    manager.perform_cleanup()
+        with patch("runnable_tracker.cleanup_all_runnables"), patch(
+            "cleanup_manager.QApplication.instance", return_value=Mock()
+        ), patch("gc.collect"):
+            # Should not raise
+            manager.perform_cleanup()
 
         window.shot_model.cleanup.assert_called_once()
 
@@ -582,10 +580,10 @@ class TestCleanupIntegration:
         )
         mock_main_window.shot_model.cleanup.side_effect = RuntimeError("Model error")
 
-        with patch("runnable_tracker.cleanup_all_runnables"):
-            with patch("cleanup_manager.QApplication.instance", return_value=Mock()):
-                with patch("gc.collect"):
-                    # Should raise first exception but still emit finished signal
-                    with pytest.raises(RuntimeError, match="3DE error"):
-                        with qtbot.waitSignal(cleanup_manager.cleanup_finished):
-                            cleanup_manager.perform_cleanup()
+        with patch("runnable_tracker.cleanup_all_runnables"), patch(
+            "cleanup_manager.QApplication.instance", return_value=Mock()
+        ), patch("gc.collect"), pytest.raises(
+            RuntimeError, match="3DE error"
+        ), qtbot.waitSignal(cleanup_manager.cleanup_finished):
+            # Should raise first exception but still emit finished signal
+            cleanup_manager.perform_cleanup()

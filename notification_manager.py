@@ -154,7 +154,7 @@ class ToastNotification(QFrame):
         layout.addWidget(self.message_label, 1)
 
         # Close button
-        self.close_button = QPushButton("×")
+        self.close_button = QPushButton("x")
         self.close_button.setFixedSize(20, 20)
         _ = self.close_button.clicked.connect(self.dismiss)
         self.close_button.setStyleSheet("""
@@ -189,13 +189,13 @@ class ToastNotification(QFrame):
         icon_chars = {
             NotificationType.ERROR: "✗",
             NotificationType.WARNING: "⚠",
-            NotificationType.INFO: "ℹ",
+            NotificationType.INFO: "i",
             NotificationType.SUCCESS: "✓",
             NotificationType.PROGRESS: "⟳",
         }
 
         bg_color = colors.get(self.notification_type, "#3498db")
-        icon_char = icon_chars.get(self.notification_type, "ℹ")
+        icon_char = icon_chars.get(self.notification_type, "i")
 
         # Set background color with transparency
         self.setStyleSheet(f"""

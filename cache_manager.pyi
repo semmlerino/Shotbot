@@ -11,6 +11,7 @@ from PySide6.QtCore import QObject, QRunnable, Signal
 
 from shot_model import Shot
 from type_definitions import ShotDict, ThreeDESceneDict
+from typing_compat import override
 
 # Incremental merging support
 class ShotMergeResult(NamedTuple):
@@ -133,4 +134,5 @@ class ThumbnailCacheLoader(QRunnable):
         shot: str,
         result: dict[str, object] | None = ...,
     ) -> None: ...
+    @override
     def run(self) -> None: ...

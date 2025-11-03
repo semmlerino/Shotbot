@@ -25,6 +25,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import UTC
 from pathlib import Path
 from typing import TypeAlias
 
@@ -313,12 +314,12 @@ def main() -> None:
             # Standard library imports
             from datetime import datetime
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
             hostname = os.uname().nodename.split(".")[0]  # First part of hostname
             output_file = f"vfx_structure_{hostname}_{timestamp}.json"
 
         # Save to file
-        with open(output_file, "w") as f:
+        with Path(output_file).open("w") as f:
             f.write(output)
 
         print(f"✅ Structure saved to: {output_file}")

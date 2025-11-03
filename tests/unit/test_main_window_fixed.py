@@ -77,9 +77,12 @@ class TestMainWindowNoHang:
                 worker.wait(100)  # Short wait
 
         # Disable auto-refresh timers if they exist
-        if hasattr(main_window, "_refresh_timer"):
-            if main_window._refresh_timer and main_window._refresh_timer.isActive():
-                main_window._refresh_timer.stop()
+        if (
+            hasattr(main_window, "_refresh_timer")
+            and main_window._refresh_timer
+            and main_window._refresh_timer.isActive()
+        ):
+            main_window._refresh_timer.stop()
 
         return main_window
 
@@ -161,9 +164,12 @@ class TestApplicationLaunchingNoHang:
         main_window.shot_model._process_pool = test_pool
 
         # Disable timers
-        if hasattr(main_window, "_refresh_timer"):
-            if main_window._refresh_timer and main_window._refresh_timer.isActive():
-                main_window._refresh_timer.stop()
+        if (
+            hasattr(main_window, "_refresh_timer")
+            and main_window._refresh_timer
+            and main_window._refresh_timer.isActive()
+        ):
+            main_window._refresh_timer.stop()
 
         # Clear any existing shots to prevent interference
         main_window.shot_model.shots = []
@@ -251,9 +257,12 @@ class TestApplicationLaunchingNoHang:
         main_window.shot_model._process_pool = test_pool
 
         # Disable timers
-        if hasattr(main_window, "_refresh_timer"):
-            if main_window._refresh_timer and main_window._refresh_timer.isActive():
-                main_window._refresh_timer.stop()
+        if (
+            hasattr(main_window, "_refresh_timer")
+            and main_window._refresh_timer
+            and main_window._refresh_timer.isActive()
+        ):
+            main_window._refresh_timer.stop()
 
         # No shot selected - buttons should be disabled
         assert "nuke" in main_window.launcher_panel.app_sections

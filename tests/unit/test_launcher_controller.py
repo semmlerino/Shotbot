@@ -708,9 +708,9 @@ class TestCustomLaunchers:
         )
 
         # Mock QAction creation to avoid QWidget issues
-        with patch("controllers.launcher_controller.QAction") as MockQAction:
+        with patch("controllers.launcher_controller.QAction") as mock_qaction:
             mock_action = Mock()
-            MockQAction.return_value = mock_action
+            mock_qaction.return_value = mock_action
 
             controller.update_launcher_menu()
 
@@ -737,9 +737,9 @@ class TestCustomLaunchers:
         target.launcher_manager.list_launchers = Mock(return_value=[launcher1])
 
         # Mock QAction creation
-        with patch("controllers.launcher_controller.QAction") as MockQAction:
+        with patch("controllers.launcher_controller.QAction") as mock_qaction:
             mock_action = Mock()
-            MockQAction.return_value = mock_action
+            mock_qaction.return_value = mock_action
 
             controller.update_launcher_menu()
 
@@ -759,9 +759,9 @@ class TestCustomLaunchers:
         target.launcher_manager.list_launchers = Mock(return_value=[])
 
         # Mock QAction creation for placeholder
-        with patch("controllers.launcher_controller.QAction") as MockQAction:
+        with patch("controllers.launcher_controller.QAction") as mock_qaction:
             mock_action = Mock()
-            MockQAction.return_value = mock_action
+            mock_qaction.return_value = mock_action
 
             controller.update_launcher_menu()
 
@@ -806,13 +806,13 @@ class TestCustomLaunchers:
         controller, target = make_launcher_controller()
 
         # Mock the dialog import (it's imported locally in the method)
-        with patch("launcher_dialog.LauncherManagerDialog") as MockDialog:
+        with patch("launcher_dialog.LauncherManagerDialog") as mock_dialog_class:
             mock_dialog = Mock()
-            MockDialog.return_value = mock_dialog
+            mock_dialog_class.return_value = mock_dialog
 
             controller.show_launcher_manager()
 
-            MockDialog.assert_called_once_with(target.launcher_manager, target)
+            mock_dialog_class.assert_called_once_with(target.launcher_manager, target)
             mock_dialog.show.assert_called_once()
             mock_dialog.raise_.assert_called_once()
             mock_dialog.activateWindow.assert_called_once()
@@ -847,11 +847,11 @@ class TestErrorHandling:
         """Test error notification for application not found."""
         controller, _target = make_launcher_controller()
 
-        with patch("controllers.launcher_controller.NotificationManager") as MockNotif:
+        with patch("controllers.launcher_controller.NotificationManager") as mock_notif:
             controller._on_command_error("12:00:00", "nuke: command not found")
 
-            MockNotif.error.assert_called()
-            call_args = MockNotif.error.call_args[0]
+            mock_notif.error.assert_called()
+            call_args = mock_notif.error.call_args[0]
             assert "Application Not Found" in call_args[0]
 
     def test_command_error_notification_permission(
@@ -863,11 +863,11 @@ class TestErrorHandling:
         """Test error notification for permission denied."""
         controller, _target = make_launcher_controller()
 
-        with patch("controllers.launcher_controller.NotificationManager") as MockNotif:
+        with patch("controllers.launcher_controller.NotificationManager") as mock_notif:
             controller._on_command_error("12:00:00", "Permission denied: /usr/bin/app")
 
-            MockNotif.error.assert_called()
-            call_args = MockNotif.error.call_args[0]
+            mock_notif.error.assert_called()
+            call_args = mock_notif.error.call_args[0]
             assert "Permission Denied" in call_args[0]
 
     def test_command_error_notification_no_shot(
@@ -879,11 +879,11 @@ class TestErrorHandling:
         """Test error notification for no shot selected."""
         controller, _target = make_launcher_controller()
 
-        with patch("controllers.launcher_controller.NotificationManager") as MockNotif:
+        with patch("controllers.launcher_controller.NotificationManager") as mock_notif:
             controller._on_command_error("12:00:00", "No shot selected")
 
-            MockNotif.warning.assert_called()
-            call_args = MockNotif.warning.call_args[0]
+            mock_notif.warning.assert_called()
+            call_args = mock_notif.warning.call_args[0]
             assert "No Shot Selected" in call_args[0]
 
     def test_command_error_notification_generic(
@@ -895,11 +895,11 @@ class TestErrorHandling:
         """Test error notification for generic errors."""
         controller, _target = make_launcher_controller()
 
-        with patch("controllers.launcher_controller.NotificationManager") as MockNotif:
+        with patch("controllers.launcher_controller.NotificationManager") as mock_notif:
             controller._on_command_error("12:00:00", "Something went wrong")
 
-            MockNotif.error.assert_called()
-            call_args = MockNotif.error.call_args[0]
+            mock_notif.error.assert_called()
+            call_args = mock_notif.error.call_args[0]
             assert "Launch Failed" in call_args[0]
 
     def test_launcher_started_progress(
@@ -915,10 +915,10 @@ class TestErrorHandling:
         mock_launcher.name = "Test Launcher"
         target.launcher_manager.get_launcher = Mock(return_value=mock_launcher)
 
-        with patch("controllers.launcher_controller.ProgressManager") as MockProgress:
+        with patch("controllers.launcher_controller.ProgressManager") as mock_progress:
             controller._on_launcher_started("test_launcher")
 
-            MockProgress.start_operation.assert_called_once_with(
+            mock_progress.start_operation.assert_called_once_with(
                 "Launching Test Launcher"
             )
 
@@ -931,16 +931,17 @@ class TestErrorHandling:
         """Test handling successful launcher completion."""
         controller, _target = make_launcher_controller()
 
-        with patch("controllers.launcher_controller.ProgressManager") as MockProgress:
-            with patch(
-                "controllers.launcher_controller.NotificationManager"
-            ) as MockNotif:
-                controller._on_launcher_finished("test_launcher", True)
+        with patch(
+            "controllers.launcher_controller.ProgressManager"
+        ) as mock_progress, patch(
+            "controllers.launcher_controller.NotificationManager"
+        ) as mock_notif:
+            controller._on_launcher_finished("test_launcher", True)
 
-                MockProgress.finish_operation.assert_called_once_with(success=True)
-                MockNotif.toast.assert_called()
-                call_args = MockNotif.toast.call_args[0]
-                assert "successfully" in call_args[0]
+            mock_progress.finish_operation.assert_called_once_with(success=True)
+            mock_notif.toast.assert_called()
+            call_args = mock_notif.toast.call_args[0]
+            assert "successfully" in call_args[0]
 
     def test_launcher_finished_failure(
         self,
@@ -951,16 +952,17 @@ class TestErrorHandling:
         """Test handling failed launcher completion."""
         controller, _target = make_launcher_controller()
 
-        with patch("controllers.launcher_controller.ProgressManager") as MockProgress:
-            with patch(
-                "controllers.launcher_controller.NotificationManager"
-            ) as MockNotif:
-                controller._on_launcher_finished("test_launcher", False)
+        with patch(
+            "controllers.launcher_controller.ProgressManager"
+        ) as mock_progress, patch(
+            "controllers.launcher_controller.NotificationManager"
+        ) as mock_notif:
+            controller._on_launcher_finished("test_launcher", False)
 
-                MockProgress.finish_operation.assert_called_once_with(success=False)
-                MockNotif.toast.assert_called()
-                call_args = MockNotif.toast.call_args[0]
-                assert "failed" in call_args[0]
+            mock_progress.finish_operation.assert_called_once_with(success=False)
+            mock_notif.toast.assert_called()
+            call_args = mock_notif.toast.call_args[0]
+            assert "failed" in call_args[0]
 
     def test_update_launcher_menu_availability(
         self,

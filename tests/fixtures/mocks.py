@@ -4,17 +4,17 @@ Mock objects and utilities for PyFFMPEG testing
 Provides specialized mocks for hardware detection, FFmpeg processes, and Qt components
 """
 
-import os
 import subprocess
 
 # Import the function from conftest
 import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 from PySide6.QtCore import QProcess
 
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 class MockFFmpegProcess:

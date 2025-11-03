@@ -2,12 +2,12 @@
 """Test to demonstrate ProcessPoolManager singleton race condition."""
 
 # Standard library imports
-import os
 import sys
+from pathlib import Path
 
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 
 # Standard library imports
 import threading

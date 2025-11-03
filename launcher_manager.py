@@ -8,7 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 # Third-party imports
@@ -330,7 +330,7 @@ class LauncherManager(LoggingMixin, QObject):
         if validation is not None:
             launcher.validation = validation
 
-        launcher.updated_at = datetime.now().isoformat()
+        launcher.updated_at = datetime.now(tz=UTC).isoformat()
 
         # Validate updated configuration
         launchers_dict = {

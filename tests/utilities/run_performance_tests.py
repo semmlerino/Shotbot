@@ -69,16 +69,16 @@ def extract_performance_metrics(output: str) -> dict[str, str]:
     # Look for speedup patterns
     lines = output.split("\n")
     for line in lines:
-        line = line.strip()
+        stripped_line = line.strip()
 
         # Extract speedup values
-        if "speedup:" in line.lower() or "Speedup factor:" in line:
+        if "speedup:" in stripped_line.lower() or "Speedup factor:" in stripped_line:
             try:
                 # Find the number followed by 'x'
                 # Standard library imports
                 import re
 
-                match = re.search(r"(\d+\.?\d*)x", line)
+                match = re.search(r"(\d+\.?\d*)x", stripped_line)
                 if match:
                     metrics["speedup"] = match.group(1) + "x"
             except Exception:
@@ -168,7 +168,7 @@ def generate_performance_report(results: list[tuple[str, bool, float, str]]) -> 
 
     optimization_found = False
 
-    for test_name, success, runtime, output in results:
+    for test_name, _success, _runtime, output in results:
         metrics = extract_performance_metrics(output)
 
         if "speedup" in metrics:
@@ -290,7 +290,7 @@ def main() -> int:
     # Save report to file
     report_file = project_dir / "performance_test_report.txt"
     try:
-        with open(report_file, "w") as f:
+        with report_file.open("w") as f:
             f.write("Performance Test Report\n")
             f.write(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"Total Execution Time: {total_execution_time:.2f}s\n\n")

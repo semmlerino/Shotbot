@@ -150,12 +150,12 @@ class TestParametrizationPatterns:
         shots = ["0010", "0020"]
 
         # Generate all combinations
-        combinations = []
-        for show in shows:
-            for seq in sequences:
-                for shot in shots:
-                    combinations.append((show, seq, shot))
-        return combinations
+        return [
+            (show, seq, shot)
+            for show in shows
+            for seq in sequences
+            for shot in shots
+        ]
 
     @pytest.mark.parametrize(
         ("show", "sequence", "shot"),

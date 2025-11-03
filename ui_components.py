@@ -53,7 +53,7 @@ class ModernButton(QPushButton):
         icon: QIcon | None = None,
     ) -> None:
         super().__init__(text)
-        self.variant = variant
+        self.variant: str = variant
         self._setup_style()
         self._setup_animations()
 
@@ -78,10 +78,10 @@ class ModernButton(QPushButton):
 
     def _setup_animations(self) -> None:
         """Set up hover and click animations."""
-        self.opacity_effect = QGraphicsOpacityEffect()
+        self.opacity_effect: QGraphicsOpacityEffect = QGraphicsOpacityEffect()
         self.setGraphicsEffect(self.opacity_effect)
 
-        self.hover_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.hover_animation: QPropertyAnimation = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.hover_animation.setDuration(design_system.animation.duration_fast)
         self.hover_animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
 
@@ -115,9 +115,9 @@ class LoadingSpinner(QWidget):
 
     def __init__(self, size: int = 40, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._size = size
-        self.angle = 0
-        self.timer = QTimer(self)
+        self._size: int = size
+        self.angle: int = 0
+        self.timer: QTimer = QTimer(self)
         _ = self.timer.timeout.connect(self._rotate)
         self.setFixedSize(size, size)
 
@@ -126,6 +126,7 @@ class LoadingSpinner(QWidget):
         self.angle = (self.angle + 10) % 360
         self.update()
 
+    @override
     def paintEvent(self, event: QPaintEvent) -> None:
         """Paint the spinner."""
         painter = QPainter(self)
@@ -154,7 +155,7 @@ class LoadingSpinner(QWidget):
 class NotificationBanner(QFrame):
     """Non-modal notification banner for status messages."""
 
-    closed = Signal()
+    closed: Signal = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -172,17 +173,17 @@ class NotificationBanner(QFrame):
         layout.setContentsMargins(16, 8, 16, 8)
 
         # Icon label
-        self.icon_label = QLabel()
+        self.icon_label: QLabel = QLabel()
         self.icon_label.setFixedSize(24, 24)
         layout.addWidget(self.icon_label)
 
         # Message label
-        self.message_label = QLabel()
+        self.message_label: QLabel = QLabel()
         self.message_label.setWordWrap(False)
         layout.addWidget(self.message_label, 1)
 
         # Close button
-        self.close_button = QPushButton("✕")
+        self.close_button: QPushButton = QPushButton("✕")
         self.close_button.setFixedSize(24, 24)
         _ = self.close_button.clicked.connect(self.hide_banner)
         self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -202,20 +203,20 @@ class NotificationBanner(QFrame):
 
     def _setup_animations(self) -> None:
         """Set up slide and fade animations."""
-        self.opacity_effect = QGraphicsOpacityEffect()
+        self.opacity_effect: QGraphicsOpacityEffect = QGraphicsOpacityEffect()
         self.setGraphicsEffect(self.opacity_effect)
 
         # Slide animation
-        self.slide_animation = QPropertyAnimation(self, b"geometry")
+        self.slide_animation: QPropertyAnimation = QPropertyAnimation(self, b"geometry")
         self.slide_animation.setDuration(design_system.animation.duration_normal)
         self.slide_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
         # Fade animation
-        self.fade_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.fade_animation: QPropertyAnimation = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.fade_animation.setDuration(design_system.animation.duration_normal)
 
         # Group animations
-        self.animation_group = QParallelAnimationGroup()
+        self.animation_group: QParallelAnimationGroup = QParallelAnimationGroup()
         self.animation_group.addAnimation(self.slide_animation)
         self.animation_group.addAnimation(self.fade_animation)
 
@@ -233,10 +234,10 @@ class NotificationBanner(QFrame):
             "error": design_system.colors.error,
         }
 
-        icons = {"info": "ℹ", "success": "✓", "warning": "⚠", "error": "✕"}
+        icons = {"info": "i", "success": "✓", "warning": "⚠", "error": "✕"}
 
         bg_color = colors.get(msg_type, design_system.colors.info)
-        icon = icons.get(msg_type, "ℹ")
+        icon = icons.get(msg_type, "i")
 
         self.setStyleSheet(f"""
             #notificationBanner {{
@@ -295,7 +296,7 @@ class NotificationBanner(QFrame):
 class ProgressOverlay(QWidget):
     """Semi-transparent overlay with progress indicator for long operations."""
 
-    canceled = Signal()
+    canceled: Signal = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -329,31 +330,31 @@ class ProgressOverlay(QWidget):
         card_layout.setSpacing(design_system.spacing.md)
 
         # Spinner
-        self.spinner = LoadingSpinner(40)
+        self.spinner: LoadingSpinner = LoadingSpinner(40)
         card_layout.addWidget(self.spinner, 0, Qt.AlignmentFlag.AlignCenter)
 
         # Title
-        self.title_label = QLabel("Processing...")
+        self.title_label: QLabel = QLabel("Processing...")
         self.title_label.setObjectName("heading3")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self.title_label)
 
         # Progress bar
-        self.progress_bar = QProgressBar()
+        self.progress_bar: QProgressBar = QProgressBar()
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
         card_layout.addWidget(self.progress_bar)
 
         # Status text
-        self.status_label = QLabel("")
+        self.status_label: QLabel = QLabel("")
         self.status_label.setObjectName("hint")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setWordWrap(True)
         card_layout.addWidget(self.status_label)
 
         # Cancel button
-        self.cancel_button = ModernButton("Cancel", variant="danger")
+        self.cancel_button: ModernButton = ModernButton("Cancel", variant="danger")
         _ = self.cancel_button.clicked.connect(self.canceled.emit)
         card_layout.addWidget(self.cancel_button, 0, Qt.AlignmentFlag.AlignCenter)
 
@@ -390,7 +391,7 @@ class ProgressOverlay(QWidget):
 class EmptyStateWidget(QWidget):
     """Widget shown when there's no content to display."""
 
-    action_clicked = Signal()
+    action_clicked: Signal = Signal()
 
     def __init__(
         self,
@@ -459,10 +460,10 @@ class ThumbnailPlaceholder(QLabel):
         """)
 
         # Create shimmer effect animation
-        self.shimmer_effect = QGraphicsOpacityEffect()
+        self.shimmer_effect: QGraphicsOpacityEffect = QGraphicsOpacityEffect()
         self.setGraphicsEffect(self.shimmer_effect)
 
-        self.shimmer_animation = QPropertyAnimation(self.shimmer_effect, b"opacity")
+        self.shimmer_animation: QPropertyAnimation = QPropertyAnimation(self.shimmer_effect, b"opacity")
         self.shimmer_animation.setDuration(1500)
         self.shimmer_animation.setStartValue(0.3)
         self.shimmer_animation.setEndValue(1.0)
@@ -526,7 +527,7 @@ class FloatingActionButton(QPushButton):
 
     def _setup_animations(self) -> None:
         """Set up hover animations."""
-        self.hover_animation = QPropertyAnimation(self, b"geometry")
+        self.hover_animation: QPropertyAnimation = QPropertyAnimation(self, b"geometry")
         self.hover_animation.setDuration(design_system.animation.duration_fast)
         self.hover_animation.setEasingCurve(QEasingCurve.Type.OutBack)
 

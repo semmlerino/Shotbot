@@ -25,7 +25,7 @@ def debug_environment() -> None:
     print("=== ENVIRONMENT DEBUG ===")
     print(f"SHOWS_ROOT from config: {Config.SHOWS_ROOT}")
     print(f"SHOWS_ROOT from env: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")
-    print(f"Working directory: {os.getcwd()}")
+    print(f"Working directory: {Path.cwd()}")
     print()
 
 

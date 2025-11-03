@@ -34,10 +34,11 @@ def run_pytest_with_timeout(timeout_per_test=5):
 
         # Parse collected tests
         test_lines = result.stdout.strip().split("\n")
-        tests = []
-        for line in test_lines:
-            if "::" in line and not line.startswith(" "):
-                tests.append(line.strip())
+        tests = [
+            line.strip()
+            for line in test_lines
+            if "::" in line and not line.startswith(" ")
+        ]
 
         print(f"Found {len(tests)} tests to audit")
         return tests
@@ -204,7 +205,7 @@ def main() -> int:
             print(f"{issue:10} {test_file}")
 
         # Write problematic list to file
-        with open("problematic_tests.txt", "w") as f:
+        with Path("problematic_tests.txt").open("w") as f:
             f.write("# Problematic Tests Found\n\n")
             for issue, test_file in sorted(problematic):
                 f.write(f"{issue}: {test_file}\n")

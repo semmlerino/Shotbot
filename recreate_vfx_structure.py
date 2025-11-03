@@ -355,7 +355,7 @@ class VFXStructureRecreator:
         gabrielh_3de_count = 0
 
         # Find all gabriel-h 3DE scene directories
-        for _, show_data_list in structure_data.get("shows", {}).items():
+        for show_data_list in structure_data.get("shows", {}).values():
             for show_data in show_data_list:
                 # Empty dict doesn't match NodeDict structure but is used as fallback
                 structure: NodeDict = show_data.get("structure") or {
@@ -496,7 +496,7 @@ def merge_structures(json_files: list[str]) -> StructureDataDict:
 
     for json_file in json_files:
         print(f"Loading {json_file}...")
-        with open(json_file, encoding="utf-8") as f:
+        with Path(json_file).open(encoding="utf-8") as f:
             data = cast("StructureDataDict", json.load(f))
 
         # Use the latest capture time
@@ -609,7 +609,7 @@ def main() -> None:
     structure_data: StructureDataDict
     if len(input_files) == 1:
         # Single file - load directly
-        with open(input_files[0], encoding="utf-8") as f:
+        with Path(input_files[0]).open(encoding="utf-8") as f:
             structure_data = cast("StructureDataDict", json.load(f))
         print(f"Loaded structure from {input_files[0]}")
     else:
@@ -627,7 +627,7 @@ def main() -> None:
         merged_output = Path(root_path) / "merged_structure.json"
         print(f"\nSaving merged structure to: {merged_output}")
         merged_output.parent.mkdir(parents=True, exist_ok=True)
-        with open(merged_output, "w", encoding="utf-8") as f:
+        with merged_output.open("w", encoding="utf-8") as f:
             json.dump(structure_data, f, indent=2)
         print("Merged structure saved for future use")
 

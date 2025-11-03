@@ -22,6 +22,7 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+
 # ==============================================================================
 # CRITICAL: Force Qt to use offscreen platform BEFORE any Qt imports
 # ==============================================================================

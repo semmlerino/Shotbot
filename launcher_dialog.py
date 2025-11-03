@@ -298,10 +298,12 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
             return False
 
         # Check uniqueness
-        if not self.is_editing or (self.launcher and name != self.launcher.name):
-            if self.launcher_manager.get_launcher_by_name(name):
-                self.name_field.setStyleSheet("border: 1px solid #f44336;")
-                return False
+        if (
+            (not self.is_editing or (self.launcher and name != self.launcher.name))
+            and self.launcher_manager.get_launcher_by_name(name)
+        ):
+            self.name_field.setStyleSheet("border: 1px solid #f44336;")
+            return False
 
         self.name_field.setStyleSheet("border: 1px solid #4caf50;")
         return True

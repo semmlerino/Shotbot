@@ -60,7 +60,7 @@ for mock_path in MOCK_VFX_PATHS:
 if not mock_filesystem_found:
     # SHOWS_ROOT should already be set correctly by earlier logic
     logger.info(
-        "ℹ️  No mock filesystem found. Run recreate_vfx_structure.py to create one."
+        "No mock filesystem found. Run recreate_vfx_structure.py to create one."
     )
     logger.info("   The app will work but paths won't exist.")
     logger.info(f"   SHOWS_ROOT is: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")

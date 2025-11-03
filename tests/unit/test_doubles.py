@@ -18,7 +18,7 @@ Usage:
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +73,7 @@ class TestFileSystem:
 
         # Store file and update times
         self.files[path] = content
-        now = datetime.now()
+        now = datetime.now(tz=UTC)
         self.modification_times[path] = now
         self.access_times[path] = now
 
@@ -100,7 +100,7 @@ class TestFileSystem:
         if path not in self.files:
             raise FileNotFoundError(f"No such file: {path}")
 
-        self.access_times[path] = datetime.now()
+        self.access_times[path] = datetime.now(tz=UTC)
         content = self.files[path]
 
         if "b" not in mode:
@@ -278,7 +278,7 @@ class TestCache:
         self.access_counts[key] += 1
 
         # Check expiry
-        if key in self.expiry_times and datetime.now() > self.expiry_times[key]:
+        if key in self.expiry_times and datetime.now(tz=UTC) > self.expiry_times[key]:
             self.data.pop(key, None)
             self.expiry_times.pop(key, None)
 
@@ -300,7 +300,7 @@ class TestCache:
         self.data[key] = value
 
         if ttl_seconds is not None:
-            self.expiry_times[key] = datetime.now() + timedelta(seconds=ttl_seconds)
+            self.expiry_times[key] = datetime.now(tz=UTC) + timedelta(seconds=ttl_seconds)
 
     def delete(self, key: str) -> bool:
         """Delete key from cache.
@@ -327,7 +327,7 @@ class TestCache:
     def expire_all(self) -> None:
         """Expire all cached entries."""
         self.expiry_times = {
-            key: datetime.now() - timedelta(seconds=1) for key in self.data
+            key: datetime.now(tz=UTC) - timedelta(seconds=1) for key in self.data
         }
 
     def has(self, key: str) -> bool:
@@ -339,7 +339,7 @@ class TestCache:
         Returns:
             bool: True if key exists and is valid
         """
-        if key in self.expiry_times and datetime.now() > self.expiry_times[key]:
+        if key in self.expiry_times and datetime.now(tz=UTC) > self.expiry_times[key]:
             return False
         return key in self.data
 

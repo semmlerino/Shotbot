@@ -39,6 +39,7 @@ from config import Config
 from qt_abc_meta import QABCMeta
 from runnable_tracker import get_tracker
 from thumbnail_loading_indicator import ThumbnailLoadingIndicator
+from typing_compat import override
 
 
 # Set up logger for this module
@@ -48,8 +49,8 @@ logger = logging.getLogger(__name__)
 class FolderOpenerSignals(QObject):
     """Signals for the folder opener worker."""
 
-    error = Signal(str)
-    success = Signal()
+    error: Signal = Signal(str)
+    success: Signal = Signal()
 
 
 class FolderOpenerWorker(QRunnable):
@@ -62,9 +63,10 @@ class FolderOpenerWorker(QRunnable):
             folder_path: Path to the folder to open
         """
         super().__init__()
-        self.folder_path = folder_path
-        self.signals = FolderOpenerSignals()
+        self.folder_path: str = folder_path
+        self.signals: FolderOpenerSignals = FolderOpenerSignals()
 
+    @override
     def run(self) -> None:
         """Open the folder using the appropriate method for the platform."""
         tracker = get_tracker()
@@ -105,16 +107,16 @@ class FolderOpenerWorker(QRunnable):
                 logger.debug("QDesktopServices failed, trying system command")
 
                 if sys.platform == "darwin":  # macOS
-                    subprocess.run(["open", folder_path], check=True)
+                    _ = subprocess.run(["open", folder_path], check=True)
                 elif sys.platform == "win32":  # Windows
-                    subprocess.run(["explorer", folder_path], check=True)
+                    _ = subprocess.run(["explorer", folder_path], check=True)
                 else:  # Linux/Unix
                     # Try xdg-open first, then alternatives
                     try:
-                        subprocess.run(["xdg-open", folder_path], check=True)
+                        _ = subprocess.run(["xdg-open", folder_path], check=True)
                     except (subprocess.CalledProcessError, FileNotFoundError):
                         # Try gio as fallback
-                        subprocess.run(["gio", "open", folder_path], check=True)
+                        _ = subprocess.run(["gio", "open", folder_path], check=True)
 
             # Safe signal emission
             if hasattr(self, "signals") and self.signals:
@@ -186,15 +188,16 @@ class BaseThumbnailLoader(QRunnable):
     """Base runnable for loading thumbnails in background."""
 
     class Signals(QObject):
-        loaded = Signal(object, QPixmap)  # widget, pixmap
-        failed = Signal(object)  # widget
+        loaded: Signal = Signal(object, QPixmap)  # widget, pixmap
+        failed: Signal = Signal(object)  # widget
 
     def __init__(self, widget: ThumbnailWidgetBase, path: Path) -> None:
         super().__init__()
-        self.widget = widget
-        self.path = path
-        self.signals = self.Signals()
+        self.widget: ThumbnailWidgetBase = widget
+        self.path: Path = path
+        self.signals: BaseThumbnailLoader.Signals = self.Signals()
 
+    @override
     def run(self) -> None:
         """Load the thumbnail with memory bounds checking and proper error handling.
 
@@ -315,8 +318,8 @@ class BaseThumbnailLoader(QRunnable):
                     self.signals.failed.emit(self.widget)
                 except RuntimeError:
                     pass  # Signals object was deleted
-        except Exception as e:
-            logger.exception(f"Unexpected error loading thumbnail {self.path}: {e}")
+        except Exception:
+            logger.exception(f"Unexpected error loading thumbnail {self.path}")
             # Safe signal emission
             if hasattr(self, "signals") and self.signals:
                 try:
@@ -337,11 +340,11 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
     """Base class for thumbnail widgets with common functionality."""
 
     # Signals - derived classes can override signal types if needed
-    clicked = Signal(object)  # Data object
-    double_clicked = Signal(object)  # Data object
+    clicked: Signal = Signal(object)  # Data object
+    double_clicked: Signal = Signal(object)  # Data object
 
     # Shared cache manager
-    _cache_manager = CacheManager()
+    _cache_manager: CacheManager = CacheManager()
 
     @classmethod
     def set_cache_manager(cls, cache_manager: CacheManager) -> None:
@@ -352,11 +355,11 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         self, data: ThumbnailDataProtocol, size: int = Config.DEFAULT_THUMBNAIL_SIZE
     ) -> None:
         super().__init__()
-        self.data = data
-        self._thumbnail_size = size
-        self._selected = False
+        self.data: ThumbnailDataProtocol = data
+        self._thumbnail_size: int = size
+        self._selected: bool = False
         self._pixmap: QPixmap | None = None
-        self._loading_state = LoadingState.IDLE
+        self._loading_state: LoadingState = LoadingState.IDLE
 
         # Set up UI - template method pattern
         self._setup_base_ui()
@@ -374,7 +377,7 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         layout.setSpacing(5)
 
         # Thumbnail label
-        self.thumbnail_label = QLabel()
+        self.thumbnail_label: QLabel = QLabel()
         self.thumbnail_label.setObjectName("thumbnail")
         self.thumbnail_label.setFixedSize(self._thumbnail_size, self._thumbnail_size)
         self.thumbnail_label.setScaledContents(True)
@@ -384,7 +387,7 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         self._set_placeholder()
 
         # Create a container for thumbnail and loading indicator
-        self.thumbnail_container = QWidget()
+        self.thumbnail_container: QWidget = QWidget()
         self.thumbnail_container.setFixedSize(
             self._thumbnail_size,
             self._thumbnail_size,
@@ -394,7 +397,7 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         container_layout.addWidget(self.thumbnail_label)
 
         # Loading indicator (overlay)
-        self.loading_indicator = ThumbnailLoadingIndicator(self.thumbnail_container)
+        self.loading_indicator: ThumbnailLoadingIndicator = ThumbnailLoadingIndicator(self.thumbnail_container)
         self.loading_indicator.move(
             (self._thumbnail_size - 40) // 2,  # Center horizontally
             (self._thumbnail_size - 40) // 2,  # Center vertically
@@ -404,8 +407,8 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         layout.addWidget(self.thumbnail_container)
 
         # Create a content container for labels that will maintain consistent height
-        self.content_container = QWidget()
-        self.content_layout = QVBoxLayout(self.content_container)
+        self.content_container: QWidget = QWidget()
+        self.content_layout: QVBoxLayout = QVBoxLayout(self.content_container)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.content_layout.setSpacing(3)
         self.content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -442,8 +445,8 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         painter = QPainter(placeholder)
         painter.setPen(QColor("#888"))
         painter.setFont(QFont("Arial", 12))
-        painter.drawText(placeholder.rect(), Qt.AlignmentFlag.AlignCenter, "No Image")
-        painter.end()
+        _ = painter.drawText(placeholder.rect(), Qt.AlignmentFlag.AlignCenter, "No Image")
+        _ = painter.end()
 
         self.thumbnail_label.setPixmap(placeholder)
 
@@ -595,17 +598,20 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         logger.debug("Folder opened successfully")
 
     # Mouse events
+    @override
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse press."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.data)
 
+    @override
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         """Handle double click - can be overridden by derived classes."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.double_clicked.emit(self.data)
 
+    @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu."""
         menu = self._create_context_menu()
-        menu.exec(event.globalPos())
+        _ = menu.exec(event.globalPos())

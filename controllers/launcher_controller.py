@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
 
 # Runtime imports (needed at runtime)
+from datetime import UTC
+
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
 from progress_manager import ProgressManager
@@ -249,7 +251,7 @@ class LauncherController(LoggingMixin):
             # Add visible UI feedback about fallback
             from datetime import datetime
 
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             self.window.log_viewer.add_command(
                 timestamp, "Using shot context (no scene selected)"
             )
@@ -262,7 +264,7 @@ class LauncherController(LoggingMixin):
                         f"Re-syncing command_launcher context with {self._current_shot.full_name}"
                     )
                     self.window.command_launcher.set_current_shot(self._current_shot)
-                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                     self.window.log_viewer.add_command(
                         timestamp,
                         f"Re-synced shot context: {self._current_shot.full_name}",
@@ -270,7 +272,7 @@ class LauncherController(LoggingMixin):
                 else:
                     # No context at all - fail gracefully
                     self.logger.error("No shot or scene context available for launch")
-                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                     self.window.log_viewer.add_error(
                         timestamp,
                         "No shot selected - please select a shot before launching",
@@ -305,7 +307,7 @@ class LauncherController(LoggingMixin):
                 if (open_latest_scene or create_new_file) and not selected_plate:
                     self.logger.error("No plate selected for Nuke workspace operation")
                     from datetime import datetime
-                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                     self.window.log_viewer.add_error(
                         timestamp,
                         "Please select a plate space before launching Nuke with workspace scripts",
@@ -477,7 +479,7 @@ class LauncherController(LoggingMixin):
             # Log the execution
             from datetime import datetime
 
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             self.window.log_viewer.add_command(
                 timestamp, f"Custom launcher: {launcher.name}"
             )
@@ -485,7 +487,7 @@ class LauncherController(LoggingMixin):
             self.window.update_status(f"Failed to launch '{launcher.name}'")
             from datetime import datetime
 
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             self.window.log_viewer.add_error(
                 timestamp,
                 f"Failed to launch custom launcher: {launcher.name}",

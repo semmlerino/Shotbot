@@ -104,7 +104,7 @@ def test_finders() -> None:
         if latest_maya:
             print(f"   ✅ Found latest Maya scene: {latest_maya.name}")
         else:
-            print("   ℹ️  No Maya scenes found (expected in mock)")
+            print("   No Maya scenes found (expected in mock)")
 
         # Test ThreeDELatestFinder
         print("\nTesting ThreeDELatestFinder:")
@@ -113,7 +113,7 @@ def test_finders() -> None:
         if latest_3de:
             print(f"   ✅ Found latest 3DE scene: {latest_3de.name}")
         else:
-            print("   ℹ️  No 3DE scenes found")
+            print("   No 3DE scenes found")
 
         # Test TargetedShotsFinder
         print("\nTesting TargetedShotsFinder:")

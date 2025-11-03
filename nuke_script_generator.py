@@ -499,7 +499,7 @@ except Exception as e:
             script_path = script_dir / filename
 
             # Save the script
-            with open(script_path, "w", encoding="utf-8") as f:
+            with script_path.open("w", encoding="utf-8") as f:
                 f.write(script_content)
 
             print(f"Saved Nuke script to workspace: {script_path}")
@@ -543,7 +543,7 @@ except Exception as e:
 
         # Read the temporary file content
         try:
-            with open(script_content, encoding="utf-8") as f:
+            with Path(script_content).open(encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
             print(f"Error reading temporary script: {e}")
@@ -619,7 +619,7 @@ except Exception as e:
             output_path = script_dir / filename
 
             # Write directly (no temp file!)
-            with open(output_path, "w", encoding="utf-8") as f:
+            with output_path.open("w", encoding="utf-8") as f:
                 f.write(script_content)
 
             logger.info(f"Created Nuke script in workspace: {output_path}")
@@ -677,7 +677,7 @@ except Exception as e:
             output_path = script_dir / filename
 
             # Write directly
-            with open(output_path, "w", encoding="utf-8") as f:
+            with output_path.open("w", encoding="utf-8") as f:
                 f.write(script_content)
 
             logger.info(f"Created empty Nuke script in workspace: {output_path}")

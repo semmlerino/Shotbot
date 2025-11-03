@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -399,7 +398,7 @@ class NukeLaunchHandler(LoggingMixin):
         if Config.NUKE_OCIO_FALLBACK_CONFIG:
             # Check if a fallback config exists
             fallback_config = Config.NUKE_OCIO_FALLBACK_CONFIG
-            if os.path.exists(fallback_config):
+            if Path(fallback_config).exists():
                 env_exports.append(f'export OCIO="{fallback_config}"')
                 self.logger.info(f"Using fallback OCIO config: {fallback_config}")
             else:

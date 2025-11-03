@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -162,7 +162,7 @@ class TestThreeDERecoveryManager:
             base_name="nonexistent_v001",
             current_version=1,
             recovery_name="nonexistent_v002.3de",
-            modification_time=datetime.now(),
+            modification_time=datetime.now(tz=UTC),
             file_size=0,
         )
 
@@ -209,7 +209,7 @@ class TestThreeDERecoveryManager:
             base_name="nonexistent_v001",
             current_version=1,
             recovery_name="nonexistent_v002.3de",
-            modification_time=datetime.now(),
+            modification_time=datetime.now(tz=UTC),
             file_size=0,
         )
 

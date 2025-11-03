@@ -591,7 +591,7 @@ class SettingsManager(LoggingMixin, QObject):
                 all_settings[category] = self.get_category(category)
 
             # Write to file
-            with open(file_path, "w") as f:
+            with Path(file_path).open("w") as f:
                 json.dump(all_settings, f, indent=2, default=str)
 
             self.logger.info(f"Settings exported to: {file_path}")
@@ -604,7 +604,7 @@ class SettingsManager(LoggingMixin, QObject):
     def import_settings(self, file_path: str) -> bool:
         """Import settings from JSON file."""
         try:
-            with open(file_path) as f:
+            with Path(file_path).open() as f:
                 # json.load() is typed as returning Any in type stubs since JSON structure
                 # is dynamic. We annotate as object and immediately narrow with type guard.
                 loaded_data: object = json.load(f)

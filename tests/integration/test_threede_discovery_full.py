@@ -228,7 +228,7 @@ class TestThreeDEDiscoveryIntegration:
         excluded_users = {"gabriel-h"}
 
         parsed_scenes = []
-        for file_path, show, _seq, _shot, user in created_files:
+        for file_path, show, _seq, _shot, _user in created_files:
             show_path = shows_root / show
             result = parser.parse_3de_file_path(
                 file_path, show_path, show, excluded_users

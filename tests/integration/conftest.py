@@ -123,7 +123,7 @@ def performance_dataset(integration_temp_dir: Path) -> dict[str, Any]:
     # Create a large but manageable dataset
     for show_idx in range(3):
         for seq_idx in range(5):
-            for shot_idx in range(10):  # 3×5×10 = 150 shots
+            for shot_idx in range(10):  # 3x5x10 = 150 shots
                 show_name = f"perfshow{show_idx}"
                 seq_name = f"PERF{seq_idx:02d}"
                 shot_name = f"shot_{shot_idx:03d}"

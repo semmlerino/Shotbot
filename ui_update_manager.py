@@ -14,7 +14,7 @@ class UIUpdateManager(QObject):
     """Manages efficient UI updates with dirty flags and batching"""
 
     # Signal emitted when UI updates should be performed
-    update_ui = Signal(dict)
+    update_ui: Signal = Signal(dict)
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
@@ -30,24 +30,24 @@ class UIUpdateManager(QObject):
         self.last_update_time: dict[str, float] = defaultdict(float)
 
         # Animation frame timing (60 FPS = 16.67ms)
-        self.frame_time = 16.67 / 1000.0  # Convert to seconds
-        self.last_frame_time = 0
+        self.frame_time: float = 16.67 / 1000.0  # Convert to seconds
+        self.last_frame_time: float = 0
 
         # Update timer with adaptive interval
-        self.update_timer = QTimer()
+        self.update_timer: QTimer = QTimer()
         _ = self.update_timer.timeout.connect(self._process_updates)
-        self.base_interval = 100  # Base interval in ms
-        self.current_interval = self.base_interval
-        self.min_interval = 16  # Minimum 60 FPS
-        self.max_interval = 1000  # Maximum 1 second
+        self.base_interval: int = 100  # Base interval in ms
+        self.current_interval: int = self.base_interval
+        self.min_interval: int = 16  # Minimum 60 FPS
+        self.max_interval: int = 1000  # Maximum 1 second
 
         # Activity tracking
-        self.last_activity_time = time.time()
-        self.high_activity_threshold = 0.5  # seconds
-        self.low_activity_threshold = 2.0  # seconds
+        self.last_activity_time: float = time.time()
+        self.high_activity_threshold: float = 0.5  # seconds
+        self.low_activity_threshold: float = 2.0  # seconds
 
         # Component priorities
-        self.component_priorities = {
+        self.component_priorities: dict[str, int] = {
             "progress_bar": 1,
             "status_label": 2,
             "fps_display": 3,
@@ -56,15 +56,15 @@ class UIUpdateManager(QObject):
             "file_list": 6,
         }
 
-    def start(self):
+    def start(self) -> None:
         """Start the update manager"""
         self.update_timer.start(self.current_interval)
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the update manager"""
         self.update_timer.stop()
 
-    def mark_dirty(self, component: str, data: object = None):
+    def mark_dirty(self, component: str, data: object | None = None) -> None:
         """Mark a component as needing update"""
         self.dirty_flags[component] = True
         if data is not None:
@@ -75,7 +75,7 @@ class UIUpdateManager(QObject):
         """Check if a component needs updating"""
         return self.dirty_flags.get(component, False)
 
-    def _process_updates(self):
+    def _process_updates(self) -> None:
         """Process pending updates based on dirty flags"""
         current_time = time.time()
 
@@ -110,11 +110,11 @@ class UIUpdateManager(QObject):
         # Clear dirty flags for updated components
         for component in components_to_update:
             self.dirty_flags[component] = False
-            self.pending_updates.pop(component, None)
+            _ = self.pending_updates.pop(component, None)
 
         # Emit updates if any
         if updates_to_perform:
-            self.update_ui.emit(updates_to_perform)
+            _ = self.update_ui.emit(updates_to_perform)
             self.last_frame_time = current_time
 
         # Adjust update interval based on activity
@@ -123,7 +123,7 @@ class UIUpdateManager(QObject):
     def _get_component_interval(self, component: str) -> float:
         """Get minimum update interval for a component"""
         # High-priority components update more frequently
-        base_intervals = {
+        base_intervals: dict[str, float] = {
             "progress_bar": 0.1,  # 100ms
             "status_label": 0.25,  # 250ms
             "fps_display": 0.5,  # 500ms
@@ -133,7 +133,7 @@ class UIUpdateManager(QObject):
         }
         return base_intervals.get(component, 1.0)
 
-    def _adjust_update_interval(self):
+    def _adjust_update_interval(self) -> None:
         """Dynamically adjust update timer interval based on activity"""
         current_time = time.time()
         time_since_activity = current_time - self.last_activity_time
@@ -158,12 +158,12 @@ class UIUpdateManager(QObject):
             if self.update_timer.isActive():
                 self.update_timer.setInterval(new_interval)
 
-    def batch_update(self, updates: dict[str, object]):
+    def batch_update(self, updates: dict[str, object]) -> None:
         """Batch multiple updates together"""
         for component, data in updates.items():
             self.mark_dirty(component, data)
 
-    def force_update(self, component: str | None = None):
+    def force_update(self, component: str | None = None) -> None:
         """Force immediate update of component(s)"""
         if component:
             # Force update specific component

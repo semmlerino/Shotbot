@@ -33,11 +33,11 @@ def test_parsing() -> None:
     print(f"Parsing {len(lines)} lines of ws output\n")
 
     for line_num, line in enumerate(lines, 1):
-        line = line.strip()
-        if not line:
+        stripped_line = line.strip()
+        if not stripped_line:
             continue
 
-        match = parse_pattern.search(line)
+        match = parse_pattern.search(stripped_line)
         if match:
             workspace_path = match.group(1)
             show = match.group(2)

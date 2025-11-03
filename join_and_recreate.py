@@ -58,12 +58,12 @@ def main() -> None:
     print(f"📁 Joining {len(files)} files...")
 
     # Concatenate files
-    with open(output, "wb") as outfile:
+    with Path(output).open("wb") as outfile:
         for i, fname in enumerate(files, 1):
             print(
                 f"   {i}. {fname} ({Path(fname).stat().st_size / 1024 / 1024:.1f} MB)"
             )
-            with open(fname, "rb") as infile:
+            with Path(fname).open("rb") as infile:
                 outfile.write(infile.read())
 
     output_size = Path(output).stat().st_size / 1024 / 1024
@@ -72,7 +72,7 @@ def main() -> None:
     # Validate JSON
     print("\n🔍 Validating JSON...")
     try:
-        with open(output) as f:
+        with Path(output).open() as f:
             data = cast("VFXStructureData", json.load(f))
         shows = list(data.get("shows", {}).keys())
         print(f"✅ Valid JSON with {len(shows)} shows: {', '.join(shows)}")

@@ -130,7 +130,7 @@ class JSONMockStrategy(MockDataStrategy):
             return self._get_fallback_shots()
 
         try:
-            with open(self.json_path) as f:
+            with self.json_path.open() as f:
                 # json.load returns Any - we validate with isinstance below
                 data: object = json.load(f)  # pyright: ignore[reportAny]
 
@@ -207,7 +207,7 @@ class ProductionDataStrategy(MockDataStrategy):
             return []
 
         try:
-            with open(self.capture_file) as f:
+            with self.capture_file.open() as f:
                 # json.load returns Any - we validate with isinstance below
                 data: object = json.load(f)  # pyright: ignore[reportAny]
 

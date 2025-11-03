@@ -339,9 +339,7 @@ class TestNotificationManager:
         assert len(NotificationManager._active_toasts) == 3
 
         # Check positioning (each should be offset)
-        positions: list[int] = []
-        for toast in NotificationManager._active_toasts:
-            positions.append(toast.y())
+        positions: list[int] = [toast.y() for toast in NotificationManager._active_toasts]
 
         # Positions should be different (stacked)
         assert len(set(positions)) == len(positions)

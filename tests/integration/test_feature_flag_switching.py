@@ -84,33 +84,34 @@ class TestFeatureFlagSwitching:
         # Use real test double instead of Mock()
         test_cache = ExtendedTestCacheManager(self.cache_dir)
 
-        with patch("main_window.CacheManager") as MockCacheManager:
-            MockCacheManager.return_value = test_cache
+        with patch("main_window.CacheManager") as mock_cache_manager:
+            mock_cache_manager.return_value = test_cache
 
             # Mock QTimer to prevent delayed operations
-            with patch("PySide6.QtCore.QTimer.singleShot"):
-                # Mock ProcessPoolManager.get_instance() to avoid subprocess calls
-                with patch(
-                    "process_pool_manager.ProcessPoolManager.get_instance"
-                ) as mock_get_instance:
-                    # Return a test double for ProcessPoolManager
-                    # Local application imports
-                    from tests.test_doubles_library import TestProcessPool
+            with patch("PySide6.QtCore.QTimer.singleShot"), patch(
+                "process_pool_manager.ProcessPoolManager.get_instance"
+            ) as mock_get_instance:
+                # Return a test double for ProcessPoolManager
+                # Local application imports
+                from tests.test_doubles_library import TestProcessPool
 
-                    mock_get_instance.return_value = TestProcessPool()
-                    window = MainWindow()
-                    qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+                mock_get_instance.return_value = TestProcessPool()
+                window = MainWindow()
+                qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
-                    # Verify ShotModel is used by default
-                    assert isinstance(window.shot_model, ShotModel)
-                    assert isinstance(window.shot_model, BaseShotModel)
+                # Verify ShotModel is used by default
+                assert isinstance(window.shot_model, ShotModel)
+                assert isinstance(window.shot_model, BaseShotModel)
 
-                    # Clean up any threads if present
-                    if hasattr(window, "_threede_worker") and window._threede_worker:
-                        if window._threede_worker.isRunning():
-                            window._threede_worker.quit()
-                            window._threede_worker.wait(1000)
-                    window.close()
+                # Clean up any threads if present
+                if (
+                    hasattr(window, "_threede_worker")
+                    and window._threede_worker
+                    and window._threede_worker.isRunning()
+                ):
+                    window._threede_worker.quit()
+                    window._threede_worker.wait(1000)
+                window.close()
 
     def test_legacy_model_when_flag_set(self, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that ShotModel is used when legacy flag is set."""
@@ -122,8 +123,8 @@ class TestFeatureFlagSwitching:
             # Use real test double instead of Mock()
             test_cache = ExtendedTestCacheManager(self.cache_dir)
 
-            with patch("main_window.CacheManager") as MockCacheManager:
-                MockCacheManager.return_value = test_cache
+            with patch("main_window.CacheManager") as mock_cache_manager:
+                mock_cache_manager.return_value = test_cache
 
                 # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
@@ -136,10 +137,13 @@ class TestFeatureFlagSwitching:
                     assert isinstance(window.shot_model, ShotModel)
 
                     # Clean up any threads if present
-                    if hasattr(window, "_threede_worker") and window._threede_worker:
-                        if window._threede_worker.isRunning():
-                            window._threede_worker.quit()
-                            window._threede_worker.wait(1000)
+                    if (
+                        hasattr(window, "_threede_worker")
+                        and window._threede_worker
+                        and window._threede_worker.isRunning()
+                    ):
+                        window._threede_worker.quit()
+                        window._threede_worker.wait(1000)
                     window.close()
         finally:
             # Clean up environment
@@ -169,8 +173,8 @@ class TestFeatureFlagSwitching:
                 # Use real test double instead of Mock()
                 test_cache = ExtendedTestCacheManager(self.cache_dir)
 
-                with patch("main_window.CacheManager") as MockCacheManager:
-                    MockCacheManager.return_value = test_cache
+                with patch("main_window.CacheManager") as mock_cache_manager:
+                    mock_cache_manager.return_value = test_cache
 
                     # Mock QTimer to prevent delayed operations
                     with patch("PySide6.QtCore.QTimer.singleShot"):
@@ -407,32 +411,33 @@ class TestMainWindowIntegration:
         # Use real test double instead of Mock()
         test_cache = ExtendedTestCacheManager()
 
-        with patch("main_window.CacheManager") as MockCacheManager:
-            MockCacheManager.return_value = test_cache
+        with patch("main_window.CacheManager") as mock_cache_manager:
+            mock_cache_manager.return_value = test_cache
 
             # Mock QTimer to prevent delayed operations
-            with patch("PySide6.QtCore.QTimer.singleShot"):
-                # Mock ProcessPoolManager for ShotModel
-                with patch(
-                    "process_pool_manager.ProcessPoolManager.get_instance"
-                ) as mock_get_instance:
-                    # Local application imports
-                    from tests.test_doubles_library import TestProcessPool
+            with patch("PySide6.QtCore.QTimer.singleShot"), patch(
+                "process_pool_manager.ProcessPoolManager.get_instance"
+            ) as mock_get_instance:
+                # Local application imports
+                from tests.test_doubles_library import TestProcessPool
 
-                    mock_get_instance.return_value = TestProcessPool()
-                    # Should not raise any exceptions
-                    window = MainWindow()
-                    qtbot.addWidget(window)  # CRITICAL: Register for cleanup
-                    assert window is not None
-                    assert window.shot_model is not None
-                    assert isinstance(window.shot_model, ShotModel)
+                mock_get_instance.return_value = TestProcessPool()
+                # Should not raise any exceptions
+                window = MainWindow()
+                qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+                assert window is not None
+                assert window.shot_model is not None
+                assert isinstance(window.shot_model, ShotModel)
 
-                    # Clean up any threads if present
-                    if hasattr(window, "_threede_worker") and window._threede_worker:
-                        if window._threede_worker.isRunning():
-                            window._threede_worker.quit()
-                            window._threede_worker.wait(1000)
-                    window.close()
+                # Clean up any threads if present
+                if (
+                    hasattr(window, "_threede_worker")
+                    and window._threede_worker
+                    and window._threede_worker.isRunning()
+                ):
+                    window._threede_worker.quit()
+                    window._threede_worker.wait(1000)
+                window.close()
 
     def test_window_initialization_with_legacy_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that MainWindow initializes correctly with legacy model."""
@@ -442,8 +447,8 @@ class TestMainWindowIntegration:
             # Use real test double instead of Mock()
             test_cache = ExtendedTestCacheManager()
 
-            with patch("main_window.CacheManager") as MockCacheManager:
-                MockCacheManager.return_value = test_cache
+            with patch("main_window.CacheManager") as mock_cache_manager:
+                mock_cache_manager.return_value = test_cache
 
                 # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
@@ -457,10 +462,13 @@ class TestMainWindowIntegration:
                     # so we can't distinguish them by class name alone
 
                     # Clean up any threads if present
-                    if hasattr(window, "_threede_worker") and window._threede_worker:
-                        if window._threede_worker.isRunning():
-                            window._threede_worker.quit()
-                            window._threede_worker.wait(1000)
+                    if (
+                        hasattr(window, "_threede_worker")
+                        and window._threede_worker
+                        and window._threede_worker.isRunning()
+                    ):
+                        window._threede_worker.quit()
+                        window._threede_worker.wait(1000)
                     window.close()
         finally:
             os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
@@ -474,8 +482,8 @@ class TestMainWindowIntegration:
             # Use real test double instead of Mock()
             test_cache = ExtendedTestCacheManager()
 
-            with patch("main_window.CacheManager") as MockCacheManager:
-                MockCacheManager.return_value = test_cache
+            with patch("main_window.CacheManager") as mock_cache_manager:
+                mock_cache_manager.return_value = test_cache
 
                 # Mock QTimer to prevent delayed operations
                 with (

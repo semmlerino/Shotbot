@@ -64,10 +64,11 @@ def verify_conftest_enhancements() -> bool:
         "thread_safety_monitor",
     ]
 
-    missing = []
-    for fixture in required_fixtures:
-        if f"def {fixture}" not in content and f"def _{fixture}" not in content:
-            missing.append(fixture)
+    missing = [
+        fixture
+        for fixture in required_fixtures
+        if f"def {fixture}" not in content and f"def _{fixture}" not in content
+    ]
 
     if missing:
         print(f"❌ Missing fixtures: {', '.join(missing)}")

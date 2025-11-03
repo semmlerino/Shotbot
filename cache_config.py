@@ -288,18 +288,16 @@ class UnifiedCacheConfig(LoggingMixin, QObject):
             setting_key: The settings key that changed
             new_value: The new value for the setting
         """
-        if setting_key == "performance/max_cache_memory_mb":
+        if setting_key == "performance/max_cache_memory_mb" and isinstance(new_value, int | float | str):
             # Type narrowing for numeric values from QSettings
-            if isinstance(new_value, int | float | str):
-                self.logger.info(f"Cache memory limit changed to {new_value}MB")
-                self.memory_limit_changed.emit(int(new_value))
-                self.config_updated.emit()
-        elif setting_key == "performance/cache_expiry_minutes":
+            self.logger.info(f"Cache memory limit changed to {new_value}MB")
+            self.memory_limit_changed.emit(int(new_value))
+            self.config_updated.emit()
+        elif setting_key == "performance/cache_expiry_minutes" and isinstance(new_value, int | float | str):
             # Type narrowing for numeric values from QSettings
-            if isinstance(new_value, int | float | str):
-                self.logger.info(f"Cache expiry time changed to {new_value} minutes")
-                self.expiry_time_changed.emit(int(new_value))
-                self.config_updated.emit()
+            self.logger.info(f"Cache expiry time changed to {new_value} minutes")
+            self.expiry_time_changed.emit(int(new_value))
+            self.config_updated.emit()
 
     # NOTE: ThumbnailManager methods removed after cache simplification
     # These were part of the old over-engineered cache system

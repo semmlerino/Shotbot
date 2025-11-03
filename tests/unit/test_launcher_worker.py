@@ -310,7 +310,7 @@ class TestCommandSanitization:
         try:
             # Try multiple commands
             for command in ["nuke script.nk", "maya -file scene.ma", "3de scene.3de"]:
-                cmd_list, use_shell = worker._sanitize_command(command)
+                _cmd_list, use_shell = worker._sanitize_command(command)
                 assert use_shell is False, f"use_shell should always be False, got True for: {command}"
         finally:
             worker.safe_stop()
@@ -333,7 +333,7 @@ class TestWorkerExecution:
         mock_threading,
     ) -> None:
         """Test do_work emits command_started signal."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
         worker = LauncherWorker(worker_id, "nuke script.nk")
 
         try:
@@ -417,7 +417,7 @@ class TestWorkerExecution:
         mock_threading,
     ) -> None:
         """Test do_work creates threads to drain stdout and stderr."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
         mock_thread_cls, mock_thread = mock_threading
         worker = LauncherWorker(worker_id, "nuke script.nk")
 
@@ -448,7 +448,7 @@ class TestWorkerExecution:
         mock_threading,
     ) -> None:
         """Test do_work emits command_finished with success on exit code 0."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
         worker = LauncherWorker(worker_id, "nuke script.nk")
 
         try:
@@ -475,7 +475,7 @@ class TestWorkerExecution:
         mock_threading,
     ) -> None:
         """Test do_work emits command_finished with failure on non-zero exit."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
         worker = LauncherWorker(worker_id, "nuke script.nk")
 
         try:
@@ -502,7 +502,7 @@ class TestWorkerExecution:
         mock_threading,
     ) -> None:
         """Test do_work respects stop request during process execution."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
         worker = LauncherWorker(worker_id, "nuke script.nk")
 
         try:
@@ -766,7 +766,7 @@ class TestSignalPropagation:
         mock_threading,
     ) -> None:
         """Test signals are properly emitted from worker thread."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
         worker = LauncherWorker(worker_id, "nuke script.nk")
 
         try:
@@ -795,7 +795,7 @@ class TestSignalPropagation:
         mock_threading,
     ) -> None:
         """Test multiple workers emit independent signals."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
 
         worker1 = LauncherWorker("worker1", "nuke script1.nk")
         worker2 = LauncherWorker("worker2", "maya scene.ma")
@@ -886,7 +886,7 @@ class TestResourceCleanup:
         mock_threading,
     ) -> None:
         """Test worker cleans up resources after normal execution."""
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
         worker = LauncherWorker(worker_id, "nuke script.nk")
 
         try:

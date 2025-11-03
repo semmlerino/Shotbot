@@ -15,7 +15,7 @@ from __future__ import annotations
 
 # Standard library imports
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
 
@@ -137,7 +137,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
             # Get file metadata
             stat = crash_file.stat()
-            mod_time = datetime.fromtimestamp(stat.st_mtime)
+            mod_time = datetime.fromtimestamp(stat.st_mtime, tz=UTC)
 
             info = CrashFileInfo(
                 crash_path=crash_file,
@@ -266,7 +266,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
             raise FileNotFoundError(f"Crash file not found: {crash_path}")
 
         # Generate timestamp suffix
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
 
         # Build archive name
         # From: scene_v010_crashsave3750186.3de

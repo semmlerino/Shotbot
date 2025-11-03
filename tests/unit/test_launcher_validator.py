@@ -385,43 +385,43 @@ class TestCommandSyntaxValidation:
     ) -> None:
         """Test dangerous command chaining with rm is detected."""
         # Semicolon
-        valid, error = validator.validate_command_syntax("echo test; rm /tmp/file")
+        valid, _error = validator.validate_command_syntax("echo test; rm /tmp/file")
         assert valid is False
 
         # Double ampersand
-        valid, error = validator.validate_command_syntax("echo test && rm /tmp/file")
+        valid, _error = validator.validate_command_syntax("echo test && rm /tmp/file")
         assert valid is False
 
         # Pipe (pattern requires space after rm)
-        valid, error = validator.validate_command_syntax("cat file | rm -rf")
+        valid, _error = validator.validate_command_syntax("cat file | rm -rf")
         assert valid is False
 
     def test_dangerous_command_substitution(self, validator: LauncherValidator) -> None:
         """Test dangerous command substitution patterns are detected."""
         # Backtick substitution
-        valid, error = validator.validate_command_syntax("`rm /tmp/file`")
+        valid, _error = validator.validate_command_syntax("`rm /tmp/file`")
         assert valid is False
 
         # $() substitution
-        valid, error = validator.validate_command_syntax("$(rm /tmp/file)")
+        valid, _error = validator.validate_command_syntax("$(rm /tmp/file)")
         assert valid is False
 
     def test_dangerous_sudo_patterns(self, validator: LauncherValidator) -> None:
         """Test dangerous sudo patterns are detected."""
         # After semicolon
-        valid, error = validator.validate_command_syntax("echo test; sudo rm")
+        valid, _error = validator.validate_command_syntax("echo test; sudo rm")
         assert valid is False
 
         # After &&
-        valid, error = validator.validate_command_syntax("echo test && sudo rm")
+        valid, _error = validator.validate_command_syntax("echo test && sudo rm")
         assert valid is False
 
     def test_system_file_access_detected(self, validator: LauncherValidator) -> None:
         """Test access to system files is detected."""
-        valid, error = validator.validate_command_syntax("cat /etc/passwd")
+        valid, _error = validator.validate_command_syntax("cat /etc/passwd")
         assert valid is False
 
-        valid, error = validator.validate_command_syntax("cat /etc/shadow")
+        valid, _error = validator.validate_command_syntax("cat /etc/shadow")
         assert valid is False
 
     def test_environment_variables_allowed(self, validator: LauncherValidator) -> None:

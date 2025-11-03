@@ -70,7 +70,7 @@ def setup_mock_vfx_environment() -> bool:
     marker_file = mock_vfx_root / "MOCK_VFX_ENVIRONMENT.txt"
     if marker_file.exists():
         logger.info(f"✅ Found mock VFX environment at {mock_vfx_root}")
-        with open(marker_file) as f:
+        with marker_file.open() as f:
             for line in f:
                 if "Capture host:" in line:
                     logger.info(f"   {line.strip()}")
@@ -110,7 +110,7 @@ def create_shows_symlink() -> bool:
     try:
         shows_link = Path("/shows")
         if not shows_link.exists():
-            os.symlink("/tmp/mock_vfx/shows", "/shows")
+            shows_link.symlink_to("/tmp/mock_vfx/shows")
             logger.info("✅ Created symlink: /shows -> /tmp/mock_vfx/shows")
             symlink_created = True
         elif shows_link.is_symlink():
@@ -121,13 +121,13 @@ def create_shows_symlink() -> bool:
 
     # Option 2: Update demo_shots.json to use /tmp/mock_vfx paths
     if not symlink_created:
-        logger.info("ℹ️  Updating paths for mock environment...")
+        logger.info("Updating paths for mock environment...")
         demo_shots_file = Path(__file__).parent / "demo_shots.json"
         if demo_shots_file.exists():
             # Standard library imports
             import json
 
-            with open(demo_shots_file) as f:
+            with demo_shots_file.open() as f:
                 demo_data = json.load(f)
 
             # Update paths to use /tmp/mock_vfx
@@ -142,7 +142,7 @@ def create_shows_symlink() -> bool:
             if updated:
                 # Save to temporary file
                 temp_demo = Path("/tmp/demo_shots_mock.json")
-                with open(temp_demo, "w") as f:
+                with temp_demo.open("w") as f:
                     json.dump(demo_data, f, indent=2)
                 logger.info(f"✅ Created temporary demo shots: {temp_demo}")
 

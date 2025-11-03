@@ -94,7 +94,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         # Load cache if requested
         if load_cache:
-            self._load_from_cache()
+            _ = self._load_from_cache()
 
     def _load_from_cache(self) -> bool:
         """Load shots from cache if available.
@@ -152,12 +152,12 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                 self.logger.debug(f"ws output line {i + 1}: {line}")
 
         for line_num, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line:
+            stripped_line = line.strip()
+            if not stripped_line:
                 continue
 
             # Use OptimizedShotParser for better performance
-            result = self._parser.parse_workspace_line(line)
+            result = self._parser.parse_workspace_line(stripped_line)
             if result:
                 try:
                     workspace_path = result.workspace_path

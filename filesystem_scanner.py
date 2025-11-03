@@ -394,7 +394,7 @@ class FileSystemScanner(LoggingMixin):
         """Optimized quick check for .3de file existence."""
 
         for base_path in base_paths:
-            if not os.path.exists(base_path):
+            if not Path(base_path).exists():
                 continue
 
             try:

@@ -324,7 +324,7 @@ class TestParallelDiscoveryIntegration:
         assert "ANOTHERSHOW" in results
 
         # Verify results from both discoveries
-        for _show_name, (scenes, progress_updates) in results.items():
+        for scenes, progress_updates in results.values():
             assert isinstance(scenes, list)
             assert len(scenes) >= 0  # May be 0 if no scenes found
             assert len(progress_updates) >= 0  # Should have some progress
@@ -391,7 +391,7 @@ class TestParallelDiscoveryIntegration:
 
         # Verify results
         assert isinstance(scenes, list)
-        expected_scenes = 2 * 3 * 5 * 2 * 3  # shows × seqs × shots × users × plates
+        expected_scenes = 2 * 3 * 5 * 2 * 3  # shows x seqs x shots x users x plates
         assert len(scenes) == expected_scenes, (
             f"Expected {expected_scenes} scenes, got {len(scenes)}"
         )

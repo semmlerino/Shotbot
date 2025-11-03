@@ -13,7 +13,7 @@ from __future__ import annotations
 # Standard library imports
 import os
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -448,7 +448,7 @@ class TestThreeDESceneModel:
             scene_path.write_text(f"# 3DE scene by {user}")
 
             # Set different modification times
-            mtime = datetime.now().timestamp() - (100 * (3 - i))  # user3 is newest
+            mtime = datetime.now(tz=UTC).timestamp() - (100 * (3 - i))  # user3 is newest
             os.utime(scene_path, (mtime, mtime))
 
             scenes.append(

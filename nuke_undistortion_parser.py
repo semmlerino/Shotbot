@@ -89,7 +89,7 @@ class NukeUndistortionParser:
                 logger.error(f"Undistortion file not found: {undistortion_path}")
                 return ""
 
-            with open(undistortion_path, encoding="utf-8") as f:
+            with Path(undistortion_path).open(encoding="utf-8") as f:
                 content = f.read()
 
             if not content.strip():
@@ -276,7 +276,7 @@ class NukeUndistortionParser:
 
             logger.debug(f"File exists, size: {undistortion_file.stat().st_size} bytes")
 
-            with open(undistortion_path, encoding="utf-8") as f:
+            with undistortion_file.open(encoding="utf-8") as f:
                 content = f.read()
 
             logger.debug(

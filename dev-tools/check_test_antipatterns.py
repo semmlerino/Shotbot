@@ -99,7 +99,7 @@ class TestAntiPatternChecker:
         # Skip certain files that are allowed to have patterns
 
         try:
-            with open(file_path, encoding="utf-8") as f:
+            with file_path.open(encoding="utf-8") as f:
                 lines = f.readlines()
 
             for line_num, line in enumerate(lines, start=1):
@@ -142,7 +142,7 @@ class TestAntiPatternChecker:
             return patterns
 
         try:
-            with open(file_path, encoding="utf-8") as f:
+            with file_path.open(encoding="utf-8") as f:
                 content = f.read()
 
             # Find widget creations

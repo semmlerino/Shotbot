@@ -337,15 +337,19 @@ class TestCache:
             value: Value to cache
         """
         # Check size limit and evict if needed
-        if self.max_size and len(self.data) >= self.max_size and key not in self.data:
+        if (
+            self.max_size
+            and len(self.data) >= self.max_size
+            and key not in self.data
+            and self.access_times
+        ):
             # Simple LRU eviction
-            if self.access_times:
-                oldest_key = min(self.access_times, key=self.access_times.get)
-                del self.data[oldest_key]
-                del self.access_times[oldest_key]
-                if oldest_key in self.creation_times:
-                    del self.creation_times[oldest_key]
-                self.evictions += 1
+            oldest_key = min(self.access_times, key=self.access_times.get)
+            del self.data[oldest_key]
+            del self.access_times[oldest_key]
+            if oldest_key in self.creation_times:
+                del self.creation_times[oldest_key]
+            self.evictions += 1
 
         self.data[key] = value
         self.sets += 1

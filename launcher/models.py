@@ -8,7 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, TypedDict
 
@@ -82,9 +82,12 @@ class LauncherParameter:
 
         # Validate numeric ranges
         if self.param_type in (ParameterType.INTEGER, ParameterType.FLOAT):
-            if self.min_value is not None and self.max_value is not None:
-                if self.min_value > self.max_value:
-                    raise ValueError("min_value cannot be greater than max_value")
+            if (
+                self.min_value is not None
+                and self.max_value is not None
+                and self.min_value > self.max_value
+            ):
+                raise ValueError("min_value cannot be greater than max_value")
 
             if self.default_value is not None and isinstance(
                 self.default_value, (int, float)
@@ -234,8 +237,8 @@ class CustomLauncher:
     environment: LauncherEnvironment = field(default_factory=LauncherEnvironment)
     terminal: LauncherTerminal = field(default_factory=LauncherTerminal)
     validation: LauncherValidation = field(default_factory=LauncherValidation)
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
 
     def to_dict(
         self,

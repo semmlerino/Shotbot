@@ -216,7 +216,7 @@ class TestNuke3DEUndistortionImport:
         assert Path(script_path).exists()
 
         # Read generated script
-        with open(script_path) as f:
+        with Path(script_path).open() as f:
             content = f.read()
 
         # Verify content

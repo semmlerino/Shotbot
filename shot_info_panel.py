@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from cache_manager import CacheManager
 from qt_widget_mixin import QtWidgetMixin
 from runnable_tracker import get_tracker
+from typing_compat import override
 from utils import ImageUtils
 
 
@@ -51,13 +52,12 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         current_thread = QThread.currentThread()
         main_thread = app_instance.thread()
         if current_thread != main_thread:
-            raise RuntimeError(
-
-                    f"ShotInfoPanel must be created in the main thread. "
-                    f"Current thread: {current_thread}, "
-                    f"Main thread: {main_thread}"
-
+            msg = (
+                f"ShotInfoPanel must be created in the main thread. "
+                f"Current thread: {current_thread}, "
+                f"Main thread: {main_thread}"
             )
+            raise RuntimeError(msg)
 
         # Additional safety check for QApplication type (relaxed for tests)
         # In test environments, QCoreApplication is acceptable since pytest-qt may create it
@@ -67,16 +67,15 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
 
         if not isinstance(app_instance, QApplication) and not is_test_environment:
-            raise RuntimeError(
-
-                    f"ShotInfoPanel: QCoreApplication instance is not a QApplication. "
-                    f"Type: {type(app_instance)}"
-
+            msg = (
+                f"ShotInfoPanel: QCoreApplication instance is not a QApplication. "
+                f"Type: {type(app_instance)}"
             )
+            raise RuntimeError(msg)
 
         super().__init__(parent)
         self._current_shot: Shot | None = None
-        self.cache_manager = cache_manager or CacheManager()  # Make public
+        self.cache_manager: CacheManager = cache_manager or CacheManager()  # Make public
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -87,7 +86,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         layout.setSpacing(15)
 
         # Thumbnail preview
-        self.thumbnail_label = QLabel()
+        self.thumbnail_label: QLabel = QLabel()
         self.thumbnail_label.setFixedSize(128, 128)
         self.thumbnail_label.setScaledContents(True)
         self.thumbnail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -105,7 +104,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         info_layout.setSpacing(5)
 
         # Shot name (large)
-        self.shot_name_label = QLabel("No Shot Selected")
+        self.shot_name_label: QLabel = QLabel("No Shot Selected")
         shot_font = QFont()
         shot_font.setPointSize(18)
         shot_font.setWeight(QFont.Weight.Bold)
@@ -114,7 +113,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         info_layout.addWidget(self.shot_name_label)
 
         # Show and sequence
-        self.show_sequence_label = QLabel("")
+        self.show_sequence_label: QLabel = QLabel("")
         show_font = QFont()
         show_font.setPointSize(12)
         self.show_sequence_label.setFont(show_font)
@@ -122,7 +121,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         info_layout.addWidget(self.show_sequence_label)
 
         # Workspace path
-        self.path_label = QLabel("")
+        self.path_label: QLabel = QLabel("")
         path_font = QFont()
         path_font.setPointSize(9)
         self.path_label.setFont(path_font)
@@ -191,7 +190,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
                 self._load_pixmap_async(thumb_path)
 
                 # Cache it synchronously (simplified cache handles this efficiently)
-                self.cache_manager.cache_thumbnail(
+                _ = self.cache_manager.cache_thumbnail(
                     thumb_path,
                     self._current_shot.show,
                     self._current_shot.sequence,
@@ -272,8 +271,8 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         except OSError as e:
             self.logger.warning(f"I/O error loading thumbnail {path}: {e}")
             self._set_placeholder_thumbnail()
-        except Exception as e:
-            self.logger.exception(f"Unexpected error loading thumbnail {path}: {e}")
+        except Exception:
+            self.logger.exception(f"Unexpected error loading thumbnail {path}")
             self._set_placeholder_thumbnail()
         finally:
             # Clean up Qt objects
@@ -327,15 +326,16 @@ class InfoPanelPixmapLoader(QRunnable):
     """Async loader for info panel thumbnails."""
 
     class Signals(QObject):
-        loaded = Signal(QImage)
-        failed = Signal()
+        loaded: Signal = Signal(QImage)
+        failed: Signal = Signal()
 
     def __init__(self, panel: ShotInfoPanel, path: str | Path) -> None:
         super().__init__()
-        self.panel = panel  # Keep reference to prevent GC
-        self.path = path
-        self.signals = self.Signals()
+        self.panel: ShotInfoPanel = panel  # Keep reference to prevent GC
+        self.path: str | Path = path
+        self.signals: InfoPanelPixmapLoader.Signals = self.Signals()
 
+    @override
     def run(self) -> None:
         """Load pixmap in background thread."""
         # Use module-level logger since QRunnable can't inherit from LoggingMixin

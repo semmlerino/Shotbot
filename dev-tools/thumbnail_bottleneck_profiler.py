@@ -14,23 +14,19 @@ Focuses specifically on the performance areas requested:
 import cProfile
 import io
 import logging
-import os
 import pstats
 import re
 import sys
 import time
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 
 # Third-party imports
 import psutil
 
 
-if TYPE_CHECKING:
-    # Standard library imports
-    from pathlib import Path
-
 # Add current directory for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 try:
     # Local application imports
@@ -602,8 +598,7 @@ class ThumbnailBottleneckProfiler:
         if issues:
             report.append("🚨 CRITICAL PERFORMANCE ISSUES DETECTED")
             report.append("-" * 42)
-            for issue in issues:
-                report.append(f"  • {issue}")
+            report.extend(f"  • {issue}" for issue in issues)
         else:
             report.append("✅ NO CRITICAL PERFORMANCE ISSUES DETECTED")
         report.append("")
@@ -680,17 +675,16 @@ class ThumbnailBottleneckProfiler:
 
             if "blocking_operations" in data:
                 report.append("  Blocking operations:")
-                for op in data["blocking_operations"]:
-                    if op["blocks_ui"]:
-                        report.append(
-                            f"    • {op['operation']}: {op['duration_ms']:.1f}ms ({op['severity']} severity)"
-                        )
+                report.extend(
+                    f"    • {op['operation']}: {op['duration_ms']:.1f}ms ({op['severity']} severity)"
+                    for op in data["blocking_operations"]
+                    if op["blocks_ui"]
+                )
 
             recommendations = data.get("recommendations", [])
             if recommendations:
                 report.append("  Recommendations:")
-                for rec in recommendations:
-                    report.append(f"    → {rec}")
+                report.extend(f"    → {rec}" for rec in recommendations)
             report.append("")
 
         # Final Optimization Recommendations
@@ -785,7 +779,8 @@ def main() -> None:
 
     # Save to file if specified
     if args.output:
-        with open(args.output, "w") as f:
+        output_path = Path(args.output)
+        with output_path.open("w") as f:
             f.write(report)
         print(f"\nBottleneck analysis saved to: {args.output}")
 

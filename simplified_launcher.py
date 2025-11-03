@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import subprocess
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -142,7 +142,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                 "SHOW": shot.show,
             }
 
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             self.command_executed.emit(
                 timestamp, f"Launching {app_name} with command: {command[:100]}..."
             )
@@ -156,7 +156,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         env = self._get_app_environment(app_name, shot)
 
         # Log what we're doing
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
         self.command_executed.emit(
             timestamp, f"Launching {app_name} with command: {command[:100]}..."
         )
@@ -301,7 +301,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         Returns:
             True if launch was successful
         """
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
         self.command_executed.emit(timestamp, f"Launching {name}: {command}")
 
         env = environment or {}
@@ -551,7 +551,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
 
     def _emit_error(self, error: str) -> None:
         """Emit an error signal with timestamp."""
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
         self.command_error.emit(timestamp, error)
         self.logger.error(error)
 

@@ -107,11 +107,15 @@ def validate_test_types() -> bool:
         if "def test_" in content:
             lines = content.split("\n")
             for i, line in enumerate(lines):
-                if line.strip().startswith("def test_") and ") -> None:" not in line:
-                    if "def test_" in line and ":" in line:
-                        issues.append(
-                            f"{test_file.name}:{i + 1} - Missing return type annotation"
-                        )
+                if (
+                    line.strip().startswith("def test_")
+                    and ") -> None:" not in line
+                    and "def test_" in line
+                    and ":" in line
+                ):
+                    issues.append(
+                        f"{test_file.name}:{i + 1} - Missing return type annotation"
+                    )
 
         # Check for proper type: ignore usage
         if "# type: ignore" in content and "# pyright: ignore[" not in content:

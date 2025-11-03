@@ -12,6 +12,7 @@ import contextlib
 
 # Standard library imports
 from collections.abc import Generator
+from datetime import UTC
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -296,10 +297,13 @@ def main_window_with_real_components(
     # No timer cleanup needed for previous shots model
 
     # Stop any workers
-    if hasattr(window, "threede_worker") and window.threede_worker:
-        if window.threede_worker.isRunning():
-            window.threede_worker.quit()
-            window.threede_worker.wait(1000)
+    if (
+        hasattr(window, "threede_worker")
+        and window.threede_worker
+        and window.threede_worker.isRunning()
+    ):
+        window.threede_worker.quit()
+        window.threede_worker.wait(1000)
 
     # Disconnect all signals to prevent crashes during cleanup
     with contextlib.suppress(RuntimeError, TypeError):
@@ -492,7 +496,7 @@ workspace /shows/test/shots/seq01/shot02""")
         # Standard library imports
         from datetime import datetime
 
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
         window.command_launcher.command_error.emit(timestamp, "Test error message")
 
         # Process events

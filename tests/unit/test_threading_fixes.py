@@ -205,7 +205,7 @@ class TestWorkerStateTransitions:
         """Test multiple workers."""
         workers = []
 
-        for i in range(3):
+        for _ in range(3):
             worker = SimpleTestWorker(work_steps=2)
             workers.append(worker)
 

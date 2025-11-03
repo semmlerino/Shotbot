@@ -140,7 +140,7 @@ class TestThreadSafeProgressTracker:
             worker.join(timeout=5.0)
 
         # Verify all workers completed and progress was aggregated correctly
-        # Total files: 3 workers × 4 files = 12 files
+        # Total files: 3 workers x 4 files = 12 files
         # Should have multiple progress updates
         assert len(progress_updates) >= 1
 

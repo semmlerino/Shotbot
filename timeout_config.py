@@ -13,37 +13,37 @@ class TimeoutConfig:
     """Timeout configuration for various operations in seconds."""
 
     # Command execution timeouts
-    WORKSPACE_COMMAND_DEFAULT = 120  # 2 minutes for workspace commands
-    WORKSPACE_COMMAND_HEAVY = 300  # 5 minutes for heavy operations
-    APPLICATION_LAUNCH = 300  # 5 minutes for app launches
-    SIMPLE_COMMAND = 30  # 30 seconds for simple commands
+    WORKSPACE_COMMAND_DEFAULT: int = 120  # 2 minutes for workspace commands
+    WORKSPACE_COMMAND_HEAVY: int = 300  # 5 minutes for heavy operations
+    APPLICATION_LAUNCH: int = 300  # 5 minutes for app launches
+    SIMPLE_COMMAND: int = 30  # 30 seconds for simple commands
 
     # Process management timeouts
-    PROCESS_GRACEFUL_TERMINATE = 10  # 10 seconds for graceful termination
-    PROCESS_FORCE_KILL = 5  # 5 seconds after terminate before force kill
-    PROCESS_STARTUP_VALIDATION = 30  # 30 seconds for app startup validation
-    PROCESS_POLL_INTERVAL = 1.0  # 1 second between process checks
+    PROCESS_GRACEFUL_TERMINATE: int = 10  # 10 seconds for graceful termination
+    PROCESS_FORCE_KILL: int = 5  # 5 seconds after terminate before force kill
+    PROCESS_STARTUP_VALIDATION: int = 30  # 30 seconds for app startup validation
+    PROCESS_POLL_INTERVAL: float = 1.0  # 1 second between process checks
 
     # File system operation timeouts
-    FILE_SEARCH_QUICK = 15  # 15 seconds for quick file checks
-    FILE_SEARCH_STANDARD = 120  # 2 minutes for standard searches
-    FILE_SEARCH_DEEP = 300  # 5 minutes for deep recursive searches
-    FILE_NETWORK_OPERATION = 60  # 1 minute for network file operations
+    FILE_SEARCH_QUICK: int = 15  # 15 seconds for quick file checks
+    FILE_SEARCH_STANDARD: int = 120  # 2 minutes for standard searches
+    FILE_SEARCH_DEEP: int = 300  # 5 minutes for deep recursive searches
+    FILE_NETWORK_OPERATION: int = 60  # 1 minute for network file operations
 
     # Session management timeouts
-    SESSION_RECOVERY_MAX_WAIT = 30  # 30 seconds max for session recovery
-    SESSION_COMMAND_DEFAULT = 120  # 2 minutes default for session commands
-    SESSION_HEALTHCHECK = 5  # 5 seconds for health check commands
+    SESSION_RECOVERY_MAX_WAIT: int = 30  # 30 seconds max for session recovery
+    SESSION_COMMAND_DEFAULT: int = 120  # 2 minutes default for session commands
+    SESSION_HEALTHCHECK: int = 5  # 5 seconds for health check commands
 
     # Cache and background operation timeouts
-    CACHE_OPERATION = 5  # 5 seconds for cache operations
-    BACKGROUND_TASK = 60  # 1 minute for background tasks
-    CLEANUP_OPERATION = 10  # 10 seconds for cleanup operations
+    CACHE_OPERATION: float = 5  # 5 seconds for cache operations
+    BACKGROUND_TASK: int = 60  # 1 minute for background tasks
+    CLEANUP_OPERATION: int = 10  # 10 seconds for cleanup operations
 
     # UI and interaction timeouts (in milliseconds)
-    UI_OPERATION_MS = 5000  # 5 seconds for UI operations
-    UI_ANIMATION_MS = 1000  # 1 second for animations
-    UI_RESPONSE_MS = 500  # 500ms for UI responsiveness
+    UI_OPERATION_MS: int = 5000  # 5 seconds for UI operations
+    UI_ANIMATION_MS: int = 1000  # 1 second for animations
+    UI_RESPONSE_MS: int = 500  # 500ms for UI responsiveness
 
     @classmethod
     def get_timeout_for_operation(cls, operation_type: str) -> int:
@@ -84,14 +84,13 @@ class TimeoutConfig:
                 not attr_name.startswith("_")
                 and not callable(attr_value)
                 and attr_name.isupper()
+                and isinstance(attr_value, int | float)
             ):
-                # Type narrowing via isinstance check - value is now int | float
-                if isinstance(attr_value, int | float):
-                    # Don't scale millisecond values directly, they have _MS suffix
-                    if attr_name.endswith("_MS"):
-                        setattr(cls, attr_name, int(attr_value * factor))
-                    else:
-                        setattr(cls, attr_name, int(attr_value * factor))
+                # Don't scale millisecond values directly, they have _MS suffix
+                if attr_name.endswith("_MS"):
+                    setattr(cls, attr_name, int(attr_value * factor))
+                else:
+                    setattr(cls, attr_name, int(attr_value * factor))
 
     @classmethod
     def optimize_for_network_latency(cls, latency_ms: int) -> None:
@@ -103,11 +102,11 @@ class TimeoutConfig:
         if latency_ms > 100:  # High latency network
             # Increase file and network operation timeouts
             factor = 1 + (latency_ms / 100) * 0.5  # Scale factor based on latency
-            cls.FILE_SEARCH_QUICK = int(cls.FILE_SEARCH_QUICK * factor)  # pyright: ignore[reportConstantRedefinition]
-            cls.FILE_SEARCH_STANDARD = int(cls.FILE_SEARCH_STANDARD * factor)  # pyright: ignore[reportConstantRedefinition]
-            cls.FILE_SEARCH_DEEP = int(cls.FILE_SEARCH_DEEP * factor)  # pyright: ignore[reportConstantRedefinition]
-            cls.FILE_NETWORK_OPERATION = int(cls.FILE_NETWORK_OPERATION * factor)  # pyright: ignore[reportConstantRedefinition]
-            cls.WORKSPACE_COMMAND_DEFAULT = int(cls.WORKSPACE_COMMAND_DEFAULT * factor)  # pyright: ignore[reportConstantRedefinition]
+            cls.FILE_SEARCH_QUICK = int(cls.FILE_SEARCH_QUICK * factor)
+            cls.FILE_SEARCH_STANDARD = int(cls.FILE_SEARCH_STANDARD * factor)
+            cls.FILE_SEARCH_DEEP = int(cls.FILE_SEARCH_DEEP * factor)
+            cls.FILE_NETWORK_OPERATION = int(cls.FILE_NETWORK_OPERATION * factor)
+            cls.WORKSPACE_COMMAND_DEFAULT = int(cls.WORKSPACE_COMMAND_DEFAULT * factor)
 
     @classmethod
     def get_config_summary(cls) -> str:

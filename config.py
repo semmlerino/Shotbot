@@ -60,25 +60,25 @@ class Config:
     """Application configuration."""
 
     # App info
-    APP_NAME = "ShotBot"
-    APP_VERSION = "1.0.2"  # Added third thumbnail fallback for EXR files
+    APP_NAME: str = "ShotBot"
+    APP_VERSION: str = "1.0.2"  # Added third thumbnail fallback for EXR files
 
     # Window settings
-    DEFAULT_WINDOW_WIDTH = 1200
-    DEFAULT_WINDOW_HEIGHT = 800
-    MIN_WINDOW_WIDTH = 800
-    MIN_WINDOW_HEIGHT = 600
+    DEFAULT_WINDOW_WIDTH: int = 1200
+    DEFAULT_WINDOW_HEIGHT: int = 800
+    MIN_WINDOW_WIDTH: int = 800
+    MIN_WINDOW_HEIGHT: int = 600
 
     # Thumbnail settings
-    DEFAULT_THUMBNAIL_SIZE = 350
-    MIN_THUMBNAIL_SIZE = 250
-    MAX_THUMBNAIL_SIZE = 600
-    THUMBNAIL_SPACING = 20  # Increased to accommodate selection highlight
-    PLACEHOLDER_COLOR = "#444444"
+    DEFAULT_THUMBNAIL_SIZE: int = 350
+    MIN_THUMBNAIL_SIZE: int = 250
+    MAX_THUMBNAIL_SIZE: int = 600
+    THUMBNAIL_SPACING: int = 20  # Increased to accommodate selection highlight
+    PLACEHOLDER_COLOR: str = "#444444"
 
     # Shot paths (configurable via SHOWS_ROOT environment variable)
     SHOWS_ROOT: str = os.environ.get("SHOWS_ROOT", "/shows")
-    THUMBNAIL_PATH_PATTERN = "{shows_root}/{show}/shots/{sequence}/{shot}/publish/editorial/cutref/v001/jpg/1920x1080/"
+    THUMBNAIL_PATH_PATTERN: str = "{shows_root}/{show}/shots/{sequence}/{shot}/publish/editorial/cutref/v001/jpg/1920x1080/"
 
     # Commands
     APPS: ClassVar[dict[str, str]] = {
@@ -88,11 +88,11 @@ class Config:
         "rv": "rv",
         "publish": "publish_standalone",
     }
-    DEFAULT_APP = "nuke"
+    DEFAULT_APP: str = "nuke"
 
     # Rez Environment Configuration
-    USE_REZ_ENVIRONMENT = True  # Enable rez environment wrapper when available
-    REZ_AUTO_DETECT = True  # Automatically detect rez availability via REZ_USED env var
+    USE_REZ_ENVIRONMENT: bool = True  # Enable rez environment wrapper when available
+    REZ_AUTO_DETECT: bool = True  # Automatically detect rez availability via REZ_USED env var
     REZ_NUKE_PACKAGES: ClassVar[list[str]] = [
         "nuke",
         "python-3.11",
@@ -101,16 +101,16 @@ class Config:
     REZ_3DE_PACKAGES: ClassVar[list[str]] = ["3de"]  # Default rez packages for 3DE
 
     # Nuke Undistortion Handling
-    NUKE_UNDISTORTION_MODE = (
+    NUKE_UNDISTORTION_MODE: str = (
         "direct"  # Options: "direct" (open file), "parse" (old method)
     )
-    NUKE_USE_LOADER_SCRIPT = (
+    NUKE_USE_LOADER_SCRIPT: bool = (
         True  # Use loader script when combining plate + undistortion
     )
-    NUKE_FIX_OCIO_CRASH = (
+    NUKE_FIX_OCIO_CRASH: bool = (
         False  # Whether to apply environment fixes to prevent OCIO plugin crashes
     )
-    NUKE_SKIP_PROBLEMATIC_PLUGINS = (
+    NUKE_SKIP_PROBLEMATIC_PLUGINS: bool = (
         False  # Whether to skip known problematic plugins that cause crashes
     )
     NUKE_PROBLEMATIC_PLUGIN_PATHS: ClassVar[list[str]] = [
@@ -118,98 +118,98 @@ class Config:
         "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4.0.3/python-3.11",  # Disable ShotGrid bootstrap errors
         # Add other problematic plugin paths here
     ]
-    NUKE_OCIO_FALLBACK_CONFIG = "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
+    NUKE_OCIO_FALLBACK_CONFIG: str = "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
 
     # Persistent Terminal Settings
-    PERSISTENT_TERMINAL_ENABLED = (
+    PERSISTENT_TERMINAL_ENABLED: bool = (
         True  # Master switch to enable/disable persistent terminal
     )
-    USE_PERSISTENT_TERMINAL = (
+    USE_PERSISTENT_TERMINAL: bool = (
         True  # Use single terminal for all commands (when enabled)
     )
-    PERSISTENT_TERMINAL_FIFO = "/tmp/shotbot_commands.fifo"  # FIFO path for commands
-    PERSISTENT_TERMINAL_TITLE = "ShotBot Terminal"  # Terminal window title
-    AUTO_BACKGROUND_GUI_APPS = True  # Auto-append & for GUI applications
-    KEEP_TERMINAL_ON_EXIT = False  # Keep terminal open when ShotBot closes
-    CLEAR_TERMINAL_BEFORE_COMMAND = False  # Clear screen before each command
-    TERMINAL_DISPATCHER_SCRIPT = "terminal_dispatcher.sh"  # Dispatcher script name
+    PERSISTENT_TERMINAL_FIFO: str = "/tmp/shotbot_commands.fifo"  # FIFO path for commands
+    PERSISTENT_TERMINAL_TITLE: str = "ShotBot Terminal"  # Terminal window title
+    AUTO_BACKGROUND_GUI_APPS: bool = True  # Auto-append & for GUI applications
+    KEEP_TERMINAL_ON_EXIT: bool = False  # Keep terminal open when ShotBot closes
+    CLEAR_TERMINAL_BEFORE_COMMAND: bool = False  # Clear screen before each command
+    TERMINAL_DISPATCHER_SCRIPT: str = "terminal_dispatcher.sh"  # Dispatcher script name
 
     # Settings file
-    SETTINGS_FILE = Path.home() / ".shotbot" / "settings.json"
+    SETTINGS_FILE: Path = Path.home() / ".shotbot" / "settings.json"
 
     # UI settings
-    LOG_MAX_LINES = 1000
-    GRID_COLUMNS = 4  # Default columns, will be dynamic based on width
+    LOG_MAX_LINES: int = 1000
+    GRID_COLUMNS: int = 4  # Default columns, will be dynamic based on width
 
     # Threading
-    MAX_THUMBNAIL_THREADS = 4
-    CPU_COUNT = multiprocessing.cpu_count()  # Number of CPU cores available
-    WORKER_STOP_TIMEOUT_MS = 5000  # Timeout for worker.wait() calls (5 seconds)
+    MAX_THUMBNAIL_THREADS: int = 4
+    CPU_COUNT: int = multiprocessing.cpu_count()  # Number of CPU cores available
+    WORKER_STOP_TIMEOUT_MS: int = 5000  # Timeout for worker.wait() calls (5 seconds)
 
     # Thumbnail unloading settings
-    THUMBNAIL_UNLOAD_DELAY_MS = 5000  # Delay before unloading invisible thumbnails
+    THUMBNAIL_UNLOAD_DELAY_MS: int = 5000  # Delay before unloading invisible thumbnails
 
     # Process and command settings
-    SUBPROCESS_TIMEOUT_SECONDS = 10  # Timeout for subprocess calls
-    WS_COMMAND_TIMEOUT_SECONDS = 10  # Timeout for ws -sg command specifically
+    SUBPROCESS_TIMEOUT_SECONDS: int = 10  # Timeout for subprocess calls
+    WS_COMMAND_TIMEOUT_SECONDS: int = 10  # Timeout for ws -sg command specifically
 
     # Image and memory limits
-    MAX_THUMBNAIL_DIMENSION_PX = 4096  # Maximum dimension for thumbnail images
-    MAX_INFO_PANEL_DIMENSION_PX = 2048  # Maximum dimension for info panel thumbnails
-    MAX_CACHE_DIMENSION_PX = 10000  # Maximum dimension for cached images
-    MAX_THUMBNAIL_MEMORY_MB = 50  # Maximum memory usage for thumbnail images
-    MAX_FILE_SIZE_MB = 100  # Maximum file size for image loading
+    MAX_THUMBNAIL_DIMENSION_PX: int = 4096  # Maximum dimension for thumbnail images
+    MAX_INFO_PANEL_DIMENSION_PX: int = 2048  # Maximum dimension for info panel thumbnails
+    MAX_CACHE_DIMENSION_PX: int = 10000  # Maximum dimension for cached images
+    MAX_THUMBNAIL_MEMORY_MB: int = 50  # Maximum memory usage for thumbnail images
+    MAX_FILE_SIZE_MB: int = 100  # Maximum file size for image loading
 
     # Cache settings
-    CACHE_EXPIRY_MINUTES = 1440  # Cache for 24 hours (1 day) - data persists longer
-    CACHE_THUMBNAIL_SIZE = 512  # Size for cached thumbnails
-    CACHE_REFRESH_INTERVAL_MINUTES = (
+    CACHE_EXPIRY_MINUTES: int = 1440  # Cache for 24 hours (1 day) - data persists longer
+    CACHE_THUMBNAIL_SIZE: int = 512  # Size for cached thumbnails
+    CACHE_REFRESH_INTERVAL_MINUTES: int = (
         60  # Background refresh check interval (once per hour)
     )
-    ENABLE_BACKGROUND_REFRESH = (
+    ENABLE_BACKGROUND_REFRESH: bool = (
         True  # Can be overridden by SHOTBOT_NO_BACKGROUND_REFRESH env var
     )
 
     # Enhanced cache settings
-    PATH_CACHE_TTL_SECONDS = (
+    PATH_CACHE_TTL_SECONDS: int = (
         0  # Path validation (0 = no automatic expiry, manual refresh only)
     )
-    DIR_CACHE_TTL_SECONDS = (
+    DIR_CACHE_TTL_SECONDS: int = (
         0  # Directory listings (0 = no automatic expiry, manual refresh only)
     )
-    SCENE_CACHE_TTL_SECONDS = (
+    SCENE_CACHE_TTL_SECONDS: int = (
         0  # 3DE scenes (0 = no automatic expiry, manual refresh only)
     )
 
     # Cache size limits
-    PATH_CACHE_MAX_SIZE = 5000  # Maximum path cache entries
-    DIR_CACHE_MAX_SIZE = 500  # Maximum directory cache entries
-    SCENE_CACHE_MAX_SIZE = 2000  # Maximum scene cache entries
+    PATH_CACHE_MAX_SIZE: int = 5000  # Maximum path cache entries
+    DIR_CACHE_MAX_SIZE: int = 500  # Maximum directory cache entries
+    SCENE_CACHE_MAX_SIZE: int = 2000  # Maximum scene cache entries
 
     # Memory limits (MB)
-    PATH_CACHE_MAX_MEMORY_MB = 1.0
-    DIR_CACHE_MAX_MEMORY_MB = 5.0
-    SCENE_CACHE_MAX_MEMORY_MB = 5.0
-    THUMB_CACHE_MAX_MEMORY_MB = 2.0
+    PATH_CACHE_MAX_MEMORY_MB: float = 1.0
+    DIR_CACHE_MAX_MEMORY_MB: float = 5.0
+    SCENE_CACHE_MAX_MEMORY_MB: float = 5.0
+    THUMB_CACHE_MAX_MEMORY_MB: float = 2.0
 
     # Memory pressure thresholds (percentage)
-    MEMORY_PRESSURE_NORMAL = 70.0  # Below this is normal
-    MEMORY_PRESSURE_MODERATE = 85.0  # Start considering eviction
-    MEMORY_PRESSURE_HIGH = 95.0  # Aggressive eviction needed
+    MEMORY_PRESSURE_NORMAL: float = 70.0  # Below this is normal
+    MEMORY_PRESSURE_MODERATE: float = 85.0  # Start considering eviction
+    MEMORY_PRESSURE_HIGH: float = 95.0  # Aggressive eviction needed
 
     # Performance monitoring
-    ENABLE_PERFORMANCE_MONITORING = True
-    CACHE_STATS_LOG_INTERVAL = 300  # Log cache stats every 5 minutes
+    ENABLE_PERFORMANCE_MONITORING: bool = True
+    CACHE_STATS_LOG_INTERVAL: int = 300  # Log cache stats every 5 minutes
 
     # Notification settings
-    NOTIFICATION_TOAST_DURATION_MS = 4000  # Auto-dismiss time for toast notifications
-    NOTIFICATION_SUCCESS_TIMEOUT_MS = 3000  # Success message timeout in status bar
-    NOTIFICATION_ERROR_TIMEOUT_MS = 5000  # Error message timeout in status bar
-    NOTIFICATION_MAX_TOASTS = 5  # Maximum simultaneous toast notifications
+    NOTIFICATION_TOAST_DURATION_MS: int = 4000  # Auto-dismiss time for toast notifications
+    NOTIFICATION_SUCCESS_TIMEOUT_MS: int = 3000  # Success message timeout in status bar
+    NOTIFICATION_ERROR_TIMEOUT_MS: int = 5000  # Error message timeout in status bar
+    NOTIFICATION_MAX_TOASTS: int = 5  # Maximum simultaneous toast notifications
 
     # VFX pipeline settings
-    DEFAULT_USERNAME = "gabriel-h"  # Default username for pipeline paths
-    UNDISTORTION_SUBPATH = "mm"  # Subdirectory for undistortion files
+    DEFAULT_USERNAME: str = "gabriel-h"  # Default username for pipeline paths
+    UNDISTORTION_SUBPATH: str = "mm"  # Subdirectory for undistortion files
 
     # File extensions
     # Thumbnail discovery strategy
@@ -220,7 +220,7 @@ class Config:
     THUMBNAIL_FALLBACK_EXTENSIONS: ClassVar[list[str]] = [".tiff", ".tif"]
 
     # Maximum file size (MB) for direct loading without resizing
-    THUMBNAIL_MAX_DIRECT_SIZE_MB = 10
+    THUMBNAIL_MAX_DIRECT_SIZE_MB: int = 10
 
     # Keep IMAGE_EXTENSIONS for general image handling (includes EXR for Nuke, not for thumbnails)
     IMAGE_EXTENSIONS: ClassVar[list[str]] = [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".exr"]
@@ -359,62 +359,62 @@ class Config:
     ]
 
     # Show-wide search configuration
-    SHOW_SEARCH_ENABLED = (
+    SHOW_SEARCH_ENABLED: bool = (
         True  # Enable searching all shots in shows (not just user's shots)
     )
     SHOW_ROOT_PATHS: ClassVar[list[str]] = [
         SHOWS_ROOT
     ]  # Root directories where shows are stored (uses configured SHOWS_ROOT)
-    MAX_SHOTS_PER_SHOW = 1000  # Limit to prevent excessive searching in huge shows
+    MAX_SHOTS_PER_SHOW: int = 1000  # Limit to prevent excessive searching in huge shows
     SKIP_SEQUENCE_PATTERNS: ClassVar[list[str]] = ["tmp", "temp", "test", "old", "archive", "_dev"]
     SKIP_SHOT_PATTERNS: ClassVar[list[str]] = ["tmp", "temp", "test", "old", "archive", "_dev"]
 
     # Progressive file scanning configuration
-    PROGRESSIVE_SCAN_ENABLED = True  # Enable progressive/batched file scanning
-    PROGRESSIVE_SCAN_BATCH_SIZE = 20  # Number of files to process per batch
-    PROGRESSIVE_SCAN_MIN_BATCH_SIZE = 5  # Minimum batch size for last batch
-    PROGRESSIVE_SCAN_MAX_BATCH_SIZE = 100  # Maximum batch size limit
+    PROGRESSIVE_SCAN_ENABLED: bool = True  # Enable progressive/batched file scanning
+    PROGRESSIVE_SCAN_BATCH_SIZE: int = 20  # Number of files to process per batch
+    PROGRESSIVE_SCAN_MIN_BATCH_SIZE: int = 5  # Minimum batch size for last batch
+    PROGRESSIVE_SCAN_MAX_BATCH_SIZE: int = 100  # Maximum batch size limit
 
     # Backward compatibility constant for tests
-    THREEDE_BATCH_SIZE = PROGRESSIVE_SCAN_BATCH_SIZE  # Alias for backward compatibility
+    THREEDE_BATCH_SIZE: int = PROGRESSIVE_SCAN_BATCH_SIZE  # Alias for backward compatibility
 
     # Progress reporting configuration
-    PROGRESS_UPDATE_INTERVAL_MS = 500  # Minimum time between progress updates (ms)
-    PROGRESS_FILES_PER_UPDATE = 10  # Update progress every N files processed
-    PROGRESS_ENABLE_ETA = True  # Enable ETA calculation and display
-    PROGRESS_ETA_SMOOTHING_WINDOW = 5  # Number of samples for ETA smoothing
+    PROGRESS_UPDATE_INTERVAL_MS: int = 500  # Minimum time between progress updates (ms)
+    PROGRESS_FILES_PER_UPDATE: int = 10  # Update progress every N files processed
+    PROGRESS_ENABLE_ETA: bool = True  # Enable ETA calculation and display
+    PROGRESS_ETA_SMOOTHING_WINDOW: int = 5  # Number of samples for ETA smoothing
 
     # Worker thread configuration
-    WORKER_CANCELLATION_CHECK_INTERVAL = 50  # Check for cancellation every N files
-    WORKER_PAUSE_CHECK_INTERVAL_MS = 100  # Check for pause/resume every N ms
-    WORKER_THREAD_PRIORITY = 0  # QThread priority (0=normal, -1=low, +1=high)
-    WORKER_SHUTDOWN_TIMEOUT_MS = 5000  # Maximum time to wait for worker shutdown
+    WORKER_CANCELLATION_CHECK_INTERVAL: int = 50  # Check for cancellation every N files
+    WORKER_PAUSE_CHECK_INTERVAL_MS: int = 100  # Check for pause/resume every N ms
+    WORKER_THREAD_PRIORITY: int = 0  # QThread priority (0=normal, -1=low, +1=high)
+    WORKER_SHUTDOWN_TIMEOUT_MS: int = 5000  # Maximum time to wait for worker shutdown
 
     # Performance tuning for progressive scanning
-    PROGRESSIVE_IO_YIELD_INTERVAL = 25  # Yield to other threads every N files
-    PROGRESSIVE_MEMORY_CHECK_INTERVAL = 100  # Check memory usage every N files
-    PROGRESSIVE_MAX_MEMORY_MB = 512  # Maximum memory usage during scanning
+    PROGRESSIVE_IO_YIELD_INTERVAL: int = 25  # Yield to other threads every N files
+    PROGRESSIVE_MEMORY_CHECK_INTERVAL: int = 100  # Check memory usage every N files
+    PROGRESSIVE_MAX_MEMORY_MB: int = 512  # Maximum memory usage during scanning
 
     # 3DE Scene Discovery Configuration (NEW - Efficient scanning)
-    THREEDE_SCAN_MODE = "full_show"  # Options: "full_show", "user_sequences", "smart"
+    THREEDE_SCAN_MODE: str = "full_show"  # Options: "full_show", "user_sequences", "smart"
     # - "full_show": Scan entire show (old behavior, can be slow)
     # - "user_sequences": Only scan sequences where user has shots
     # - "smart": Only scan shots that actually have .3de files (most efficient)
 
-    THREEDE_MAX_SHOTS_TO_SCAN = 1000  # Increased: scan more shots
-    THREEDE_SCAN_RELATED_SEQUENCES = (
+    THREEDE_MAX_SHOTS_TO_SCAN: int = 1000  # Increased: scan more shots
+    THREEDE_SCAN_RELATED_SEQUENCES: bool = (
         True  # Only scan user's sequences (when in user_sequences mode)
     )
-    THREEDE_FILE_FIRST_DISCOVERY = True  # Use new efficient file-first discovery
-    THREEDE_SCAN_TIMEOUT_SECONDS = 60  # Extended timeout for large/slow filesystems
-    THREEDE_SCAN_MAX_DEPTH = (
+    THREEDE_FILE_FIRST_DISCOVERY: bool = True  # Use new efficient file-first discovery
+    THREEDE_SCAN_TIMEOUT_SECONDS: int = 60  # Extended timeout for large/slow filesystems
+    THREEDE_SCAN_MAX_DEPTH: int = (
         15  # Max directory depth for find command (increased for deeply nested files)
     )
-    THREEDE_SCAN_PARALLEL_SEQUENCES = 4  # Number of sequences to search in parallel
-    THREEDE_SCAN_MAX_FILES_PER_SHOT = 1  # Stop after finding ONE .3de file per shot
-    THREEDE_STOP_AFTER_FIRST = True  # New: stop searching shot after first .3de found
-    THREEDE_CACHE_DISCOVERED_SHOTS = True  # Cache which shots have .3de files
-    THREEDE_INCREMENTAL_SCAN = False  # Only scan for changes (future feature)
+    THREEDE_SCAN_PARALLEL_SEQUENCES: int = 4  # Number of sequences to search in parallel
+    THREEDE_SCAN_MAX_FILES_PER_SHOT: int = 1  # Stop after finding ONE .3de file per shot
+    THREEDE_STOP_AFTER_FIRST: bool = True  # New: stop searching shot after first .3de found
+    THREEDE_CACHE_DISCOVERED_SHOTS: bool = True  # Cache which shots have .3de files
+    THREEDE_INCREMENTAL_SCAN: bool = False  # Only scan for changes (future feature)
 
 
 class ThreadingConfig:
@@ -425,41 +425,41 @@ class ThreadingConfig:
     """
 
     # Worker timeouts
-    WORKER_STOP_TIMEOUT_MS = 2000  # Time to wait for graceful worker stop
-    WORKER_TERMINATE_TIMEOUT_MS = 1000  # Time to wait before force termination
-    WORKER_POLL_INTERVAL = 0.1  # Polling interval for worker state checks
+    WORKER_STOP_TIMEOUT_MS: int = 2000  # Time to wait for graceful worker stop
+    WORKER_TERMINATE_TIMEOUT_MS: int = 1000  # Time to wait before force termination
+    WORKER_POLL_INTERVAL: float = 0.1  # Polling interval for worker state checks
 
     # Cleanup timings
-    CLEANUP_RETRY_DELAY_MS = 500  # Delay between cleanup retry attempts
-    CLEANUP_INITIAL_DELAY_MS = 1000  # Initial delay before cleanup starts
+    CLEANUP_RETRY_DELAY_MS: int = 500  # Delay between cleanup retry attempts
+    CLEANUP_INITIAL_DELAY_MS: int = 1000  # Initial delay before cleanup starts
 
     # Process pool configuration
-    SESSION_INIT_TIMEOUT = 2.0  # Timeout for session initialization
-    SESSION_MAX_RETRIES = 5  # Maximum retry attempts for session operations
-    SUBPROCESS_TIMEOUT = 30.0  # General subprocess timeout
+    SESSION_INIT_TIMEOUT: float = 2.0  # Timeout for session initialization
+    SESSION_MAX_RETRIES: int = 5  # Maximum retry attempts for session operations
+    SUBPROCESS_TIMEOUT: float = 30.0  # General subprocess timeout
 
     # Polling configuration
-    INITIAL_POLL_INTERVAL = 0.01  # 10ms - Initial polling interval
-    MAX_POLL_INTERVAL = 0.5  # 500ms - Maximum polling interval
-    POLL_BACKOFF_FACTOR = 1.5  # Exponential backoff multiplier
+    INITIAL_POLL_INTERVAL: float = 0.01  # 10ms - Initial polling interval
+    MAX_POLL_INTERVAL: float = 0.5  # 500ms - Maximum polling interval
+    POLL_BACKOFF_FACTOR: float = 1.5  # Exponential backoff multiplier
 
     # Cache configuration
-    CACHE_MAX_MEMORY_MB = 100  # Maximum memory for caching
-    CACHE_CLEANUP_INTERVAL = 30  # Cache cleanup interval in minutes
+    CACHE_MAX_MEMORY_MB: int = 100  # Maximum memory for caching
+    CACHE_CLEANUP_INTERVAL: int = 30  # Cache cleanup interval in minutes
 
     # Thread pool settings
-    MAX_WORKER_THREADS = 4  # Maximum number of worker threads
-    THREAD_POOL_TIMEOUT = 5.0  # Thread pool operation timeout
+    MAX_WORKER_THREADS: int = 4  # Maximum number of worker threads
+    THREAD_POOL_TIMEOUT: float = 5.0  # Thread pool operation timeout
 
     # Previous shots parallel scanning
-    PREVIOUS_SHOTS_PARALLEL_WORKERS = 4  # Number of parallel workers for shot scanning
-    PREVIOUS_SHOTS_SCAN_TIMEOUT = 30  # Timeout per show (seconds)
-    PREVIOUS_SHOTS_CACHE_TTL = (
+    PREVIOUS_SHOTS_PARALLEL_WORKERS: int = 4  # Number of parallel workers for shot scanning
+    PREVIOUS_SHOTS_SCAN_TIMEOUT: int = 30  # Timeout per show (seconds)
+    PREVIOUS_SHOTS_CACHE_TTL: int = (
         0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)
     )
 
     # 3DE scene discovery parallel scanning
-    THREEDE_PARALLEL_WORKERS = 4  # Number of parallel workers for 3DE file discovery
-    THREEDE_PROGRESS_INTERVAL = 10  # Number of files between progress updates
-    THREEDE_SCAN_CHUNK_SIZE = 100  # Files per batch for processing
-    THREEDE_SCAN_TIMEOUT = 60  # Timeout per directory scan (seconds)
+    THREEDE_PARALLEL_WORKERS: int = 4  # Number of parallel workers for 3DE file discovery
+    THREEDE_PROGRESS_INTERVAL: int = 10  # Number of files between progress updates
+    THREEDE_SCAN_CHUNK_SIZE: int = 100  # Files per batch for processing
+    THREEDE_SCAN_TIMEOUT: int = 60  # Timeout per directory scan (seconds)

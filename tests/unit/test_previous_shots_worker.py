@@ -208,11 +208,9 @@ class TestPreviousShotsWorkerWorkflow:
 
         with qtbot.waitSignal(
             worker.scan_finished, check_params_cb=check_scan_result, timeout=5000
-        ):
-            # Ensure no error signals are emitted
-            with qtbot.assertNotEmitted(worker.error_occurred, wait=100):
-                # Start worker after signal waiter is ready
-                worker.start()
+        ), qtbot.assertNotEmitted(worker.error_occurred, wait=100):
+            # Start worker after signal waiter is ready
+            worker.start()
 
         # Ensure thread has finished
         worker.wait(2000)

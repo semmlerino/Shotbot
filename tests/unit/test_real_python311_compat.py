@@ -10,7 +10,7 @@ def check_real_compatibility(filepath: Path) -> list:
     issues = []
 
     try:
-        with open(filepath, encoding="utf-8") as f:
+        with filepath.open(encoding="utf-8") as f:
             content = f.read()
 
         # Look for actual nested f-strings (f"...{f'...'}...")

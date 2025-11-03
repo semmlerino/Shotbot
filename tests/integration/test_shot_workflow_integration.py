@@ -14,7 +14,7 @@ import shutil
 import sys
 import tempfile
 import traceback
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Third-party imports
@@ -212,7 +212,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         assert cache_file.exists()
 
         # Read cache data
-        with open(cache_file) as f:
+        with cache_file.open() as f:
             cache_data = json.load(f)
 
         assert "data" in cache_data
@@ -225,7 +225,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         shot_model.refresh_shots()
 
         # Verify cache was updated
-        with open(cache_file) as f:
+        with cache_file.open() as f:
             updated_cache_data = json.load(f)
 
         assert updated_cache_data["data"][0]["show"] == "show2"
@@ -239,7 +239,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
 
         # Pre-populate cache with test data
         cache_data = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "shots": [
                 {
                     "show": "cached_show",
@@ -252,7 +252,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         }
 
         cache_file = self.cache_dir / "shots.json"
-        with open(cache_file, "w") as f:
+        with cache_file.open("w") as f:
             json.dump(cache_data, f)
 
         shot_model = ShotModel(cache_manager=cache_manager)

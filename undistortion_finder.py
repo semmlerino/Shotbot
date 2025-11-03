@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
+import re
 from pathlib import Path
 
 # Local application imports
@@ -19,7 +20,7 @@ class UndistortionFinder:
     """Finds the latest undistortion .nk file for a shot."""
 
     # Pattern for version directories (v001, v002, etc.)
-    VERSION_PATTERN = VersionUtils.VERSION_PATTERN
+    VERSION_PATTERN: re.Pattern[str] = VersionUtils.VERSION_PATTERN
 
     @staticmethod
     def find_latest_undistortion(

@@ -55,7 +55,7 @@ class LauncherConfigManager(LoggingMixin):
             return {}
 
         try:
-            with open(self.config_file) as f:
+            with self.config_file.open() as f:
                 data = cast(
                     "dict[str, str | dict[str, dict[str, str | dict[str, str | bool | list[str] | None] | list[str]]] | list[str]]",
                     json.load(f),
@@ -99,7 +99,7 @@ class LauncherConfigManager(LoggingMixin):
                 launcher_dict.pop("id", None)
                 config_data["launchers"][launcher_id] = launcher_dict
 
-            with open(self.config_file, "w") as f:
+            with self.config_file.open("w") as f:
                 json.dump(config_data, f, indent=2)
 
             self.logger.info(f"Saved {len(launchers)} launchers to config")

@@ -253,10 +253,9 @@ class TestCommonViewBehavior:
             assert has_context_menu, "ShotGridView should have context menu"
         elif view_class == PreviousShotsView:
             assert has_context_menu, "PreviousShotsView should have context menu"
-        elif view_class == ThreeDEGridView:
+        elif view_class == ThreeDEGridView and not has_context_menu:
             # ThreeDEGridView doesn't have context menu yet, skip for now
-            if not has_context_menu:
-                pytest.skip("ThreeDEGridView doesn't have context menu yet")
+            pytest.skip("ThreeDEGridView doesn't have context menu yet")
 
     def test_size_slider_functionality(
         self,

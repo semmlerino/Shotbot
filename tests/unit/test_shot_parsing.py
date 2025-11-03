@@ -41,7 +41,7 @@ def test_shot_extraction() -> None:
 
     # Test that full_name reconstruction works
     print("\n--- Testing full_name reconstruction ---")
-    for sequence, shot_dir, expected_shot in test_cases[:7]:  # Test main cases
+    for sequence, shot_dir, _expected_shot in test_cases[:7]:  # Test main cases
         if shot_dir.startswith(f"{sequence}_"):
             shot = shot_dir[len(sequence) + 1 :]
             full_name = f"{sequence}_{shot}"

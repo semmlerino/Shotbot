@@ -95,18 +95,19 @@ class TestExtractShowsFromActiveShots:
             Shot(show="test_show", sequence="seq", shot="0010", workspace_path="/path"),
         ]
 
-        with patch.object(finder.logger, "info") as mock_info:
-            with patch.object(finder.logger, "debug") as mock_debug:
-                shows = finder.extract_shows_from_active_shots(active_shots)
+        with patch.object(finder.logger, "info") as mock_info, patch.object(
+            finder.logger, "debug"
+        ) as mock_debug:
+            shows = finder.extract_shows_from_active_shots(active_shots)
 
-                mock_info.assert_called_once()
-                assert (
-                    "Extracted 1 unique shows from 1 active shots"
-                    in mock_info.call_args[0][0]
-                )
-                assert len(shows) == 1  # Verify the expected show count
-                mock_debug.assert_called_once()
-                assert "test_show" in str(mock_debug.call_args[0][0])
+            mock_info.assert_called_once()
+            assert (
+                "Extracted 1 unique shows from 1 active shots"
+                in mock_info.call_args[0][0]
+            )
+            assert len(shows) == 1  # Verify the expected show count
+            mock_debug.assert_called_once()
+            assert "test_show" in str(mock_debug.call_args[0][0])
 
     def test_extract_many_shows(self) -> None:
         """Test extracting from many shows."""
@@ -185,13 +186,14 @@ class TestScanShowForUser:
         show_path = shows_root / "test_show" / "shots"
         show_path.mkdir(parents=True)
 
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 30)):
-            with patch.object(finder.logger, "warning") as mock_warning:
-                shots = finder._scan_show_for_user("test_show", shows_root)
+        with patch(
+            "subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 30)
+        ), patch.object(finder.logger, "warning") as mock_warning:
+            shots = finder._scan_show_for_user("test_show", shows_root)
 
-                assert shots == []
-                mock_warning.assert_called_once()
-                assert "Timeout scanning show" in mock_warning.call_args[0][0]
+            assert shots == []
+            mock_warning.assert_called_once()
+            assert "Timeout scanning show" in mock_warning.call_args[0][0]
 
     def test_scan_with_subprocess_error(self, tmp_path: Path) -> None:
         """Test handling of subprocess errors."""
@@ -201,13 +203,14 @@ class TestScanShowForUser:
         show_path = shows_root / "test_show" / "shots"
         show_path.mkdir(parents=True)
 
-        with patch("subprocess.run", side_effect=Exception("Process failed")):
-            with patch.object(finder.logger, "error") as mock_error:
-                shots = finder._scan_show_for_user("test_show", shows_root)
+        with patch(
+            "subprocess.run", side_effect=Exception("Process failed")
+        ), patch.object(finder.logger, "error") as mock_error:
+            shots = finder._scan_show_for_user("test_show", shows_root)
 
-                assert shots == []
-                mock_error.assert_called_once()
-                assert "Error scanning show" in mock_error.call_args[0][0]
+            assert shots == []
+            mock_error.assert_called_once()
+            assert "Error scanning show" in mock_error.call_args[0][0]
 
     def test_scan_with_multiple_shots(self, tmp_path: Path, monkeypatch) -> None:
         """Test scanning show with multiple shots."""
@@ -702,12 +705,13 @@ class TestEdgeCases:
             mock_executor_class.return_value.__enter__.return_value = mock_executor
             mock_executor.submit.return_value = mock_future
 
-            with patch("concurrent.futures.as_completed", return_value=[mock_future]):
-                with patch.object(finder.logger, "warning") as mock_warning:
-                    list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
+            with patch(
+                "concurrent.futures.as_completed", return_value=[mock_future]
+            ), patch.object(finder.logger, "warning") as mock_warning:
+                list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
-                    mock_warning.assert_called()
-                    assert "Timeout processing" in mock_warning.call_args[0][0]
+                mock_warning.assert_called()
+                assert "Timeout processing" in mock_warning.call_args[0][0]
 
     def test_concurrent_future_exception(self, tmp_path: Path) -> None:
         """Test handling of concurrent.futures exceptions."""
@@ -721,12 +725,13 @@ class TestEdgeCases:
             mock_executor_class.return_value.__enter__.return_value = mock_executor
             mock_executor.submit.return_value = mock_future
 
-            with patch("concurrent.futures.as_completed", return_value=[mock_future]):
-                with patch.object(finder.logger, "error") as mock_error:
-                    list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
+            with patch(
+                "concurrent.futures.as_completed", return_value=[mock_future]
+            ), patch.object(finder.logger, "error") as mock_error:
+                list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
-                    mock_error.assert_called()
-                    assert "Error processing" in mock_error.call_args[0][0]
+                mock_error.assert_called()
+                assert "Error processing" in mock_error.call_args[0][0]
 
     def test_mock_mode_username(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test username handling in mock mode."""

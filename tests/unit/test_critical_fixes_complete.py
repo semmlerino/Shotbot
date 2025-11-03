@@ -131,7 +131,7 @@ def test_previous_shots_model_cleanup():
     main_window_path = Path(__file__).parent.parent.parent / "main_window.py"
     assert main_window_path.exists(), f"main_window.py not found at {main_window_path}"
 
-    with open(main_window_path) as f:
+    with main_window_path.open() as f:
         main_window_content = f.read()
 
     # Verify closeEvent delegates to CleanupManager
@@ -146,7 +146,7 @@ def test_previous_shots_model_cleanup():
     cleanup_manager_path = Path(__file__).parent.parent.parent / "cleanup_manager.py"
     assert cleanup_manager_path.exists(), "cleanup_manager.py not found"
 
-    with open(cleanup_manager_path) as f:
+    with cleanup_manager_path.open() as f:
         content = f.read()
 
     checks = [

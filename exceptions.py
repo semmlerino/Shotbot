@@ -13,6 +13,8 @@ Following best practices for exception design:
 
 from __future__ import annotations
 
+from typing_compat import override
+
 
 class ShotBotError(Exception):
     """Base exception for all ShotBot errors.
@@ -44,6 +46,7 @@ class ShotBotError(Exception):
         self.details = details or {}
         self.error_code = error_code or "SHOTBOT_ERROR"
 
+    @override
     def __str__(self) -> str:
         """String representation of the error."""
         if self.details:

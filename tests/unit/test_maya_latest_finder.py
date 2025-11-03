@@ -450,10 +450,9 @@ class TestEdgeCases:
         # Mock iterdir to raise PermissionError
         with patch.object(
             Path, "iterdir", side_effect=PermissionError("Access denied")
-        ):
+        ), pytest.raises(PermissionError):
             # The implementation doesn't catch PermissionError, so it should be raised
-            with pytest.raises(PermissionError):
-                finder.find_latest_maya_scene(str(workspace))
+            finder.find_latest_maya_scene(str(workspace))
 
 
 class TestPerformance:

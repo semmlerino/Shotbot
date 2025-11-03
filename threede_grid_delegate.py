@@ -7,7 +7,7 @@ functionality from BaseThumbnailDelegate.
 from __future__ import annotations
 
 # Standard library imports
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
 
 # Third-party imports
@@ -106,7 +106,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
         if timestamp_data is not None and timestamp_data != 0:
             try:
                 # Convert Unix timestamp to datetime
-                timestamp = datetime.fromtimestamp(float(timestamp_data))
+                timestamp = datetime.fromtimestamp(float(timestamp_data), tz=UTC)
                 # Format timestamp for display
                 timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M")
             except (ValueError, OSError):

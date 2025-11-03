@@ -58,7 +58,7 @@ def benchmark_regex_patterns():
 
     print("Regex Pattern Optimization Benchmark")
     print("=" * 50)
-    print(f"Test data size: {len(test_lines)} lines × {iterations} iterations")
+    print(f"Test data size: {len(test_lines)} lines x {iterations} iterations")
     print(f"Total operations: {total_operations:,}")
     print()
     print("Original pattern (\\w+):")

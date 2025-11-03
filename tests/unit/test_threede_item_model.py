@@ -128,7 +128,7 @@ class TestThreadSafety:
         # Third-party imports
         from PySide6.QtCore import QMutexLocker
 
-        for i, scene in enumerate(many_scenes[:110]):  # Try to exceed limit
+        for _, scene in enumerate(many_scenes[:110]):  # Try to exceed limit
             if len(model._thumbnail_cache) < 100:  # Respect MAX_CACHE_SIZE
                 with QMutexLocker(model._cache_mutex):
                     model._thumbnail_cache[str(scene.scene_path)] = test_image

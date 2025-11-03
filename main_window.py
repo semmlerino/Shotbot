@@ -292,11 +292,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
         # Create persistent terminal manager if enabled
         # Feature flag for simplified launcher
-        USE_SIMPLIFIED_LAUNCHER = (
+        use_simplified_launcher = (
             os.environ.get("USE_SIMPLIFIED_LAUNCHER", "false").lower() == "true"
         )
 
-        if USE_SIMPLIFIED_LAUNCHER:
+        if use_simplified_launcher:
             # Use new simplified launcher (500 lines vs 2,872 lines)
             # Local application imports
             from simplified_launcher import SimplifiedLauncher

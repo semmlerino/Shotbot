@@ -348,7 +348,7 @@ class TestLauncherWorkflowIntegration:
         assert config_file.exists()
 
         # Read config file directly
-        with open(config_file) as f:
+        with config_file.open() as f:
             config_data = json.load(f)
 
         assert "launchers" in config_data

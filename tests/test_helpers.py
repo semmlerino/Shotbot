@@ -14,7 +14,7 @@ from __future__ import annotations
 
 # Standard library imports
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 # Third-party imports
@@ -339,34 +339,30 @@ class TestCacheData:
     @staticmethod
     def create_shot_data(count: int = 3) -> list[dict[str, Any]]:
         """Create test shot data."""
-        shots = []
-        for i in range(count):
-            shots.append(
-                {
-                    "show": f"test_show_{i}",
-                    "sequence": f"seq{i:03d}",
-                    "shot": f"shot{i:04d}",
-                    "workspace_path": f"/test/path/show_{i}/seq{i:03d}/shot{i:04d}",
-                    "timestamp": datetime.now().isoformat(),
-                }
-            )
-        return shots
+        return [
+            {
+                "show": f"test_show_{i}",
+                "sequence": f"seq{i:03d}",
+                "shot": f"shot{i:04d}",
+                "workspace_path": f"/test/path/show_{i}/seq{i:03d}/shot{i:04d}",
+                "timestamp": datetime.now(tz=UTC).isoformat(),
+            }
+            for i in range(count)
+        ]
 
     @staticmethod
     def create_scene_data(count: int = 2) -> list[dict[str, Any]]:
         """Create test 3DE scene data."""
-        scenes = []
-        for i in range(count):
-            scenes.append(
-                {
-                    "path": f"/test/3de/scene_{i}.3de",
-                    "plate_name": f"plate_{i}",
-                    "user": f"user_{i}",
-                    "mtime": datetime.now().timestamp(),
-                    "size": 1024 * (i + 1),
-                }
-            )
-        return scenes
+        return [
+            {
+                "path": f"/test/3de/scene_{i}.3de",
+                "plate_name": f"plate_{i}",
+                "user": f"user_{i}",
+                "mtime": datetime.now(tz=UTC).timestamp(),
+                "size": 1024 * (i + 1),
+            }
+            for i in range(count)
+        ]
 
     @staticmethod
     def create_cache_file(cache_dir: Path, filename: str, data: Any) -> Path:
@@ -374,7 +370,7 @@ class TestCacheData:
         cache_dir.mkdir(parents=True, exist_ok=True)
         cache_file = cache_dir / filename
 
-        with open(cache_file, "w") as f:
+        with cache_file.open("w") as f:
             json.dump(data, f, indent=2)
 
         return cache_file

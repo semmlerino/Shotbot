@@ -1357,9 +1357,8 @@ class FileUtils:
 
         normalized_extensions: set[str] = set()
         for ext in extensions:
-            if not ext.startswith("."):
-                ext = "." + ext
-            normalized_extensions.add(ext.lower())
+            normalized_ext = ext if ext.startswith(".") else "." + ext
+            normalized_extensions.add(normalized_ext.lower())
 
         dir_path = Path(directory) if isinstance(directory, str) else directory
         matching_files: list[Path] = []
@@ -1368,12 +1367,14 @@ class FileUtils:
             # Use iterdir() but with early termination optimization
             for file_path in dir_path.iterdir():
                 # Check is_file() first as it's usually faster than suffix check
-                if file_path.is_file():
-                    if file_path.suffix.lower() in normalized_extensions:
-                        matching_files.append(file_path)
-                        # Early termination if limit reached
-                        if limit and len(matching_files) >= limit:
-                            break
+                if (
+                    file_path.is_file()
+                    and file_path.suffix.lower() in normalized_extensions
+                ):
+                    matching_files.append(file_path)
+                    # Early termination if limit reached
+                    if limit and len(matching_files) >= limit:
+                        break
         except (OSError, PermissionError) as e:
             logger.warning(f"Error scanning directory {dir_path}: {e}")
 
@@ -1620,8 +1621,8 @@ class ImageUtils:
         except FileNotFoundError:
             logger.warning("FFmpeg not found in PATH - cannot extract MOV frames")
             return None
-        except Exception as e:
-            logger.exception(f"Error extracting frame from MOV {mov_path.name}: {e}")
+        except Exception:
+            logger.exception(f"Error extracting frame from MOV {mov_path.name}")
             return None
 
 

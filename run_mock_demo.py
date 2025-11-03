@@ -34,7 +34,7 @@ def test_mock_environment() -> bool:
 
     # 1. Show that mock data is loaded
     demo_shots_path = Path("demo_shots.json")
-    with open(demo_shots_path) as f:
+    with demo_shots_path.open() as f:
         data: DemoData = cast("DemoData", json.load(f))
         shots: list[ShotData] = data["shots"]
 
@@ -81,11 +81,10 @@ def test_mock_environment() -> bool:
     mock_pool = TestProcessPool()
 
     # Set up with our demo shots
-    outputs: list[str] = []
-    for shot in shots:
-        outputs.append(
-            f"workspace /shows/{shot['show']}/shots/{shot['seq']}/{shot['seq']}_{shot['shot']}"
-        )
+    outputs: list[str] = [
+        f"workspace /shows/{shot['show']}/shots/{shot['seq']}/{shot['seq']}_{shot['shot']}"
+        for shot in shots
+    ]
 
     mock_pool.set_outputs(*outputs)
 

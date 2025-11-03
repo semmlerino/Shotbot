@@ -237,7 +237,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
     def _connect_signals(self) -> None:
         """Connect signal handlers."""
         # Enable recover button when a radio button is selected
-        for base_name, radio in self.radio_buttons.items():
+        for radio in self.radio_buttons.values():
             _ = radio.toggled.connect(self._on_selection_changed)
 
     def _on_selection_changed(self) -> None:

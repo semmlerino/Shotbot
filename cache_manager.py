@@ -44,7 +44,7 @@ import json
 import os
 import shutil
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast
 
@@ -850,15 +850,15 @@ class CacheManager(LoggingMixin, QObject):
         try:
             # Check TTL (if enabled)
             if check_ttl:
-                age = datetime.now() - datetime.fromtimestamp(
-                    cache_file.stat().st_mtime
+                age = datetime.now(tz=UTC) - datetime.fromtimestamp(
+                    cache_file.stat().st_mtime, tz=UTC
                 )
                 if age > self._cache_ttl:
                     self.logger.debug(f"Cache expired: {cache_file}")
                     return None
 
             # Read JSON - returns JSONValue which we validate at runtime
-            with open(cache_file) as f:
+            with Path(cache_file).open() as f:
                 raw_data: JSONValue = cast("JSONValue", json.load(f))
 
             # Validate structure through runtime checks and type narrowing
@@ -916,7 +916,7 @@ class CacheManager(LoggingMixin, QObject):
             # Simple format with metadata
             cache_data = {
                 "data": data,
-                "cached_at": datetime.now().isoformat(),
+                "cached_at": datetime.now(tz=UTC).isoformat(),
             }
 
             # Atomic write: write to temp file, then rename
@@ -931,7 +931,7 @@ class CacheManager(LoggingMixin, QObject):
                     os.fsync(f.fileno())  # Ensure data is written to disk
 
                 # Atomic rename (POSIX guarantees atomicity on same filesystem)
-                os.replace(temp_path, cache_file)
+                Path(temp_path).replace(cache_file)
 
                 self.logger.debug(f"Cached data to: {cache_file}")
                 return True
@@ -939,7 +939,7 @@ class CacheManager(LoggingMixin, QObject):
             except Exception:
                 # Clean up temp file on error
                 with contextlib.suppress(OSError):
-                    os.unlink(temp_path)
+                    Path(temp_path).unlink()
                 raise
 
         except (OSError, TypeError, ValueError) as e:

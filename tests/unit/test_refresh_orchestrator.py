@@ -133,9 +133,10 @@ def test_refresh_tab_emits_refresh_started(
     orchestrator: RefreshOrchestrator, qtbot: QtBot
 ) -> None:
     """Test refresh_tab emits refresh_started signal."""
-    with qtbot.waitSignal(orchestrator.refresh_started) as blocker:
-        with patch.object(orchestrator, "_refresh_shots"):
-            orchestrator.refresh_tab(0)
+    with qtbot.waitSignal(orchestrator.refresh_started) as blocker, patch.object(
+        orchestrator, "_refresh_shots"
+    ):
+        orchestrator.refresh_tab(0)
 
     assert blocker.args == [0]
 

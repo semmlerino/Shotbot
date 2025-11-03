@@ -2,11 +2,11 @@
 """Simple test to verify file locking works."""
 
 # Standard library imports
-import os
 import sys
+from pathlib import Path
 
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 
 # Standard library imports
 import fcntl
@@ -32,7 +32,7 @@ def test_basic_file_locking() -> bool:
         def increment_with_lock(thread_id: int) -> None:
             """Increment counter with proper locking."""
             for i in range(5):
-                with open(lock_file, "w") as lock_fd:
+                with lock_file.open("w") as lock_fd:
                     # Acquire exclusive lock
                     fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
                     lock_acquisitions.append((thread_id, i))

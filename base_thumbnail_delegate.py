@@ -43,6 +43,7 @@ from PySide6.QtWidgets import (
 from typing_extensions import TypedDict
 
 # Local application imports
+from base_item_model import BaseItemRole
 from config import Config
 from logging_mixin import get_module_logger
 from typing_compat import override
@@ -109,8 +110,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
     """
 
     # Signals
-    thumbnail_clicked = Signal(QModelIndex)
-    thumbnail_double_clicked = Signal(QModelIndex)
+    thumbnail_clicked: Signal = Signal(QModelIndex)
+    thumbnail_double_clicked: Signal = Signal(QModelIndex)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the delegate.
@@ -121,24 +122,24 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         super().__init__(parent)
 
         # Get theme from subclass
-        self.theme = self.get_theme()
+        self.theme: DelegateTheme = self.get_theme()
 
         # Appearance settings
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        self._thumbnail_size: int = Config.DEFAULT_THUMBNAIL_SIZE
 
         # Fonts
-        self._name_font = QFont()
+        self._name_font: QFont = QFont()
         self._name_font.setPointSize(self.theme.name_font_size)
         self._name_font.setBold(False)
 
-        self._info_font = QFont()
+        self._info_font: QFont = QFont()
         self._info_font.setPointSize(self.theme.info_font_size)
 
         # Cache for expensive calculations
         self._metrics_cache: dict[str, QSize] = {}
 
         # Loading animation
-        self._loading_angle = 0
+        self._loading_angle: int = 0
         self._loading_timer: QTimer | None = None
 
         logger.debug(f"{self.__class__.__name__} initialized with optimized painting")
@@ -335,7 +336,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         # Draw placeholder text
         painter.setPen(QPen(QColor("#666")))
         painter.setFont(self._info_font)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "No Thumbnail")
+        _ = painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "No Thumbnail")
 
     def _draw_failed_placeholder(self, painter: QPainter, rect: QRect) -> None:
         """Draw a placeholder when thumbnail loading failed."""
@@ -361,7 +362,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         painter.setPen(QPen(QColor("#cc4444")))
         painter.setFont(self._info_font)
         text_rect = QRect(rect.x(), rect.bottom() - 20, rect.width(), 20)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "Failed to load")
+        _ = painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "Failed to load")
 
     def _draw_loading_indicator(self, painter: QPainter, rect: QRect) -> None:
         """Draw an animated loading indicator."""
@@ -447,7 +448,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         # Draw shadow first (offset by 1 pixel down and right)
         shadow_rect = QRect(rect.x() + 1, rect.y() + 1, rect.width(), rect.height())
         painter.setPen(QPen(QColor(0, 0, 0, 180)))  # Semi-transparent black shadow
-        painter.drawText(
+        _ = painter.drawText(
             shadow_rect,
             Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter,
             text,
@@ -462,7 +463,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             text_color = self.theme.text_color
 
         painter.setPen(QPen(text_color))
-        painter.drawText(
+        _ = painter.drawText(
             rect, Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter, text
         )
 
@@ -512,13 +513,12 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         if not model:
             return loading_rows
 
-        # Import here to avoid circular imports at module level
-        from base_item_model import BaseItemRole
-
         for row in range(model.rowCount()):
             index = model.index(row, 0)
             # Check loading state via model data
-            loading_state = index.data(BaseItemRole.LoadingStateRole)
+            loading_state: str | None = cast(
+                "str | None", index.data(BaseItemRole.LoadingStateRole)
+            )
             if loading_state == "loading":
                 loading_rows.append(row)
 

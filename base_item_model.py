@@ -104,10 +104,10 @@ class BaseItemModel(
     """
 
     # Common signals
-    items_updated = Signal()  # Emitted when items list changes
-    thumbnail_loaded = Signal(int)  # row index
-    selection_changed = Signal(QModelIndex)
-    show_filter_changed = Signal(str)  # show name or "All Shows"
+    items_updated: Signal = Signal()  # Emitted when items list changes
+    thumbnail_loaded: Signal = Signal(int)  # row index
+    selection_changed: Signal = Signal(QModelIndex)
+    show_filter_changed: Signal = Signal(str)  # show name or "All Shows"
 
     def __init__(
         self,
@@ -125,37 +125,37 @@ class BaseItemModel(
         if app and not QThread.currentThread() == app.thread():
             raise RuntimeError(
                 f"{self.__class__.__name__} must be created in the main thread. "
-                 f"Current thread: {QThread.currentThread()}, "
-                 f"Main thread: {app.thread()}"
+                f"Current thread: {QThread.currentThread()}, "
+                f"Main thread: {app.thread()}"
             )
         super().__init__(parent)
 
         # Core data storage
         self._items: list[T] = []
-        self._cache_manager = cache_manager or CacheManager()
+        self._cache_manager: CacheManager = cache_manager or CacheManager()
 
         # Thumbnail cache - use QImage for thread safety
         # QImage can be safely shared between threads
         self._thumbnail_cache: dict[str, QImage] = {}
         self._loading_states: dict[str, str] = {}
-        self._cache_mutex = QMutex()  # Thread-safe cache access
+        self._cache_mutex: QMutex = QMutex()  # Thread-safe cache access
 
         # Selection tracking
-        self._selected_index = QPersistentModelIndex()
+        self._selected_index: QPersistentModelIndex = QPersistentModelIndex()
         self._selected_item: T | None = None
 
         # Lazy loading timer for thumbnails
-        self._thumbnail_timer = QTimer(self)  # Parent ensures automatic cleanup
+        self._thumbnail_timer: QTimer = QTimer(self)  # Parent ensures automatic cleanup
         _ = self._thumbnail_timer.timeout.connect(self._load_visible_thumbnails)
         self._thumbnail_timer.setInterval(100)  # 100ms delay
 
         # Track visible range for lazy loading
-        self._visible_start = 0
-        self._visible_end = 0
+        self._visible_start: int = 0
+        self._visible_end: int = 0
 
         # Thumbnail loading optimization
         self._last_visible_range: tuple[int, int] = (-1, -1)
-        self._thumbnail_debounce_timer = QTimer(self)
+        self._thumbnail_debounce_timer: QTimer = QTimer(self)
         self._thumbnail_debounce_timer.setSingleShot(True)  # Critical: single-shot
         self._thumbnail_debounce_timer.setInterval(250)  # 250ms debounce
         _ = self._thumbnail_debounce_timer.timeout.connect(self._do_load_visible_thumbnails)
@@ -334,7 +334,7 @@ class BaseItemModel(
         if visible_range == self._last_visible_range:
             self.logger.debug(
                 "_load_visible_thumbnails: range unchanged "
-                 f"({visible_range[0]}-{visible_range[1]}), skipping"
+                f"({visible_range[0]}-{visible_range[1]}), skipping"
             )
             return
 
@@ -359,7 +359,7 @@ class BaseItemModel(
         if self._items:
             self.logger.debug(
                 f"_do_load_visible_thumbnails: checking {end - start} items "
-                 f"(range {start}-{end}, total items: {len(self._items)})"
+                f"(range {start}-{end}, total items: {len(self._items)})"
             )
 
         # Collect items to load - atomic check-and-mark in single lock
@@ -620,7 +620,7 @@ class BaseItemModel(
         if app and QThread.currentThread() != app.thread():
             raise QtThreadError(
                 "set_items() must be called from main thread. "
-                 f"Current: {QThread.currentThread()}, Main: {app.thread()}"
+                f"Current: {QThread.currentThread()}, Main: {app.thread()}"
             )
 
         # CRITICAL: Stop timers FIRST (prevents callback races)
@@ -644,7 +644,7 @@ class BaseItemModel(
             if duplicate_count > 0:
                 self.logger.debug(
                     f"Found {duplicate_count} items with duplicate full_name values. "
-                     "Thumbnails will be shared across duplicates."
+                    "Thumbnails will be shared across duplicates."
                 )
 
             # Update items list (state modification inside try block)
@@ -679,12 +679,12 @@ class BaseItemModel(
             if old_cache_size > 1000:
                 self.logger.debug(
                     f"Large cache operation: {old_cache_size} items filtered, "
-                     f"{evicted} evicted, {preserved} preserved"
+                    f"{evicted} evicted, {preserved} preserved"
                 )
 
             self.logger.info(
                 f"Model updated: {len(items)} items, "
-                 f"thumbnails: {preserved} preserved, {evicted} evicted"
+                f"thumbnails: {preserved} preserved, {evicted} evicted"
             )
 
             # Clear selection (existing behavior)

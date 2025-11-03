@@ -169,7 +169,7 @@ class ThreadSafeTestImage:
         """Check if image is null."""
         return False
 
-    def save(self, path: str, format: str = "JPEG") -> bool:
+    def save(self, path: str, output_format: str = "JPEG") -> bool:
         """Mock save operation."""
         with self._lock:
             return True

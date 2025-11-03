@@ -4,9 +4,9 @@ Refactored Main Window for PyMPEG
 Uses focused classes for better separation of concerns
 """
 
-import os
 import shutil
 import sys
+from pathlib import Path
 
 from conversion_controller import ConversionController
 
@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
         self._check_ffmpeg()
 
         # State
-        self.last_dir = self.settings.value("lastDir", os.getcwd())
+        self.last_dir = self.settings.value("lastDir", str(Path.cwd()))
         self.is_converting = False
 
         # Initialize core components
@@ -408,7 +408,7 @@ class MainWindow(QMainWindow):
 
         if file_paths:
             self.file_list.add_files(file_paths)
-            self.last_dir = os.path.dirname(file_paths[0])
+            self.last_dir = str(Path(file_paths[0]).parent)
             self.settings.setValue("lastDir", self.last_dir)
             self._add_to_main_log(f"📁 Added {len(file_paths)} files")
 
