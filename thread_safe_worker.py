@@ -96,7 +96,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         self._zombie = False  # Track abandoned threads
 
         # Set up cleanup on thread finished
-        self.finished.connect(self._on_finished)
+        _ = self.finished.connect(self._on_finished)
 
     def get_state(self) -> WorkerState:
         """Thread-safe state getter.

@@ -463,8 +463,10 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         if cache_path and cache_path.exists():
             # Load from cache
             loader = BaseThumbnailLoader(self, cache_path)
-            loader.signals.loaded.connect(self._on_thumbnail_loaded)
-            loader.signals.failed.connect(self._on_thumbnail_failed)
+            _ = loader.signals.loaded.connect(_on_thumbnail_loaded)
+            _ = loader.signals.loaded.connect(self._on_thumbnail_loaded)
+            _ = loader.signals.failed.connect(_on_thumbnail_failed)
+            _ = loader.signals.failed.connect(self._on_thumbnail_failed)
             QThreadPool.globalInstance().start(loader)
         else:
             # Try to load from source
@@ -472,8 +474,10 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
             if thumb_path and thumb_path.exists():
                 # Load in background thread
                 loader = BaseThumbnailLoader(self, thumb_path)
-                loader.signals.loaded.connect(self._on_thumbnail_loaded)
-                loader.signals.failed.connect(self._on_thumbnail_failed)
+                _ = loader.signals.loaded.connect(_on_thumbnail_loaded)
+                _ = loader.signals.loaded.connect(self._on_thumbnail_loaded)
+                _ = loader.signals.failed.connect(_on_thumbnail_failed)
+                _ = loader.signals.failed.connect(self._on_thumbnail_failed)
                 QThreadPool.globalInstance().start(loader)
 
                 # Also cache it for next time
@@ -571,10 +575,10 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         worker = FolderOpenerWorker(folder_path)
 
         # Connect signals with QueuedConnection for thread safety
-        worker.signals.error.connect(
+        _ = worker.signals.error.connect(
             self._on_folder_open_error, Qt.ConnectionType.QueuedConnection
         )
-        worker.signals.success.connect(
+        _ = worker.signals.success.connect(
             self._on_folder_open_success, Qt.ConnectionType.QueuedConnection
         )
 

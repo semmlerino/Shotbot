@@ -1,5 +1,5 @@
-Post-commit hook executed at Mon Nov  3 13:09:31 GMT 2025
-Commit: c213ccc1bbddc4723f9ae690ddc8033a23b92f5f
+Post-commit hook executed at Mon Nov  3 13:20:40 GMT 2025
+Commit: 23d7d2eed316bb16db84632fdae81cd232b33c53
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Add Python 3.11 compatibility for override decorator
+Message: fix: Replace Python 3.12 type parameter syntax with Python 3.11 compatible generics

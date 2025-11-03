@@ -49,7 +49,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
         super().__init__(cache_manager, parent)
 
         # Connect generic items_updated to shot-specific signal
-        self.items_updated.connect(self.shots_updated)
+        _ = self.items_updated.connect(self.shots_updated)
 
         self.logger.info("ShotItemModel initialized")
 

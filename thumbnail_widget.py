@@ -130,6 +130,7 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
 
         # Add "Open Shot Folder" action
         open_folder_action = menu.addAction("Open Shot Folder")
-        open_folder_action.triggered.connect(self._open_shot_folder)
+        _ = open_folder_action.triggered.connect(_open_shot_folder)
+        _ = open_folder_action.triggered.connect(self._open_shot_folder)
 
         return menu

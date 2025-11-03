@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-11-03T13:09:32.291217",
+  "timestamp": "2025-11-03T13:20:41.837640",
   "folder_name": "shotbot_bundle_temp",
   "folder_path": "/tmp/shotbot_bundle_temp",
-  "original_size_bytes": 3946602,
-  "encoded_size_bytes": 1015076,
+  "original_size_bytes": 3944369,
+  "encoded_size_bytes": 1014808,
   "chunk_size_kb": 5120,
   "total_chunks": 1,
-  "compression_ratio": 3.8879867123249885
+  "compression_ratio": 3.8868130720293887
 }

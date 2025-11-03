@@ -382,7 +382,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         # Start animation timer if not running
         if not self._loading_timer:
             self._loading_timer = QTimer()
-            self._loading_timer.timeout.connect(self._update_loading_animation)
+            _ = self._loading_timer.timeout.connect(_update_loading_animation)
+            _ = self._loading_timer.timeout.connect(self._update_loading_animation)
             self._loading_timer.start(50)
 
     def _draw_text(

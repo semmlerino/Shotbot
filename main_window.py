@@ -425,7 +425,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
 
         # Apply distinct color themes to each tab
-        self.tab_widget.currentChanged.connect(self._update_tab_accent_color)
+        _ = self.tab_widget.currentChanged.connect(_update_tab_accent_color)
+        _ = self.tab_widget.currentChanged.connect(self._update_tab_accent_color)
         self._update_tab_accent_color(0)  # Initialize with first tab color
 
         # Right side - Controls and log
@@ -655,6 +656,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
         _ = self.shot_grid.text_filter_requested.connect(
             self._on_shot_text_filter_requested
+        )
+        _ = self.shot_grid.recover_crashes_requested.connect(
+            self._on_shot_recover_crashes_requested
         )
 
         # 3DE scene selection - handled by controller
@@ -1258,6 +1262,97 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.logger.debug(
             f"My Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
         )
+
+    @Slot()
+    def _on_shot_recover_crashes_requested(self) -> None:
+        """Handle recovery crashes request from My Shots grid view.
+
+        Scans for crash files in the current shot's workspace and presents
+        a recovery dialog if any are found.
+        """
+        # Get current shot from launcher controller
+        current_scene = self.launcher_controller.current_scene
+        if not current_scene:
+            # Local application imports
+            from notification_manager import NotificationManager
+            NotificationManager.warning(
+                "No Shot Selected",
+                "Please select a shot before attempting crash recovery."
+            )
+            return
+
+        workspace_path = current_scene.workspace_path
+        self.logger.info(f"Scanning for crash files in shot workspace: {workspace_path}")
+
+        # Import recovery components
+        from threede_recovery import ThreeDERecoveryManager
+        from threede_recovery_dialog import (
+            ThreeDERecoveryDialog,
+            ThreeDERecoveryResultDialog,
+        )
+
+        # Create recovery manager
+        recovery_manager = ThreeDERecoveryManager()
+
+        # Find crash files in workspace
+        try:
+            crash_files = recovery_manager.find_crash_files(workspace_path, recursive=True)
+        except Exception as e:
+            self.logger.error(f"Error scanning for crash files: {e}")
+            # Local application imports
+            from notification_manager import NotificationManager
+            NotificationManager.error(
+                "Scan Error",
+                f"Failed to scan for crash files: {e}"
+            )
+            return
+
+        if not crash_files:
+            # Local application imports
+            from notification_manager import NotificationManager
+            message = f"No 3DE crash files found in workspace for {current_scene.full_name}."
+            NotificationManager.info(message)
+            return
+
+        # Show recovery dialog
+        self.logger.info(f"Found {len(crash_files)} crash file(s), showing recovery dialog")
+        dialog = ThreeDERecoveryDialog(crash_files, parent=self.shot_grid)
+
+        # Connect recovery signal
+        def on_recovery_requested(crash_info: CrashFileInfo) -> None:  # type: ignore[name-defined]
+            self.logger.info(f"Recovery requested for: {crash_info.crash_path.name}")
+            try:
+                # Perform recovery and archiving
+                recovered_path, archived_path = recovery_manager.recover_and_archive(crash_info)
+
+                # Show success result
+                result_dialog = ThreeDERecoveryResultDialog(
+                    success=True,
+                    recovered_path=recovered_path,
+                    archived_path=archived_path,
+                    parent=self.shot_grid,
+                )
+                result_dialog.exec()
+
+                # Local application imports
+                from notification_manager import NotificationManager, NotificationType
+                NotificationManager.toast(
+                    f"Recovered: {recovered_path.name}",
+                    NotificationType.SUCCESS
+                )
+
+            except Exception as e:
+                self.logger.error(f"Failed to recover crash file: {e}")
+                # Show error result
+                result_dialog = ThreeDERecoveryResultDialog(
+                    success=False,
+                    error_message=str(e),
+                    parent=self.shot_grid,
+                )
+                result_dialog.exec()
+
+        _ = dialog.recovery_requested.connect(on_recovery_requested)
+        dialog.exec()
 
     def _on_previous_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from Previous Shots grid view."""

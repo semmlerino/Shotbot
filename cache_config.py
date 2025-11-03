@@ -236,7 +236,8 @@ class UnifiedCacheConfig(LoggingMixin, QObject):
         self._settings_manager = settings_manager
 
         # Connect to settings changes
-        self._settings_manager.settings_changed.connect(self._on_settings_changed)
+        _ = self._settings_manager.settings_changed.connect(_on_settings_changed)
+        _ = self._settings_manager.settings_changed.connect(self._on_settings_changed)
 
         self.logger.debug("UnifiedCacheConfig initialized")
 

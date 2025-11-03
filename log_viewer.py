@@ -47,7 +47,8 @@ class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
 
         # Clear button
         self.clear_button = QPushButton("Clear Log")
-        self.clear_button.clicked.connect(self.clear_log)
+        _ = self.clear_button.clicked.connect(clear_log)
+        _ = self.clear_button.clicked.connect(self.clear_log)
         button_layout.addWidget(self.clear_button)
 
         layout.addLayout(button_layout)

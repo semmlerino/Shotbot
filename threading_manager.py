@@ -107,27 +107,27 @@ class ThreadingManager(QObject):
             )
 
             # Connect worker signals to our consolidated signals
-            self._current_threede_worker.started.connect(
+            _ = self._current_threede_worker.started.connect(
                 self.threede_discovery_started.emit
             )
             # ThreeDESceneWorker has 'progress' signal (int, int, float, str, str)
             # We map it to our threede_discovery_progress (int, int, str) by using a slot
             # The progress_update signal doesn't exist on ThreeDESceneWorker
             # Instead, connect the 'progress' signal directly
-            self._current_threede_worker.progress.connect(self._on_progress_update)
-            self._current_threede_worker.batch_ready.connect(
+            _ = self._current_threede_worker.progress.connect(self._on_progress_update)
+            _ = self._current_threede_worker.batch_ready.connect(
                 self.threede_discovery_batch_ready.emit
             )
             # Signal is defined as Signal(list) without type parameter, causing Unknown inference
             # Our slot is properly typed as list[ThreeDEScene], runtime behavior is correct
-            self._current_threede_worker.finished.connect(
+            _ = self._current_threede_worker.finished.connect(
                 self._on_threede_discovery_finished
             )
-            self._current_threede_worker.error.connect(self._on_threede_discovery_error)
-            self._current_threede_worker.paused.connect(
+            _ = self._current_threede_worker.error.connect(self._on_threede_discovery_error)
+            _ = self._current_threede_worker.paused.connect(
                 self.threede_discovery_paused.emit
             )
-            self._current_threede_worker.resumed.connect(
+            _ = self._current_threede_worker.resumed.connect(
                 self.threede_discovery_resumed.emit
             )
 

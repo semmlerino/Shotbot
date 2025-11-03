@@ -89,7 +89,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         super().__init__(parent)
 
         # Common properties
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        self._thumbnail_size: int = Config.DEFAULT_THUMBNAIL_SIZE
         self._model: QAbstractItemModel | None = None
 
         # Create the UI
@@ -115,16 +115,16 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         size_layout = QHBoxLayout()
         size_layout.addWidget(QLabel("Thumbnail Size:"))
 
-        self.size_slider = QSlider(Qt.Orientation.Horizontal)
+        self.size_slider: QSlider = QSlider(Qt.Orientation.Horizontal)
         self.size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
         self.size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
         self.size_slider.setValue(self._thumbnail_size)
         self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.size_slider.setTickInterval(50)
-        self.size_slider.valueChanged.connect(self._on_size_changed)
+        _ = self.size_slider.valueChanged.connect(self._on_size_changed)
         size_layout.addWidget(self.size_slider)
 
-        self.size_label = QLabel(f"{self._thumbnail_size}px")
+        self.size_label: QLabel = QLabel(f"{self._thumbnail_size}px")
         self.size_label.setMinimumWidth(50)
         size_layout.addWidget(self.size_label)
 
@@ -137,9 +137,9 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         filter_layout = QHBoxLayout()
         filter_layout.addWidget(QLabel("Show:"))
 
-        self.show_combo = QComboBox()
+        self.show_combo: QComboBox = QComboBox()
         self.show_combo.addItem("All Shows")
-        self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
+        _ = self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
         filter_layout.addWidget(self.show_combo)
 
         filter_layout.addStretch()
@@ -149,26 +149,26 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         text_filter_layout = QHBoxLayout()
         text_filter_layout.addWidget(QLabel("Filter:"))
 
-        self.text_filter_input = QLineEdit()
+        self.text_filter_input: QLineEdit = QLineEdit()
         self.text_filter_input.setPlaceholderText("Type to filter shots...")
         self.text_filter_input.setClearButtonEnabled(True)  # Built-in clear button
-        self.text_filter_input.textChanged.connect(self._on_text_filter_changed)
+        _ = self.text_filter_input.textChanged.connect(self._on_text_filter_changed)
         text_filter_layout.addWidget(self.text_filter_input)
 
         text_filter_layout.addStretch()
         layout.addLayout(text_filter_layout)
 
         # Create QListView with grid mode
-        self.list_view = QListView()
+        self.list_view: QListView = QListView()
         self._configure_list_view()
 
         # Create and set delegate (subclasses must provide)
-        self._delegate = self._create_delegate()
+        self._delegate: BaseThumbnailDelegate = self._create_delegate()
         self.list_view.setItemDelegate(self._delegate)
 
         # Connect list view signals
-        self.list_view.clicked.connect(self._on_item_clicked)
-        self.list_view.doubleClicked.connect(self._on_item_double_clicked)
+        _ = self.list_view.clicked.connect(self._on_item_clicked)
+        _ = self.list_view.doubleClicked.connect(self._on_item_double_clicked)
 
         layout.addWidget(self.list_view)
 
@@ -203,8 +203,8 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Subclasses can override to use different timer strategies.
         """
-        self._visibility_timer = QTimer()
-        self._visibility_timer.timeout.connect(self._update_visible_range)
+        self._visibility_timer: QTimer = QTimer()
+        _ = self._visibility_timer.timeout.connect(self._update_visible_range)
         self._visibility_timer.setInterval(100)
         self._visibility_timer.start()
 

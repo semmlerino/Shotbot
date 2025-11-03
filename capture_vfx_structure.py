@@ -26,9 +26,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import TypeAlias
 
 # Third-party imports
-from typing_extensions import TypeAlias, TypedDict
+from typing_extensions import TypedDict
 
 
 # Type alias for directory/file node structures

@@ -35,7 +35,7 @@ class UIUpdateManager(QObject):
 
         # Update timer with adaptive interval
         self.update_timer = QTimer()
-        self.update_timer.timeout.connect(self._process_updates)
+        _ = self.update_timer.timeout.connect(self._process_updates)
         self.base_interval = 100  # Base interval in ms
         self.current_interval = self.base_interval
         self.min_interval = 16  # Minimum 60 FPS

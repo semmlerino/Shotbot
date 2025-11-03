@@ -109,7 +109,7 @@ class QtWidgetMixin(LoggingMixin):
         """
         if not hasattr(self, "_auto_save_timer"):
             self._auto_save_timer = QTimer()
-            self._auto_save_timer.timeout.connect(self._on_auto_save)
+            _ = self._auto_save_timer.timeout.connect(self._on_auto_save)
             self._auto_save_timer.start(interval)
             self.logger.debug(f"Auto-save timer started with {interval}ms interval")
 
@@ -142,7 +142,7 @@ class QtWidgetMixin(LoggingMixin):
                 menu.addSeparator()
             else:
                 action = menu.addAction(action_text)
-                action.triggered.connect(callback)
+                _ = action.triggered.connect(callback)
 
                 if icon_name and hasattr(self, "style"):
                     from PySide6.QtWidgets import QStyle
@@ -174,7 +174,7 @@ class QtWidgetMixin(LoggingMixin):
 
             action = QAction(cast("QWidget", self))
             action.setShortcut(QKeySequence(key_sequence))
-            action.triggered.connect(callback)
+            _ = action.triggered.connect(callback)
             self.addAction(action)
 
     def _get_standard_shortcuts(self) -> dict[str, Callable[[], None]]:

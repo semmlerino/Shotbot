@@ -20,7 +20,9 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QHBoxLayout,
     QMenu,
+    QPushButton,
     QWidget,
 )
 
@@ -59,6 +61,7 @@ class ShotGridView(BaseGridView):
     # Additional signals specific to ShotGridView
     shot_selected = Signal(Shot)  # Shot object
     shot_double_clicked = Signal(Shot)  # Shot object
+    recover_crashes_requested = Signal()  # User clicked recover crashes button
 
     def __init__(
         self,
@@ -71,6 +74,10 @@ class ShotGridView(BaseGridView):
             model: Optional shot item model
             parent: Optional parent widget
         """
+        # Initialize widgets that will be created in template methods
+        # These are set to None initially but will be assigned during super().__init__()
+        self.recover_button: QPushButton
+
         # Initialize base class
         super().__init__(parent)
 
@@ -89,6 +96,22 @@ class ShotGridView(BaseGridView):
             ShotGridDelegate instance
         """
         return ShotGridDelegate(self)
+
+    def _customize_size_layout(self, layout: QHBoxLayout) -> None:
+        """Add recovery button to size layout.
+
+        Args:
+            layout: The size control horizontal layout
+        """
+        # Recovery button for 3DE crash files
+        self.recover_button = QPushButton("Recover Crashes...")
+        self.recover_button.setToolTip(
+            "Scan for and recover 3DE crash files in the current shot's workspace"
+        )
+        _ = self.recover_button.clicked.connect(
+            lambda: self.recover_crashes_requested.emit()
+        )
+        layout.addWidget(self.recover_button)
 
     @property
     def model(self) -> ShotItemModel | None:
@@ -147,10 +170,12 @@ class ShotGridView(BaseGridView):
         # Set up selection model
         selection_model = self.list_view.selectionModel()
         if selection_model:
-            selection_model.currentChanged.connect(self._on_selection_changed)
+            _ = selection_model.currentChanged.connect(_on_selection_changed)
+            _ = selection_model.currentChanged.connect(self._on_selection_changed)
 
         # Connect to model signals
-        model.shots_updated.connect(self._on_model_updated)
+        _ = model.shots_updated.connect(_on_model_updated)
+        _ = model.shots_updated.connect(self._on_model_updated)
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
 
@@ -333,7 +358,7 @@ class ShotGridView(BaseGridView):
 
         # Add "Open Shot Folder" action
         open_folder_action = menu.addAction("Open Shot Folder")
-        open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
+        _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
 
         # Show menu at cursor position
         menu.exec(event.globalPos())
@@ -353,11 +378,11 @@ class ShotGridView(BaseGridView):
 
         # Connect signals with QueuedConnection for thread safety
         # Note: Slot decorators cause type checker to see methods as Any
-        worker.signals.error.connect(
+        _ = worker.signals.error.connect(
             self._on_folder_open_error,
             Qt.ConnectionType.QueuedConnection,
         )
-        worker.signals.success.connect(
+        _ = worker.signals.success.connect(
             self._on_folder_open_success,
             Qt.ConnectionType.QueuedConnection,
         )
@@ -419,7 +444,9 @@ if __name__ == "__main__":
     def on_shot_double_clicked(shot: Shot) -> None:
         print(f"Double-clicked: {shot.full_name}")
 
-    view.shot_selected.connect(on_shot_selected)
-    view.shot_double_clicked.connect(on_shot_double_clicked)
+    _ = view.shot_selected.connect(ot_selected)
+    _ = view.shot_selected.connect(on_shot_selected)
+    _ = view.shot_double_clicked.connect(ot_double_clicked)
+    _ = view.shot_double_clicked.connect(on_shot_double_clicked)
 
     sys.exit(app.exec())

@@ -15,7 +15,8 @@ class ThumbnailLoadingIndicator(QWidget):
         super().__init__(parent)
         self._angle = 0
         self._timer = QTimer()
-        self._timer.timeout.connect(self._rotate)
+        _ = self._timer.timeout.connect(_rotate)
+        _ = self._timer.timeout.connect(self._rotate)
         self.setFixedSize(40, 40)
 
         # Make widget transparent

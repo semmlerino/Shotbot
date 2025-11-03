@@ -425,7 +425,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
             # Connect the reporter's signal to our handler with QueuedConnection
             # This ensures all signal emission happens in the correct Qt thread
-            self._progress_reporter.progress_update.connect(
+            _ = self._progress_reporter.progress_update.connect(
                 self._handle_progress_update, Qt.ConnectionType.QueuedConnection
             )
             self.logger.debug(

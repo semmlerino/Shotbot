@@ -3,13 +3,13 @@ Post-Commit Hook Summary
 ========================
 Output directory: /home/gabrielh/projects/shotbot/.post-commit-output
 Files created:
-drwxr-xr-x  2 gabrielh gabrielh  4096 Nov  3 13:09 .
-drwxr-xr-x 26 gabrielh gabrielh 20480 Nov  3 13:09 ..
--rw-r--r--  1 gabrielh gabrielh     0 Nov  3 13:09 background-startup.log
--rw-r--r--  1 gabrielh gabrielh   358 Nov  3 13:09 bundle.txt
--rw-r--r--  1 gabrielh gabrielh    58 Nov  3 13:09 commit_msg.txt
--rw-r--r--  1 gabrielh gabrielh     7 Nov  3 13:09 current_branch.txt
--rw-r--r--  1 gabrielh gabrielh    41 Nov  3 13:09 current_commit.txt
--rw-r--r--  1 gabrielh gabrielh   147 Nov  3 13:09 import-test.txt
--rw-r--r--  1 gabrielh gabrielh   226 Nov  3 13:09 info.txt
--rw-r--r--  1 gabrielh gabrielh   136 Nov  3 13:09 summary.txt
+drwxr-xr-x  2 gabrielh gabrielh  4096 Nov  3 13:20 .
+drwxr-xr-x 26 gabrielh gabrielh 20480 Nov  3 13:20 ..
+-rw-r--r--  1 gabrielh gabrielh     0 Nov  3 13:20 background-startup.log
+-rw-r--r--  1 gabrielh gabrielh   358 Nov  3 13:20 bundle.txt
+-rw-r--r--  1 gabrielh gabrielh    84 Nov  3 13:20 commit_msg.txt
+-rw-r--r--  1 gabrielh gabrielh     7 Nov  3 13:20 current_branch.txt
+-rw-r--r--  1 gabrielh gabrielh    41 Nov  3 13:20 current_commit.txt
+-rw-r--r--  1 gabrielh gabrielh   147 Nov  3 13:20 import-test.txt
+-rw-r--r--  1 gabrielh gabrielh   252 Nov  3 13:20 info.txt
+-rw-r--r--  1 gabrielh gabrielh   136 Nov  3 13:20 summary.txt

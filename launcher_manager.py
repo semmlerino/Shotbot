@@ -101,9 +101,9 @@ class LauncherManager(LoggingMixin, QObject):
 
         # Connect process manager signals
         try:
-            self._process_manager.process_started.connect(self.command_started)
-            self._process_manager.process_finished.connect(self.command_finished)
-            self._process_manager.process_error.connect(self.command_error)
+            _ = self._process_manager.process_started.connect(self.command_started)
+            _ = self._process_manager.process_finished.connect(self.command_finished)
+            _ = self._process_manager.process_error.connect(self.command_error)
             self._signals_connected = True
         except (AttributeError, RuntimeError) as e:
             # Signals may not be available in test environment

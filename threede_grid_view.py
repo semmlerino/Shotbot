@@ -95,7 +95,7 @@ class ThreeDEGridView(BaseGridView):
 
         # Enable context menu
         self.list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.list_view.customContextMenuRequested.connect(self._show_context_menu)
+        _ = self.list_view.customContextMenuRequested.connect(self._show_context_menu)
 
         if model:
             self.set_model(model)
@@ -138,7 +138,7 @@ class ThreeDEGridView(BaseGridView):
         self.recover_button.setToolTip(
             "Scan for and recover 3DE crash files in the current workspace"
         )
-        self.recover_button.clicked.connect(
+        _ = self.recover_button.clicked.connect(
             lambda: self.recover_crashes_requested.emit()
         )
         layout.addWidget(self.recover_button)
@@ -167,11 +167,11 @@ class ThreeDEGridView(BaseGridView):
         self.list_view.setModel(model)
 
         # Connect model signals
-        model.scenes_updated.connect(self._on_scenes_updated)
-        model.thumbnail_loaded.connect(self._on_thumbnail_loaded)
-        model.loading_started.connect(self._on_loading_started)
-        model.loading_progress.connect(self._on_loading_progress)
-        model.loading_finished.connect(self._on_loading_finished)
+        _ = model.scenes_updated.connect(self._on_scenes_updated)
+        _ = model.thumbnail_loaded.connect(self._on_thumbnail_loaded)
+        _ = model.loading_started.connect(self._on_loading_started)
+        _ = model.loading_progress.connect(self._on_loading_progress)
+        _ = model.loading_finished.connect(self._on_loading_finished)
 
         # Update grid size based on thumbnail size
         self._update_grid_size()
@@ -315,18 +315,18 @@ class ThreeDEGridView(BaseGridView):
 
         # Add "Open in 3DE" action
         open_3de_action = menu.addAction("Open in 3DE")
-        open_3de_action.triggered.connect(lambda: self._open_scene_in_3de(scene))
+        _ = open_3de_action.triggered.connect(lambda: self._open_scene_in_3de(scene))
 
         # Add "Open folder" action
         open_folder_action = menu.addAction("Open Folder")
-        open_folder_action.triggered.connect(lambda: self._open_scene_folder(scene))
+        _ = open_folder_action.triggered.connect(lambda: self._open_scene_folder(scene))
 
         # Add separator
         menu.addSeparator()
 
         # Add "Copy path" action
         copy_path_action = menu.addAction("Copy Path")
-        copy_path_action.triggered.connect(lambda: self._copy_scene_path(scene))
+        _ = copy_path_action.triggered.connect(lambda: self._copy_scene_path(scene))
 
         menu.exec(self.list_view.mapToGlobal(pos))
 

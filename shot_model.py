@@ -271,15 +271,15 @@ class ShotModel(BaseShotModel):
             )
             # Signal.connect() cannot infer specific callable type from Signal(list)
             # Qt signals use generic signatures, so slot methods appear as Any
-            self._async_loader.shots_loaded.connect(
+            _ = self._async_loader.shots_loaded.connect(
                 self._on_shots_loaded,
                 Qt.ConnectionType.QueuedConnection,
             )
-            self._async_loader.load_failed.connect(
+            _ = self._async_loader.load_failed.connect(
                 self._on_load_failed,
                 Qt.ConnectionType.QueuedConnection,
             )
-            self._async_loader.finished.connect(
+            _ = self._async_loader.finished.connect(
                 self._on_loader_finished,
                 Qt.ConnectionType.QueuedConnection,
             )

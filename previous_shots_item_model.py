@@ -53,17 +53,17 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         self._underlying_model = underlying_model
 
         # Connect generic items_updated to shot-specific signal
-        self.items_updated.connect(self.shots_updated)
+        _ = self.items_updated.connect(self.shots_updated)
 
         # Connect to underlying model for automatic updates
         if hasattr(underlying_model, "shots_updated") and hasattr(
             underlying_model.shots_updated, "emit"
         ):
             # Test double - connect without Qt.ConnectionType
-            underlying_model.shots_updated.connect(self._on_underlying_shots_updated)
+            _ = underlying_model.shots_updated.connect(self._on_underlying_shots_updated)
         elif hasattr(underlying_model, "shots_updated"):
             # Real Qt signal - use proper connection type
-            underlying_model.shots_updated.connect(
+            _ = underlying_model.shots_updated.connect(
                 self._on_underlying_shots_updated,
                 Qt.ConnectionType.QueuedConnection,
             )

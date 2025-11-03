@@ -211,10 +211,10 @@ class PreviousShotsModel(LoggingMixin, QObject):
             )
 
             # Connect worker signals with QueuedConnection for thread safety
-            self._worker.scan_finished.connect(
+            _ = self._worker.scan_finished.connect(
                 self._on_scan_finished, Qt.ConnectionType.QueuedConnection
             )
-            self._worker.error_occurred.connect(
+            _ = self._worker.error_occurred.connect(
                 self._on_scan_error, Qt.ConnectionType.QueuedConnection
             )
 

@@ -113,7 +113,8 @@ class LoadingSpinner(QWidget):
         self._size = size
         self.angle = 0
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self._rotate)
+        _ = self.timer.timeout.connect(_rotate)
+        _ = self.timer.timeout.connect(self._rotate)
         self.setFixedSize(size, size)
 
     def _rotate(self) -> None:
@@ -179,7 +180,8 @@ class NotificationBanner(QFrame):
         # Close button
         self.close_button = QPushButton("✕")
         self.close_button.setFixedSize(24, 24)
-        self.close_button.clicked.connect(self.hide_banner)
+        _ = self.close_button.clicked.connect(hide_banner)
+        _ = self.close_button.clicked.connect(self.hide_banner)
         self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_button.setStyleSheet("""
             QPushButton {
@@ -281,7 +283,8 @@ class NotificationBanner(QFrame):
             self.fade_animation.setStartValue(1.0)
             self.fade_animation.setEndValue(0.0)
 
-            self.animation_group.finished.connect(self.hide)
+            _ = self.animation_group.finished.connect(hide)
+            _ = self.animation_group.finished.connect(self.hide)
             self.animation_group.start()
 
             self.closed.emit()
@@ -349,7 +352,8 @@ class ProgressOverlay(QWidget):
 
         # Cancel button
         self.cancel_button = ModernButton("Cancel", variant="danger")
-        self.cancel_button.clicked.connect(self.canceled.emit)
+        _ = self.cancel_button.clicked.connect(canceled.emit)
+        _ = self.cancel_button.clicked.connect(self.canceled.emit)
         card_layout.addWidget(self.cancel_button, 0, Qt.AlignmentFlag.AlignCenter)
 
         layout.addWidget(card)
@@ -434,7 +438,8 @@ class EmptyStateWidget(QWidget):
         # Action button
         if action_text:
             action_button = ModernButton(action_text, variant="primary")
-            action_button.clicked.connect(self.action_clicked.emit)
+            _ = action_button.clicked.connect(action_clicked.emit)
+            _ = action_button.clicked.connect(self.action_clicked.emit)
             layout.addWidget(action_button, 0, Qt.AlignmentFlag.AlignCenter)
 
 

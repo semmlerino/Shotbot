@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
 
         # Initialize UI update manager for efficient updates
         self.ui_update_manager = UIUpdateManager(self)
-        self.ui_update_manager.update_ui.connect(self._handle_ui_updates)
+        _ = self.ui_update_manager.update_ui.connect(self._handle_ui_updates)
         self.ui_update_manager.start()
 
         # UI Components (will be created in _init_ui)
@@ -146,24 +146,24 @@ class MainWindow(QMainWindow):
 
         add_files_action = QAction(QIcon.fromTheme("document-open"), "Add Files", self)
         add_files_action.setShortcut("Ctrl+O")
-        add_files_action.triggered.connect(self.add_files)
+        _ = add_files_action.triggered.connect(self.add_files)
 
         # Batch operations
         select_all_action = QAction("Select All", self)
         select_all_action.setShortcut("Ctrl+A")
-        select_all_action.triggered.connect(self.select_all_files)
+        _ = select_all_action.triggered.connect(self.select_all_files)
 
         clear_completed_action = QAction("Clear Completed", self)
         clear_completed_action.setShortcut("Ctrl+Shift+C")
-        clear_completed_action.triggered.connect(self.clear_completed_files)
+        _ = clear_completed_action.triggered.connect(self.clear_completed_files)
 
         remove_failed_action = QAction("Remove Failed", self)
         remove_failed_action.setShortcut("Ctrl+Shift+F")
-        remove_failed_action.triggered.connect(self.remove_failed_files)
+        _ = remove_failed_action.triggered.connect(self.remove_failed_files)
 
         exit_action = QAction(QIcon.fromTheme("application-exit"), "E&xit", self)
         exit_action.setShortcut("Ctrl+Q")
-        exit_action.triggered.connect(self.close)
+        _ = exit_action.triggered.connect(self.close)
 
         file_menu.addAction(add_files_action)
         file_menu.addSeparator()
@@ -178,13 +178,13 @@ class MainWindow(QMainWindow):
 
         clear_log_action = QAction(QIcon.fromTheme("edit-clear"), "Clear Log", self)
         clear_log_action.setShortcut("Ctrl+L")
-        clear_log_action.triggered.connect(self._clear_main_log)
+        _ = clear_log_action.triggered.connect(self._clear_main_log)
         tools_menu.addAction(clear_log_action)
 
         # Help menu
         help_menu = menubar.addMenu("&Help")
         about_action = QAction("&About", self)
-        about_action.triggered.connect(self._show_about)
+        _ = about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
 
     def _create_toolbar(self):
@@ -194,14 +194,14 @@ class MainWindow(QMainWindow):
 
         # Add files action
         add_action = QAction(QIcon.fromTheme("document-open"), "Add Files", self)
-        add_action.triggered.connect(self.add_files)
+        _ = add_action.triggered.connect(self.add_files)
         toolbar.addAction(add_action)
 
         toolbar.addSeparator()
 
         # Clear log action
         clear_action = QAction(QIcon.fromTheme("edit-clear"), "Clear Log", self)
-        clear_action.triggered.connect(self._clear_main_log)
+        _ = clear_action.triggered.connect(self._clear_main_log)
         toolbar.addAction(clear_action)
 
     def _create_left_panel(self) -> QWidget:
@@ -222,15 +222,15 @@ class MainWindow(QMainWindow):
         file_button_layout = QHBoxLayout()
 
         add_btn = QPushButton("Add Files")
-        add_btn.clicked.connect(self.add_files)
+        _ = add_btn.clicked.connect(self.add_files)
         file_button_layout.addWidget(add_btn)
 
         remove_btn = QPushButton("Remove Selected")
-        remove_btn.clicked.connect(self.remove_selected)
+        _ = remove_btn.clicked.connect(self.remove_selected)
         file_button_layout.addWidget(remove_btn)
 
         clear_btn = QPushButton("Clear All")
-        clear_btn.clicked.connect(self.clear_list)
+        _ = clear_btn.clicked.connect(self.clear_list)
         file_button_layout.addWidget(clear_btn)
 
         file_layout.addLayout(file_button_layout)
@@ -240,7 +240,7 @@ class MainWindow(QMainWindow):
 
         select_all_btn = QPushButton("📋 Select All")
         select_all_btn.setToolTip("Select all files in the list (Ctrl+A)")
-        select_all_btn.clicked.connect(self.select_all_files)
+        _ = select_all_btn.clicked.connect(self.select_all_files)
         batch_button_layout.addWidget(select_all_btn)
 
         clear_completed_btn = QPushButton("✅ Clear Completed")
@@ -254,7 +254,7 @@ class MainWindow(QMainWindow):
                 background-color: #e8f5e8;
             }
         """)
-        clear_completed_btn.clicked.connect(self.clear_completed_files)
+        _ = clear_completed_btn.clicked.connect(self.clear_completed_files)
         batch_button_layout.addWidget(clear_completed_btn)
 
         remove_failed_btn = QPushButton("❌ Remove Failed")
@@ -268,7 +268,7 @@ class MainWindow(QMainWindow):
                 background-color: #ffebee;
             }
         """)
-        remove_failed_btn.clicked.connect(self.remove_failed_files)
+        _ = remove_failed_btn.clicked.connect(self.remove_failed_files)
         batch_button_layout.addWidget(remove_failed_btn)
 
         file_layout.addLayout(batch_button_layout)
@@ -336,7 +336,7 @@ class MainWindow(QMainWindow):
                 background-color: #95a5a6;
             }
         """)
-        self.start_btn.clicked.connect(self._start_conversion)
+        _ = self.start_btn.clicked.connect(self._start_conversion)
         layout.addWidget(self.start_btn)
 
         self.stop_btn = QPushButton("🛑 Stop Conversion")
@@ -356,7 +356,7 @@ class MainWindow(QMainWindow):
                 background-color: #95a5a6;
             }
         """)
-        self.stop_btn.clicked.connect(self._stop_conversion)
+        _ = self.stop_btn.clicked.connect(self._stop_conversion)
         self.stop_btn.setEnabled(False)
         layout.addWidget(self.stop_btn)
 
@@ -367,32 +367,32 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         """Connect signals between components"""
         # Conversion controller signals
-        self.conversion_controller.conversion_started.connect(
+        _ = self.conversion_controller.conversion_started.connect(
             self._on_conversion_started
         )
-        self.conversion_controller.conversion_finished.connect(
+        _ = self.conversion_controller.conversion_finished.connect(
             self._on_conversion_finished
         )
-        self.conversion_controller.conversion_stopped.connect(
+        _ = self.conversion_controller.conversion_stopped.connect(
             self._on_conversion_stopped
         )
-        self.conversion_controller.log_message.connect(self._add_to_main_log)
-        self.conversion_controller.progress_updated.connect(
+        _ = self.conversion_controller.log_message.connect(self._add_to_main_log)
+        _ = self.conversion_controller.progress_updated.connect(
             self._update_overall_progress
         )
 
         # Settings panel signals
-        self.settings_panel.auto_balance_toggled.connect(
+        _ = self.settings_panel.auto_balance_toggled.connect(
             self.conversion_controller.enable_auto_balance
         )
-        self.settings_panel.settings_changed.connect(self._on_settings_changed)
+        _ = self.settings_panel.settings_changed.connect(self._on_settings_changed)
 
         # Process manager signals for logging
-        self.process_manager.output_ready.connect(self._log_process_output)
+        _ = self.process_manager.output_ready.connect(self._log_process_output)
 
         # Process monitor signals
         if self.process_monitor:
-            self.process_monitor.progress_updated.connect(self._update_overall_progress)
+            _ = self.process_monitor.progress_updated.connect(self._update_overall_progress)
 
     def add_files(self):
         """Add files to the conversion list"""

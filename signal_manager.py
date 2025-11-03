@@ -112,9 +112,9 @@ class SignalManager(LoggingMixin):
         try:
             # Connect based on connection type
             if connection_type is not None:
-                signal.connect(slot, connection_type)
+                _ = signal.connect(slot, connection_type)
             else:
-                signal.connect(slot)
+                _ = signal.connect(slot)
 
             # Track the connection if requested
             if track:
@@ -219,9 +219,11 @@ class SignalManager(LoggingMixin):
         try:
             # For signal chaining, we connect to the emit method
             if connection_type is not None:
-                source_signal.connect(target_signal.emit, connection_type)
+                _ = source_signal.connect(t_signal.emit, connection_type)
+                _ = source_signal.connect(target_signal.emit, connection_type)
             else:
-                source_signal.connect(target_signal.emit)
+                _ = source_signal.connect(t_signal.emit)
+                _ = source_signal.connect(target_signal.emit)
 
             self._signal_chains.append((source_signal, target_signal))
             self.logger.debug(f"Chained {source_signal} -> {target_signal}")
@@ -426,10 +428,12 @@ class SignalThrottler(QObject):
         self._pending_args: tuple[object, ...] | None = None
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
-        self._timer.timeout.connect(self._emit_throttled)
+        _ = self._timer.timeout.connect(_emit_throttled)
+        _ = self._timer.timeout.connect(self._emit_throttled)
 
         # Connect source signal
-        source_signal.connect(self._on_source_signal)
+        _ = source_signal.connect(_on_source_signal)
+        _ = source_signal.connect(self._on_source_signal)
 
     def _on_source_signal(self, *args: object) -> None:
         """Handle source signal emission."""
@@ -491,7 +495,8 @@ class SignalDebugger(LoggingMixin):
             args_str = ", ".join(str(arg) for arg in args) if args else "no args"
             self.logger.debug(f"Signal {signal_name}[{count}]: {args_str}")
 
-        signal.connect(trace_handler)
+        _ = signal.connect(_handler)
+        _ = signal.connect(trace_handler)
 
     def get_stats(self) -> dict[str, int]:
         """Get signal emission statistics."""

@@ -102,8 +102,8 @@ class LauncherController(LoggingMixin):
     def _setup_signals(self) -> None:
         """Setup signal connections for launcher functionality."""
         # Connect launcher panel signals
-        self.window.launcher_panel.app_launch_requested.connect(self.launch_app)
-        self.window.launcher_panel.custom_launcher_requested.connect(
+        _ = self.window.launcher_panel.app_launch_requested.connect(self.launch_app)
+        _ = self.window.launcher_panel.custom_launcher_requested.connect(
             self.execute_custom_launcher
         )
 

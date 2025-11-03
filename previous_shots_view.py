@@ -101,7 +101,8 @@ class PreviousShotsView(BaseGridView):
         # Setup scroll-based visibility updates (replaces timer)
         self._update_timer = QTimer()
         self._update_timer.setSingleShot(True)
-        self._update_timer.timeout.connect(self._update_visible_range)
+        _ = self._update_timer.timeout.connect(_update_visible_range)
+        _ = self._update_timer.timeout.connect(self._update_visible_range)
 
     def _add_top_widgets(self, layout: QVBoxLayout) -> None:
         """Add header widget with refresh button and status.
@@ -142,7 +143,8 @@ class PreviousShotsView(BaseGridView):
         self._refresh_button.setToolTip(
             "Scan for new approved shots and add them to persistent cache"
         )
-        self._refresh_button.clicked.connect(self._on_refresh_clicked)
+        _ = self._refresh_button.clicked.connect(_on_refresh_clicked)
+        _ = self._refresh_button.clicked.connect(self._on_refresh_clicked)
         header_layout.addWidget(self._refresh_button)
 
         return widget
@@ -187,29 +189,31 @@ class PreviousShotsView(BaseGridView):
         # Set up selection model
         selection_model = self.list_view.selectionModel()
         if selection_model:
-            selection_model.currentChanged.connect(self._on_selection_changed)
+            _ = selection_model.currentChanged.connect(_on_selection_changed)
+            _ = selection_model.currentChanged.connect(self._on_selection_changed)
 
         # Connect to model signals
-        model.shots_updated.connect(self._on_model_updated)
+        _ = model.shots_updated.connect(_on_model_updated)
+        _ = model.shots_updated.connect(self._on_model_updated)
 
         # Connect to underlying model's scan signals using accessor method
         underlying_model = model.get_underlying_model()
         if underlying_model:  # Type guard to satisfy basedpyright
-            underlying_model.scan_started.connect(
+            _ = underlying_model.scan_started.connect(
                 self._on_scan_started,
                 Qt.ConnectionType.QueuedConnection,
             )
-            underlying_model.scan_finished.connect(
+            _ = underlying_model.scan_finished.connect(
                 self._on_scan_finished,
                 Qt.ConnectionType.QueuedConnection,
             )
-            underlying_model.scan_progress.connect(
+            _ = underlying_model.scan_progress.connect(
                 self._on_scan_progress,
                 Qt.ConnectionType.QueuedConnection,
             )
 
         # Connect scroll events for debounced visibility updates
-        self.list_view.verticalScrollBar().valueChanged.connect(
+        _ = self.list_view.verticalScrollBar().valueChanged.connect(
             self._schedule_visible_range_update
         )
 
@@ -401,7 +405,7 @@ class PreviousShotsView(BaseGridView):
 
         # Add "Open Shot Folder" action
         open_folder_action = menu.addAction("Open Shot Folder")
-        open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
+        _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
 
         # Show menu at cursor position
         menu.exec(event.globalPos())
@@ -432,11 +436,11 @@ class PreviousShotsView(BaseGridView):
         worker = FolderOpenerWorker(folder_path)
 
         # Connect signals
-        worker.signals.error.connect(
+        _ = worker.signals.error.connect(
             self._on_folder_open_error,
             Qt.ConnectionType.QueuedConnection,
         )
-        worker.signals.success.connect(
+        _ = worker.signals.success.connect(
             self._on_folder_open_success,
             Qt.ConnectionType.QueuedConnection,
         )

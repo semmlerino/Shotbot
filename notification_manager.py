@@ -129,7 +129,7 @@ class ToastNotification(QFrame):
         # Auto-dismiss timer
         self.dismiss_timer = QTimer()
         self.dismiss_timer.setSingleShot(True)
-        self.dismiss_timer.timeout.connect(self.dismiss)
+        _ = self.dismiss_timer.timeout.connect(self.dismiss)
 
         # Start timer if duration > 0
         if self.duration > 0:
@@ -156,7 +156,7 @@ class ToastNotification(QFrame):
         # Close button
         self.close_button = QPushButton("×")
         self.close_button.setFixedSize(20, 20)
-        self.close_button.clicked.connect(self.dismiss)
+        _ = self.close_button.clicked.connect(self.dismiss)
         self.close_button.setStyleSheet("""
             QPushButton {
                 background: transparent;
@@ -235,7 +235,7 @@ class ToastNotification(QFrame):
         self.fade_out.setStartValue(0.95)
         self.fade_out.setEndValue(0.0)
         self.fade_out.setEasingCurve(QEasingCurve.Type.InQuad)
-        self.fade_out.finished.connect(self._on_fade_out_finished)
+        _ = self.fade_out.finished.connect(self._on_fade_out_finished)
 
     def show_animated(self) -> None:
         """Show the toast with fade-in animation."""
@@ -469,7 +469,7 @@ class NotificationManager(QObject):
         if not cancelable:
             progress.setCancelButton(None)
         elif callback:
-            progress.canceled.connect(callback)
+            _ = progress.canceled.connect(callback)
 
         progress.show()
         cls._current_progress = progress
@@ -510,7 +510,7 @@ class NotificationManager(QObject):
         toast = ToastNotification(
             message, notification_type, duration, cls._main_window
         )
-        toast.dismissed.connect(lambda: cls._remove_toast(toast))
+        _ = toast.dismissed.connect(lambda: cls._remove_toast(toast))
 
         # Position the toast
         cls._position_toast(toast)

@@ -89,7 +89,8 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         self.expand_button.setArrowType(
             Qt.ArrowType.DownArrow if self.is_expanded else Qt.ArrowType.RightArrow
         )
-        self.expand_button.clicked.connect(self._toggle_expanded)
+        _ = self.expand_button.clicked.connect(_toggle_expanded)
+        _ = self.expand_button.clicked.connect(self._toggle_expanded)
         self.expand_button.setMaximumSize(20, 20)
         header_layout.addWidget(self.expand_button)
 
@@ -116,7 +117,8 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         # Launch button
         self.launch_button = QPushButton(f"Launch {self.config.name}")
         self.launch_button.setObjectName(f"launch_{self.config.name}")
-        self.launch_button.clicked.connect(self._on_launch_clicked)
+        _ = self.launch_button.clicked.connect(_on_launch_clicked)
+        _ = self.launch_button.clicked.connect(self._on_launch_clicked)
         self.launch_button.setEnabled(False)  # Disabled until shot selected
 
         # Apply button styling with app color
@@ -489,7 +491,8 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         # Create app sections
         for config in app_configs:
             section = AppLauncherSection(config)
-            section.launch_requested.connect(self._on_app_launch)
+            _ = section.launch_requested.connect(_on_app_launch)
+            _ = section.launch_requested.connect(self._on_app_launch)
             group_layout.addWidget(section)
             self.app_sections[config.name] = section
 
@@ -569,7 +572,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         if launcher_id not in self.custom_launcher_buttons:
             button = QPushButton(name)
             button.setObjectName(f"customLauncher_{launcher_id}")
-            button.clicked.connect(
+            _ = button.clicked.connect(
                 lambda: self.custom_launcher_requested.emit(launcher_id)
             )
             button.setEnabled(self._current_shot is not None)

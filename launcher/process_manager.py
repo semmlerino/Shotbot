@@ -61,12 +61,14 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
         # Managed timer for cleanup retry (prevents cascading timers)
         self._cleanup_retry_timer = QTimer()
-        self._cleanup_retry_timer.timeout.connect(self._perform_cleanup_with_reset)
+        _ = self._cleanup_retry_timer.timeout.connect(_perform_cleanup_with_reset)
+        _ = self._cleanup_retry_timer.timeout.connect(self._perform_cleanup_with_reset)
         self._cleanup_retry_timer.setSingleShot(True)
 
         # Periodic cleanup timer
         self._cleanup_timer = QTimer()
-        self._cleanup_timer.timeout.connect(self._periodic_cleanup)
+        _ = self._cleanup_timer.timeout.connect(_periodic_cleanup)
+        _ = self._cleanup_timer.timeout.connect(self._periodic_cleanup)
         self._cleanup_timer.start(self.CLEANUP_INTERVAL_MS)
 
         # Shutdown flag for graceful cleanup
@@ -170,7 +172,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
             def on_error(lid: str, error: str) -> None:
                 self.process_error.emit(lid, error)
 
-            worker.command_started.connect(
+            _ = worker.command_started.connect(
                 on_started,
                 Qt.ConnectionType.QueuedConnection,
             )
@@ -180,11 +182,11 @@ class LauncherProcessManager(LoggingMixin, QObject):
             def on_finished(lid: str, success: bool, rc: int) -> None:
                 self._on_worker_finished(worker_key, lid, success, rc)
 
-            worker.command_finished.connect(
+            _ = worker.command_finished.connect(
                 on_finished,
                 Qt.ConnectionType.QueuedConnection,
             )
-            worker.command_error.connect(
+            _ = worker.command_error.connect(
                 on_error,
                 Qt.ConnectionType.QueuedConnection,
             )

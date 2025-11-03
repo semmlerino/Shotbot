@@ -309,8 +309,8 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         """Load pixmap asynchronously to avoid blocking UI."""
         # Create and start async loader
         loader = InfoPanelPixmapLoader(self, path)
-        loader.signals.loaded.connect(self._on_pixmap_loaded)
-        loader.signals.failed.connect(self._on_pixmap_failed)
+        _ = loader.signals.loaded.connect(self._on_pixmap_loaded)
+        _ = loader.signals.failed.connect(self._on_pixmap_failed)
         QThreadPool.globalInstance().start(loader)
 
     def _on_pixmap_loaded(self, image: QImage) -> None:

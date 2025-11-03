@@ -51,7 +51,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         self._updating_filter = False  # Recursion guard for filter updates
 
         # Connect generic items_updated to scene-specific signal
-        self.items_updated.connect(self.scenes_updated)
+        _ = self.items_updated.connect(self.scenes_updated)
 
         self.logger.info("ThreeDEItemModel initialized")
 

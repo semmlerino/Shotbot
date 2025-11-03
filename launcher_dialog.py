@@ -102,18 +102,18 @@ class LauncherPreviewPanel(QtWidgetMixin, LoggingMixin, QWidget):
 
         self.launch_button = QPushButton("Launch")
         self.launch_button.setObjectName("launchButton")
-        self.launch_button.clicked.connect(self._on_launch)
+        _ = self.launch_button.clicked.connect(self._on_launch)
         self.launch_button.setEnabled(False)
         button_layout.addWidget(self.launch_button)
 
         self.edit_button = QPushButton("Edit")
-        self.edit_button.clicked.connect(self._on_edit)
+        _ = self.edit_button.clicked.connect(self._on_edit)
         self.edit_button.setEnabled(False)
         button_layout.addWidget(self.edit_button)
 
         self.delete_button = QPushButton("Delete")
         self.delete_button.setObjectName("deleteButton")
-        self.delete_button.clicked.connect(self._on_delete)
+        _ = self.delete_button.clicked.connect(self._on_delete)
         self.delete_button.setEnabled(False)
         button_layout.addWidget(self.delete_button)
 
@@ -242,7 +242,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Test section
         test_layout = QHBoxLayout()
         self.test_button = QPushButton("Test Command")
-        self.test_button.clicked.connect(self._test_command)
+        _ = self.test_button.clicked.connect(self._test_command)
         test_layout.addWidget(self.test_button)
 
         self.test_output = QLabel("")
@@ -256,8 +256,8 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
             QDialogButtonBox.StandardButton.Save
             | QDialogButtonBox.StandardButton.Cancel,
         )
-        self.button_box.accepted.connect(self._save)
-        self.button_box.rejected.connect(self.reject)
+        _ = self.button_box.accepted.connect(self._save)
+        _ = self.button_box.rejected.connect(self.reject)
         layout.addWidget(self.button_box)
 
     def _populate_fields(self) -> None:
@@ -287,8 +287,8 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
     def _connect_signals(self) -> None:
         """Connect signals for validation."""
-        self.name_field.textChanged.connect(self._validate_name)
-        self.command_field.textChanged.connect(self._validate_command)
+        _ = self.name_field.textChanged.connect(self._validate_name)
+        _ = self.command_field.textChanged.connect(self._validate_command)
 
     def _validate_name(self) -> bool:
         """Validate launcher name."""
@@ -490,15 +490,15 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Launcher list
         self.launcher_list = LauncherListWidget()
-        self.launcher_list.itemSelectionChanged.connect(self._on_selection_changed)
-        self.launcher_list.itemDoubleClicked.connect(self._on_double_click)
+        _ = self.launcher_list.itemSelectionChanged.connect(self._on_selection_changed)
+        _ = self.launcher_list.itemDoubleClicked.connect(self._on_double_click)
         self.splitter.addWidget(self.launcher_list)
 
         # Preview panel
         self.preview_panel = LauncherPreviewPanel()
-        self.preview_panel.launch_requested.connect(self._launch_launcher)
-        self.preview_panel.edit_requested.connect(self._edit_launcher)
-        self.preview_panel.delete_requested.connect(self._delete_launcher)
+        _ = self.preview_panel.launch_requested.connect(self._launch_launcher)
+        _ = self.preview_panel.edit_requested.connect(self._edit_launcher)
+        _ = self.preview_panel.delete_requested.connect(self._delete_launcher)
         self.splitter.addWidget(self.preview_panel)
 
         self.splitter.setSizes([400, 500])
@@ -508,13 +508,13 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
         button_layout = QHBoxLayout()
 
         self.add_button = QPushButton("Add New Launcher")
-        self.add_button.clicked.connect(self._add_launcher)
+        _ = self.add_button.clicked.connect(self._add_launcher)
         button_layout.addWidget(self.add_button)
 
         button_layout.addStretch()
 
         self.close_button = QPushButton("Close")
-        self.close_button.clicked.connect(self.close)
+        _ = self.close_button.clicked.connect(self.close)
         button_layout.addWidget(self.close_button)
 
         layout.addLayout(button_layout)
@@ -542,12 +542,12 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
     def _connect_signals(self) -> None:
         """Connect signals to slots."""
         # Search
-        self.search_field.textChanged.connect(self._filter_launchers)
+        _ = self.search_field.textChanged.connect(self._filter_launchers)
 
         # Manager signals
-        self.launcher_manager.launchers_changed.connect(self._load_launchers)
-        self.launcher_manager.execution_started.connect(self._on_execution_started)
-        self.launcher_manager.execution_finished.connect(self._on_execution_finished)
+        _ = self.launcher_manager.launchers_changed.connect(self._load_launchers)
+        _ = self.launcher_manager.execution_started.connect(self._on_execution_started)
+        _ = self.launcher_manager.execution_finished.connect(self._on_execution_finished)
 
     def _apply_styles(self) -> None:
         """Apply custom styles."""
