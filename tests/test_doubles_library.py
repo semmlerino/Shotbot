@@ -351,9 +351,9 @@ class TestShotModel(QObject):
 
         # Connect signals to track emissions
         self.shots_updated.connect(lambda: self._track_signal("shots_updated"))
-        self.shot_selected.connect(lambda x: self._track_signal("shot_selected"))
+        self.shot_selected.connect(lambda _x: self._track_signal("shot_selected"))
         self.refresh_started.connect(lambda: self._track_signal("refresh_started"))
-        self.refresh_finished.connect(lambda x: self._track_signal("refresh_finished"))
+        self.refresh_finished.connect(lambda _x: self._track_signal("refresh_finished"))
 
     def _track_signal(self, signal_name: str) -> None:
         """Track signal emissions for testing."""

@@ -58,9 +58,7 @@ class TestPersistentTerminalManager:
             """Mock exists to return False for FIFO, True for dispatcher."""
             if path == temp_fifo:
                 return False  # FIFO doesn't exist yet
-            if path == temp_dispatcher:
-                return True  # Dispatcher exists (created by fixture)
-            return False
+            return path == temp_dispatcher  # Dispatcher exists (created by fixture)
 
         with (
             patch("os.path.exists", side_effect=mock_exists),

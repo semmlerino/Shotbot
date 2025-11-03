@@ -150,8 +150,14 @@ def test_ws_sg_parsing() -> None:
 
     for idx, show, sequence, shot in test_cases:
         s = shots[idx]
-        assert s.show == show and s.sequence == sequence and s.shot == shot, (
-            f"Shot {idx}: expected {show}/{sequence}/{shot}, got {s.show}/{s.sequence}/{s.shot}"
+        assert s.show == show, (
+            f"Shot {idx}: expected show {show}, got {s.show}"
+        )
+        assert s.sequence == sequence, (
+            f"Shot {idx}: expected sequence {sequence}, got {s.sequence}"
+        )
+        assert s.shot == shot, (
+            f"Shot {idx}: expected shot {shot}, got {s.shot}"
         )
         print(f"  ✓ Shot {idx}: {s.show}/{s.sequence}/{s.shot}")
 
@@ -261,12 +267,14 @@ def test_3de_scene_discovery() -> None:
             else:
                 shot = shot_dir.split("_")[-1] if "_" in shot_dir else shot_dir
 
-            assert (
-                show == expected_show
-                and sequence == expected_seq
-                and shot == expected_shot
-            ), (
-                f"{file_path.name}: expected {expected_show}/{expected_seq}/{expected_shot}, got {show}/{sequence}/{shot}"
+            assert show == expected_show, (
+                f"{file_path.name}: expected show {expected_show}, got {show}"
+            )
+            assert sequence == expected_seq, (
+                f"{file_path.name}: expected sequence {expected_seq}, got {sequence}"
+            )
+            assert shot == expected_shot, (
+                f"{file_path.name}: expected shot {expected_shot}, got {shot}"
             )
             print(f"    ✓ {file_path.name}: {show}/{sequence}/{shot}")
 

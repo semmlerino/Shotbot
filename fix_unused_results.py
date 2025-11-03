@@ -96,10 +96,7 @@ def read_source_line(filepath: str, line_num: int) -> str:
 
 def is_safe_pattern(source_line: str) -> bool:
     """Check if line matches a safe pattern for automatic fixing."""
-    for pattern in SAFE_PATTERNS:
-        if re.search(pattern, source_line):
-            return True
-    return False
+    return any(re.search(pattern, source_line) for pattern in SAFE_PATTERNS)
 
 
 def needs_review(source_line: str) -> str | None:

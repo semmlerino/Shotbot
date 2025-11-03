@@ -211,21 +211,16 @@ class InjectableProcessPoolManager(ProcessPoolManager):
             import time
 
             start_time = time.time()
-            try:
-                result = self._test_session.execute(command, timeout=30)
+            result = self._test_session.execute(command, timeout=30)
 
-                # Update metrics
-                elapsed = (time.time() - start_time) * 1000
-                self._metrics.update_response_time(elapsed)
-                self._metrics.subprocess_calls += 1
+            # Update metrics
+            elapsed = (time.time() - start_time) * 1000
+            self._metrics.update_response_time(elapsed)
+            self._metrics.subprocess_calls += 1
 
-                return result
-
-            except Exception:
-                raise
-        else:
-            # Use parent implementation
-            return super()._execute_with_session_pool(command, cache_ttl, session_type)
+            return result
+        # Use parent implementation
+        return super()._execute_with_session_pool(command, cache_ttl, session_type)
 
     def _get_bash_session(self, session_type: str):
         """Override to return injected test session when available."""

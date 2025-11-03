@@ -287,7 +287,7 @@ class TestConcurrentThumbnailRaceConditions:
         """Stress test simulating production load: 285 concurrent callbacks.
 
         This is the EXACT scenario from the bug report:
-        - 3 models × 95 scenes = 285 callbacks
+        - 3 models x 95 scenes = 285 callbacks
         - All happening in rapid succession
         - Cache cleanup triggering during peak load
 

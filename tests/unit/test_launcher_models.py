@@ -158,7 +158,7 @@ class TestLauncherParameterInitialization:
 
     def test_choice_default_must_be_in_choices(self) -> None:
         """Test that default value for CHOICE must be in choices list."""
-        with pytest.raises(ValueError, match="Default value .* not in choices"):
+        with pytest.raises(ValueError, match=r"Default value .* not in choices"):
             LauncherParameter(
                 name="quality",
                 param_type=ParameterType.CHOICE,
