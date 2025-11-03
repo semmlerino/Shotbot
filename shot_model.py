@@ -256,8 +256,8 @@ class ShotModel(BaseShotModel):
             if self._async_loader:
                 if self._async_loader.isRunning():
                     self.logger.warning("Previous loader still running, stopping it")
-                    self._async_loader.request_stop()
-                    self._async_loader.wait(1000)
+                    _ = self._async_loader.request_stop()
+                    _ = self._async_loader.wait(1000)
                 self._async_loader.deleteLater()
                 self._async_loader = None
 
@@ -489,7 +489,7 @@ class ShotModel(BaseShotModel):
         # Create a dummy command to initialize the session pool
         try:
             # This will trigger lazy initialization of bash sessions
-            self._process_pool.execute_workspace_command(
+            _ = self._process_pool.execute_workspace_command(
                 "echo warming",
                 cache_ttl=1,  # Very short cache
                 timeout=5,
@@ -527,7 +527,7 @@ class ShotModel(BaseShotModel):
         if self._async_loader:
             if self._async_loader.isRunning():
                 self.logger.info("Stopping background loader")
-                self._async_loader.request_stop()  # Sets event and requests interruption
+                _ = self._async_loader.request_stop()  # Sets event and requests interruption
 
                 # Give thread 2 seconds to stop gracefully
                 if not self._async_loader.wait(2000):
@@ -837,7 +837,7 @@ if __name__ == "__main__":
     app.processEvents()
 
     # In real app, this would be handled by Qt event loop
-    model.wait_for_async_load(5000)
+    _ = model.wait_for_async_load(5000)
 
     print(f"Final shots: {len(model.shots)}")
     print(f"Performance metrics: {model.get_performance_metrics()}")

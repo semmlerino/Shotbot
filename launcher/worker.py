@@ -11,7 +11,7 @@ import re
 import shlex
 import subprocess
 import threading
-from typing import IO
+from typing import IO, override
 
 # Third-party imports
 from PySide6.QtCore import Signal
@@ -152,6 +152,7 @@ class LauncherWorker(ThreadSafeWorker):
                 f"Command could not be parsed safely and was blocked: {e!s}"
             ) from e
 
+    @override
     def do_work(self) -> None:
         """Execute the launcher command with proper lifecycle management.
 
@@ -248,14 +249,14 @@ class LauncherWorker(ThreadSafeWorker):
             # Try graceful termination first
             self._process.terminate()
             try:
-                self._process.wait(timeout=10)
+                _ = self._process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 # Force kill if necessary
                 self.logger.warning(
                     f"Force killing launcher '{self.launcher_id}' after timeout",
                 )
                 self._process.kill()
-                self._process.wait(timeout=5)
+                _ = self._process.wait(timeout=5)
         except Exception as e:
             self.logger.error(
                 f"Error terminating process for '{self.launcher_id}': {e}"
@@ -295,6 +296,7 @@ class LauncherWorker(ThreadSafeWorker):
                 # Process already terminated
                 self._process = None
 
+    @override
     def request_stop(self) -> bool:
         """Override to handle process termination.
 

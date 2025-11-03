@@ -1,10 +1,10 @@
 """Background worker for scanning previous/approved shots."""
-
 from __future__ import annotations
 
 # Standard library imports
 import time
 from pathlib import Path
+from typing import override
 
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
@@ -76,11 +76,12 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
     def stop(self) -> None:
         """Request the worker to stop safely."""
-        self.request_stop()  # Use base class method for proper state transition
+        _ = self.request_stop()  # Use base class method for proper state transition
         if hasattr(self._finder, "request_stop"):
             self._finder.request_stop()  # Also stop the parallel finder
         self.logger.debug("Stop requested for PreviousShotsWorker")
 
+    @override
     def do_work(self) -> None:
         """Perform the background scanning process.
 

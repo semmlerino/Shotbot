@@ -44,7 +44,7 @@ from collections.abc import Callable
 
 # Standard library imports
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -255,6 +255,7 @@ class ToastNotification(QFrame):
         self.dismissed.emit()
         self.deleteLater()
 
+    @override
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse clicks to dismiss the toast."""
         if event.button() == Qt.MouseButton.LeftButton:
@@ -331,10 +332,10 @@ class NotificationManager(QObject):
         cls._main_window = None
         cls._status_bar = None
         if cls._current_progress:
-            cls._current_progress.close()
+            _ = cls._current_progress.close()
             cls._current_progress = None
         for toast in cls._active_toasts:
-            toast.close()
+            _ = toast.close()
         cls._active_toasts.clear()
         if cls._instance:
             logger.debug("NotificationManager cleaned up")
@@ -353,11 +354,11 @@ class NotificationManager(QObject):
             full_message += f"\n\nDetails: {details}"
 
         if cls._main_window:
-            QMessageBox.critical(
+            _ = QMessageBox.critical(
                 cls._main_window, f"Error - {title}", full_message or title
             )
         else:
-            QMessageBox.critical(None, f"Error - {title}", full_message or title)
+            _ = QMessageBox.critical(None, f"Error - {title}", full_message or title)
 
         # Also log the error
         if cls._instance:
@@ -377,11 +378,11 @@ class NotificationManager(QObject):
             full_message += f"\n\nDetails: {details}"
 
         if cls._main_window:
-            QMessageBox.warning(
+            _ = QMessageBox.warning(
                 cls._main_window, f"Warning - {title}", full_message or title
             )
         else:
-            QMessageBox.warning(None, f"Warning - {title}", full_message or title)
+            _ = QMessageBox.warning(None, f"Warning - {title}", full_message or title)
 
         if cls._instance:
             logger.warning(f"Warning notification: {title} - {message} - {details}")
@@ -456,7 +457,7 @@ class NotificationManager(QObject):
         """
         # Close existing progress dialog
         if cls._current_progress:
-            cls._current_progress.close()
+            _ = cls._current_progress.close()
 
         parent = cls._main_window if cls._main_window else None
         progress = QProgressDialog(
@@ -482,7 +483,7 @@ class NotificationManager(QObject):
     def close_progress(cls) -> None:
         """Close the current progress dialog."""
         if cls._current_progress:
-            cls._current_progress.close()
+            _ = cls._current_progress.close()
             cls._current_progress = None
 
     @classmethod

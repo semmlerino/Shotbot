@@ -178,19 +178,19 @@ def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
                 if shot_dir.startswith(sequence):
                     if len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == "_":
                         shot = shot_dir[len(sequence) + 1 :]
-                        ParseResult(show, sequence, shot, workspace_path)
+                        _ = ParseResult(show, sequence, shot, workspace_path)
                 elif "_" in shot_dir:
                     shot = shot_dir.rsplit("_", 1)[-1]
-                    ParseResult(show, sequence, shot, workspace_path)
+                    _ = ParseResult(show, sequence, shot, workspace_path)
                 else:
-                    ParseResult(show, sequence, shot_dir, workspace_path)
+                    _ = ParseResult(show, sequence, shot_dir, workspace_path)
     original_time = time.perf_counter() - start_time
 
     # Benchmark optimized parser
     start_time = time.perf_counter()
     for _ in range(iterations):
         for line in test_lines:
-            optimized_parser.parse_workspace_line(line)
+            _ = optimized_parser.parse_workspace_line(line)
     optimized_time = time.perf_counter() - start_time
 
     # Calculate metrics

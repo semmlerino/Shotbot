@@ -899,7 +899,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.logger.info(f"{len(migrated_shots)} shots migrated to Previous Shots")
         # Trigger Previous Shots tab refresh to show newly migrated shots
         if self.previous_shots_model:
-            self.previous_shots_model.refresh_shots()
+            _ = self.previous_shots_model.refresh_shots()
 
     def _on_tab_changed(self, index: int) -> None:
         """Handle tab widget tab changes.
@@ -1331,7 +1331,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                     archived_path=archived_path,
                     parent=self.shot_grid,
                 )
-                result_dialog.exec()
+                _ = result_dialog.exec()
 
                 # Local application imports
                 from notification_manager import NotificationManager, NotificationType
@@ -1348,10 +1348,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                     error_message=str(e),
                     parent=self.shot_grid,
                 )
-                result_dialog.exec()
+                _ = result_dialog.exec()
 
         _ = dialog.recovery_requested.connect(on_recovery_requested)
-        dialog.exec()
+        _ = dialog.exec()
 
     def _on_previous_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from Previous Shots grid view."""
@@ -1565,6 +1565,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.cleanup_manager.perform_cleanup()
         self.logger.debug("Completed explicit MainWindow cleanup")
 
+    @override
     def closeEvent(self, event: QCloseEvent) -> None:
         """Thread-safe close event handler.
 

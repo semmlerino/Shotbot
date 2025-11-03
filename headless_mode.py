@@ -280,8 +280,8 @@ class HeadlessMainWindow:
         # Mock UI methods
         self.show: Callable[[], None] = lambda: None
         self.close: Callable[[], None] = lambda: None
-        self.resize: Callable[[int, int], None] = lambda w, h: None
-        self.setWindowTitle: Callable[[str], None] = lambda title: None
+        self.resize: Callable[[int, int], None] = lambda _w, _h: None
+        self.setWindowTitle: Callable[[str], None] = lambda _title: None
 
         logger.info("HeadlessMainWindow initialized")
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -102,6 +102,7 @@ class ThreeDEGridView(BaseGridView):
 
         self.logger.info("ThreeDEGridView initialized with Model/View architecture")
 
+    @override
     def _add_top_widgets(self, layout: QVBoxLayout) -> None:
         """Add loading indicators at the top.
 
@@ -127,6 +128,7 @@ class ThreeDEGridView(BaseGridView):
 
         layout.addLayout(loading_layout)
 
+    @override
     def _customize_size_layout(self, layout: QHBoxLayout) -> None:
         """Add scene count label and recovery button to size layout.
 
@@ -148,6 +150,7 @@ class ThreeDEGridView(BaseGridView):
         self.count_label = QLabel("0 scenes")
         layout.addWidget(self.count_label)
 
+    @override
     def _create_delegate(self) -> BaseThumbnailDelegate:
         """Create the 3DE grid delegate.
 
@@ -179,6 +182,7 @@ class ThreeDEGridView(BaseGridView):
         # Update scene count
         self._update_scene_count()
 
+    @override
     def populate_show_filter(self, shows: list[str] | object) -> None:
         """Populate the show filter combo box with available shows.
 
@@ -284,6 +288,7 @@ class ThreeDEGridView(BaseGridView):
             # Launch 3DE by default
             self.app_launch_requested.emit("3de", scene)
 
+    @override
     def _handle_visible_range_update(self, start: int, end: int) -> None:
         """Handle the visible range update with buffering.
 
@@ -322,13 +327,13 @@ class ThreeDEGridView(BaseGridView):
         _ = open_folder_action.triggered.connect(lambda: self._open_scene_folder(scene))
 
         # Add separator
-        menu.addSeparator()
+        _ = menu.addSeparator()
 
         # Add "Copy path" action
         copy_path_action = menu.addAction("Copy Path")
         _ = copy_path_action.triggered.connect(lambda: self._copy_scene_path(scene))
 
-        menu.exec(self.list_view.mapToGlobal(pos))
+        _ = menu.exec(self.list_view.mapToGlobal(pos))
 
     def _open_scene_in_3de(self, scene: ThreeDEScene) -> None:
         """Open scene in 3DE.
@@ -363,6 +368,7 @@ class ThreeDEGridView(BaseGridView):
         clipboard.setText(str(scene.scene_path))
         self.logger.info(f"Copied path to clipboard: {scene.scene_path}")
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events.
 

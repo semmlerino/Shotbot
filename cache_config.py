@@ -200,7 +200,7 @@ class CacheConfig(LoggingMixin):
             if to_dir.exists():
                 shutil.rmtree(to_dir)
 
-            shutil.copytree(from_dir, to_dir)
+            _ = shutil.copytree(from_dir, to_dir)
             logger.info(f"Migrated cache from {from_dir} to {to_dir}")
             return True
 

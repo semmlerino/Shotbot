@@ -7,6 +7,7 @@ specialized components for launcher management, validation, and execution.
 from __future__ import annotations
 
 # Standard library imports
+import contextlib
 import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -625,22 +626,16 @@ class LauncherManager(LoggingMixin, QObject):
                 # Use disconnect() without arguments to disconnect all slots
                 # This avoids warnings about disconnecting specific slots that may not exist
                 if hasattr(self._process_manager, "process_started"):
-                    try:
-                        self._process_manager.process_started.disconnect()
-                    except (RuntimeError, TypeError):
-                        pass  # Already disconnected or no connections
+                    with contextlib.suppress(RuntimeError, TypeError):
+                        _ = self._process_manager.process_started.disconnect()
 
                 if hasattr(self._process_manager, "process_finished"):
-                    try:
-                        self._process_manager.process_finished.disconnect()
-                    except (RuntimeError, TypeError):
-                        pass  # Already disconnected or no connections
+                    with contextlib.suppress(RuntimeError, TypeError):
+                        _ = self._process_manager.process_finished.disconnect()
 
                 if hasattr(self._process_manager, "process_error"):
-                    try:
-                        self._process_manager.process_error.disconnect()
-                    except (RuntimeError, TypeError):
-                        pass  # Already disconnected or no connections
+                    with contextlib.suppress(RuntimeError, TypeError):
+                        _ = self._process_manager.process_error.disconnect()
 
                 self._signals_connected = False
             except Exception as e:

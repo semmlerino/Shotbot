@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import cast
+from typing import cast, override
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -44,6 +44,7 @@ class FilesystemMockStrategy(MockDataStrategy):
         super().__init__()
         self.mock_root = mock_root or Path("/tmp/mock_vfx")
 
+    @override
     def load_shots(self) -> list[str]:
         """Scan mock filesystem for shots.
 
@@ -119,6 +120,7 @@ class JSONMockStrategy(MockDataStrategy):
             json_path = Path(__file__).parent / "demo_shots.json"
         self.json_path = Path(json_path)
 
+    @override
     def load_shots(self) -> list[str]:
         """Load shots from JSON file.
 
@@ -196,6 +198,7 @@ class ProductionDataStrategy(MockDataStrategy):
             capture_file = Path(__file__).parent / "vfx_structure_complete.json"
         self.capture_file = Path(capture_file)
 
+    @override
     def load_shots(self) -> list[str]:
         """Load shots from captured production structure.
 

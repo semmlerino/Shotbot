@@ -9,7 +9,7 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 
 # Local application imports
 from config import Config, ThreadingConfig
@@ -107,6 +107,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         return shots
 
+    @override
     def _parse_shot_from_path(self, path: str) -> Shot | None:
         """Parse shot information from a filesystem path.
 
@@ -217,6 +218,7 @@ class PreviousShotsFinder(ShotFinderBase):
         all_user_shots = self.find_user_shots(shows_root)
         return self.filter_approved_shots(all_user_shots, active_shots)
 
+    @override
     def get_shot_details(self, shot: Shot) -> ShotDetailsDict:
         """Get additional details about an approved shot.
 
@@ -247,6 +249,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         return details
 
+    @override
     def _get_shot_status(self, shot: Shot) -> str:
         """Get the status of a shot (approved or active).
 
@@ -264,6 +267,7 @@ class PreviousShotsFinder(ShotFinderBase):
         # For previous shots, we consider them completed if they're not in active shots
         return "completed"
 
+    @override
     def find_shots(self, **kwargs: FindShotsKwargs) -> list[Shot]:
         """Find previous/approved shots.
 
@@ -470,7 +474,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
                 if self._stop_requested:
                     # Cancel remaining futures
                     for f in future_to_show:
-                        f.cancel()
+                        _ = f.cancel()
                     break
 
                 show = future_to_show[future]
@@ -496,6 +500,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         self._report_progress(100, 100, "Scan complete")
 
+    @override
     def find_user_shots(self, shows_root: Path | None = None) -> list[Shot]:
         """Find all shots with user work directories using parallel search.
 

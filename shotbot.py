@@ -188,17 +188,17 @@ Environment Variables:
   SHOTBOT_MOCK=1          # Enable mock mode via environment
 """,
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--mock",
         action="store_true",
         help="Run with mock VFX data (no ws command needed)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--headless",
         action="store_true",
         help="Run in headless mode without display (for CI/CD testing)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--screenshot",
         type=int,
         metavar="SECONDS",
@@ -271,7 +271,7 @@ Environment Variables:
     app.setOrganizationName("VFX")
 
     # Set dark theme
-    app.setStyle("Fusion")
+    _ = app.setStyle("Fusion")
 
     # Dark palette
     # Third-party imports

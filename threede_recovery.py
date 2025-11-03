@@ -234,7 +234,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         self.logger.info(
             f"Recovering crash file: {crash_path.name} → {recovery_path.name}"
         )
-        crash_path.rename(recovery_path)
+        _ = crash_path.rename(recovery_path)
 
         # Archive notification (actual archiving happens separately)
         self.logger.info(f"Successfully recovered to: {recovery_path}")
@@ -286,7 +286,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         self.logger.info(
             f"Archiving crash file: {crash_path.name} → {archive_name}"
         )
-        crash_path.rename(archive_path)
+        _ = crash_path.rename(archive_path)
 
         return archive_path
 
@@ -331,7 +331,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         self.logger.info(
             f"Recovering crash file: {crash_path.name} → {recovery_path.name}"
         )
-        shutil.copy2(crash_path, recovery_path)
+        _ = shutil.copy2(crash_path, recovery_path)
 
         # Step 2: Archive the original crash file
         archived_path = self.archive_crash_file(crash_info)

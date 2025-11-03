@@ -339,10 +339,8 @@ class CacheManager(LoggingMixin, QObject):
                         self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
 
                         # Clean up temp file
-                        try:
+                        with contextlib.suppress(Exception):
                             extracted_frame.unlink()
-                        except Exception:
-                            pass
 
                         return output
                     except Exception as fallback_error:
@@ -427,7 +425,7 @@ class CacheManager(LoggingMixin, QObject):
                 # Assume Shot object with to_dict method - TYPE_CHECKING import prevents runtime check
                 shot_dicts.append(shot.to_dict())
 
-        self._write_json_cache(self.shots_cache_file, shot_dicts)
+        _ = self._write_json_cache(self.shots_cache_file, shot_dicts)
         self.cache_updated.emit()
 
     def get_persistent_shots(self) -> list[ShotDict] | None:
@@ -495,19 +493,15 @@ class CacheManager(LoggingMixin, QObject):
 
             if write_success:
                 self.logger.info(
-
-                        f"Migrated {len(to_migrate)} shots to Previous "
-                        f"(total: {len(merged)} after dedup)"
-
+                    f"Migrated {len(to_migrate)} shots to Previous "
+                     f"(total: {len(merged)} after dedup)"
                 )
                 # Emit specific signal (NOT generic cache_updated)
                 self.shots_migrated.emit(to_migrate)
             else:
                 self.logger.error(
-
-                        f"Failed to persist {len(to_migrate)} migrated shots to disk. "
-                        "Migration will be lost on restart."
-
+                    f"Failed to persist {len(to_migrate)} migrated shots to disk. "
+                     "Migration will be lost on restart."
                 )
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
@@ -544,7 +538,7 @@ class CacheManager(LoggingMixin, QObject):
                 # Assume Shot object with to_dict method - TYPE_CHECKING import prevents runtime check
                 shot_dicts.append(shot.to_dict())
 
-        self._write_json_cache(self.previous_shots_cache_file, shot_dicts)
+        _ = self._write_json_cache(self.previous_shots_cache_file, shot_dicts)
         self.cache_updated.emit()
 
     def merge_shots_incremental(
@@ -647,7 +641,7 @@ class CacheManager(LoggingMixin, QObject):
             scenes: List of scene dictionaries
             metadata: Optional metadata (ignored in simple implementation)
         """
-        self._write_json_cache(self.threede_cache_file, scenes)
+        _ = self._write_json_cache(self.threede_cache_file, scenes)
         self.cache_updated.emit()
 
     # ========================================================================
@@ -671,7 +665,7 @@ class CacheManager(LoggingMixin, QObject):
                 self.logger.error(f"Invalid data type for previous_shots: {type(data)}")
         else:
             cache_file = self.cache_dir / f"{key}.json"
-            self._write_json_cache(cache_file, data)
+            _ = self._write_json_cache(cache_file, data)
 
     def get_cached_data(self, key: str) -> object | None:
         """Get cached generic data by key.
@@ -931,7 +925,7 @@ class CacheManager(LoggingMixin, QObject):
                     os.fsync(f.fileno())  # Ensure data is written to disk
 
                 # Atomic rename (POSIX guarantees atomicity on same filesystem)
-                Path(temp_path).replace(cache_file)
+                _ = Path(temp_path).replace(cache_file)
 
                 self.logger.debug(f"Cached data to: {cache_file}")
                 return True

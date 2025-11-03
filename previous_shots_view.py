@@ -96,6 +96,7 @@ class PreviousShotsView(BaseGridView):
 
         self.logger.info("PreviousShotsView initialized with Model/View architecture")
 
+    @override
     def _setup_visibility_tracking(self) -> None:
         """Override to use scroll-based updates instead of timer."""
         # Setup scroll-based visibility updates (replaces timer)
@@ -103,6 +104,7 @@ class PreviousShotsView(BaseGridView):
         self._update_timer.setSingleShot(True)
         _ = self._update_timer.timeout.connect(self._update_visible_range)
 
+    @override
     def _add_top_widgets(self, layout: QVBoxLayout) -> None:
         """Add header widget with refresh button and status.
 
@@ -112,6 +114,7 @@ class PreviousShotsView(BaseGridView):
         header_widget = self._create_header()
         layout.addWidget(header_widget)
 
+    @override
     def _create_delegate(self) -> BaseThumbnailDelegate:
         """Create the shot grid delegate.
 
@@ -166,6 +169,7 @@ class PreviousShotsView(BaseGridView):
         return self._selected_shot
 
     @property
+    @override
     def thumbnail_size(self) -> int:
         """Get the current thumbnail size.
 
@@ -260,7 +264,7 @@ class PreviousShotsView(BaseGridView):
         self._status_label.setText("Scanning for new approved shots...")
 
         # Start progress operation
-        ProgressManager.start_operation("Scanning for previous shots")
+        _ = ProgressManager.start_operation("Scanning for previous shots")
 
     @Slot()
     def _on_scan_finished(self) -> None:
@@ -354,11 +358,11 @@ class PreviousShotsView(BaseGridView):
 
         # Clear previous selection in model
         if previous.isValid():
-            self._unified_model.setData(previous, False, ShotRole.IsSelectedRole)
+            _ = self._unified_model.setData(previous, False, ShotRole.IsSelectedRole)
 
         # Set current selection in model
         if current.isValid():
-            self._unified_model.setData(current, True, ShotRole.IsSelectedRole)
+            _ = self._unified_model.setData(current, True, ShotRole.IsSelectedRole)
 
             # Cast needed because QModelIndex.data() returns Any
             shot = cast("Shot | None", current.data(ShotRole.ObjectRole))
@@ -366,6 +370,7 @@ class PreviousShotsView(BaseGridView):
                 self._selected_shot = shot
                 self.shot_selected.emit(shot)
 
+    @override
     def _handle_visible_range_update(self, start: int, end: int) -> None:
         """Handle the visible range update for lazy loading.
 
@@ -376,6 +381,7 @@ class PreviousShotsView(BaseGridView):
         if self._unified_model:
             self._unified_model.set_visible_range(start, end)
 
+    @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu.
 
@@ -404,7 +410,7 @@ class PreviousShotsView(BaseGridView):
         _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
 
         # Show menu at cursor position
-        menu.exec(event.globalPos())
+        _ = menu.exec(event.globalPos())
 
         self.logger.debug(f"Context menu shown for shot: {shot.full_name}")
 
@@ -485,6 +491,7 @@ class PreviousShotsView(BaseGridView):
         # Schedule update after 50ms of no scrolling
         self._update_timer.start(50)
 
+    @override
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle widget close event to clean up resources.
 

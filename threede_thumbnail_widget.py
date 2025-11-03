@@ -1,7 +1,7 @@
 """Enhanced thumbnail widget for displaying 3DE scene thumbnails with additional info."""
+from typing import override
 
 # Standard library imports
-
 # Third-party imports
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QLabel, QMenu
@@ -34,6 +34,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.plate_label: QLabel | None = None
         super().__init__(scene, size)
 
+    @override
     def _setup_custom_ui(self) -> None:
         """Set up custom UI elements specific to 3DE scene thumbnails."""
         # Shot name label (larger, bold)
@@ -72,6 +73,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         # Apply initial style
         self._update_style()
 
+    @override
     def _get_selected_style(self) -> str:
         """Get the CSS style for selected state."""
         return """
@@ -104,6 +106,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
             }
         """
 
+    @override
     def _get_unselected_style(self) -> str:
         """Get the CSS style for unselected state."""
         return """
@@ -138,6 +141,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
             }
         """
 
+    @override
     def _create_context_menu(self) -> QMenu:
         """Create and return the context menu for this widget."""
         menu = QMenu(self)

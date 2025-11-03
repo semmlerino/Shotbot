@@ -96,7 +96,7 @@ class LauncherConfigManager(LoggingMixin):
             for launcher_id, launcher in launchers.items():
                 launcher_dict = launcher.to_dict()
                 # Remove ID from nested dict as it's the key
-                launcher_dict.pop("id", None)
+                _ = launcher_dict.pop("id", None)
                 config_data["launchers"][launcher_id] = launcher_dict
 
             with self.config_file.open("w") as f:

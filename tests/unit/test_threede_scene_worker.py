@@ -14,6 +14,7 @@ UNIFIED_TESTING_GUIDE COMPLIANCE:
 from __future__ import annotations
 
 # Standard library imports
+import contextlib
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
@@ -122,9 +123,9 @@ class TestThreeDESceneFinder:
     @classmethod
     def find_all_scenes_progressive(
         cls,
-        shot_tuples: list[tuple[str, str, str, str]],
-        excluded_users: set[str],
-        batch_size: int,
+        _shot_tuples: list[tuple[str, str, str, str]],
+        _excluded_users: set[str],
+        _batch_size: int,
     ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
         """Progressive scanning test double (class method version)."""
         # Yield configured batches from class data
@@ -132,36 +133,36 @@ class TestThreeDESceneFinder:
 
     @classmethod
     def estimate_scan_size(
-        cls, shot_tuples: list[tuple[str, str, str, str]], excluded_users: set[str]
+        cls, _shot_tuples: list[tuple[str, str, str, str]], _excluded_users: set[str]
     ) -> tuple[int, int]:
         """Estimate scan size test double (class method version)."""
         return cls._class_estimate_result
 
     @classmethod
     def find_all_scenes_in_shows_efficient(
-        cls, user_shots: list[Shot], excluded_users: set[str]
+        cls, _user_shots: list[Shot], _excluded_users: set[str]
     ) -> list[ThreeDEScene]:
         """Efficient scene finding test double (class method version)."""
         return cls._class_scenes_to_return.copy()
 
     @classmethod
     def discover_all_shots_in_show(
-        cls, show_root: str, show: str
+        cls, _show_root: str, _show: str
     ) -> list[tuple[str, str, str, str]]:
         """Discover shots in a show test double (class method version)."""
         return [
-            (f"{show_root}/{show}/seq01/0010", show, "seq01", "0010"),
-            (f"{show_root}/{show}/seq01/0020", show, "seq01", "0020"),
+            (f"{_show_root}/{_show}/seq01/0010", _show, "seq01", "0010"),
+            (f"{_show_root}/{_show}/seq01/0020", _show, "seq01", "0020"),
         ]
 
     @classmethod
     def find_scenes_for_shot(
         cls,
-        workspace_path: str,
-        show: str,
-        sequence: str,
-        shot: str,
-        excluded_users: set[str | None] | None = None,
+        _workspace_path: str,
+        _show: str,
+        _sequence: str,
+        _shot: str,
+        _excluded_users: set[str | None] | None = None,
     ) -> list[ThreeDEScene]:
         """Find scenes for shot test double (class method version)."""
         if cls._class_should_raise_error:
@@ -525,14 +526,11 @@ class TestThreeDESceneWorker:
 
             # Wait for completion with try/except to ensure cleanup even on timeout
             # Under high parallel load (16 workers), QThread exceptions can cause issues
-            try:
+            with contextlib.suppress(Exception):
                 qtbot.waitUntil(
                     lambda: spy_finished.count() > 0 or spy_error.count() > 0,
                     timeout=3000,  # Increased timeout for parallel execution
                 )
-            except Exception:
-                # Timeout or other error - continue to cleanup
-                pass
 
             # Should have error or empty result (if we got here)
             # Under parallel load, this assertion is best-effort
@@ -544,26 +542,18 @@ class TestThreeDESceneWorker:
             if worker is not None:
                 # Always try to stop, quit, and wait - even if not running
                 # This ensures full cleanup under extreme parallel load (16 workers)
-                try:
+                with contextlib.suppress(Exception):
                     worker.stop()
-                except Exception:
-                    pass
 
-                try:
+                with contextlib.suppress(Exception):
                     worker.quit()  # Ensure event loop exits
-                except Exception:
-                    pass
 
-                try:
+                with contextlib.suppress(Exception):
                     worker.wait(10000)  # Extended wait for high parallel load
-                except Exception:
-                    pass
 
                 # Force deletion to trigger cleanup
-                try:
+                with contextlib.suppress(Exception):
                     worker.deleteLater()
-                except Exception:
-                    pass
 
             # Process any pending deleteLater events
             from PySide6.QtCore import QCoreApplication

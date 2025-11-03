@@ -394,7 +394,7 @@ class TestAsyncCallbackIntegration:
         model = ShotItemModel(cache_manager)
 
         # Mock get_thumbnail_path to return the test image
-        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)  # type: ignore[misc]
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda _: image_path)  # type: ignore[misc]
 
         try:
             # Create initial shots
@@ -441,7 +441,7 @@ class TestAsyncCallbackIntegration:
         qtbot.addWidget(panel)
 
         # Mock get_thumbnail_path to return the test image
-        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)  # type: ignore[misc]
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda _: image_path)  # type: ignore[misc]
 
         try:
             # Create test shots

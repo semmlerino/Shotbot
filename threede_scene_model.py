@@ -152,7 +152,7 @@ class ThreeDESceneModel:
         self._filter_text: str | None = None  # Text filter for real-time search
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
-            self._load_from_cache()
+            _ = self._load_from_cache()
 
     def _load_from_cache(self) -> bool:
         """Load 3DE scenes from cache if available."""

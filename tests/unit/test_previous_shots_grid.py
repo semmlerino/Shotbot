@@ -17,6 +17,7 @@ Follows best practices:
 from __future__ import annotations
 
 # Standard library imports
+import contextlib
 from collections.abc import Generator
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -115,11 +116,8 @@ class TestPreviousShotsView:
         # This ensures proper cleanup even if test fails
         yield model
         # Ensure cleanup happens
-        try:
+        with contextlib.suppress(RuntimeError):
             model.deleteLater()
-        except RuntimeError:
-            # Object already deleted
-            pass
 
     @pytest.fixture
     def test_cache_manager(self) -> TestCacheManager:

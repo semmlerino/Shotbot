@@ -193,10 +193,8 @@ class TestUserWorkflows:
             # Local application imports
             from progress_manager import ProgressManager
 
-            try:
+            with contextlib.suppress(Exception):
                 ProgressManager.clear_all_operations()
-            except Exception:
-                pass  # Ignore cleanup errors
 
             if self.temp_dir.exists():
                 shutil.rmtree(self.temp_dir, ignore_errors=True)
@@ -1310,8 +1308,6 @@ if __name__ == "__main__":
         traceback.print_exc()
     finally:
         # Cleanup
-        try:
+        with contextlib.suppress(Exception):
             test_instance.teardown_method()
-        except Exception:
-            pass  # Ignore teardown errors in standalone test
         cleanup_test_environment(temp_dir)

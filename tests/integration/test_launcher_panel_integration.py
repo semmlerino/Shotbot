@@ -17,6 +17,7 @@ Tests cover:
 from __future__ import annotations
 
 # Standard library imports
+import contextlib
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -609,11 +610,8 @@ class TestLauncherIntegrationErrorHandling:
             window.launcher_panel.set_shot(shot)
 
             # Safely disconnect signal if connected
-            try:
+            with contextlib.suppress(TypeError, RuntimeError):
                 window.launcher_panel.app_launch_requested.disconnect()
-            except (TypeError, RuntimeError):
-                # Signal was not connected or already disconnected
-                pass
 
             # Should still function without crashing
             nuke_section = window.launcher_panel.app_sections["nuke"]

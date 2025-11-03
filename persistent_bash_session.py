@@ -9,6 +9,7 @@ Extracted from process_pool_manager.py to reduce complexity.
 from __future__ import annotations
 
 # Standard library imports
+import contextlib
 import logging
 import os
 import subprocess
@@ -224,7 +225,7 @@ class PersistentBashSession(LoggingMixin):
                         flags = _fcntl_module.fcntl(
                             stdout_fd, _fcntl_module.F_GETFL
                         )
-                        _fcntl_module.fcntl(
+                        _ = _fcntl_module.fcntl(
                             stdout_fd, _fcntl_module.F_SETFL, flags | os.O_NONBLOCK
                         )
                 else:
@@ -254,7 +255,7 @@ class PersistentBashSession(LoggingMixin):
                 # Simple initialization - just set PS1 and echo marker
                 init_command = f"export PS1=''; export PS2=''; echo '{marker}'\n"
                 if self._process.stdin is not None:
-                    self._process.stdin.write(init_command)
+                    _ = self._process.stdin.write(init_command)
                     self._process.stdin.flush()
                 else:
                     raise RuntimeError("Process stdin is None")
@@ -404,7 +405,7 @@ class PersistentBashSession(LoggingMixin):
                     # Try a simpler initialization as fallback
                     try:
                         if self._process.stdin:
-                            self._process.stdin.write("echo 'FALLBACK_INIT'\n")
+                            _ = self._process.stdin.write("echo 'FALLBACK_INIT'\n")
                             self._process.stdin.flush()
                             time.sleep(0.2)
                             # Try to read any response
@@ -783,7 +784,7 @@ class PersistentBashSession(LoggingMixin):
                 )
 
             try:
-                self._process.stdin.write(f"{full_command}\n")
+                _ = self._process.stdin.write(f"{full_command}\n")
                 self._process.stdin.flush()
 
                 if DEBUG_VERBOSE:
@@ -860,7 +861,7 @@ class PersistentBashSession(LoggingMixin):
             raise RuntimeError("Process not available for internal command")
 
         try:
-            self._process.stdin.write(f"{command}\n")
+            _ = self._process.stdin.write(f"{command}\n")
             self._process.stdin.flush()
             time.sleep(0.1)  # Brief pause for command to complete
         except (BrokenPipeError, OSError) as e:
@@ -883,11 +884,8 @@ class PersistentBashSession(LoggingMixin):
         if drain_thread is not None:
             # Close stderr stream to unblock the iterator in _drain_stderr
             if self._process and self._process.stderr:
-                try:
+                with contextlib.suppress(OSError, ValueError):
                     self._process.stderr.close()
-                except (OSError, ValueError):
-                    # Ignore errors during stream close
-                    pass
 
             # Wait for drain thread to finish with timeout (even if not currently alive)
             # This ensures we don't leak threads that might start after our check
@@ -906,14 +904,14 @@ class PersistentBashSession(LoggingMixin):
         if self._process:
             try:
                 self._process.terminate()
-                self._process.wait(timeout=2)
+                _ = self._process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 self.logger.warning(
                     f"Session {self.session_id} didn't terminate gracefully, killing",
                 )
                 try:
                     self._process.kill()
-                    self._process.wait(timeout=1)
+                    _ = self._process.wait(timeout=1)
                 except Exception as e:
                     self.logger.error(f"Failed to kill session {self.session_id}: {e}")
             except OSError as e:

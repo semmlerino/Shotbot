@@ -272,7 +272,7 @@ class ThreeDEController(LoggingMixin):
                 )
                 worker_to_cleanup.safe_terminate()
                 final_timeout_ms = 200 if is_test_environment else 1000
-                worker_to_cleanup.wait(final_timeout_ms)
+                _ = worker_to_cleanup.wait(final_timeout_ms)
 
         # Disconnect signals after worker has stopped
         self._disconnect_worker_signals(worker_to_cleanup)
@@ -544,7 +544,7 @@ class ThreeDEController(LoggingMixin):
                     archived_path=archived_path,
                     parent=self.window.threede_shot_grid,
                 )
-                result_dialog.exec()
+                _ = result_dialog.exec()
 
                 # Refresh 3DE scenes to show recovered file
                 self.logger.info("Refreshing 3DE scenes after recovery")
@@ -565,7 +565,7 @@ class ThreeDEController(LoggingMixin):
                     error_message=str(e),
                     parent=self.window.threede_shot_grid,
                 )
-                result_dialog.exec()
+                _ = result_dialog.exec()
 
                 NotificationManager.error(
                     "Recovery Failed",
@@ -573,7 +573,7 @@ class ThreeDEController(LoggingMixin):
                 )
 
         _ = dialog.recovery_requested.connect(on_recovery_requested)
-        dialog.exec()
+        _ = dialog.exec()
 
     @Slot(str)
     def _on_show_filter_requested(self, show: str) -> None:
@@ -810,7 +810,7 @@ class ThreeDEController(LoggingMixin):
             for signal in signals_to_disconnect:
                 try:
                     if hasattr(signal, "disconnect"):
-                        signal.disconnect()
+                        _ = signal.disconnect()
                 except (RuntimeError, TypeError):
                     # Signal may already be disconnected or deleted
                     pass

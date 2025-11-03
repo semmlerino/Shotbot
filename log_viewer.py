@@ -67,7 +67,7 @@ class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
 
         # Add to log
         cursor = self.log_text.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.End)
+        _ = cursor.movePosition(QTextCursor.MoveOperation.End)
         cursor.insertHtml(entry + "<br>")
 
         # Auto-scroll to bottom
@@ -83,8 +83,8 @@ class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
     def _trim_log(self) -> None:
         """Trim log to maximum lines."""
         cursor = self.log_text.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
-        cursor.movePosition(
+        _ = cursor.movePosition(QTextCursor.MoveOperation.Start)
+        _ = cursor.movePosition(
             QTextCursor.MoveOperation.Down,
             QTextCursor.MoveMode.KeepAnchor,
             self._line_count - Config.LOG_MAX_LINES,

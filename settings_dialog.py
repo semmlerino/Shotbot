@@ -48,7 +48,7 @@ from __future__ import annotations
 # Standard library imports
 import json
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 
 # Third-party imports
 from PySide6.QtCore import Qt, Signal, Slot
@@ -319,7 +319,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
 
-        self.tab_widget.addTab(tab, "General")
+        _ = self.tab_widget.addTab(tab, "General")
 
     def create_performance_tab(self) -> None:
         """Create the performance settings tab."""
@@ -395,7 +395,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
 
-        self.tab_widget.addTab(tab, "Performance")
+        _ = self.tab_widget.addTab(tab, "Performance")
 
     def create_applications_tab(self) -> None:
         """Create the applications settings tab."""
@@ -459,7 +459,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
 
-        self.tab_widget.addTab(tab, "Applications")
+        _ = self.tab_widget.addTab(tab, "Applications")
 
     def create_associations_widget(self) -> QWidget:
         """Create file associations configuration widget."""
@@ -559,7 +559,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
 
-        self.tab_widget.addTab(tab, "Advanced")
+        _ = self.tab_widget.addTab(tab, "Advanced")
 
     def create_additional_buttons(self) -> None:
         """Create additional buttons for import/export and reset."""
@@ -673,17 +673,17 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             if text:
                 json.loads(text)
 
-            QMessageBox.information(
+            _ = QMessageBox.information(
                 self, "Validation Success", "Custom launchers JSON is valid."
             )
         except json.JSONDecodeError as e:
-            QMessageBox.warning(self, "Validation Error", f"Invalid JSON format:\n{e}")
+            _ = QMessageBox.warning(self, "Validation Error", f"Invalid JSON format:\n{e}")
 
     @Slot()
     def edit_custom_launchers(self) -> None:
         """Open custom launchers editor."""
         # TODO: Implement launcher editor dialog
-        QMessageBox.information(
+        _ = QMessageBox.information(
             self,
             "Not Implemented",
             "Launcher editor will be implemented in future version.",
@@ -711,11 +711,11 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         if file_path:
             if self.settings_manager.import_settings(file_path):
                 self.load_current_settings()
-                QMessageBox.information(
+                _ = QMessageBox.information(
                     self, "Import Success", "Settings imported successfully."
                 )
             else:
-                QMessageBox.warning(
+                _ = QMessageBox.warning(
                     self,
                     "Import Error",
                     "Failed to import settings. Check the file format.",
@@ -732,11 +732,11 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         if file_path:
             if self.settings_manager.export_settings(file_path):
-                QMessageBox.information(
+                _ = QMessageBox.information(
                     self, "Export Success", f"Settings exported to:\n{file_path}"
                 )
             else:
-                QMessageBox.warning(self, "Export Error", "Failed to export settings.")
+                _ = QMessageBox.warning(self, "Export Error", "Failed to export settings.")
 
     def reset_all_settings(self) -> None:
         """Reset all settings to defaults."""
@@ -752,7 +752,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         if reply == QMessageBox.StandardButton.Yes:
             self.settings_manager.reset_to_defaults()
             self.load_current_settings()
-            QMessageBox.information(
+            _ = QMessageBox.information(
                 self, "Reset Complete", "All settings have been reset to defaults."
             )
 
@@ -780,7 +780,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             if reply == QMessageBox.StandardButton.Yes:
                 self.settings_manager.reset_category(category)
                 self.load_current_settings()
-                QMessageBox.information(
+                _ = QMessageBox.information(
                     self,
                     "Reset Complete",
                     f"{category.title()} settings reset to defaults.",
@@ -790,7 +790,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         """Apply current settings without closing dialog."""
         self.save_settings()
         self.settings_applied.emit()
-        QMessageBox.information(
+        _ = QMessageBox.information(
             self, "Settings Applied", "Settings have been applied successfully."
         )
 
@@ -886,11 +886,13 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.logger.info("Settings saved successfully")
 
     # Override mixin event handlers with proper keyword parameter signatures
+    @override
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle close event with cleanup."""
         # Call parent implementation from QtWidgetMixin
         super().closeEvent(event)
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events with standard shortcuts."""
         # Call parent implementation from QtWidgetMixin

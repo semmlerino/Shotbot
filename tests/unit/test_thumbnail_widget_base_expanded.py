@@ -611,8 +611,11 @@ class TestThumbnailWidgetBaseSizeOperations:
         current_pixmap = sized_widget.thumbnail_label.pixmap()
         assert current_pixmap is not None
         # The scaled pixmap should respect the new size
-        assert (
-            current_pixmap.width() <= new_size and current_pixmap.height() <= new_size
+        assert current_pixmap.width() <= new_size, (
+            f"Pixmap width {current_pixmap.width()} should be <= {new_size}"
+        )
+        assert current_pixmap.height() <= new_size, (
+            f"Pixmap height {current_pixmap.height()} should be <= {new_size}"
         )
 
     def test_set_size_without_pixmap_shows_placeholder(

@@ -142,7 +142,7 @@ class SignalManager(LoggingMixin):
             True if disconnection succeeded
         """
         try:
-            signal.disconnect(slot)
+            _ = signal.disconnect(slot)
 
             # Remove from tracking
             self._connections = [
@@ -174,7 +174,7 @@ class SignalManager(LoggingMixin):
         # Disconnect in reverse order (LIFO)
         for signal, slot, _ in reversed(self._connections):
             try:
-                signal.disconnect(slot)
+                _ = signal.disconnect(slot)
                 disconnected += 1
             except Exception as e:
                 # Connection might already be gone
@@ -186,7 +186,7 @@ class SignalManager(LoggingMixin):
         # Disconnect signal chains
         for source, target in self._signal_chains:
             try:
-                source.disconnect(target)
+                _ = source.disconnect(target)
                 disconnected += 1
             except Exception:
                 pass
@@ -265,7 +265,7 @@ class SignalManager(LoggingMixin):
         """
         for obj in objects:
             if obj:
-                obj.blockSignals(blocked)
+                _ = obj.blockSignals(blocked)
 
         action = "Blocked" if blocked else "Unblocked"
         self.logger.debug(f"{action} signals for {len(objects)} objects")
@@ -377,7 +377,7 @@ class BlockedSignalsContext:
         for obj in self.objects:
             if obj:
                 self._previous_states.append(obj.signalsBlocked())
-                obj.blockSignals(True)
+                _ = obj.blockSignals(True)
 
         if self.logger:
             self.logger.debug(f"Blocked signals for {len(self.objects)} objects")
@@ -388,7 +388,7 @@ class BlockedSignalsContext:
         """Restore previous signal states."""
         for obj, was_blocked in zip(self.objects, self._previous_states, strict=False):
             if obj:
-                obj.blockSignals(was_blocked)
+                _ = obj.blockSignals(was_blocked)
 
         if self.logger:
             self.logger.debug(f"Restored signal states for {len(self.objects)} objects")
@@ -448,7 +448,7 @@ class SignalThrottler(QObject):
         """Stop throttling and disconnect."""
         self._timer.stop()
         with contextlib.suppress(Exception):
-            self.source_signal.disconnect(self._on_source_signal)
+            _ = self.source_signal.disconnect(self._on_source_signal)
 
 
 class SignalDebugger(LoggingMixin):

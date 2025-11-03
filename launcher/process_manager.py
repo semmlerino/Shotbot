@@ -228,9 +228,9 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
                 # Disconnect signals to prevent warnings
                 try:
-                    worker.command_started.disconnect()
-                    worker.command_finished.disconnect()
-                    worker.command_error.disconnect()
+                    _ = worker.command_started.disconnect()
+                    _ = worker.command_finished.disconnect()
+                    _ = worker.command_error.disconnect()
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
 
@@ -363,12 +363,12 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
                     # Wait briefly for termination
                     try:
-                        process_info.process.wait(timeout=5)
+                        _ = process_info.process.wait(timeout=5)
                     except subprocess.TimeoutExpired:
                         if not force:
                             # Try force kill as fallback
                             process_info.process.kill()
-                            process_info.process.wait(timeout=2)
+                            _ = process_info.process.wait(timeout=2)
 
                     # Remove from tracking
                     del self._active_processes[process_key]
@@ -383,7 +383,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
             elif process_key in self._active_workers:
                 worker = self._active_workers[process_key]
                 try:
-                    worker.request_stop()
+                    _ = worker.request_stop()
                     if not worker.wait(5000):  # Wait 5 seconds
                         self.logger.warning(
                             f"Worker {process_key} did not stop gracefully"
@@ -391,9 +391,9 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
                     # Disconnect signals to prevent warnings
                     try:
-                        worker.command_started.disconnect()
-                        worker.command_finished.disconnect()
-                        worker.command_error.disconnect()
+                        _ = worker.command_started.disconnect()
+                        _ = worker.command_finished.disconnect()
+                        _ = worker.command_error.disconnect()
                     except (RuntimeError, TypeError):
                         # Signals may already be disconnected
                         pass
@@ -476,9 +476,9 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
                         # Disconnect signals to prevent warnings
                         try:
-                            worker.command_started.disconnect()
-                            worker.command_finished.disconnect()
-                            worker.command_error.disconnect()
+                            _ = worker.command_started.disconnect()
+                            _ = worker.command_finished.disconnect()
+                            _ = worker.command_error.disconnect()
                         except (RuntimeError, TypeError):
                             # Signals may already be disconnected
                             pass
@@ -521,19 +521,19 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
         # Terminate all processes
         for process_key in processes:
-            self.terminate_process(process_key, force=False)
+            _ = self.terminate_process(process_key, force=False)
 
         # Stop all workers with signal disconnection
         for worker_key, worker in workers_snapshot.items():
             try:
-                worker.request_stop()
-                worker.wait(5000)  # Wait 5 seconds
+                _ = worker.request_stop()
+                _ = worker.wait(5000)  # Wait 5 seconds
 
                 # Disconnect signals to prevent warnings
                 try:
-                    worker.command_started.disconnect()
-                    worker.command_finished.disconnect()
-                    worker.command_error.disconnect()
+                    _ = worker.command_started.disconnect()
+                    _ = worker.command_finished.disconnect()
+                    _ = worker.command_error.disconnect()
                 except (RuntimeError, TypeError):
                     # Signals may already be disconnected
                     pass

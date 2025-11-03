@@ -107,7 +107,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
     Bypasses singleton pattern to ensure fresh instances for each test.
     """
 
-    def __new__(cls, *args, **kwargs) -> Self:
+    def __new__(cls, *_args, **_kwargs) -> Self:
         """Override to bypass singleton pattern in tests."""
         # Don't use singleton for test instances - use QObject's __new__
         # Third-party imports

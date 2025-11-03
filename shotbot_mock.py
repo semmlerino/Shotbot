@@ -84,9 +84,9 @@ if __name__ == "__main__":
     if "WSL" in os.uname().release or "Microsoft" in os.uname().release:
         logger.info("🖥️  WSL detected - using compatibility settings")
         # Use xcb platform for WSL
-        os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
+        _ = os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
         # Ensure display is set
-        os.environ.setdefault("DISPLAY", ":0")
+        _ = os.environ.setdefault("DISPLAY", ":0")
 
     try:
         main()

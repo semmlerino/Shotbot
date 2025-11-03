@@ -105,7 +105,7 @@ class TestTerminalIntegrationFlow:
             command_sent_signals.append
         )
         integrated_launcher.command_executed.connect(
-            lambda ts, cmd: command_executed_signals.append(cmd)
+            lambda _ts, cmd: command_executed_signals.append(cmd)
         )
         integrated_launcher.persistent_terminal.terminal_started.connect(
             terminal_started_signals.append
@@ -174,10 +174,10 @@ class TestTerminalIntegrationFlow:
         command_signals = []
 
         integrated_launcher.command_error.connect(
-            lambda ts, err: error_signals.append(err)
+            lambda _ts, err: error_signals.append(err)
         )
         integrated_launcher.command_executed.connect(
-            lambda ts, cmd: command_signals.append(cmd)
+            lambda _ts, cmd: command_signals.append(cmd)
         )
 
         # Make persistent terminal fail

@@ -4,12 +4,12 @@ QRunnable resource tracking system to prevent memory leaks.
 This module provides a singleton tracker for QRunnable instances to ensure
 proper cleanup and prevent memory leaks from untracked thread pool tasks.
 """
-
 # Standard library imports
 import logging
 import threading
 import weakref
 from collections.abc import Mapping
+from typing import override
 
 # Third-party imports
 from PySide6.QtCore import QRunnable, QThreadPool
@@ -160,7 +160,7 @@ class QRunnableTracker:
             logger.info(f"Cleaning up {active_count} active runnables")
 
             # Wait for thread pool to finish
-            QThreadPool.globalInstance().waitForDone(5000)
+            _ = QThreadPool.globalInstance().waitForDone(5000)
 
             # Clear tracking data
             self._active_runnables.clear()
@@ -207,6 +207,7 @@ class TrackedQRunnable(QRunnable):
             "auto_delete": auto_delete,
         }
 
+    @override
     def run(self) -> None:
         """
         Execute the runnable with automatic tracking.

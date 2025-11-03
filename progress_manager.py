@@ -178,7 +178,7 @@ class ProgressOperation:
                 self.processing_times.append(rate)
                 # Keep only recent samples
                 if len(self.processing_times) > self.max_eta_samples:
-                    self.processing_times.pop(0)
+                    _ = self.processing_times.pop(0)
 
         self.last_update_time = current_time
         self._update_ui()

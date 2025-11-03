@@ -13,7 +13,7 @@ import concurrent.futures
 import re
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 # Local application imports
 from config import Config, ThreadingConfig
@@ -157,6 +157,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         return shots
 
+    @override
     def _parse_shot_from_path(self, path: str) -> Shot | None:
         """Parse shot information from a filesystem path.
 
@@ -250,7 +251,7 @@ class TargetedShotsFinder(ShotFinderBase):
                 if self._stop_requested:
                     # Cancel remaining futures
                     for f in future_to_show:
-                        f.cancel()
+                        _ = f.cancel()
                     break
 
                 show = future_to_show[future]
@@ -345,6 +346,7 @@ class TargetedShotsFinder(ShotFinderBase):
         self._report_progress(100, 100, "Targeted search complete")
         return approved_shots
 
+    @override
     def get_shot_details(self, shot: Shot) -> ShotDetailsDict:
         """Get additional details about a shot.
 
@@ -380,6 +382,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         return details
 
+    @override
     def _find_thumbnail_for_shot(self, shot: Shot) -> Path | None:
         """Find thumbnail for a shot using same logic as Shot class.
 
@@ -423,6 +426,7 @@ class TargetedShotsFinder(ShotFinderBase):
             self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
             return None
 
+    @override
     def _get_shot_status(self, shot: Shot) -> str:
         """Get the status of a shot.
 
@@ -444,6 +448,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         return "unknown"
 
+    @override
     def find_shots(self, **kwargs: FindShotsKwargs) -> list[Shot]:
         """Find shots using targeted search.
 

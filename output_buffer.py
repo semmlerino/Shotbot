@@ -164,7 +164,7 @@ class ProcessOutputManager:
     def remove_buffer(self, process_id: str) -> None:
         """Remove buffer for completed process"""
         with self.lock:
-            self.buffers.pop(process_id, None)
+            _ = self.buffers.pop(process_id, None)
 
     def process_all_batches(self) -> dict[str, dict[str, int | float | bool]]:
         """Process all pending batches and return results"""

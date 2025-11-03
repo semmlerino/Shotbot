@@ -55,7 +55,7 @@ class OptimizedThreeDESceneFinder:
     @classmethod
     def clear_cache(cls) -> None:
         """Clear directory cache."""
-        cls._dir_cache.clear_cache()
+        _ = cls._dir_cache.clear_cache()
 
     @classmethod
     def refresh_cache(cls) -> int:
@@ -305,7 +305,7 @@ if __name__ == "__main__":
 
         # Create test .3de file
         test_file = threede_dir / "test_scene.3de"
-        test_file.write_text("# Test 3DE Scene")
+        _ = test_file.write_text("# Test 3DE Scene")
 
         # Test refactored finder
         # Standard library imports

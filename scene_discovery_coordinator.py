@@ -573,7 +573,7 @@ class RefactoredThreeDESceneFinder:
 
         all_scenes: list[ThreeDEScene] = []
         scanner = FileSystemScanner()
-        SceneParser()
+        _ = SceneParser()
 
         # Import necessary modules for parallel processing
         # Standard library imports
@@ -679,7 +679,7 @@ class RefactoredThreeDESceneFinder:
                         # Cancel remaining futures immediately
                         for f in future_to_show:
                             if not f.done():
-                                f.cancel()
+                                _ = f.cancel()
                         # Shutdown executor with wait=False to cancel pending work
                         executor.shutdown(wait=False, cancel_futures=True)
                         break
@@ -703,7 +703,7 @@ class RefactoredThreeDESceneFinder:
                         if cancel_flag and cancel_flag():
                             for f in future_to_show:
                                 if not f.done():
-                                    f.cancel()
+                                    _ = f.cancel()
                             executor.shutdown(wait=False, cancel_futures=True)
                             break
                         # Re-get the result without timeout
@@ -718,7 +718,7 @@ class RefactoredThreeDESceneFinder:
                 # On any exception, make sure to cancel pending futures
                 for f in future_to_show:
                     if not f.done():
-                        f.cancel()
+                        _ = f.cancel()
                 executor.shutdown(wait=False, cancel_futures=True)
                 raise
 

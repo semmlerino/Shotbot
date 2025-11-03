@@ -167,7 +167,7 @@ print(f"Context: SHOW={{os.environ['SHOW']}} SHOT={{os.environ['SHOT_NAME']}} PL
             delete=False,
             prefix="nuke_create_",
         ) as f:
-            f.write(startup_script)
+            _ = f.write(startup_script)
             temp_script = f.name
 
         # Build Nuke command WITHOUT -t flag (keeps GUI open)

@@ -210,7 +210,7 @@ class TestApplicationLaunchingNoHang:
             NukeWorkspaceManager,
             "get_workspace_script_directory",
             classmethod(
-                lambda cls, *args, **kwargs: mock_get_workspace_script_directory(
+                lambda _cls, *args, **kwargs: mock_get_workspace_script_directory(
                     *args, **kwargs
                 )
             ),

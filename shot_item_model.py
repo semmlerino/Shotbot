@@ -218,13 +218,14 @@ class ShotItemModel(BaseItemModel["Shot"]):
         # Qt's receivers() method is not properly typed in PySide6 stubs
         with contextlib.suppress(RuntimeError, TypeError, AttributeError):
             if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.items_updated.disconnect()
+                _ = self.items_updated.disconnect()
         with contextlib.suppress(RuntimeError, TypeError, AttributeError):
             if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.shots_updated.disconnect()
+                _ = self.shots_updated.disconnect()
 
         self.logger.info("ShotItemModel cleanup complete")
 
+    @override
     def deleteLater(self) -> None:
         """Override deleteLater to ensure cleanup."""
         self.cleanup()

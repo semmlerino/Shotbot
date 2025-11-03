@@ -93,7 +93,7 @@ class TimingProfiler(LoggingMixin):
             )
             raise
         finally:
-            self.active_timers.pop(operation_name, None)
+            _ = self.active_timers.pop(operation_name, None)
 
     def get_report(self) -> dict[str, dict[str, int | float]]:
         """Get timing report.

@@ -6,7 +6,7 @@ from __future__ import annotations
 import time
 from collections import deque
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -263,7 +263,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         # Wake up paused thread so it can exit
         self.resume()
         # Use base class thread-safe stop
-        self.request_stop()
+        _ = self.request_stop()
 
     def pause(self) -> None:
         """Request the worker to pause processing."""
@@ -306,6 +306,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         finally:
             self._pause_mutex.unlock()
 
+    @override
     def run(self) -> None:
         """Override run to ensure finished signal is always emitted.
 
@@ -321,7 +322,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             super().run()
         finally:
             # Ensure finished signal is emitted exactly once
-            self._emit_finished_signal_once()
+            _ = self._emit_finished_signal_once()
 
     def _emit_finished_signal_once(
         self, scenes: list[ThreeDEScene] | None = None
@@ -398,7 +399,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         try:
             while self._is_paused and not self.should_stop():
                 self.logger.debug("Worker paused, waiting for resume...")
-                self._pause_condition.wait(
+                _ = self._pause_condition.wait(
                     self._pause_mutex,
                     Config.WORKER_PAUSE_CHECK_INTERVAL_MS,
                 )
@@ -408,6 +409,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         # Check cancellation again after pause
         return not self.should_stop()
 
+    @override
     def do_work(self) -> None:
         """Enhanced main worker thread execution with progressive scanning.
 
@@ -437,13 +439,13 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
             if not self.shots:
                 self.logger.warning("No shots provided for 3DE scene discovery")
-                self._emit_finished_signal_once([])
+                _ = self._emit_finished_signal_once([])
                 return
 
             # Check for initial cancellation using base class method
             if self.should_stop():
                 self.logger.info("3DE scene discovery cancelled before starting")
-                self._emit_finished_signal_once([])
+                _ = self._emit_finished_signal_once([])
                 return
 
             # Choose discovery method based on configuration
@@ -456,14 +458,14 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             if self.should_stop():
                 self.logger.info("3DE scene discovery cancelled during processing")
                 # Return partial results
-                self._emit_finished_signal_once()
+                _ = self._emit_finished_signal_once()
                 return
 
             self.logger.info(
                 f"Enhanced 3DE scene discovery completed: {len(scenes)} scenes found",
             )
             # Emit final results
-            self._emit_finished_signal_once(scenes)
+            _ = self._emit_finished_signal_once(scenes)
 
         except Exception as e:
             self.logger.error(f"Error in enhanced 3DE scene discovery worker: {e}")

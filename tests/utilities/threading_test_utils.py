@@ -306,7 +306,7 @@ class ThreadingTestHelpers:
         winner_thread: threading.Thread | None = None
         race_start_event = threading.Event()
 
-        def participant_wrapper(func: Callable[[], Any], index: int) -> None:
+        def participant_wrapper(func: Callable[[], Any], _index: int) -> None:
             """Wrapper to synchronize participant execution."""
             thread = threading.current_thread()
             result = None
@@ -379,8 +379,8 @@ class ThreadingTestHelpers:
     @staticmethod
     def monitor_thread_safety(
         operation: Callable[[], T],
-        monitored_resources: list[str],
-        duration_ms: int = 1000,
+        _monitored_resources: list[str],
+        _duration_ms: int = 1000,
     ) -> tuple[T, list[ThreadSafetyViolation]]:
         """Monitor operation for thread safety violations.
 
@@ -490,7 +490,7 @@ class DeadlockDetector:
     @staticmethod
     def detect_deadlock(
         threads: list[threading.Thread | None] | None = None,
-        timeout_ms: int = 5000,
+        _timeout_ms: int = 5000,
         include_stack_traces: bool = True,
     ) -> DeadlockAnalysisResult:
         """Detect deadlocks in specified threads or all threads.
@@ -549,7 +549,7 @@ class DeadlockDetector:
         )
 
     @staticmethod
-    def get_lock_graph(threads: list[threading.Thread]) -> dict[str, list[str]]:
+    def get_lock_graph(_threads: list[threading.Thread]) -> dict[str, list[str]]:
         """Build wait-for graph of lock dependencies.
 
         Args:
@@ -737,7 +737,7 @@ class RaceConditionFactory:
     @staticmethod
     def create_resource_race(
         resource_operations: list[Callable[[], Any]],
-        resource_name: str = "shared_resource",
+        _resource_name: str = "shared_resource",
         timeout_ms: int = 1000,
     ) -> RaceConditionResult:
         """Create race for shared resource access.

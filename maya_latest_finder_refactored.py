@@ -5,6 +5,7 @@ from __future__ import annotations
 # Standard library imports
 import re
 from pathlib import Path
+from typing import override
 
 # Local application imports
 from base_scene_finder import BaseSceneFinder
@@ -19,6 +20,7 @@ class MayaLatestFinder(BaseSceneFinder):
     # Pattern to match version in Maya filenames (e.g., _v001, _v002)
     VERSION_PATTERN = re.compile(r"_v(\d{3})\.(ma|mb)$")
 
+    @override
     def get_scene_paths(self, user_dir: Path) -> list[Path]:
         """Get Maya-specific scene directories.
 
@@ -32,6 +34,7 @@ class MayaLatestFinder(BaseSceneFinder):
         maya_scenes = user_dir / "maya" / "scenes"
         return [maya_scenes] if maya_scenes.exists() else []
 
+    @override
     def get_file_extensions(self) -> list[str]:
         """Get Maya file extensions.
 

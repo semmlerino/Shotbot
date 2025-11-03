@@ -26,7 +26,7 @@ def signal_handler(_sig: int, _frame: FrameType | None) -> None:
     sys.exit(0)
 
 
-signal.signal(signal.SIGINT, signal_handler)
+_ = signal.signal(signal.SIGINT, signal_handler)
 
 # Run main
 try:

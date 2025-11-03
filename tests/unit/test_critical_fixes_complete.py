@@ -76,8 +76,9 @@ def test_shows_root_dynamic_configuration():
                 # Test pattern matching
                 test_path = f"{shows_root}/show1/shots/seq1/seq1_0010/user/test"
                 match = finder._shot_pattern.search(test_path)
-                assert match and match.groups() == ("show1", "seq1", "seq1_0010"), (
-                    "targeted_shot_finder.py: Pattern match failed"
+                assert match is not None, "targeted_shot_finder.py: Pattern match failed"
+                assert match.groups() == ("show1", "seq1", "seq1_0010"), (
+                    "targeted_shot_finder.py: Pattern groups do not match"
                 )
                 print("  ✓ targeted_shot_finder.py: Pattern matches correctly")
                 success_count += 1

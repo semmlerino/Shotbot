@@ -47,7 +47,7 @@
   "reportUndefinedVariable": "warning",
   "reportImplicitStringConcatenation": "warning",
   "reportUnsafeMultipleInheritance": false,
-  "reportUnusedCallResult": "warning",
+  "reportUnusedCallResult": "error",
   "reportImplicitOverride": "warning",
   "reportUnannotatedClassAttribute": "warning"
 }

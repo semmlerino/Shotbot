@@ -540,7 +540,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
     def _command_exists(self, command: str) -> bool:
         """Check if a command exists on the system."""
         try:
-            subprocess.run(
+            _ = subprocess.run(
                 ["which", command],
                 capture_output=True,
                 check=False,

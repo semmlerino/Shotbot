@@ -308,7 +308,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Check for printable ASCII characters (basic sanity check)
         try:
-            command.encode("ascii")
+            _ = command.encode("ascii")
         except UnicodeEncodeError:
             self.logger.warning(f"Command contains non-ASCII characters: {command!r}")
 
@@ -343,8 +343,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                     with os.fdopen(fifo_fd, "wb", buffering=0) as fifo:
                         fifo_fd = None  # File object now owns the descriptor
                         # Explicitly encode as UTF-8 bytes for complete control
-                        fifo.write(command.encode("utf-8"))
-                        fifo.write(b"\n")
+                        _ = fifo.write(command.encode("utf-8"))
+                        _ = fifo.write(b"\n")
                         # No flush() needed - unbuffered mode writes immediately
 
                     self.logger.info(
@@ -419,7 +419,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # If dispatcher is dead, sending EXIT_TERMINAL will hang/fail
         if self._is_dispatcher_running():
             self.logger.debug("Dispatcher running, sending EXIT_TERMINAL for graceful exit")
-            self.send_command("EXIT_TERMINAL", ensure_terminal=False)
+            _ = self.send_command("EXIT_TERMINAL", ensure_terminal=False)
             # Give it time to exit gracefully
             time.sleep(0.5)
         else:
@@ -453,7 +453,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         self.logger.info("Restarting terminal...")
 
         # Close existing terminal
-        self.close_terminal()
+        _ = self.close_terminal()
         time.sleep(0.5)
 
         # Clean up and recreate FIFO to prevent stale file handle issues
@@ -491,7 +491,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         """Clean up resources (FIFO and terminal)."""
         # Close terminal if running
         if self._is_terminal_alive():
-            self.close_terminal()
+            _ = self.close_terminal()
 
         # Remove FIFO if it exists
         if Path(self.fifo_path).exists():

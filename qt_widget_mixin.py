@@ -139,7 +139,7 @@ class QtWidgetMixin(LoggingMixin):
 
         for action_text, callback, icon_name in actions:
             if action_text == "-":
-                menu.addSeparator()
+                _ = menu.addSeparator()
             else:
                 action = menu.addAction(action_text)
                 _ = action.triggered.connect(callback)
@@ -262,7 +262,7 @@ class QtWidgetMixin(LoggingMixin):
         if details:
             msg.setDetailedText(details)
 
-        msg.exec()
+        _ = msg.exec()
         self.logger.error(f"{title}: {message}")
 
     def show_info(self, title: str, message: str) -> None:
@@ -272,7 +272,7 @@ class QtWidgetMixin(LoggingMixin):
             title: Dialog title
             message: Information message
         """
-        QMessageBox.information(cast("QWidget", self), title, message)
+        _ = QMessageBox.information(cast("QWidget", self), title, message)
         self.logger.info(f"{title}: {message}")
 
     def confirm_action(self, title: str, message: str) -> bool:
@@ -327,7 +327,7 @@ class QtWidgetMixin(LoggingMixin):
                 cancel_method()
             elif hasattr(self, "close"):
                 close_method = cast("Callable[[], bool]", self.close)
-                close_method()
+                _ = close_method()
 
         # Let parent handle other keys
         if hasattr(super(), "keyPressEvent"):

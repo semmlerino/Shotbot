@@ -6,6 +6,7 @@ and resource cleanup following UNIFIED_TESTING_GUIDE patterns.
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
@@ -122,10 +123,8 @@ def threading_manager() -> Generator[ThreadingManager, None, None]:
     manager = ThreadingManager()
     yield manager
     # Cleanup
-    try:
+    with contextlib.suppress(Exception):
         manager.shutdown_all_threads()
-    except Exception:
-        pass  # Ignore cleanup errors in tests
 
 
 # =============================================================================

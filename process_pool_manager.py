@@ -210,7 +210,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
     command_failed = Signal(str, str)  # command_id, error
 
     def __new__(
-        cls, max_workers: int = 4, sessions_per_type: int = 3
+        cls, _max_workers: int = 4, _sessions_per_type: int = 3
     ) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety using double-checked locking.
 
@@ -563,7 +563,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                                 "concurrent.futures.Future[object]",
                                 work_item.future,  # pyright: ignore[reportAttributeAccessIssue]
                             )
-                            future.cancel()
+                            _ = future.cancel()
         except Exception as e:
             self.logger.debug(f"Could not cancel pending futures: {e}")
 
@@ -612,9 +612,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
                         message=".*Failed to disconnect.*"
                     )
                     if hasattr(self, "command_completed"):
-                        self.command_completed.disconnect()
+                        _ = self.command_completed.disconnect()
                     if hasattr(self, "command_failed"):
-                        self.command_failed.disconnect()
+                        _ = self.command_failed.disconnect()
             except (RuntimeError, TypeError):
                 # Signals may already be disconnected or in invalid state
                 pass
@@ -627,7 +627,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             # Standard library imports
             import gc
 
-            gc.collect()
+            _ = gc.collect()
         except Exception as e:
             self.logger.debug(f"Error during garbage collection: {e}")
 

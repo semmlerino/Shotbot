@@ -249,7 +249,7 @@ class ThreadingManager(QObject):
             self._current_threede_worker = None
 
             # Remove from workers dict
-            self._workers.pop("threede_discovery", None)
+            _ = self._workers.pop("threede_discovery", None)
 
     def _schedule_worker_cleanup(self, worker_name: str) -> None:
         """Schedule delayed cleanup of worker thread.
@@ -262,7 +262,7 @@ class ThreadingManager(QObject):
         if worker:
             worker.deleteLater()
             with QMutexLocker(self._mutex):
-                self._workers.pop(worker_name, None)
+                _ = self._workers.pop(worker_name, None)
 
     def get_active_thread_count(self) -> int:
         """Get number of currently active threads.

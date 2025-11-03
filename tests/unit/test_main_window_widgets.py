@@ -18,6 +18,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -512,11 +513,8 @@ class TestMainWindowErrorHandling:
         close_event = QCloseEvent()
 
         # Window should handle close event without crashing
-        try:
+        with contextlib.suppress(RuntimeError):
             window.closeEvent(close_event)
-        except RuntimeError:
-            # Qt object may be deleted during test cleanup - this is expected
-            pass
 
         # Event handling shouldn't crash the process
         assert window is not None

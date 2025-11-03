@@ -73,7 +73,7 @@ class TestBaseAssetFinder:
         finder = ConcreteAssetFinder()
         # Mock the _matches_asset_type to filter jpg only
         with patch.object(
-            finder, "_matches_asset_type", side_effect=lambda p, t: "jpg" in p.lower()
+            finder, "_matches_asset_type", side_effect=lambda p, _t: "jpg" in p.lower()
         ):
             assets = finder.find_assets(str(workspace), asset_type="jpg")
 

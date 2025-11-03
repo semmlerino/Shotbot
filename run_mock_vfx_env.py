@@ -95,7 +95,7 @@ def setup_mock_vfx_environment() -> bool:
     # Check if WSL
     if "microsoft-standard" in os.uname().release.lower():
         logger.info("🖥️  Running in WSL environment")
-        os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
+        _ = os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
 
     return True
 
@@ -147,7 +147,7 @@ def create_shows_symlink() -> bool:
                 logger.info(f"✅ Created temporary demo shots: {temp_demo}")
 
                 # Copy to replace original temporarily
-                os.system(f"cp {temp_demo} {demo_shots_file}")
+                _ = os.system(f"cp {temp_demo} {demo_shots_file}")
 
     return True
 

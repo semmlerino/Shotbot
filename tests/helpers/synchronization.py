@@ -118,7 +118,7 @@ class SynchronizationHelpers:
         return blocker.args
 
     @staticmethod
-    def process_qt_events(qapp: Any, duration_ms: int = 10) -> None:
+    def process_qt_events(_qapp: Any, duration_ms: int = 10) -> None:
         """Process Qt events for a specific duration without blocking.
 
         Args:

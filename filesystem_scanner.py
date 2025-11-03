@@ -97,8 +97,8 @@ class DirectoryCache(LoggingMixin):
                     if current_time - t >= self.ttl
                 ]
                 for key in expired_keys:
-                    self.cache.pop(key, None)
-                    self.timestamps.pop(key, None)
+                    _ = self.cache.pop(key, None)
+                    _ = self.timestamps.pop(key, None)
                 self.stats["evictions"] += len(expired_keys)
 
     def get_stats(self) -> dict[str, int]:

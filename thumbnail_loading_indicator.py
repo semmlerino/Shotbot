@@ -1,6 +1,7 @@
 """Loading indicator widget for thumbnails."""
-
 from __future__ import annotations
+
+from typing import override
 
 # Third-party imports
 from PySide6.QtCore import Property, QPropertyAnimation, QRect, Qt, QTimer
@@ -37,6 +38,7 @@ class ThumbnailLoadingIndicator(QWidget):
         self._angle = (self._angle + 10) % 360
         self.update()
 
+    @override
     def paintEvent(self, event: QPaintEvent) -> None:
         """Paint the spinner."""
         painter = QPainter(self)
@@ -60,7 +62,7 @@ class ThumbnailLoadingIndicator(QWidget):
         rect = QRect(-radius, -radius, radius * 2, radius * 2)
         painter.drawArc(rect, 0, 270 * 16)  # Qt uses 1/16th of a degree
 
-        painter.end()
+        _ = painter.end()
 
 
 class ShimmerLoadingIndicator(QWidget):
@@ -101,6 +103,7 @@ class ShimmerLoadingIndicator(QWidget):
         self._animation.stop()
         self.hide()
 
+    @override
     def paintEvent(self, event: QPaintEvent) -> None:
         """Paint the shimmer effect."""
         painter = QPainter(self)
@@ -134,4 +137,4 @@ class ShimmerLoadingIndicator(QWidget):
                     color,
                 )
 
-        painter.end()
+        _ = painter.end()

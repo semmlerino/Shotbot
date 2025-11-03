@@ -2,6 +2,7 @@
 """Test Qt event loop integration and performance validation."""
 
 # Standard library imports
+import contextlib
 import time
 from unittest.mock import Mock
 
@@ -92,10 +93,8 @@ class TestQtIntegration:
                 return refresh_count >= 3
 
             # Wait up to 500ms for at least 3 refreshes
-            try:
+            with contextlib.suppress(Exception):
                 qtbot.waitUntil(check_refresh_count, timeout=500)
-            except Exception:
-                pass  # Continue even if timeout
 
             # Should have completed multiple refreshes
             assert refresh_count >= 3, f"Only {refresh_count} refreshes in 200ms"

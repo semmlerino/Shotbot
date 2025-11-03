@@ -354,10 +354,8 @@ class TestMainWindowCompleteWorkflows:
             mock_refresh.side_effect = RuntimeError("Test error")
 
             # Attempt refresh
-            try:
+            with contextlib.suppress(RuntimeError):
                 window._refresh_shots()
-            except RuntimeError:
-                pass  # Expected error
 
             qtbot.wait(100)
 
@@ -369,10 +367,8 @@ class TestMainWindowCompleteWorkflows:
             mock_launch.side_effect = RuntimeError("Launch failed")
 
             # Attempt launch - should handle error gracefully
-            try:
+            with contextlib.suppress(RuntimeError):
                 window.launch_app("nuke")
-            except RuntimeError:
-                pass  # May or may not be caught
 
         # Verify window remains functional
         assert window.isVisible()

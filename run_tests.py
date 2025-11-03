@@ -22,33 +22,33 @@ def run_command(cmd: list[str], check: bool = True) -> int:
 
 def main():
     parser = argparse.ArgumentParser(description="PyFFMPEG Test Runner")
-    parser.add_argument(
+    _ = parser.add_argument(
         "suite",
         nargs="?",
         default="all",
         choices=["all", "unit", "integration", "coverage", "quick"],
         help="Test suite to run (default: all)"
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Verbose output"
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--no-cov",
         action="store_true",
         help="Disable coverage reporting"
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--module", "-m",
         help="Run tests for specific module (e.g., file_list_widget)"
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--failed-first", "-f",
         action="store_true",
         help="Run failed tests first"
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--pdb",
         action="store_true",
         help="Drop into debugger on failures"

@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     # Capture after a brief delay to ensure everything is rendered
     def delayed_capture() -> None:
-        capture_screenshot()
+        _ = capture_screenshot()
         app.quit()
 
     QTimer.singleShot(100, delayed_capture)

@@ -46,7 +46,7 @@ import threading
 import time
 import uuid
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 # Local application imports
 from config import ThreadingConfig
@@ -262,6 +262,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
             f"ThreadSafeProgressTracker {self._id} reset to initial state"
         )
 
+    @override
     def __repr__(self) -> str:
         """String representation for debugging."""
         stats = self.get_worker_stats()
@@ -464,6 +465,7 @@ class CancellationEvent(LoggingMixin):
             "callback_count": callback_count,
         }
 
+    @override
     def __repr__(self) -> str:
         """String representation for debugging."""
         stats = self.get_stats()
@@ -893,5 +895,5 @@ def integrate_with_existing_parallel_scan() -> list[str]:
 if __name__ == "__main__":
     # Add integration test
     print("\nTesting integration pattern...")
-    integrate_with_existing_parallel_scan()
+    _ = integrate_with_existing_parallel_scan()
     print("Integration pattern test completed!")

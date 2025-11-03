@@ -23,25 +23,25 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Join split VFX structure JSONs and recreate environment"
     )
-    parser.add_argument("files", nargs="+", help="JSON files to join (in order)")
-    parser.add_argument(
+    _ = parser.add_argument("files", nargs="+", help="JSON files to join (in order)")
+    _ = parser.add_argument(
         "--output",
         default="vfx_structure_complete.json",
         help="Combined output file (default: vfx_structure_complete.json)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--recreate",
         action="store_true",
         default=True,
         help="Automatically recreate structure after joining (default: True)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--no-recreate",
         dest="recreate",
         action="store_false",
         help="Just join files without recreating",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--root",
         default="/tmp/mock_vfx",
         help="Root for recreation (default: /tmp/mock_vfx)",
@@ -64,7 +64,7 @@ def main() -> None:
                 f"   {i}. {fname} ({Path(fname).stat().st_size / 1024 / 1024:.1f} MB)"
             )
             with Path(fname).open("rb") as infile:
-                outfile.write(infile.read())
+                _ = outfile.write(infile.read())
 
     output_size = Path(output).stat().st_size / 1024 / 1024
     print(f"✅ Created {output} ({output_size:.1f} MB)")

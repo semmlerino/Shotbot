@@ -163,7 +163,7 @@ class VFXStructureRecreator:
 """
 
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        _ = path.write_text(content, encoding="utf-8")
         self.stats["3de_files_created"] += 1
 
     def create_exr_sequence(
@@ -186,7 +186,7 @@ class VFXStructureRecreator:
             # EXR files would be large images, we'll create tiny placeholders
             frame_file = path / f"{shot_name}.{frame:04d}.exr"
             # Just create an empty file or tiny text file
-            frame_file.write_text(
+            _ = frame_file.write_text(
                 f"EXR placeholder: {shot_name} frame {frame}\n", encoding="utf-8"
             )
 
@@ -269,7 +269,7 @@ class VFXStructureRecreator:
             else:
                 # Create generic placeholder file
                 file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.write_text(f"Placeholder for {name}\n", encoding="utf-8")
+                _ = file_path.write_text(f"Placeholder for {name}\n", encoding="utf-8")
 
             self.stats["files_created"] += 1
 
@@ -582,17 +582,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Recreate VFX filesystem structure from captured data"
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "input",
         nargs="+",  # Accept multiple input files
         help="Input JSON file(s) from capture_vfx_structure.py (can specify multiple)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--root",
         default="/tmp/mock_vfx",
         help="Root directory for recreation (default: /tmp/mock_vfx)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--clean",
         action="store_true",
         help="Clean existing structure before recreating",
@@ -647,7 +647,7 @@ def main() -> None:
 
     # Create a marker file to indicate this is mock
     marker = Path(root_path) / "MOCK_VFX_ENVIRONMENT.txt"
-    marker.write_text(
+    _ = marker.write_text(
         """This is a mock VFX environment created for development/testing.
 
 Generated from: {}

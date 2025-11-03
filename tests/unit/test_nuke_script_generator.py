@@ -123,7 +123,7 @@ class TestNukeScriptGenerator:
         ]
 
         # Use monkeypatch instead of patch
-        monkeypatch.setattr("os.path.exists", lambda path: True)
+        monkeypatch.setattr("os.path.exists", lambda _path: True)
 
         for filepath, _expected in test_cases:
             colorspace, use_raw = NukeScriptGenerator._detect_colorspace(filepath)
@@ -244,7 +244,7 @@ class TestNukeScriptGenerator:
             monkeypatch.setattr(
                 NukeScriptGenerator,
                 "_detect_colorspace",
-                lambda filepath: (test_colorspace, False),
+                lambda _filepath: (test_colorspace, False),
             )
 
             script_path = NukeScriptGenerator.create_plate_script(

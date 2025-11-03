@@ -184,7 +184,7 @@ class LauncherValidator(LoggingMixin):
             # Try to perform a safe substitution to catch syntax errors
             # Use empty context to catch any malformed patterns
             try:
-                template.safe_substitute({})
+                _ = template.safe_substitute({})
             except ValueError as e:
                 return False, f"Invalid template syntax: {e}"
 

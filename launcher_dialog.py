@@ -348,7 +348,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
         }
 
         try:
-            self.launcher_manager.execute_launcher(
+            _ = self.launcher_manager.execute_launcher(
                 test_launcher.id,
                 variables,
                 dry_run=True,
@@ -524,22 +524,22 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
     def _setup_shortcuts(self) -> None:
         """Set up keyboard shortcuts."""
         # Enter - Launch
-        QShortcut(Qt.Key.Key_Return, self, self._launch_selected)
+        _ = QShortcut(Qt.Key.Key_Return, self, self._launch_selected)
 
         # F2 - Edit
-        QShortcut(Qt.Key.Key_F2, self, self._edit_selected)
+        _ = QShortcut(Qt.Key.Key_F2, self, self._edit_selected)
 
         # Delete - Delete
-        QShortcut(Qt.Key.Key_Delete, self, self._delete_selected)
+        _ = QShortcut(Qt.Key.Key_Delete, self, self._delete_selected)
 
         # Ctrl+N - New
-        QShortcut("Ctrl+N", self, self._add_launcher)
+        _ = QShortcut("Ctrl+N", self, self._add_launcher)
 
         # Ctrl+F - Search
-        QShortcut("Ctrl+F", self, lambda: self.search_field.setFocus())
+        _ = QShortcut("Ctrl+F", self, lambda: self.search_field.setFocus())
 
         # Escape - Close
-        QShortcut(Qt.Key.Key_Escape, self, self.close)
+        _ = QShortcut(Qt.Key.Key_Escape, self, self.close)
 
     def _connect_signals(self) -> None:
         """Connect signals to slots."""
@@ -717,14 +717,14 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
     def _add_launcher(self) -> None:
         """Show dialog to add new launcher."""
         dialog = LauncherEditDialog(self.launcher_manager, parent=self)
-        dialog.exec()
+        _ = dialog.exec()
 
     def _edit_launcher(self, launcher_id: str) -> None:
         """Show dialog to edit launcher."""
         launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if launcher:
             dialog = LauncherEditDialog(self.launcher_manager, launcher, parent=self)
-            dialog.exec()
+            _ = dialog.exec()
 
     def _delete_launcher(self, launcher_id: str) -> None:
         """Delete launcher with confirmation."""
@@ -758,7 +758,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
         try:
             # For now, launch without shot context
             # In real usage, this would get shot context from main window
-            self.launcher_manager.execute_launcher(launcher_id)
+            _ = self.launcher_manager.execute_launcher(launcher_id)
         except Exception as e:
             NotificationManager.error("Launch Error", f"Failed to launch: {e!s}")
 
@@ -817,13 +817,13 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Note: Qt's receivers() method is not properly typed in PySide6 stubs
         try:
             if self.launcher_manager.launchers_changed.receivers(self._load_launchers) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.launcher_manager.launchers_changed.disconnect(self._load_launchers)
+                _ = self.launcher_manager.launchers_changed.disconnect(self._load_launchers)
             if self.launcher_manager.execution_started.receivers(self._on_execution_started) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.launcher_manager.execution_started.disconnect(
+                _ = self.launcher_manager.execution_started.disconnect(
                     self._on_execution_started
                 )
             if self.launcher_manager.execution_finished.receivers(self._on_execution_finished) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.launcher_manager.execution_finished.disconnect(
+                _ = self.launcher_manager.execution_finished.disconnect(
                     self._on_execution_finished
                 )
         except (RuntimeError, TypeError, AttributeError):
@@ -833,38 +833,38 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Disconnect preview panel signals (from _setup_ui)
         try:
             if self.preview_panel.launch_requested.receivers(self._launch_launcher) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.preview_panel.launch_requested.disconnect(self._launch_launcher)
+                _ = self.preview_panel.launch_requested.disconnect(self._launch_launcher)
             if self.preview_panel.edit_requested.receivers(self._edit_launcher) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.preview_panel.edit_requested.disconnect(self._edit_launcher)
+                _ = self.preview_panel.edit_requested.disconnect(self._edit_launcher)
             if self.preview_panel.delete_requested.receivers(self._delete_launcher) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.preview_panel.delete_requested.disconnect(self._delete_launcher)
+                _ = self.preview_panel.delete_requested.disconnect(self._delete_launcher)
         except (RuntimeError, TypeError, AttributeError):
             pass
 
         # Disconnect list widget signals (from _setup_ui)
         try:
             if self.launcher_list.itemSelectionChanged.receivers(self._on_selection_changed) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.launcher_list.itemSelectionChanged.disconnect(
+                _ = self.launcher_list.itemSelectionChanged.disconnect(
                     self._on_selection_changed
                 )
             if self.launcher_list.itemDoubleClicked.receivers(self._on_double_click) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.launcher_list.itemDoubleClicked.disconnect(self._on_double_click)
+                _ = self.launcher_list.itemDoubleClicked.disconnect(self._on_double_click)
         except (RuntimeError, TypeError, AttributeError):
             pass
 
         # Disconnect search field (from _connect_signals)
         try:
             if self.search_field.textChanged.receivers(self._filter_launchers) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.search_field.textChanged.disconnect(self._filter_launchers)
+                _ = self.search_field.textChanged.disconnect(self._filter_launchers)
         except (RuntimeError, TypeError, AttributeError):
             pass
 
         # Disconnect buttons (from _setup_ui)
         try:
             if self.add_button.clicked.receivers(self._add_launcher) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.add_button.clicked.disconnect(self._add_launcher)
+                _ = self.add_button.clicked.disconnect(self._add_launcher)
             if self.close_button.clicked.receivers(self.close) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.close_button.clicked.disconnect(self.close)
+                _ = self.close_button.clicked.disconnect(self.close)
         except (RuntimeError, TypeError, AttributeError):
             pass
 

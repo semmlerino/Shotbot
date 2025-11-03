@@ -197,7 +197,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
     def refresh(self) -> None:
         """Trigger refresh of underlying model."""
-        self._underlying_model.refresh_shots()
+        _ = self._underlying_model.refresh_shots()
 
     def get_underlying_model(self) -> PreviousShotsModel:
         """Get underlying model.
@@ -246,20 +246,21 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         if hasattr(self._underlying_model, "shots_updated"):
             with contextlib.suppress(RuntimeError, TypeError, AttributeError):
                 if self._underlying_model.shots_updated.receivers(self._on_underlying_shots_updated) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                    self._underlying_model.shots_updated.disconnect(
+                    _ = self._underlying_model.shots_updated.disconnect(
                         self._on_underlying_shots_updated
                     )
 
         # Disconnect signals safely
         with contextlib.suppress(RuntimeError, TypeError, AttributeError):
             if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.items_updated.disconnect()
+                _ = self.items_updated.disconnect()
         with contextlib.suppress(RuntimeError, TypeError, AttributeError):
             if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                self.shots_updated.disconnect()
+                _ = self.shots_updated.disconnect()
 
         self.logger.info("PreviousShotsItemModel cleanup complete")
 
+    @override
     def deleteLater(self) -> None:
         """Override deleteLater to ensure cleanup."""
         self.cleanup()

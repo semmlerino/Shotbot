@@ -8,6 +8,7 @@ tracking code across multiple finder implementations.
 from __future__ import annotations
 
 # Standard library imports
+import contextlib
 from collections.abc import Callable
 from typing import TypeVar
 
@@ -167,13 +168,11 @@ class ProgressReportingMixin(LoggingMixin):
             )
             # Report final progress as cancelled
             if self._progress_callback:
-                try:
+                with contextlib.suppress(Exception):
                     # Report current state with cancellation message
                     self._progress_callback(
                         self._last_reported_progress, 100, "Operation cancelled by user"
                     )
-                except Exception:
-                    pass  # Ignore errors in final callback
             return True
         return False
 

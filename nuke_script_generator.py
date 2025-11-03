@@ -131,7 +131,7 @@ except Exception as e:
     def _register_cleanup(cls) -> None:
         """Register cleanup function to run at program exit."""
         if not cls._cleanup_registered:
-            atexit.register(cls._cleanup_temp_files)
+            _ = atexit.register(cls._cleanup_temp_files)
             cls._cleanup_registered = True
 
     @classmethod
@@ -341,7 +341,7 @@ except Exception as e:
                 delete=False,
                 encoding="utf-8",
             ) as tmp_file:
-                tmp_file.write(script_content)
+                _ = tmp_file.write(script_content)
                 temp_path = tmp_file.name
 
             # Track the file for cleanup at program exit
@@ -388,11 +388,11 @@ except Exception as e:
                 delete=False,
                 encoding="utf-8",
             ) as tmp_file:
-                tmp_file.write(script_content)
+                _ = tmp_file.write(script_content)
                 temp_path = tmp_file.name
 
             # Track temp file for cleanup
-            NukeScriptGenerator._track_temp_file(temp_path)
+            _ = NukeScriptGenerator._track_temp_file(temp_path)
 
             print(f"Created Nuke loader script: {temp_path}")
             print(f"  Plate: {plate_path}")
@@ -441,7 +441,7 @@ except Exception as e:
                 delete=False,
                 encoding="utf-8",
             ) as tmp_file:
-                tmp_file.write(script_content)
+                _ = tmp_file.write(script_content)
                 temp_path = tmp_file.name
 
             # Track the file for cleanup at program exit
@@ -500,7 +500,7 @@ except Exception as e:
 
             # Save the script
             with script_path.open("w", encoding="utf-8") as f:
-                f.write(script_content)
+                _ = f.write(script_content)
 
             print(f"Saved Nuke script to workspace: {script_path}")
             return str(script_path)
@@ -620,7 +620,7 @@ except Exception as e:
 
             # Write directly (no temp file!)
             with output_path.open("w", encoding="utf-8") as f:
-                f.write(script_content)
+                _ = f.write(script_content)
 
             logger.info(f"Created Nuke script in workspace: {output_path}")
             return str(output_path)
@@ -678,7 +678,7 @@ except Exception as e:
 
             # Write directly
             with output_path.open("w", encoding="utf-8") as f:
-                f.write(script_content)
+                _ = f.write(script_content)
 
             logger.info(f"Created empty Nuke script in workspace: {output_path}")
             return str(output_path)

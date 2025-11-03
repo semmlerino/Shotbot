@@ -165,8 +165,8 @@ class ThreadSafeThumbnailCache:
             key: Cache key to remove
         """
         with QMutexLocker(self._cache_lock):
-            self._image_cache.pop(key, None)
-            self._pixmap_cache.pop(key, None)
+            _ = self._image_cache.pop(key, None)
+            _ = self._pixmap_cache.pop(key, None)
 
     def clear(self) -> None:
         """Clear all cached images (thread-safe)."""

@@ -192,7 +192,7 @@ class TestPreviousShotsWorkerWorkflow:
         worker._finder = PreviousShotsFinder(username="testuser")
 
         # FIX: Use monkeypatch for cleaner subprocess mocking
-        monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: test_result)
+        monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: test_result)
 
         # Collect shot_found signals to verify count
         shot_found_signals: list[dict[str, Any]] = []
@@ -241,7 +241,7 @@ class TestPreviousShotsWorkerWorkflow:
         worker._finder = PreviousShotsFinder(username="testuser")
 
         # FIX: Use monkeypatch for cleaner subprocess mocking
-        monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: test_result)
+        monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: test_result)
 
         try:
             with qtbot.waitSignal(worker.scan_finished, timeout=5000):
@@ -390,7 +390,7 @@ class TestPreviousShotsWorkerWorkflow:
         worker._finder = PreviousShotsFinder(username="testuser")
 
         # FIX: Use monkeypatch for cleaner subprocess mocking
-        monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: test_result)
+        monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: test_result)
 
         try:
             with qtbot.waitSignal(worker.scan_finished, timeout=5000):
@@ -528,7 +528,7 @@ class TestPreviousShotsWorkerIntegration:
         worker._finder = PreviousShotsFinder(username="testuser")
 
         # FIX: Use monkeypatch for cleaner subprocess mocking
-        monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: test_result)
+        monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: test_result)
 
         try:
             with qtbot.waitSignal(worker.scan_finished, timeout=10000):

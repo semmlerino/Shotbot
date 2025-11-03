@@ -265,7 +265,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         # Connect outside mutex to prevent deadlock
         # NOTE: Don't use Qt.ConnectionType.UniqueConnection - it doesn't work with Python callables
         # Application-level deduplication (above) is more reliable for Python/Qt
-        signal.connect(slot, connection_type)
+        _ = signal.connect(slot, connection_type)
 
         self.logger.debug(
             f"Worker {id(self)}: Connected signal to {slot.__name__} with {connection_type}"
@@ -291,7 +291,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         for signal, slot in connections_to_disconnect:
             # Direct references now - no need to dereference
             try:
-                signal.disconnect(slot)
+                _ = signal.disconnect(slot)
                 self.logger.debug(f"Worker {id(self)}: Disconnected signal")
             except (RuntimeError, TypeError) as e:
                 # Already disconnected or object deleted - this is fine
@@ -316,7 +316,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         # Check if stop was requested before we even started
         if self._stop_requested:
-            self.set_state(WorkerState.STOPPED)
+            _ = self.set_state(WorkerState.STOPPED)
             return
 
         # Emit started signal
@@ -325,7 +325,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         # Transition to RUNNING
         if not self.set_state(WorkerState.RUNNING):
             self.logger.error(f"Worker {id(self)}: Failed to transition to RUNNING")
-            self.set_state(WorkerState.STOPPED)
+            _ = self.set_state(WorkerState.STOPPED)
             return
 
         # Execute actual work
@@ -342,7 +342,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             self.do_work()
         except Exception as e:
             self.logger.exception(f"Worker {id(self)}: Exception in do_work")
-            self.set_state(WorkerState.ERROR)
+            _ = self.set_state(WorkerState.ERROR)
             self.worker_error.emit(str(e))
         finally:
             # Respect the state machine - transition properly to STOPPED
@@ -351,23 +351,23 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 # Valid transition: RUNNING -> STOPPING -> STOPPED
                 if not self.set_state(WorkerState.STOPPING):
                     self.logger.warning("Failed to transition to STOPPING, forcing it")
-                    self.set_state(WorkerState.STOPPING, force=True)
+                    _ = self.set_state(WorkerState.STOPPING, force=True)
                 # Now transition from STOPPING to STOPPED
                 if not self.set_state(WorkerState.STOPPED):
                     self.logger.warning("Failed to transition to STOPPED, forcing it")
-                    self.set_state(WorkerState.STOPPED, force=True)
+                    _ = self.set_state(WorkerState.STOPPED, force=True)
             elif current_state == WorkerState.ERROR:
                 # Valid transition: ERROR -> STOPPED
                 if not self.set_state(WorkerState.STOPPED):
                     self.logger.warning(
                         "Failed to transition from ERROR to STOPPED, forcing it",
                     )
-                    self.set_state(WorkerState.STOPPED, force=True)
+                    _ = self.set_state(WorkerState.STOPPED, force=True)
             elif current_state not in [WorkerState.STOPPED, WorkerState.DELETED]:
                 # For other states, try direct transition to STOPPED
                 if not self.set_state(WorkerState.STOPPED):
                     self.logger.warning(f"Forcing STOPPED state from {current_state}")
-                    self.set_state(WorkerState.STOPPED, force=True)
+                    _ = self.set_state(WorkerState.STOPPED, force=True)
 
     def do_work(self) -> None:
         """Override this method with actual work implementation.

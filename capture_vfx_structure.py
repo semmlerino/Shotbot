@@ -270,17 +270,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Capture VFX filesystem structure for mock environment"
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--shows",
         nargs="+",
         help="Specific shows to capture (default: use ws -sg shows)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--output",
         default=None,
         help="Output file (default: auto-generated with timestamp)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--stdout", action="store_true", help="Output to stdout instead of file"
     )
 
@@ -320,7 +320,7 @@ def main() -> None:
 
         # Save to file
         with Path(output_file).open("w") as f:
-            f.write(output)
+            _ = f.write(output)
 
         print(f"✅ Structure saved to: {output_file}")
         print(f"\nCapture complete! Found {len(structure['shows'])} shows")

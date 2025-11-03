@@ -142,7 +142,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
                     # Force termination if necessary
                     if self._worker.isRunning():
                         self._worker.terminate()
-                        self._worker.wait(1000)
+                        _ = self._worker.wait(1000)
 
                 # 3. Clear reference BEFORE scheduling deletion
                 worker = self._worker
@@ -154,9 +154,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 # Qt's receivers() method is not properly typed in PySide6 stubs
                 try:
                     if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                        worker.scan_finished.disconnect()
+                        _ = worker.scan_finished.disconnect()
                     if worker.error_occurred.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                        worker.error_occurred.disconnect()
+                        _ = worker.error_occurred.disconnect()
                     # PreviousShotsWorker uses scan_progress, not progress
                     # ThreeDESceneWorker uses progress signal
                     # Runtime hasattr check handles polymorphism - attribute may not exist

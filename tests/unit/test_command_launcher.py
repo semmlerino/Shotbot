@@ -512,7 +512,7 @@ class TestCommandLauncher:
     ) -> None:
         """Test fallback when persistent terminal is unavailable."""
         terminal = TestPersistentTerminalManager()
-        terminal.send_command = lambda cmd: False  # Make send_command fail
+        terminal.send_command = lambda _cmd: False  # Make send_command fail
 
         launcher = CommandLauncher(
             raw_plate_finder=TestRawPlateFinder,

@@ -516,7 +516,7 @@ class LauncherController(LoggingMixin):
     def show_launcher_manager(self) -> None:
         """Show the launcher manager dialog."""
         if not self.window.launcher_manager:
-            QMessageBox.information(
+            _ = QMessageBox.information(
                 cast(
                     "QWidget", cast("object", self.window)
                 ),  # Cast through object for Protocol
@@ -583,7 +583,7 @@ class LauncherController(LoggingMixin):
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
                     _ = action.triggered.connect(
-                        lambda checked=False,
+                        lambda _=False,
                         lid=launcher.id: self.execute_custom_launcher(lid),
                     )
                     category_menu.addAction(action)
@@ -596,7 +596,7 @@ class LauncherController(LoggingMixin):
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
                     _ = action.triggered.connect(
-                        lambda checked=False,
+                        lambda _=False,
                         lid=launcher.id: self.execute_custom_launcher(lid),
                     )
                     self.window.custom_launcher_menu.addAction(action)

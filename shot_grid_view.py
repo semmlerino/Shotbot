@@ -8,7 +8,7 @@ and proper Model/View integration.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -89,6 +89,7 @@ class ShotGridView(BaseGridView):
 
         self.logger.info("ShotGridView initialized with Model/View architecture")
 
+    @override
     def _create_delegate(self) -> BaseThumbnailDelegate:
         """Create the shot grid delegate.
 
@@ -97,6 +98,7 @@ class ShotGridView(BaseGridView):
         """
         return ShotGridDelegate(self)
 
+    @override
     def _customize_size_layout(self, layout: QHBoxLayout) -> None:
         """Add recovery button to size layout.
 
@@ -133,6 +135,7 @@ class ShotGridView(BaseGridView):
         return self._selected_shot
 
     @property
+    @override
     def thumbnail_size(self) -> int:
         """Get the current thumbnail size.
 
@@ -177,6 +180,7 @@ class ShotGridView(BaseGridView):
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
 
+    @override
     def populate_show_filter(self, shows: list[str] | HasAvailableShows) -> None:
         """Populate the show filter combo box with available shows.
 
@@ -261,11 +265,11 @@ class ShotGridView(BaseGridView):
 
         # Clear previous selection in model
         if previous.isValid():
-            model.setData(previous, False, ShotRole.IsSelectedRole)
+            _ = model.setData(previous, False, ShotRole.IsSelectedRole)
 
         # Set current selection in model
         if current.isValid():
-            model.setData(current, True, ShotRole.IsSelectedRole)
+            _ = model.setData(current, True, ShotRole.IsSelectedRole)
 
             # Get shot object - index.data() returns Any from Qt API
             shot: Shot | None = cast("Shot | None", current.data(ShotRole.ObjectRole))
@@ -274,6 +278,7 @@ class ShotGridView(BaseGridView):
                 self._selected_shot = shot
                 self.shot_selected.emit(shot)
 
+    @override
     def _handle_visible_range_update(self, start: int, end: int) -> None:
         """Handle the visible range update for lazy loading.
 
@@ -328,6 +333,7 @@ class ShotGridView(BaseGridView):
         self.list_view.viewport().update()
         self._update_visible_range()
 
+    @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu.
 
@@ -359,7 +365,7 @@ class ShotGridView(BaseGridView):
         _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
 
         # Show menu at cursor position
-        menu.exec(event.globalPos())
+        _ = menu.exec(event.globalPos())
 
         self.logger.debug(f"Context menu shown for shot: {shot.full_name}")
 

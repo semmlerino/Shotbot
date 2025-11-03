@@ -293,12 +293,13 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
                 # receivers(None) returns total count of all connections
                 # Note: Qt's receivers() method is not properly typed in PySide6 stubs
                 if signal.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                    signal.disconnect()
+                    _ = signal.disconnect()
             except (RuntimeError, TypeError, AttributeError):
                 pass  # Already disconnected, no connections, or object deleted
 
         self.logger.info("ThreeDEItemModel cleanup complete")
 
+    @override
     def deleteLater(self) -> None:
         """Override deleteLater to ensure cleanup."""
         self.cleanup()

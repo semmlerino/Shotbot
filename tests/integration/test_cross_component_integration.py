@@ -120,7 +120,7 @@ class TestCrossTabSynchronization:
         from PySide6.QtCore import QTimer
 
         original_singleshot = QTimer.singleShot
-        QTimer.singleShot = lambda *args, **kwargs: None  # Disable all timers
+        QTimer.singleShot = lambda *_args, **_kwargs: None  # Disable all timers
 
         try:
             # Create MainWindow with real components
@@ -277,7 +277,7 @@ class TestCrossTabSynchronization:
         from PySide6.QtCore import QTimer
 
         original_singleshot = QTimer.singleShot
-        QTimer.singleShot = lambda *args, **kwargs: None  # Disable all timers
+        QTimer.singleShot = lambda *_args, **_kwargs: None  # Disable all timers
 
         # Create a temporary cache manager in a fresh directory to avoid old data
         # Standard library imports

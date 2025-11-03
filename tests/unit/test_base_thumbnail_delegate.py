@@ -1058,7 +1058,7 @@ class TestSignals:
         spy = QSignalSpy(delegate.thumbnail_clicked)
 
         # Connect to lambda (just to verify connection works)
-        delegate.thumbnail_clicked.connect(lambda idx: None)
+        delegate.thumbnail_clicked.connect(lambda _idx: None)
 
         # Spy should be valid
         assert spy.isValid()
@@ -1073,7 +1073,7 @@ class TestSignals:
         spy = QSignalSpy(delegate.thumbnail_double_clicked)
 
         # Connect to lambda
-        delegate.thumbnail_double_clicked.connect(lambda idx: None)
+        delegate.thumbnail_double_clicked.connect(lambda _idx: None)
 
         # Spy should be valid
         assert spy.isValid()

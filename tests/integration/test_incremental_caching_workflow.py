@@ -84,7 +84,8 @@ class TestIncrementalCachingWorkflow:
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0030\n",
         )
         success1, changes1 = shot_model_temp.refresh_shots()
-        assert success1 and changes1
+        assert success1
+        assert changes1
 
         # Execute: Second refresh with identical data (uses second output)
         success2, changes2 = shot_model_temp.refresh_shots()
@@ -115,7 +116,8 @@ class TestIncrementalCachingWorkflow:
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0060\n",
         )
         success1, changes1 = shot_model_temp.refresh_shots()
-        assert success1 and changes1
+        assert success1
+        assert changes1
 
         # Execute: Third refresh adding 3 new shots (uses second output)
         success2, changes2 = shot_model_temp.refresh_shots()
@@ -159,7 +161,8 @@ class TestIncrementalCachingWorkflow:
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0030\n",
         )
         success1, changes1 = shot_model_temp.refresh_shots()
-        assert success1 and changes1
+        assert success1
+        assert changes1
         assert len(shot_model_temp.shots) == 6
 
         # Execute: Fourth refresh with 3 shots removed (uses second output)
@@ -201,12 +204,14 @@ class TestIncrementalCachingWorkflow:
             "",  # Empty ws -sg output (all removed)
         )
         success1, changes1 = shot_model_temp.refresh_shots()
-        assert success1 and changes1
+        assert success1
+        assert changes1
         assert len(shot_model_temp.shots) == 3
 
         # Execute: Remove all 3 shots (migration)
         success2, changes2 = shot_model_temp.refresh_shots()
-        assert success2 and changes2
+        assert success2
+        assert changes2
         assert len(shot_model_temp.shots) == 0
 
         # Verify migration with deduplication
@@ -251,7 +256,8 @@ class TestIncrementalCachingWorkflow:
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0030\n",
         )
         success1, changes1 = shot_model_temp.refresh_shots()
-        assert success1 and changes1
+        assert success1
+        assert changes1
 
         # Corrupt cache file
         cache_file = temp_cache_dir / "shots.json"
@@ -282,14 +288,16 @@ class TestIncrementalCachingWorkflow:
 
         # Execute: First refresh
         success1, changes1 = shot_model_temp.refresh_shots()
-        assert success1 and changes1
+        assert success1
+        assert changes1
         assert len(shot_model_temp.shots) == 432
 
         # Execute: Second refresh - remove 3 shots (uses second output)
         success2, changes2 = shot_model_temp.refresh_shots()
 
         # Verify
-        assert success2 and changes2
+        assert success2
+        assert changes2
         assert len(shot_model_temp.shots) == 429, "429 active shots"
 
         # Verify migration

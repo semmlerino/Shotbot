@@ -11,7 +11,7 @@ from __future__ import annotations
 
 # Standard library imports
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, TypedDict, Unpack
+from typing import TYPE_CHECKING, TypedDict, Unpack, override
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -102,6 +102,7 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
     This is the default strategy for most VFX environments.
     """
 
+    @override
     def find_scenes_for_shot(
         self,
         shot_workspace_path: str,
@@ -202,6 +203,7 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
 
         return scenes
 
+    @override
     def find_all_scenes_in_show(
         self,
         show_root: str,
@@ -333,6 +335,7 @@ class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
         super().__init__()
         self.num_workers = num_workers
 
+    @override
     def find_scenes_for_shot(
         self,
         shot_workspace_path: str,
@@ -349,6 +352,7 @@ class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
             shot_workspace_path, show, sequence, shot, excluded_users
         )
 
+    @override
     def find_all_scenes_in_show(
         self,
         show_root: str,
@@ -421,6 +425,7 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
     that need to show progress and allow cancellation.
     """
 
+    @override
     def find_scenes_for_shot(
         self,
         shot_workspace_path: str,
@@ -436,6 +441,7 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
             shot_workspace_path, show, sequence, shot, excluded_users
         )
 
+    @override
     def find_all_scenes_in_show(
         self,
         show_root: str,
@@ -561,6 +567,7 @@ class NetworkAwareStrategy(SceneDiscoveryStrategy):
         super().__init__()
         self.network_timeout = network_timeout
 
+    @override
     def find_scenes_for_shot(
         self,
         shot_workspace_path: str,
@@ -577,6 +584,7 @@ class NetworkAwareStrategy(SceneDiscoveryStrategy):
             shot_workspace_path, show, sequence, shot, excluded_users
         )
 
+    @override
     def find_all_scenes_in_show(
         self,
         show_root: str,

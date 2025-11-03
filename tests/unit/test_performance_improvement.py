@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 # Standard library imports
+import contextlib
 import os
 import tempfile
 import time
@@ -109,11 +110,9 @@ def test_with_session_warming() -> None:
 
         # Pre-warm during "splash screen"
         warm_start = time.perf_counter()
-        try:
+        with contextlib.suppress(Exception):
             # This initializes the bash sessions
             pool.execute_workspace_command("echo warm", cache_ttl=1, timeout=5)
-        except Exception:
-            pass  # Might fail without real ws command
         time.perf_counter() - warm_start
 
         # Now create model with warmed pool
