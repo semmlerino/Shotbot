@@ -275,20 +275,16 @@ class LauncherWorker(ThreadSafeWorker):
                     else:
                         # Process still alive after termination attempt
                         self.logger.error(
-
-                                f"Failed to terminate process for launcher '{self.launcher_id}', "
-                                f"process {self._process.pid} may be orphaned"
-
+                            f"Failed to terminate process for launcher '{self.launcher_id}', "
+                             f"process {self._process.pid} may be orphaned"
                         )
                         # Still set to None to avoid repeated termination attempts
                         # but log the issue for debugging
                         self._process = None
                 except Exception as e:
                     self.logger.error(
-
-                            f"Exception during process cleanup for launcher '{self.launcher_id}': {e}, "
-                            "process may be orphaned"
-
+                        f"Exception during process cleanup for launcher '{self.launcher_id}': {e}, "
+                         "process may be orphaned"
                     )
                     # Set to None to avoid repeated attempts but log the failure
                     self._process = None

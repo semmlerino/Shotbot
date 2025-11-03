@@ -38,7 +38,7 @@ class TestRawPlateFinder:
     __test__ = False  # Prevent pytest collection
 
     @staticmethod
-    def find_latest_raw_plate(shot_workspace_path: str, shot_name: str) -> str | None:
+    def find_latest_raw_plate(shot_workspace_path: str, _shot_name: str) -> str | None:
         """Mock finding latest raw plate."""
         if "TEST" in shot_workspace_path:
             return "/path/to/plate.####.exr"
@@ -64,7 +64,7 @@ class TestUndistortionFinder:
 
     @staticmethod
     def find_latest_undistortion(
-        shot_workspace_path: str, shot_name: str, username: str | None = None
+        shot_workspace_path: str, _shot_name: str, _username: str | None = None
     ) -> Path | None:
         """Mock finding latest undistortion."""
         if "TEST" in shot_workspace_path:
@@ -85,19 +85,19 @@ class TestNukeScriptGenerator:
     __test__ = False  # Prevent pytest collection
 
     @staticmethod
-    def create_plate_script(plate_path: str, shot_name: str) -> str:
+    def create_plate_script(_plate_path: str, shot_name: str) -> str:
         """Mock creating plate script."""
         return f"/tmp/{shot_name}_plate.nk"
 
     @staticmethod
     def create_plate_script_with_undistortion(
-        plate_path: str, undist_path: str, shot_name: str
+        _plate_path: str, _undist_path: str, shot_name: str
     ) -> str:
         """Mock creating plate script with undistortion."""
         return f"/tmp/{shot_name}_undist.nk"
 
     @staticmethod
-    def create_loader_script(plate_path: str, undist_path: str, shot_name: str) -> str:
+    def create_loader_script(_plate_path: str, _undist_path: str, shot_name: str) -> str:
         """Mock creating loader script."""
         return f"/tmp/{shot_name}_loader.nk"
 

@@ -243,10 +243,8 @@ class HeadlessMode:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             if not HeadlessMode.is_display_available():
                 raise RuntimeError(
-
-                        f"{func.__name__} requires a display but none is available. "
-                        "Run with SHOTBOT_HEADLESS=1 to use headless mode."
-
+                    f"{func.__name__} requires a display but none is available. "
+                     "Run with SHOTBOT_HEADLESS=1 to use headless mode."
                 )
             return func(*args, **kwargs)
 

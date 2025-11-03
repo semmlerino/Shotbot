@@ -210,9 +210,12 @@ class ProcessPoolManager(LoggingMixin, QObject):
     command_failed = Signal(str, str)  # command_id, error
 
     def __new__(
-        cls, _max_workers: int = 4, _sessions_per_type: int = 3
+        cls, max_workers: int = 4, sessions_per_type: int = 3  # noqa: ARG004
     ) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety using double-checked locking.
+
+        Note: Parameters are intentionally unused in __new__ (singleton returns existing
+        instance) but must match __init__ signature for type checker consistency.
 
         This implementation uses double-checked locking pattern which optimizes
         the common case where the singleton is already initialized by avoiding

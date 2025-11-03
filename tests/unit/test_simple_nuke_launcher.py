@@ -43,7 +43,7 @@ class TestSimpleNukeLauncher:
         mock_exists.return_value = True
         mock_script = Mock(spec=Path)
         mock_script.name = "TEST_0010_mm-default_FG01_scene_v003.nk"
-        mock_script.__str__ = lambda self: "/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v003.nk"
+        mock_script.__str__ = lambda _self: "/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v003.nk"
         mock_glob.return_value = [mock_script]
 
         command, messages = simple_launcher.open_latest_script(

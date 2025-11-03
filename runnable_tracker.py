@@ -78,10 +78,8 @@ class QRunnableTracker:
         self._stats["peak_concurrent"] = max(self._stats["peak_concurrent"], current_active)
 
         logger.debug(
-
-                f"Registered {runnable.__class__.__name__} "
-                f"(active: {current_active}, total: {self._stats['total_registered']})"
-
+            f"Registered {runnable.__class__.__name__} "
+             f"(active: {current_active}, total: {self._stats['total_registered']})"
         )
 
     def unregister(self, runnable: QRunnable) -> None:
@@ -98,10 +96,8 @@ class QRunnableTracker:
             self._stats["total_completed"] += 1
 
             logger.debug(
-
-                    f"Unregistered {runnable.__class__.__name__} "
-                    f"(active: {len(self._active_runnables)})"
-
+                f"Unregistered {runnable.__class__.__name__} "
+                 f"(active: {len(self._active_runnables)})"
             )
         except Exception as e:
             logger.warning(f"Error unregistering runnable: {e}")
@@ -167,12 +163,10 @@ class QRunnableTracker:
             self._runnable_metadata.clear()
 
         logger.info(
-
-                f"QRunnableTracker cleanup complete - "
-                f"Total: {self._stats['total_registered']}, "
-                f"Completed: {self._stats['total_completed']}, "
-                f"Peak concurrent: {self._stats['peak_concurrent']}"
-
+            "QRunnableTracker cleanup complete - "
+            f"Total: {self._stats['total_registered']}, "
+            f"Completed: {self._stats['total_completed']}, "
+            f"Peak concurrent: {self._stats['peak_concurrent']}"
         )
 
     @classmethod

@@ -136,10 +136,8 @@ class PlateDiscovery:
             get_workspace_script_directory(): Recommended method for script storage
         """
         logger.warning(
-
-                "get_plate_script_directory() is deprecated for script storage. "
-                "Use get_workspace_script_directory() instead."
-
+            "get_plate_script_directory() is deprecated for script storage. "
+             "Use get_workspace_script_directory() instead."
         )
         base_path = PathUtils.build_raw_plate_path(workspace_path)
 

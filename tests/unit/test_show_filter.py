@@ -461,7 +461,7 @@ class TestMainWindowFilterHandlers:
         from main_window import MainWindow
 
         # Prevent actual window creation
-        monkeypatch.setattr(MainWindow, "__init__", lambda self: None)
+        monkeypatch.setattr(MainWindow, "__init__", lambda _self: None)
 
         window = MainWindow()
 

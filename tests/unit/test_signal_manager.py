@@ -177,8 +177,8 @@ class TestSignalManager:
 
         # Create multiple connections
         manager.connect_safely(widget1.test_signal, lambda: None)
-        manager.connect_safely(widget2.data_signal, lambda x: None)
-        manager.connect_safely(widget1.multi_param_signal, lambda x, y, z: None)
+        manager.connect_safely(widget2.data_signal, lambda _x: None)
+        manager.connect_safely(widget1.multi_param_signal, lambda _x, _y, _z: None)
 
         assert manager.get_connection_count() == 3
 
@@ -317,7 +317,7 @@ class TestSignalManager:
         handlers: dict[str, Callable[..., None]] = {
             "started": lambda: None,
             "finished": lambda: None,
-            "progress": lambda x: None,
+            "progress": lambda _x: None,
             "nonexistent": lambda: None,  # This should generate warning
         }
 

@@ -62,10 +62,8 @@ logger = get_module_logger(__name__)
 
 # Log a debug message if this module is imported (helps track unexpected imports)
 logger.debug(
-
-        "threading_utils module imported - if this appears during normal application "
-        "usage, there may be an unexpected import chain"
-
+    "threading_utils module imported - if this appears during normal application "
+     "usage, there may be an unexpected import chain"
 )
 
 
@@ -364,10 +362,8 @@ class CancellationEvent(LoggingMixin):
             callback_count = len(self._callbacks)
 
         self.logger.debug(
-
-                f"CancellationEvent {self._id} registered cleanup callback "
-                f"({callback_count} total)"
-
+            f"CancellationEvent {self._id} registered cleanup callback "
+             f"({callback_count} total)"
         )
 
     def wait_for_cancellation(self, timeout: float | None = None) -> bool:
@@ -384,10 +380,8 @@ class CancellationEvent(LoggingMixin):
             timeout = ThreadingConfig.WORKER_STOP_TIMEOUT_MS / 1000.0
 
         self.logger.debug(
-
-                f"CancellationEvent {self._id} waiting for cancellation "
-                f"(timeout={timeout}s)"
-
+            f"CancellationEvent {self._id} waiting for cancellation "
+             f"(timeout={timeout}s)"
         )
 
         result = self._event.wait(timeout)
@@ -439,10 +433,8 @@ class CancellationEvent(LoggingMixin):
                 )
 
         self.logger.info(
-
-                f"CancellationEvent {self._id} cleanup completed: "
-                f"{executed} succeeded, {failed} failed"
-
+            f"CancellationEvent {self._id} cleanup completed: "
+             f"{executed} succeeded, {failed} failed"
         )
 
     def get_stats(self) -> dict[str, str | bool | float | int | None]:
@@ -519,10 +511,8 @@ class ThreadPoolManager(LoggingMixin):
         self._entered = False
 
         self.logger.debug(
-
-                f"ThreadPoolManager created with max_workers={self.max_workers}, "
-                f"timeout={self.shutdown_timeout}s"
-
+            f"ThreadPoolManager created with max_workers={self.max_workers}, "
+             f"timeout={self.shutdown_timeout}s"
         )
 
     def __enter__(self) -> concurrent.futures.ThreadPoolExecutor:
@@ -583,10 +573,8 @@ class ThreadPoolManager(LoggingMixin):
             else:
                 # Timeout reached - use debug level to be less noisy
                 self.logger.debug(
-
-                        f"Executor shutdown timeout after {self.shutdown_timeout}s, "
-                        f"some threads may still be running (this is usually not critical)"
-
+                    f"Executor shutdown timeout after {self.shutdown_timeout}s, "
+                     f"some threads may still be running (this is usually not critical)"
                 )
 
             self.logger.debug(

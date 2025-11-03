@@ -168,7 +168,7 @@ class TestThreadSafeProgressTracker:
         # Test with callback
         called = []
         tracker1 = ThreadSafeProgressTracker(
-            progress_callback=lambda c, s: called.append((c, s)), update_interval=1
+            progress_callback=lambda _c, _s: called.append((_c, _s)), update_interval=1
         )
         assert tracker1 is not None
 
@@ -178,7 +178,7 @@ class TestThreadSafeProgressTracker:
 
         # Test with different intervals
         tracker3 = ThreadSafeProgressTracker(
-            progress_callback=lambda c, s: None, update_interval=100
+            progress_callback=lambda _c, _s: None, update_interval=100
         )
         assert tracker3 is not None
 

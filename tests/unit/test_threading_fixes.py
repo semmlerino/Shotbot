@@ -76,7 +76,7 @@ def test_subprocess():
 def launcher_manager(qtbot, test_subprocess, monkeypatch):
     """Create LauncherManager with test subprocess double and proper cleanup."""
     # Use monkeypatch for safer patching that auto-restores
-    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: test_subprocess)
+    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: test_subprocess)
 
     manager = LauncherManager()
     # LauncherManager is not a QWidget, so we don't use qtbot.addWidget

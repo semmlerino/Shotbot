@@ -248,8 +248,8 @@ class TestSignalThreadSafety:
 
         # Track emissions
         signals_received = []
-        loader.shots_loaded.connect(lambda s: signals_received.append("loaded"))
-        loader.load_failed.connect(lambda e: signals_received.append("failed"))
+        loader.shots_loaded.connect(lambda _s: signals_received.append("loaded"))
+        loader.load_failed.connect(lambda _e: signals_received.append("failed"))
 
         # Start and immediately stop
         loader.start()

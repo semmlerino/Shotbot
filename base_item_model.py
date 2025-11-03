@@ -125,8 +125,8 @@ class BaseItemModel(
         if app and not QThread.currentThread() == app.thread():
             raise RuntimeError(
                 f"{self.__class__.__name__} must be created in the main thread. "
-                 f"Current thread: {QThread.currentThread()}, "
-                 f"Main thread: {app.thread()}"
+                f"Current thread: {QThread.currentThread()}, "
+                f"Main thread: {app.thread()}"
             )
         super().__init__(parent)
 
@@ -334,7 +334,7 @@ class BaseItemModel(
         if visible_range == self._last_visible_range:
             self.logger.debug(
                 "_load_visible_thumbnails: range unchanged "
-                 f"({visible_range[0]}-{visible_range[1]}), skipping"
+                f"({visible_range[0]}-{visible_range[1]}), skipping"
             )
             return
 
@@ -359,7 +359,7 @@ class BaseItemModel(
         if self._items:
             self.logger.debug(
                 f"_do_load_visible_thumbnails: checking {end - start} items "
-                 f"(range {start}-{end}, total items: {len(self._items)})"
+                f"(range {start}-{end}, total items: {len(self._items)})"
             )
 
         # Collect items to load - atomic check-and-mark in single lock
@@ -644,7 +644,7 @@ class BaseItemModel(
             if duplicate_count > 0:
                 self.logger.debug(
                     f"Found {duplicate_count} items with duplicate full_name values. "
-                     "Thumbnails will be shared across duplicates."
+                    "Thumbnails will be shared across duplicates."
                 )
 
             # Update items list (state modification inside try block)
@@ -679,12 +679,12 @@ class BaseItemModel(
             if old_cache_size > 1000:
                 self.logger.debug(
                     f"Large cache operation: {old_cache_size} items filtered, "
-                     f"{evicted} evicted, {preserved} preserved"
+                    f"{evicted} evicted, {preserved} preserved"
                 )
 
             self.logger.info(
                 f"Model updated: {len(items)} items, "
-                 f"thumbnails: {preserved} preserved, {evicted} evicted"
+                f"thumbnails: {preserved} preserved, {evicted} evicted"
             )
 
             # Clear selection (existing behavior)

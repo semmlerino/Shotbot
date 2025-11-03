@@ -178,8 +178,8 @@ class TestInfoPanelPixmapLoader:
         loaders = []
         for i in range(5):
             loader = InfoPanelPixmapLoader(test_panel, temp_image_file)
-            loader.signals.loaded.connect(lambda img, i=i: on_completed())
-            loader.signals.failed.connect(lambda i=i: on_completed())
+            loader.signals.loaded.connect(lambda _img, _i=i: on_completed())
+            loader.signals.failed.connect(lambda _i=i: on_completed())
             loaders.append(loader)
 
         # Start all loaders
@@ -251,7 +251,7 @@ class TestShotInfoPanelAsyncLoading:
         # Create shot that points to this thumbnail
         shot = Shot("test_show", "test_seq", "test_shot", str(tmp_path))
         # Mock get_thumbnail_path method on the Shot class
-        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: thumbnail_path)
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda _self: thumbnail_path)
         return shot
 
     def test_async_thumbnail_loading_workflow(
@@ -346,7 +346,7 @@ class TestShotInfoPanelAsyncLoading:
 
         # Mock get_thumbnail_path to return a path (may not exist)
         thumbnail_path = tmp_path / "bounds_test.jpg"
-        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: thumbnail_path)
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda _self: thumbnail_path)
 
         # Set shot - should handle missing file gracefully
         info_panel.set_shot(test_shot)
