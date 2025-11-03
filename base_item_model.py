@@ -146,7 +146,7 @@ class BaseItemModel(
 
         # Lazy loading timer for thumbnails
         self._thumbnail_timer = QTimer(self)  # Parent ensures automatic cleanup
-        self._thumbnail_timer.timeout.connect(self._load_visible_thumbnails)
+        _ = self._thumbnail_timer.timeout.connect(self._load_visible_thumbnails)
         self._thumbnail_timer.setInterval(100)  # 100ms delay
 
         # Track visible range for lazy loading
@@ -158,7 +158,7 @@ class BaseItemModel(
         self._thumbnail_debounce_timer = QTimer(self)
         self._thumbnail_debounce_timer.setSingleShot(True)  # Critical: single-shot
         self._thumbnail_debounce_timer.setInterval(250)  # 250ms debounce
-        self._thumbnail_debounce_timer.timeout.connect(self._do_load_visible_thumbnails)
+        _ = self._thumbnail_debounce_timer.timeout.connect(self._do_load_visible_thumbnails)
 
         self.logger.info(
             f"{self.__class__.__name__} initialized with Model/View architecture"
@@ -167,7 +167,7 @@ class BaseItemModel(
     @override
     def rowCount(
         self,
-        parent: QModelIndex | QPersistentModelIndex = QModelIndex(),  # pyright: ignore[reportCallInDefaultInitializer]
+        parent: QModelIndex | QPersistentModelIndex | None = None,
     ) -> int:
         """Return number of items in the model.
 
@@ -177,6 +177,8 @@ class BaseItemModel(
         Returns:
             Number of items
         """
+        if parent is None:
+            parent = QModelIndex()
         if parent.isValid():
             return 0  # List models don't have children
         return len(self._items)
@@ -574,7 +576,7 @@ class BaseItemModel(
             for i, item in enumerate(self._items):
                 if item == self._selected_item:
                     index = self.index(i, 0)
-                    self.setData(index, False, BaseItemRole.IsSelectedRole)
+                    _ = self.setData(index, False, BaseItemRole.IsSelectedRole)
                     break
 
     def clear_thumbnail_cache(self) -> None:

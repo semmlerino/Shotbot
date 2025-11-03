@@ -8,6 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
+from typing import override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -82,6 +83,7 @@ class ModernButton(QPushButton):
         self.hover_animation.setDuration(design_system.animation.duration_fast)
         self.hover_animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
 
+    @override
     def enterEvent(self, event: QEnterEvent) -> None:
         """Animate on hover."""
         self.hover_animation.setStartValue(1.0)
@@ -89,6 +91,7 @@ class ModernButton(QPushButton):
         self.hover_animation.start()
         super().enterEvent(event)
 
+    @override
     def leaveEvent(self, event: QEvent) -> None:
         """Animate on leave."""
         self.hover_animation.setStartValue(0.9)
@@ -539,6 +542,7 @@ class FloatingActionButton(QPushButton):
             y = parent_rect.height() - self.height() - 24
             self.move(x, y)
 
+    @override
     def enterEvent(self, event: QEnterEvent) -> None:
         """Scale up on hover."""
         current_rect = self.geometry()
@@ -553,6 +557,7 @@ class FloatingActionButton(QPushButton):
         self.hover_animation.start()
         super().enterEvent(event)
 
+    @override
     def leaveEvent(self, event: QEvent) -> None:
         """Scale back on leave."""
         current_rect = self.geometry()

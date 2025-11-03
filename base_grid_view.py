@@ -7,7 +7,7 @@ and behavior for ShotGridView, ThreeDEGridView, and PreviousShotsView.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -379,7 +379,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         # Type narrowing: shows is list[str] after isinstance check
         try:
             # Block signals to prevent triggering filter change
-            self.show_combo.blockSignals(True)
+            _ = self.show_combo.blockSignals(True)
 
             # Clear existing items except "All Shows"
             while self.show_combo.count() > 1:
@@ -392,8 +392,9 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             self.logger.debug(f"Populated show filter with {len(shows)} shows")
         finally:
             # Re-enable signals
-            self.show_combo.blockSignals(False)
+            _ = self.show_combo.blockSignals(False)
 
+    @override
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Handle wheel event for thumbnail size adjustment with Ctrl.
 
@@ -414,6 +415,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         else:
             super().wheelEvent(event)
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle keyboard shortcuts.
 
