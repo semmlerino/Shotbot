@@ -8,6 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
+from typing import final
 
 # Third-party imports
 from PySide6.QtCore import QSize, Qt, Signal
@@ -31,6 +32,7 @@ from qt_widget_mixin import QtWidgetMixin
 from threede_recovery import CrashFileInfo
 
 
+@final
 class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: ignore[reportIncompatibleMethodOverride]
     """Dialog for recovering 3DE crash files.
 
@@ -276,6 +278,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
         return self.selected_crash
 
 
+@final
 class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: ignore[reportIncompatibleMethodOverride]
     """Dialog showing recovery operation results.
 

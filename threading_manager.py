@@ -8,7 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -40,6 +40,7 @@ class WorkerWithStopProtocol(Protocol):
 logger = logging.getLogger(__name__)
 
 
+@final
 class ThreadingManager(QObject):
     """Centralized manager for all worker threads in the application.
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, final, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
 
 
+@final
 class ThreeDEGridView(BaseGridView):
     """Optimized grid view for displaying 3DE scene thumbnails.
 

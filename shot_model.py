@@ -17,7 +17,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -155,6 +155,7 @@ class AsyncShotLoader(ThreadSafeWorker):
         return self.request_stop()
 
 
+@final
 class ShotModel(BaseShotModel):
     """Optimized ShotModel with async loading and instant UI display.
 

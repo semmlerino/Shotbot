@@ -10,7 +10,7 @@ import subprocess
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -38,6 +38,7 @@ else:
     pass
 
 
+@final
 class CommandLauncher(LoggingMixin, QObject):
     """Handles launching applications in shot context.
 

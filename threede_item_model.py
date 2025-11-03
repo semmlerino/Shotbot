@@ -6,7 +6,7 @@ extending BaseItemModel with 3DE-specific behavior including loading states and 
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import QModelIndex, QObject, QPersistentModelIndex, Signal
 
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 
+@final
 class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
     """Qt Model implementation for 3DE Scene items.
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
 
 
+@final
 class PreviousShotsModel(LoggingMixin, QObject):
     """Model for managing approved shots that are no longer active.
 

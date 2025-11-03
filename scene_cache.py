@@ -16,7 +16,7 @@ from __future__ import annotations
 # Standard library imports
 import threading
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
 
 
+@final
 class SceneCacheEntry:
     """Individual cache entry for scene discovery results."""
 
@@ -71,6 +72,7 @@ class SceneCacheEntry:
         return time.time() - self.timestamp
 
 
+@final
 class SceneCache(LoggingMixin):
     """High-level cache for scene discovery results with TTL and invalidation.
 
