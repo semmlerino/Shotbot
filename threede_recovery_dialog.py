@@ -151,9 +151,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
         self.recover_button.setText("Recover")
         self.recover_button.setEnabled(False)  # Disabled until a crash is selected
 
-        _ = self.button_box.accepted.connect(_on_recover)
         _ = self.button_box.accepted.connect(self._on_recover)
-        _ = self.button_box.rejected.connect(reject)
         _ = self.button_box.rejected.connect(self.reject)
         layout.addWidget(self.button_box)
 
@@ -240,7 +238,6 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
         """Connect signal handlers."""
         # Enable recover button when a radio button is selected
         for base_name, radio in self.radio_buttons.items():
-            _ = radio.toggled.connect(_on_selection_changed)
             _ = radio.toggled.connect(self._on_selection_changed)
 
     def _on_selection_changed(self) -> None:
@@ -373,7 +370,6 @@ class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyri
 
         # Close button
         close_button = QPushButton("Close")
-        _ = close_button.clicked.connect(accept)
         _ = close_button.clicked.connect(self.accept)
         close_button.setDefault(True)
 

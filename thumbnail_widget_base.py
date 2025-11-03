@@ -463,9 +463,7 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         if cache_path and cache_path.exists():
             # Load from cache
             loader = BaseThumbnailLoader(self, cache_path)
-            _ = loader.signals.loaded.connect(_on_thumbnail_loaded)
             _ = loader.signals.loaded.connect(self._on_thumbnail_loaded)
-            _ = loader.signals.failed.connect(_on_thumbnail_failed)
             _ = loader.signals.failed.connect(self._on_thumbnail_failed)
             QThreadPool.globalInstance().start(loader)
         else:
@@ -474,9 +472,7 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
             if thumb_path and thumb_path.exists():
                 # Load in background thread
                 loader = BaseThumbnailLoader(self, thumb_path)
-                _ = loader.signals.loaded.connect(_on_thumbnail_loaded)
                 _ = loader.signals.loaded.connect(self._on_thumbnail_loaded)
-                _ = loader.signals.failed.connect(_on_thumbnail_failed)
                 _ = loader.signals.failed.connect(self._on_thumbnail_failed)
                 QThreadPool.globalInstance().start(loader)
 

@@ -9,9 +9,6 @@ from __future__ import annotations
 # Standard library imports
 from typing import TYPE_CHECKING, Protocol
 
-# Local imports
-from typing_compat import override
-
 # Third-party imports
 from PySide6.QtCore import (
     QAbstractItemModel,
@@ -37,6 +34,9 @@ from PySide6.QtWidgets import (
 from config import Config
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
+
+# Local imports
+from typing_compat import override
 
 
 class HasAvailableShows(Protocol):

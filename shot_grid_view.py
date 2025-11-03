@@ -170,11 +170,9 @@ class ShotGridView(BaseGridView):
         # Set up selection model
         selection_model = self.list_view.selectionModel()
         if selection_model:
-            _ = selection_model.currentChanged.connect(_on_selection_changed)
             _ = selection_model.currentChanged.connect(self._on_selection_changed)
 
         # Connect to model signals
-        _ = model.shots_updated.connect(_on_model_updated)
         _ = model.shots_updated.connect(self._on_model_updated)
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
@@ -444,9 +442,7 @@ if __name__ == "__main__":
     def on_shot_double_clicked(shot: Shot) -> None:
         print(f"Double-clicked: {shot.full_name}")
 
-    _ = view.shot_selected.connect(ot_selected)
     _ = view.shot_selected.connect(on_shot_selected)
-    _ = view.shot_double_clicked.connect(ot_double_clicked)
     _ = view.shot_double_clicked.connect(on_shot_double_clicked)
 
     sys.exit(app.exec())

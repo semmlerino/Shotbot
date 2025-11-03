@@ -425,7 +425,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
 
         # Apply distinct color themes to each tab
-        _ = self.tab_widget.currentChanged.connect(_update_tab_accent_color)
         _ = self.tab_widget.currentChanged.connect(self._update_tab_accent_color)
         self._update_tab_accent_color(0)  # Initialize with first tab color
 
@@ -1285,7 +1284,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.logger.info(f"Scanning for crash files in shot workspace: {workspace_path}")
 
         # Import recovery components
-        from threede_recovery import ThreeDERecoveryManager
+        from threede_recovery import CrashFileInfo, ThreeDERecoveryManager
         from threede_recovery_dialog import (
             ThreeDERecoveryDialog,
             ThreeDERecoveryResultDialog,

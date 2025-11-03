@@ -61,13 +61,11 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
         # Managed timer for cleanup retry (prevents cascading timers)
         self._cleanup_retry_timer = QTimer()
-        _ = self._cleanup_retry_timer.timeout.connect(_perform_cleanup_with_reset)
         _ = self._cleanup_retry_timer.timeout.connect(self._perform_cleanup_with_reset)
         self._cleanup_retry_timer.setSingleShot(True)
 
         # Periodic cleanup timer
         self._cleanup_timer = QTimer()
-        _ = self._cleanup_timer.timeout.connect(_periodic_cleanup)
         _ = self._cleanup_timer.timeout.connect(self._periodic_cleanup)
         self._cleanup_timer.start(self.CLEANUP_INTERVAL_MS)
 

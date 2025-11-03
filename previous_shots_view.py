@@ -101,7 +101,6 @@ class PreviousShotsView(BaseGridView):
         # Setup scroll-based visibility updates (replaces timer)
         self._update_timer = QTimer()
         self._update_timer.setSingleShot(True)
-        _ = self._update_timer.timeout.connect(_update_visible_range)
         _ = self._update_timer.timeout.connect(self._update_visible_range)
 
     def _add_top_widgets(self, layout: QVBoxLayout) -> None:
@@ -143,7 +142,6 @@ class PreviousShotsView(BaseGridView):
         self._refresh_button.setToolTip(
             "Scan for new approved shots and add them to persistent cache"
         )
-        _ = self._refresh_button.clicked.connect(_on_refresh_clicked)
         _ = self._refresh_button.clicked.connect(self._on_refresh_clicked)
         header_layout.addWidget(self._refresh_button)
 
@@ -189,11 +187,9 @@ class PreviousShotsView(BaseGridView):
         # Set up selection model
         selection_model = self.list_view.selectionModel()
         if selection_model:
-            _ = selection_model.currentChanged.connect(_on_selection_changed)
             _ = selection_model.currentChanged.connect(self._on_selection_changed)
 
         # Connect to model signals
-        _ = model.shots_updated.connect(_on_model_updated)
         _ = model.shots_updated.connect(self._on_model_updated)
 
         # Connect to underlying model's scan signals using accessor method

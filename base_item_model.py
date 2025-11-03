@@ -167,7 +167,7 @@ class BaseItemModel(
     @override
     def rowCount(
         self,
-        parent: QModelIndex | QPersistentModelIndex | None = None,
+        parent: QModelIndex | QPersistentModelIndex = QModelIndex(),  # noqa: B008
     ) -> int:
         """Return number of items in the model.
 
@@ -177,8 +177,6 @@ class BaseItemModel(
         Returns:
             Number of items
         """
-        if parent is None:
-            parent = QModelIndex()
         if parent.isValid():
             return 0  # List models don't have children
         return len(self._items)

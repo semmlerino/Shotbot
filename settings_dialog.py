@@ -580,23 +580,16 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
     def connect_signals(self) -> None:
         """Connect all signals and slots."""
         # Button box signals
-        _ = self.button_box.accepted.connect(accept_changes)
         _ = self.button_box.accepted.connect(self.accept_changes)
-        _ = self.button_box.rejected.connect(reject_changes)
         _ = self.button_box.rejected.connect(self.reject_changes)
-        _ = self.button_box.clicked.connect(handle_button_click)
         _ = self.button_box.clicked.connect(self.handle_button_click)
 
         # Setting change signals for live preview
-        _ = self.thumbnail_size_slider.valueChanged.connect(update_thumbnail_preview)
         _ = self.thumbnail_size_slider.valueChanged.connect(self.update_thumbnail_preview)
-        _ = self.dark_theme_check.toggled.connect(preview_theme_change)
         _ = self.dark_theme_check.toggled.connect(self.preview_theme_change)
 
         # Validation signals
-        _ = self.validate_launchers_btn.clicked.connect(validate_custom_launchers)
         _ = self.validate_launchers_btn.clicked.connect(self.validate_custom_launchers)
-        _ = self.edit_launchers_btn.clicked.connect(edit_custom_launchers)
         _ = self.edit_launchers_btn.clicked.connect(self.edit_custom_launchers)
 
     def set_initial_tab(self, tab_name: str) -> None:

@@ -134,24 +134,19 @@ class ThreeDEController(LoggingMixin):
         grid = self.window.threede_shot_grid
 
         # Scene selection and interaction
-        _ = grid.scene_selected.connect(on_scene_selected)
         _ = grid.scene_selected.connect(self.on_scene_selected)
-        _ = grid.scene_double_clicked.connect(on_scene_double_clicked)
         _ = grid.scene_double_clicked.connect(self.on_scene_double_clicked)
 
         # Crash recovery
         if hasattr(grid, "recover_crashes_requested"):
-            _ = grid.recover_crashes_requested.connect(on_recover_crashes_clicked)
             _ = grid.recover_crashes_requested.connect(self.on_recover_crashes_clicked)
 
         # Show filtering (if available)
         if hasattr(grid, "show_filter_requested"):
-            _ = grid.show_filter_requested.connect(_on_show_filter_requested)
             _ = grid.show_filter_requested.connect(self._on_show_filter_requested)
 
         # Text filtering (if available)
         if hasattr(grid, "text_filter_requested"):
-            _ = grid.text_filter_requested.connect(_on_text_filter_requested)
             _ = grid.text_filter_requested.connect(self._on_text_filter_requested)
 
         self.logger.debug("ThreeDEController signals connected")
@@ -577,7 +572,6 @@ class ThreeDEController(LoggingMixin):
                     f"Failed to recover crash file: {e}"
                 )
 
-        _ = dialog.recovery_requested.connect(covery_requested)
         _ = dialog.recovery_requested.connect(on_recovery_requested)
         dialog.exec()
 
