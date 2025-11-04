@@ -76,21 +76,21 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         from cache_manager import CacheManager
 
         self.shots: list[Shot] = []
-        self.cache_manager = cache_manager or CacheManager()
+        self.cache_manager: CacheManager = cache_manager or CacheManager()
         # Use OptimizedShotParser for improved performance
-        self._parser = OptimizedShotParser()
+        self._parser: OptimizedShotParser = OptimizedShotParser()
         self._selected_shot: Shot | None = None
         self._filter_show: str | None = None  # Show filter
         self._filter_text: str | None = None  # Text filter for real-time search
 
         # Initialize process pool - use provided instance or default singleton
-        self._process_pool = process_pool or ProcessPoolManager.get_instance()
+        self._process_pool: ProcessPoolInterface = process_pool or ProcessPoolManager.get_instance()
 
         # Performance metrics
-        self._last_refresh_time = 0.0
-        self._total_refreshes = 0
-        self._cache_hits = 0
-        self._cache_misses = 0
+        self._last_refresh_time: float = 0.0
+        self._total_refreshes: int = 0
+        self._cache_hits: int = 0
+        self._cache_misses: int = 0
 
         # Load cache if requested
         if load_cache:

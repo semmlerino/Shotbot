@@ -9,7 +9,7 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, cast, final, override
 
 # Local application imports
 from config import Config, ThreadingConfig
@@ -288,6 +288,7 @@ class PreviousShotsFinder(ShotFinderBase):
         return self.find_approved_shots(active_shots, shows_root)
 
 
+@final
 class ParallelShotsFinder(PreviousShotsFinder):
     """Parallel implementation of PreviousShotsFinder for improved performance.
 

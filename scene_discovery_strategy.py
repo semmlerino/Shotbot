@@ -11,7 +11,7 @@ from __future__ import annotations
 
 # Standard library imports
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, TypedDict, Unpack, override
+from typing import TYPE_CHECKING, TypedDict, Unpack, final, override
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -24,6 +24,9 @@ if TYPE_CHECKING:
 
     # Local application imports
     # Note: FileSystemScanner, SceneCache, SceneParser imported lazily in __init__
+    from filesystem_scanner import FileSystemScanner
+    from scene_cache import SceneCache
+    from scene_parser import SceneParser
     from threede_scene_model import ThreeDEScene
 
 
@@ -34,6 +37,11 @@ class SceneDiscoveryStrategy(ABC, LoggingMixin):
     allowing different approaches (local, network, parallel) to be used
     interchangeably.
     """
+
+    # Type annotations for lazy-loaded attributes
+    scanner: FileSystemScanner
+    parser: SceneParser
+    cache: SceneCache
 
     def __init__(self) -> None:
         """Initialize base strategy."""
@@ -95,6 +103,7 @@ class SceneDiscoveryStrategy(ABC, LoggingMixin):
         return self.__class__.__name__
 
 
+@final
 class LocalFileSystemStrategy(SceneDiscoveryStrategy):
     """Local filesystem-based scene discovery strategy.
 
@@ -319,12 +328,15 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
         return scenes
 
 
+@final
 class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
     """Parallel filesystem-based scene discovery strategy.
 
     Uses multi-threaded scanning for improved performance on large shows.
     Provides progress callbacks and cancellation support.
     """
+
+    num_workers: int | None
 
     def __init__(self, num_workers: int | None = None) -> None:
         """Initialize parallel strategy.
@@ -418,6 +430,7 @@ class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
         return scenes
 
 
+@final
 class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
     """Progressive scene discovery strategy with batch processing and callbacks.
 
@@ -551,12 +564,15 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
             yield [], 0, 0, f"Error: {e}"
 
 
+@final
 class NetworkAwareStrategy(SceneDiscoveryStrategy):
     """Network-aware scene discovery strategy.
 
     This strategy can handle network-mounted filesystems and provides
     appropriate timeouts and retry logic for network operations.
     """
+
+    network_timeout: int
 
     def __init__(self, network_timeout: int = 30) -> None:
         """Initialize network-aware strategy.

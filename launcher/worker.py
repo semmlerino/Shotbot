@@ -11,7 +11,7 @@ import re
 import shlex
 import subprocess
 import threading
-from typing import IO, override
+from typing import IO, final, override
 
 # Third-party imports
 from PySide6.QtCore import Signal
@@ -21,6 +21,7 @@ from exceptions import SecurityError
 from thread_safe_worker import ThreadSafeWorker
 
 
+@final
 class LauncherWorker(ThreadSafeWorker):
     """Thread-safe worker for executing launcher commands.
 

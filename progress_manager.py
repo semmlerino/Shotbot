@@ -81,6 +81,7 @@ from logging_mixin import get_module_logger
 logger = get_module_logger(__name__)
 
 
+@final
 class ProgressType(Enum):
     """Types of progress displays available."""
 
@@ -89,6 +90,7 @@ class ProgressType(Enum):
     AUTO = auto()  # Automatic selection based on operation type
 
 
+@final
 @dataclass
 class ProgressConfig:
     """Configuration for a progress operation."""
@@ -101,6 +103,7 @@ class ProgressConfig:
     cancel_callback: Callable[[], None] | None = None
 
 
+@final
 class ProgressOperation:
     """Represents a single progress operation with cancellation support.
 

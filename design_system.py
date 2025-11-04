@@ -8,8 +8,10 @@ from __future__ import annotations
 
 # Standard library imports
 from dataclasses import dataclass
+from typing import final
 
 
+@final
 @dataclass
 class ColorPalette:
     """Application color palette with semantic naming."""
@@ -56,6 +58,7 @@ class ColorPalette:
     overlay: str = "rgba(0, 0, 0, 0.5)"
 
 
+@final
 @dataclass
 class Typography:
     """Typography system with consistent sizing and weights."""
@@ -85,6 +88,7 @@ class Typography:
     line_height_relaxed: float = 1.75
 
 
+@final
 @dataclass
 class Spacing:
     """Spacing system using 4px base unit."""
@@ -111,6 +115,7 @@ class Spacing:
     thumbnail_spacing: int = 12
 
 
+@final
 @dataclass
 class Borders:
     """Border styles and radii."""
@@ -128,6 +133,7 @@ class Borders:
     radius_round: str = "50%"
 
 
+@final
 @dataclass
 class Shadows:
     """Box shadow definitions for elevation."""
@@ -142,6 +148,7 @@ class Shadows:
     focus: str = "0 0 0 3px rgba(33, 150, 243, 0.4)"
 
 
+@final
 @dataclass
 class Animation:
     """Animation timing and easing functions."""
@@ -161,6 +168,7 @@ class Animation:
     spring: str = "cubic-bezier(0.68, -0.55, 0.265, 1.55)"
 
 
+@final
 class DesignSystem:
     """Central design system with all design tokens."""
 

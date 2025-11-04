@@ -195,6 +195,7 @@ class CommandCache:
             logger.debug(f"Cleaned up {len(expired)} expired cache entries")
 
 
+@final
 class ProcessPoolManager(LoggingMixin, QObject):
     """Centralized process management with pooling and caching.
 

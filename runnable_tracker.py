@@ -9,7 +9,7 @@ import logging
 import threading
 import weakref
 from collections.abc import Mapping
-from typing import override
+from typing import final, override
 
 # Third-party imports
 from PySide6.QtCore import QRunnable, QThreadPool
@@ -18,6 +18,7 @@ from PySide6.QtCore import QRunnable, QThreadPool
 logger = logging.getLogger(__name__)
 
 
+@final
 class QRunnableTracker:
     """
     Singleton tracker for QRunnable instances.
@@ -178,6 +179,7 @@ class QRunnableTracker:
             cls._instance = None
 
 
+@final
 class TrackedQRunnable(QRunnable):
     """
     Base class for tracked QRunnables.
