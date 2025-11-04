@@ -29,7 +29,7 @@ import contextlib
 
 # Standard library imports
 import weakref
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast, final
 
 # Third-party imports
 from PySide6.QtCore import QObject, Qt, Signal
@@ -62,6 +62,7 @@ class LoggerProtocol(Protocol):
         ...
 
 
+@final
 class SignalManager(LoggingMixin):
     """Manages Qt signal-slot connections with automatic cleanup.
 
@@ -354,6 +355,7 @@ class SignalManager(LoggingMixin):
         return self.connect_safely(signal, delayed_slot)
 
 
+@final
 class BlockedSignalsContext:
     """Context manager for temporarily blocking Qt signals."""
 
@@ -394,6 +396,7 @@ class BlockedSignalsContext:
             self.logger.debug(f"Restored signal states for {len(self.objects)} objects")
 
 
+@final
 class SignalThrottler(QObject):
     """Throttle rapid signal emissions to reduce UI updates.
 
@@ -451,6 +454,7 @@ class SignalThrottler(QObject):
             _ = self.source_signal.disconnect(self._on_source_signal)
 
 
+@final
 class SignalDebugger(LoggingMixin):
     """Debug utility for tracing signal emissions.
 

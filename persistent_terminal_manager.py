@@ -7,6 +7,7 @@ eliminating the need to spawn new terminals for each command.
 from __future__ import annotations
 
 import contextlib
+from typing import final
 
 # Standard library imports
 import errno
@@ -25,6 +26,7 @@ from PySide6.QtCore import QObject, Signal
 from logging_mixin import LoggingMixin
 
 
+@final
 class PersistentTerminalManager(LoggingMixin, QObject):
     """Manages a single persistent terminal for all commands."""
 

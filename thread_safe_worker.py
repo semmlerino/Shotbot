@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 from enum import Enum
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
+@final
 class WorkerState(LoggingMixin, Enum):
     """Thread-safe worker states."""
 
@@ -55,10 +56,10 @@ class ThreadSafeWorker(LoggingMixin, QThread):
     """
 
     # Lifecycle signals
-    worker_started = Signal()
-    worker_stopping = Signal()
-    worker_stopped = Signal()
-    worker_error = Signal(str)
+    worker_started: Signal = Signal()  # type: ignore[assignment]
+    worker_stopping: Signal = Signal()  # type: ignore[assignment]
+    worker_stopped: Signal = Signal()  # type: ignore[assignment]
+    worker_error: Signal = Signal(str)  # type: ignore[assignment]
 
     # Valid state transitions
     VALID_TRANSITIONS: ClassVar[dict[WorkerState, list[WorkerState]]] = {
@@ -87,13 +88,13 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             parent: Optional parent QObject for proper Qt cleanup
         """
         super().__init__(parent)
-        self._state_mutex = QMutex()
-        self._state = WorkerState.CREATED
-        self._state_condition = QWaitCondition()
-        self._stop_requested = False
-        self._force_stop = False
+        self._state_mutex: QMutex = QMutex()
+        self._state: WorkerState = WorkerState.CREATED
+        self._state_condition: QWaitCondition = QWaitCondition()
+        self._stop_requested: bool = False
+        self._force_stop: bool = False
         self._connections: list[tuple[SignalInstance, object]] = []
-        self._zombie = False  # Track abandoned threads
+        self._zombie: bool = False  # Track abandoned threads
 
         # Set up cleanup on thread finished
         _ = self.finished.connect(self._on_finished)

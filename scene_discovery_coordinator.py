@@ -18,7 +18,7 @@ from __future__ import annotations
 # Standard library imports
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Unpack
+from typing import TYPE_CHECKING, Unpack, final
 
 # Local application imports
 from logging_mixin import LoggingMixin, log_execution
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
 
 
+@final
 class SceneDiscoveryCoordinator(LoggingMixin):
     """Main coordinator for scene discovery using Template Method pattern.
 
@@ -473,6 +474,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
 
 # Backward compatibility interface
+@final
 class RefactoredThreeDESceneFinder:
     """Backward compatible interface to the refactored scene finder.
 

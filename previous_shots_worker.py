@@ -4,7 +4,7 @@ from __future__ import annotations
 # Standard library imports
 import time
 from pathlib import Path
-from typing import override
+from typing import final, override
 
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
@@ -15,6 +15,7 @@ from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
 
 
+@final
 class PreviousShotsWorker(ThreadSafeWorker):
     """Background worker thread for finding approved shots.
 

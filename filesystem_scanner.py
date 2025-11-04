@@ -19,7 +19,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, final
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from scene_parser import SceneParser  # Import for string literal type hint
 
 
+@final
 class DirectoryCache(LoggingMixin):
     """Thread-safe directory listing cache with TTL.
 
@@ -140,6 +141,7 @@ class DirectoryCache(LoggingMixin):
         return self.clear_cache()
 
 
+@final
 class FileSystemScanner(LoggingMixin):
     """Efficient filesystem scanner for .3de files with multiple optimization strategies.
 

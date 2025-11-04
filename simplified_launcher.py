@@ -18,7 +18,7 @@ import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
 
 
+@final
 class SimplifiedLauncher(LoggingMixin, QObject):
     """Simplified launcher replacing complex process management stack.
 

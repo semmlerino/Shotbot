@@ -12,7 +12,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from settings_manager import SettingsManager
 
 
+@final
 class CacheConfig(LoggingMixin):
     """Manage cache directory configuration based on mode."""
 
@@ -209,6 +210,7 @@ class CacheConfig(LoggingMixin):
             return False
 
 
+@final
 class UnifiedCacheConfig(LoggingMixin, QObject):
     """Unified cache configuration that integrates with SettingsManager.
 
