@@ -4,28 +4,45 @@ version = "1.0.0"
 requires-python = ">=3.11"
 
 [tool.basedpyright]
-include = [
-    "*.py",
+# Check all Python files in the project (no include list = check everything)
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    ".venv/**",
+    "venv/**",
+    "test_venv/**",
+    "tests/**",
+    "docs/**",
+    "archive/**",
+    "BB/**",
+    ".git/**",
+    ".github/**",
+    ".pytest_cache/**",
+    ".ruff_cache/**",
+    ".hypothesis/**",
+    "htmlcov/**",
+    "encoded_releases/**",
+    "examples/**",
+    ".post-commit-output/**",
+    "dev-tools/**",
+    "wrapper/**",
+    "PyMPEG.py",
     "conversion_controller.py",
     "process_monitor.py",
     "settings_panel.py",
     "main_window_refactored.py",
-    "config.py",
     "file_list_widget.py",
     "process_manager.py",
     "progress_tracker.py",
-    "codec_helpers.py"
-]
-exclude = [
-    ".venv/**",
-    "__pycache__/**"
-]
-ignore = [
-    "PyMPEG.py"  # Skip the old monolithic file
+    "codec_helpers.py",
+    "*_backup.py",
+    "test_*.py",
+    "screenshot_*.py",
+    "logging_config.py"
 ]
 
 pythonVersion = "3.11"
-typeCheckingMode = "basic"
+typeCheckingMode = "recommended"
 
 reportMissingImports = false
 reportMissingTypeStubs = false
@@ -33,9 +50,12 @@ reportUnknownMemberType = false
 reportUnknownParameterType = false
 reportUnknownArgumentType = false
 reportUnknownVariableType = false
-reportUnannotatedClassAttribute = "warning"
-reportUnusedCallResult = "warning"
+reportUndefinedVariable = "warning"
+reportImplicitStringConcatenation = "warning"
+reportUnsafeMultipleInheritance = false
+reportUnusedCallResult = "error"
 reportImplicitOverride = "warning"
+reportUnannotatedClassAttribute = "warning"
 
 [tool.ruff]
 # Target Python 3.11+
@@ -59,6 +79,7 @@ exclude = [
     "build",
     "dist",
     "*.egg-info",
+    "dev-tools",
 ]
 
 [tool.ruff.lint]
@@ -112,11 +133,11 @@ ignore = [
     "SLF001",  # private-member-access (common in Qt testing and subclassing)
     "ARG002",  # unused-method-argument (Qt callbacks often have unused args)
 
-    # Complexity (be pragmatic)
-    "PLR0913", # too-many-arguments (Qt widgets often have many params)
-    "PLR0912", # too-many-branches (some UI logic is complex)
-    "PLR0915", # too-many-statements (some methods are legitimately long)
-    "C901",    # complex-structure (some methods are complex)
+    # Complexity rules now enabled - assess case-by-case
+    # "PLR0913", # too-many-arguments - NOW CHECKING
+    # "PLR0912", # too-many-branches - NOW CHECKING
+    # "PLR0915", # too-many-statements - NOW CHECKING
+    # "C901",    # complex-structure - NOW CHECKING
 
     # Exception handling (allow practical patterns)
     "TRY003",  # raise-vanilla-args (vanilla exceptions are often fine)
@@ -185,3 +206,40 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.pytest.ini_options]
+# Test discovery
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Test execution options
+addopts = [
+    "--verbose",
+    "--tb=short",
+    "--cov=.",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html:coverage_html",
+    "-p", "no:rerunfailures",
+    "-p", "no:xvfb",
+    # Parallel execution with 2 workers (balanced speed/stability for Qt)
+    "-n", "2",
+    "--dist=worksteal",
+    "--timeout=10",
+]
+
+# Filter warnings
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# Test markers
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "qt: Tests requiring Qt GUI",
+    "hardware: Tests requiring specific hardware",
+    "slow: Tests that take a long time to run",
+]
