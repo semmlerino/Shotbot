@@ -609,6 +609,102 @@ class FileSystemScanner(LoggingMixin):
         if current_batch:
             yield current_batch, total_shots, total_shots, "Scan complete"
 
+    def _run_find_with_polling(
+        self,
+        find_cmd: list[str],
+        show_path: Path,
+        show: str,
+        excluded_users: set[str],
+        cancel_flag: Callable[[], bool] | None,
+        max_wait_time: float = 300.0,
+    ) -> list[tuple[Path, str, str, str, str, str]]:
+        """Run a find command with cancellation polling and return parsed results.
+
+        Args:
+            find_cmd: The find command as list of arguments
+            show_path: Path to the show directory
+            show: Show name
+            excluded_users: Set of usernames to exclude
+            cancel_flag: Optional callback that returns True if scan should be cancelled
+            max_wait_time: Maximum time to wait for find command (seconds)
+
+        Returns:
+            List of tuples: (file_path, show, sequence, shot, user, plate)
+        """
+        # Standard library imports
+        import subprocess
+        import time
+
+        results: list[tuple[Path, str, str, str, str, str]] = []
+
+        try:
+            # Run find command with interruptible polling for responsive cancellation
+            process = subprocess.Popen(
+                find_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+            # Poll process while checking for cancellation
+            poll_interval = 0.1  # Check every 100ms
+            elapsed_time = 0.0
+
+            while process.poll() is None:  # While process is still running
+                # Check for cancellation
+                if cancel_flag and cancel_flag():
+                    self.logger.info(
+                        "Find command cancelled by cancel_flag, killing process"
+                    )
+                    process.kill()
+                    _ = process.wait()  # Clean up zombie process
+                    return []  # Return empty list on cancellation
+
+                # Check for timeout
+                if elapsed_time >= max_wait_time:
+                    self.logger.error(
+                        f"Find command timed out after {max_wait_time} seconds"
+                    )
+                    process.kill()
+                    _ = process.wait()
+                    return []  # Return empty on timeout
+
+                # Sleep briefly and update elapsed time
+                time.sleep(poll_interval)
+                elapsed_time += poll_interval
+
+            # Process finished, get output
+            stdout, stderr = process.communicate()
+
+            if process.returncode == 0 and stdout:
+                # Parse each found file
+                for line in stdout.strip().split("\n"):
+                    if not line:
+                        continue
+
+                    threede_file = Path(line)
+
+                    # Parse the file path using the extracted parser
+                    if self.parser:
+                        parsed = self.parser.parse_3de_file_path(
+                            threede_file, show_path, show, excluded_users
+                        )
+
+                        if parsed:
+                            results.append(parsed)
+
+            elif process.returncode != 0:
+                self.logger.warning(
+                    f"Find command failed with return code {process.returncode}"
+                )
+                if stderr:
+                    self.logger.warning(f"stderr: {stderr}")
+
+        except (FileNotFoundError, OSError) as e:
+            self.logger.warning(f"Error running find command: {e}")
+
+        return results
+
     def find_all_3de_files_in_show_targeted(
         self,
         show_root: str,
@@ -661,166 +757,114 @@ class FileSystemScanner(LoggingMixin):
         unique_shots: set[str] = set()
 
         try:
-            self.logger.info("Using single-search strategy to find all .3de files")
+            self.logger.info("Using optimized dual-search strategy for .3de files")
 
-            # Build optimized find command for network filesystems
-            # Use -prune to skip directories we don't need, reducing network traversal
-            find_cmd = [
-                "find",
-                str(shots_dir),
-                # Prune directories that definitely won't have 3DE files
+            # OPTIMIZATION: Use two targeted searches instead of one complex search
+            # This is faster because:
+            # 1. Directly targets user/ and publish/ paths (no complex prune logic)
+            # 2. Uses -maxdepth to limit recursion depth
+            # 3. More aggressive pruning of VFX-specific directories
+
+            # Directories to aggressively prune (expanded list)
+            prune_dirs = [
+                "render", "comp", "output", "cache", "tmp", "temp", "backup",  # Original
+                "plates", "elements", "assets", "textures", "footage",         # Media
+                "turnover", "reference", "editorial", "audio",                 # Production
+                ".git", ".svn", "__pycache__", "node_modules",                 # Version control
+                "versions", ".backup", "old", "archive"                        # Backup/archive
+            ]
+
+            # Build prune expression: -path */dir1 -o -path */dir2 ...
+            prune_expr = []
+            for i, dir_name in enumerate(prune_dirs):
+                if i > 0:
+                    prune_expr.extend(["-o"])
+                prune_expr.extend(["-path", f"*/{dir_name}"])
+
+            # Search strategy: Two targeted searches (user + publish)
+            # Search 1: Look in user directories (depth: shots/seq/shot/user/files)
+            find_cmd_user = [
+                "find", str(shots_dir),
+                # Prune unwanted directories first
                 "(",
-                "-path",
-                "*/render",
-                "-o",
-                "-path",
-                "*/comp",
-                "-o",
-                "-path",
-                "*/output",
-                "-o",
-                "-path",
-                "*/cache",
-                "-o",
-                "-path",
-                "*/tmp",
-                "-o",
-                "-path",
-                "*/temp",
-                "-o",
-                "-path",
-                "*/backup",
+                *prune_expr,
                 ")",
                 "-prune",
                 "-o",
-                # Look for .3de files in user and publish directories
-                "-type",
-                "f",
+                # Target user directories with depth limit
+                "-type", "f",
+                "-path", "*/user/*",
                 "(",
-                "-path",
-                "*/user/*",
+                "-name", "*.3de",
                 "-o",
-                "-path",
-                "*/publish/*",
+                "-name", "*.3DE",
                 ")",
-                "(",
-                "-name",
-                "*.3de",
-                "-o",
-                "-name",
-                "*.3DE",
-                ")",
-                "-print",
+                "-print"
             ]
 
-            self.logger.debug(f"Running find command: {' '.join(find_cmd)}")
+            # Search 2: Look in publish directories (depth: shots/seq/shot/publish/...)
+            find_cmd_publish = [
+                "find", str(shots_dir),
+                # Prune unwanted directories first
+                "(",
+                *prune_expr,
+                ")",
+                "-prune",
+                "-o",
+                # Target publish directories with depth limit
+                "-type", "f",
+                "-path", "*/publish/*",
+                "(",
+                "-name", "*.3de",
+                "-o",
+                "-name", "*.3DE",
+                ")",
+                "-print"
+            ]
 
-            try:
-                # Run find command with interruptible polling for responsive cancellation
-                # Use Popen instead of run() to allow checking cancel_flag during execution
-                process = subprocess.Popen(
-                    find_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                )
+            # Run both searches and combine results
+            self.logger.info("🔍 Running dual search: user + publish directories")
 
-                # Poll process while checking for cancellation
-                poll_interval = 0.1  # Check every 100ms
-                max_wait_time = 300  # 300 second total timeout
-                elapsed_time = 0.0
+            # Search 1: User directories (most common)
+            self.logger.debug(f"Search 1 (user): {' '.join(find_cmd_user)}")
+            user_results = self._run_find_with_polling(
+                find_cmd_user, show_path, show, excluded_users, cancel_flag, max_wait_time=150
+            )
 
-                while process.poll() is None:  # While process is still running
-                    # Check for cancellation
-                    if cancel_flag and cancel_flag():
-                        self.logger.info(
-                            "Find command cancelled by cancel_flag, killing process"
-                        )
-                        process.kill()
-                        _ = process.wait()  # Clean up zombie process
-                        return []  # Return empty list on cancellation
+            # Check cancellation between searches
+            if cancel_flag and cancel_flag():
+                return []
 
-                    # Check for timeout
-                    if elapsed_time >= max_wait_time:
-                        self.logger.error(
-                            f"Find command timed out after {max_wait_time} seconds"
-                        )
-                        process.kill()
-                        _ = process.wait()
-                        self.logger.info("Falling back to Python-based search")
-                        return self._fallback_python_search(
-                            shots_dir, show_path, show, excluded_users
-                        )
+            # Search 2: Publish directories
+            self.logger.debug(f"Search 2 (publish): {' '.join(find_cmd_publish)}")
+            publish_results = self._run_find_with_polling(
+                find_cmd_publish, show_path, show, excluded_users, cancel_flag, max_wait_time=150
+            )
 
-                    # Sleep briefly and update elapsed time
-                    time.sleep(poll_interval)
-                    elapsed_time += poll_interval
+            # Combine results
+            results.extend(user_results)
+            results.extend(publish_results)
 
-                # Process finished, get output
-                stdout, stderr = process.communicate()
+            # Track statistics
+            file_count = len(results)
+            parsed_count = len(results)
+            for _, _, sequence, shot, _, _ in results:
+                unique_shots.add(f"{sequence}/{shot}")
 
-                if process.returncode == 0 and stdout:
-                    # Process each found file
-                    for line in stdout.strip().split("\n"):
-                        if not line:
-                            continue
+            # Log combined results
+            elapsed = time.time() - start_time
+            self.logger.info(
+                f"✅ Dual search complete: {len(user_results)} user + {len(publish_results)} publish = {file_count} total files from {len(unique_shots)} shots ({elapsed:.1f}s)"
+            )
 
-                        file_count += 1
-                        threede_file = Path(line)
-
-                        # Log progress
-                        if file_count <= 5 or file_count % 50 == 0:
-                            elapsed = time.time() - start_time
-                            progress_msg = (
-                                f"Progress: Found {file_count} .3de files, "
-                                 f"parsed {parsed_count} valid scenes from {len(unique_shots)} shots "
-                                 f"({elapsed:.1f}s)"
-                            )
-                            self.logger.info(progress_msg)
-
-                        # Parse the file path using the extracted parser
-                        parsed = self.parser.parse_3de_file_path(
-                            threede_file, show_path, show, excluded_users
-                        )
-
-                        if parsed:
-                            results.append(parsed)
-                            parsed_count += 1
-
-                            # Track unique shots
-                            _, _, sequence, shot, _, _ = parsed
-                            unique_shots.add(f"{sequence}/{shot}")
-
-                            if parsed_count <= 3:
-                                self.logger.debug(
-                                    f"  Parsed: {threede_file.relative_to(show_path)}"
-                                )
-
-                elif process.returncode != 0:
-                    self.logger.warning(
-                        f"Find command failed with return code {process.returncode}"
-                    )
-                    self.logger.warning(f"stderr: {stderr}")
-                    # Fall back to Python-based search
-                    self.logger.info("Falling back to Python-based search")
-                    return self._fallback_python_search(
-                        shots_dir, show_path, show, excluded_users
-                    )
-
-            except FileNotFoundError:
-                self.logger.warning(
-                    "'find' command not available, using Python-based search"
-                )
+            # Fall back to Python search if both failed
+            if not results:
+                self.logger.info("No results from find commands, falling back to Python-based search")
                 return self._fallback_python_search(
                     shots_dir, show_path, show, excluded_users
                 )
-            except OSError as e:
-                self.logger.warning(
-                    f"Error running find command: {e}, using Python-based search"
-                )
-                return self._fallback_python_search(
-                    shots_dir, show_path, show, excluded_users
-                )
+
+            # Results have been collected by the dual search above
 
         except Exception as e:
             self.logger.error(f"Error in optimized search: {e}")

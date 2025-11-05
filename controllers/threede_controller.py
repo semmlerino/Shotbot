@@ -16,6 +16,7 @@ from __future__ import annotations
 
 # Standard library imports
 import sys
+import time
 import warnings
 from typing import TYPE_CHECKING, Protocol
 
@@ -44,8 +45,7 @@ if TYPE_CHECKING:
     from threede_grid_view import ThreeDEGridView
     from threede_item_model import ThreeDEItemModel
     from threede_recovery import CrashFileInfo
-    from threede_scene_model import ThreeDEScene, ThreeDESceneModel
-    from threede_scene_worker import ThreeDESceneWorker
+    from threede_scene_model import ThreeDESceneModel
 
 # Runtime imports (needed at runtime)
 from config import Config
@@ -53,6 +53,7 @@ from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
 from progress_manager import ProgressManager
 from shot_model import Shot
+from threede_scene_model import ThreeDEScene
 from threede_scene_worker import ThreeDESceneWorker
 
 
@@ -127,6 +128,10 @@ class ThreeDEController(LoggingMixin):
         self._worker_mutex: QMutex = QMutex()
         # NOTE: Current scene is managed by launcher_controller (single source of truth)
 
+        # Scan debouncing to prevent restart spam
+        self._last_scan_time: float = 0.0
+        self._min_scan_interval: float = 30.0  # Don't scan more than once per 30s
+
         # Connect UI signals to controller methods
         self._setup_signals()
 
@@ -161,15 +166,48 @@ class ThreeDEController(LoggingMixin):
         """Thread-safe refresh of 3DE scene list using background worker.
 
         This is the main entry point for 3DE scene discovery. It will:
-        1. Stop any existing worker thread safely
-        2. Create a new worker with current shot data
-        3. Connect all signal handlers
-        4. Start the background discovery process
+        1. Load persistent cache immediately for instant UI update
+        2. Stop any existing worker thread safely
+        3. Create a new worker with current shot data
+        4. Connect all signal handlers
+        5. Start the background discovery process to update cache
         """
         # First check if we're closing without holding mutex
         if self.window.closing:
             self.logger.debug("Ignoring refresh request during shutdown")
             return
+
+        # DEBOUNCE: Prevent scan restart spam (e.g., rapid shot refreshes)
+        now = time.time()
+        time_since_last_scan = now - self._last_scan_time
+        if self._last_scan_time > 0 and time_since_last_scan < self._min_scan_interval:
+            self.logger.info(
+                f"⏱️  Scan requested too soon ({time_since_last_scan:.1f}s < {self._min_scan_interval}s), using cached data instead"
+            )
+            return  # Skip scan, use cached data
+
+        # Update last scan time
+        self._last_scan_time = now
+
+        # INSTANT UI UPDATE: Load persistent cache first (no TTL check)
+        cached_scenes = self.window.cache_manager.get_persistent_threede_scenes()
+        if cached_scenes:
+            # Convert cached data to ThreeDEScene objects
+            scenes = []
+            for scene_data in cached_scenes:
+                try:
+                    scenes.append(ThreeDEScene.from_dict(scene_data))  # pyright: ignore[reportArgumentType]
+                except (KeyError, TypeError, ValueError) as e:
+                    self.logger.debug(f"Skipping invalid cached 3DE scene: {e}")
+                    continue
+
+            if scenes:
+                # Update model immediately
+                self.window.threede_scene_model.scenes = scenes
+                self.update_ui()
+                self.logger.info(
+                    f"🚀 Loaded {len(scenes)} cached 3DE scenes immediately (scanning for updates in background)"
+                )
 
         # Store worker reference for cleanup outside mutex
         worker_to_stop = None
@@ -225,7 +263,8 @@ class ThreeDEController(LoggingMixin):
 
             # Show loading state
             self.window.threede_item_model.set_loading_state(True)
-            self.window.update_status("Starting enhanced 3DE scene discovery...")
+            status_msg = "Scanning for 3DE scene updates..." if cached_scenes else "Starting enhanced 3DE scene discovery..."
+            self.window.update_status(status_msg)
 
             # Create enhanced worker with progressive scanning enabled
             # Pass user's shots so the worker knows which shows to scan
