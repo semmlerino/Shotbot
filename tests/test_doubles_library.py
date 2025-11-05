@@ -887,7 +887,7 @@ class LauncherManagerDouble(QObject):
             if launcher_id == "test":
                 command = self._test_command or "echo test"
                 temp_launcher = TestLauncher(
-                    id=launcher_id, name="Temporary Test Launcher", command=command
+                    launcher_id=launcher_id, name="Temporary Test Launcher", command=command
                 )
                 self._launchers[launcher_id] = temp_launcher
             else:
