@@ -4,7 +4,8 @@ from __future__ import annotations
 
 # Standard library imports
 import subprocess
-from concurrent.futures import Future, TimeoutError
+from concurrent.futures import Future
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
@@ -702,7 +703,7 @@ class TestEdgeCases:
 
         # Create a mock executor that sets up future_to_show properly
         mock_future = MagicMock(spec=Future)
-        mock_future.result.side_effect = TimeoutError()
+        mock_future.result.side_effect = FuturesTimeoutError()
 
         with patch("concurrent.futures.ThreadPoolExecutor") as mock_executor_class:
             mock_executor = MagicMock()

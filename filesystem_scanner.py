@@ -18,6 +18,7 @@ import os
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, final
 
@@ -609,7 +610,11 @@ class FileSystemScanner(LoggingMixin):
             yield current_batch, total_shots, total_shots, "Scan complete"
 
     def find_all_3de_files_in_show_targeted(
-        self, show_root: str, show: str, excluded_users: set[str] | None = None
+        self,
+        show_root: str,
+        show: str,
+        excluded_users: set[str] | None = None,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> list[tuple[Path, str, str, str, str, str]]:
         """Find all .3de files using a single efficient search.
 
@@ -620,12 +625,12 @@ class FileSystemScanner(LoggingMixin):
             show_root: Root path for shows (e.g., '/shows')
             show: Show name
             excluded_users: Set of usernames to exclude
+            cancel_flag: Optional callback that returns True if scan should be cancelled
 
         Returns:
             List of tuples: (file_path, show, sequence, shot, user, plate)
         """
         # Standard library imports
-        import subprocess
         import traceback
 
         # Lazy import to avoid circular dependency
@@ -711,17 +716,52 @@ class FileSystemScanner(LoggingMixin):
             self.logger.debug(f"Running find command: {' '.join(find_cmd)}")
 
             try:
-                # Run find command with longer timeout for network filesystems
-                result = subprocess.run(
+                # Run find command with interruptible polling for responsive cancellation
+                # Use Popen instead of run() to allow checking cancel_flag during execution
+                process = subprocess.Popen(
                     find_cmd,
-                    check=False, capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     text=True,
-                    timeout=300,  # 300 second timeout for large network directories
                 )
 
-                if result.returncode == 0 and result.stdout:
+                # Poll process while checking for cancellation
+                poll_interval = 0.1  # Check every 100ms
+                max_wait_time = 300  # 300 second total timeout
+                elapsed_time = 0.0
+
+                while process.poll() is None:  # While process is still running
+                    # Check for cancellation
+                    if cancel_flag and cancel_flag():
+                        self.logger.info(
+                            "Find command cancelled by cancel_flag, killing process"
+                        )
+                        process.kill()
+                        _ = process.wait()  # Clean up zombie process
+                        return []  # Return empty list on cancellation
+
+                    # Check for timeout
+                    if elapsed_time >= max_wait_time:
+                        self.logger.error(
+                            f"Find command timed out after {max_wait_time} seconds"
+                        )
+                        process.kill()
+                        _ = process.wait()
+                        self.logger.info("Falling back to Python-based search")
+                        return self._fallback_python_search(
+                            shots_dir, show_path, show, excluded_users
+                        )
+
+                    # Sleep briefly and update elapsed time
+                    time.sleep(poll_interval)
+                    elapsed_time += poll_interval
+
+                # Process finished, get output
+                stdout, stderr = process.communicate()
+
+                if process.returncode == 0 and stdout:
                     # Process each found file
-                    for line in result.stdout.strip().split("\n"):
+                    for line in stdout.strip().split("\n"):
                         if not line:
                             continue
 
@@ -731,11 +771,12 @@ class FileSystemScanner(LoggingMixin):
                         # Log progress
                         if file_count <= 5 or file_count % 50 == 0:
                             elapsed = time.time() - start_time
-                            self.logger.info(
+                            progress_msg = (
                                 f"Progress: Found {file_count} .3de files, "
                                  f"parsed {parsed_count} valid scenes from {len(unique_shots)} shots "
                                  f"({elapsed:.1f}s)"
                             )
+                            self.logger.info(progress_msg)
 
                         # Parse the file path using the extracted parser
                         parsed = self.parser.parse_3de_file_path(
@@ -755,26 +796,27 @@ class FileSystemScanner(LoggingMixin):
                                     f"  Parsed: {threede_file.relative_to(show_path)}"
                                 )
 
-                elif result.returncode != 0:
+                elif process.returncode != 0:
                     self.logger.warning(
-                        f"Find command failed with return code {result.returncode}"
+                        f"Find command failed with return code {process.returncode}"
                     )
-                    self.logger.warning(f"stderr: {result.stderr}")
+                    self.logger.warning(f"stderr: {stderr}")
                     # Fall back to Python-based search
                     self.logger.info("Falling back to Python-based search")
                     return self._fallback_python_search(
                         shots_dir, show_path, show, excluded_users
                     )
 
-            except subprocess.TimeoutExpired:
-                self.logger.error("Find command timed out after 300 seconds")
-                self.logger.info("Falling back to Python-based search")
-                return self._fallback_python_search(
-                    shots_dir, show_path, show, excluded_users
-                )
             except FileNotFoundError:
                 self.logger.warning(
                     "'find' command not available, using Python-based search"
+                )
+                return self._fallback_python_search(
+                    shots_dir, show_path, show, excluded_users
+                )
+            except OSError as e:
+                self.logger.warning(
+                    f"Error running find command: {e}, using Python-based search"
                 )
                 return self._fallback_python_search(
                     shots_dir, show_path, show, excluded_users

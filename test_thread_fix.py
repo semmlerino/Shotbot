@@ -5,7 +5,8 @@
 import logging
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -66,7 +67,7 @@ class MockWorker(LoggingMixin):
                     try:
                         result = future.result(timeout=0.1)
                         self.logger.debug(f"Got result: {result}")
-                    except TimeoutError:
+                    except FuturesTimeoutError:
                         if cancel_flag():
                             executor.shutdown(wait=False, cancel_futures=True)
                             break

@@ -243,4 +243,6 @@ markers = [
     "qt: Tests requiring Qt GUI",
     "hardware: Tests requiring specific hardware",
     "slow: Tests that take a long time to run",
+    "threading: Tests for thread safety and concurrency",
+    "regression: Regression tests for specific bugs",
 ]

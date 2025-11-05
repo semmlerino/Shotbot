@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 
-class Warning(NamedTuple):
+class WarningInfo(NamedTuple):
     """Represents a basedpyright warning."""
     filepath: str
     line_num: int
@@ -54,7 +54,7 @@ REVIEW_PATTERNS = [
 ]
 
 
-def get_warnings() -> list[Warning]:
+def get_warnings() -> list[WarningInfo]:
     """Get all reportUnusedCallResult warnings from basedpyright."""
     import os  # noqa: PLC0415 - Lazy import for path expansion
     uv_path = os.path.expanduser("~/.local/bin/uv")
@@ -78,7 +78,7 @@ def get_warnings() -> list[Warning]:
                 filepath = match.group(1).strip()
                 line_num = int(match.group(2))
                 return_type = match.group(3)
-                warnings.append(Warning(filepath, line_num, return_type, line))
+                warnings.append(WarningInfo(filepath, line_num, return_type, line))
 
     return warnings
 
@@ -120,7 +120,7 @@ def fix_line(source_line: str) -> str:
     return f"{indent}_ = {stripped}"
 
 
-def apply_fixes(warnings_to_fix: list[Warning]) -> dict[str, list[tuple[int, str, str]]]:
+def apply_fixes(warnings_to_fix: list[WarningInfo]) -> dict[str, list[tuple[int, str, str]]]:
     """Group fixes by file and prepare changes."""
     fixes_by_file: dict[str, list[tuple[int, str, str]]] = {}
 

@@ -34,7 +34,7 @@ def test_mock_setup() -> None:
             for shot in shots[:3]:
                 print(f"     - {shot['show']}/{shot['seq']}_{shot['shot']}")
     except Exception as e:
-        raise AssertionError(f"Failed to load demo_shots.json: {e}")
+        raise AssertionError(f"Failed to load demo_shots.json: {e}") from e
 
     # 2. Check that mock flag is recognized
     print("\n2. Testing command-line argument parsing...")
@@ -55,7 +55,7 @@ def test_mock_setup() -> None:
         assert not args.mock, "Default mode incorrectly enables mock"
         print("✅ Default (no mock) mode works")
     except Exception as e:
-        raise AssertionError(f"Argument parsing failed: {e}")
+        raise AssertionError(f"Argument parsing failed: {e}") from e
 
     # 3. Test environment variable
     print("\n3. Testing environment variable...")

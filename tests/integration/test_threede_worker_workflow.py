@@ -178,15 +178,15 @@ class TestThreeDEWorkerWorkflow:
     )
     def test_worker_progressive_scan_with_cancellation(self, qtbot) -> None:
         """Test worker cancellation during progressive scan.
-        
+
         KNOWN ISSUE: This test is skipped because worker cancellation has coarse-grained
         granularity. The worker only checks for cancellation between batches from the
         generator. If the generator is in the middle of scanning the filesystem for the
         first batch, cancellation won't be detected until that batch completes.
-        
+
         Root cause: ThreeDESceneFinder.find_all_scenes_progressive() generator performs
         blocking filesystem I/O and doesn't check for cancellation mid-batch.
-        
+
         This is NOT a production bug - it's a test architecture issue. In production,
         the cancellation delay is acceptable (sub-second for typical batches).
         """

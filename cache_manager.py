@@ -46,7 +46,7 @@ import shutil
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast, final
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias, cast, final
 
 # Third-party imports
 from PIL import Image
@@ -153,8 +153,10 @@ def _scene_to_dict(scene: object) -> ThreeDESceneDict:
         # Type narrowing: convert through object to satisfy type checker
         return cast("ThreeDESceneDict", cast("object", scene))
     # Assume ThreeDEScene object with to_dict method
-    # Type narrowing: at runtime, scene will have to_dict() method
-    return cast("ThreeDESceneDict", scene.to_dict())
+    # Safe to call: we checked it's not a dict, so it must be ThreeDEScene with to_dict()
+    # Cast to Any to bypass type checker since we can't import ThreeDEScene (circular dependency)
+    scene_any = cast("Any", scene)
+    return cast("ThreeDESceneDict", scene_any.to_dict())
 
 
 # Backward compatibility exports from old cache system

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -142,7 +143,10 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def find_all_3de_files_in_show_targeted(
-        show_root: str, show: str, excluded_users: set[str] | None = None
+        show_root: str,
+        show: str,
+        excluded_users: set[str] | None = None,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> list[tuple[Path, str, str, str, str, str]]:
         """Find all .3de files using refactored scanner."""
         # Local application imports
@@ -150,7 +154,7 @@ class OptimizedThreeDESceneFinder:
 
         scanner = FileSystemScanner()
         return scanner.find_all_3de_files_in_show_targeted(
-            show_root, show, excluded_users
+            show_root, show, excluded_users, cancel_flag
         )
 
     @staticmethod
@@ -174,7 +178,7 @@ class OptimizedThreeDESceneFinder:
         # For now, delegate to targeted search since parallel implementation
         # needs to be properly extracted to filesystem_scanner
         results = OptimizedThreeDESceneFinder.find_all_3de_files_in_show_targeted(
-            show_root, show, excluded_users
+            show_root, show, excluded_users, cancel_flag
         )
 
         # Call progress callback with results

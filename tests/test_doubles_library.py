@@ -720,11 +720,11 @@ class TestLauncher:
         enabled: bool = True,
         environment=None,
         terminal=None,
-        id: str | None = None,  # Backwards compatibility alias
+        launcher_id_compat: str | None = None,  # Backwards compatibility alias
     ) -> None:
         """Initialize test launcher."""
-        # Support both launcher_id and id parameter names
-        self.id = id if id is not None else (launcher_id if launcher_id is not None else "test_launcher")
+        # Support both launcher_id and launcher_id_compat parameter names
+        self.id = launcher_id_compat if launcher_id_compat is not None else (launcher_id if launcher_id is not None else "test_launcher")
         self.name = name
         self.command = command
         self.description = description
