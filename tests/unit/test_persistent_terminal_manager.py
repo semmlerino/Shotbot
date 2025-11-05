@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 import errno
+import os
 import stat
 import tempfile
 from collections.abc import Generator
@@ -465,6 +466,148 @@ class TestPersistentTerminalManager:
         mock_unlink.assert_called_once()
         assert str(mock_unlink.call_args[0][0]) == str(terminal_manager.fifo_path)
         mock_close.assert_not_called()
+
+
+    @patch("os.open")
+    def test_is_dispatcher_running_checks_fifo_reader(
+        self, mock_open: MagicMock, terminal_manager: PersistentTerminalManager
+    ) -> None:
+        """Test dispatcher running check uses non-blocking FIFO open."""
+        # Arrange: Mock successful non-blocking open (reader is present)
+        mock_fd = 42
+        mock_open.return_value = mock_fd
+
+        with (
+            patch("os.path.exists", return_value=True),
+            patch("os.close") as mock_close,
+        ):
+            # Act: Check if dispatcher is running
+            result = terminal_manager._is_dispatcher_running()
+
+        # Assert: Non-blocking FIFO open was attempted
+        assert result is True
+        mock_open.assert_called_once()
+        call_args = mock_open.call_args
+        assert call_args[0][0] == terminal_manager.fifo_path
+        # Verify O_WRONLY | O_NONBLOCK flags were used
+        assert call_args[0][1] & os.O_WRONLY
+        assert call_args[0][1] & os.O_NONBLOCK
+        mock_close.assert_called_once_with(mock_fd)
+
+    @patch("os.open")
+    def test_is_dispatcher_running_detects_no_reader(
+        self, mock_open: MagicMock, terminal_manager: PersistentTerminalManager
+    ) -> None:
+        """Test dispatcher running check detects missing reader (ENXIO)."""
+        # Arrange: Mock ENXIO error (no reader on FIFO)
+        mock_open.side_effect = OSError(errno.ENXIO, "No such device or address")
+
+        with patch("os.path.exists", return_value=True):
+            # Act: Check if dispatcher is running
+            result = terminal_manager._is_dispatcher_running()
+
+        # Assert: Correctly detected no reader
+        assert result is False
+
+    @patch("os.open")
+    @patch("os.fdopen")
+    @patch("time.sleep")
+    def test_rapid_successive_commands_no_restart(
+        self,
+        mock_sleep: MagicMock,
+        mock_fdopen: MagicMock,
+        mock_open: MagicMock,
+        terminal_manager: PersistentTerminalManager,
+    ) -> None:
+        """Test rapid successive commands don't trigger terminal restart.
+
+        This tests the fix for the race condition where the dispatcher hasn't
+        reopened the FIFO between loop iterations, causing _is_dispatcher_running()
+        to fail and trigger an unnecessary restart.
+
+        With persistent file descriptor (exec 3< "$FIFO"), the dispatcher always
+        has a reader open, eliminating the race window.
+        """
+        # Arrange: Mock FIFO operations to succeed
+        mock_fd = 42
+        mock_open.return_value = mock_fd
+        mock_file = MagicMock()
+        mock_fdopen.return_value.__enter__ = Mock(return_value=mock_file)
+        mock_fdopen.return_value.__exit__ = Mock(return_value=False)
+
+        # Track restart calls - should NOT be called
+        restart_count = 0
+
+        def mock_restart() -> bool:
+            nonlocal restart_count
+            restart_count += 1
+            return True
+
+        with (
+            patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
+            patch.object(terminal_manager, "_is_dispatcher_running", return_value=True),
+            patch.object(terminal_manager, "restart_terminal", side_effect=mock_restart),
+            patch("os.path.exists", return_value=True),
+        ):
+            # Act: Send two commands in rapid succession (simulating button double-click)
+            result1 = terminal_manager.send_command("command1", ensure_terminal=True)
+            result2 = terminal_manager.send_command("command2", ensure_terminal=True)
+
+        # Assert: Both commands succeeded without restart
+        assert result1 is True
+        assert result2 is True
+        assert restart_count == 0, (
+            "Terminal should not restart on rapid successive commands "
+            "(persistent FD eliminates race window)"
+        )
+        # Verify both commands were written
+        assert mock_file.write.call_count == 4  # 2 commands x 2 writes each (cmd + newline)
+
+    @patch("os.open")
+    @patch("time.sleep")
+    def test_dispatcher_dead_terminal_alive_triggers_restart(
+        self,
+        mock_sleep: MagicMock,
+        mock_open: MagicMock,
+        terminal_manager: PersistentTerminalManager,
+    ) -> None:
+        """Test that dead dispatcher with alive terminal triggers force restart.
+
+        This should NOT happen with persistent FD fix, but we test the fallback
+        behavior in case the dispatcher crashes for other reasons.
+        """
+        # Arrange: Terminal is alive but dispatcher is not running
+        mock_open.side_effect = OSError(errno.ENXIO, "No reader")
+
+        with (
+            patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
+            patch("os.path.exists", return_value=True),
+            patch.object(
+                terminal_manager, "restart_terminal", return_value=True
+            ) as mock_restart,
+            patch("os.kill") as mock_kill,
+            patch("os.fdopen") as mock_fdopen,
+        ):
+            terminal_manager.terminal_pid = 12345
+
+            # Setup mock for successful command send after restart
+            mock_file = MagicMock()
+            mock_fdopen.return_value.__enter__ = Mock(return_value=mock_file)
+            mock_fdopen.return_value.__exit__ = Mock(return_value=False)
+
+            # Reset mock_open for second attempt after restart
+            mock_open.side_effect = [
+                OSError(errno.ENXIO, "No reader"),  # First check fails
+                42,  # After restart, FIFO open succeeds
+            ]
+
+            # Act: Try to send command with ensure_terminal=True
+            result = terminal_manager.send_command("test", ensure_terminal=True)
+
+        # Assert: Terminal was force-killed and restarted
+        assert result is True
+        mock_kill.assert_called_once_with(12345, 9)  # SIGKILL
+        mock_restart.assert_called_once()
 
 
 class TestPersistentTerminalIntegration:

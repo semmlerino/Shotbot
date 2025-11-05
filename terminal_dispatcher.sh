@@ -22,15 +22,46 @@ echo "Terminal will remain open for all commands."
 echo ""
 
 # Function to detect if command is a GUI app
+# Improved to extract actual executable from complex command chains
 is_gui_app() {
-    case "$1" in
-        *nuke*|*maya*|*rv*|*3de*|*houdini*|*katana*|*mari*|*clarisse*)
+    local cmd="$1"
+
+    # Extract the final executable from rez/bash wrapper chains
+    # Example: "rez env 3de -- bash -ilc \"ws /path && 3de -open /file\""
+    # Should detect "3de" not "rez"
+
+    # If command contains bash -ilc with quotes, extract the inner command
+    if [[ "$cmd" =~ bash[[:space:]]+-[^\"]*\"(.*)\" ]]; then
+        local inner_cmd="${BASH_REMATCH[1]}"
+
+        # Extract the last command after && if present (handles multiple &&)
+        # Use bash string manipulation to get the last segment after the last &&
+        if [[ "$inner_cmd" == *"&&"* ]]; then
+            # Get everything after the last &&
+            local last_segment="${inner_cmd##*&&}"
+            # Trim leading whitespace
+            last_segment="${last_segment#"${last_segment%%[![:space:]]*}"}"
+            # Extract first word (the command)
+            local actual_cmd="${last_segment%% *}"
+
+            # Check if this is a GUI app
+            case "$actual_cmd" in
+                nuke|maya|rv|3de|houdini|katana|mari|clarisse)
+                    return 0
+                    ;;
+            esac
+        fi
+    fi
+
+    # Fallback: Check if command starts with known GUI executables
+    # This handles direct invocations without wrappers
+    case "$cmd" in
+        nuke\ *|maya\ *|rv\ *|3de\ *|houdini\ *|katana\ *|mari\ *|clarisse\ *)
             return 0
             ;;
-        *)
-            return 1
-            ;;
     esac
+
+    return 1
 }
 
 # Debug mode flag (set SHOTBOT_TERMINAL_DEBUG=1 to enable)
@@ -41,10 +72,15 @@ DEBUG_MODE=${SHOTBOT_TERMINAL_DEBUG:-1}
 # Ignore signals from backgrounded jobs to prevent read loop interruption
 trap '' SIGCHLD SIGHUP SIGPIPE
 
+# Open FIFO with persistent file descriptor to eliminate race conditions
+# This keeps a reader always present, preventing ENXIO errors in Python's _is_dispatcher_running()
+# Without this, there's a race window between loop iterations where no reader exists
+exec 3< "$FIFO"
+
 # Main command loop
 while true; do
-    # Read command from FIFO
-    if read -r cmd < "$FIFO"; then
+    # Read command from persistent FIFO file descriptor
+    if read -r cmd <&3; then
         # Skip empty commands
         if [ -z "$cmd" ]; then
             continue
@@ -91,6 +127,8 @@ while true; do
         if [ "$cmd" = "EXIT_TERMINAL" ]; then
             echo ""
             echo "Terminal closed by ShotBot."
+            # Close persistent FIFO file descriptor
+            exec 3<&-
             exit 0
         fi
         
