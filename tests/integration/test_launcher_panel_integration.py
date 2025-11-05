@@ -115,10 +115,10 @@ class TestMainWindowLauncherIntegration:
         for obj in self.qt_objects:
             try:
                 # Stop worker threads in MainWindow's launcher_manager before cleanup
-                if hasattr(obj, 'launcher_manager') and obj.launcher_manager:
+                if hasattr(obj, "launcher_manager") and obj.launcher_manager:
                     obj.launcher_manager.stop_all_workers()
 
-                if hasattr(obj, 'deleteLater'):
+                if hasattr(obj, "deleteLater"):
                     obj.deleteLater()
             except Exception:
                 pass
@@ -385,10 +385,10 @@ class TestEndToEndLauncherWorkflow:
         for obj in self.qt_objects:
             try:
                 # Stop worker threads in MainWindow's launcher_manager before cleanup
-                if hasattr(obj, 'launcher_manager') and obj.launcher_manager:
+                if hasattr(obj, "launcher_manager") and obj.launcher_manager:
                     obj.launcher_manager.stop_all_workers()
 
-                if hasattr(obj, 'deleteLater'):
+                if hasattr(obj, "deleteLater"):
                     obj.deleteLater()
             except Exception:
                 pass
@@ -591,10 +591,10 @@ class TestLauncherIntegrationErrorHandling:
         for obj in self.qt_objects:
             try:
                 # Stop worker threads in MainWindow's launcher_manager before cleanup
-                if hasattr(obj, 'launcher_manager') and obj.launcher_manager:
+                if hasattr(obj, "launcher_manager") and obj.launcher_manager:
                     obj.launcher_manager.stop_all_workers()
 
-                if hasattr(obj, 'deleteLater'):
+                if hasattr(obj, "deleteLater"):
                     obj.deleteLater()
             except Exception:
                 pass

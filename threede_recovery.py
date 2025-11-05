@@ -149,10 +149,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
             )
 
             crash_files.append(info)
-            self.logger.debug(
-                f"Found crash file: {crash_file.name} "
-                  f"(v{current_version:03d} → v{next_version:03d})"
-            )
+            self.logger.debug(f"Found crash file: {crash_file.name} (v{current_version:03d} → v{next_version:03d})")
 
         # Sort by modification time (newest first)
         crash_files.sort(key=lambda x: x.modification_time, reverse=True)
@@ -184,10 +181,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         )
 
         latest = sorted_files[0]
-        self.logger.info(
-            f"Latest crash file: {latest.crash_path.name} "
-              f"(modified: {latest.modification_time})"
-        )
+        self.logger.info(f"Latest crash file: {latest.crash_path.name} (modified: {latest.modification_time})")
         return latest
 
     def recover_crash_file(
@@ -219,10 +213,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         recovery_path = crash_path.parent / crash_info.recovery_name
 
         if recovery_path.exists():
-            raise FileExistsError(
-                f"Recovery target already exists: {recovery_path}\n"
-                  f"Please remove or rename the existing file first."
-            )
+            raise FileExistsError(f"Recovery target already exists: {recovery_path}\nPlease remove or rename the existing file first.")
 
         # Rename crash file to recovery version
         self.logger.info(
@@ -314,10 +305,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         recovery_path = crash_path.parent / crash_info.recovery_name
 
         if recovery_path.exists():
-            raise FileExistsError(
-                f"Recovery target already exists: {recovery_path}\n"
-                  f"Please remove or rename the existing file first."
-            )
+            raise FileExistsError(f"Recovery target already exists: {recovery_path}\nPlease remove or rename the existing file first.")
 
         # Step 1: Copy crash file to recovery version
         self.logger.info(
@@ -328,9 +316,6 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         # Step 2: Archive the original crash file
         archived_path = self.archive_crash_file(crash_info)
 
-        self.logger.info(
-            f"Recovery complete: {recovery_path.name}\n"
-              f"Archived: {archived_path.name}"
-        )
+        self.logger.info(f"Recovery complete: {recovery_path.name}\nArchived: {archived_path.name}")
 
         return (recovery_path, archived_path)

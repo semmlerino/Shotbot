@@ -109,7 +109,7 @@ class GitIgnoreParser:
                 if re.match(regex_pattern, path) or re.match(regex_pattern, path_name):
                     return True
             # Exact match or path contains pattern
-            elif pattern in path_parts or path_name == pattern or path == pattern:
+            elif pattern in path_parts or pattern in {path_name, path}:
                 return True
 
         return False

@@ -407,7 +407,7 @@ class TestThumbnailWidgetBaseLoadingOperations:
         Critical for test isolation when tests use set_cache_manager().
         """
         # Save the current cache manager before test
-        original_cache = ThumbnailWidget._cache_manager if hasattr(ThumbnailWidget, '_cache_manager') else None
+        original_cache = ThumbnailWidget._cache_manager if hasattr(ThumbnailWidget, "_cache_manager") else None
 
         yield
 

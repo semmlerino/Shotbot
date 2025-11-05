@@ -195,6 +195,8 @@ def scan_directory(
             "children": children,
         }
 
+    return None
+
 
 def capture_structure(shows: list[str] | None = None) -> StructureDict:
     """Capture the VFX filesystem structure."""

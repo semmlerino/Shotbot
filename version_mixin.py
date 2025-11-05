@@ -73,8 +73,6 @@ class VersionHandlingMixin(LoggingMixin):
             pattern = re.compile(pattern)
 
         # Try primary pattern
-        if pattern is None:
-            return None
         match = pattern.search(path_str)
         if match:
             version = int(match.group(1))

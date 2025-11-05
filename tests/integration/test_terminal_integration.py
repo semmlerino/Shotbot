@@ -250,7 +250,6 @@ class TestTerminalIntegrationFlow:
 
         # Simulate terminal dying and being restarted
         # Standard library imports
-        import errno  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         with (
             patch("os.open") as mock_open,
@@ -415,7 +414,7 @@ class TestTerminalCleanup:
         """Clean up Qt objects."""
         for obj in self.qt_objects:
             try:
-                if hasattr(obj, 'deleteLater'):
+                if hasattr(obj, "deleteLater"):
                     obj.deleteLater()
             except Exception:
                 pass

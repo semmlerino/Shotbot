@@ -71,10 +71,10 @@ class TestLauncherWorkflowIntegration:
         for obj in self.qt_objects:
             try:
                 # Stop worker threads in LauncherManager before cleanup
-                if hasattr(obj, 'stop_all_workers'):
+                if hasattr(obj, "stop_all_workers"):
                     obj.stop_all_workers()
 
-                if hasattr(obj, 'deleteLater'):
+                if hasattr(obj, "deleteLater"):
                     obj.deleteLater()
             except Exception:
                 pass  # Ignore cleanup errors

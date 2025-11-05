@@ -4,6 +4,7 @@ Verify enhanced mock environment has 3DE files for both tabs.
 """
 
 # Standard library imports
+import sys
 from pathlib import Path
 
 
@@ -82,9 +83,6 @@ def verify_mock_environment(shows_root: str | Path) -> bool:
 
 if __name__ == "__main__":
     # Test the enhanced mock environment
-    # Standard library imports
-    import sys
-
     shows_root = sys.argv[1] if len(sys.argv) > 1 else "/tmp/mock_vfx_final/shows"
     success = verify_mock_environment(shows_root)
 
@@ -95,4 +93,4 @@ if __name__ == "__main__":
     else:
         print("\n❌ Enhanced mock environment verification FAILED!")
 
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

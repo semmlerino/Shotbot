@@ -1,7 +1,7 @@
 # ShotBot Testing Guide
 
 **Last Updated**: 2025-11-05
-**Test Suite**: 2,281 tests (2,276 pass with `-n 2`, 5 WSL skips)
+**Test Suite**: 2,296 tests (2,291 pass with `-n 2`, 5 WSL skips - includes 15 new incremental scene merge tests)
 **Execution**: ~30s parallel, ~60s serial
 **Coverage**: 51% overall (90% weighted, 100% critical)
 **Pass Rate**: 99.8% (parallel), 100% (serial)
@@ -105,7 +105,7 @@ tests/
 | plate_discovery.py | 26 | 527 | ✅ Comprehensive (NEW) |
 | shot_item_model.py | 28 | 609 | ✅ Comprehensive (NEW) |
 | config.py | 27 | 578 | ✅ Validation (NEW) |
-| cache_manager.py | 42 | 946 | ✅ Comprehensive |
+| cache_manager.py | 83 | 946 | ✅ Comprehensive (15 new scene merge tests) |
 | shot_model.py | 33 | 563 | ✅ Comprehensive |
 | base_item_model.py | 48 | 653 | ✅ Comprehensive |
 | raw_plate_finder.py | 23 | 610 | ✅ Comprehensive |

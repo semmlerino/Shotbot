@@ -336,8 +336,9 @@ def vfx_production_environment(integration_temp_dir: Path) -> dict[str, Any]:
 @pytest.fixture
 def launcher_controller_target(qtbot: Any) -> Any:
     """Create a mock target object for LauncherController testing."""
-    from PySide6.QtWidgets import QMenu, QStatusBar
     from unittest.mock import Mock
+
+    from PySide6.QtWidgets import QMenu, QStatusBar
 
     target = Mock()
     target.command_launcher = Mock()
@@ -354,9 +355,11 @@ def launcher_controller_target(qtbot: Any) -> Any:
 @pytest.fixture
 def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> Any:
     """Create a mock target object for ThreeDEController testing."""
-    from PySide6.QtWidgets import QStatusBar
-    from controllers.launcher_controller import LauncherController
     from unittest.mock import Mock
+
+    from PySide6.QtWidgets import QStatusBar
+
+    from controllers.launcher_controller import LauncherController
 
     target = Mock()
 

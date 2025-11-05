@@ -4,6 +4,7 @@ This module provides typing features that may not be available in older Python v
 Specifically, it provides the `override` decorator which was added to typing in Python 3.12.
 """
 
+# pyright: reportUnreachable=false
 import sys
 
 

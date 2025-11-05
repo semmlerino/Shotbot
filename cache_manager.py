@@ -150,9 +150,11 @@ def _scene_to_dict(scene: object) -> ThreeDESceneDict:
         ThreeDESceneDict with all required fields
     """
     if isinstance(scene, dict):
-        return scene  # type: ignore[return-value]
+        # Type narrowing: convert through object to satisfy type checker
+        return cast("ThreeDESceneDict", cast("object", scene))
     # Assume ThreeDEScene object with to_dict method
-    return scene.to_dict()  # type: ignore[return-value, attr-defined]
+    # Type narrowing: at runtime, scene will have to_dict() method
+    return cast("ThreeDESceneDict", scene.to_dict())
 
 
 # Backward compatibility exports from old cache system
@@ -539,15 +541,13 @@ class CacheManager(LoggingMixin, QObject):
 
             if write_success:
                 self.logger.info(
-                    f"Migrated {len(to_migrate)} shots to Previous "
-                     f"(total: {len(merged)} after dedup)"
+                    f"Migrated {len(to_migrate)} shots to Previous (total: {len(merged)} after dedup)"
                 )
                 # Emit specific signal (NOT generic cache_updated)
                 self.shots_migrated.emit(to_migrate)
             else:
                 self.logger.error(
-                    f"Failed to persist {len(to_migrate)} migrated shots to disk. "
-                     "Migration will be lost on restart."
+                    f"Failed to persist {len(to_migrate)} migrated shots to disk. Migration will be lost on restart."
                 )
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
@@ -667,6 +667,20 @@ class CacheManager(LoggingMixin, QObject):
         # Runtime validation ensures this is safe
         return cast("list[ThreeDESceneDict] | None", result)
 
+    def get_persistent_threede_scenes(self) -> list[ThreeDESceneDict] | None:
+        """Get cached 3DE scenes without TTL expiration.
+
+        Enables incremental caching by preserving scene history across scans.
+        Similar to get_persistent_previous_shots() but for 3DE scenes.
+
+        Returns:
+            List of scene dictionaries or None if not cached
+        """
+        result = self._read_json_cache(self.threede_cache_file, check_ttl=False)
+        # Type narrowing: the cache file contains ThreeDESceneDict when written by cache_threede_scenes
+        # Runtime validation ensures this is safe
+        return cast("list[ThreeDESceneDict] | None", result)
+
     def has_valid_threede_cache(self) -> bool:
         """Check if we have a valid 3DE cache.
 
@@ -689,6 +703,74 @@ class CacheManager(LoggingMixin, QObject):
         """
         _ = self._write_json_cache(self.threede_cache_file, scenes)
         self.cache_updated.emit()
+
+    def merge_scenes_incremental(
+        self,
+        cached: Sequence[object] | None,
+        fresh: Sequence[object],
+    ) -> SceneMergeResult:
+        """Merge cached 3DE scenes with fresh data incrementally.
+
+        Algorithm:
+        1. Convert to dicts for consistent handling
+        2. Build lookup: cached_by_key[(show, seq, shot)] = scene
+        3. Build set: fresh_keys = {(show, seq, shot)}
+        4. For each fresh scene:
+           - If in cached: UPDATE with fresh data (newer mtime/plate)
+           - If not in cached: ADD as new
+        5. Identify removed: cached_keys - fresh_keys (kept for history)
+
+        Note: Uses shot-level key (show, sequence, shot) since deduplication
+        is applied after merge to keep best scene per shot.
+
+        Args:
+            cached: Previously cached scenes (ThreeDEScene objects or dicts)
+            fresh: Fresh scenes from discovery (ThreeDEScene objects or dicts)
+
+        Returns:
+            SceneMergeResult with merged list and statistics
+
+        Thread Safety:
+            Protected by internal mutex to prevent concurrent merge operations
+            that could produce inconsistent results.
+        """
+        with QMutexLocker(self._lock):
+            # Convert to dicts using helper
+            cached_dicts = [_scene_to_dict(s) for s in (cached or [])]
+            fresh_dicts = [_scene_to_dict(s) for s in fresh]
+
+            # Build lookups using shot-level key (O(1) operations)
+            cached_by_key: dict[tuple[str, str, str], ThreeDESceneDict] = {
+                _get_scene_key(scene): scene for scene in cached_dicts
+            }
+            fresh_keys = {_get_scene_key(scene) for scene in fresh_dicts}
+
+            # Merge: fresh scenes override cached (UPDATE or ADD)
+            updated_by_key = cached_by_key.copy()
+            new_scenes: list[ThreeDESceneDict] = []
+
+            for fresh_scene in fresh_dicts:
+                fresh_key = _get_scene_key(fresh_scene)
+                if fresh_key not in cached_by_key:
+                    # This is a new scene (not in cache)
+                    new_scenes.append(fresh_scene)
+                # Always update with fresh data (even if already in cache)
+                updated_by_key[fresh_key] = fresh_scene
+
+            # Identify removed (cached keys not in fresh, but keep in cache per user request)
+            removed_keys = set(cached_by_key.keys()) - fresh_keys
+            removed_scenes = [cached_by_key[key] for key in removed_keys]
+
+            # All scenes (kept + updated + new)
+            updated_scenes = list(updated_by_key.values())
+            has_changes = bool(new_scenes or removed_scenes)
+
+            return SceneMergeResult(
+                updated_scenes=updated_scenes,
+                new_scenes=new_scenes,
+                removed_scenes=removed_scenes,
+                has_changes=has_changes,
+            )
 
     # ========================================================================
     # Generic Data Caching Methods (backward compatibility)

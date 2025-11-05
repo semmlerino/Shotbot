@@ -146,14 +146,6 @@ class CommandLauncher(LoggingMixin, QObject):
         self.logger.debug(f"Rez availability cached: {self._rez_available}")
         return self._rez_available
 
-    def _clear_rez_cache(self) -> None:
-        """Clear the rez availability cache (for testing)."""
-        self._rez_available = None
-
-    def _clear_terminal_cache(self) -> None:
-        """Clear the terminal detection cache (for testing and error recovery)."""
-        self._available_terminal = None
-
     def _get_rez_packages_for_app(self, app_name: str) -> list[str]:
         """Get rez packages for the specified application.
 
@@ -511,13 +503,12 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except FileNotFoundError as e:
             # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
-            filename_raw: str | bytes | int | None = e.filename
-            filename: str = (
-                str(filename_raw) if filename_raw is not None else "unknown"
+            filename_not_found: str = (
+                str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
             )
             self._emit_error(
                 f"Cannot launch {app_name}: Application or terminal not found. "
-                 f"Details: {filename}"
+                 f"Details: {filename_not_found}"
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -528,13 +519,12 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except PermissionError as e:
             # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
-            filename_raw: str | bytes | int | None = e.filename
-            filename: str = (
-                str(filename_raw) if filename_raw is not None else "unknown"
+            filename_perm: str = (
+                str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
             )
             self._emit_error(
                 f"Cannot launch {app_name}: Permission denied. "
-                 f"Check file permissions for: {filename}"
+                 f"Check file permissions for: {filename_perm}"
             )
             return False
 
@@ -723,11 +713,10 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except FileNotFoundError as e:
             # Type-safe: e.filename can be None - Task 6.3
-            filename_raw: str | bytes | int | None = e.filename
-            filename: str = str(filename_raw) if filename_raw is not None else "unknown"
+            filename_not_found_scene: str = str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
             self._emit_error(
                 f"Cannot launch {app_name} with scene: Application or terminal not found. "
-                 f"Details: {filename}"
+                 f"Details: {filename_not_found_scene}"
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -738,11 +727,10 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except PermissionError as e:
             # Type-safe: e.filename can be None - Task 6.3
-            filename_raw: str | bytes | int | None = e.filename
-            filename: str = str(filename_raw) if filename_raw is not None else "unknown"
+            filename_perm_scene: str = str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
             self._emit_error(
                 f"Cannot launch {app_name} with scene: Permission denied. "
-                 f"Check file permissions for: {filename}"
+                 f"Check file permissions for: {filename_perm_scene}"
             )
             return False
 
@@ -894,11 +882,10 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except FileNotFoundError as e:
             # Type-safe: e.filename can be None - Task 6.3
-            filename_raw: str | bytes | int | None = e.filename
-            filename: str = str(filename_raw) if filename_raw is not None else "unknown"
+            filename_not_found_ctx: str = str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
             self._emit_error(
                 f"Cannot launch {app_name} in scene context: Application or terminal not found. "
-                 f"Details: {filename}"
+                 f"Details: {filename_not_found_ctx}"
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -909,11 +896,10 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except PermissionError as e:
             # Type-safe: e.filename can be None - Task 6.3
-            filename_raw: str | bytes | int | None = e.filename
-            filename: str = str(filename_raw) if filename_raw is not None else "unknown"
+            filename_perm_ctx: str = str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
             self._emit_error(
                 f"Cannot launch {app_name} in scene context: Permission denied. "
-                 f"Check file permissions for: {filename}"
+                 f"Check file permissions for: {filename_perm_ctx}"
             )
             return False
 

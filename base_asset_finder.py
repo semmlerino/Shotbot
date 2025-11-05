@@ -221,7 +221,7 @@ class BaseAssetFinder(ProgressReportingMixin, ABC):
                 sequences["single_files"].append(asset)
 
         # Sort frames within each sequence
-        for _, frames in sequences.items():
+        for frames in sequences.values():
             frames.sort()
 
         return sequences

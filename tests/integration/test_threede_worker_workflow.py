@@ -214,7 +214,7 @@ class TestThreeDEWorkerWorkflow:
             if worker.isRunning():
                 worker.requestInterruption()
                 worker.quit()
-                
+
                 # Wait with timeout
                 if not worker.wait(2000):
                     # Worker didn't stop gracefully - use terminate() as last resort

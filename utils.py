@@ -719,10 +719,7 @@ class PathUtils:
                         # Find first .jpeg file in this resolution
                         jpeg_file = FileUtils.get_first_image_file(resolution_dir)
                         if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
-                            logger.info(
-                                f"Found undistorted JPEG thumbnail: {jpeg_file.name} "
-                                  f"(camera: {plate_name}, version: {latest_version})"
-                            )
+                            logger.info(f"Found undistorted JPEG thumbnail: {jpeg_file.name} (camera: {plate_name}, version: {latest_version})")
                             return jpeg_file
             except (OSError, PermissionError) as e:
                 logger.debug(f"Error scanning JPEG directory {jpeg_base_path}: {e}")
@@ -834,10 +831,7 @@ class PathUtils:
                                         ".jpg",
                                         ".jpeg",
                                     ]:
-                                        logger.info(
-                                            f"Found user workspace JPEG: {jpeg_file.name} "
-                                              f"(user: {user_path.name}, output_type: {output_type}, plate: {plate_name}, version: {latest_version})"
-                                        )
+                                        logger.info(f"Found user workspace JPEG: {jpeg_file.name} (user: {user_path.name}, output_type: {output_type}, plate: {plate_name}, version: {latest_version})")
                                         return jpeg_file
                             except (OSError, PermissionError):
                                 continue
@@ -900,10 +894,7 @@ class PathUtils:
                                 # Find first .jpg/.jpeg file in this resolution
                                 jpeg_file = FileUtils.get_first_image_file(resolution_dir)
                                 if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
-                                    logger.info(
-                                        f"Found editorial cutref thumbnail: {jpeg_file.name} "
-                                          f"(version: {latest_version}, resolution: {resolution_dir.name})"
-                                    )
+                                    logger.info(f"Found editorial cutref thumbnail: {jpeg_file.name} (version: {latest_version}, resolution: {resolution_dir.name})")
                                     return jpeg_file
                     except (OSError, PermissionError) as e:
                         logger.debug(f"Error scanning editorial cutref JPEG directory {jpg_base_path}: {e}")
