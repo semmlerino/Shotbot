@@ -1051,8 +1051,7 @@ class CacheManager(LoggingMixin, QObject):
             try:
                 with os.fdopen(fd, "w") as f:
                     json.dump(cache_data, f, indent=2)
-                    f.flush()
-                    os.fsync(f.fileno())  # Ensure data is written to disk
+                    f.flush()  # Flush to OS buffer (atomic rename ensures readers see complete data)
 
                 # Atomic rename (POSIX guarantees atomicity on same filesystem)
                 _ = Path(temp_path).replace(cache_file)

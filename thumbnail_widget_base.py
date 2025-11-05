@@ -325,9 +325,12 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         cls._cache_manager = cache_manager
 
     def __init__(
-        self, data: ThumbnailDataProtocol, size: int = Config.DEFAULT_THUMBNAIL_SIZE
+        self,
+        data: ThumbnailDataProtocol,
+        size: int = Config.DEFAULT_THUMBNAIL_SIZE,
+        parent: QWidget | None = None,
     ) -> None:
-        super().__init__()
+        super().__init__(parent)
         self.data: ThumbnailDataProtocol = data
         self._thumbnail_size: int = size
         self._selected: bool = False

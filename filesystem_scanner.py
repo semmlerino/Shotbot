@@ -150,7 +150,7 @@ class FileSystemScanner(LoggingMixin):
     scene finder, providing clean separation of concerns and reusable scanning capabilities.
     """
 
-    # Class-level cache (shared across instances) - manual refresh only
+    # Class-level cache (shared across instances) - persistent, manual refresh only
     _dir_cache = DirectoryCache(ttl_seconds=300, enable_auto_expiry=False)
 
     # Workload size thresholds for strategy selection

@@ -10,7 +10,7 @@ Note: Still used by threede_shot_grid.py which needs migration to Model/View.
 # Standard library imports
 # Third-party imports
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QLabel, QMenu
+from PySide6.QtWidgets import QLabel, QMenu, QWidget
 
 # Local application imports
 from config import Config
@@ -30,12 +30,17 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
     clicked: Signal = Signal(object)  # Shot
     double_clicked: Signal = Signal(object)  # Shot
 
-    def __init__(self, shot: Shot, size: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
+    def __init__(
+        self,
+        shot: Shot,
+        size: int = Config.DEFAULT_THUMBNAIL_SIZE,
+        parent: QWidget | None = None,
+    ) -> None:
         # Store shot reference for backward compatibility
         self.shot: Shot = shot
         # Initialize instance variable (set in _setup_custom_ui)
         self.name_label: QLabel | None = None
-        super().__init__(shot, size)
+        super().__init__(shot, size, parent)
 
     @override
     def _setup_custom_ui(self) -> None:

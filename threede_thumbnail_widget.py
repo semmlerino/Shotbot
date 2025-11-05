@@ -2,7 +2,7 @@
 # Standard library imports
 # Third-party imports
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QLabel, QMenu
+from PySide6.QtWidgets import QLabel, QMenu, QWidget
 
 # Local application imports
 from config import Config
@@ -23,7 +23,10 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
     double_clicked: Signal = Signal(object)  # ThreeDEScene
 
     def __init__(
-        self, scene: ThreeDEScene, size: int = Config.DEFAULT_THUMBNAIL_SIZE
+        self,
+        scene: ThreeDEScene,
+        size: int = Config.DEFAULT_THUMBNAIL_SIZE,
+        parent: QWidget | None = None,
     ) -> None:
         # Store scene reference for backward compatibility
         self.scene: ThreeDEScene = scene
@@ -31,7 +34,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.shot_label: QLabel | None = None
         self.user_label: QLabel | None = None
         self.plate_label: QLabel | None = None
-        super().__init__(scene, size)
+        super().__init__(scene, size, parent)
 
     @override
     def _setup_custom_ui(self) -> None:
