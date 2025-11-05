@@ -3,13 +3,13 @@ Post-Commit Hook Summary
 ========================
 Output directory: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.post-commit-output
 Files created:
-drwxr-xr-x  2 gabrielh gabrielh  4096 Nov  5 22:40 .
-drwxr-xr-x 26 gabrielh gabrielh 28672 Nov  5 22:40 ..
--rw-r--r--  1 gabrielh gabrielh     0 Nov  5 22:40 background-startup.log
--rw-r--r--  1 gabrielh gabrielh   359 Nov  5 22:40 bundle.txt
--rw-r--r--  1 gabrielh gabrielh    51 Nov  5 22:40 commit_msg.txt
--rw-r--r--  1 gabrielh gabrielh     7 Nov  5 22:40 current_branch.txt
--rw-r--r--  1 gabrielh gabrielh    41 Nov  5 22:40 current_commit.txt
--rw-r--r--  1 gabrielh gabrielh   147 Nov  5 22:40 import-test.txt
--rw-r--r--  1 gabrielh gabrielh   219 Nov  5 22:40 info.txt
--rw-r--r--  1 gabrielh gabrielh   152 Nov  5 22:40 summary.txt
+drwxr-xr-x  2 gabrielh gabrielh  4096 Nov  5 22:51 .
+drwxr-xr-x 26 gabrielh gabrielh 28672 Nov  5 22:51 ..
+-rw-r--r--  1 gabrielh gabrielh     0 Nov  5 22:51 background-startup.log
+-rw-r--r--  1 gabrielh gabrielh   359 Nov  5 22:51 bundle.txt
+-rw-r--r--  1 gabrielh gabrielh    81 Nov  5 22:51 commit_msg.txt
+-rw-r--r--  1 gabrielh gabrielh     7 Nov  5 22:51 current_branch.txt
+-rw-r--r--  1 gabrielh gabrielh    41 Nov  5 22:51 current_commit.txt
+-rw-r--r--  1 gabrielh gabrielh   147 Nov  5 22:51 import-test.txt
+-rw-r--r--  1 gabrielh gabrielh   249 Nov  5 22:51 info.txt
+-rw-r--r--  1 gabrielh gabrielh   152 Nov  5 22:51 summary.txt
