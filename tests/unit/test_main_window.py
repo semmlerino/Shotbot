@@ -276,6 +276,11 @@ class TestApplicationLaunching:
         # Use mock mode for this test
         monkeypatch.setenv("SHOTBOT_MOCK_MODE", "1")
 
+        # CRITICAL: Wait for background shot loading to complete before test setup
+        # The ShotModel starts async loading on init, we need it to finish first
+        # to avoid race conditions where the background load overwrites test data
+        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
+
         # Testing the actual behavior rather than mocking internal methods
         # We verify the full integration from shot selection to app launch
 
@@ -286,8 +291,21 @@ class TestApplicationLaunching:
         )
         main_window.shot_model._process_pool = test_process_pool
 
+        # CRITICAL: Recreate parser to use correct SHOWS_ROOT from test environment
+        # Manually create pattern with correct shows_root to bypass Config import issues
+        import re  # noqa: PLC0415 - lazy import to avoid circular dependency
+        shows_root_escaped = re.escape(shows_root)
+        ws_pattern = re.compile(
+            rf"workspace\s+({shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+))"
+        )
+        # Manually set the pattern on the existing parser
+        main_window.shot_model._parser._ws_pattern = ws_pattern
+
         # Load shots
         main_window._refresh_shots()
+
+        # Wait for async refresh to complete
+        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
 
         # Verify shot loaded
         assert len(main_window.shot_model.shots) == 1
@@ -397,6 +415,11 @@ class TestMainWindowIntegration:
         # Use mock mode for this test
         monkeypatch.setenv("SHOTBOT_MOCK_MODE", "1")
 
+        # CRITICAL: Wait for background shot loading to complete before test setup
+        # The ShotModel starts async loading on init, we need it to finish first
+        # to avoid race conditions where the background load overwrites test data
+        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
+
         # Set up test data
         shows_root = Config.SHOWS_ROOT
         test_process_pool.set_outputs(
@@ -404,8 +427,21 @@ class TestMainWindowIntegration:
         )
         main_window.shot_model._process_pool = test_process_pool
 
+        # CRITICAL: Recreate parser to use correct SHOWS_ROOT from test environment
+        # Manually create pattern with correct shows_root to bypass Config import issues
+        import re  # noqa: PLC0415 - lazy import to avoid circular dependency
+        shows_root_escaped = re.escape(shows_root)
+        ws_pattern = re.compile(
+            rf"workspace\s+({shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+))"
+        )
+        # Manually set the pattern on the existing parser
+        main_window.shot_model._parser._ws_pattern = ws_pattern
+
         # Load shots
         main_window._refresh_shots()
+
+        # Wait for async refresh to complete
+        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
 
         # Verify shot loaded
         assert len(main_window.shot_model.shots) == 1

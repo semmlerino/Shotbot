@@ -131,19 +131,21 @@ class TestBaseAssetFinder:
 
     def test_find_latest_asset_no_version_pattern(self, tmp_path: Path) -> None:
         """Test finding latest asset by modification time."""
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         workspace = tmp_path / "workspace"
         textures = workspace / "textures"
         textures.mkdir(parents=True)
 
-        # Create files with different modification times
+        # Create files and explicitly set different modification times
+        # Using explicit mtime values avoids filesystem timing issues
         file1 = textures / "diffuse_old.jpg"
         file1.touch()
-        time.sleep(0.01)  # Ensure different mtime
+        os.utime(file1, (1000000.0, 1000000.0))  # Set to older time
 
         file2 = textures / "diffuse_new.jpg"
         file2.touch()
+        os.utime(file2, (2000000.0, 2000000.0))  # Set to newer time
 
         finder = ConcreteAssetFinder()
         latest = finder.find_latest_asset(str(workspace), "diffuse")

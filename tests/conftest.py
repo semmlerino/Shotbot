@@ -214,19 +214,22 @@ def clear_module_caches() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
-def mock_all_message_boxes() -> Iterator[None]:
-    """Mock ALL QMessageBox dialogs to prevent real widgets during tests.
+def mock_message_boxes_unless_overridden() -> Iterator[None]:
+    """Mock QMessageBox dialogs with low-priority defaults.
 
-    This autouse fixture ensures that no real modal dialogs appear during
-    test execution, even with 16 parallel workers. It mocks all QMessageBox
-    methods globally for all tests.
+    This autouse fixture provides default mocks for QMessageBox to prevent
+    real dialogs from appearing. Individual tests can override these mocks
+    with their own patch.object() calls - test-specific patches take priority.
 
     Critical for:
     - Preventing real widgets from appearing ("getting real widgets" issue)
     - Avoiding timeouts from modal dialogs waiting for user input
     - Preventing resource exhaustion under high parallel load
 
-    Individual tests can override these mocks if they need specific behavior.
+    Note:
+        These are DEFAULT mocks only. Tests that patch QMessageBox methods
+        in their own fixtures or test bodies will override these defaults.
+        This is intentional - test-specific mocks should take precedence.
     """
     with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes), \
          patch.object(QMessageBox, "warning"), \
@@ -253,6 +256,18 @@ def cleanup_threading_state(qtbot: QtBot) -> Iterator[None]:
     """
     yield
 
+    # Qt Event Processing FIRST - before any cleanup that might delete Qt objects
+    # This ensures Qt is in a stable state before we start tearing things down
+    try:
+        qtbot.wait(10)  # Reduced from 50ms - just enough to process pending events
+    except RuntimeError:
+        # Qt objects may already be deleted, ignore
+        pass
+
+    # NotificationManager Cleanup (must happen early to avoid Qt object access after deletion)
+    from notification_manager import NotificationManager
+    NotificationManager.cleanup()
+
     # ProcessPoolManager Cleanup
     from process_pool_manager import ProcessPoolManager
 
@@ -268,8 +283,9 @@ def cleanup_threading_state(qtbot: QtBot) -> Iterator[None]:
     ProcessPoolManager._initialized = False
 
     # ThreadSafeWorker Zombie Cleanup
-    from thread_safe_worker import ThreadSafeWorker
     from PySide6.QtCore import QMutexLocker
+
+    from thread_safe_worker import ThreadSafeWorker
 
     with QMutexLocker(ThreadSafeWorker._zombie_mutex):
         zombie_count = len(ThreadSafeWorker._zombie_threads)
@@ -277,9 +293,6 @@ def cleanup_threading_state(qtbot: QtBot) -> Iterator[None]:
             cleaned = ThreadSafeWorker.cleanup_old_zombies()
             ThreadSafeWorker._zombie_threads.clear()
             ThreadSafeWorker._zombie_timestamps.clear()
-
-    # Qt Event Processing
-    qtbot.wait(50)
 
 
 @pytest.fixture
@@ -731,3 +744,16 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "qt_heavy: mark test as Qt-intensive")
     config.addinivalue_line("markers", "integration_unsafe: mark test as potentially unsafe integration test")
     config.addinivalue_line("markers", "integration_safe: mark test as safe integration test")
+    config.addinivalue_line(
+        "markers",
+        "skip_if_parallel: skip test when running in parallel mode due to Qt state pollution",
+    )
+
+
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Skip tests marked with skip_if_parallel when running with xdist."""
+    # Check if test has skip_if_parallel marker
+    if item.get_closest_marker("skip_if_parallel"):
+        # Check if running with xdist (parallel execution)
+        if hasattr(item.config, "workerinput"):  # xdist worker
+            pytest.skip("Test skipped in parallel execution due to Qt state pollution")
