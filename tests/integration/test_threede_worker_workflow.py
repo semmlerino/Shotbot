@@ -10,29 +10,34 @@ UNIFIED_TESTING_GUIDE COMPLIANCE:
 3. Signal Testing Pattern (lines 122-160): waitSignal BEFORE triggering actions
 4. Integration Test Pattern (lines 336-354): Real components with test boundaries
 
-IMPORTANT: Qt State Pollution Issue
-====================================
-This test file contains multiple Qt worker threading tests that cause state pollution
-when run sequentially in the same process. The Qt C++ signal system becomes corrupted
-after multiple worker executions, leading to segfaults in qtbot.waitSignal.
+Qt Test Hygiene
+===============
+This file tests QThread-based workers, which require proper cleanup to prevent
+Qt C++ object accumulation that causes segfaults in large serial test runs.
 
-**Test Status with pytest-xdist (-n 2):**
-- ✅ 6 tests pass reliably
-- ⏭️  1 test skipped (pre-existing cancellation granularity issue)
-- ⏭️  1 test skipped (test_production_simulation_workflow - Qt state pollution)
+**Cleanup Requirements** (implemented via `tests/helpers/qt_thread_cleanup.py`):
+1. Disconnect all signal handlers BEFORE stopping thread
+2. Stop thread gracefully: requestInterruption() → quit() → wait()
+3. Call deleteLater() on the thread object
+4. Process events to flush deletion queue: processEvents() + sendPostedEvents()
 
-**Recommended execution:**
-    pytest tests/integration/test_threede_worker_workflow.py -n 2
+**Why This Matters**:
+Without proper cleanup (especially deleteLater() + event processing), Qt C++ objects
+accumulate across tests. In serial execution, this accumulation eventually causes
+segfaults in qtbot.waitSignal() - not because Qt is "corrupted", but because of
+resource exhaustion from leaked objects.
 
-**Skipped tests can be run individually:**
-    pytest tests/integration/test_threede_worker_workflow.py::TestThreeDEWorkerWorkflow::test_production_simulation_workflow
+**Test Execution**:
+- Development: `pytest tests/integration/test_threede_worker_workflow.py -n 2`
+- CI/verification: `pytest tests/integration/test_threede_worker_workflow.py -n 0`
+- True isolation: `pytest tests/integration/test_threede_worker_workflow.py --forked`
 
-Root cause: Multiple sequential ThreeDESceneWorker executions leave Qt's event queue
-and signal mechanism in a corrupted state. Standard cleanup (signal disconnection,
-event processing, garbage collection) cannot prevent this deep Qt C++ issue.
+See `QT_TEST_HYGIENE_AUDIT.md` for complete analysis of cleanup requirements.
 
-The fix implemented proper Qt signal disconnection in cleanup handlers, which resolved
-6/8 tests. The remaining 2 tests are skipped with clear instructions for individual execution.
+References:
+- https://pytest-qt.readthedocs.io/en/latest/note_dialogs.html
+- https://doc.qt.io/qt-6/objecttrees.html
+- https://doc.qt.io/qt-6/qthread.html#details
 """
 
 from __future__ import annotations
@@ -135,6 +140,8 @@ class TestThreeDEWorkerWorkflow:
         3. Worker calls parallel discovery methods
         4. ThreadSafeProgressTracker receives progress_interval parameter
         """
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
         test_shots = self._create_test_vfx_structure()
 
         # Create worker - real component, not mock (UNIFIED_TESTING_GUIDE line 52)
@@ -145,31 +152,6 @@ class TestThreeDEWorkerWorkflow:
             enable_progressive=True,
             scan_all_shots=True,  # This triggers the parallel discovery path that failed
         )
-
-        # Following Qt Widget Pattern (lines 82-102): Register for cleanup
-        # Note: QThread doesn't inherit from QWidget but needs proper cleanup
-        def cleanup_worker() -> None:
-            # CRITICAL: Disconnect all signals BEFORE stopping worker
-            # This prevents Qt from calling handlers on deleted objects
-            try:
-                worker.progress.disconnect(on_progress)
-            except (TypeError, RuntimeError):
-                pass  # Already disconnected or worker deleted
-
-            try:
-                worker.error.disconnect(on_error)
-            except (TypeError, RuntimeError):
-                pass
-
-            try:
-                worker.finished.disconnect(on_finished)
-            except (TypeError, RuntimeError):
-                pass
-
-            if worker.isRunning():
-                worker.requestInterruption()
-                worker.quit()
-                worker.wait(5000)
 
         # Track signals received
         progress_updates = []
@@ -192,6 +174,13 @@ class TestThreeDEWorkerWorkflow:
         worker.progress.connect(on_progress)
         worker.error.connect(on_error)
         worker.finished.connect(on_finished)
+
+        # Track signal handlers for proper cleanup
+        signal_handlers = [
+            (worker.progress, on_progress),
+            (worker.error, on_error),
+            (worker.finished, on_finished),
+        ]
 
         try:
             # Dynamic timeout for xdist workers (parallel execution needs more time)
@@ -224,7 +213,9 @@ class TestThreeDEWorkerWorkflow:
             # because the parallel discovery would fail with the parameter mismatch
 
         finally:
-            cleanup_worker()
+            # Proper cleanup: disconnect signals, stop thread, delete Qt C++ object,
+            # and process events to flush deletion queue. This prevents object accumulation.
+            cleanup_qthread_properly(worker, signal_handlers)
 
     @pytest.mark.skip(
         reason="Worker cancellation has coarse granularity - cancellation only checked between batches. "
@@ -341,6 +332,8 @@ class TestThreeDEWorkerWorkflow:
 
     def test_worker_error_handling_workflow(self, qtbot) -> None:
         """Test worker error handling when parallel discovery encounters issues."""
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
         # Create invalid shot paths to trigger errors
         invalid_shots = [
             Shot("INVALID", "seq001", "0010", "/nonexistent/path"),
@@ -363,22 +356,11 @@ class TestThreeDEWorkerWorkflow:
         worker.error.connect(error_handler)
         worker.finished.connect(finished_handler)
 
-        def cleanup_worker() -> None:
-            # CRITICAL: Disconnect all signals BEFORE stopping worker
-            try:
-                worker.error.disconnect(error_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            try:
-                worker.finished.disconnect(finished_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            if worker.isRunning():
-                worker.requestInterruption()
-                worker.quit()
-                worker.wait(5000)
+        # Track signal handlers for proper cleanup
+        signal_handlers = [
+            (worker.error, error_handler),
+            (worker.finished, finished_handler),
+        ]
 
         try:
             # Should complete even with invalid paths - wait for finished signal
@@ -391,10 +373,14 @@ class TestThreeDEWorkerWorkflow:
             # Either way, should not crash due to parameter issues
 
         finally:
-            cleanup_worker()
+            # Proper cleanup: disconnect signals, stop thread, delete Qt C++ object,
+            # and process events to flush deletion queue. This prevents object accumulation.
+            cleanup_qthread_properly(worker, signal_handlers)
 
     def test_worker_signal_emission_patterns(self, qtbot) -> None:
         """Test that worker emits signals correctly throughout the workflow."""
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
         test_shots = self._create_test_vfx_structure()
 
         worker = ThreeDESceneWorker(
@@ -418,27 +404,12 @@ class TestThreeDEWorkerWorkflow:
         worker.progress.connect(progress_handler)
         worker.finished.connect(finished_handler)
 
-        def cleanup_worker() -> None:
-            # CRITICAL: Disconnect all signals BEFORE stopping worker
-            try:
-                worker.started.disconnect(started_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            try:
-                worker.progress.disconnect(progress_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            try:
-                worker.finished.disconnect(finished_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            if worker.isRunning():
-                worker.requestInterruption()
-                worker.quit()
-                worker.wait(5000)
+        # Track signal handlers for proper cleanup
+        signal_handlers = [
+            (worker.started, started_handler),
+            (worker.progress, progress_handler),
+            (worker.finished, finished_handler),
+        ]
 
         try:
             with qtbot.waitSignal(worker.finished, timeout=20000):
@@ -465,21 +436,19 @@ class TestThreeDEWorkerWorkflow:
                 )
 
         finally:
-            cleanup_worker()
+            # Proper cleanup: disconnect signals, stop thread, delete Qt C++ object,
+            # and process events to flush deletion queue. This prevents object accumulation.
+            cleanup_qthread_properly(worker, signal_handlers)
 
     def test_worker_memory_and_resource_cleanup(self, qtbot) -> None:
         """Test that worker properly cleans up resources after completion."""
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
         test_shots = self._create_test_vfx_structure()
 
         worker = ThreeDESceneWorker(
             shots=test_shots[:3], excluded_users=set(), enable_progressive=True
         )
-
-        def cleanup_worker() -> None:
-            if worker.isRunning():
-                worker.requestInterruption()
-                worker.quit()
-                worker.wait(5000)
 
         try:
             # Dynamic timeout for xdist workers
@@ -508,12 +477,6 @@ class TestThreeDEWorkerWorkflow:
                 shots=test_shots[:3], excluded_users=set(), enable_progressive=True
             )
 
-            def cleanup_worker2() -> None:
-                if worker2.isRunning():
-                    worker2.requestInterruption()
-                    worker2.quit()
-                    worker2.wait(5000)
-
             try:
                 # Should be able to start another scan with new worker
                 with qtbot.waitSignal(worker2.finished, timeout=15000):
@@ -524,12 +487,14 @@ class TestThreeDEWorkerWorkflow:
                     "Worker2 should not be running after second scan"
                 )
             finally:
-                cleanup_worker2()
+                # Proper cleanup for worker2 (no signal handlers to disconnect)
+                cleanup_qthread_properly(worker2, signal_handlers=None)
                 # Process Qt events to ensure worker2 cleanup completes
                 qtbot.wait(100)
 
         finally:
-            cleanup_worker()
+            # Proper cleanup for worker (no signal handlers to disconnect)
+            cleanup_qthread_properly(worker, signal_handlers=None)
             # CRITICAL: Process Qt events to ensure worker cleanup completes
             # This prevents Qt state pollution affecting subsequent tests
             qtbot.wait(100)
@@ -537,13 +502,11 @@ class TestThreeDEWorkerWorkflow:
     def test_worker_concurrent_signal_handling(self, qtbot) -> None:
         """Test worker signal handling when multiple signals are emitted rapidly.
 
-        NOTE: This test triggers Qt C++ crashes when run sequentially after other worker tests.
-        It passes reliably when:
-        - Run alone: pytest path/to/file.py::test_name
-        - Run with pytest-xdist: pytest path/to/file.py -n 2
-
-        The parallel execution isolates Qt state across subprocess boundaries.
+        Tests that the worker can handle rapid concurrent signal emissions
+        without losing signals or causing race conditions.
         """
+        # Import cleanup helper
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
 
         # Create larger structure to generate more signals
         test_shots = self._create_test_vfx_structure()
@@ -572,41 +535,19 @@ class TestThreeDEWorkerWorkflow:
         finished_wrapper = lambda scenes: track_signal("finished", len(scenes))
         error_wrapper = lambda msg: track_signal("error", msg)
 
-        # Connect signals and store references for cleanup
+        # Connect signals and track for cleanup
         worker.started.connect(started_wrapper)
         worker.progress.connect(progress_wrapper)
         worker.finished.connect(finished_wrapper)
         worker.error.connect(error_wrapper)
 
-        def cleanup_worker() -> None:
-            """Clean up worker with proper signal disconnection."""
-            # CRITICAL: Disconnect all signals BEFORE stopping worker
-            # This prevents Qt from calling lambdas on deleted objects
-            try:
-                worker.started.disconnect(started_wrapper)
-            except (TypeError, RuntimeError):
-                pass  # Already disconnected or worker deleted
-
-            try:
-                worker.progress.disconnect(progress_wrapper)
-            except (TypeError, RuntimeError):
-                pass
-
-            try:
-                worker.finished.disconnect(finished_wrapper)
-            except (TypeError, RuntimeError):
-                pass
-
-            try:
-                worker.error.disconnect(error_wrapper)
-            except (TypeError, RuntimeError):
-                pass
-
-            # Now stop the worker
-            if worker.isRunning():
-                worker.requestInterruption()
-                worker.quit()
-                worker.wait(5000)
+        # Track signal handlers for proper cleanup
+        signal_handlers = [
+            (worker.started, started_wrapper),
+            (worker.progress, progress_wrapper),
+            (worker.finished, finished_wrapper),
+            (worker.error, error_wrapper),
+        ]
 
         try:
             # Dynamic timeout for xdist workers (parallel execution needs more time)
@@ -620,8 +561,6 @@ class TestThreeDEWorkerWorkflow:
                 timeout = 30000
 
             # Use qtbot.waitSignal with extended timeout
-            # NOTE: This may crash with Qt C++ segfault when run after other tests
-            # The crash occurs inside Qt's signal mechanism, not in our code
             with qtbot.waitSignal(worker.finished, timeout=timeout):
                 worker.start()
 
@@ -645,12 +584,13 @@ class TestThreeDEWorkerWorkflow:
             assert progress_count > 0, "Should have multiple progress signals"
 
         finally:
-            cleanup_worker()
-            # CRITICAL: Process Qt events to ensure worker cleanup completes
-            # This prevents Qt state pollution affecting subsequent tests
-            qtbot.wait(100)
+            # Proper cleanup: disconnect signals, stop thread, delete Qt C++ object,
+            # and process events to flush deletion queue. This prevents object accumulation.
+            cleanup_qthread_properly(worker, signal_handlers)
     def test_worker_timeout_handling(self, qtbot) -> None:
         """Test worker behavior with realistic timeouts."""
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
         test_shots = self._create_test_vfx_structure()
 
         worker = ThreeDESceneWorker(
@@ -665,17 +605,10 @@ class TestThreeDEWorkerWorkflow:
         finished_handler = lambda scenes: completed.append(len(scenes))
         worker.finished.connect(finished_handler)
 
-        def cleanup_worker() -> None:
-            # CRITICAL: Disconnect signal BEFORE stopping worker
-            try:
-                worker.finished.disconnect(finished_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            if worker.isRunning():
-                worker.requestInterruption()
-                worker.quit()
-                worker.wait(5000)
+        # Track signal handlers for proper cleanup
+        signal_handlers = [
+            (worker.finished, finished_handler),
+        ]
 
         try:
             # Should complete well within timeout
@@ -688,17 +621,12 @@ class TestThreeDEWorkerWorkflow:
             assert len(completed) == 1, "Should complete within timeout"
 
         finally:
-            cleanup_worker()
+            # Proper cleanup: disconnect signals, stop thread, delete Qt C++ object,
+            # and process events to flush deletion queue. This prevents object accumulation.
+            cleanup_qthread_properly(worker, signal_handlers)
 
-    @pytest.mark.skip(reason="Qt C++ crashes when run with other worker tests. Run separately: pytest tests/integration/test_threede_worker_workflow.py::TestThreeDEWorkerWorkflow::test_production_simulation_workflow")
     def test_production_simulation_workflow(self, qtbot) -> None:
         """Simulate the exact production workflow that triggered the bug.
-
-        NOTE: This test triggers Qt C++ crashes when run with other worker tests,
-        even with pytest-xdist parallel execution. The Qt state pollution issue
-        affects qtbot.waitSignal at the C++ level.
-
-        Run separately for reliable results.
 
         This test simulates:
         1. User opens "Other 3DE scenes" tab
@@ -706,6 +634,8 @@ class TestThreeDEWorkerWorkflow:
         3. Worker uses progressive scan with parallel discovery
         4. Parallel discovery creates ThreadSafeProgressTracker with progress_interval
         """
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
         # Create realistic production-scale test data
         test_shots = self._create_test_vfx_structure()
 
@@ -736,32 +666,13 @@ class TestThreeDEWorkerWorkflow:
         worker.finished.connect(finished_handler)
         worker.error.connect(error_handler)
 
-        def cleanup_worker() -> None:
-            # CRITICAL: Disconnect all signals BEFORE stopping worker
-            try:
-                worker.started.disconnect(started_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            try:
-                worker.progress.disconnect(progress_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            try:
-                worker.finished.disconnect(finished_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            try:
-                worker.error.disconnect(error_handler)
-            except (TypeError, RuntimeError):
-                pass
-
-            if worker.isRunning():
-                worker.requestInterruption()
-                worker.quit()
-                worker.wait(5000)
+        # Track signal handlers for proper cleanup
+        signal_handlers = [
+            (worker.started, started_handler),
+            (worker.progress, progress_handler),
+            (worker.finished, finished_handler),
+            (worker.error, error_handler),
+        ]
 
         try:
             # This is the exact workflow that failed in production
@@ -791,7 +702,9 @@ class TestThreeDEWorkerWorkflow:
             assert scene_count >= 0, "Should return valid scene count"
 
         finally:
-            cleanup_worker()
+            # Proper cleanup: disconnect signals, stop thread, delete Qt C++ object,
+            # and process events to flush deletion queue. This prevents object accumulation.
+            cleanup_qthread_properly(worker, signal_handlers)
 
         # Log workflow summary for debugging
         print("Production workflow simulation completed:")

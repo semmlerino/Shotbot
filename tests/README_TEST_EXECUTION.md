@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ShotBot test suite contains 2580 tests (2318 unit + 195 integration + 67 performance). Due to Qt's threading model and state management, tests must be run separately by category to avoid Qt state corruption during test collection.
+The ShotBot test suite contains 2580 tests (2318 unit + 195 integration + 67 performance). Due to Qt's initialization requirements and mass import overhead, tests should be run separately by category for optimal reliability and performance.
 
 ## Quick Start
 
@@ -44,12 +44,17 @@ Running all 2580 tests in a single pytest command causes:
 
 ### Root Cause
 
-**Test Collection Phase Corrupts Qt State**: When pytest collects 2580 test modules simultaneously:
-1. Imports load 2580+ test files with Qt dependencies
-2. Qt's internal state becomes corrupted BEFORE any tests run
-3. First integration test tries to create `ShotInfoPanel` → Qt crashes
+**Mass Import Overhead**: When pytest collects 2580 test modules simultaneously:
+1. Python imports 2580+ test files with Qt dependencies at once
+2. Qt initialization happens inconsistently across massive import scope
+3. First integration test tries to create `ShotInfoPanel` → Qt initialization conflicts cause crash
 
-**Individual Test Files Work**: When tests run in smaller batches (by category), Qt state remains clean.
+**What's Actually Happening**:
+- This is NOT "Qt corruption" - it's mass import causing Qt initialization race conditions
+- Qt's event loop and object system expect orderly initialization
+- Importing 2580 files simultaneously creates conflicting Qt initialization states
+
+**Individual Test Files Work**: When tests run in smaller batches (by category), Qt initializes cleanly for each batch.
 
 ## Test Categories
 
@@ -85,7 +90,7 @@ Execution Time: ~3-5 minutes
 - **Unit tests for Qt widgets** create real widgets to test widget behavior
 - **Tests use `qtbot.addWidget()`** to ensure proper lifecycle management
 
-Real widgets are NOT the problem - the problem is Qt state corruption during mass test collection.
+Real widgets are NOT the problem - the problem is mass import overhead during test collection.
 
 ## Known Test Issues
 
@@ -95,11 +100,16 @@ Real widgets are NOT the problem - the problem is Qt state corruption during mas
 **Status**: Fixed in `pytest.ini`
 
 ### 2. Mass Test Collection Crash
-**Problem**: Collecting 2580 tests simultaneously corrupts Qt state
+**Problem**: Collecting 2580 tests simultaneously causes Qt initialization conflicts
 **Solution**: Run test categories separately (unit/integration/performance)
 **Status**: Documented workaround (no code fix needed)
 
-### 3. Slow Subprocess/Timeout Tests
+### 3. Qt Thread Cleanup (RESOLVED)
+**Problem**: Missing `deleteLater()` + event processing caused Qt C++ object accumulation
+**Solution**: Use `cleanup_qthread_properly()` helper from `tests/helpers/qt_thread_cleanup.py`
+**Status**: ✅ Fixed - All worker tests now use proper cleanup sequence
+
+### 4. Slow Subprocess/Timeout Tests
 **Problem**: `test_subprocess_failure_handled_gracefully` and similar tests wait for full timeouts
 **Workaround**: Run with `-x` flag to skip remaining tests after first failure
 **Status**: Expected behavior (testing timeout handling)
@@ -202,6 +212,42 @@ def test_widget_creation(qtbot, qapp, cache_manager):
     # qtbot handles cleanup automatically
 ```
 
+### Qt QThread Testing Best Practices
+
+For tests using QThread workers, always use proper cleanup:
+
+```python
+from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
+def test_worker_operation(qtbot):
+    """Test worker performs operation correctly."""
+    worker = MyWorker()
+
+    # Track signal handlers for cleanup
+    signal_handlers = [
+        (worker.finished, on_finished),
+        (worker.progress, on_progress),
+    ]
+
+    try:
+        with qtbot.waitSignal(worker.finished):
+            worker.start()
+
+        # Test assertions...
+    finally:
+        # CRITICAL: Proper cleanup sequence:
+        # 1. Disconnect signals
+        # 2. Stop thread gracefully
+        # 3. deleteLater() + processEvents()
+        cleanup_qthread_properly(worker, signal_handlers)
+```
+
+**Why This Matters**:
+- Without `deleteLater()` + event processing, Qt C++ objects accumulate
+- Accumulation causes segfaults after many tests (even in serial mode)
+- The cleanup helper implements the complete Qt cleanup sequence
+- See `QT_TEST_HYGIENE_AUDIT.md` for detailed explanation
+
 ### Thread-Safety Testing Best Practices
 
 ```python
@@ -226,4 +272,10 @@ def test_concurrent_access(cache_manager):
 
 ## Summary
 
-**Key Takeaway**: Run unit, integration, and performance tests SEPARATELY to avoid Qt state corruption. Tests pass reliably when run by category - this is the expected and supported workflow.
+**Key Takeaway**: Run unit, integration, and performance tests SEPARATELY to avoid Qt initialization conflicts during mass import. Tests pass reliably when run by category - this is the expected and supported workflow.
+
+## Additional Resources
+
+- **Qt Test Hygiene**: See `QT_TEST_HYGIENE_AUDIT.md` for details on proper Qt cleanup patterns
+- **Thread Cleanup**: See `tests/helpers/qt_thread_cleanup.py` for reusable cleanup helper
+- **General Testing Guide**: See `UNIFIED_TESTING_V2.MD` for comprehensive testing guidance

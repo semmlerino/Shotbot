@@ -305,19 +305,40 @@ def cleanup_threading_state() -> Iterator[None]:
     """
     yield
 
-    # Qt Event Processing FIRST - before any cleanup that might delete Qt objects
+    # Qt Event Processing - Process pending events before cleanup
     # This ensures Qt is in a stable state before we start tearing things down
-    # DISABLED: This was causing Qt C++ segfaults. Now that NotificationManager.cleanup()
-    # handles deleted Qt objects gracefully, this event processing may not be needed.
-    # try:
-    #     qtbot.wait(10)  # Reduced from 50ms - just enough to process pending events
-    # except RuntimeError:
-    #     # Qt objects may already be deleted, ignore
-    #     pass
+    try:
+        from PySide6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            app.processEvents()
+    except (RuntimeError, ImportError):
+        # Qt not available or objects already deleted, ignore
+        pass
 
     # NotificationManager Cleanup (must happen early to avoid Qt object access after deletion)
     from notification_manager import NotificationManager
     NotificationManager.cleanup()
+
+    # ProgressManager Cleanup (singleton state)
+    from progress_manager import ProgressManager
+    if ProgressManager._instance is not None:
+        # Clear operation stack
+        ProgressManager._operation_stack.clear()
+        # Reset singleton
+        ProgressManager._instance = None
+
+    # Clear utils caches (path cache, version cache, lru_cache)
+    from utils import clear_all_caches
+    clear_all_caches()
+
+    # QRunnableTracker Cleanup (singleton state)
+    from runnable_tracker import QRunnableTracker
+    try:
+        QRunnableTracker.reset_instance()
+    except Exception as e:
+        import warnings
+        warnings.warn(f"QRunnableTracker reset failed: {e}", RuntimeWarning)
 
     # ProcessPoolManager Cleanup
     from process_pool_manager import ProcessPoolManager
@@ -398,6 +419,29 @@ def cleanup_launcher_manager_state() -> Iterator[None]:
     except ImportError:
         # LauncherManager not available in this test
         pass
+
+
+@pytest.fixture(autouse=True)
+def prevent_qapp_exit(monkeypatch: pytest.MonkeyPatch, qapp: QApplication) -> None:
+    """Prevent tests from calling QApplication.exit() which poisons event loops.
+
+    pytest-qt explicitly warns that calling QApplication.exit() in one test
+    breaks subsequent tests because it corrupts the event loop state.
+    This monkeypatch ensures tests can't accidentally poison the event loop.
+
+    This is critical for large test suites where one bad test can cascade
+    failures to all subsequent tests in the same process.
+
+    See: https://pytest-qt.readthedocs.io/en/latest/note_dialogs.html#warning-about-qapplication-exit
+    """
+
+    def _noop_exit(retcode: int = 0) -> None:
+        """No-op exit - tests shouldn't exit the application."""
+        pass
+
+    # Monkeypatch both the instance method and class method
+    monkeypatch.setattr(qapp, "exit", _noop_exit)
+    monkeypatch.setattr(QApplication, "exit", _noop_exit)
 
 
 @pytest.fixture

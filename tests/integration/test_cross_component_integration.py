@@ -54,7 +54,17 @@ class TestCrossTabSynchronization:
 
     @pytest.fixture(autouse=True)
     def setup_and_teardown(self, qtbot: QtBot) -> None:
-        """Clean up Qt state between tests to prevent segfaults."""
+        """Properly clean up Qt widgets and process events between tests.
+
+        This fixture implements the complete Qt cleanup sequence:
+        1. Close windows and trigger closeEvent
+        2. deleteLater() to schedule C++ object deletion
+        3. processEvents() to flush deletion queue
+        4. sendPostedEvents() for deferred deletes
+        5. processEvents() again for cascading cleanups
+
+        See tests/helpers/qt_thread_cleanup.py for similar pattern.
+        """
         # Clear ProcessPoolManager singleton before test
         # Local application imports
 
@@ -88,7 +98,7 @@ class TestCrossTabSynchronization:
         self.test_windows.clear()
 
         # Process all pending events and deleteLater calls
-        # Be defensive about Qt state to avoid segfaults
+        # This follows the Qt cleanup pattern from qt_thread_cleanup.py
         app = QApplication.instance()
         if app:
             for _ in range(3):
@@ -429,7 +439,7 @@ class TestCacheUICoordination:
         self.test_windows.clear()
 
         # Process all pending events and deleteLater calls
-        # Be defensive about Qt state to avoid segfaults
+        # This implements the Qt cleanup pattern from qt_thread_cleanup.py
         app = QApplication.instance()
         if app:
             for _ in range(3):
@@ -594,7 +604,7 @@ class TestErrorPropagationChains:
         self.test_windows.clear()
 
         # Process all pending events and deleteLater calls
-        # Be defensive about Qt state to avoid segfaults
+        # This implements the Qt cleanup pattern from qt_thread_cleanup.py
         app = QApplication.instance()
         if app:
             for _ in range(3):
