@@ -27,7 +27,13 @@ from thread_safe_worker import WorkerState
 
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from PySide6.QtWidgets import QApplication
+    from pytestqt.qtbot import QtBot
+
+from process_pool_manager import ProcessPoolManager
+
 
 pytestmark = [
     pytest.mark.unit,
@@ -39,6 +45,20 @@ pytestmark = [
 # ============================================================================
 # Test Fixtures
 # ============================================================================
+
+
+@pytest.fixture(autouse=True)
+def reset_launcher_singletons() -> Generator[None, None, None]:
+    """Reset launcher-related singletons between tests for isolation.
+
+    Prevents singleton contamination when tests run in parallel with xdist.
+    Resets ProcessPoolManager singleton state before and after each test.
+    """
+    # Reset before test using the new reset() method
+    ProcessPoolManager.reset()
+    yield
+    # Reset after test
+    ProcessPoolManager.reset()
 
 
 @pytest.fixture
@@ -85,7 +105,7 @@ class TestInitialization:
     """Test LauncherWorker initialization."""
 
     def test_initialization_sets_basic_attributes(
-        self, qapp: QApplication, worker_id: str
+        self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
         """Test worker initializes with basic attributes."""
         worker = LauncherWorker(worker_id, "nuke script.nk")
@@ -98,9 +118,10 @@ class TestInitialization:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_initialization_with_working_dir(
-        self, qapp: QApplication, worker_id: str
+        self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
         """Test worker initializes with optional working directory."""
         worker = LauncherWorker(worker_id, "maya scene.ma", working_dir="/tmp")
@@ -109,9 +130,10 @@ class TestInitialization:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_initialization_inherits_from_thread_safe_worker(
-        self, qapp: QApplication, worker_id: str
+        self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
         """Test worker has all ThreadSafeWorker lifecycle signals."""
         worker = LauncherWorker(worker_id, "nuke")
@@ -129,6 +151,7 @@ class TestInitialization:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
 
 # ============================================================================
@@ -144,7 +167,7 @@ class TestCommandSanitization:
     """
 
     def test_sanitize_command_simple(
-        self, qapp: QApplication, worker_id: str
+        self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
         """Test parsing of simple command."""
         worker = LauncherWorker(worker_id, "nuke")
@@ -155,9 +178,10 @@ class TestCommandSanitization:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_sanitize_command_with_path(
-        self, qapp: QApplication, worker_id: str
+        self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
         """Test parsing of command with full path."""
         worker = LauncherWorker(worker_id, "nuke")
@@ -171,9 +195,10 @@ class TestCommandSanitization:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_sanitize_command_3de(
-        self, qapp: QApplication, worker_id: str
+        self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
         """Test parsing of 3DE command."""
         worker = LauncherWorker(worker_id, "3de")
@@ -184,9 +209,10 @@ class TestCommandSanitization:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_sanitize_command_maya(
-        self, qapp: QApplication, worker_id: str
+        self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
         """Test parsing of Maya command."""
         worker = LauncherWorker(worker_id, "maya")
@@ -197,9 +223,10 @@ class TestCommandSanitization:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_sanitize_rejects_malformed_command(
-        self, qapp: QApplication, worker_id: str
+        self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
         """Test sanitization rejects malformed command that shlex cannot parse."""
         worker = LauncherWorker(worker_id, "nuke")
@@ -209,9 +236,10 @@ class TestCommandSanitization:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_sanitize_never_uses_shell(
-        self, qapp: QApplication, worker_id: str
+        self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
         """Test sanitization always returns use_shell=False for security."""
         worker = LauncherWorker(worker_id, "nuke")
@@ -223,6 +251,7 @@ class TestCommandSanitization:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
 
 # ============================================================================
@@ -235,6 +264,7 @@ class TestWorkerExecution:
 
     def test_do_work_emits_command_started_signal(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -259,9 +289,11 @@ class TestWorkerExecution:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_do_work_calls_subprocess_popen(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -293,9 +325,11 @@ class TestWorkerExecution:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_do_work_uses_working_directory(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -316,9 +350,11 @@ class TestWorkerExecution:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_do_work_creates_stream_drain_threads(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -353,9 +389,11 @@ class TestWorkerExecution:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_do_work_emits_command_finished_on_success(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -380,9 +418,11 @@ class TestWorkerExecution:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_do_work_emits_command_finished_on_failure(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -407,9 +447,11 @@ class TestWorkerExecution:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_do_work_handles_stop_request_during_execution(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -444,9 +486,11 @@ class TestWorkerExecution:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_do_work_emits_error_on_exception(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -471,6 +515,7 @@ class TestWorkerExecution:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
 
 # ============================================================================
@@ -483,6 +528,7 @@ class TestProcessTermination:
 
     def test_terminate_process_calls_terminate(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -501,9 +547,11 @@ class TestProcessTermination:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_terminate_process_waits_for_graceful_exit(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -524,9 +572,11 @@ class TestProcessTermination:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_terminate_process_kills_if_timeout(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -553,9 +603,11 @@ class TestProcessTermination:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_terminate_process_handles_none_process(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -570,9 +622,11 @@ class TestProcessTermination:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_cleanup_process_terminates_running_process(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -592,9 +646,11 @@ class TestProcessTermination:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_cleanup_process_sets_process_to_none(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -612,9 +668,11 @@ class TestProcessTermination:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_cleanup_process_logs_orphaned_process(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -646,9 +704,11 @@ class TestProcessTermination:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_request_stop_terminates_subprocess(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -672,6 +732,7 @@ class TestProcessTermination:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
 
 # ============================================================================
@@ -684,6 +745,7 @@ class TestSignalPropagation:
 
     def test_signals_emitted_across_thread_boundaries(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -711,9 +773,11 @@ class TestSignalPropagation:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_multiple_workers_emit_independent_signals(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         mock_subprocess_popen,
         mock_threading,
@@ -744,7 +808,9 @@ class TestSignalPropagation:
             worker1.safe_stop()
             worker2.safe_stop()
             worker1.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
             worker2.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
 
 # ============================================================================
@@ -757,6 +823,7 @@ class TestThreadSafety:
 
     def test_process_attribute_access_is_safe(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -770,9 +837,11 @@ class TestThreadSafety:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_concurrent_request_stop_is_safe(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -792,6 +861,7 @@ class TestThreadSafety:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
 
 # ============================================================================
@@ -804,6 +874,7 @@ class TestResourceCleanup:
 
     def test_worker_cleans_up_after_normal_execution(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -825,9 +896,11 @@ class TestResourceCleanup:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_worker_cleans_up_after_exception(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -843,6 +916,7 @@ class TestResourceCleanup:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     # NOTE: Removed - causes segfault with Qt event loop in tests
     # def test_worker_can_be_safely_deleted(
@@ -872,6 +946,7 @@ class TestEdgeCases:
 
     def test_worker_with_empty_command(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -888,9 +963,11 @@ class TestEdgeCases:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_worker_with_whitespace_command(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -907,9 +984,11 @@ class TestEdgeCases:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_worker_handles_command_with_quotes(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
         mock_subprocess_popen,
@@ -933,9 +1012,11 @@ class TestEdgeCases:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_worker_handles_process_already_terminated(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -953,9 +1034,11 @@ class TestEdgeCases:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
 
     def test_worker_handles_all_allowed_commands(
         self,
+        qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
@@ -981,3 +1064,4 @@ class TestEdgeCases:
         finally:
             worker.safe_stop()
             worker.deleteLater()
+            qtbot.wait(1)  # Flush Qt event loop
