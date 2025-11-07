@@ -39,21 +39,22 @@ from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 
 if TYPE_CHECKING:
+    from _pytest.monkeypatch import MonkeyPatch
     from pytestqt.qtbot import QtBot
 
     from main_window import MainWindow
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 class TestBaseShotModelTextFiltering:
     """Test Text filter methods in BaseShotModel."""
 
     @pytest.fixture
-    def mock_shot_model(self) -> ShotModel:
+    def mock_shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel with test process pool."""
         process_pool = TestProcessPool()
-        model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
+        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         model._process_pool = process_pool
         return model
 
@@ -179,9 +180,9 @@ class TestThreeDESceneModelTextFiltering:
     """Test Text filter methods in ThreeDESceneModel."""
 
     @pytest.fixture
-    def threede_scene_model(self) -> ThreeDESceneModel:
+    def threede_scene_model(self, tmp_path: Path) -> ThreeDESceneModel:
         """Create ThreeDESceneModel."""
-        return ThreeDESceneModel(cache_manager=TestCacheManager(), load_cache=False)
+        return ThreeDESceneModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
 
     @pytest.fixture
     def test_scenes(self, tmp_path: Path) -> list[ThreeDEScene]:
@@ -263,19 +264,20 @@ class TestPreviousShotsModelTextFiltering:
     """Test Text filter methods in PreviousShotsModel."""
 
     @pytest.fixture
-    def shot_model(self) -> ShotModel:
+    def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a base ShotModel."""
-        model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
+        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         model._process_pool = TestProcessPool()
         return model
 
     @pytest.fixture
-    def previous_shots_model(self, shot_model: ShotModel, qtbot: QtBot) -> Generator[PreviousShotsModel, None, None]:
+    def previous_shots_model(self, tmp_path: Path, shot_model: ShotModel, qtbot: QtBot) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel."""
-        model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager())
+        model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
         yield model
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         model.deleteLater()
+        qtbot.wait(1)
 
     @pytest.fixture
     def test_previous_shots(self) -> list[Shot]:
@@ -323,12 +325,13 @@ class TestBaseGridViewTextFilterUI:
     """Test Text filter UI in BaseGridView subclasses."""
 
     @pytest.fixture
-    def shot_item_model(self, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
+    def shot_item_model(self, tmp_path: Path, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
         """Create ShotItemModel."""
-        model = ShotItemModel(cache_manager=TestCacheManager())
+        model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"))
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
+        qtbot.wait(1)
 
     @pytest.fixture
     def shot_grid_view(self, shot_item_model: ShotItemModel, qtbot: QtBot) -> ShotGridView:
@@ -367,9 +370,9 @@ class TestBaseGridViewTextFilterUI:
         assert signal_spy.count() == 3
         assert signal_spy.at(2)[0] == ""
 
-    def test_text_filter_in_threede_view(self, qtbot: QtBot) -> None:
+    def test_text_filter_in_threede_view(self, tmp_path: Path, qtbot: QtBot) -> None:
         """Test that text filter also exists in ThreeDEGridView."""
-        threede_item_model = ThreeDEItemModel(cache_manager=TestCacheManager())
+        threede_item_model = ThreeDEItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"))
         view = ThreeDEGridView(model=threede_item_model)
         qtbot.addWidget(view)
 
@@ -379,15 +382,16 @@ class TestBaseGridViewTextFilterUI:
         # Cleanup
         threede_item_model.clear_thumbnail_cache()
         threede_item_model.deleteLater()
+        qtbot.wait(1)
 
-    def test_text_filter_in_previous_shots_view(self, qtbot: QtBot) -> None:
+    def test_text_filter_in_previous_shots_view(self, tmp_path: Path, qtbot: QtBot) -> None:
         """Test that text filter also exists in PreviousShotsView."""
-        shot_model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
+        shot_model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         shot_model._process_pool = TestProcessPool()
         previous_model = PreviousShotsModel(
-            shot_model, cache_manager=TestCacheManager()
+            shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2")
         )
-        previous_item_model = PreviousShotsItemModel(previous_model, TestCacheManager())
+        previous_item_model = PreviousShotsItemModel(previous_model, TestCacheManager(cache_dir=tmp_path / "cache3"))
 
         view = PreviousShotsView(model=previous_item_model)
         qtbot.addWidget(view)
@@ -398,14 +402,16 @@ class TestBaseGridViewTextFilterUI:
         # Cleanup
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         previous_model.deleteLater()
+        qtbot.wait(1)
         previous_item_model.deleteLater()
+        qtbot.wait(1)
 
 
 class TestMainWindowTextFilterHandlers:
     """Test Text filter signal handlers in MainWindow."""
 
     @pytest.fixture
-    def mock_main_window(self, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch) -> MainWindow:
+    def mock_main_window(self, tmp_path: Path, qtbot: QtBot, monkeypatch: MonkeyPatch) -> MainWindow:
         """Create a mock MainWindow setup for testing text filter handlers."""
         # Local application imports
         from main_window import (
@@ -419,17 +425,17 @@ class TestMainWindowTextFilterHandlers:
 
         # Set up minimal required attributes
         window.shot_model = ShotModel(
-            cache_manager=TestCacheManager(), load_cache=False
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False
         )
         window.shot_model._process_pool = TestProcessPool()
 
-        window.shot_item_model = ShotItemModel(cache_manager=TestCacheManager())
+        window.shot_item_model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
 
         window.previous_shots_model = PreviousShotsModel(
-            window.shot_model, cache_manager=TestCacheManager()
+            window.shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache3")
         )
         window.previous_shots_item_model = PreviousShotsItemModel(
-            window.previous_shots_model, TestCacheManager()
+            window.previous_shots_model, TestCacheManager(cache_dir=tmp_path / "cache4")
         )
 
         # Add RefreshOrchestrator for refactored MainWindow

@@ -165,7 +165,7 @@ class ThreadSafeTestImage:
         with self._lock:
             return self._height
 
-    def isNull(self) -> bool:  # noqa: N802
+    def isNull(self) -> bool:
         """Check if image is null."""
         return False
 
@@ -396,7 +396,7 @@ class TypedThreadTestHelper:
             List of successful operation results
         """
         # Standard library imports
-        import concurrent.futures  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import concurrent.futures
 
         count = operation_count or self.thread_count
 

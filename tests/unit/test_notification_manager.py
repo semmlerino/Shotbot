@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
     from pytestqt.qtbot import QtBot
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtWidgets import (
@@ -34,8 +34,7 @@ from notification_manager import (
 # Test markers for categorization and parallel safety
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # Critical for parallel execution safety
+    pytest.mark.qt,  # Singleton requires serial execution
 ]
 
 
@@ -165,6 +164,7 @@ class TestToastNotification:
         assert "background-color" in style.lower()
 
         toast.close()
+        qtbot.wait(1)  # Flush deleteLater() calls
 
 
 class TestNotificationManager:
@@ -203,34 +203,41 @@ class TestNotificationManager:
         assert isinstance(manager, NotificationManager)
 
     def test_error_notification(
-        self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar], qtbot: QtBot
+        self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar], qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test error notification display."""
         _manager, main_window, _status_bar = manager_with_ui
 
-        # Mock QMessageBox.critical
-        with patch.object(QMessageBox, "critical") as mock_critical:
-            NotificationManager.error("Test Error", "Error message", "Details")
+        # Create a mock and patch using monkeypatch (compatible with autouse fixture)
+        from unittest.mock import MagicMock
+        mock_critical = MagicMock(return_value=QMessageBox.StandardButton.Ok)
+        monkeypatch.setattr(QMessageBox, "critical", mock_critical)
 
-            mock_critical.assert_called_once()
-            args = mock_critical.call_args[0]
-            assert args[0] is main_window
-            assert "Test Error" in args[1]
-            assert "Error message" in args[2]
+        NotificationManager.error("Test Error", "Error message", "Details")
+
+        mock_critical.assert_called_once()
+        args = mock_critical.call_args[0]
+        assert args[0] is main_window
+        assert "Test Error" in args[1]
+        assert "Error message" in args[2]
 
     def test_warning_notification(
-        self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar]
+        self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar], monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test warning notification display."""
         _manager, main_window, _status_bar = manager_with_ui
 
-        with patch.object(QMessageBox, "warning") as mock_warning:
-            NotificationManager.warning("Test Warning", "Warning message")
+        # Create a mock and patch using monkeypatch (compatible with autouse fixture)
+        from unittest.mock import MagicMock
+        mock_warning = MagicMock(return_value=QMessageBox.StandardButton.Ok)
+        monkeypatch.setattr(QMessageBox, "warning", mock_warning)
 
-            mock_warning.assert_called_once()
-            args = mock_warning.call_args[0]
-            assert args[0] is main_window
-            assert "Test Warning" in args[1]
+        NotificationManager.warning("Test Warning", "Warning message")
+
+        mock_warning.assert_called_once()
+        args = mock_warning.call_args[0]
+        assert args[0] is main_window
+        assert "Test Warning" in args[1]
 
     def test_info_notification(
         self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar], qtbot: QtBot
@@ -284,18 +291,18 @@ class TestNotificationManager:
             timeout=50,
         )
 
-    @patch.object(QProgressDialog, "__new__")
     def test_progress_notification(
         self,
-        mock_progress_new: MagicMock,
         manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar],
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test progress dialog creation."""
         _manager, _main_window, _status_bar = manager_with_ui
 
         # Create a mock progress dialog
         mock_progress = MagicMock(spec=QProgressDialog)
-        mock_progress_new.return_value = mock_progress
+        mock_progress_new = MagicMock(return_value=mock_progress)
+        monkeypatch.setattr(QProgressDialog, "__new__", mock_progress_new)
 
         # Show progress - progress() takes title, message, cancelable, callback
         NotificationManager.progress("Loading...", "Processing items", cancelable=True)
@@ -348,19 +355,22 @@ class TestNotificationManager:
         for toast in NotificationManager._active_toasts[:]:
             toast.close()
 
-    def test_notification_without_ui(self) -> None:
+    def test_notification_without_ui(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test notifications work without UI initialization."""
         # Don't initialize with UI
         NotificationManager()
 
         # These should not crash
-        with patch.object(QMessageBox, "critical") as mock_critical:
-            NotificationManager.error("Error without UI")
-            mock_critical.assert_called_once()
+        from unittest.mock import MagicMock
+        mock_critical = MagicMock(return_value=QMessageBox.StandardButton.Ok)
+        monkeypatch.setattr(QMessageBox, "critical", mock_critical)
+        NotificationManager.error("Error without UI")
+        mock_critical.assert_called_once()
 
-        with patch.object(QMessageBox, "warning") as mock_warning:
-            NotificationManager.warning("Warning without UI")
-            mock_warning.assert_called_once()
+        mock_warning = MagicMock(return_value=QMessageBox.StandardButton.Ok)
+        monkeypatch.setattr(QMessageBox, "warning", mock_warning)
+        NotificationManager.warning("Warning without UI")
+        mock_warning.assert_called_once()
 
         # Info without status bar should not crash
         NotificationManager.info("Info without status bar")

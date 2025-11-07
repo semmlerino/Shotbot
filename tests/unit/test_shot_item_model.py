@@ -35,13 +35,30 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.fast,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 
 # ============================================================================
 # Test Fixtures
 # ============================================================================
+
+
+@pytest.fixture(autouse=True)
+def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset singleton instances before each test to prevent contamination.
+
+    This fixture resets all singleton manager instances that might be used
+    by the code under test, ensuring test isolation in parallel execution.
+    """
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+
+    # Reset singleton instances
+    monkeypatch.setattr(NotificationManager, "_instance", None)
+    monkeypatch.setattr(ProgressManager, "_instance", None)
+    monkeypatch.setattr(ProcessPoolManager, "_instance", None)
+    monkeypatch.setattr(ProcessPoolManager, "_initialized", False)
 
 
 @pytest.fixture
@@ -393,7 +410,7 @@ class TestDataAccess:
         sequence = shot_item_model.data(index, BaseItemRole.SequenceRole)
         assert sequence == shot.sequence
 
-    def test_rowCount_matches_filtered_shots(  # noqa: N802
+    def test_rowCount_matches_filtered_shots(
         self,
         shot_item_model: ShotItemModel,
         base_shot_model: BaseShotModel,

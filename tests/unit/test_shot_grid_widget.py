@@ -24,6 +24,7 @@ Following UNIFIED_TESTING_GUIDE:
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Third-party imports
@@ -50,7 +51,7 @@ from tests.test_doubles_library import (
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 # TestShotGridWidget removed - tested the deleted ShotGrid widget.
 # Use TestShotGridView below for Model/View architecture tests.
@@ -69,9 +70,9 @@ class TestShotGridView:
         ]
 
     @pytest.fixture
-    def shot_item_model(self, test_shots: list[TestShot]) -> ShotItemModel:
+    def shot_item_model(self, test_shots: list[TestShot], tmp_path: Path) -> ShotItemModel:
         """Create real ShotItemModel with TestCacheManager for testing."""
-        test_cache_manager = TestCacheManager()
+        test_cache_manager = TestCacheManager(cache_dir=tmp_path / "cache")
         model = ShotItemModel(cache_manager=test_cache_manager)
         # Convert TestShot to Shot objects for ShotItemModel
         shot_objects = [
@@ -247,10 +248,10 @@ class TestShotGridIntegration:
         ]
 
     @pytest.fixture
-    def integrated_grid_view(self, qtbot: QtBot, integration_shots: list[Shot]) -> ShotGridView:
+    def integrated_grid_view(self, qtbot: QtBot, integration_shots: list[Shot], tmp_path: Path) -> ShotGridView:
         """Create fully integrated ShotGridView for testing."""
         # Create model with test cache manager and shots
-        test_cache_manager = TestCacheManager()
+        test_cache_manager = TestCacheManager(cache_dir=tmp_path / "cache")
         model = ShotItemModel(cache_manager=test_cache_manager)
         # integration_shots are already Shot objects from make_test_shot fixture
         model.set_shots(integration_shots)

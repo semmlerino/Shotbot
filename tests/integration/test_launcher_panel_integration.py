@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
@@ -36,6 +36,7 @@ from PySide6.QtCore import Qt
 # sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Local application imports
 from launcher_panel import LauncherPanel
+from process_pool_manager import ProcessPoolManager
 
 # Moved to lazy import to fix Qt initialization
 # from main_window import MainWindow
@@ -47,7 +48,7 @@ from tests.test_doubles_library import TestSubprocess
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
     global MainWindow  # noqa: PLW0603
@@ -59,13 +60,29 @@ def setup_qt_imports() -> None:
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),
+    pytest.mark.enforce_unique_connections,
 ]
 
 
 # =============================================================================
 # FACTORY FIXTURES FOR INTEGRATION TESTING
 # =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def reset_launcher_singletons() -> Generator[None, None, None]:
+    """Reset launcher-related singletons between tests for isolation.
+
+    Prevents singleton contamination when tests run in parallel with xdist.
+    Resets ProcessPoolManager singleton state before and after each test.
+    """
+    # Reset before test
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+    yield
+    # Reset after test
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
 
 
 @pytest.fixture
@@ -110,7 +127,7 @@ class TestMainWindowLauncherIntegration:
         """Setup method to initialize Qt object tracking."""
         self.qt_objects: list[Any] = []
 
-    def teardown_method(self) -> None:
+    def teardown_method(self, qtbot: QtBot) -> None:
         """Clean up Qt objects to prevent resource leaks."""
         for obj in self.qt_objects:
             try:
@@ -120,6 +137,7 @@ class TestMainWindowLauncherIntegration:
 
                 if hasattr(obj, "deleteLater"):
                     obj.deleteLater()
+                    qtbot.wait(1)
             except Exception:
                 pass
         self.qt_objects.clear()
@@ -209,30 +227,33 @@ class TestMainWindowLauncherIntegration:
                 launch_calls.append(app_name)
 
             # Disconnect existing signal and connect to mock
-            window.launcher_panel.app_launch_requested.disconnect(window.launcher_controller.launch_app)
+            original_slot = window.launcher_controller.launch_app
+            window.launcher_panel.app_launch_requested.disconnect(original_slot)
             window.launcher_panel.app_launch_requested.connect(mock_launch_app)
 
-            # Trigger app launch from launcher panel
-            nuke_section = window.launcher_panel.app_sections["nuke"]
+            try:
+                # Trigger app launch from launcher panel
+                nuke_section = window.launcher_panel.app_sections["nuke"]
 
-            # Debug: Check button state
-            assert nuke_section.launch_button.isEnabled(), "Launch button should be enabled after shot selection"
+                # Debug: Check button state
+                assert nuke_section.launch_button.isEnabled(), "Launch button should be enabled after shot selection"
 
-            qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
+                qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
 
-            # Process Qt events to ensure signal propagation
-            # Third-party imports
-            from PySide6.QtWidgets import (
-                QApplication,
-            )
+                # Wait for signal to be processed by the connected handler
 
-            QApplication.processEvents()
-            qtbot.wait(50)  # Small delay for Qt event loop
-            QApplication.processEvents()
+                qtbot.waitUntil(
+                    lambda: len(launch_calls) > 0,
+                    timeout=1000
+                )
 
-            # Verify signal reached main window
-            assert len(launch_calls) == 1
-            assert launch_calls[0] == "nuke"
+                # Verify signal reached main window
+                assert len(launch_calls) == 1
+                assert launch_calls[0] == "nuke"
+            finally:
+                # Reconnect original signal to avoid bleed-over
+                window.launcher_panel.app_launch_requested.disconnect(mock_launch_app)
+                window.launcher_panel.app_launch_requested.connect(original_slot)
 
     @pytest.mark.slow
     def test_multiple_app_launches_through_main_window(
@@ -259,19 +280,29 @@ class TestMainWindowLauncherIntegration:
                 launch_calls.append(app_name)
 
             # Disconnect existing signal and connect to mock to avoid double-execution
-            window.launcher_panel.app_launch_requested.disconnect(window.launcher_controller.launch_app)
+            original_slot = window.launcher_controller.launch_app
+            window.launcher_panel.app_launch_requested.disconnect(original_slot)
             window.launcher_panel.app_launch_requested.connect(mock_launch_app)
 
-            # Launch multiple apps in sequence
-            apps_to_launch = ["3de", "maya", "rv"]
-            for app_name in apps_to_launch:
-                section = window.launcher_panel.app_sections[app_name]
-                qtbot.mouseClick(section.launch_button, Qt.MouseButton.LeftButton)
-                # Allow event loop to process without forcing immediate processing
-                qtbot.wait(50)  # Proper delay for event processing
+            try:
+                # Launch multiple apps in sequence
+                apps_to_launch = ["3de", "maya", "rv"]
+                for app_name in apps_to_launch:
+                    section = window.launcher_panel.app_sections[app_name]
+                    initial_count = len(launch_calls)
+                    qtbot.mouseClick(section.launch_button, Qt.MouseButton.LeftButton)
+                    # Wait for this specific launch call to be processed
+                    qtbot.waitUntil(
+                        lambda count=initial_count: len(launch_calls) > count,
+                        timeout=1000
+                    )
 
-            # Verify all launches were processed
-            assert launch_calls == apps_to_launch
+                # Verify all launches were processed
+                assert launch_calls == apps_to_launch
+            finally:
+                # Reconnect original signal to avoid bleed-over
+                window.launcher_panel.app_launch_requested.disconnect(mock_launch_app)
+                window.launcher_panel.app_launch_requested.connect(original_slot)
 
     def test_checkbox_options_passed_through_main_window(
         self, qtbot: QtBot, make_shot: Callable[..., Shot]
@@ -354,7 +385,12 @@ class TestMainWindowLauncherIntegration:
             signal_spy = QSignalSpy(window.launcher_panel.custom_launcher_requested)
 
             qtbot.mouseClick(custom_button, Qt.MouseButton.LeftButton)
-            qtbot.wait(50)  # Allow event loop to process
+
+            # Wait for the custom launcher signal to be emitted
+            qtbot.waitUntil(
+                lambda: signal_spy.count() > 0,
+                timeout=1000
+            )
 
             # Debug: Check if signal was emitted
             assert signal_spy.count() >= 1, (
@@ -380,7 +416,7 @@ class TestEndToEndLauncherWorkflow:
         """Setup method to initialize Qt object tracking."""
         self.qt_objects: list[Any] = []
 
-    def teardown_method(self) -> None:
+    def teardown_method(self, qtbot: QtBot) -> None:
         """Clean up Qt objects to prevent resource leaks."""
         for obj in self.qt_objects:
             try:
@@ -390,6 +426,7 @@ class TestEndToEndLauncherWorkflow:
 
                 if hasattr(obj, "deleteLater"):
                     obj.deleteLater()
+                    qtbot.wait(1)
             except Exception:
                 pass
         self.qt_objects.clear()
@@ -436,17 +473,28 @@ class TestEndToEndLauncherWorkflow:
                 )
 
             # Disconnect existing signal and connect to mock to avoid validation errors
-            window.launcher_panel.app_launch_requested.disconnect(window.launcher_controller.launch_app)
+            original_slot = window.launcher_controller.launch_app
+            window.launcher_panel.app_launch_requested.disconnect(original_slot)
             window.launcher_panel.app_launch_requested.connect(mock_launch_app)
 
-            # Step 5: Launch nuke
-            qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
-            qtbot.wait(50)  # Allow event loop to process
+            try:
+                # Step 5: Launch nuke
+                qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
 
-            # Step 6: Verify complete context was captured
-            assert launch_context["app"] == "nuke"
-            assert launch_context["shot"] == shot
-            assert launch_context["raw_plate"] is True
+                # Wait for the launch signal to be processed by the mock handler
+                qtbot.waitUntil(
+                    lambda: "app" in launch_context,
+                    timeout=1000
+                )
+
+                # Step 6: Verify complete context was captured
+                assert launch_context["app"] == "nuke"
+                assert launch_context["shot"] == shot
+                assert launch_context["raw_plate"] is True
+            finally:
+                # Reconnect original signal to avoid bleed-over
+                window.launcher_panel.app_launch_requested.disconnect(mock_launch_app)
+                window.launcher_panel.app_launch_requested.connect(original_slot)
 
     @pytest.mark.integration
     def test_3de_launch_with_scene_options(
@@ -492,7 +540,12 @@ class TestEndToEndLauncherWorkflow:
                 qtbot.mouseClick(
                     threede_section.launch_button, Qt.MouseButton.LeftButton
                 )
-                qtbot.wait(50)  # Allow event loop to process
+
+                # Wait for the launch signal to be processed and context populated
+                qtbot.waitUntil(
+                    lambda: "app" in launch_context,
+                    timeout=1000
+                )
 
                 assert launch_context["app"] == "3de"
                 assert launch_context["shot"] == shot
@@ -586,7 +639,7 @@ class TestLauncherIntegrationErrorHandling:
         """Setup method to initialize Qt object tracking."""
         self.qt_objects: list[Any] = []
 
-    def teardown_method(self) -> None:
+    def teardown_method(self, qtbot: QtBot) -> None:
         """Clean up Qt objects to prevent resource leaks."""
         for obj in self.qt_objects:
             try:
@@ -596,6 +649,7 @@ class TestLauncherIntegrationErrorHandling:
 
                 if hasattr(obj, "deleteLater"):
                     obj.deleteLater()
+                    qtbot.wait(1)
             except Exception:
                 pass
         self.qt_objects.clear()

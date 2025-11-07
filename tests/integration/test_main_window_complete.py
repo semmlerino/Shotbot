@@ -56,7 +56,7 @@ if TYPE_CHECKING:
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
     global MainWindow, Shot  # noqa: PLW0603
@@ -69,6 +69,132 @@ def setup_qt_imports() -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def reset_all_mainwindow_singletons():
+    """Reset ALL singletons used by MainWindow to prevent test contamination.
+
+    MainWindow uses many singletons that must be reset between tests:
+    - NotificationManager (UI notifications and toasts)
+    - ProgressManager (progress dialogs and operations)
+    - ProcessPoolManager (process pool for background tasks)
+    - QRunnableTracker (thread pool task tracking)
+    - FilesystemCoordinator (filesystem operation coordination)
+
+    This fixture ensures complete isolation between tests by resetting all
+    singleton state before and after each test.
+    """
+    # Import all singleton managers
+    from filesystem_coordinator import FilesystemCoordinator
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+    from runnable_tracker import QRunnableTracker
+
+    # BEFORE TEST: Reset all singletons to clean state
+    # Reset NotificationManager FIRST (closes Qt widgets that others may reference)
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass  # Qt object may already be deleted
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager (after NotificationManager to avoid Qt widget access)
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass  # Qt objects may already be deleted
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass  # Ignore shutdown errors
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset QRunnableTracker
+    try:
+        QRunnableTracker.reset_instance()
+    except Exception:
+        pass  # Ignore reset errors
+
+    # Reset FilesystemCoordinator
+    FilesystemCoordinator._instance = None
+
+    # Process pending Qt events before test
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app:
+        app.processEvents()
+
+    yield  # Run the test
+
+    # AFTER TEST: Reset all singletons again (defense in depth)
+    # Reset NotificationManager FIRST
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset QRunnableTracker
+    try:
+        QRunnableTracker.reset_instance()
+    except Exception:
+        pass
+
+    # Reset FilesystemCoordinator
+    FilesystemCoordinator._instance = None
+
+    # Process pending Qt events after test
+    if app:
+        app.processEvents()
+
+
 # Mark all tests in this module as qt_heavy and integration_unsafe
 pytestmark = [pytest.mark.qt_heavy, pytest.mark.integration_unsafe]
 
@@ -76,7 +202,7 @@ pytestmark = [pytest.mark.qt_heavy, pytest.mark.integration_unsafe]
 def is_testing_environment() -> bool:
     """Check if we're running in a testing environment where some Qt features may not work reliably."""
     # Standard library imports
-    import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+    import os
 
     # Third-party imports
     from PySide6.QtCore import (
@@ -100,7 +226,6 @@ def is_testing_environment() -> bool:
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
-@pytest.mark.xdist_group("qt_state")
 class TestMainWindowCompleteWorkflows:
     """Test complete end-to-end user workflows in MainWindow."""
 
@@ -114,9 +239,9 @@ class TestMainWindowCompleteWorkflows:
         ]
 
     @pytest.fixture
-    def main_window(self, qtbot: QtBot, test_shots: list[TestShot]) -> MainWindow:
+    def main_window(self, qtbot: QtBot, test_shots: list[TestShot], tmp_path: Path) -> MainWindow:
         """Create MainWindow with test data for integration testing."""
-        cache_manager = TestCacheManager()
+        cache_manager = TestCacheManager(cache_dir=tmp_path / "cache")
 
         # Create main window with test cache manager
         window = MainWindow(cache_manager=cache_manager)
@@ -162,7 +287,7 @@ class TestMainWindowCompleteWorkflows:
 
         # Force garbage collection
         # Standard library imports
-        import gc  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import gc
 
         gc.collect()
 

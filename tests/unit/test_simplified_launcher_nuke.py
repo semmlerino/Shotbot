@@ -132,7 +132,7 @@ class TestSimplifiedLauncherNukeIntegration:
         self, mock_popen, launcher, mock_shot, caplog
     ) -> None:
         """Test that log messages from NukeLaunchHandler are captured."""
-        import logging  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import logging
 
         caplog.set_level(logging.INFO)
 

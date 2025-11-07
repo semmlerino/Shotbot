@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
     global MainWindow  # noqa: PLW0603
@@ -42,10 +42,135 @@ def setup_qt_imports() -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def reset_all_mainwindow_singletons():
+    """Reset ALL singletons used by MainWindow to prevent test contamination.
+
+    MainWindow uses many singletons that must be reset between tests:
+    - NotificationManager (UI notifications and toasts)
+    - ProgressManager (progress dialogs and operations)
+    - ProcessPoolManager (process pool for background tasks)
+    - QRunnableTracker (thread pool task tracking)
+    - FilesystemCoordinator (filesystem operation coordination)
+
+    This fixture ensures complete isolation between tests by resetting all
+    singleton state before and after each test.
+    """
+    # Import all singleton managers
+    from filesystem_coordinator import FilesystemCoordinator
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+    from runnable_tracker import QRunnableTracker
+
+    # BEFORE TEST: Reset all singletons to clean state
+    # Reset NotificationManager FIRST (closes Qt widgets that others may reference)
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass  # Qt object may already be deleted
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager (after NotificationManager to avoid Qt widget access)
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass  # Qt objects may already be deleted
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass  # Ignore shutdown errors
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset QRunnableTracker
+    try:
+        QRunnableTracker.reset_instance()
+    except Exception:
+        pass  # Ignore reset errors
+
+    # Reset FilesystemCoordinator
+    FilesystemCoordinator._instance = None
+
+    # Process pending Qt events before test
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app:
+        app.processEvents()
+
+    yield  # Run the test
+
+    # AFTER TEST: Reset all singletons again (defense in depth)
+    # Reset NotificationManager FIRST
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset QRunnableTracker
+    try:
+        QRunnableTracker.reset_instance()
+    except Exception:
+        pass
+
+    # Reset FilesystemCoordinator
+    FilesystemCoordinator._instance = None
+
+    # Process pending Qt events after test
+    if app:
+        app.processEvents()
+
+
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL: Same group for all Qt tests
+    pytest.mark.qt,  # CRITICAL: Same group for all Qt tests
 ]
 
 
@@ -93,6 +218,7 @@ class TestCrossTabSynchronization:
 
                 # Delete the window instance explicitly
                 window.deleteLater()
+                qtbot.wait(1)
 
         # Clear the list immediately after closing
         self.test_windows.clear()
@@ -150,13 +276,19 @@ class TestCrossTabSynchronization:
             QMutexLocker,
         )
 
+        # Stop async loader with lock held
         with QMutexLocker(window.shot_model._loader_lock):
             if window.shot_model._async_loader:
                 window.shot_model._async_loader.stop()
                 window.shot_model._async_loader.wait()
                 window.shot_model._async_loader.deleteLater()
+                # Note: deleteLater() is deferred, object will be deleted when control returns to event loop
                 window.shot_model._async_loader = None
             window.shot_model._loading_in_progress = False
+
+        # Process Qt events AFTER releasing lock to avoid deadlock with _on_loader_finished
+        # (deleteLater objects are processed here)
+        qtbot.wait(1)
 
         # Clear cache to ensure clean test state
         window.cache_manager.clear_cache()
@@ -318,7 +450,7 @@ class TestCrossTabSynchronization:
 
         # Create a temporary cache manager in a fresh directory to avoid old data
         # Standard library imports
-        import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import tempfile
         from pathlib import (
             Path,
         )
@@ -349,13 +481,19 @@ class TestCrossTabSynchronization:
             QMutexLocker,
         )
 
+        # Stop async loader with lock held
         with QMutexLocker(window.shot_model._loader_lock):
             if window.shot_model._async_loader:
                 window.shot_model._async_loader.stop()
                 window.shot_model._async_loader.wait()
                 window.shot_model._async_loader.deleteLater()
+                # Note: deleteLater() is deferred, object will be deleted when control returns to event loop
                 window.shot_model._async_loader = None
             window.shot_model._loading_in_progress = False
+
+        # Process Qt events AFTER releasing lock to avoid deadlock with _on_loader_finished
+        # (deleteLater objects are processed here)
+        qtbot.wait(1)
 
         # Set up test data with multiple shows
         # Note: ws -sg returns all shots in a single multi-line output
@@ -401,7 +539,7 @@ class TestCacheUICoordination:
 
         # Clear test cache directory
         # Standard library imports
-        import shutil  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import shutil
         from pathlib import (
             Path,
         )
@@ -435,6 +573,7 @@ class TestCacheUICoordination:
 
                 # Delete the window instance explicitly
                 window.deleteLater()
+                qtbot.wait(1)
 
         self.test_windows.clear()
 
@@ -502,7 +641,7 @@ class TestCacheUICoordination:
         fake_thumb = tmp_path / "test_thumb.jpg"
         # Create a minimal valid JPEG (1x1 red pixel)
         # Third-party imports
-        from PySide6.QtGui import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+        from PySide6.QtGui import (
             QColor,
             QImage,
         )
@@ -600,6 +739,7 @@ class TestErrorPropagationChains:
 
                 # Delete the window instance explicitly
                 window.deleteLater()
+                qtbot.wait(1)
 
         self.test_windows.clear()
 

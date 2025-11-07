@@ -36,6 +36,20 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 # =============================================================================
+# PYTEST FIXTURES
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def cleanup_process_pool():
+    """Ensure ProcessPoolManager is shut down after test."""
+    yield
+    if ProcessPoolManager._instance:
+        ProcessPoolManager._instance.shutdown(timeout=5.0)
+        ProcessPoolManager._instance = None
+
+
+# =============================================================================
 # TEST DOUBLES AT SYSTEM BOUNDARY
 # =============================================================================
 
@@ -121,7 +135,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         """Initialize with optional session injection."""
         # Initialize directly without calling super().__init__() to avoid singleton issues
         # Standard library imports
-        import concurrent.futures  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import concurrent.futures
 
         # Third-party imports
         from PySide6.QtCore import (
@@ -171,7 +185,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         if self._test_session:
             # Use test session instead of secure executor
             # Standard library imports
-            import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+            import time
 
             # Check cache first (same as parent)
             cached = self._cache.get(command)
@@ -216,7 +230,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         if self._test_session:
             # Use test session instead of secure executor for batch commands
             # Standard library imports
-            import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+            import time
 
             start_time = time.time()
             result = self._test_session.execute(command, timeout=30)
@@ -507,7 +521,7 @@ class TestProcessPoolManagerBehavior:
         3. No Qt threading violations occur
         """
         # Standard library imports
-        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import queue
         from concurrent.futures import (
             ThreadPoolExecutor,
         )
@@ -612,7 +626,7 @@ class TestPythonFileOperations:
         # Test BEHAVIOR: Manager remains functional after error
         # (Can still perform other operations)
         # Standard library imports
-        import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
             Path(temp_dir, "test.txt").touch()

@@ -723,7 +723,7 @@ class TestPerformance:
     def test_many_plates_performance(self, tmp_path: Path) -> None:
         """Test performance with many plate directories."""
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         workspace = tmp_path / "workspace"
         base_3de = (
@@ -757,7 +757,7 @@ class TestPerformance:
     def test_many_files_per_plate_performance(self, tmp_path: Path) -> None:
         """Test performance with many files in each plate."""
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         workspace = tmp_path / "workspace"
         threede_scenes = (

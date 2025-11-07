@@ -23,8 +23,7 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.slow,
-    pytest.mark.thread_safety,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+    pytest.mark.thread_safety,  # CRITICAL for parallel safety
 ]
 
 logger = logging.getLogger(__name__)

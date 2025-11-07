@@ -26,19 +26,19 @@ class _TestQApplicationDouble:
         self.palette: QPalette | None = None
         self.executed = False
 
-    def setApplicationName(self, name: str) -> None:  # noqa: N802
+    def setApplicationName(self, name: str) -> None:
         """Set application name."""
         self.application_name = name
 
-    def setOrganizationName(self, name: str) -> None:  # noqa: N802
+    def setOrganizationName(self, name: str) -> None:
         """Set organization name."""
         self.organization_name = name
 
-    def setStyle(self, style: str) -> None:  # noqa: N802
+    def setStyle(self, style: str) -> None:
         """Set application style."""
         self.style = style
 
-    def setPalette(self, palette: QPalette) -> None:  # noqa: N802
+    def setPalette(self, palette: QPalette) -> None:
         """Set application palette."""
         self.palette = palette
 
@@ -317,7 +317,7 @@ class TestShotbotMain:
         # This tests the critical requirement that logging is configured
         # before any imports that might trigger PIL
         # Standard library imports
-        import sys  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import sys
 
         # Remove shotbot from modules if it exists
         if "shotbot" in sys.modules:
@@ -349,7 +349,7 @@ class TestShotbotIntegration:
         # UNIFIED_TESTING_GUIDE: Test real import behavior
         try:
             # Local application imports
-            from shotbot import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+            from shotbot import (
                 main,
                 setup_logging,
             )

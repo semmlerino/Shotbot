@@ -94,7 +94,7 @@ def test_threede_refresh_signals_no_warnings(
         qapp.processEvents()
 
         # Give worker time to start
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
         time.sleep(0.1)
         qapp.processEvents()
 

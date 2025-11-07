@@ -42,6 +42,8 @@ References:
 
 from __future__ import annotations
 
+import contextlib
+
 # Standard library imports
 import tempfile
 import time
@@ -59,7 +61,6 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
     pytest.mark.slow,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 
@@ -77,6 +78,65 @@ def ensure_qt_cleanup(qtbot):
     qtbot.wait(100)
 
 
+@pytest.fixture(autouse=True)
+def reset_threede_singletons() -> None:
+    """Reset 3DE-related singletons to prevent cross-test contamination.
+
+    Resets:
+    - ProcessPoolManager._instance (used by worker for parallel discovery)
+    - NotificationManager._instance (used for progress notifications)
+    - ProgressManager._instance (used for operation tracking)
+    """
+    # Import here to avoid circular dependencies
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset NotificationManager
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    yield
+
+    # Reset again after test (defense in depth)
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+    NotificationManager._instance = None
+    ProgressManager._instance = None
+
+
 class TestThreeDEWorkerWorkflow:
     """Test complete 3DE worker workflow as triggered by user actions.
 
@@ -92,7 +152,7 @@ class TestThreeDEWorkerWorkflow:
     def teardown_method(self) -> None:
         """Clean up test directories."""
         # Standard library imports
-        import shutil  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import shutil
 
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir, ignore_errors=True)
@@ -252,9 +312,12 @@ class TestThreeDEWorkerWorkflow:
         finished_signals = []
 
         # Store lambda references for proper signal disconnection
-        progress_handler = lambda *args: progress_updates.append(args)
-        started_handler = lambda: started_signals.append(True)
-        finished_handler = lambda scenes: finished_signals.append(len(scenes))
+        def progress_handler(*args):
+            return progress_updates.append(args)
+        def started_handler():
+            return started_signals.append(True)
+        def finished_handler(scenes):
+            return finished_signals.append(len(scenes))
 
         worker.progress.connect(progress_handler)
         worker.started.connect(started_handler)
@@ -263,20 +326,14 @@ class TestThreeDEWorkerWorkflow:
         def cleanup_worker() -> None:
             """Cleanup with terminate() as last resort to prevent test suite hang."""
             # CRITICAL: Disconnect all signals BEFORE stopping worker
-            try:
+            with contextlib.suppress(TypeError, RuntimeError):
                 worker.progress.disconnect(progress_handler)
-            except (TypeError, RuntimeError):
-                pass
 
-            try:
+            with contextlib.suppress(TypeError, RuntimeError):
                 worker.started.disconnect(started_handler)
-            except (TypeError, RuntimeError):
-                pass
 
-            try:
+            with contextlib.suppress(TypeError, RuntimeError):
                 worker.finished.disconnect(finished_handler)
-            except (TypeError, RuntimeError):
-                pass
 
             if worker.isRunning():
                 worker.requestInterruption()
@@ -350,8 +407,10 @@ class TestThreeDEWorkerWorkflow:
         error_messages = []
 
         # Store lambda references for proper signal disconnection
-        error_handler = lambda msg: error_messages.append(msg)
-        finished_handler = lambda scenes: globals().update(final_scenes=scenes)
+        def error_handler(msg):
+            return error_messages.append(msg)
+        def finished_handler(scenes):
+            return globals().update(final_scenes=scenes)
 
         worker.error.connect(error_handler)
         worker.finished.connect(finished_handler)
@@ -396,9 +455,12 @@ class TestThreeDEWorkerWorkflow:
         finished_signals = []
 
         # Store lambda references for proper signal disconnection
-        started_handler = lambda: started_signals.append(time.time())
-        progress_handler = lambda *args: progress_signals.append((time.time(), args))
-        finished_handler = lambda scenes: finished_signals.append((time.time(), len(scenes)))
+        def started_handler():
+            return started_signals.append(time.time())
+        def progress_handler(*args):
+            return progress_signals.append((time.time(), args))
+        def finished_handler(scenes):
+            return finished_signals.append((time.time(), len(scenes)))
 
         worker.started.connect(started_handler)
         worker.progress.connect(progress_handler)
@@ -520,7 +582,7 @@ class TestThreeDEWorkerWorkflow:
 
         # Use thread-safe collections for signal tracking
         # Standard library imports
-        import threading  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import threading
 
         signal_lock = threading.Lock()
         all_signals = []
@@ -530,10 +592,14 @@ class TestThreeDEWorkerWorkflow:
                 all_signals.append((time.time(), signal_name, args))
 
         # Create wrapper functions to store connections
-        started_wrapper = lambda: track_signal("started")
-        progress_wrapper = lambda *args: track_signal("progress", *args)
-        finished_wrapper = lambda scenes: track_signal("finished", len(scenes))
-        error_wrapper = lambda msg: track_signal("error", msg)
+        def started_wrapper():
+            return track_signal("started")
+        def progress_wrapper(*args):
+            return track_signal("progress", *args)
+        def finished_wrapper(scenes):
+            return track_signal("finished", len(scenes))
+        def error_wrapper(msg):
+            return track_signal("error", msg)
 
         # Connect signals and track for cleanup
         worker.started.connect(started_wrapper)
@@ -602,7 +668,8 @@ class TestThreeDEWorkerWorkflow:
         completed = []
 
         # Store lambda reference for proper signal disconnection
-        finished_handler = lambda scenes: completed.append(len(scenes))
+        def finished_handler(scenes):
+            return completed.append(len(scenes))
         worker.finished.connect(finished_handler)
 
         # Track signal handlers for proper cleanup
@@ -656,10 +723,14 @@ class TestThreeDEWorkerWorkflow:
             workflow_events.append((time.time(), event, args))
 
         # Store lambda references for proper signal disconnection
-        started_handler = lambda: track_event("worker_started")
-        progress_handler = lambda *args: track_event("progress_update", args)
-        finished_handler = lambda scenes: track_event("scan_completed", len(scenes))
-        error_handler = lambda msg: track_event("error_occurred", msg)
+        def started_handler():
+            return track_event("worker_started")
+        def progress_handler(*args):
+            return track_event("progress_update", args)
+        def finished_handler(scenes):
+            return track_event("scan_completed", len(scenes))
+        def error_handler(msg):
+            return track_event("error_occurred", msg)
 
         worker.started.connect(started_handler)
         worker.progress.connect(progress_handler)

@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
     from cache_manager import CacheManager
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation

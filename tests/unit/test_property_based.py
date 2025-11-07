@@ -191,7 +191,7 @@ class TestWorkspaceCommandProperties:
     def test_workspace_parsing_consistency(self, paths) -> None:
         """Workspace output parsing should handle any valid format."""
         # Standard library imports
-        import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import tempfile
 
         # Local application imports
         from shot_model import (
@@ -345,7 +345,7 @@ class TestSceneFinderProperties:
     def test_scene_finding_consistency(self, scene_list) -> None:
         """Scene finding should be consistent."""
         # Standard library imports
-        import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import tempfile
 
         # Local application imports
         from threede_scene_finder import (

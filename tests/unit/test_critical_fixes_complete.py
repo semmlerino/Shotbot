@@ -43,17 +43,17 @@ def test_shows_root_dynamic_configuration():
         with mock.patch.dict(os.environ, {"SHOWS_ROOT": shows_root}):
             # Force reload of config to pick up new environment
             # Standard library imports
-            import importlib  # noqa: PLC0415 - lazy import to avoid circular dependency
+            import importlib
 
             # Local application imports
-            import config  # noqa: PLC0415 - lazy import to avoid circular dependency
+            import config
 
             importlib.reload(config)
 
             # Test targeted_shot_finder.py
             try:
                 # Local application imports
-                import targeted_shot_finder  # noqa: PLC0415 - lazy import to avoid circular dependency
+                import targeted_shot_finder
 
                 # Reload the module to pick up new SHOWS_ROOT
                 importlib.reload(targeted_shot_finder)
@@ -92,7 +92,7 @@ def test_shows_root_dynamic_configuration():
             # Test optimized_shot_parser.py
             try:
                 # Local application imports
-                import optimized_shot_parser  # noqa: PLC0415 - lazy import to avoid circular dependency
+                import optimized_shot_parser
 
                 # Reload the module to pick up new SHOWS_ROOT
                 importlib.reload(optimized_shot_parser)

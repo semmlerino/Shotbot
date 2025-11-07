@@ -26,7 +26,7 @@ from tests.helpers.synchronization import simulate_work_without_sleep
 from threading_utils import CancellationEvent, ThreadSafeProgressTracker
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 class TestThreadSafeProgressTracker:

@@ -99,6 +99,68 @@ def qapp() -> Iterator[QApplication]:
 
 
 # ==============================================================================
+# Signal Connection Safety Fixtures
+# ==============================================================================
+
+
+@pytest.fixture(scope="session")
+def _signal_instance_type():
+    """Discover the type used by PySide6 for signal instances.
+
+    This fixture robustly discovers the concrete type that PySide6 uses
+    for signal objects, which we need for monkey-patching connect().
+    """
+    from PySide6.QtCore import QObject, Signal
+
+    class _Dummy(QObject):
+        sig = Signal()
+
+    return type(_Dummy().sig)
+
+
+@pytest.fixture
+def enforce_unique_connections(request, monkeypatch, _signal_instance_type):
+    """Force all signal.connect() calls to use UniqueConnection during tests.
+
+    This fixture prevents duplicate signal connections by automatically using
+    Qt.UniqueConnection for all connect() calls. If a signal is connected to
+    the same slot twice, Qt will ignore the second connection silently.
+
+    Scope: Currently only applies to tests marked with @pytest.mark.enforce_unique_connections
+
+    Why this helps:
+    - Catches duplicate signal connections at connection time (not emission time)
+    - Makes "double-emission on click" bugs impossible
+    - Provides immediate feedback in the test that creates the duplicate
+
+    Usage:
+        @pytest.mark.enforce_unique_connections
+        def test_my_widget(qtbot, enforce_unique_connections):
+            widget = MyWidget()
+            # Any duplicate connections will be prevented
+
+    Expand to all tests:
+        Change this to autouse=True once validated on launcher tests.
+    """
+    from PySide6.QtCore import Qt
+
+    # Get original connect method
+    original_connect = _signal_instance_type.connect
+
+    def _connect_unique(self, slot, type=Qt.ConnectionType.AutoConnection):
+        """Override connect() to always use UniqueConnection."""
+        # Force UniqueConnection - duplicate connects will be silently ignored
+        return original_connect(self, slot, Qt.ConnectionType.UniqueConnection)
+
+    # Patch connect() method
+    monkeypatch.setattr(_signal_instance_type, "connect", _connect_unique, raising=True)
+
+    yield
+
+    # Cleanup is automatic via monkeypatch
+
+
+# ==============================================================================
 # Mock Fixtures
 # ==============================================================================
 

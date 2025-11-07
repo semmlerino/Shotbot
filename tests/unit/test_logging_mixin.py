@@ -43,7 +43,7 @@ class MockLoggingClass(LoggingMixin):
     def decorated_method(self, value: int) -> int:
         """Method with log_execution decorator."""
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         time.sleep(0.1)  # Simulate work
         return value * 2

@@ -345,8 +345,8 @@ def launcher_controller_target(qtbot: Any) -> Any:
     target.launcher_manager = None
     target.launcher_panel = Mock()
     target.log_viewer = Mock()
-    target.status_bar = QStatusBar()
-    target.custom_launcher_menu = QMenu()
+    target.status_bar = QStatusBar(parent=None)
+    target.custom_launcher_menu = QMenu(parent=None)
     target.update_status = Mock()
 
     return target
@@ -367,7 +367,7 @@ def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> An
     target.threede_shot_grid = Mock()
     target.shot_info_panel = Mock()
     target.launcher_panel = Mock()
-    target.status_bar = QStatusBar()
+    target.status_bar = QStatusBar(parent=None)
 
     # Model references
     target.shot_model = Mock()
@@ -391,19 +391,52 @@ def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> An
 
 
 @pytest.fixture(autouse=True)
-def clear_singleton_state() -> Iterator[None]:
-    """Clear singleton state between tests to prevent state pollution.
+def integration_test_isolation(qapp: Any, qtbot: Any) -> Iterator[None]:
+    """Isolate integration tests by resetting all singleton state.
 
-    This fixture runs automatically for every test to ensure clean state.
-    Prevents issues like:
-    - NotificationManager holding dangling MainWindow references
-    - Other singletons retaining state from previous tests
+    This fixture runs automatically for every integration test to ensure:
+    - Clean singleton state before each test
+    - Proper Qt cleanup after each test
+    - No state pollution between parallel test runs
+
+    Enables full test parallelization with pytest-xdist.
     """
-    yield
-
-    # Clear NotificationManager singleton state after each test
+    # Reset singletons BEFORE test
     try:
         from notification_manager import NotificationManager
+
+        NotificationManager.reset()
+    except Exception:
+        pass
+
+    try:
+        from progress_manager import ProgressManager
+
+        ProgressManager.reset()
+    except Exception:
+        pass
+
+    try:
+        from process_pool_manager import ProcessPoolManager
+
+        ProcessPoolManager.reset()
+    except Exception:
+        pass
+
+    try:
+        from filesystem_coordinator import FilesystemCoordinator
+
+        FilesystemCoordinator.reset()
+    except Exception:
+        pass
+
+    yield
+
+    # Cleanup AFTER test (handled by main conftest's qt_cleanup fixture)
+    # Just ensure NotificationManager references are cleared
+    try:
+        from notification_manager import NotificationManager
+
         NotificationManager.clear_references()
     except Exception:
-        pass  # Ignore if NotificationManager not imported yet
+        pass

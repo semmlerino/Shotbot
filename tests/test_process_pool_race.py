@@ -15,8 +15,23 @@ import threading
 import time
 from typing import Any
 
-
 # Third-party imports
+import pytest
+
+
+# =============================================================================
+# PYTEST FIXTURES
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def cleanup_process_pool():
+    """Ensure ProcessPoolManager is shut down after test."""
+    yield
+    from process_pool_manager import ProcessPoolManager
+    if ProcessPoolManager._instance:
+        ProcessPoolManager._instance.shutdown(timeout=5.0)
+        ProcessPoolManager._instance = None
 
 
 def test_process_pool_manager_race_condition() -> None:
@@ -118,7 +133,7 @@ def test_process_pool_manager_resource_leak() -> None:
     resources to be created multiple times.
     """
     # Standard library imports
-    import concurrent.futures  # noqa: PLC0415 - lazy import to avoid circular dependency
+    import concurrent.futures
 
     # Local application imports
     from process_pool_manager import (

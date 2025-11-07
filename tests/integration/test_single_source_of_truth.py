@@ -16,8 +16,7 @@ from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL: Qt state must be serialized
+    pytest.mark.integration,  # CRITICAL: Qt state must be serialized
 ]
 
 

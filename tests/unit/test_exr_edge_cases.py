@@ -33,7 +33,6 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.slow,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 
@@ -351,7 +350,7 @@ class TestResourceExhaustion:
 
     def test_cache_cleanup_under_pressure(self, tmp_path) -> None:
         """Cache should clean up when cleared (simplified cache system)."""
-        from PySide6.QtGui import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+        from PySide6.QtGui import (
             QColor,
             QImage,
         )

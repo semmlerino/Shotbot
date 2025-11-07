@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
     from pytestqt.qtbot import QtBot
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 def create_test_shot(
@@ -118,11 +118,12 @@ class TestPreviousShotsView:
         # Ensure cleanup happens
         with contextlib.suppress(RuntimeError):
             model.deleteLater()
+            qtbot.wait(1)
 
     @pytest.fixture
-    def test_cache_manager(self) -> TestCacheManager:
+    def test_cache_manager(self, tmp_path: Path) -> TestCacheManager:
         """Create test double CacheManager."""
-        return TestCacheManager()
+        return TestCacheManager(cache_dir=tmp_path / "cache")
 
     @pytest.fixture
     def real_cache_manager(self, tmp_path: Path) -> CacheManager:
@@ -149,6 +150,7 @@ class TestPreviousShotsView:
         yield view
         # Cleanup the item model manually
         item_model.deleteLater()
+        qtbot.wait(1)
 
     def test_grid_initialization(
         self,
@@ -537,6 +539,7 @@ class TestPreviousShotsViewIntegration:
         # Cleanup
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         previous_model.deleteLater()
+        qtbot.wait(1)
 
     def test_integration_grid_creation(
         self, integration_grid: PreviousShotsView, qtbot: QtBot

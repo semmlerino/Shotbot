@@ -29,6 +29,7 @@ class TestQtIntegration:
         yield model
         model.cleanup()
         model.deleteLater()
+        qtbot.wait(1)
 
     def test_event_loop_responsiveness(self, qt_model, qtbot) -> None:
         """Test that UI remains responsive during background loading."""
@@ -102,6 +103,7 @@ class TestQtIntegration:
             # Ensure timer is always stopped and cleaned up
             timer.stop()
             timer.deleteLater()
+            qtbot.wait(1)
 
     def test_signal_slot_performance(self, qt_model, qtbot) -> None:
         """Test performance of signal-slot connections."""
@@ -172,6 +174,7 @@ class TestQtIntegration:
         # Manual cleanup for QObjects
         model.cleanup()
         model.deleteLater()
+        qtbot.wait(1)
 
         # This test mainly verifies no crashes occur during cleanup
 
@@ -220,10 +223,10 @@ class TestPerformanceValidation:
     def test_memory_usage_optimization(self, real_cache_manager) -> None:
         """Test memory usage remains reasonable with optimizations."""
         # Standard library imports
-        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os
 
         # Third-party imports
-        import psutil  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import psutil
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss

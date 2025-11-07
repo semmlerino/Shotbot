@@ -16,8 +16,7 @@ from shot_model import AsyncShotLoader, ShotModel
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+    pytest.mark.qt,  # CRITICAL for parallel safety
 ]
 
 
@@ -174,7 +173,7 @@ class TestErrorRecovery:
         assert success_spy.count() == 0
         assert "Critical error" in error_spy.at(0)[0]
 
-    def test_partial_data_handling(self) -> None:
+    def test_partial_data_handling(self, tmp_path) -> None:
         """Test handling of partial or malformed workspace data."""
         # Test the parsing directly without async complications
         # Local application imports
@@ -202,7 +201,7 @@ workspace {shows_root}/test/shots/seq03/seq03_0030"""
             ShotModel,
         )
 
-        model = ShotModel(CacheManager(), load_cache=False)
+        model = ShotModel(CacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         model._process_pool = TestProcessPool()
 
         result = model.refresh_shots()

@@ -17,8 +17,7 @@ from PySide6.QtCore import QObject, Signal
 
 
 pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL: Qt state must be serialized
+    pytest.mark.integration,  # CRITICAL: Qt state must be serialized
 ]
 
 

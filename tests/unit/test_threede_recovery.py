@@ -40,7 +40,7 @@ class TestThreeDERecoveryManager:
         crash2.write_text("crash save 2")
 
         # Make crash2 newer
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
         time.sleep(0.01)
         crash2.write_text("crash save 2 newer")
 

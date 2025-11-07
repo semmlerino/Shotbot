@@ -48,7 +48,7 @@ def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
     global MainWindow  # noqa: PLW0603
@@ -77,7 +77,6 @@ class ExtendedTestCacheManager(TestCacheManager):
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
-@pytest.mark.xdist_group("qt_state")
 class TestFeatureFlagSwitching:
     """Test feature flag switching between shot model implementations."""
 
@@ -408,7 +407,6 @@ class TestFeatureFlagSwitching:
 
 
 @pytest.mark.gui_mainwindow
-@pytest.mark.xdist_group("qt_state")
 class TestMainWindowIntegration:
     """Test MainWindow integration with different shot models."""
 

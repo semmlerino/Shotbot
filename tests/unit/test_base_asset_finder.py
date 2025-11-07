@@ -131,7 +131,7 @@ class TestBaseAssetFinder:
 
     def test_find_latest_asset_no_version_pattern(self, tmp_path: Path) -> None:
         """Test finding latest asset by modification time."""
-        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os
 
         workspace = tmp_path / "workspace"
         textures = workspace / "textures"

@@ -35,7 +35,6 @@ if TYPE_CHECKING:
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 

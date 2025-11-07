@@ -171,7 +171,7 @@ class TestSubprocess:
             result.check_returncode()
         return result
 
-    def Popen(  # noqa: N802
+    def Popen(
         self,
         command: str | list[str],
         shell: bool = False,
@@ -1056,11 +1056,11 @@ class ThreadSafeTestImage:
         """Save image to file."""
         return self._image.save(str(path))
 
-    def isNull(self) -> bool:  # noqa: N802
+    def isNull(self) -> bool:
         """Check if image is null."""
         return self._image.isNull()
 
-    def sizeInBytes(self) -> int:  # noqa: N802
+    def sizeInBytes(self) -> int:
         """Get size in bytes."""
         return self._image.sizeInBytes()
 

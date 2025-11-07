@@ -577,7 +577,7 @@ class TestErrorHandling:
         assert len(listing1) > 0
 
         # Delete the directory
-        import shutil  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import shutil
 
         shutil.rmtree(test_dir)
 

@@ -19,7 +19,7 @@ from tests.test_doubles_library import (
 
 
 # Mark all tests in this file
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 # TODO: Replace with actual class being tested
@@ -72,7 +72,7 @@ class TestExampleClassBehavior:
         )
         self.example.error_occurred.connect(lambda msg: self.error_signals.append(msg))
 
-    def teardown_method(self) -> None:
+    def teardown_method(self, qtbot) -> None:
         """Clean up resources.
 
         Ensure proper cleanup of Qt objects and resources.
@@ -80,6 +80,7 @@ class TestExampleClassBehavior:
         # Clean up Qt objects
         if hasattr(self, "example"):
             self.example.deleteLater()
+            qtbot.wait(1)
 
     def test_successful_operation_behavior(self, qtbot) -> None:
         """Test successful operation behavior.
@@ -183,6 +184,7 @@ class TestExampleClassIntegration:
 
         # Clean up manually
         example.deleteLater()
+        qtbot.wait(1)
 
     @pytest.mark.slow
     def test_slow_operation(self, qtbot) -> None:
@@ -217,7 +219,7 @@ class TestExampleClassEdgeCases:
 
         # Ensure cleanup
         example.deleteLater()
-        qtbot.wait(10)  # Process deleteLater
+        qtbot.wait(1)
 
 
 # TODO: Add more test classes as needed

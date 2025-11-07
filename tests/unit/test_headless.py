@@ -281,7 +281,7 @@ def main() -> None:
     except Exception as e:
         logger.error(f"❌ Unexpected error: {e}")
         # Standard library imports
-        import traceback  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import traceback
 
         traceback.print_exc()
         sys.exit(1)

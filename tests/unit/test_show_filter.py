@@ -14,6 +14,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 from __future__ import annotations
 
 from collections.abc import Generator
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 # Third-party imports
@@ -36,17 +37,17 @@ if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
     from pytestqt.qtbot import QtBot
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 class TestBaseShotModelFiltering:
     """Test Show filter methods in BaseShotModel."""
 
     @pytest.fixture
-    def mock_shot_model(self) -> ShotModel:
+    def mock_shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel with test process pool."""
         process_pool = TestProcessPool()
-        model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
+        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         model._process_pool = process_pool
         return model
 
@@ -139,16 +140,16 @@ class TestShotItemModelFiltering:
     """Test Show filter methods in ShotItemModel."""
 
     @pytest.fixture
-    def shot_model(self) -> ShotModel:
+    def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel with test process pool."""
-        model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
+        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         model._process_pool = TestProcessPool()
         return model
 
     @pytest.fixture
-    def shot_item_model(self, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
+    def shot_item_model(self, tmp_path: Path, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
         """Create ShotItemModel for testing."""
-        model = ShotItemModel(cache_manager=TestCacheManager())
+        model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"))
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
@@ -220,18 +221,18 @@ class TestPreviousShotsModelFiltering:
     """Test Show filter methods in PreviousShotsModel."""
 
     @pytest.fixture
-    def shot_model(self) -> ShotModel:
+    def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a base ShotModel."""
-        model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
+        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         model._process_pool = TestProcessPool()
         return model
 
     @pytest.fixture
     def previous_shots_model(
-        self, shot_model: ShotModel, qtbot: QtBot
+        self, tmp_path: Path, shot_model: ShotModel, qtbot: QtBot
     ) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel."""
-        model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager())
+        model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
         yield model
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         model.deleteLater()
@@ -282,16 +283,16 @@ class TestShotGridViewShowFilter:
     """Test Show filter UI in ShotGridView."""
 
     @pytest.fixture
-    def shot_model(self) -> ShotModel:
+    def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel."""
-        model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
+        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         model._process_pool = TestProcessPool()
         return model
 
     @pytest.fixture
-    def shot_item_model(self, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
+    def shot_item_model(self, tmp_path: Path, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
         """Create ShotItemModel."""
-        model = ShotItemModel(cache_manager=TestCacheManager())
+        model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"))
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
@@ -368,22 +369,22 @@ class TestPreviousShotsViewShowFilter:
 
     @pytest.fixture
     def previous_shots_model(
-        self, qtbot: QtBot
+        self, tmp_path: Path, qtbot: QtBot
     ) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel."""
-        shot_model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
+        shot_model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         shot_model._process_pool = TestProcessPool()
-        model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager())
+        model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
         yield model
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         model.deleteLater()
 
     @pytest.fixture
     def previous_shots_item_model(
-        self, previous_shots_model: PreviousShotsModel, qtbot: QtBot
+        self, tmp_path: Path, previous_shots_model: PreviousShotsModel, qtbot: QtBot
     ) -> Generator[PreviousShotsItemModel, None, None]:
         """Create PreviousShotsItemModel."""
-        model = PreviousShotsItemModel(previous_shots_model, TestCacheManager())
+        model = PreviousShotsItemModel(previous_shots_model, TestCacheManager(cache_dir=tmp_path / "cache3"))
         yield model
         model.deleteLater()
 
@@ -450,7 +451,7 @@ class TestMainWindowFilterHandlers:
 
     @pytest.fixture
     def mock_main_window(
-        self, qtbot: QtBot, monkeypatch: MonkeyPatch
+        self, tmp_path: Path, qtbot: QtBot, monkeypatch: MonkeyPatch
     ) -> Generator[Any, None, None]:
         """Create a mock MainWindow setup for testing filter handlers.
 
@@ -469,24 +470,24 @@ class TestMainWindowFilterHandlers:
 
         # Set up minimal required attributes
         # Local application imports
-        from tests.test_doubles_library import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+        from tests.test_doubles_library import (
             TestCacheManager,
             TestProcessPool,
         )
 
         # Create test models
         window.shot_model = ShotModel(
-            cache_manager=TestCacheManager(), load_cache=False
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False
         )
         window.shot_model._process_pool = TestProcessPool()
 
-        window.shot_item_model = ShotItemModel(cache_manager=TestCacheManager())
+        window.shot_item_model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
 
         window.previous_shots_model = PreviousShotsModel(
-            window.shot_model, cache_manager=TestCacheManager()
+            window.shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache3")
         )
         window.previous_shots_item_model = PreviousShotsItemModel(
-            window.previous_shots_model, TestCacheManager()
+            window.previous_shots_model, TestCacheManager(cache_dir=tmp_path / "cache4")
         )
 
         # Create test views

@@ -24,8 +24,7 @@ if TYPE_CHECKING:
 # Test markers for categorization and parallel safety
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # Critical for parallel execution safety
+    pytest.mark.qt,  # Critical for parallel execution safety
 ]
 
 

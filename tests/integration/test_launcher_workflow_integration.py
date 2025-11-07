@@ -14,7 +14,7 @@ import shutil
 import tempfile
 import traceback
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 # Third-party imports
@@ -23,16 +23,40 @@ import pytest
 # Local application imports
 # Import the module under test
 from launcher_manager import LauncherManager
+from process_pool_manager import ProcessPoolManager
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestSubprocess
 
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),
 ]
+
+
+# =============================================================================
+# FIXTURES
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def reset_launcher_singletons() -> Generator[None, None, None]:
+    """Reset launcher-related singletons between tests for isolation.
+
+    Prevents singleton contamination when tests run in parallel with xdist.
+    Resets ProcessPoolManager singleton state before and after each test.
+    """
+    # Reset before test
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+    yield
+    # Reset after test
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
 
 
 class TestLauncherWorkflowIntegration:
@@ -138,8 +162,11 @@ class TestLauncherWorkflowIntegration:
             # Verify execution started successfully
             assert success is True
 
-            # Process Qt events to allow signals to be emitted
-            qtbot.wait(100)  # 100ms should be sufficient for signal processing
+            # Wait for execution_started signal to be emitted
+            qtbot.waitUntil(
+                lambda: len(execution_started_signals) > 0,
+                timeout=1000
+            )
 
             # Verify signals were emitted
             assert len(execution_started_signals) == 1
@@ -180,9 +207,11 @@ class TestLauncherWorkflowIntegration:
             # Verify execution started successfully
             assert success is True
 
-            # Process Qt events to allow process tracking to complete
-            # Increase timeout to handle potential async operations
-            qtbot.wait(200)  # 200ms for more reliable process tracking
+            # Wait for process tracking to register the active process
+            qtbot.waitUntil(
+                lambda: launcher_manager.get_active_process_count() >= 0,
+                timeout=2000
+            )
 
             # Verify process tracking - be more lenient as some launchers may use worker threads
             active_count = launcher_manager.get_active_process_count()
@@ -256,8 +285,11 @@ class TestLauncherWorkflowIntegration:
             # Verify execution started successfully
             assert success is True
 
-            # Process Qt events to allow signals to be emitted
-            qtbot.wait(100)  # 100ms should be sufficient for signal processing
+            # Wait for signals to be emitted (both launcher_added and execution_started)
+            qtbot.waitUntil(
+                lambda: len(signal_events) >= 2,
+                timeout=1000
+            )
 
             # Verify signal emission sequence
             signal_names = [event[0] for event in signal_events]
@@ -330,8 +362,11 @@ class TestLauncherWorkflowIntegration:
             assert success1 is True
             assert success2 is True
 
-            # Process Qt events to allow processes to be tracked
-            qtbot.wait(100)  # 100ms should be sufficient for process tracking
+            # Wait for processes to be registered in tracking
+            qtbot.waitUntil(
+                lambda: launcher_manager.get_active_process_info() is not None,
+                timeout=1000
+            )
 
             # Verify process tracking
             process_info = launcher_manager.get_active_process_info()

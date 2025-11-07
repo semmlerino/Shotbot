@@ -15,6 +15,9 @@ import threading
 import time
 from pathlib import Path
 
+# Local imports
+from tests.helpers.synchronization import wait_for_condition
+
 
 def test_subprocess_with_large_output_no_deadlock() -> bool | None:
     """Test that subprocess producing large output doesn't deadlock with PIPE + drain threads.
@@ -146,9 +149,11 @@ def test_launcher_worker_no_deadlock() -> bool:
 
     # Wait up to 10 seconds
     start = time.time()
-    while not finished and time.time() - start < 10:
+    timeout_sec = 10
+    while not finished and time.time() - start < timeout_sec:
         process_qt_events(app, 10)
-        time.sleep(0.1)
+        # Use wait_for_condition instead of sleep to avoid blocking
+        wait_for_condition(lambda: finished, timeout_ms=100, poll_interval_ms=50)
 
     # Check result
     if finished:

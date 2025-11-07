@@ -101,7 +101,7 @@ def make_model(
             return item_model
 
         if model_class_name == "ThreeDEItemModel":
-            from threede_scene_model import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+            from threede_scene_model import (
                 ThreeDEScene,
                 ThreeDESceneModel,
             )
@@ -149,6 +149,7 @@ def make_model(
             # Manually set items since UnifiedItemModel doesn't have _update_shots()
             item_model.set_items(shots)
             return item_model
+        return None
 
     return _make
 

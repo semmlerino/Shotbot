@@ -11,6 +11,22 @@ import os
 import sys
 from pathlib import Path
 
+# Third-party imports
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset module-level cache disabled flag to prevent test contamination.
+
+    The _cache_disabled flag in utils.py is a global state that can persist
+    across tests, causing subsequent tests to see incorrect cache behavior.
+    This fixture ensures each test starts with a clean state.
+    """
+    import utils
+
+    monkeypatch.setattr(utils, "_cache_disabled", False)
+
 
 def test_mock_setup() -> None:
     """Test that mock mode can be set up correctly."""
@@ -40,7 +56,7 @@ def test_mock_setup() -> None:
     print("\n2. Testing command-line argument parsing...")
     try:
         # Standard library imports
-        import argparse  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import argparse
 
         parser = argparse.ArgumentParser()
         parser.add_argument("--mock", action="store_true")

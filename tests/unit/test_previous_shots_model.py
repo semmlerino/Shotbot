@@ -47,7 +47,6 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.slow,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
@@ -55,6 +54,24 @@ pytestmark = [
 # - Use test doubles instead of mocks
 # - Real components where possible
 # - Thread-safe testing patterns
+
+
+@pytest.fixture(autouse=True)
+def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset singleton instances before each test to prevent contamination.
+
+    This fixture resets all singleton manager instances that might be used
+    by the code under test, ensuring test isolation in parallel execution.
+    """
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+
+    # Reset singleton instances
+    monkeypatch.setattr(NotificationManager, "_instance", None)
+    monkeypatch.setattr(ProgressManager, "_instance", None)
+    monkeypatch.setattr(ProcessPoolManager, "_instance", None)
+    monkeypatch.setattr(ProcessPoolManager, "_initialized", False)
 
 
 class TestPreviousShotsModel:
@@ -91,6 +108,7 @@ class TestPreviousShotsModel:
         # Manual cleanup for QObject
         if hasattr(model, "deleteLater"):
             model.deleteLater()
+            qtbot.wait(1)
 
     @pytest.fixture
     def test_finder(self) -> FakePreviousShotsFinder:
@@ -121,6 +139,7 @@ class TestPreviousShotsModel:
         yield model
         # Cleanup
         model.deleteLater()
+        qtbot.wait(1)
 
     @pytest.fixture
     def model_with_real_cache(
@@ -135,6 +154,7 @@ class TestPreviousShotsModel:
         )
         yield model
         model.deleteLater()
+        qtbot.wait(1)
 
     def test_model_initialization(
         self,
@@ -456,7 +476,7 @@ class TestPreviousShotsModel:
         assert shots[0].show == "show1"
 
     def test_cache_loading_error_recovery(
-        self, temp_cache_dir: Path, test_shot_model: FakeShotModel
+        self, temp_cache_dir: Path, test_shot_model: FakeShotModel, qtbot
     ) -> None:
         """Test handling of corrupted cache data."""
         # Create invalid cache file
@@ -469,6 +489,7 @@ class TestPreviousShotsModel:
         model = PreviousShotsModel(test_shot_model, cache_manager)
         assert len(model.get_shots()) == 0
         model.deleteLater()
+        qtbot.wait(1)
 
     def test_clear_cache_functionality(
         self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path
@@ -568,6 +589,7 @@ class TestPreviousShotsModel:
         assert shots_updated_spy.count() == 1
 
         model.deleteLater()
+        qtbot.wait(1)
 
 
 class TestPreviousShotsModelIntegration:
@@ -575,7 +597,7 @@ class TestPreviousShotsModelIntegration:
 
     @pytest.fixture
     def integration_setup(
-        self, tmp_path: Path
+        self, tmp_path: Path, qtbot: QtBot
     ) -> Generator[tuple[PreviousShotsModel, FakeShotModel, CacheManager], None, None]:
         """Set up integration test with real components."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
@@ -591,6 +613,7 @@ class TestPreviousShotsModelIntegration:
         yield model, shot_model, cache_manager
 
         model.deleteLater()
+        qtbot.wait(1)
 
     def test_full_workflow(
         self,

@@ -29,8 +29,7 @@ from tests.test_doubles_library import TestShot, TestShotModel, TestSubprocess
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
-    pytest.mark.slow,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+    pytest.mark.slow,  # CRITICAL for parallel safety
 ]
 
 if TYPE_CHECKING:
@@ -92,7 +91,6 @@ class TestRealComponentsOverMocks:
 
         # Use real cache manager with temp directory
         cache_dir = tmp_path / "cache"
-        cache_dir.mkdir()
         cache = CacheManager(cache_dir=cache_dir)
 
         # Test real caching behavior

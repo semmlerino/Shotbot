@@ -20,6 +20,7 @@ from config import Config
 
 # Local application imports
 from controllers.launcher_controller import LauncherController
+from process_pool_manager import ProcessPoolManager
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
@@ -139,17 +140,41 @@ class MockLauncherTarget(QObject):
 
 
 # Fixtures
+
+
+@pytest.fixture(autouse=True)
+def reset_launcher_singletons() -> Generator[None, None, None]:
+    """Reset launcher-related singletons between tests for isolation.
+
+    Prevents singleton contamination when tests run in parallel with xdist.
+    Resets ProcessPoolManager singleton state before and after each test.
+    """
+    # Reset before test
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+    yield
+    # Reset after test
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+
 @pytest.fixture
 def make_launcher_controller() -> Generator[
     Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], None, None
 ]:
     """Factory fixture for LauncherController."""
 
+    # Sentinel value to distinguish "no argument" from "explicitly None"
+    unset = object()
+
     def _make(
-        launcher_manager: Any = Mock(), launch_success: bool = True
+        launcher_manager: Any = unset, launch_success: bool = True
     ) -> tuple[LauncherController, MockLauncherTarget]:
         target = MockLauncherTarget()
-        # Always set launcher_manager - could be None, Mock, or custom value
+        # Set launcher_manager - could be None, Mock, or custom value
+        # If not provided, default to Mock
+        if launcher_manager is unset:
+            launcher_manager = Mock()
         target.launcher_manager = launcher_manager
         target.command_launcher.launch_success = launch_success
         controller = LauncherController(target)
@@ -172,7 +197,7 @@ def test_shot() -> Shot:
 @pytest.fixture
 def test_scene() -> ThreeDEScene:
     """Create a test 3DE scene."""
-    from pathlib import Path  # noqa: PLC0415 - lazy import to avoid circular dependency
+    from pathlib import Path
 
     return ThreeDEScene(
         scene_path=Path(f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010/3de/v001/scene.3de"),

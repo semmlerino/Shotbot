@@ -18,8 +18,7 @@ from persistent_terminal_manager import PersistentTerminalManager
 
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL: For parallel test safety
+    pytest.mark.qt,  # CRITICAL: For parallel test safety
 ]
 
 # Integration tests follow UNIFIED_TESTING_GUIDE principles:
@@ -66,7 +65,7 @@ class TestTerminalIntegrationFlow:
             patch("os.stat") as mock_stat,
         ):
             # Standard library imports
-            import stat  # noqa: PLC0415 - lazy import to avoid circular dependency
+            import stat
 
             mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
 
@@ -435,7 +434,7 @@ class TestTerminalCleanup:
                 patch("os.unlink") as mock_unlink,
             ):
                 # Standard library imports
-                import stat  # noqa: PLC0415 - lazy import to avoid circular dependency
+                import stat
 
                 mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
 
@@ -472,7 +471,7 @@ class TestTerminalCleanup:
                 patch("os.unlink") as mock_unlink,
             ):
                 # Standard library imports
-                import stat  # noqa: PLC0415 - lazy import to avoid circular dependency
+                import stat
 
                 mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
 

@@ -38,8 +38,7 @@ from design_system import (
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+    pytest.mark.qt,  # CRITICAL for parallel safety
 ]
 
 
@@ -268,7 +267,7 @@ class TestShadows:
         shadows = Shadows()
 
         # Extract first shadow offset values (should increase with elevation)
-        import re  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import re
 
         def get_first_offset(shadow: str) -> int:
             """Extract the first pixel offset from shadow string."""

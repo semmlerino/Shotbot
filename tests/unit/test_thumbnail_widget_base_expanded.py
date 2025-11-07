@@ -45,8 +45,7 @@ if TYPE_CHECKING:
 
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # Prevent Qt state contamination in parallel execution
+    pytest.mark.qt,  # Prevent Qt state contamination in parallel execution
 ]
 
 
@@ -409,7 +408,7 @@ class TestThumbnailWidgetBaseLoadingOperations:
         Per UNIFIED_TESTING_V2.MD: Use monkeypatch for global state isolation.
         """
         # Save the current cache manager before test
-        original_cache = ThumbnailWidget._cache_manager if hasattr(ThumbnailWidget, "_cache_manager") else None
+        ThumbnailWidget._cache_manager if hasattr(ThumbnailWidget, "_cache_manager") else None
 
         yield
 

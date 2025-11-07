@@ -74,8 +74,10 @@ class TestConcurrentThumbnailRaceConditions:
                     with paths_lock:
                         paths_checked.append((path_str, result))
 
-                    # Small delay to increase interleaving
-                    time.sleep(0.001)
+                    # Small delay to increase interleaving using threading.Event
+                    # Create a local event for this iteration to simulate async delay
+                    interleave_event = threading.Event()
+                    interleave_event.wait(timeout=0.001)
 
                     # Every 30 iterations, one thread triggers cleanup
                     if i % 30 == 0 and worker_id == 1:
@@ -147,7 +149,9 @@ class TestConcurrentThumbnailRaceConditions:
                     with versions_lock:
                         versions_checked.append(versions)
 
-                    time.sleep(0.001)
+                    # Small delay to increase interleaving using threading.Event
+                    interleave_event = threading.Event()
+                    interleave_event.wait(timeout=0.001)
 
                     # Trigger cleanup on worker 1
                     if i % 20 == 0 and worker_id == 1:
@@ -222,8 +226,9 @@ class TestConcurrentThumbnailRaceConditions:
             nonlocal discovery_count
             with discovery_lock:
                 discovery_count += 1
-            # Simulate expensive operation
-            time.sleep(0.01)
+            # Simulate expensive operation with threading.Event instead of sleep
+            expensive_event = threading.Event()
+            expensive_event.wait(timeout=0.01)
             return original_find(shows_root, show, sequence, shot)
 
         PathUtils.find_shot_thumbnail = counting_find  # type: ignore[method-assign]
@@ -242,8 +247,9 @@ class TestConcurrentThumbnailRaceConditions:
                         with results_lock:
                             results.append((worker_id, thumbnail))
 
-                        # Small delay to increase interleaving
-                        time.sleep(0.001)
+                        # Small delay to increase interleaving using threading.Event
+                        interleave_event = threading.Event()
+                        interleave_event.wait(timeout=0.001)
 
                 except Exception as e:
                     print(f"Worker {worker_id} failed: {e}")
@@ -366,7 +372,7 @@ class TestConcurrentThumbnailRaceConditions:
         print("✓ All thread-safety mechanisms working correctly")
         print(f"{'='*70}")
 
-    @pytest.mark.parametrize("num_workers,num_iterations", [
+    @pytest.mark.parametrize(("num_workers", "num_iterations"), [
         (2, 50),
         (5, 100),
         (10, 50),

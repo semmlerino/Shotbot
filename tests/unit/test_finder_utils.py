@@ -364,7 +364,7 @@ class TestGetWorkspaceFromPath:
     def test_extract_workspace(self, monkeypatch) -> None:
         """Test extracting workspace from full path."""
         # Import config and patch it directly to avoid environment pollution issues
-        import sys  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import sys
         # Force clean import
         if "config" in sys.modules:
             del sys.modules["config"]

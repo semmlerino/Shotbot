@@ -41,8 +41,9 @@ def test_basic_file_locking() -> bool:
                         # Read
                         current = int(data_file.read_text())
 
-                        # Small delay to increase race probability
-                        time.sleep(0.001)
+                        # Small delay to increase race probability using threading.Event
+                        delay_event = threading.Event()
+                        delay_event.wait(timeout=0.001)
 
                         # Increment and write
                         new_value = current + 1

@@ -169,7 +169,7 @@ class TestDoubleCheckedLockingFix:
 
         # Wait briefly for any async operations
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         time.sleep(0.1)
 
@@ -324,15 +324,19 @@ class TestMemoryLeakPrevention:
         receiver = Receiver()
         loader.shots_loaded.connect(receiver.on_shots_loaded)
 
-        # Delete receiver
-        receiver.deleteLater()
-        qapp.processEvents()  # Process deletion
+        try:
+            # Delete receiver
+            receiver.deleteLater()
+            qapp.processEvents()  # Process deletion
 
-        # Emit signal - should not crash
-        loader.shots_loaded.emit([])
-        qapp.processEvents()
+            # Emit signal - should not crash
+            loader.shots_loaded.emit([])
+            qapp.processEvents()
 
-        # Test passes if no crash occurred
+            # Test passes if no crash occurred
+        finally:
+            # Ensure cleanup even if test fails
+            qapp.processEvents()  # Process any pending deletions
 
 
 class TestStressConditions:

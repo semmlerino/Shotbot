@@ -31,7 +31,6 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.fast,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 

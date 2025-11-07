@@ -31,7 +31,6 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.fast,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 
@@ -510,7 +509,7 @@ class TestSetItems:
         visible range, schedules thumbnail load, and thumbnails eventually load.
         This is an integration test that verifies the fix works end-to-end.
         """
-        import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import tempfile
 
         from cache_manager import (
             CacheManager,

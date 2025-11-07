@@ -219,7 +219,7 @@ class TestQtWidget:
         """Get widget state value."""
         return self.state.get(key)
 
-    def setProperty(self, name: str, value: Any) -> None:  # noqa: N802
+    def setProperty(self, name: str, value: Any) -> None:
         """Set a Qt property."""
         self.properties[name] = value
 

@@ -36,7 +36,6 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.critical,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 
@@ -63,6 +62,7 @@ class TestInfoPanelPixmapLoader:
         qtbot.addWidget(panel)
         yield panel
         panel.deleteLater()
+        qtbot.wait(1)
 
     def test_loader_successful_image_loading(
         self, test_panel: ShotInfoPanel, temp_image_file: Path, qtbot: QtBot
@@ -186,8 +186,12 @@ class TestInfoPanelPixmapLoader:
         for loader in loaders:
             QThreadPool.globalInstance().start(loader)
 
-        # Wait for all to complete
-        qtbot.wait(1000)
+        # Wait for all loaders to complete
+        def all_loaders_complete() -> bool:
+            with completion_lock:
+                return completed_count == 5
+
+        qtbot.waitUntil(all_loaders_complete, timeout=5000)
 
         # Verify all completed
         assert completed_count == 5
@@ -223,9 +227,9 @@ class TestShotInfoPanelAsyncLoading:
     """Test ShotInfoPanel async loading integration."""
 
     @pytest.fixture
-    def test_cache_manager(self) -> TestCacheManager:
+    def test_cache_manager(self, tmp_path: Path) -> TestCacheManager:
         """Create test cache manager."""
-        return TestCacheManager()
+        return TestCacheManager(cache_dir=tmp_path / "cache")
 
     @pytest.fixture
     def info_panel(
@@ -236,6 +240,7 @@ class TestShotInfoPanelAsyncLoading:
         qtbot.addWidget(panel)  # OK to add QWidget to qtbot
         yield panel
         panel.deleteLater()
+        qtbot.wait(1)
 
     @pytest.fixture
     def test_shot(
@@ -392,6 +397,7 @@ class TestShotInfoPanelCore:
         qtbot.addWidget(panel)
         yield panel
         panel.deleteLater()
+        qtbot.wait(1)
 
     def test_panel_initialization(self, info_panel: ShotInfoPanel) -> None:
         """Test panel initializes correctly."""

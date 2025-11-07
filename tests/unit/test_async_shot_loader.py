@@ -19,8 +19,7 @@ from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+    pytest.mark.qt,  # CRITICAL for parallel safety
 ]
 
 

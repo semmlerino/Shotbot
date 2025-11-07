@@ -255,7 +255,6 @@ class TestLauncherRefactoringSafety:
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
-@pytest.mark.xdist_group("qt_state")
 class TestMainWindowRefactoringSafety:
     """Test suite ensuring main window functionality is preserved."""
 
@@ -348,14 +347,13 @@ class TestMainWindowRefactoringSafety:
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
-@pytest.mark.xdist_group("qt_state")
 class TestCombinedIntegration:
     """Test launcher and main window work together."""
 
     def test_launcher_execution_from_ui(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Verify launchers can be executed from UI context."""
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         # Local application imports
         from main_window import (
@@ -392,7 +390,7 @@ def test_import_compatibility() -> None:
     """Verify all imports still work after refactoring."""
     # These imports should not fail
     # Local application imports
-    from launcher.models import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+    from launcher.models import (
         CustomLauncher,
     )
     from launcher_manager import (

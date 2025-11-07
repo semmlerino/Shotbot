@@ -41,7 +41,6 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.critical,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 
@@ -49,9 +48,9 @@ class TestAsyncCallbackRaceConditions:
     """Test async callback race condition fixes in ShotItemModel."""
 
     @pytest.fixture
-    def test_cache_manager(self) -> TestCacheManager:
+    def test_cache_manager(self, tmp_path: Path) -> TestCacheManager:
         """Create test double CacheManager with predictable behavior."""
-        return TestCacheManager()
+        return TestCacheManager(cache_dir=tmp_path / "cache")
 
     @pytest.fixture
     def model(

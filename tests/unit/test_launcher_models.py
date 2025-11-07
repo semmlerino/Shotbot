@@ -29,12 +29,37 @@ from launcher.models import (
 
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from unittest.mock import Mock
+
+from process_pool_manager import ProcessPoolManager
+
 
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.fast,
 ]
+
+
+# ============================================================================
+# Fixtures
+# ============================================================================
+
+
+@pytest.fixture(autouse=True)
+def reset_launcher_singletons() -> Generator[None, None, None]:
+    """Reset launcher-related singletons between tests for isolation.
+
+    Prevents singleton contamination when tests run in parallel with xdist.
+    Resets ProcessPoolManager singleton state before and after each test.
+    """
+    # Reset before test
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+    yield
+    # Reset after test
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
 
 
 # ============================================================================
@@ -64,7 +89,7 @@ class TestParameterType:
 
     def test_enum_invalid_value_raises_error(self) -> None:
         """Test that invalid enum value raises ValueError."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="invalid_type"):
             ParameterType("invalid_type")
 
 

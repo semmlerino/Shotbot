@@ -462,7 +462,7 @@ class TestPerformance:
     def test_large_directory_performance(self, tmp_path: Path) -> None:
         """Test performance with many files."""
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         workspace = tmp_path / "workspace"
         maya_scenes = workspace / "user" / "john" / "maya" / "scenes"
@@ -486,7 +486,7 @@ class TestPerformance:
     def test_many_users_performance(self, tmp_path: Path) -> None:
         """Test performance with many user directories."""
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         workspace = tmp_path / "workspace"
 

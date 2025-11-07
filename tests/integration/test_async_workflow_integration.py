@@ -38,7 +38,6 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
     pytest.mark.slow,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 
@@ -179,8 +178,15 @@ class TestAsyncWorkflowIntegration:
         # Update panel to different shot
         info_panel.set_shot(test_shots[2])
 
-        # Wait for all async operations
-        qtbot.wait(1000)
+        # Wait for all async operations to complete
+        def async_ops_complete() -> bool:
+            # Check that model row count matches expected
+            model_correct = item_model.rowCount() == 2
+            # Check that panel has switched to correct shot
+            panel_correct = info_panel._current_shot == test_shots[2]
+            return model_correct and panel_correct
+
+        qtbot.waitUntil(async_ops_complete, timeout=5000)
 
         # Verify components are in consistent state
         assert item_model.rowCount() == 2  # shots[1:] = 2 shots
@@ -419,7 +425,14 @@ class TestAsyncCallbackIntegration:
             model.set_shots(new_shots)
 
             # Wait for all operations to complete
-            qtbot.wait(1000)
+            def model_reset_complete() -> bool:
+                # Check that model has been reset to new shots
+                row_count_correct = model.rowCount() == 1
+                # Check that cache has been filtered to match new shots
+                cache_filtered = len(model._thumbnail_cache) <= 1
+                return row_count_correct and cache_filtered
+
+            qtbot.waitUntil(model_reset_complete, timeout=5000)
 
             # Model should be in consistent state
             assert model.rowCount() == 1

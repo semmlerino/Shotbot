@@ -50,8 +50,7 @@ from tests.test_doubles_library import TestCompletedProcess
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
-    pytest.mark.slow,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+    pytest.mark.slow,  # CRITICAL for parallel safety
 ]
 
 if TYPE_CHECKING:
@@ -275,7 +274,7 @@ class TestPreviousShotsWorkerWorkflow:
         def slow_subprocess(*args: Any, **kwargs: Any) -> TestCompletedProcess:
             # Small delay to allow stop request to be processed
             # Standard library imports
-            import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+            import time
 
             time.sleep(0.1)
             if worker.should_stop():
@@ -358,6 +357,7 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Process any pending events
         QCoreApplication.processEvents()
+        QCoreApplication.processEvents()  # Second pass to handle deferred deletions
 
         # Should emit error signal
         assert error_spy.count() == 1

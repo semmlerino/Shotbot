@@ -28,6 +28,65 @@ from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
 pytestmark = [pytest.mark.integration, pytest.mark.slow, pytest.mark.integration_safe]
 
 
+@pytest.fixture(autouse=True)
+def reset_threede_singletons() -> None:
+    """Reset 3DE-related singletons to prevent cross-test contamination.
+
+    Resets:
+    - ProcessPoolManager._instance (used for parallel 3DE discovery)
+    - NotificationManager._instance (used for progress notifications)
+    - ProgressManager._instance (used for operation tracking)
+    """
+    # Import here to avoid circular dependencies
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset NotificationManager
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    yield
+
+    # Reset again after test (defense in depth)
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+    NotificationManager._instance = None
+    ProgressManager._instance = None
+
+
 class TestParallelDiscoveryIntegration:
     """Integration tests for parallel 3DE discovery methods.
 
@@ -44,7 +103,7 @@ class TestParallelDiscoveryIntegration:
     def teardown_method(self) -> None:
         """Clean up test directories."""
         # Standard library imports
-        import shutil  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import shutil
 
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir, ignore_errors=True)
@@ -268,7 +327,7 @@ class TestParallelDiscoveryIntegration:
     def test_concurrent_parallel_discovery(self) -> None:
         """Test multiple parallel discoveries running concurrently."""
         # Standard library imports
-        import threading  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import threading
 
         _shows_root, test_shots = self._create_test_vfx_structure()
 
@@ -375,7 +434,7 @@ class TestParallelDiscoveryIntegration:
 
         # Test parallel discovery on larger dataset
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         start = time.time()
 

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 from persistent_terminal_manager import PersistentTerminalManager
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 # Following UNIFIED_TESTING_GUIDE principles:
 # - Test behavior, not implementation

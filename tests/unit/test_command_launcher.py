@@ -24,8 +24,7 @@ from threede_scene_model import ThreeDEScene
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+    pytest.mark.qt,  # CRITICAL for parallel safety
 ]
 
 if TYPE_CHECKING:

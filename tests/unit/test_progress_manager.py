@@ -35,8 +35,7 @@ if TYPE_CHECKING:
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+    pytest.mark.qt,  # CRITICAL for parallel safety
 ]
 
 # =============================================================================
@@ -74,12 +73,15 @@ def progress_config() -> ProgressConfig:
 @pytest.fixture(autouse=True)
 def reset_progress_manager() -> Generator[None, None, None]:
     """Reset ProgressManager singleton state before each test."""
-    # Clear singleton state
+    # Call clear_all_operations() FIRST to properly close Qt widgets
+    with contextlib.suppress(Exception):
+        ProgressManager.clear_all_operations()
+    # Then clear singleton state
     ProgressManager._instance = None
     ProgressManager._operation_stack = []
     ProgressManager._status_bar = None
     yield
-    # Cleanup after test
+    # Cleanup after test (same pattern)
     with contextlib.suppress(Exception):
         ProgressManager.clear_all_operations()
     ProgressManager._instance = None

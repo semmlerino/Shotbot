@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Generator
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 # Store original ThreeDESceneFinder at module level BEFORE any tests run
 # This ensures we can always restore to the real implementation
@@ -60,6 +60,65 @@ def reset_threede_finder():
     TestThreeDESceneFinder._class_estimate_result = (0, 0)
     TestThreeDESceneFinder._class_should_raise_error = False
     TestThreeDESceneFinder._class_error_to_raise = None
+
+
+@pytest.fixture(autouse=True)
+def reset_threede_singletons() -> None:
+    """Reset 3DE-related singletons to prevent cross-test contamination.
+
+    Resets:
+    - ProcessPoolManager._instance (used by worker for parallel discovery)
+    - NotificationManager._instance (used for progress notifications)
+    - ProgressManager._instance (used for operation tracking)
+    """
+    # Import here to avoid circular dependencies
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset NotificationManager
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    yield
+
+    # Reset again after test (defense in depth)
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+    NotificationManager._instance = None
+    ProgressManager._instance = None
 
 
 class TestThreeDESceneFinder:
@@ -262,7 +321,7 @@ class TestThreeDESceneWorker:
         # Inject test double by replacing the module-level finder
         # This follows UNIFIED_TESTING_GUIDE: "Real components with test doubles at boundaries"
         # Local application imports
-        import threede_scene_worker  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import threede_scene_worker
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
         threede_scene_worker.ThreeDESceneFinder = test_finder
@@ -328,22 +387,20 @@ class TestThreeDESceneWorker:
         started_count = []
         finished_scenes = []
 
-        started_handler = lambda: started_count.append(True)
-        finished_handler = lambda scenes: finished_scenes.append(scenes)
+        def started_handler():
+            return started_count.append(True)
+        def finished_handler(scenes):
+            return finished_scenes.append(scenes)
 
         worker.started.connect(started_handler)
         worker.finished.connect(finished_handler)
 
         def cleanup_worker() -> None:
             # Disconnect signals BEFORE stopping
-            try:
+            with contextlib.suppress(TypeError, RuntimeError):
                 worker.started.disconnect(started_handler)
-            except (TypeError, RuntimeError):
-                pass
-            try:
+            with contextlib.suppress(TypeError, RuntimeError):
                 worker.finished.disconnect(finished_handler)
-            except (TypeError, RuntimeError):
-                pass
 
             if worker.isRunning():
                 worker.stop()
@@ -403,7 +460,7 @@ class TestThreeDESceneWorker:
 
         # Inject test double and create worker
         # Local application imports
-        import threede_scene_worker  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import threede_scene_worker
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
         threede_scene_worker.ThreeDESceneFinder = test_finder
@@ -420,9 +477,12 @@ class TestThreeDESceneWorker:
             finished_scenes = []
             progress_updates = []
 
-            started_handler = lambda: started_count.append(True)
-            finished_handler = lambda scenes: finished_scenes.append(scenes)
-            progress_handler = lambda *args: progress_updates.append(args)
+            def started_handler():
+                return started_count.append(True)
+            def finished_handler(scenes):
+                return finished_scenes.append(scenes)
+            def progress_handler(*args):
+                return progress_updates.append(args)
 
             worker.started.connect(started_handler)
             worker.finished.connect(finished_handler)
@@ -430,18 +490,12 @@ class TestThreeDESceneWorker:
 
             def cleanup_worker() -> None:
                 # Disconnect signals BEFORE stopping
-                try:
+                with contextlib.suppress(TypeError, RuntimeError):
                     worker.started.disconnect(started_handler)
-                except (TypeError, RuntimeError):
-                    pass
-                try:
+                with contextlib.suppress(TypeError, RuntimeError):
                     worker.finished.disconnect(finished_handler)
-                except (TypeError, RuntimeError):
-                    pass
-                try:
+                with contextlib.suppress(TypeError, RuntimeError):
                     worker.progress.disconnect(progress_handler)
-                except (TypeError, RuntimeError):
-                    pass
 
                 if worker.isRunning():
                     worker.stop()
@@ -510,7 +564,7 @@ class TestThreeDESceneWorker:
 
         # Inject test double
         # Local application imports
-        import threede_scene_worker  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import threede_scene_worker
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
         threede_scene_worker.ThreeDESceneFinder = test_finder
@@ -523,15 +577,14 @@ class TestThreeDESceneWorker:
             # Track signals with lambda handlers (not QSignalSpy)
             batch_ready_count = []
 
-            batch_handler = lambda scenes: batch_ready_count.append(len(scenes))
+            def batch_handler(scenes):
+                return batch_ready_count.append(len(scenes))
             worker.batch_ready.connect(batch_handler)
 
             def cleanup_worker() -> None:
                 # Disconnect signals BEFORE stopping
-                try:
+                with contextlib.suppress(TypeError, RuntimeError):
                     worker.batch_ready.disconnect(batch_handler)
-                except (TypeError, RuntimeError):
-                    pass
 
                 if worker.isRunning():
                     worker.stop()
@@ -569,7 +622,7 @@ class TestThreeDESceneWorker:
 
         # Inject test double
         # Local application imports
-        import threede_scene_worker  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import threede_scene_worker
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
         threede_scene_worker.ThreeDESceneFinder = test_finder
@@ -582,22 +635,20 @@ class TestThreeDESceneWorker:
             error_messages = []
             finished_scenes = []
 
-            error_handler = lambda msg: error_messages.append(msg)
-            finished_handler = lambda scenes: finished_scenes.append(scenes)
+            def error_handler(msg):
+                return error_messages.append(msg)
+            def finished_handler(scenes):
+                return finished_scenes.append(scenes)
 
             worker.error.connect(error_handler)
             worker.finished.connect(finished_handler)
 
             def cleanup_worker() -> None:
                 # Disconnect signals BEFORE stopping
-                try:
+                with contextlib.suppress(TypeError, RuntimeError):
                     worker.error.disconnect(error_handler)
-                except (TypeError, RuntimeError):
-                    pass
-                try:
+                with contextlib.suppress(TypeError, RuntimeError):
                     worker.finished.disconnect(finished_handler)
-                except (TypeError, RuntimeError):
-                    pass
 
                 if worker.isRunning():
                     worker.stop()
@@ -630,6 +681,7 @@ class TestThreeDESceneWorker:
             app = QCoreApplication.instance()
             if app:
                 app.processEvents()
+                app.processEvents()  # Second pass to handle deferred deletions
                 app.sendPostedEvents(None, 0)  # Process DeferredDelete events
 
             # Restore original finder
@@ -682,15 +734,14 @@ class TestThreeDESceneWorkerIntegration:
         # Track signals with lambda handlers (not QSignalSpy)
         finished_scenes = []
 
-        finished_handler = lambda scenes: finished_scenes.append(scenes)
+        def finished_handler(scenes):
+            return finished_scenes.append(scenes)
         worker.finished.connect(finished_handler)
 
         def cleanup_worker() -> None:
             # Disconnect signal BEFORE stopping
-            try:
+            with contextlib.suppress(TypeError, RuntimeError):
                 worker.finished.disconnect(finished_handler)
-            except (TypeError, RuntimeError):
-                pass
 
             if worker.isRunning():
                 worker.stop()

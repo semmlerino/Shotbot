@@ -43,7 +43,7 @@ class TestTargetedShotsFinderInitialization:
 
     def test_shot_pattern_initialization(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that shot pattern is initialized correctly."""
-        import targeted_shot_finder  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/test/shows")
         finder = TargetedShotsFinder()
@@ -252,7 +252,7 @@ class TestParseShotFromPath:
 
     def test_parse_standard_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test parsing standard VFX shot path."""
-        import targeted_shot_finder  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -270,7 +270,7 @@ class TestParseShotFromPath:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test parsing path where shot dir has no underscore."""
-        import targeted_shot_finder  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -285,7 +285,7 @@ class TestParseShotFromPath:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test parsing path with complex shot name."""
-        import targeted_shot_finder  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -311,7 +311,7 @@ class TestParseShotFromPath:
             patch,
         )
 
-        import targeted_shot_finder  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -334,7 +334,7 @@ class TestParseShotFromPath:
             patch,
         )
 
-        import targeted_shot_finder  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -362,7 +362,7 @@ class TestFindUserShotsInShows:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """Test finding shots in targeted shows."""
-        import targeted_shot_finder  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder(username="john")
@@ -788,7 +788,7 @@ class TestPerformance:
     def test_many_target_shows_performance(self) -> None:
         """Test performance with many target shows."""
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         finder = TargetedShotsFinder(max_workers=4)
 
@@ -808,7 +808,7 @@ class TestPerformance:
     def test_large_shot_list_performance(self) -> None:
         """Test performance with large shot lists."""
         # Standard library imports
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         finder = TargetedShotsFinder()
 

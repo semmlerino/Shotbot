@@ -25,14 +25,73 @@ from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
+
+@pytest.fixture(autouse=True)
+def reset_threede_singletons() -> None:
+    """Reset 3DE-related singletons to prevent cross-test contamination.
+
+    Resets:
+    - ProcessPoolManager._instance (used for parallel thumbnail loading)
+    - NotificationManager._instance (used for progress notifications)
+    - ProgressManager._instance (used for operation tracking)
+    """
+    # Import here to avoid circular dependencies
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset NotificationManager
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    yield
+
+    # Reset again after test (defense in depth)
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+    NotificationManager._instance = None
+    ProgressManager._instance = None
 
 
 @pytest.fixture
-def model(qtbot: QtBot) -> ThreeDEItemModel:
+def model(qtbot: QtBot, tmp_path: Path) -> ThreeDEItemModel:
     """Create a ThreeDEItemModel instance for testing."""
     # Use test double instead of Mock(spec=)
-    cache_manager = TestCacheManager()
+    cache_manager = TestCacheManager(cache_dir=tmp_path / "cache")
     return ThreeDEItemModel(cache_manager=cache_manager)
     # Models are not widgets, don't add to qtbot
 

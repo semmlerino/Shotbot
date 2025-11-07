@@ -49,6 +49,19 @@ pytestmark = [
 # - Thread-safe testing patterns
 
 
+@pytest.fixture(autouse=True)
+def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset module-level cache disabled flag to prevent test contamination.
+
+    The _cache_disabled flag in utils.py is a global state that can persist
+    across tests, causing subsequent tests to see incorrect cache behavior.
+    This fixture ensures each test starts with a clean state.
+    """
+    import utils
+
+    monkeypatch.setattr(utils, "_cache_disabled", False)
+
+
 class TestPreviousShootsCacheIntegration:
     """Integration tests for Previous Shots cache functionality."""
 
@@ -164,7 +177,7 @@ class TestPreviousShootsCacheIntegration:
     def test_cache_ttl_behavior(self, cache_manager, temp_cache_dir) -> None:
         """Test cache TTL (Time To Live) behavior."""
         # Standard library imports
-        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os
 
         # Cache some data
         test_data = [

@@ -41,13 +41,139 @@ from tests.test_helpers import TestProcessPoolManager
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
     global MainWindow  # noqa: PLW0603
     from main_window import (
         MainWindow,
     )
+
+
+@pytest.fixture(autouse=True)
+def reset_all_mainwindow_singletons():
+    """Reset ALL singletons used by MainWindow to prevent test contamination.
+
+    MainWindow uses many singletons that must be reset between tests:
+    - NotificationManager (UI notifications and toasts)
+    - ProgressManager (progress dialogs and operations)
+    - ProcessPoolManager (process pool for background tasks)
+    - QRunnableTracker (thread pool task tracking)
+    - FilesystemCoordinator (filesystem operation coordination)
+
+    This fixture ensures complete isolation between tests by resetting all
+    singleton state before and after each test.
+    """
+    # Import all singleton managers
+    from filesystem_coordinator import FilesystemCoordinator
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+    from runnable_tracker import QRunnableTracker
+
+    # BEFORE TEST: Reset all singletons to clean state
+    # Reset NotificationManager FIRST (closes Qt widgets that others may reference)
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass  # Qt object may already be deleted
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager (after NotificationManager to avoid Qt widget access)
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass  # Qt objects may already be deleted
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass  # Ignore shutdown errors
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset QRunnableTracker
+    try:
+        QRunnableTracker.reset_instance()
+    except Exception:
+        pass  # Ignore reset errors
+
+    # Reset FilesystemCoordinator
+    FilesystemCoordinator._instance = None
+
+    # Process pending Qt events before test
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app:
+        app.processEvents()
+
+    yield  # Run the test
+
+    # AFTER TEST: Reset all singletons again (defense in depth)
+    # Reset NotificationManager FIRST
+    if NotificationManager._instance is not None:
+        try:
+            NotificationManager.cleanup()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(NotificationManager._instance, "_initialized"):
+            delattr(NotificationManager._instance, "_initialized")
+    NotificationManager._instance = None
+    NotificationManager._main_window = None
+    NotificationManager._status_bar = None
+    NotificationManager._active_toasts = []
+    NotificationManager._current_progress = None
+
+    # Reset ProgressManager
+    if ProgressManager._instance is not None:
+        try:
+            ProgressManager.clear_all_operations()
+        except (RuntimeError, AttributeError):
+            pass
+        if hasattr(ProgressManager._instance, "_initialized"):
+            delattr(ProgressManager._instance, "_initialized")
+    ProgressManager._instance = None
+    ProgressManager._operation_stack = []
+    ProgressManager._status_bar = None
+
+    # Reset ProcessPoolManager
+    if ProcessPoolManager._instance is not None:
+        try:
+            if hasattr(ProcessPoolManager._instance, "shutdown"):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception:
+            pass
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # Reset QRunnableTracker
+    try:
+        QRunnableTracker.reset_instance()
+    except Exception:
+        pass
+
+    # Reset FilesystemCoordinator
+    FilesystemCoordinator._instance = None
+
+    # Process pending Qt events after test
+    if app:
+        app.processEvents()
 
 
 # =============================================================================
@@ -273,6 +399,11 @@ def main_window_with_real_components(
 
     test_progress_manager = TestProgressManager()
 
+    # Store original ProgressManager methods for restoration
+    original_operation = ProgressManager.operation
+    original_start_operation = ProgressManager.start_operation
+    original_finish_operation = ProgressManager.finish_operation
+
     # Monkey-patch ProgressManager class methods with test double
     ProgressManager.operation = test_progress_manager.operation
     ProgressManager.start_operation = test_progress_manager.start_operation
@@ -295,6 +426,12 @@ def main_window_with_real_components(
     # Previous shots now only refresh on explicit user action
 
     yield window
+
+    # CRITICAL: Restore ProgressManager class methods FIRST (before Qt cleanup)
+    # This prevents contamination of subsequent tests
+    ProgressManager.operation = original_operation
+    ProgressManager.start_operation = original_start_operation
+    ProgressManager.finish_operation = original_finish_operation
 
     # CRITICAL: Proper cleanup to prevent crashes
     # Stop all timers first
@@ -332,10 +469,11 @@ def main_window_with_real_components(
 
     # Delete the window
     window.deleteLater()
+    qtbot.wait(1)  # Flush Qt deletion queue
 
     # Force garbage collection
     # Standard library imports
-    import gc  # noqa: PLC0415 - lazy import to avoid circular dependency
+    import gc
 
     gc.collect()
 
@@ -344,7 +482,6 @@ def main_window_with_real_components(
 @pytest.mark.gui_mainwindow
 @pytest.mark.qt_heavy
 @pytest.mark.integration_unsafe
-@pytest.mark.xdist_group("qt_state")
 class TestMainWindowUICoordination:
     """Test UI coordination and signal-slot connections."""
 
@@ -660,7 +797,6 @@ workspace /shows/test/shots/seq01/shot02""")
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
-@pytest.mark.xdist_group("qt_state")
 class TestMainWindowKeyboardShortcuts:
     """Test keyboard shortcuts and navigation."""
 
@@ -717,7 +853,6 @@ class TestMainWindowKeyboardShortcuts:
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
-@pytest.mark.xdist_group("qt_state")
 class TestMainWindowErrorScenarios:
     """Test error handling and recovery."""
 
@@ -769,7 +904,7 @@ class TestMainWindowErrorScenarios:
         cache_dir = tmp_path / "cache"
         if cache_dir.exists():
             # Standard library imports
-            import shutil  # noqa: PLC0415 - lazy import to avoid circular dependency
+            import shutil
 
             shutil.rmtree(cache_dir)
 

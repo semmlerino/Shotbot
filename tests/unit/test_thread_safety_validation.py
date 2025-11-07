@@ -28,6 +28,27 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# PYTEST FIXTURES
+# =============================================================================
+
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def cleanup_process_pool():
+    """Ensure ProcessPoolManager is shut down after test."""
+    yield
+    try:
+        from process_pool_manager import ProcessPoolManager
+        if ProcessPoolManager._instance:
+            ProcessPoolManager._instance.shutdown(timeout=5.0)
+            ProcessPoolManager._instance = None
+    except Exception:
+        pass  # Ignore cleanup errors
+
+
 class ThreadSafetyValidationTests(unittest.TestCase):
     """Test suite validating thread safety fixes."""
 
@@ -42,7 +63,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         """Test that threading utilities can be imported successfully."""
         try:
             # Local application imports
-            from threading_utils import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+            from threading_utils import (
                 CancellationEvent,
                 ThreadPoolManager,
                 ThreadSafeProgressTracker,
@@ -173,7 +194,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         """Test ThreadPoolManager provides proper resource cleanup."""
         try:
             # Local application imports
-            from threading_utils import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+            from threading_utils import (
                 CancellationEvent,
                 ThreadPoolManager,
             )

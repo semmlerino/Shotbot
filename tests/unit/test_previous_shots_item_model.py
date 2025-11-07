@@ -19,7 +19,25 @@ from shot_model import Shot
 from tests.test_doubles_library import SignalDouble, TestCacheManager
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
+
+@pytest.fixture(autouse=True)
+def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset singleton instances before each test to prevent contamination.
+
+    This fixture resets all singleton manager instances that might be used
+    by the code under test, ensuring test isolation in parallel execution.
+    """
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+
+    # Reset singleton instances
+    monkeypatch.setattr(NotificationManager, "_instance", None)
+    monkeypatch.setattr(ProgressManager, "_instance", None)
+    monkeypatch.setattr(ProcessPoolManager, "_instance", None)
+    monkeypatch.setattr(ProcessPoolManager, "_initialized", False)
 
 
 class MockPreviousShotsModel:
@@ -43,10 +61,10 @@ class MockPreviousShotsModel:
 
 
 @pytest.fixture
-def model(qtbot):
+def model(qtbot, tmp_path):
     """Create a PreviousShotsItemModel instance for testing."""
     # Use test doubles instead of Mock(spec=)
-    cache_manager = TestCacheManager()
+    cache_manager = TestCacheManager(cache_dir=tmp_path / "cache")
     previous_shots_model = MockPreviousShotsModel()
 
     # Create the item model with required arguments

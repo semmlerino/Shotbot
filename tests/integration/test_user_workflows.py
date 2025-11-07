@@ -66,7 +66,7 @@ from threede_scene_model import ThreeDESceneModel
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
     global MainWindow  # noqa: PLW0603
@@ -78,7 +78,6 @@ def setup_qt_imports() -> None:
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),
 ]
 
 # Test markers for pytest
@@ -704,7 +703,7 @@ class TestUserWorkflows:
 
         # Use legacy model to avoid async loading interference in tests
         # Standard library imports
-        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os
 
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
@@ -1103,8 +1102,12 @@ class TestUserWorkflows:
                 2
             )  # Assuming previous shots tab is index 2
 
-            # Wait for scanning to complete (or timeout if no events)
-            qtbot.wait(1000)  # Give time for any background operations
+            # Wait for tab change to complete - check that previous shots view exists
+            def tab_is_switched() -> bool:
+                current_index = main_window.tab_widget.currentIndex()
+                return current_index == 2
+
+            qtbot.waitUntil(tab_is_switched, timeout=5000)
 
             # Since we patched ProgressManager, the scan events may not be emitted
             # The test verifies that the components can be created without crashing
@@ -1302,13 +1305,13 @@ if __name__ == "__main__":
         try:
             # Create a minimal qtbot-like object for standalone testing
             class StandaloneQtBot:
-                def addWidget(self, widget) -> None:  # noqa: N802
+                def addWidget(self, widget) -> None:
                     pass
 
                 def wait(self, ms) -> None:
                     QTest.qWait(ms)
 
-                def waitUntil(self, condition, timeout=1000) -> bool:  # noqa: N802
+                def waitUntil(self, condition, timeout=1000) -> bool:
                     start_time = time.time()
                     while time.time() - start_time < timeout / 1000:
                         if condition():

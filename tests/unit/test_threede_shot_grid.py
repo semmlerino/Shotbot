@@ -20,7 +20,7 @@ from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 @pytest.fixture(autouse=True)

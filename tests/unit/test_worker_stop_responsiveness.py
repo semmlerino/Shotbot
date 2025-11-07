@@ -70,7 +70,7 @@ class TestWorkerStopResponsiveness:
             ) -> list:
                 """Simulate long scan that checks cancel_flag."""
                 # Simulate scanning for up to 10 seconds, checking cancel_flag
-                for i in range(100):  # 100 iterations = 10 seconds if not cancelled
+                for _i in range(100):  # 100 iterations = 10 seconds if not cancelled
                     if cancel_flag and cancel_flag():
                         return []  # Exit quickly on cancellation
                     time.sleep(0.1)  # 100ms per iteration

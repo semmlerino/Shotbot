@@ -506,7 +506,7 @@ def test_path_parsing_for_deep_nested_structure() -> None:
     This follows UNIFIED_TESTING_GUIDE by testing behavior, not implementation details.
     """
     # Standard library imports
-    from pathlib import Path  # noqa: PLC0415 - lazy import to avoid circular dependency
+    from pathlib import Path
 
     # Local application imports
     from config import (
