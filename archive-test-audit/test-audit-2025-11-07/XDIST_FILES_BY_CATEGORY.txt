@@ -1,0 +1,259 @@
+================================================================================
+XDIST_GROUP("QT_STATE") FILES - ORGANIZED BY ROOT CAUSE CATEGORY
+================================================================================
+
+CATEGORY 1: SINGLETON CONTAMINATION (23 files)
+- Root cause: _instance attributes persist across parallel workers
+- All require conftest.py reset of _instance to None
+================================================================================
+
+Singleton Tests (Direct):
+  1. tests/unit/test_progress_manager.py
+  2. tests/unit/test_threading_manager.py
+  3. tests/unit/test_settings_manager.py
+  4. tests/unit/test_launcher_manager.py
+  5. tests/unit/test_signal_manager.py
+  6. tests/unit/test_refresh_orchestrator.py
+  7. tests/unit/test_optimized_threading.py
+
+Singleton Interactions (Indirect):
+  8. tests/unit/test_cache_manager.py
+  9. tests/unit/test_cleanup_manager.py
+ 10. tests/unit/test_async_shot_loader.py
+ 11. tests/unit/test_command_launcher.py
+ 12. tests/unit/test_actual_parsing.py
+
+Integration Tests (All Singletons):
+ 13. tests/integration/test_main_window_complete.py
+ 14. tests/integration/test_main_window_coordination.py
+ 15. tests/integration/test_feature_flag_switching.py
+ 16. tests/integration/test_launcher_panel_integration.py
+ 17. tests/integration/test_launcher_workflow_integration.py
+ 18. tests/integration/test_threede_worker_workflow.py
+ 19. tests/integration/test_async_workflow_integration.py
+ 20. tests/integration/test_user_workflows.py
+ 21. tests/integration/test_cross_component_integration.py
+ 22. tests/integration/test_refactoring_safety.py
+ 23. tests/integration/test_terminal_integration.py (uses progress_manager singleton)
+
+KEY FIXTURE: conftest.py lines 303-332 shows reset pattern:
+  NotificationManager._instance = None
+  ProgressManager._instance = None
+  ProcessPoolManager._instance = None
+
+
+================================================================================
+CATEGORY 2: QT RESOURCE MANAGEMENT (18 files)
+- Root cause: Widgets, pixmaps, deferred deletes accumulate across tests
+- All require QPixmapCache.clear() and QThreadPool.waitForDone()
+================================================================================
+
+Widget Creation Tests:
+  1. tests/unit/test_shot_info_panel_comprehensive.py
+  2. tests/unit/test_shot_grid_widget.py
+  3. tests/unit/test_launcher_panel.py
+  4. tests/unit/test_previous_shots_grid.py
+  5. tests/unit/test_launcher_dialog.py
+  6. tests/unit/test_log_viewer.py
+  7. tests/unit/test_thumbnail_widget_qt.py
+  8. tests/unit/test_thumbnail_widget_base_expanded.py
+  9. tests/unit/test_thumbnail_delegate.py
+ 10. tests/unit/test_main_window_widgets.py
+ 11. tests/unit/test_persistent_terminal_manager.py
+
+Qt Model Creation Tests:
+ 12. tests/unit/test_previous_shots_item_model.py
+ 13. tests/unit/test_threede_item_model.py
+ 14. tests/unit/test_shot_item_model.py
+ 15. tests/unit/test_shot_item_model_comprehensive.py
+ 16. tests/unit/test_base_item_model.py
+ 17. tests/unit/test_base_shot_model.py (also has signals)
+
+Integration Tests:
+ 18. tests/integration/test_main_window_complete.py (overlap with singleton category)
+
+KEY FIXTURE: conftest.py lines 172-257 shows cleanup pattern:
+  QThreadPool.globalInstance().waitForDone(500)
+  QCoreApplication.processEvents()
+  QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+  QPixmapCache.clear()
+
+
+================================================================================
+CATEGORY 3: MODULE-LEVEL CACHING (12 files)
+- Root cause: Cache dictionaries and _cache_disabled flag persist
+- All require clear_all_caches() and disable_caching() from utils
+================================================================================
+
+Direct Cache Testing:
+  1. tests/unit/test_optimized_cache_scenarios.py
+  2. tests/unit/test_exr_edge_cases.py
+  3. tests/unit/test_design_system.py
+
+Filter/Query Caching:
+  4. tests/unit/test_text_filter.py
+  5. tests/unit/test_show_filter.py
+  6. tests/unit/test_template.py
+
+Cache Interaction:
+  7. tests/unit/test_cache_manager.py (overlap with singleton category)
+  8. tests/unit/test_example_best_practices.py
+  9. tests/unit/test_error_recovery_optimized.py
+ 10. tests/unit/test_launcher_worker.py
+ 11. tests/unit/test_previous_shots_worker.py
+ 12. tests/unit/test_filesystem_coordinator.py
+
+KEY FIXTURE: conftest.py lines 261-350 shows clear pattern:
+  clear_all_caches()
+  disable_caching()
+  shutil.rmtree(Path.home() / ".shotbot" / "cache_test")
+
+
+================================================================================
+CATEGORY 4: THREADING & THREAD SAFETY (11 files)
+- Root cause: QThreadPool global, threads complete asynchronously
+- All require QThreadPool.waitForDone() and threading.Thread.join()
+================================================================================
+
+Direct Threading Tests:
+  1. tests/unit/test_threading_fixes.py
+  2. tests/unit/test_threading_manager.py (overlap with singleton category)
+  3. tests/unit/test_threading_utils.py
+
+Worker Thread Tests:
+  4. tests/unit/test_threede_scene_worker.py
+  5. tests/unit/test_previous_shots_worker.py
+  6. tests/unit/test_async_shot_loader.py
+
+Concurrent/Parallel Tests:
+  7. tests/unit/test_concurrent_thumbnail_race_conditions.py
+  8. tests/unit/test_concurrent_optimizations.py
+  9. tests/unit/test_optimized_threading.py (overlap with singleton category)
+ 10. tests/unit/test_threede_item_model.py (overlap with Qt resource category)
+ 11. tests/unit/test_shot_item_model_comprehensive.py (overlap with Qt resource category)
+
+KEY FIXTURE: conftest.py lines 229-237 shows thread wait pattern:
+  if threading.active_count() > 1:
+      for thread in threading.enumerate():
+          if thread.is_alive() and thread is not current_thread:
+              thread.join(timeout=remaining)
+
+
+================================================================================
+CATEGORY 5: SIGNAL/SLOT CONTAMINATION (10 files)
+- Root cause: Deferred slot calls and signal connections persist
+- All require multiple rounds of QCoreApplication.processEvents()
+================================================================================
+
+Model Signal Tests:
+  1. tests/unit/test_base_shot_model.py (overlap with Qt resource category)
+  2. tests/unit/test_previous_shots_model.py
+  3. tests/unit/test_shot_item_model_comprehensive.py (overlap with threading category)
+
+Widget Signal Tests:
+  4. tests/unit/test_launcher_panel.py (overlap with Qt resource category)
+  5. tests/unit/test_shot_grid_widget.py (overlap with Qt resource category)
+  6. tests/unit/test_shot_info_panel_comprehensive.py (overlap with Qt resource category)
+
+Signal Manager Tests:
+  7. tests/unit/test_signal_manager.py (overlap with singleton category)
+  8. tests/unit/test_progress_manager.py (overlap with singleton category)
+  9. tests/integration/test_launcher_panel_integration.py
+ 10. tests/integration/test_user_workflows.py (overlap with singleton category)
+
+KEY FIXTURE: conftest.py lines 201-257 shows event processing pattern:
+  for _ in range(2):  # BEFORE
+      QCoreApplication.processEvents()
+      QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+  for _ in range(3):  # AFTER
+      QCoreApplication.processEvents()
+      QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+
+
+================================================================================
+CATEGORY 6: PROCESS POOL & MULTIPROCESSING (4 files)
+- Root cause: ProcessPoolManager._instance with active worker processes
+- All require ProcessPoolManager._instance = None reset
+================================================================================
+
+  1. tests/unit/test_process_pool_manager.py
+  2. tests/unit/test_optimized_threading.py (overlap with threading category)
+  3. tests/unit/test_concurrent_optimizations.py (overlap with threading category)
+  4. tests/unit/test_optimized_cache_scenarios.py (overlap with caching category)
+
+KEY FIXTURE: conftest.py line 495 shows reset pattern:
+  ProcessPoolManager._instance = None
+
+
+================================================================================
+OVERLAP ANALYSIS (Files in Multiple Categories)
+================================================================================
+
+test_cache_manager.py
+  - Category 1 (singletons): Interacts with ProgressManager, NotificationManager
+  - Category 3 (caching): Tests CacheManager directly
+
+test_shot_grid_widget.py
+  - Category 2 (Qt resource): Creates grid widgets
+  - Category 5 (signals): Emits grid signals
+
+test_launcher_panel.py
+  - Category 2 (Qt resource): Creates panel widget
+  - Category 5 (signals): Emits panel signals
+
+test_shot_info_panel_comprehensive.py
+  - Category 2 (Qt resource): Creates panel widget
+  - Category 5 (signals): Emits panel signals
+
+test_base_shot_model.py
+  - Category 2 (Qt resource): Creates model (Qt object)
+  - Category 5 (signals): Emits model signals
+
+test_previous_shots_worker.py
+  - Category 3 (caching): Uses finder with caching
+  - Category 4 (threading): Creates worker thread
+
+test_threede_item_model.py
+  - Category 2 (Qt resource): Creates model (Qt object)
+  - Category 4 (threading): Uses threading for discovery
+
+test_shot_item_model_comprehensive.py
+  - Category 2 (Qt resource): Creates model (Qt object)
+  - Category 4 (threading): May use threading
+  - Category 5 (signals): Emits signals
+
+test_optimized_threading.py
+  - Category 1 (singletons): ProcessPoolManager singleton test class
+  - Category 4 (threading): ThreadingManager testing
+  - Category 6 (process pool): ProcessPoolManager testing
+
+Integration tests (test_main_window_*.py, test_*_integration.py, test_user_*.py)
+  - Category 1 (singletons): All create MainWindow with singletons
+  - Category 2 (Qt resource): Create widgets and models
+  - Category 5 (signals): Emit many signals during workflows
+
+
+================================================================================
+STATISTICS
+================================================================================
+
+Total files marked with xdist_group("qt_state"): 55
+Files in exactly 1 category: ~35
+Files in 2 categories: ~15
+Files in 3+ categories: ~5
+
+Most common combinations:
+  1. Qt Resource + Signals (widget tests)
+  2. Singletons + Qt Resource (main window tests)
+  3. Singletons + Threading + Caching (worker tests)
+  4. Threading + Process Pool (concurrent tests)
+
+Files ONLY in one category:
+  - All pure singleton tests
+  - All pure caching tests
+  - All pure threading tests
+  - All pure process pool tests
+
+This indicates good separation of concerns - files are serialized for their
+primary reason, with secondary issues handled by the same conftest cleanup.
+

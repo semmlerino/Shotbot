@@ -1,0 +1,109 @@
+VULNERABLE TEST FILES (ALL 62 MainWindow instantiations without defer_background_loads):
+
+UNIT TESTS (40 instances):
+────────────────────────────────────────────────────────────────
+
+1. tests/unit/test_main_window.py (12 instances)
+   Line  68: main_window = MainWindow(cache_manager=cache_manager)
+   Line  94: main_window = MainWindow(cache_manager=cache_manager)
+   Line 102: main_window = MainWindow()
+   Line 115: main_window = MainWindow(cache_manager=cache_manager)
+   Line 144: main_window = MainWindow(cache_manager=cache_manager)
+   Line 171: main_window = MainWindow(cache_manager=cache_manager)
+   Line 204: main_window = MainWindow(cache_manager=cache_manager)
+   Line 248: main_window = MainWindow(cache_manager=cache_manager)
+   Line 273: main_window = MainWindow(cache_manager=cache_manager)
+   Line 342: main_window = MainWindow(cache_manager=cache_manager)
+   Line 362: main_window = MainWindow(cache_manager=cache_manager)
+   Line 378: main_window = MainWindow(cache_manager=cache_manager)
+
+2. tests/unit/test_main_window_fixed.py (3 instances)
+   Line  76: main_window = MainWindow(cache_manager=cache_manager)
+   Line 182: main_window = MainWindow(cache_manager=cache_manager)
+   Line 278: main_window = MainWindow(cache_manager=cache_manager)
+
+3. tests/unit/test_main_window_widgets.py (10 instances)
+   Line  78: window = MainWindow(cache_manager=real_cache_manager)
+   Line 139: window = MainWindow(cache_manager=real_cache_manager)
+   Line 211: window = MainWindow(cache_manager=real_cache_manager)
+   Line 296: window = MainWindow(cache_manager=real_cache_manager)
+   Line 354: window = MainWindow(cache_manager=real_cache_manager)
+   Line 437: window = MainWindow(cache_manager=real_cache_manager)
+   Line 511: window = MainWindow(cache_manager=None)
+   Line 527: window = MainWindow(cache_manager=real_cache_manager)
+   Line 549: window = MainWindow(cache_manager=real_cache_manager)
+   Line 570: window = MainWindow(cache_manager=real_cache_manager)
+
+4. tests/unit/test_text_filter.py (1 instance)
+   Line 418: window = MainWindow()
+
+5. tests/unit/test_show_filter.py (1 instance)
+   Line 468: window = MainWindow()
+
+6. tests/unit/test_headless.py (1 instance - uses HeadlessMainWindow, not MainWindow)
+   Line 162: window = HeadlessMainWindow()
+
+INTEGRATION TESTS (22 instances):
+────────────────────────────────────────────────────────────────
+
+7. tests/integration/test_main_window_complete.py (1 instance)
+   Line 122: window = MainWindow(cache_manager=cache_manager)
+
+8. tests/integration/test_main_window_coordination.py (1 instance)
+   Line 287: window = MainWindow(cache_manager=real_cache_manager)
+
+9. tests/integration/test_user_workflows.py (10 instances)
+   Line 283: main_window = MainWindow(cache_manager=cache_manager)
+   Line 363: main_window = MainWindow(cache_manager=cache_manager)
+   Line 446: main_window = MainWindow(cache_manager=cache_manager)
+   Line 524: main_window = MainWindow(cache_manager=cache_manager)
+   Line 637: main_window = MainWindow(cache_manager=cache_manager)
+   Line 737: main_window = MainWindow(cache_manager=cache_manager)
+   Line 890: main_window = MainWindow(cache_manager=cache_manager)
+   Line 995: main_window = MainWindow(cache_manager=cache_manager)
+   Line 1052: main_window = MainWindow(cache_manager=cache_manager)
+   Line 1140: main_window = MainWindow(cache_manager=cache_manager)
+
+10. tests/integration/test_feature_flag_switching.py (6 instances)
+    Line 103: window = MainWindow()
+    Line 135: window = MainWindow()
+    Line 197: window = MainWindow()
+    Line 216: window = MainWindow()
+    Line 434: window = MainWindow()
+    Line 464: window = MainWindow()
+
+11. tests/integration/test_cross_component_integration.py (6 instances)
+    Line 139: window = MainWindow()
+    Line 335: window = MainWindow(cache_manager=test_cache_manager)
+    Line 477: window = MainWindow(cache_manager=test_cache_manager)
+    Line 541: window = MainWindow()
+    Line 633: window = MainWindow()
+    Line 673: window = MainWindow()
+
+12. tests/integration/test_launcher_panel_integration.py (14 instances)
+    Line 138: window = MainWindow()
+    Line 163: window = MainWindow()
+    Line 196: window = MainWindow()
+    Line 248: window = MainWindow()
+    Line 286: window = MainWindow()
+    Line 314: window = MainWindow()
+    Line 408: window = MainWindow()
+    Line 462: window = MainWindow()
+    Line 512: window = MainWindow()
+    Line 548: window = MainWindow()
+    Line 613: window = MainWindow()
+    Line 631: window = MainWindow()
+    Line 653: window = MainWindow()
+
+13. tests/integration/test_refactoring_safety.py (5 instances)
+    Line 275: window = MainWindow()
+    Line 292: window = MainWindow()
+    Line 313: window = MainWindow()
+    Line 342: window = MainWindow()
+    Line 366: window = MainWindow()
+
+SUMMARY:
+────────────────────────────────────────────────────────────────
+Total MainWindow Instantiations: 62
+Using defer_background_loads=True: 0 (0%)
+Vulnerable to Background Async Interference: 62 (100%)

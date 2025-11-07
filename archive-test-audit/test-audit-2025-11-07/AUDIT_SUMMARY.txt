@@ -1,0 +1,209 @@
+================================================================================
+BACKGROUND ASYNC OPERATIONS AUDIT - EXECUTIVE SUMMARY
+================================================================================
+
+CRITICAL FINDING: Documentation-Implementation Mismatch
+
+Status:
+  DOCUMENTATION:       Complete (UNIFIED_TESTING_V2.MD, Section 8)
+  CODE IMPLEMENTATION: MISSING from MainWindow.__init__
+  TEST USAGE:          ZERO tests using defer_background_loads feature
+  RISK LEVEL:          HIGH - All 62 tests vulnerable
+
+================================================================================
+VULNERABILITY ANALYSIS
+================================================================================
+
+Total MainWindow Instantiations Found: 62
+
+BREAKDOWN BY RISK:
+  HIGH RISK:   30 instances (MainWindow with no cache_manager)
+  MEDIUM RISK: 37 instances (MainWindow with cache_manager)
+  SAFE:        1 file uses HeadlessMainWindow (not affected)
+
+TOP FILES AT RISK:
+  1. test_launcher_panel_integration.py    14 instances (HIGH)
+  2. test_main_window.py                   12 instances (MEDIUM)
+  3. test_user_workflows.py                10 instances (MEDIUM)
+  4. test_main_window_widgets.py           10 instances (MEDIUM)
+  5. test_feature_flag_switching.py         6 instances (HIGH)
+
+================================================================================
+THE PROBLEM
+================================================================================
+
+Current MainWindow.__init__ signature (main_window.py:177-180):
+  def __init__(
+      self,
+      cache_manager: CacheManager | None = None,
+      parent: QWidget | None = None,
+  ) -> None:
+
+Missing: defer_background_loads: bool = False
+
+What happens:
+  1. Tests instantiate MainWindow()
+  2. __init__ runs _initial_load() on line 364
+  3. Background operations start immediately:
+     - SessionWarmer thread (bash pre-warming)
+     - Shot model background refresh
+     - ThreeDEController (3DE scene discovery)
+     - LauncherController (launcher ops)
+  4. Test setup data races with background loaders
+  5. Tests cannot isolate their test data
+
+DOCUMENTED PATTERN (But Not Implemented):
+  Location: UNIFIED_TESTING_V2.MD, Section 8, lines 274-298
+  Best Practice #19, line 1093
+
+================================================================================
+IMPACT WITHOUT FIX
+================================================================================
+
+1. Intermittent Failures
+   - Tests pass in isolation, fail in parallel
+   - Timing-dependent failures hard to debug
+   - "Works on my machine" issues
+
+2. False Positives
+   - Tests pass but don't test what they claim
+   - Background loaders modify test data after setup
+   - Validation happens against wrong state
+
+3. Maintenance Burden
+   - Developers use fragile workarounds:
+     * Manual cache clearing (fragile)
+     * SHOTBOT_NO_INITIAL_LOAD env var (undocumented)
+   - Complex setUp/tearDown in each test
+
+4. Documentation Debt
+   - Guidelines in UNIFIED_TESTING_V2.MD are aspirational
+   - Feature doesn't exist, confuses future developers
+   - Mismatch between docs and code
+
+================================================================================
+RECOMMENDED SOLUTION
+================================================================================
+
+PHASE 1: Implement Feature in MainWindow (1-2 hours)
+
+Changes to main_window.py:
+  1. Line 177: Add parameter
+     def __init__(
+         self,
+         cache_manager: CacheManager | None = None,
+         parent: QWidget | None = None,
+         defer_background_loads: bool = False,  <-- ADD
+     ) -> None:
+
+  2. Line 215: Store instance attribute
+     self.defer_background_loads = defer_background_loads
+
+  3. Line 363-364: Conditionally call _initial_load()
+     if not defer_background_loads and not os.environ.get("SHOTBOT_NO_INITIAL_LOAD"):
+         self._initial_load()
+
+  4. Optional: Add method for deferred initialization
+     def trigger_deferred_background_loads(self) -> None:
+         """Allow tests to enable background loaders after setup."""
+         if self.defer_background_loads:
+             self._initial_load()
+
+Why Low Risk:
+  - Default defer_background_loads=False preserves existing behavior
+  - Production code unaffected (always uses default False)
+  - Only tests that opt-in get deferred behavior
+  - 100% backward compatible
+
+PHASE 2: Update High-Risk Tests (4-6 hours, gradual)
+
+High-impact files (update as tests are maintained):
+  1. test_launcher_panel_integration.py (14 instances)
+  2. test_main_window.py (12 instances)
+  3. test_user_workflows.py (10 instances)
+  4. test_main_window_widgets.py (10 instances)
+
+Pattern:
+  Before: window = MainWindow(cache_manager=cache_manager)
+  After:  window = MainWindow(cache_manager=cache_manager, defer_background_loads=True)
+
+  # Then set up test data without background interference
+  window.shot_model.shots = [test_shot_1, test_shot_2]
+
+Lower priority (update as needed):
+  - test_main_window_fixed.py (3)
+  - test_feature_flag_switching.py (6)
+  - test_cross_component_integration.py (6)
+  - Others (5)
+
+================================================================================
+DELIVERABLES CREATED
+================================================================================
+
+1. DEFER_BACKGROUND_LOADS_AUDIT.md (11 KB)
+   - 8-section comprehensive audit
+   - Code examples and patterns
+   - Risk assessment with impact analysis
+   - Implementation checklist
+
+2. VULNERABLE_TESTS_LISTING.txt (5.3 KB)
+   - All 62 test instances listed
+   - File name and line number for each
+   - Risk categorization
+   - Summary statistics
+
+3. AUDIT_SUMMARY.txt (This file)
+   - Executive overview
+   - Quick reference for decision makers
+   - Action items and timeline
+
+================================================================================
+TIMELINE & EFFORT
+================================================================================
+
+Estimated Total: 5-8 hours
+
+Phase 1 (Feature Implementation):
+  - Modify main_window.py: 1 hour
+  - Type checking/linting: 30 minutes
+  - Test verification: 30 minutes
+  Total: 2 hours (includes testing)
+
+Phase 2 (Test Updates - Gradual):
+  - High-priority tests (26 instances): 2-3 hours
+  - Medium-priority tests (21 instances): 2-3 hours
+  - Total: 4-6 hours (can be spread over time)
+
+Alternative Approach: Implement Phase 1 now, Phase 2 incrementally as tests are maintained
+
+================================================================================
+KEY FILES REFERENCED
+================================================================================
+
+Documentation:
+  /home/gabrielh/projects/shotbot/UNIFIED_TESTING_V2.MD
+    - Section 8: Background Async Operations (lines 274-298)
+    - Best Practice #19: defer_background_loads (line 1093)
+
+Implementation:
+  /home/gabrielh/projects/shotbot/main_window.py
+    - Lines 177-180: __init__ signature (missing parameter)
+    - Line 363-364: _initial_load() call (always runs)
+    - Lines 709-783: _initial_load() implementation (starts background ops)
+
+Test Files (62 instances across):
+  See VULNERABLE_TESTS_LISTING.txt for complete breakdown
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Review DEFER_BACKGROUND_LOADS_AUDIT.md (detailed analysis)
+2. Review VULNERABLE_TESTS_LISTING.txt (specific test instances)
+3. Decide on timeline (immediate vs. incremental)
+4. Implement Phase 1 in MainWindow
+5. Update tests incrementally as appropriate
+
+Low risk, high impact. Recommended to implement Phase 1 immediately.
+
+================================================================================

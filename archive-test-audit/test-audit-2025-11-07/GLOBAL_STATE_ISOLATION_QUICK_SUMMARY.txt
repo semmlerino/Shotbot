@@ -1,0 +1,99 @@
+GLOBAL STATE ISOLATION VIOLATIONS - QUICK SUMMARY
+================================================
+
+CRITICAL FINDINGS: 9 HIGH-SEVERITY VIOLATIONS
+
+1. UNPROTECTED os.environ MODIFICATIONS (8 violations)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   File: tests/integration/test_cross_component_integration.py
+   • Line 253:  os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"  (no cleanup)
+   • Line 607:  os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"  (no cleanup)
+   • Line 679:  os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"  (no cleanup)
+   • Line 772:  os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"  (no cleanup)
+   • Line 812:  os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"  (no cleanup)
+
+   File: tests/integration/test_feature_flag_switching.py
+   • Line 136:  os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"  (try without finally)
+   • Line 187:  os.environ["SHOTBOT_USE_LEGACY_MODEL"] = value  (in loop, no cleanup)
+
+   Impact: Cross-test contamination, test order dependency, parallel execution failures
+
+2. UNSAFE PATTERNS (1 violation)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   File: tests/integration/test_feature_flag_switching.py
+   • Lines 93-96: Removes environment variable without restoration
+   • Issue: Behavior depends on test execution order
+
+3. CONFIG.SHOWS_ROOT USAGE WITHOUT ISOLATION (30+ occurrences)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   
+   Most are SAFE (isolated via unit conftest), but require verification:
+   • test_main_window.py (10 occurrences)
+   • test_base_shot_model.py (3 occurrences)
+   • test_threede_scene_finder.py (1 occurrence)
+   • Other unit tests
+
+RECOMMENDATIONS (Priority)
+=========================
+
+1. [CRITICAL] Replace 8 unprotected os.environ modifications with monkeypatch.setenv()
+   - Add monkeypatch parameter to test functions
+   - Use: monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
+   - Files: test_cross_component_integration.py, test_feature_flag_switching.py
+
+2. [HIGH] Create tests/integration/conftest.py with autouse isolation fixture
+   - Auto-restore environment after each integration test
+   - Prevents cross-test contamination
+
+3. [MEDIUM] Verify all tests using Config.SHOWS_ROOT have monkeypatch parameter
+   - Check unit tests with Config.SHOWS_ROOT reads
+   - Ensure fixture or monkeypatch provides isolation
+
+4. [LOW] Standardize all environment variable handling
+   - Use @patch.dict("os.environ", {...}) or monkeypatch.setenv()
+   - Never use direct os.environ["VAR"] = "value" without cleanup
+
+CROSS-TEST CONTAMINATION SCENARIOS
+==================================
+
+Serial Execution Risk:
+  Test 1 sets SHOTBOT_USE_LEGACY_MODEL="1" (no cleanup)
+  Test 2 expects unset flag, sees polluted value
+  Test 3 depends on clean env, FAILS
+
+Parallel Execution Risk:
+  Worker 1: test_A sets env var (no cleanup)
+  Worker 2: test_B expects clean env
+  Worker 2 sees polluted environment = FAIL
+
+Current Status:
+  • 2,296+ tests passing (serial)
+  • Potential failures (parallel)
+  • Order-dependent test failures
+
+After Fixes:
+  • 100% test isolation
+  • Safe parallel execution with -n 2, -n auto
+  • Order-independent, reproducible test runs
+
+FILES REQUIRING CHANGES
+======================
+
+1. tests/integration/test_cross_component_integration.py (5 lines)
+2. tests/integration/test_feature_flag_switching.py (2 lines)
+3. tests/integration/conftest.py (CREATE NEW - 1 fixture)
+
+VERIFICATION CHECKLIST
+====================
+
+After applying fixes:
+□ All tests in test_cross_component_integration.py use monkeypatch
+□ All tests in test_feature_flag_switching.py use monkeypatch
+□ tests/integration/conftest.py created with autouse isolation
+□ pytest tests/ (serial execution) - all passing
+□ pytest tests/ -n 2 (parallel) - all passing
+□ pytest tests/ --random-order (order-independent) - all passing
+
+Full report: GLOBAL_STATE_ISOLATION_REPORT.md

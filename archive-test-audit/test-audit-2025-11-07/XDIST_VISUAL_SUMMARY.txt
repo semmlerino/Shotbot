@@ -1,0 +1,257 @@
+================================================================================
+XDIST_GROUP("QT_STATE") - VISUAL ARCHITECTURE SUMMARY
+================================================================================
+
+ROOT CAUSE DEPENDENCY CHAIN
+---------------------------
+
+     pytest-xdist (parallel workers)
+              |
+              +--- Worker A          +--- Worker B
+              |    Test File X       |    Test File Y
+              |    ProgressManager   |    Launcher Manager
+              |    _instance = {...} |    _instance = None (reads from A!)
+              |                      |
+              v                      v
+        Module-level state persists in Python's import cache!
+              |
+              +--- Singleton._instance = {state}
+              |    _operation_stack = [stale_data]
+              |    _status_bar = <old_widget>
+              |
+              +--- Qt Resource: QPixmapCache accumulates, QThreadPool has pending work
+              |
+              +--- Module Cache: clear_all_caches() dict still has old entries
+              |
+              +--- QThreadPool: globalInstance() shared, threads still running
+              |
+              +--- Signal connections: deferred slots not processed
+              |
+              +--- ProcessPoolManager: _instance with active workers
+
+Result: TESTS FAIL in parallel because of contamination
+
+
+CATEGORIZATION HIERARCHY
+------------------------
+
+xdist_group("qt_state") Serialization
+│
+├─ CATEGORY 1: SINGLETON CONTAMINATION (23 files) ─ CRITICAL
+│  │
+│  ├─ Direct Tests (7): test_progress_manager, test_threading_manager, etc.
+│  │
+│  ├─ Indirect Tests (5): test_cache_manager, test_cleanup_manager, etc.
+│  │
+│  └─ Integration Tests (11): test_main_window_*, test_launcher_*, etc.
+│     │
+│     └─ Pattern: All create MainWindow which instantiates all singletons
+│
+├─ CATEGORY 2: QT RESOURCE MANAGEMENT (18 files) ─ CRITICAL
+│  │
+│  ├─ Widget Tests (11): test_*_widget, test_*_panel, test_*_dialog
+│  │  │
+│  │  └─ Cleanup needed: QPixmapCache.clear(), QThreadPool.waitForDone()
+│  │
+│  └─ Model Tests (7): test_*_model, test_*_item_model
+│     │
+│     └─ Cleanup needed: deleteLater() processing, event loops
+│
+├─ CATEGORY 3: MODULE-LEVEL CACHING (12 files) ─ HIGH
+│  │
+│  ├─ Direct Cache Tests (3): test_optimized_cache_scenarios, etc.
+│  │
+│  ├─ Filter Tests (3): test_text_filter, test_show_filter, etc.
+│  │
+│  └─ Cache Users (6): test_launcher_worker, test_previous_shots_worker, etc.
+│     │
+│     └─ Cleanup: Already done in conftest.py clear_module_caches()
+│
+├─ CATEGORY 4: THREADING & SAFETY (11 files) ─ HIGH
+│  │
+│  ├─ Direct Thread Tests (3): test_threading_fixes, etc.
+│  │
+│  └─ Worker Tests (8): test_*_worker, test_concurrent_*, etc.
+│     │
+│     └─ Cleanup: QThreadPool.waitForDone(), thread.wait(5000)
+│
+├─ CATEGORY 5: SIGNAL/SLOT CONTAMINATION (10 files) ─ MEDIUM
+│  │
+│  ├─ Model Signals (3): test_*_model with emit()
+│  │
+│  ├─ Widget Signals (3): test_*_widget with click()
+│  │
+│  └─ Manager Signals (4): test_progress_manager, test_signal_manager, etc.
+│     │
+│     └─ Cleanup: processEvents() + sendPostedEvents()
+│
+└─ CATEGORY 6: PROCESS POOL (4 files) ─ MEDIUM
+   │
+   └─ Pool Tests (4): test_process_pool_manager, test_optimized_threading, etc.
+      │
+      └─ Cleanup: ProcessPoolManager.shutdown(), terminate workers
+
+
+CONFTEST.PY CLEANUP STRUCTURE
+------------------------------
+
+conftest.py (150+ lines of cleanup)
+│
+├─ qt_cleanup() [lines 172-257] ── Handles Categories 1, 2, 5
+│  │
+│  ├─ BEFORE test:
+│  │  ├─ Wait for threads: QThreadPool.waitForDone(500)
+│  │  └─ Process events × 2 rounds: sendPostedEvents(DeferredDelete)
+│  │
+│  └─ AFTER test:
+│     ├─ Clear thread pool: pool.clear(), pool.waitForDone(100)
+│     ├─ Process events × 3 rounds: Complete signal cleanup
+│     ├─ Wait for threading.Thread: thread.join(timeout)
+│     └─ Clear cache: QPixmapCache.clear()
+│
+├─ clear_module_caches() [lines 261-350] ── Handles Categories 1, 3
+│  │
+│  ├─ clear_all_caches(): Clears module-level cache dicts
+│  ├─ disable_caching(): Resets _cache_disabled flag
+│  └─ shutil.rmtree(~/.shotbot/cache_test): Clears shared cache dir
+│
+└─ Proposed Additions:
+   │
+   ├─ reset_all_singletons() ── Handles Category 1 more systematically
+   │  └─ Calls .reset() on: ProgressManager, NotificationManager, etc.
+   │
+   ├─ cleanup_thread_pool() ── Handles Category 4 explicitly
+   │  └─ Ensures QThreadPool is idle before/after
+   │
+   └─ reset_process_pool() ── Handles Category 6
+      └─ Calls ProcessPoolManager.shutdown() and resets _instance
+
+
+FILE OVERLAP VISUALIZATION
+--------------------------
+
+Files in EXACTLY 1 category (~35):
+  Pure singletons: test_progress_manager, test_threading_manager, etc.
+  Pure caching: test_design_system, test_exr_edge_cases, etc.
+  Pure threading: test_threading_fixes, test_threading_utils, etc.
+
+Files in EXACTLY 2 categories (~15):
+  Singletons + Caching: test_cache_manager
+  Qt Resources + Signals: test_launcher_panel, test_shot_grid_widget
+  Threading + Process Pool: test_concurrent_optimizations
+  Threading + Qt Resources: test_threede_item_model
+
+Files in 3+ categories (~5):
+  Integration tests: test_main_window_*, test_user_workflows
+  All create MainWindow + create widgets + emit signals
+  Most complex tests
+
+
+REMEDIATION PHASES FLOWCHART
+----------------------------
+
+Phase 1 (30 min) ─────────────────────────────────────
+│
+├─ Add .reset() to singletons (15 min)
+│  └─ Affects: 23 files in Category 1
+│
+├─ Verify qtbot.addWidget() (15 min)
+│  └─ Affects: 18 files in Category 2
+│
+└─ RESULT: 35/55 files can run in parallel (-n 2)
+
+
+Phase 2 (2 hrs) ───────────────────────────────────────
+│
+├─ Add QThreadPool cleanup fixture (20 min)
+│  └─ Affects: 11 files in Category 4
+│
+├─ Fix worker thread cleanup (1 hr)
+│  └─ Affects: 11 files in Category 4
+│
+├─ Add ProcessPoolManager.shutdown() (30 min)
+│  └─ Affects: 4 files in Category 6
+│
+└─ RESULT: 55/55 files can run in parallel (-n 2)
+
+
+Phase 3 (1 hr) ────────────────────────────────────────
+│
+├─ Remove module-scoped imports (30 min)
+│  └─ Affects: 3 integration test files
+│
+├─ Add integration_test_isolation fixture (30 min)
+│  └─ Affects: 11 integration test files
+│
+└─ RESULT: All xdist_group("qt_state") markers removed
+
+
+SPEEDUP CURVE
+─────────────
+
+                      Execution Time (seconds)
+                 60 ┌─────────────────────────────┐
+                    │ ← Serial baseline (60s)      │
+                 50 │                          Phase 1: 45s (-25%)
+                    │                         •    │
+                 40 │                            •  │
+                    │                              •
+                 30 │                            Phase 2: 30s (-50%)
+                    │                         •    │
+                 20 │                        •     │
+                    │                    ••        │
+                 10 │                  •Phase 3: 8s (-87%)
+                    │                •            │
+                  0 └─┬──────────┬──────────┬──────────┤
+                      Serial   Phase 1   Phase 2   Phase 3
+                                   (with -n 2 parallelism)
+
+
+ESTIMATED OUTCOMES BY PHASE
+----------------------------
+
+Current State (60+ seconds each):
+  - Serial: 60s total
+  - Parallel (-n 2): 30s total
+  - CAN'T use -n auto (would parallelize across xdist_group)
+
+After Phase 1 (45s each):
+  - Serial: 45s total
+  - Parallel (-n 2): 20s total (33% faster)
+  - Still can't use -n auto
+
+After Phase 2 (30s each):
+  - Serial: 30s total
+  - Parallel (-n 2): 10s total (67% faster)
+  - Still can't use -n auto
+
+After Phase 3 (full parallelization):
+  - Serial: 30s total
+  - Parallel (-n 16): 5-8s total (87% faster, 6-10x speedup)
+  - CAN use -n auto (runs all tests in parallel)
+
+
+KEY METRICS SUMMARY
+-------------------
+
+Total files analyzed: 55
+  - In 1 category: 35
+  - In 2 categories: 15
+  - In 3+ categories: 5
+
+Total root causes: 6
+  - CRITICAL: 2 (Singletons, Qt Resources)
+  - HIGH: 2 (Module Caching, Threading)
+  - MEDIUM: 2 (Signals, Process Pool)
+
+Total remediation effort: 4.5 hours
+  - Phase 1: 30 min
+  - Phase 2: 2 hours
+  - Phase 3: 1 hour
+  - Testing: 1 hour
+
+Expected speedup: 6-10x
+  - Current: 60s serial
+  - Final: 8s parallel (16 cores)
+
+================================================================================
