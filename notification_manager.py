@@ -352,6 +352,21 @@ class NotificationManager(QObject):
             logger.debug("NotificationManager cleaned up")
 
     @classmethod
+    def reset(cls) -> None:
+        """Reset singleton for testing. INTERNAL USE ONLY.
+
+        This method clears all notification state and resets the singleton instance.
+        It should only be used in test cleanup to ensure test isolation.
+        """
+        # Clean up all resources
+        cls.cleanup()
+
+        # Reset singleton instance
+        cls._instance = None
+
+        logger.debug("NotificationManager reset for testing")
+
+    @classmethod
     def error(cls, title: str, message: str = "", details: str = "") -> None:
         """Show a critical error dialog.
 

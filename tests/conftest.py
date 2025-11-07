@@ -8,7 +8,11 @@ specific to the ShotBot VFX asset management application.
 from __future__ import annotations
 
 import os
+import sys
+import tempfile
+import uuid
 import warnings
+from pathlib import Path
 
 
 # ==============================================================================
@@ -23,13 +27,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 # This prevents Qt6 warnings and races across xdist workers.
 run_id = os.environ.get("PYTEST_XDIST_TESTRUNUID", "solo")
 worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
-xdg = f"/tmp/xdg-{run_id}-{worker}"
-os.makedirs(xdg, mode=0o700, exist_ok=True)
-os.environ.setdefault("XDG_RUNTIME_DIR", xdg)
-import sys
-import tempfile
-import uuid
-from pathlib import Path
+xdg_path = Path(f"/tmp/xdg-{run_id}-{worker}")
+xdg_path.mkdir(mode=0o700, parents=True, exist_ok=True)
+os.environ.setdefault("XDG_RUNTIME_DIR", str(xdg_path))
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
@@ -191,61 +191,231 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
     from PySide6.QtCore import QCoreApplication, QEvent, QThreadPool
     from PySide6.QtGui import QPixmapCache
 
-    # BEFORE TEST: Clean up state from previous test
-    # Multiple rounds ensure complete event processing
-    for _ in range(2):
-        QCoreApplication.processEvents()
-        # Flush deferred deletes explicitly (deleteLater() calls)
-        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-    
-    # Clear Qt caches to prevent memory accumulation
-    QPixmapCache.clear()
+    # BEFORE TEST: Wait for background threads from previous test FIRST
+    # This prevents crashes from processing events while threads are still running
+    # Always wait a short time to ensure threads complete
+    pool = QThreadPool.globalInstance()
+    pool.waitForDone(500)  # Always wait 500ms for threads to finish
+
+    # Wrap event processing in try-except to prevent crashes from leaked objects
+    try:
+        # Now clean up state from previous test
+        # Multiple rounds ensure complete event processing
+        for _ in range(2):
+            QCoreApplication.processEvents()
+            # Flush deferred deletes explicitly (deleteLater() calls)
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+
+        # Clear Qt caches to prevent memory accumulation
+        QPixmapCache.clear()
+    except (RuntimeError, SystemError):
+        # Ignore errors from deleted C++ objects or system state during cleanup
+        pass
 
     yield
 
-    # AFTER TEST: Ensure current test's resources are cleaned up
-    # Multiple rounds to catch cascading cleanups
-    for _ in range(3):
-        QCoreApplication.processEvents()
-        # Flush deferred deletes - prevents dangling signals/slots
-        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-    
-    # Clear Qt caches again after test
-    QPixmapCache.clear()
+    # AFTER TEST: Wait for background threads FIRST before processing events
+    # This prevents crashes from processing events while threads are still running
+    # Only wait if there are actually active threads (performance optimization)
+    pool = QThreadPool.globalInstance()
+    if pool.activeThreadCount() > 0:
+        pool.clear()  # Cancel pending runnables from queue
+        pool.waitForDone(100)  # Reduced from 2000ms → 100ms for performance
 
-    # Wait for any background QThreads to finish (max 2000ms)
-    # This prevents AsyncShotLoader or other background threads from
-    # interfering with subsequent tests.
-    QThreadPool.globalInstance().waitForDone(2000)
-    
-    # Final event processing after thread cleanup
-    QCoreApplication.processEvents()
-    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    # Also wait for any Python threading.Thread instances to complete
+    # Some tests use threading.Thread in addition to QThreadPool
+    # Process Qt events while waiting to avoid deadlocks
+    import threading
+    import time
+    if threading.active_count() > 1:
+        start_time = time.time()
+        timeout = 0.5
+        while threading.active_count() > 1 and (time.time() - start_time) < timeout:
+            # Process Qt events instead of sleeping to prevent deadlocks
+            QCoreApplication.processEvents()
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+
+    # Wrap event processing in try-except to prevent crashes from leaked objects
+    try:
+        # Now that threads are done, clean up Qt resources
+        # Multiple rounds to catch cascading cleanups
+        for _ in range(3):
+            QCoreApplication.processEvents()
+            # Flush deferred deletes - prevents dangling signals/slots
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+
+        # Clear Qt caches again after test
+        QPixmapCache.clear()
+
+        # Final event processing after thread cleanup
+        QCoreApplication.processEvents()
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    except (RuntimeError, SystemError):
+        # Ignore errors from deleted C++ objects or system state during cleanup
+        # This can happen if a QObject was deleted in C++ but Python still has a reference
+        pass
 
 
 @pytest.fixture(autouse=True)
-def clear_module_caches() -> Iterator[None]:
-    """Clear all module-level caches before each test.
+def cleanup_state() -> Iterator[None]:
+    """Clean up all module-level caches and singleton state before and after each test.
 
-    This autouse fixture ensures that cached values from previous tests
-    don't contaminate the current test. Module-level caches are a common
-    source of test isolation failures in parallel execution.
+    This autouse fixture consolidates cache clearing, singleton resets, and threading cleanup
+    to prevent test contamination. Runs both before and after each test for complete isolation.
 
-    Clearing happens FIRST (before test execution) to prevent
-    contamination from previous tests on any worker.
+    Before test:
+    - Clear all utility caches and disable caching
+    - Clear shared cache directory
+    - Reset NotificationManager and ProgressManager singletons
+
+    After test (defense in depth):
+    - Process pending Qt events
+    - Clean up Qt widgets (NotificationManager, ProgressManager)
+    - Reset all singletons (ProcessPoolManager, QRunnableTracker, ThreadSafeWorker)
+    - Clear caches again
+    - Force garbage collection
 
     See UNIFIED_TESTING_V2.MD section "Common Root Causes of Isolation Failures" for details.
     """
     # Local application imports - import here to avoid circular dependencies
-    from utils import clear_all_caches
+    import gc
+    import shutil
+    from pathlib import Path
+
+    from notification_manager import NotificationManager
+    from progress_manager import ProgressManager
+    from utils import clear_all_caches, disable_caching
+
+    # ===== BEFORE TEST: Setup clean state =====
 
     # Clear ALL caches FIRST, before any test operations
     clear_all_caches()
 
+    # CRITICAL: Clear shared cache directory to prevent contamination
+    # Tests using CacheManager() without cache_dir parameter use ~/.shotbot/cache_test
+    # This shared directory accumulates data across test runs, causing contamination
+    shared_cache_dir = Path.home() / ".shotbot" / "cache_test"
+    if shared_cache_dir.exists():
+        try:
+            shutil.rmtree(shared_cache_dir)
+        except FileNotFoundError:
+            # Race condition in pytest-xdist: another worker may have deleted it
+            pass
+
+    # CRITICAL: Reset _cache_disabled flag to ensure consistent test behavior
+    # Some tests call enable_caching() to test caching behavior.
+    # Always disable caching at the start of each test for predictable behavior.
+    disable_caching()
+
+    # Reset all singleton managers using their reset() methods
+    # Order matters: NotificationManager FIRST (closes Qt widgets that ProgressManager may reference)
+    try:
+        NotificationManager.reset()
+    except (RuntimeError, AttributeError):
+        # Qt objects may already be deleted
+        pass
+
+    # THEN reset ProgressManager (now safe to clear widget references)
+    try:
+        ProgressManager.reset()
+    except (RuntimeError, AttributeError):
+        # Qt objects may already be deleted
+        pass
+
+    # Reset ProcessPoolManager
+    try:
+        from process_pool_manager import ProcessPoolManager
+        ProcessPoolManager.reset()
+    except (RuntimeError, AttributeError, ImportError):
+        pass
+
+    # Reset FilesystemCoordinator
+    try:
+        from filesystem_coordinator import FilesystemCoordinator
+        FilesystemCoordinator.reset()
+    except (RuntimeError, AttributeError, ImportError):
+        pass
+
     yield
 
-    # Optional: Clear caches after test as well (defense in depth)
+    # ===== AFTER TEST: Comprehensive cleanup (defense in depth) =====
+
+    # Qt Event Processing - Process pending events before cleanup
+    # This ensures Qt is in a stable state before we start tearing things down
+    try:
+        from PySide6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            app.processEvents()
+    except (RuntimeError, ImportError):
+        # Qt not available or objects already deleted, ignore
+        pass
+
+    # Reset all singleton managers using their reset() methods
+    # NotificationManager first (must happen early to avoid Qt object access after deletion)
+    try:
+        NotificationManager.reset()
+    except (RuntimeError, AttributeError):
+        pass
+
+    # ProgressManager cleanup
+    try:
+        ProgressManager.reset()
+    except (RuntimeError, AttributeError):
+        pass
+
+    # Clear utils caches
     clear_all_caches()
+
+    # CRITICAL: Clear shared cache directory after test
+    if shared_cache_dir.exists():
+        try:
+            shutil.rmtree(shared_cache_dir)
+        except FileNotFoundError:
+            pass
+
+    # CRITICAL: Reset _cache_disabled flag after test
+    disable_caching()
+
+    # QRunnableTracker Cleanup
+    from runnable_tracker import QRunnableTracker
+    try:
+        QRunnableTracker.reset_instance()
+    except Exception as e:
+        import warnings
+        warnings.warn(f"QRunnableTracker reset failed: {e}", RuntimeWarning, stacklevel=2)
+
+    # ProcessPoolManager Cleanup
+    from process_pool_manager import ProcessPoolManager
+    try:
+        ProcessPoolManager.reset()
+    except Exception as e:
+        import warnings
+        warnings.warn(f"ProcessPoolManager reset failed: {e}", RuntimeWarning, stacklevel=2)
+
+    # FilesystemCoordinator Cleanup
+    from filesystem_coordinator import FilesystemCoordinator
+    try:
+        FilesystemCoordinator.reset()
+    except Exception as e:
+        import warnings
+        warnings.warn(f"FilesystemCoordinator reset failed: {e}", RuntimeWarning, stacklevel=2)
+
+    # ThreadSafeWorker Zombie Cleanup
+    from PySide6.QtCore import QMutexLocker
+
+    from thread_safe_worker import ThreadSafeWorker
+
+    with QMutexLocker(ThreadSafeWorker._zombie_mutex):
+        zombie_count = len(ThreadSafeWorker._zombie_threads)
+        if zombie_count > 0:
+            ThreadSafeWorker.cleanup_old_zombies()
+            ThreadSafeWorker._zombie_threads.clear()
+            ThreadSafeWorker._zombie_timestamps.clear()
+
+    # Force garbage collection to clean up any instances that cached state
+    # (e.g., TargetedShotsFinder instances with cached Config.SHOWS_ROOT regex patterns)
+    gc.collect()
 
 
 @pytest.fixture(autouse=True)
@@ -291,130 +461,22 @@ def stable_random_seed() -> None:
 
 
 @pytest.fixture(autouse=True)
-def cleanup_threading_state() -> Iterator[None]:
-    """Clean up all threading and singleton state between tests.
-
-    This autouse fixture ensures clean state for each test by:
-    - Resetting ProcessPoolManager singleton
-    - Clearing ThreadSafeWorker zombie threads
-    - Processing pending Qt events
-
-    Note:
-        This is an autouse fixture that runs automatically for every test.
-        It executes cleanup after the test completes (yield).
-    """
-    yield
-
-    # Qt Event Processing - Process pending events before cleanup
-    # This ensures Qt is in a stable state before we start tearing things down
-    try:
-        from PySide6.QtWidgets import QApplication
-        app = QApplication.instance()
-        if app:
-            app.processEvents()
-    except (RuntimeError, ImportError):
-        # Qt not available or objects already deleted, ignore
-        pass
-
-    # NotificationManager Cleanup (must happen early to avoid Qt object access after deletion)
-    from notification_manager import NotificationManager
-    NotificationManager.cleanup()
-
-    # ProgressManager Cleanup (singleton state)
-    from progress_manager import ProgressManager
-    if ProgressManager._instance is not None:
-        # Clear operation stack
-        ProgressManager._operation_stack.clear()
-        # Reset singleton
-        ProgressManager._instance = None
-
-    # Clear utils caches (path cache, version cache, lru_cache)
-    from utils import clear_all_caches
-    clear_all_caches()
-
-    # QRunnableTracker Cleanup (singleton state)
-    from runnable_tracker import QRunnableTracker
-    try:
-        QRunnableTracker.reset_instance()
-    except Exception as e:
-        import warnings
-        warnings.warn(f"QRunnableTracker reset failed: {e}", RuntimeWarning)
-
-    # ProcessPoolManager Cleanup
-    from process_pool_manager import ProcessPoolManager
-
-    if ProcessPoolManager._instance is not None:
-        try:
-            # Only shutdown if it's a real ProcessPoolManager instance
-            # Test doubles (TestProcessPool) don't have shutdown method
-            if hasattr(ProcessPoolManager._instance, 'shutdown'):
-                ProcessPoolManager._instance.shutdown(timeout=1.0)
-        except Exception as e:
-            import warnings
-
-            warnings.warn(f"ProcessPoolManager shutdown failed: {e}", RuntimeWarning)
-
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-
-    # ThreadSafeWorker Zombie Cleanup
-    from PySide6.QtCore import QMutexLocker
-
-    from thread_safe_worker import ThreadSafeWorker
-
-    with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-        zombie_count = len(ThreadSafeWorker._zombie_threads)
-        if zombie_count > 0:
-            cleaned = ThreadSafeWorker.cleanup_old_zombies()
-            ThreadSafeWorker._zombie_threads.clear()
-            ThreadSafeWorker._zombie_timestamps.clear()
-
-
-@pytest.fixture(autouse=True)
-def reset_config_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Reset Config.SHOWS_ROOT to default value to prevent test pollution.
-    
-    This fixture ensures that Config.SHOWS_ROOT starts at its default value
-    ("/shows") for all tests, preventing pollution from tests that modify it.
-    
-    Tests that need a different SHOWS_ROOT should use monkeypatch explicitly,
-    which will override this default for that specific test.
-    
-    Per UNIFIED_TESTING_V2.MD: Use monkeypatch for global state isolation.
-    """
-    # Import here to avoid circular dependencies
-    from config import Config
-    
-    # Reset to the actual default from config.py: "/shows"
-    # This matches Config.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
-    monkeypatch.setattr(Config, "SHOWS_ROOT", "/shows")
-
-    yield
-
-    # Monkeypatch auto-restores and clears any cached values
-    # Force garbage collection to clean up any TargetedShotsFinder instances
-    # that cached the old SHOWS_ROOT value in regex patterns
-    import gc
-    gc.collect()
-
-
-@pytest.fixture(autouse=True)
 def cleanup_launcher_manager_state() -> Iterator[None]:
     """Clean up LauncherManager state between tests.
-    
+
     Prevents pollution from tests that create LauncherManager instances
     with stale state from previous tests.
     """
     yield
-    
+
     # Import here to avoid circular dependencies
     try:
-        from launcher_manager import LauncherManager
-        
         # Clear any class-level state if it exists
         # LauncherManager instances should be cleaned up by Qt, but we ensure
         # any dangling references are released
         import gc
+
+        from launcher_manager import LauncherManager  # noqa: F401
         gc.collect()  # Force garbage collection to clean up Qt objects
     except ImportError:
         # LauncherManager not available in this test
@@ -437,7 +499,6 @@ def prevent_qapp_exit(monkeypatch: pytest.MonkeyPatch, qapp: QApplication) -> No
 
     def _noop_exit(retcode: int = 0) -> None:
         """No-op exit - tests shouldn't exit the application."""
-        pass
 
     # Monkeypatch both the instance method and class method
     monkeypatch.setattr(qapp, "exit", _noop_exit)

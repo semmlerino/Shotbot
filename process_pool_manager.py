@@ -544,6 +544,17 @@ class ProcessPoolManager(LoggingMixin, QObject):
         except Exception as e:
             self.logger.warning(f"Error clearing session tracking: {e}")
 
+        # Stage 1.5: Clear session pools (bash sessions that persist between tests)
+        try:
+            with QMutexLocker(self._session_lock):
+                pool_count = len(self._session_pools)
+                self._session_pools.clear()
+                self._session_creation_in_progress.clear()
+                if pool_count > 0:
+                    self.logger.debug(f"Cleared {pool_count} session pools")
+        except Exception as e:
+            self.logger.warning(f"Error clearing session pools: {e}")
+
         # Stage 2: Graceful executor shutdown using public API
         shutdown_successful = False
         try:
@@ -610,6 +621,27 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         status = "successful" if shutdown_successful else "with timeout"
         self.logger.info(f"ProcessPoolManager shutdown complete ({status})")
+
+    @classmethod
+    def reset(cls) -> None:
+        """Reset singleton for testing. INTERNAL USE ONLY.
+
+        This method shuts down the process pool and resets the singleton instance.
+        It should only be used in test cleanup to ensure test isolation.
+        """
+        # Shutdown existing instance if it exists
+        if cls._instance is not None:
+            try:
+                cls._instance.shutdown(timeout=2.0)
+            except Exception as e:
+                logger.warning(f"Error during reset shutdown: {e}")
+
+        # Reset singleton state
+        with cls._lock:
+            cls._instance = None
+            cls._initialized = False
+
+        logger.debug("ProcessPoolManager reset for testing")
 
 
 @final

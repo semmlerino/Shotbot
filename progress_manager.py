@@ -524,6 +524,31 @@ class ProgressManager:
 
         logger.warning("All progress operations cleared (emergency cleanup)")
 
+    @classmethod
+    def reset(cls) -> None:
+        """Reset singleton for testing. INTERNAL USE ONLY.
+
+        This method clears all progress state and resets the singleton instance.
+        It should only be used in test cleanup to ensure test isolation.
+        """
+        # Clear all active operations
+        if cls._instance is not None:
+            # Cancel and close any active operations
+            for operation in cls._operation_stack:
+                if operation.config.cancelable:
+                    operation.cancel()
+                if operation.progress_dialog:
+                    NotificationManager.close_progress()
+
+            cls._operation_stack.clear()
+
+        # Reset class variables
+        cls._instance = None
+        cls._operation_stack = []
+        cls._status_bar = None
+
+        logger.debug("ProgressManager reset for testing")
+
 
 # Convenience functions for easier usage throughout the application
 def start_progress(title: str, cancelable: bool = False) -> ProgressOperation:

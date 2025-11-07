@@ -230,3 +230,21 @@ class FilesystemCoordinator(LoggingMixin):
             self.logger.debug(f"Removed {removed} expired cache entries")
 
         return removed
+
+    @classmethod
+    def reset(cls) -> None:
+        """Reset singleton for testing. INTERNAL USE ONLY.
+
+        This method clears all filesystem cache state and resets the singleton instance.
+        It should only be used in test cleanup to ensure test isolation.
+        """
+        # Clear cache if instance exists
+        if cls._instance is not None:
+            cls._instance.invalidate_all()
+
+        # Reset singleton state
+        with cls._lock:
+            cls._instance = None
+
+        # Don't need to reset _lock since it's a class variable that should persist
+        # The next instantiation will create a fresh instance with empty caches
