@@ -1,1 +1,1 @@
-test: Comprehensive test isolation and cleanup improvements
+test: Comprehensive test configuration improvements

@@ -1,184 +1,205 @@
 # ShotBot Active Documentation Index
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-08
 **Status:** Current and maintained
 
 ---
 
-## 🎯 Primary Documents (Implementation)
+## 🎯 Start Here
 
-### For Remediation Work (START HERE)
+### For New Developers
+1. **[README.md](./README.md)** - Project overview
+2. **[CLAUDE.md](./CLAUDE.md)** - Development guidelines and architecture
+3. **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** - Testing best practices
 
-1. **[REMEDIATION_README.md](./REMEDIATION_README.md)** 📖
-   - Quick start guide for remediation
-   - Overview of what's being fixed
-   - Success criteria
-   - **READ THIS FIRST**
+### For Testing Work
+1. **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** - **CANONICAL TESTING GUIDE**
+   - Quick start commands
+   - 5 Basic Qt Testing Hygiene Rules
+   - Test isolation patterns
+   - Parallel execution guidance
+   - Qt-specific testing patterns
+   - Debugging workflows
 
-2. **[IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)** ⭐
-   - Complete 4-phase remediation plan
-   - 12 tasks with detailed code examples
-   - Agent-based workflow
-   - Success metrics and verification
-   - **PRIMARY IMPLEMENTATION GUIDE**
+2. **[CONFTEST_IMPROVEMENTS_SUMMARY.md](./CONFTEST_IMPROVEMENTS_SUMMARY.md)** - Recent improvements (2025-11-08)
+   - 14 critical conftest.py improvements
+   - pyproject.toml updates
+   - Performance optimizations
 
-3. **[IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md)** ✅
-   - Task-by-task tracking
-   - Review sign-offs
-   - Progress monitoring
-   - Git commit verification
-   - **TRACK YOUR PROGRESS HERE**
+3. **[docs/CONFTEST_IMPROVEMENTS_2025-11-08.md](./docs/CONFTEST_IMPROVEMENTS_2025-11-08.md)** - Detailed changelog
 
 ---
 
-## 📚 Reference Documentation (Keep)
+## 📚 Active Documentation
 
-### Project Documentation
+### Project Core
 - **[README.md](./README.md)** - Main project overview
-- **[CLAUDE.md](./CLAUDE.md)** - Instructions for Claude Code
-- **[SECURITY_CONTEXT.md](./SECURITY_CONTEXT.md)** - Security context (VFX network)
+- **[CLAUDE.md](./CLAUDE.md)** - Primary development guidelines (architecture, patterns, commands)
+- **[SECURITY_CONTEXT.md](./SECURITY_CONTEXT.md)** - Security posture (isolated VFX network)
 - **[KNOWN_ISSUES.md](./KNOWN_ISSUES.md)** - Current known issues
+- **[PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)** - Performance guidance
 
-### Development Guides
-- **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** - Comprehensive testing guide (5 hygiene rules, isolation patterns, Qt testing)
-- **[WSL-TESTING.md](./WSL-TESTING.md)** - WSL-specific testing notes
-- **[QT_CONCURRENCY_BEST_PRACTICES.md](./QT_CONCURRENCY_BEST_PRACTICES.md)** - Qt threading guide
+### Testing & Quality
+- **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** - **PRIMARY TESTING GUIDE** (replaces all other testing docs)
+- **[CONFTEST_IMPROVEMENTS_SUMMARY.md](./CONFTEST_IMPROVEMENTS_SUMMARY.md)** - Latest improvements (2025-11-08)
 
-### Infrastructure
-- **[POST_COMMIT_BUNDLE_GUIDE.md](./POST_COMMIT_BUNDLE_GUIDE.md)** - Git hook documentation
-- **[AUDIT_INDEX.md](./AUDIT_INDEX.md)** - Audit tracking
-
----
-
-## 📁 Feature Documentation (docs/)
-
-### Active Feature Docs
-- **[docs/CUSTOM_LAUNCHER_DOCUMENTATION.md](./docs/CUSTOM_LAUNCHER_DOCUMENTATION.md)**
-  - Custom launcher system
-  - Configuration and usage
-
-- **[docs/NUKE_PLATE_WORKFLOW.md](./docs/NUKE_PLATE_WORKFLOW.md)**
-  - Nuke plate-based workflow
-  - Plate discovery and versioning
-
-- **[docs/SIMPLE_VS_COMPLEX_NUKE_LAUNCH.md](./docs/SIMPLE_VS_COMPLEX_NUKE_LAUNCH.md)**
-  - Comparison of Nuke launch approaches
-  - Implementation details
-
-- **[docs/QT_WARNING_DETECTION.md](./docs/QT_WARNING_DETECTION.md)**
-  - Qt warning detection system
-  - Configuration and monitoring
+### Deployment System
+- **[POST_COMMIT_BUNDLE_GUIDE.md](./POST_COMMIT_BUNDLE_GUIDE.md)** - Automated bundle system
+- **[AUTO_PUSH_SYSTEM.md](./AUTO_PUSH_SYSTEM.md)** - Auto-push to encoded-releases
+- **[AUTO_PUSH_TROUBLESHOOTING_DO_NOT_DELETE.md](./AUTO_PUSH_TROUBLESHOOTING_DO_NOT_DELETE.md)** - **CRITICAL**
 
 ---
 
-## 🗂️ Archived Documents (Reference Only)
+## 📁 Feature Documentation (`docs/`)
 
-### Previous Analysis (2025-10-30)
-- **[docs/archive/analysis-2025-10-30/](./docs/archive/analysis-2025-10-30/)**
-  - ARCHITECTURE_REVIEW.md
-  - ARCHITECTURE_REVIEW_SUMMARY.txt
-  - **Replaced by:** IMPLEMENTATION_PLAN.md
+### Active Features
+- **[docs/CUSTOM_LAUNCHER_DOCUMENTATION.md](./docs/CUSTOM_LAUNCHER_DOCUMENTATION.md)** - Launcher system
+- **[docs/NUKE_PLATE_WORKFLOW.md](./docs/NUKE_PLATE_WORKFLOW.md)** - Nuke plate workflow
+- **[docs/SIMPLE_VS_COMPLEX_NUKE_LAUNCH.md](./docs/SIMPLE_VS_COMPLEX_NUKE_LAUNCH.md)** - Launch patterns
+- **[docs/QT_WARNING_DETECTION.md](./docs/QT_WARNING_DETECTION.md)** - Warning detection
 
-### Previous Plans (2025-10-30)
-- **[docs/archive/old-plans-2025-10-30/](./docs/archive/old-plans-2025-10-30/)**
-  - IMPLEMENTATION_PLAN_AMENDED.md
-  - INCREMENTAL_CACHING_PLAN.md
-  - VERIFICATION_CHECKLIST.md
-  - **Replaced by:** IMPLEMENTATION_PLAN.md + IMPLEMENTATION_CHECKLIST.md
+### Recent Improvements
+- **[docs/CONFTEST_IMPROVEMENTS_2025-11-08.md](./docs/CONFTEST_IMPROVEMENTS_2025-11-08.md)** - Detailed improvement log
 
-### Previous Analysis Documents (2025-10-30)
-- **[docs/archive/old-analysis-2025-10-30/](./docs/archive/old-analysis-2025-10-30/)**
-  - AGENT_REVIEW_VERIFICATION.md
-  - AGENT_SCOPE_ANALYSIS.md
-  - CONFIG_VALIDATION.md
-  - INCREMENTAL_CACHING.md
-  - NUKE_LAUNCHER_SIMPLIFICATION.md
-  - THUMBNAIL_CACHE_IMPLEMENTATION_PLAN.md
-  - IMPLEMENTATION_COMPLETE.md
-  - TEST_SUITE_ENHANCEMENT_IMPLEMENTATION.md
-  - TEST_SUITE_IMPROVEMENTS_2025.md
-  - **Replaced by:** Comprehensive 6-agent analysis → IMPLEMENTATION_PLAN.md
+### Refactoring History
+- **[docs/refactoring_history/APPLICATION_IMPROVEMENT_PLAN.md](./docs/refactoring_history/APPLICATION_IMPROVEMENT_PLAN.md)**
+- **[docs/refactoring_history/COMPREHENSIVE_AGENT_REPORT.md](./docs/refactoring_history/COMPREHENSIVE_AGENT_REPORT.md)**
+- **[docs/refactoring_history/TEST_REFACTORING_SUMMARY.md](./docs/refactoring_history/TEST_REFACTORING_SUMMARY.md)**
 
 ---
 
-## 📊 Test Documentation (tests/)
+## 🗂️ Archived Documentation
 
-### Active Test Docs
-- **[tests/README.md](./tests/README.md)** - Test suite overview
-- **[tests/INTEGRATION_TEST_SUMMARY.md](./tests/INTEGRATION_TEST_SUMMARY.md)** - Integration tests
-- **[tests/KEY_FEATURES_INTEGRATION_TESTS.md](./tests/KEY_FEATURES_INTEGRATION_TESTS.md)** - Feature tests
-- **[tests/RUN_INTEGRATION_TESTS.md](./tests/RUN_INTEGRATION_TESTS.md)** - How to run tests
-- **[tests/TEST_IMPROVEMENTS_SUMMARY.md](./tests/TEST_IMPROVEMENTS_SUMMARY.md)** - Recent improvements
-- **[tests/THREAD_SAFETY_AUDIT_SUMMARY.md](./tests/THREAD_SAFETY_AUDIT_SUMMARY.md)** - Thread safety audit
-- **[tests/THREAD_SAFETY_FIXES.md](./tests/THREAD_SAFETY_FIXES.md)** - Thread safety fixes
+**See [archive/ARCHIVE_INDEX.md](./archive/ARCHIVE_INDEX.md) for complete listing**
+
+### Recent Archive (2025-11-08)
+**Reason:** Comprehensive test configuration improvements completed
+
+**Archived Categories:**
+- **`/audits/`** - 21 completed audit reports (issues now fixed)
+- **`/quick-references/`** - 3 quick refs (consolidated into UNIFIED_TESTING_V2.MD)
+- **`/testing-guides/`** - 4 testing guides (superseded by UNIFIED_TESTING_V2.MD)
+
+**Total Archived:** 28 documents
+
+**Key Archived Docs:**
+- All Qt audit reports → Fixes implemented
+- All test isolation audits → Fixes implemented
+- All sync/cleanup audits → Fixes implemented
+- WSL-TESTING.md → Covered in UNIFIED_TESTING_V2.MD
+- XDIST_REMEDIATION_ROADMAP.md → All phases completed ✅
+- QT_QUICK_REFERENCE.md → Content in UNIFIED_TESTING_V2.MD
+- STATE_ISOLATION_QUICK_REFERENCE.md → Content in UNIFIED_TESTING_V2.MD
 
 ---
 
 ## 🚀 Quick Navigation
 
 ### Starting New Work
-1. Read **[REMEDIATION_README.md](./REMEDIATION_README.md)** for overview
-2. Open **[IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)** for details
-3. Use **[IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md)** to track progress
+```bash
+# 1. Understand the project
+cat README.md
+cat CLAUDE.md
+
+# 2. Set up testing
+cat UNIFIED_TESTING_V2.MD  # Read the 5 hygiene rules!
+
+# 3. Run tests
+~/.local/bin/uv run pytest tests/ -n 2  # Parallel (recommended)
+~/.local/bin/uv run pytest tests/       # Serial (if debugging)
+```
 
 ### Understanding the Codebase
-1. Start with **[README.md](./README.md)**
-2. Review **[CLAUDE.md](./CLAUDE.md)** for architecture
-3. Check **[SECURITY_CONTEXT.md](./SECURITY_CONTEXT.md)** for VFX context
+1. **[README.md](./README.md)** - High-level overview, deployment
+2. **[CLAUDE.md](./CLAUDE.md)** - Architecture, patterns, singleton resets
+3. **[SECURITY_CONTEXT.md](./SECURITY_CONTEXT.md)** - VFX network context
 
 ### Working with Tests
-1. Read **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** for commands
-2. Check **[tests/README.md](./tests/README.md)** for test organization
-3. Follow **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** - 5 Basic Qt Testing Hygiene rules
+1. **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** - **READ THIS FIRST**
+   - Section 1: Quick Start (commands)
+   - Section 2: 5 Basic Qt Testing Hygiene Rules (essential)
+   - Section 3: Test Isolation & Parallel Execution
+   - Section 4: Qt-Specific Patterns
+   - Section 5: Debugging Workflows
 
-### Qt Threading Issues
-1. Read **[QT_CONCURRENCY_BEST_PRACTICES.md](./QT_CONCURRENCY_BEST_PRACTICES.md)**
-2. Check **[tests/THREAD_SAFETY_AUDIT_SUMMARY.md](./tests/THREAD_SAFETY_AUDIT_SUMMARY.md)**
-3. Review **[tests/THREAD_SAFETY_FIXES.md](./tests/THREAD_SAFETY_FIXES.md)**
+2. **[CONFTEST_IMPROVEMENTS_SUMMARY.md](./CONFTEST_IMPROVEMENTS_SUMMARY.md)** - Recent fixes
 
----
-
-## 📝 Document Status
-
-### ✅ Current and Active (15 documents)
-- 3 Primary implementation docs
-- 4 Project docs
-- 4 Development guides
-- 4 Feature docs
-
-### 📚 Reference (Keep) (8 documents)
-- Test documentation in tests/
-- Infrastructure docs
-
-### 🗂️ Archived (Not Needed) (46 documents)
-- Previous analysis → docs/archive/analysis-2025-10-30/
-- Old plans → docs/archive/old-plans-2025-10-30/
-- Old analysis → docs/archive/old-analysis-2025-10-30/
-- Reviews and reports → archive/reviews-2025-11-01/ (28 documents)
+### Deployment
+1. **[POST_COMMIT_BUNDLE_GUIDE.md](./POST_COMMIT_BUNDLE_GUIDE.md)** - How bundles work
+2. **[AUTO_PUSH_SYSTEM.md](./AUTO_PUSH_SYSTEM.md)** - Auto-push system
+3. Commit → Bundle auto-created → Auto-pushed to `encoded-releases` branch
 
 ---
 
-## 🔄 Maintenance
+## 📝 Document Status Summary
+
+### ✅ Active Documents (17 total)
+- **Core:** 5 docs (README, CLAUDE, SECURITY, KNOWN_ISSUES, PERFORMANCE)
+- **Testing:** 2 docs (UNIFIED_TESTING_V2.MD, CONFTEST_IMPROVEMENTS_SUMMARY.md)
+- **Deployment:** 3 docs (POST_COMMIT, AUTO_PUSH, TROUBLESHOOTING)
+- **Features:** 4 docs (LAUNCHER, NUKE_PLATE, LAUNCH_PATTERNS, WARNING_DETECTION)
+- **History:** 3 docs (APPLICATION_PLAN, AGENT_REPORT, TEST_REFACTORING)
+- **Recent:** 1 doc (CONFTEST_IMPROVEMENTS_2025-11-08.md)
+
+### 🗂️ Archived Documents (74 total)
+- **Previous archive (2025-11-01):** 46 docs (reviews, old plans, old analysis)
+- **Recent archive (2025-11-08):** 28 docs (audits, quick refs, testing guides)
+- **See:** [archive/ARCHIVE_INDEX.md](./archive/ARCHIVE_INDEX.md)
+
+### 📊 Documentation Cleanup Progress
+- **Before (2025-10-30):** 120+ documents
+- **After cleanup (2025-11-01):** 61 documents (-59)
+- **After recent archive (2025-11-08):** 33 documents (-28)
+- **Total reduction:** 87 documents (73% reduction)
+
+---
+
+## 🔄 Maintenance Guidelines
 
 ### When to Archive
-- Document superseded by newer version
-- Analysis complete and plan created
-- Implementation finished and verified
+- Document superseded by consolidated guide (e.g., → UNIFIED_TESTING_V2.MD)
+- Audit complete and fixes implemented
+- Historical reference value only
 
-### When to Keep
-- Current implementation plans
-- Active feature documentation
-- Reference guides and best practices
-- Project context documents
+### When to Keep Active
+- Current implementation guidance
+- Feature documentation for active features
+- Troubleshooting guides (AUTO_PUSH_TROUBLESHOOTING)
+- Architecture and context (CLAUDE.md, SECURITY_CONTEXT.md)
 
-### Archive Location
-- Analysis/reviews → `docs/archive/analysis-YYYY-MM-DD/`
-- Old plans → `docs/archive/old-plans-YYYY-MM-DD/`
-- Old analysis → `docs/archive/old-analysis-YYYY-MM-DD/`
-- Reviews/reports → `archive/reviews-YYYY-MM-DD/`
+### Archive Locations
+- Audits/reviews → `archive/audits/`
+- Quick references → `archive/quick-references/`
+- Testing guides → `archive/testing-guides/`
+- Old plans → `archive/old-plans-YYYY-MM-DD/`
 
 ---
 
-**Last Archived:** 2025-11-01 (28 reviews and reports)
-**Total Archived:** 46 obsolete documents
-**Next Review:** After major implementation phases (update with results)
+## 🎓 Recommended Reading Order
+
+### Day 1: Project Understanding
+1. README.md (15 min)
+2. CLAUDE.md (30 min)
+3. SECURITY_CONTEXT.md (5 min)
+
+### Day 2: Testing Setup
+1. UNIFIED_TESTING_V2.MD - Sections 1-2 (30 min)
+2. Run test suite: `~/.local/bin/uv run pytest tests/ -n 2`
+3. UNIFIED_TESTING_V2.MD - Section 3 (20 min)
+
+### Day 3: Deep Dive
+1. UNIFIED_TESTING_V2.MD - Sections 4-5 (40 min)
+2. CONFTEST_IMPROVEMENTS_SUMMARY.md (10 min)
+3. Feature docs relevant to your work
+
+### Ongoing Reference
+- UNIFIED_TESTING_V2.MD - 5 hygiene rules (memorize these!)
+- CLAUDE.md - Singleton reset pattern
+- AUTO_PUSH_TROUBLESHOOTING_DO_NOT_DELETE.md - When git hooks fail
+
+---
+
+**Last Major Archive:** 2025-11-08
+**Total Active Docs:** 17 (down from 120+)
+**Archive Status:** 74 documents preserved for historical reference
+**Next Review:** After next major implementation phase
