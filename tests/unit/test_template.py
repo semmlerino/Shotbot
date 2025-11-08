@@ -72,7 +72,7 @@ class TestExampleClassBehavior:
         )
         self.example.error_occurred.connect(lambda msg: self.error_signals.append(msg))
 
-    def teardown_method(self, qtbot) -> None:
+    def teardown_method(self) -> None:
         """Clean up resources.
 
         Ensure proper cleanup of Qt objects and resources.
@@ -80,7 +80,8 @@ class TestExampleClassBehavior:
         # Clean up Qt objects
         if hasattr(self, "example"):
             self.example.deleteLater()
-            qtbot.wait(1)
+            # Note: qtbot is NOT available in teardown_method
+            # pytest only injects fixtures into test methods, not setup/teardown
 
     def test_successful_operation_behavior(self, qtbot) -> None:
         """Test successful operation behavior.
