@@ -3,13 +3,75 @@
 # Reads commands from FIFO and executes them in the same terminal session
 
 FIFO="${1:-/tmp/shotbot_commands.fifo}"
+HEARTBEAT_FILE="/tmp/shotbot_heartbeat.txt"
+DEBUG_LOG="$HOME/.shotbot/logs/dispatcher_debug.log"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$DEBUG_LOG")"
+
+# Debug mode flag (set SHOTBOT_TERMINAL_DEBUG=1 to enable)
+# Default to enabled for investigating corruption issues
+DEBUG_MODE=${SHOTBOT_TERMINAL_DEBUG:-1}
+
+# Log function
+log_debug() {
+    if [ "$DEBUG_MODE" = "1" ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [DEBUG] $*" >> "$DEBUG_LOG"
+    fi
+}
+
+log_info() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $*" >> "$DEBUG_LOG"
+}
+
+log_error() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >> "$DEBUG_LOG"
+}
+
+# Signal handling for cleanup and logging
+cleanup_and_exit() {
+    local exit_code=$1
+    local reason=$2
+    log_info "Dispatcher exiting: $reason (exit code: $exit_code)"
+    # Close persistent FIFO file descriptor if it exists
+    exec 3<&- 2>/dev/null
+    # Clean up heartbeat file
+    rm -f "$HEARTBEAT_FILE"
+    exit "$exit_code"
+}
+
+# Trap EXIT and errors to log shutdown reason
+trap 'cleanup_and_exit 0 "Normal EXIT signal"' EXIT
+trap 'cleanup_and_exit 1 "ERROR signal (command failed)"' ERR
+trap 'cleanup_and_exit 130 "Caught SIGINT (Ctrl+C)"' INT
+trap 'cleanup_and_exit 143 "Caught SIGTERM"' TERM
+
+# Log startup
+log_info "========================================="
+log_info "Dispatcher starting"
+log_info "PID: $$"
+log_info "FIFO: $FIFO"
+log_info "Heartbeat: $HEARTBEAT_FILE"
+log_info "Debug log: $DEBUG_LOG"
+log_info "Shell: $SHELL"
+log_info "PATH: $PATH"
+
+# Check if ws function is available
+if type ws >/dev/null 2>&1; then
+    log_info "ws function is available"
+else
+    log_error "WARNING: ws function not found!"
+fi
+log_info "========================================="
 
 # Create FIFO if it doesn't exist
 if [ ! -p "$FIFO" ]; then
     mkfifo "$FIFO" 2>/dev/null || {
+        log_error "Could not create FIFO at $FIFO"
         echo "Error: Could not create FIFO at $FIFO"
         exit 1
     }
+    log_info "Created FIFO at $FIFO"
 fi
 
 # Set up terminal appearance
@@ -64,10 +126,6 @@ is_gui_app() {
     return 1
 }
 
-# Debug mode flag (set SHOTBOT_TERMINAL_DEBUG=1 to enable)
-# Default to enabled for investigating corruption issues
-DEBUG_MODE=${SHOTBOT_TERMINAL_DEBUG:-1}
-
 # Signal handling for defense in depth
 # Ignore signals from backgrounded jobs to prevent read loop interruption
 trap '' SIGCHLD SIGHUP SIGPIPE
@@ -76,39 +134,26 @@ trap '' SIGCHLD SIGHUP SIGPIPE
 # This keeps a reader always present, preventing ENXIO errors in Python's _is_dispatcher_running()
 # Without this, there's a race window between loop iterations where no reader exists
 exec 3< "$FIFO"
+log_info "Opened FIFO file descriptor 3"
 
 # Main command loop
+log_info "Entering main command loop"
 while true; do
     # Read command from persistent FIFO file descriptor
     if read -r cmd <&3; then
         # Skip empty commands
         if [ -z "$cmd" ]; then
+            log_debug "Skipping empty command"
             continue
         fi
 
-        # Enhanced debug logging
-        if [ "$DEBUG_MODE" = "1" ]; then
-            echo "" >&2
-            echo "[DEBUG] ========================================" >&2
-            echo "[DEBUG] Received command from FIFO" >&2
-            echo "[DEBUG] Command: $cmd" >&2
-            echo "[DEBUG] Command length: ${#cmd} chars" >&2
-            echo "[DEBUG] First 50 chars: ${cmd:0:50}" >&2
-            echo "[DEBUG] Shell: $SHELL" >&2
-            echo "[DEBUG] PATH: $PATH" >&2
-            # Check if ws function is available
-            if type ws >/dev/null 2>&1; then
-                echo "[DEBUG] ws function is available" >&2
-            else
-                echo "[DEBUG] WARNING: ws function not found!" >&2
-            fi
-            echo "[DEBUG] ========================================" >&2
-            echo "" >&2
-        fi
+        # Log command received
+        log_debug "Received command: $cmd (${#cmd} chars)"
 
         # Command sanity checks
         cmd_length=${#cmd}
         if [ "$cmd_length" -lt 3 ]; then
+            log_error "Command too short ($cmd_length chars): '$cmd'"
             echo "" >&2
             echo "[ERROR] Command too short ($cmd_length chars): '$cmd'" >&2
             echo "[ERROR] Skipping potentially corrupted command" >&2
@@ -117,27 +162,37 @@ while true; do
 
         # Check for obviously corrupted commands (no letters)
         if ! echo "$cmd" | grep -q '[a-zA-Z]'; then
+            log_error "Command contains no letters: '$cmd'"
             echo "" >&2
             echo "[ERROR] Command contains no letters: '$cmd'" >&2
             echo "[ERROR] Skipping corrupted command" >&2
             continue
         fi
-        
+
         # Check for special commands
         if [ "$cmd" = "EXIT_TERMINAL" ]; then
+            log_info "Received EXIT_TERMINAL command"
             echo ""
             echo "Terminal closed by ShotBot."
             # Close persistent FIFO file descriptor
             exec 3<&-
             exit 0
         fi
-        
+
         if [ "$cmd" = "CLEAR_TERMINAL" ]; then
+            log_info "Received CLEAR_TERMINAL command"
             clear
             echo "╔══════════════════════════════════════════════════════════════╗"
             echo "║                    ShotBot Command Terminal                   ║"
             echo "╚══════════════════════════════════════════════════════════════╝"
             echo ""
+            continue
+        fi
+
+        # Heartbeat responder
+        if [ "$cmd" = "__HEARTBEAT__" ]; then
+            log_debug "Received heartbeat ping, sending PONG"
+            echo "PONG" > "$HEARTBEAT_FILE"
             continue
         fi
 
@@ -152,29 +207,39 @@ while true; do
         # Execute command with dispatcher-controlled backgrounding
         # GUI apps are backgrounded here, after stripping any & from command_launcher.py
         if is_gui_app "$cmd"; then
+            log_info "Executing GUI command (backgrounded): $cmd"
             echo "[Auto-backgrounding GUI application]"
-            if [ "$DEBUG_MODE" = "1" ]; then
-                echo "[DEBUG] Executing GUI command: $cmd &" >&2
-            fi
             eval "$cmd &"
+            gui_pid=$!
             # Give a moment for the app to start
             sleep 0.5
-            echo "✓ Launched in background (PID: $!)"
+            log_info "Launched GUI app with PID: $gui_pid"
+            echo "✓ Launched in background (PID: $gui_pid)"
         else
             # Execute command normally (blocking for non-GUI commands)
-            if [ "$DEBUG_MODE" = "1" ]; then
-                echo "[DEBUG] Executing non-GUI command: $cmd" >&2
-            fi
+            log_info "Executing non-GUI command: $cmd"
             eval "$cmd"
             exit_code=$?
             if [ $exit_code -eq 0 ]; then
+                log_info "Command completed successfully (exit code: 0)"
                 echo ""
                 echo "✓ Command completed successfully"
             else
+                log_error "Command failed with exit code: $exit_code"
                 echo ""
                 echo "✗ Command exited with code: $exit_code"
             fi
         fi
-        
+
+    else
+        # Read from FIFO failed
+        log_error "Failed to read from FIFO (EOF or error)"
+        echo "" >&2
+        echo "[ERROR] Lost connection to FIFO" >&2
+        break
     fi
 done
+
+# If we exit the loop, something went wrong
+log_error "Exited main command loop unexpectedly"
+cleanup_and_exit 1 "Exited command loop unexpectedly"
