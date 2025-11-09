@@ -42,8 +42,6 @@ References:
 
 from __future__ import annotations
 
-import contextlib
-
 # Standard library imports
 import tempfile
 import time
@@ -276,116 +274,6 @@ class TestThreeDEWorkerWorkflow:
             # Proper cleanup: disconnect signals, stop thread, delete Qt C++ object,
             # and process events to flush deletion queue. This prevents object accumulation.
             cleanup_qthread_properly(worker, signal_handlers)
-
-    @pytest.mark.skip(
-        reason="Worker cancellation has coarse granularity - cancellation only checked between batches. "
-        "Generator may be in middle of filesystem scan when cancel is requested, causing test timeout. "
-        "This is expected behavior - production code works correctly. Test architecture issue only."
-    )
-    def test_worker_progressive_scan_with_cancellation(self, qtbot) -> None:
-        """Test worker cancellation during progressive scan.
-
-        KNOWN ISSUE: This test is skipped because worker cancellation has coarse-grained
-        granularity. The worker only checks for cancellation between batches from the
-        generator. If the generator is in the middle of scanning the filesystem for the
-        first batch, cancellation won't be detected until that batch completes.
-
-        Root cause: ThreeDESceneFinder.find_all_scenes_progressive() generator performs
-        blocking filesystem I/O and doesn't check for cancellation mid-batch.
-
-        This is NOT a production bug - it's a test architecture issue. In production,
-        the cancellation delay is acceptable (sub-second for typical batches).
-        """
-        # Use smaller dataset for faster cancellation test
-        test_shots = self._create_test_vfx_structure()[:2]  # Only 2 shots
-
-        worker = ThreeDESceneWorker(
-            shots=test_shots,
-            excluded_users=set(),
-            enable_progressive=True,
-            scan_all_shots=False,  # Disable parallel discovery for cleaner cancellation
-        )
-
-
-        progress_updates = []
-        started_signals = []
-        finished_signals = []
-
-        # Store lambda references for proper signal disconnection
-        def progress_handler(*args):
-            return progress_updates.append(args)
-        def started_handler():
-            return started_signals.append(True)
-        def finished_handler(scenes):
-            return finished_signals.append(len(scenes))
-
-        worker.progress.connect(progress_handler)
-        worker.started.connect(started_handler)
-        worker.finished.connect(finished_handler)
-
-        def cleanup_worker() -> None:
-            """Cleanup with terminate() as last resort to prevent test suite hang."""
-            # CRITICAL: Disconnect all signals BEFORE stopping worker
-            with contextlib.suppress(TypeError, RuntimeError):
-                worker.progress.disconnect(progress_handler)
-
-            with contextlib.suppress(TypeError, RuntimeError):
-                worker.started.disconnect(started_handler)
-
-            with contextlib.suppress(TypeError, RuntimeError):
-                worker.finished.disconnect(finished_handler)
-
-            if worker.isRunning():
-                worker.requestInterruption()
-                worker.quit()
-
-                # Wait with timeout
-                if not worker.wait(2000):
-                    # Worker didn't stop gracefully - use terminate() as last resort
-                    # This is safe in test environment to prevent hanging the test suite
-                    worker.terminate()
-                    worker.wait(1000)  # Give it a moment after terminate
-
-
-        try:
-            # Start worker and wait for it to actually start processing
-            worker.start()
-
-            # Wait for worker to start (more reliable than waiting for progress)
-            qtbot.waitUntil(lambda: len(started_signals) >= 1, timeout=5000)
-
-            # Give it a moment to make some progress
-            qtbot.wait(1)  # Minimal event processing
-
-            # Cancel the operation
-            worker.requestInterruption()
-
-            # Force stop to ensure thread terminates
-            worker.stop()
-
-            # Wait for thread to finish with a reasonable timeout
-            # The finished signal should be emitted from the finally block in run()
-            finished_within_timeout = worker.wait(10000)
-
-            # Process any pending Qt events to ensure signal delivery
-            qtbot.wait(1)  # Minimal event processing
-
-            # Verify worker stopped
-            assert not worker.isRunning(), "Worker should not be running after cancellation"
-
-            # Should have started
-            assert len(started_signals) >= 1, "Should have started signal"
-
-            # Finished signal should be emitted (from finally block in run())
-            # But we don't strictly require it since cancellation might happen
-            # before the worker thread fully initializes
-            if finished_within_timeout and len(finished_signals) > 0:
-                assert len(finished_signals) == 1, (
-                    "Should have at most one finished signal"
-                )
-
-        finally:
-            cleanup_worker()
 
     def test_worker_error_handling_workflow(self, qtbot) -> None:
         """Test worker error handling when parallel discovery encounters issues."""

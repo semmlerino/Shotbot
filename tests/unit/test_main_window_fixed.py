@@ -69,7 +69,6 @@ def reset_all_mainwindow_singletons():
     # Import all singleton managers
     from filesystem_coordinator import FilesystemCoordinator
     from notification_manager import NotificationManager
-    from process_pool_manager import ProcessPoolManager
     from progress_manager import ProgressManager
     from runnable_tracker import QRunnableTracker
 
@@ -253,14 +252,13 @@ class TestMainWindowNoHang:
         # Shot info updated
         assert safe_main_window.shot_info_panel._current_shot == shot
 
-    @pytest.mark.skip(reason="Flaky in parallel execution - TestProcessPool state management issues")
+    @pytest.mark.skip_if_parallel
     def test_refresh_shots_with_test_pool(self, safe_main_window) -> None:
         """Test shot refresh with test process pool.
 
-        SKIPPED: This test fails in parallel execution due to complex state management
-        between TestProcessPool, cache clearing, and async shot loading. The test pool
-        outputs aren't being consumed properly when multiple workers are active.
-        Serial execution works fine, but parallel causes "ws -sg returned empty output".
+        Skipped in parallel execution due to TestProcessPool state management issues.
+        The test pool outputs aren't being consumed properly when multiple workers are active.
+        Passes reliably in serial execution.
         """
         # Use the SHOWS_ROOT that was set by the fixture via monkeypatch
         # The fixture sets Config.SHOWS_ROOT to "/shows" for test isolation

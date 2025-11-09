@@ -140,33 +140,6 @@ while true; do
             echo ""
             continue
         fi
-        
-        # Strip trailing & patterns added by command_launcher.py
-        # CRITICAL FIX for double-backgrounding bug
-        # Must preserve closing quotes for rez commands
-        original_cmd="$cmd"
-        if [[ "$cmd" == *' &"' ]]; then
-            # Rez command ending with ' &"'
-            # Strip ' &"' and restore the closing quote
-            cmd="${cmd% &\"}\""
-        elif [[ "$cmd" == *' &' ]]; then
-            # Direct command ending with ' &'
-            cmd="${cmd% &}"
-        elif [[ "$cmd" == *'&' ]]; then
-            # Edge case ending with '&' (no space)
-            cmd="${cmd%&}"
-        fi
-
-        # Debug logging to verify stripping
-        if [ "$DEBUG_MODE" = "1" ]; then
-            if [ "$original_cmd" != "$cmd" ]; then
-                echo "[DEBUG] Stripped trailing & pattern" >&2
-                echo "[DEBUG] Original: $original_cmd" >&2
-                echo "[DEBUG] Stripped: $cmd" >&2
-            else
-                echo "[DEBUG] No & pattern to strip" >&2
-            fi
-        fi
 
         # Display command being executed
         echo ""

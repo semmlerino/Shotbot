@@ -16,11 +16,8 @@ import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QMenu, QMessageBox, QStatusBar
 
-from config import Config
-
 # Local application imports
 from controllers.launcher_controller import LauncherController
-from process_pool_manager import ProcessPoolManager
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
@@ -183,7 +180,6 @@ def test_shot(tmp_path: Path) -> Shot:
 @pytest.fixture
 def test_scene(tmp_path: Path) -> ThreeDEScene:
     """Create a test 3DE scene with isolated filesystem paths."""
-    from pathlib import Path as PathLib
 
     workspace = tmp_path / "TEST" / "shots" / "seq01" / "seq01_0010"
     scene_path = workspace / "3de" / "v001" / "scene.3de"

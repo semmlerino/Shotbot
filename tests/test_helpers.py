@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 # Third-party imports
-from PySide6.QtCore import QObject, QSize, Signal, QEventLoop
+from PySide6.QtCore import QEventLoop, QObject, QSize, Signal
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QApplication
 

@@ -41,7 +41,6 @@ class TestThreeDERecoveryManager:
         crash2.write_text("crash save 2")
 
         # Make crash2 newer with explicit mtime skew (filesystems can coalesce sub-ms writes)
-        import os
         import time
 
         timestamp = time.time()

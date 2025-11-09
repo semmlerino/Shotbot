@@ -43,7 +43,6 @@ import pytest
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from process_pool_manager import ProcessPoolManager
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -156,7 +155,7 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
 
         if timeout <= 5:
             process_qt_events()
-            return
+            return None
         return original_wait(self, timeout)
 
     QtBot.wait = _safe_wait  # type: ignore[assignment]
@@ -773,7 +772,7 @@ def mock_environment(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]
         "USER": "test_user",
     }
 
-    yield test_env
+    return test_env
     # Cleanup is automatic via monkeypatch
 
 

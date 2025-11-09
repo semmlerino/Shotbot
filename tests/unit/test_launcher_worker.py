@@ -27,12 +27,10 @@ from thread_safe_worker import WorkerState
 
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
 
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
-from process_pool_manager import ProcessPoolManager
 
 
 pytestmark = [

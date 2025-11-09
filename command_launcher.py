@@ -443,29 +443,16 @@ class CommandLauncher(LoggingMixin, QObject):
             and Config.PERSISTENT_TERMINAL_ENABLED
             and Config.USE_PERSISTENT_TERMINAL
         ):
-            # Add & for GUI apps when using persistent terminal
-            command_to_send = full_command
-            if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
-                # For rez commands, add & inside the quoted bash command
-                if "bash -ilc" in full_command:
-                    # Command is like: rez env nuke -- bash -ilc "ws /path && nuke"
-                    # We need to add & inside the quotes
-                    command_to_send = full_command.rstrip('"') + ' &"'
-                else:
-                    command_to_send = full_command + " &"
-                self.logger.debug(
-                    f"Added & for GUI app {app_name} in persistent terminal"
-                )
-
+            # Dispatcher handles backgrounding of GUI apps
             self.logger.info(
-                f"Sending command to persistent terminal: {command_to_send}"
+                f"Sending command to persistent terminal: {full_command}"
             )
             is_gui = self._is_gui_app(app_name)
             self.logger.debug(
-                f"Command details:\n  Original: {full_command!r}\n  To send: {command_to_send!r}\n  Is GUI app: {is_gui}\n  Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
+                f"Command details:\n  Command: {full_command!r}\n  Is GUI app: {is_gui}"
             )
 
-            success = self.persistent_terminal.send_command(command_to_send)
+            success = self.persistent_terminal.send_command(full_command)
             if success:
                 self.logger.debug("Command successfully sent to persistent terminal")
                 return True
@@ -492,14 +479,14 @@ class CommandLauncher(LoggingMixin, QObject):
         try:
             # Build command for the detected terminal
             if terminal == "gnome-terminal":
-                term_cmd = ["gnome-terminal", "--", "bash", "-i", "-c", full_command]
+                term_cmd = ["gnome-terminal", "--", "bash", "-ilc", full_command]
             elif terminal == "konsole":
-                term_cmd = ["konsole", "-e", "bash", "-i", "-c", full_command]
+                term_cmd = ["konsole", "-e", "bash", "-ilc", full_command]
             elif terminal in ["xterm", "x-terminal-emulator"]:
-                term_cmd = [terminal, "-e", "bash", "-i", "-c", full_command]
+                term_cmd = [terminal, "-e", "bash", "-ilc", full_command]
             else:
                 # Fallback to direct execution
-                term_cmd = ["/bin/bash", "-i", "-c", full_command]
+                term_cmd = ["/bin/bash", "-ilc", full_command]
 
             process = subprocess.Popen(term_cmd)
 
@@ -588,6 +575,10 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid scene path: {e!s}")
             return False
 
+        # Validate workspace before attempting launch
+        if not self._validate_workspace_before_launch(scene.workspace_path, app_name):
+            return False
+
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
@@ -646,28 +637,15 @@ class CommandLauncher(LoggingMixin, QObject):
             and Config.PERSISTENT_TERMINAL_ENABLED
             and Config.USE_PERSISTENT_TERMINAL
         ):
-            # Add & for GUI apps when using persistent terminal
-            command_to_send = full_command
-            if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
-                # For rez commands, add & inside the quoted bash command
-                if "bash -ilc" in full_command:
-                    # Command is like: rez env 3de -- bash -ilc "ws /path && 3de /file"
-                    # We need to add & inside the quotes
-                    command_to_send = full_command.rstrip('"') + ' &"'
-                else:
-                    command_to_send = full_command + " &"
-                self.logger.debug(
-                    f"Added & for GUI app {app_name} in persistent terminal"
-                )
-
+            # Dispatcher handles backgrounding of GUI apps
             self.logger.info(
-                f"Sending scene command to persistent terminal: {command_to_send}"
+                f"Sending scene command to persistent terminal: {full_command}"
             )
             self.logger.debug(
-                f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
+                f"Is GUI app: {self._is_gui_app(app_name)}"
             )
 
-            success = self.persistent_terminal.send_command(command_to_send)
+            success = self.persistent_terminal.send_command(full_command)
             if success:
                 self.logger.debug(
                     "Scene command successfully sent to persistent terminal"
@@ -696,14 +674,14 @@ class CommandLauncher(LoggingMixin, QObject):
         try:
             # Build command for the detected terminal
             if terminal == "gnome-terminal":
-                term_cmd = ["gnome-terminal", "--", "bash", "-i", "-c", full_command]
+                term_cmd = ["gnome-terminal", "--", "bash", "-ilc", full_command]
             elif terminal == "konsole":
-                term_cmd = ["konsole", "-e", "bash", "-i", "-c", full_command]
+                term_cmd = ["konsole", "-e", "bash", "-ilc", full_command]
             elif terminal in ["xterm", "x-terminal-emulator"]:
-                term_cmd = [terminal, "-e", "bash", "-i", "-c", full_command]
+                term_cmd = [terminal, "-e", "bash", "-ilc", full_command]
             else:
                 # Fallback to direct execution
-                term_cmd = ["/bin/bash", "-i", "-c", full_command]
+                term_cmd = ["/bin/bash", "-ilc", full_command]
 
             process = subprocess.Popen(term_cmd)
 
@@ -836,14 +814,37 @@ class CommandLauncher(LoggingMixin, QObject):
                     "Warning: Raw plate not found for this shot",
                 )
 
+        # Validate workspace before attempting launch
+        if not self._validate_workspace_before_launch(scene.workspace_path, app_name):
+            return False
+
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
             safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
-            full_command = f"ws {safe_workspace_path} && {command}"
+            ws_command = f"ws {safe_workspace_path} && {command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
+
+        # Wrap with rez environment if available
+        if self._is_rez_available():
+            rez_packages = self._get_rez_packages_for_app(app_name)
+            if rez_packages:
+                packages_str = " ".join(rez_packages)
+                # Use bash -ilc for interactive login shell to ensure shell functions like ws are loaded
+                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
+                self.logger.debug(
+                    f"Constructed rez command with bash -ilc: {full_command}"
+                )
+                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp, f"Using rez environment with packages: {packages_str}"
+                )
+            else:
+                full_command = ws_command
+        else:
+            full_command = ws_command
 
         # Log the command
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
@@ -852,6 +853,38 @@ class CommandLauncher(LoggingMixin, QObject):
             f"{full_command} (Context: {scene.user}'s {scene.plate})",
         )
 
+        # Use persistent terminal if available and enabled
+        if (
+            self.persistent_terminal
+            and Config.PERSISTENT_TERMINAL_ENABLED
+            and Config.USE_PERSISTENT_TERMINAL
+        ):
+            # Dispatcher handles backgrounding of GUI apps
+            self.logger.info(
+                f"Sending scene context command to persistent terminal: {full_command}"
+            )
+            self.logger.debug(
+                f"Is GUI app: {self._is_gui_app(app_name)}"
+            )
+
+            success = self.persistent_terminal.send_command(full_command)
+            if success:
+                self.logger.debug(
+                    "Scene context command successfully sent to persistent terminal"
+                )
+                return True
+            self.logger.warning(
+                "Failed to send command to persistent terminal, falling back to new terminal"
+            )
+            # Emit user-friendly message about fallback
+            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+            self.command_executed.emit(
+                timestamp,
+                "⚠ Persistent terminal not available, launching in new terminal...",
+            )
+            # Fall through to launch new terminal
+
+        # Launch in new terminal (fallback or when persistent terminal disabled)
         # Pre-check for available terminal
         terminal = self._detect_available_terminal()
         if terminal is None:
@@ -863,14 +896,14 @@ class CommandLauncher(LoggingMixin, QObject):
         try:
             # Build command for the detected terminal
             if terminal == "gnome-terminal":
-                term_cmd = ["gnome-terminal", "--", "bash", "-i", "-c", full_command]
+                term_cmd = ["gnome-terminal", "--", "bash", "-ilc", full_command]
             elif terminal == "konsole":
-                term_cmd = ["konsole", "-e", "bash", "-i", "-c", full_command]
+                term_cmd = ["konsole", "-e", "bash", "-ilc", full_command]
             elif terminal in ["xterm", "x-terminal-emulator"]:
-                term_cmd = [terminal, "-e", "bash", "-i", "-c", full_command]
+                term_cmd = [terminal, "-e", "bash", "-ilc", full_command]
             else:
                 # Fallback to direct execution
-                term_cmd = ["/bin/bash", "-i", "-c", full_command]
+                term_cmd = ["/bin/bash", "-ilc", full_command]
 
             process = subprocess.Popen(term_cmd)
 

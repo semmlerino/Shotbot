@@ -74,9 +74,6 @@ def test_cache_manager_separation(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     logger.info("=" * 50)
 
     # Local application imports
-    from cache_config import (
-        CacheConfig,
-    )
     from cache_manager import (
         CacheManager,
     )
@@ -115,9 +112,6 @@ def test_cache_isolation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     logger.info("=" * 50)
 
     # Local application imports
-    from cache_config import (
-        CacheConfig,
-    )
     from cache_manager import (
         CacheManager,
     )

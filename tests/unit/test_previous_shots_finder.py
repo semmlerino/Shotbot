@@ -10,7 +10,6 @@ Following best practices:
 from __future__ import annotations
 
 # Standard library imports
-import os
 import sys
 from pathlib import Path
 

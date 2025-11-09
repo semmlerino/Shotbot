@@ -29,10 +29,8 @@ from launcher.models import (
 
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
     from unittest.mock import Mock
 
-from process_pool_manager import ProcessPoolManager
 
 
 pytestmark = [

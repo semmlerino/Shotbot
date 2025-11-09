@@ -118,7 +118,7 @@ def run_thumbnail_loaders_inline(monkeypatch: pytest.MonkeyPatch) -> Iterator[No
     monkeypatch.setattr(_thumb_module, "QThreadPool", _InlineQThreadPool)
     monkeypatch.setattr(sys.modules[__name__], "QThreadPool", _InlineQThreadPool)
 
-    yield
+    return
 
 
 class TestFolderOpenerWorker:

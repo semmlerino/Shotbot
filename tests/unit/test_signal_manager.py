@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from PySide6.QtCore import QObject, Qt, Signal
-from PySide6.QtWidgets import QApplication, QPushButton
+from PySide6.QtWidgets import QPushButton
 
 from signal_manager import (
     BlockedSignalsContext,

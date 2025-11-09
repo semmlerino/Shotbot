@@ -315,6 +315,8 @@ omit = [
     "dev-tools/*",      # Development utilities
     "archive/*",        # Archived code
     "examples/*",       # Example scripts
+    "shibokensupport/*", # PySide6 internal files (Qt binding generator support)
+    "signature_bootstrap.py", # PySide6 signature bootstrapping
     # VFX-specific integrations (require external software, tested manually)
     "nuke_*.py",
     "maya_*.py",

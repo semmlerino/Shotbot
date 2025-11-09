@@ -14,7 +14,7 @@ import shutil
 import tempfile
 import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 # Third-party imports
@@ -23,14 +23,10 @@ import pytest
 # Local application imports
 # Import the module under test
 from launcher_manager import LauncherManager
-from process_pool_manager import ProcessPoolManager
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestSubprocess
 
-
-if TYPE_CHECKING:
-    from collections.abc import Generator
 
 pytestmark = [
     pytest.mark.integration,

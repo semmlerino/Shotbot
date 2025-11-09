@@ -122,7 +122,6 @@ class Config:
     )
     PERSISTENT_TERMINAL_FIFO: str = "/tmp/shotbot_commands.fifo"  # FIFO path for commands
     PERSISTENT_TERMINAL_TITLE: str = "ShotBot Terminal"  # Terminal window title
-    AUTO_BACKGROUND_GUI_APPS: bool = True  # Auto-append & for GUI applications
     KEEP_TERMINAL_ON_EXIT: bool = False  # Keep terminal open when ShotBot closes
     CLEAR_TERMINAL_BEFORE_COMMAND: bool = False  # Clear screen before each command
     TERMINAL_DISPATCHER_SCRIPT: str = "terminal_dispatcher.sh"  # Dispatcher script name

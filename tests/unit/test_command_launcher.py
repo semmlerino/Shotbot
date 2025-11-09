@@ -15,11 +15,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PySide6.QtCore import QObject, Signal
 
-from tests.test_helpers import process_qt_events
-
 from command_launcher import CommandLauncher
 from config import Config
 from shot_model import Shot
+from tests.test_helpers import process_qt_events
 from threede_scene_model import ThreeDEScene
 
 
@@ -301,12 +300,16 @@ class TestCommandLauncher:
         call_args = mock_popen.call_args[0][0]
         assert "3de" in " ".join(call_args)
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_3de_with_scene(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
+        mock_validate: MagicMock,
         launcher: CommandLauncher,
         test_scene: ThreeDEScene,
         qtbot: QtBot,

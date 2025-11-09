@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable
 
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
@@ -36,7 +36,6 @@ from PySide6.QtCore import Qt
 # sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Local application imports
 from launcher_panel import LauncherPanel
-from process_pool_manager import ProcessPoolManager
 
 # Moved to lazy import to fix Qt initialization
 # from main_window import MainWindow

@@ -42,7 +42,6 @@ import sys
 import threading
 import time
 import traceback
-import uuid
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
