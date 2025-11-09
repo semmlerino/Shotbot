@@ -368,6 +368,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.logger.info(
             "Shot model now uses reactive signals - background polling disabled for shots"
         )
+        self.logger.info("=" * 60)
+        self.logger.info("MainWindow.__init__() COMPLETE - returning to Qt event loop")
+        self.logger.info("=" * 60)
 
     def _setup_ui(self) -> None:
         """Set up the main UI."""
@@ -708,14 +711,17 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _initial_load(self) -> None:
         """Initial shot loading - instant from cache or async."""
+        self.logger.info(">>> _initial_load() START")
         # Async initialization was already called in __init__, just pre-warm sessions
         self.logger.info("Using async initialization (already started in __init__)")
         # Pre-warm sessions in background thread to avoid UI freeze
         # Skip in test environment to avoid threading issues
         if not os.environ.get("PYTEST_CURRENT_TEST"):
+            self.logger.info("Creating SessionWarmer...")
             self._session_warmer = SessionWarmer(self._process_pool)
+            self.logger.info("Starting SessionWarmer thread...")
             self._session_warmer.start()
-            self.logger.debug("Session warmer thread started in background")
+            self.logger.info("SessionWarmer thread started in background")
         else:
             self._session_warmer = None
             self.logger.debug("Skipping SessionWarmer in test environment")
@@ -781,7 +787,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 "No cached data found - fetching fresh data in background",
             )
             # Schedule immediate background refresh
+            self.logger.info("Scheduling QTimer.singleShot(0, self._refresh_shots)...")
             QTimer.singleShot(0, self._refresh_shots)
+            self.logger.info("QTimer.singleShot scheduled (will run when event loop starts)")
 
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         # Previous shots now only refresh on explicit user action via "Refresh" button
@@ -812,10 +820,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 self.logger.info("3DE cache is valid - skipping initial scan")
                 # Cache is valid but might be empty - that's OK, we cached the "no scenes" state
 
+        self.logger.info("<<< _initial_load() COMPLETE - returning")
+
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
+        self.logger.info(">>> MainWindow._refresh_shots() called (via QTimer)")
         # Delegate to RefreshOrchestrator
+        self.logger.info("Delegating to RefreshOrchestrator._refresh_shots()...")
         self.refresh_orchestrator._refresh_shots()  # pyright: ignore[reportPrivateUsage]
+        self.logger.info("<<< MainWindow._refresh_shots() complete")
 
     # Note: Background refresh methods removed - now handled by reactive signals
 

@@ -199,6 +199,7 @@ class ShotModel(BaseShotModel):
         Returns:
             RefreshResult with cached data status
         """
+        self.logger.info(">>> ShotModel.initialize_async() START")
         self.logger.info("Initializing with async loading strategy")
 
         # Step 1: Load cached shots immediately (< 1ms)
@@ -246,10 +247,11 @@ class ShotModel(BaseShotModel):
         Thread-safe method that ensures only one background loader
         is created at a time.
         """
+        self.logger.info(">>> _start_background_refresh() START")
         with QMutexLocker(self._loader_lock):
             # Double-check inside the lock
             if self._loading_in_progress:
-                self.logger.warning("Background load already in progress")
+                self.logger.warning("Background load already in progress - returning early")
                 return
 
             # Clean up any existing loader first
@@ -285,8 +287,10 @@ class ShotModel(BaseShotModel):
             )
 
             # Start background loading
+            self.logger.info("About to call AsyncShotLoader.start()...")
             self._async_loader.start()
-            self.logger.info("Started background shot loading")
+            self.logger.info("AsyncShotLoader.start() called - background thread started")
+            self.logger.info("<<< _start_background_refresh() COMPLETE")
 
     @Slot(list)  # type: ignore[reportAny]
     def _on_shots_loaded(self, fresh_shots: list[Shot]) -> None:
@@ -443,29 +447,39 @@ class ShotModel(BaseShotModel):
     @override
     def refresh_strategy(self) -> RefreshResult:
         """Override to use async strategy if no shots loaded yet."""
+        self.logger.info(">>> ShotModel.refresh_strategy() START")
         # If we're in a test environment (process pool is a test double),
         # use synchronous refresh for compatibility
+        pool_class_name = self._process_pool.__class__.__name__ if hasattr(self._process_pool, "__class__") else "unknown"
+        self.logger.info(f"Process pool class: {pool_class_name}")
         if hasattr(
             self._process_pool, "__class__"
         ) and self._process_pool.__class__.__name__ in [
             "TestProcessPool",
             "TestProcessPoolManager",
         ]:
+            self.logger.info("Test environment detected, using synchronous refresh")
             return self.refresh_shots_sync()
 
         # Check loading state with lock held
         with QMutexLocker(self._loader_lock):
             loading = self._loading_in_progress
 
+        self.logger.info(f"Current state: shots={len(self.shots)}, loading_in_progress={loading}")
+
         if not self.shots and not loading:
             # First load - use async strategy
+            self.logger.info("No shots loaded and not loading - calling initialize_async()")
             return self.initialize_async()
         if not loading:
             # For subsequent refreshes, start background refresh only if not already loading
+            self.logger.info("Shots already loaded and not loading - starting background refresh")
             self._start_background_refresh()
             # Return immediately with current state
+            self.logger.info("Returning immediately (background refresh started)")
             return RefreshResult(success=True, has_changes=False)
         # Already loading, just return current state
+        self.logger.info("Already loading - returning current state")
         return RefreshResult(success=True, has_changes=False)
 
     def pre_warm_sessions(self) -> None:
