@@ -33,8 +33,6 @@ cleanup_and_exit() {
     local exit_code=$1
     local reason=$2
     log_info "Dispatcher exiting: $reason (exit code: $exit_code)"
-    # Close persistent FIFO file descriptor if it exists
-    exec 3<&- 2>/dev/null
     # Clean up heartbeat file
     rm -f "$HEARTBEAT_FILE"
     exit "$exit_code"
@@ -130,17 +128,13 @@ is_gui_app() {
 # Ignore signals from backgrounded jobs to prevent read loop interruption
 trap '' SIGCHLD SIGHUP SIGPIPE
 
-# Open FIFO with persistent file descriptor to eliminate race conditions
-# This keeps a reader always present, preventing ENXIO errors in Python's _is_dispatcher_running()
-# Without this, there's a race window between loop iterations where no reader exists
-exec 3< "$FIFO"
-log_info "Opened FIFO file descriptor 3"
-
 # Main command loop
+# Each iteration opens FIFO fresh to avoid EOF race conditions with health checks
 log_info "Entering main command loop"
 while true; do
-    # Read command from persistent FIFO file descriptor
-    if read -r cmd <&3; then
+    # Read command from FIFO (opens fresh on each iteration)
+    # This blocks until a writer connects, avoiding EOF issues from transient health checks
+    if read -r cmd < "$FIFO"; then
         # Skip empty commands
         if [ -z "$cmd" ]; then
             log_debug "Skipping empty command"
@@ -174,8 +168,6 @@ while true; do
             log_info "Received EXIT_TERMINAL command"
             echo ""
             echo "Terminal closed by ShotBot."
-            # Close persistent FIFO file descriptor
-            exec 3<&-
             exit 0
         fi
 
