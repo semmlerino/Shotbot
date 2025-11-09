@@ -1,1 +1,1 @@
-chore: Update auto-generated files from terminal launch fix
+chore: Post-commit hook outputs from documentation update

@@ -7,9 +7,9 @@ drwxr-xr-x  2 gabrielh gabrielh  4096 Nov  9 11:47 .
 drwxr-xr-x 29 gabrielh gabrielh 32768 Nov  9 11:47 ..
 -rw-r--r--  1 gabrielh gabrielh     0 Nov  9 11:47 background-startup.log
 -rw-r--r--  1 gabrielh gabrielh   359 Nov  9 11:47 bundle.txt
--rw-r--r--  1 gabrielh gabrielh    60 Nov  9 11:47 commit_msg.txt
+-rw-r--r--  1 gabrielh gabrielh    58 Nov  9 11:47 commit_msg.txt
 -rw-r--r--  1 gabrielh gabrielh     7 Nov  9 11:47 current_branch.txt
 -rw-r--r--  1 gabrielh gabrielh    41 Nov  9 11:47 current_commit.txt
 -rw-r--r--  1 gabrielh gabrielh   147 Nov  9 11:47 import-test.txt
--rw-r--r--  1 gabrielh gabrielh   228 Nov  9 11:47 info.txt
+-rw-r--r--  1 gabrielh gabrielh   226 Nov  9 11:47 info.txt
 -rw-r--r--  1 gabrielh gabrielh   152 Nov  9 11:47 summary.txt
