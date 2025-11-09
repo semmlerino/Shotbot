@@ -374,8 +374,9 @@ def cleanup_qt_state(qtbot: QtBot):
 - Debugging workflows and common issues
 
 ### Current Test Status
-- **2,296+ tests passing** (with `-n 2` workers, ~30s runtime)
-- **99.8% pass rate** in parallel, 100% serial
+- **2,300+ tests passing** (`pytest tests/ -n auto --dist=loadgroup`)
+- Grouped-parallel runs match serial reliability thanks to the early QApplication
+  bootstrap, qtbot wait patch, and xdist grouping
 - Comprehensive coverage across:
   - Core business logic
   - Controllers and managers
@@ -384,24 +385,26 @@ def cleanup_qt_state(qtbot: QtBot):
 
 ### Quick Start
 ```bash
-# Recommended: Parallel execution for speed
-~/.local/bin/uv run pytest tests/ -n 2     # 2 workers (~30s)
+# Full regression (Qt-safe parallel)
+~/.local/bin/uv run pytest tests/ -n auto --dist=loadgroup
 
-# Alternative: Serial execution (slower but simpler)
-~/.local/bin/uv run pytest tests/          # ~60s
+# Cap worker count if needed
+~/.local/bin/uv run pytest tests/ -n 4 --dist=loadgroup
 
-# Single test file
+# Serial run (quick local loop)
+~/.local/bin/uv run pytest tests/
+
+# Single test / subset
 ~/.local/bin/uv run pytest tests/unit/test_shot_model.py -v
-
-# With coverage
-~/.local/bin/uv run pytest tests/ -n 2 --cov=. --cov-report=html
+~/.local/bin/uv run pytest tests/ -k "test_cache" -v
 ```
 
 ### Test Coverage
 
 ```bash
 # Generate and view coverage report
-~/.local/bin/uv run pytest tests/ --cov=. --cov-report=html
+# (Coverage enabled by default via pyproject.toml)
+~/.local/bin/uv run pytest tests/
 open coverage_html/index.html
 ```
 

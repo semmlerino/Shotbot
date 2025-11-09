@@ -408,7 +408,7 @@ class TestUserWorkflows:
                 user="alice",
                 plate="FG01",
                 scene_path=scene_file,
-                workspace_path=shot_data["workspace_path"],
+                workspace_path=str(shot_path),  # Use actual created path, not hardcoded path
             )
 
             # Launch Maya with the scene directly

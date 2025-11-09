@@ -162,33 +162,24 @@ python -m basedpyright
 
 ### Testing
 
-Run tests using `uv run pytest`:
-
 ```bash
-# Run all tests (recommended: parallel execution for speed)
-~/.local/bin/uv run pytest tests/ -n 2
+# Full regression (parallel, Qt-safe)
+~/.local/bin/uv run pytest tests/ -n auto --dist=loadgroup
 
-# Run all tests (serial execution for maximum stability)
+# Serial run (useful when iterating on a single suite)
 ~/.local/bin/uv run pytest tests/
 
-# Run specific test file
+# Targeted runs
 ~/.local/bin/uv run pytest tests/unit/test_shot_model.py -v
-
-# Run specific test
 ~/.local/bin/uv run pytest tests/unit/test_shot_model.py::TestShot::test_shot_creation -v
-
-# Run with coverage
-~/.local/bin/uv run pytest tests/ -n 2 --cov=. --cov-report=html
-
-# Run tests matching a pattern
 ~/.local/bin/uv run pytest tests/ -k "test_cache" -v
 ```
 
-**For comprehensive testing guidance**, see [UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD) which covers:
-- Qt testing best practices
-- Parallel vs serial execution
-- Debugging workflows
-- Common pitfalls and solutions
+> ℹ️ Coverage is already enabled via `pyproject.toml`; HTML output lands in
+> `coverage_html/` after any `pytest` invocation using the default config.
+
+For deeper guidance (Qt hygiene, fixture behavior, debugging tips) see
+[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD) and [TESTING_FIXTURES.md](./TESTING_FIXTURES.md).
 
 ## Customization
 

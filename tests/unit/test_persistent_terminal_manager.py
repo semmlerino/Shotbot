@@ -241,7 +241,13 @@ class TestPersistentTerminalManager:
                 break
 
         assert bash_index is not None, "bash not found in command"
-        assert "-i" in call_args[bash_index:], (
+
+        # Check for -i flag (either standalone or combined like -ilc)
+        has_interactive_flag = any(
+            arg == "-i" or (arg.startswith("-") and "i" in arg)
+            for arg in call_args[bash_index:]
+        )
+        assert has_interactive_flag, (
             "bash -i flag missing for interactive mode"
         )
 

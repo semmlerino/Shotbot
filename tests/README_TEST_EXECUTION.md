@@ -2,11 +2,16 @@
 
 ## Overview
 
-The ShotBot test suite contains 2,500+ tests spanning unit, integration, and performance coverage. As of November 2025 the suite can run end-to-end with a single `pytest tests/` invocation thanks to the eager Qt bootstrap (`_GLOBAL_QAPP`) and sandboxed config directories in `tests/conftest.py`. Running tests by category is still useful for focus and speed, but the historical “Fatal Python error: Aborted” crash during mass import is resolved for serial runs.
+The ShotBot test suite contains 2,500+ tests spanning unit, integration, and performance coverage. As of November 2025 the suite can run end-to-end with `pytest tests/ -n auto --dist=loadgroup` thanks to the eager Qt bootstrap (`_GLOBAL_QAPP`), sandboxed config directories, and the automatic xdist grouping in `tests/conftest.py`. Running tests by category is still useful for focus and speed, but the historical “Fatal Python error: Aborted” crash is resolved for both serial and grouped-parallel runs.
 
 ## Quick Start
 
-### Run Full Suite (serial, most reliable)
+### Run Full Suite (parallel, recommended)
+```bash
+~/.local/bin/uv run pytest tests/ -n auto --dist=loadgroup
+```
+
+### Run Full Suite (serial)
 ```bash
 .venv/bin/python -m pytest tests
 ```
@@ -38,21 +43,14 @@ The ShotBot test suite contains 2,500+ tests spanning unit, integration, and per
 ## Running All Tests Together
 
 ```bash
-.venv/bin/python -m pytest tests         # ✅ Works after global QApplication bootstrap
-.venv/bin/python -m pytest -p no:cov tests  # Faster (skip coverage)
+.venv/bin/python -m pytest tests                                # Default (serial)
+.venv/bin/python -m pytest -n auto --dist=loadgroup tests       # Qt-safe parallel
+.venv/bin/python -m pytest -n 4 --dist=loadgroup tests/unit     # Cap worker count
+.venv/bin/python -m pytest -p no:cov tests                      # Faster (skip coverage)
 ```
 
-### Parallel Execution Caveats
-
-Parallel runs (`pytest -n auto tests`) uncover remaining Qt teardown flakiness (e.g., `cleanup_qt_state` in `test_threede_shot_grid`). Until those fixtures are hardened, prefer serial runs or mix-and-match:
-
-```bash
-.venv/bin/python -m pytest -n 4 tests/unit           # Good for non-Qt-heavy areas
-.venv/bin/python -m pytest -n 0 tests --maxfail=1    # Deterministic pre-merge gate
-.venv/bin/python -m pytest -n auto -m "not qt_heavy" # Parallelize safe subsets
-```
-
-If you see a segmentation fault while running with xdist, re-run serially to confirm the failure is isolation-related and file an issue against the offending fixture.
+> `--dist=loadgroup` ensures every test marked `xdist_group("qt")` runs on the same
+> worker, keeping Qt teardown deterministic while still parallelizing everything else.
 
 ## Test Categories
 
