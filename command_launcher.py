@@ -411,11 +411,12 @@ class CommandLauncher(LoggingMixin, QObject):
             rez_packages = self._get_rez_packages_for_app(app_name)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
-                # Use bash -lc (login shell) to load workspace functions without blocking
-                # Login shell sources .bash_profile/.bashrc without interactive terminal requirements
-                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
+                # Use bash -ilc (interactive + login) for workspace function loading
+                # Safe in terminal context (persistent terminal or gnome-terminal has TTY)
+                # SessionWarmer uses -l only (background thread, no TTY)
+                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
                 self.logger.debug(
-                    f"Constructed rez command with bash -lc: {full_command}"
+                    f"Constructed rez command with bash -ilc: {full_command}"
                 )
                 timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                 self.command_executed.emit(
@@ -425,6 +426,9 @@ class CommandLauncher(LoggingMixin, QObject):
                 full_command = ws_command
         else:
             full_command = ws_command
+
+        # Add logging redirection for debugging
+        full_command = self._add_dispatcher_logging(full_command)
 
         # Log the command to UI
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
@@ -614,15 +618,19 @@ class CommandLauncher(LoggingMixin, QObject):
             rez_packages = self._get_rez_packages_for_app(app_name)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
-                # Use bash -lc (login shell) to load workspace functions without blocking
-                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
+                # Use bash -ilc (interactive + login) for workspace function loading
+                # Safe in terminal context (persistent terminal or gnome-terminal has TTY)
+                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
                 self.logger.debug(
-                    f"Constructed rez scene command with bash -lc: {full_command}"
+                    f"Constructed rez scene command with bash -ilc: {full_command}"
                 )
             else:
                 full_command = ws_command
         else:
             full_command = ws_command
+
+        # Add logging redirection for debugging
+        full_command = self._add_dispatcher_logging(full_command)
 
         # Log the command
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
@@ -832,10 +840,11 @@ class CommandLauncher(LoggingMixin, QObject):
             rez_packages = self._get_rez_packages_for_app(app_name)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
-                # Use bash -lc (login shell) to load workspace functions without blocking
-                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
+                # Use bash -ilc (interactive + login) for workspace function loading
+                # Safe in terminal context (persistent terminal or gnome-terminal has TTY)
+                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
                 self.logger.debug(
-                    f"Constructed rez command with bash -lc: {full_command}"
+                    f"Constructed rez command with bash -ilc: {full_command}"
                 )
                 timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                 self.command_executed.emit(
@@ -845,6 +854,9 @@ class CommandLauncher(LoggingMixin, QObject):
                 full_command = ws_command
         else:
             full_command = ws_command
+
+        # Add logging redirection for debugging
+        full_command = self._add_dispatcher_logging(full_command)
 
         # Log the command
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
@@ -1040,6 +1052,22 @@ class CommandLauncher(LoggingMixin, QObject):
             return False
 
         return True
+
+    def _add_dispatcher_logging(self, command: str) -> str:
+        """Add logging redirection to capture command output.
+
+        Redirects both stdout and stderr to a log file for debugging launch failures.
+
+        Args:
+            command: The command to add logging to
+
+        Returns:
+            Command with logging redirection appended
+        """
+        log_dir = Path.home() / ".shotbot" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "dispatcher.out"
+        return f"{command} 2>&1 | tee -a {log_file}"
 
     def _emit_error(self, error: str) -> None:
         """Emit error with timestamp."""
