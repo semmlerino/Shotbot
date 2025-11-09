@@ -163,6 +163,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             return False
 
         # Try different terminal emulators
+        # Note: -ilc requires command as single string argument
+        dispatcher_command = f"{self.dispatcher_path} {self.fifo_path}"
         terminal_commands = [
             # gnome-terminal with title
             [
@@ -171,8 +173,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "--",
                 "bash",
                 "-ilc",
-                self.dispatcher_path,
-                self.fifo_path,
+                dispatcher_command,
             ],
             # konsole
             [
@@ -182,8 +183,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "-e",
                 "bash",
                 "-ilc",
-                self.dispatcher_path,
-                self.fifo_path,
+                dispatcher_command,
             ],
             # xterm
             [
@@ -193,8 +193,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "-e",
                 "bash",
                 "-ilc",
-                self.dispatcher_path,
-                self.fifo_path,
+                dispatcher_command,
             ],
             # fallback to any available terminal
             [
@@ -202,8 +201,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "-e",
                 "bash",
                 "-ilc",
-                self.dispatcher_path,
-                self.fifo_path,
+                dispatcher_command,
             ],
         ]
 
