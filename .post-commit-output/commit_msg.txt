@@ -1,1 +1,1 @@
-debug: Disable SessionWarmer to diagnose event loop freeze
+fix: SessionWarmer event loop freeze with login shell mode

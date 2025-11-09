@@ -411,11 +411,11 @@ class CommandLauncher(LoggingMixin, QObject):
             rez_packages = self._get_rez_packages_for_app(app_name)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
-                # Use bash -ilc for interactive login shell to ensure shell functions like ws are loaded
-                # The -i flag is crucial for loading shell functions from configuration files
-                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
+                # Use bash -lc (login shell) to load workspace functions without blocking
+                # Login shell sources .bash_profile/.bashrc without interactive terminal requirements
+                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
                 self.logger.debug(
-                    f"Constructed rez command with bash -ilc: {full_command}"
+                    f"Constructed rez command with bash -lc: {full_command}"
                 )
                 timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                 self.command_executed.emit(
@@ -614,10 +614,10 @@ class CommandLauncher(LoggingMixin, QObject):
             rez_packages = self._get_rez_packages_for_app(app_name)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
-                # Use bash -ilc for interactive login shell to ensure shell functions are loaded
-                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
+                # Use bash -lc (login shell) to load workspace functions without blocking
+                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
                 self.logger.debug(
-                    f"Constructed rez scene command with bash -ilc: {full_command}"
+                    f"Constructed rez scene command with bash -lc: {full_command}"
                 )
             else:
                 full_command = ws_command
@@ -832,10 +832,10 @@ class CommandLauncher(LoggingMixin, QObject):
             rez_packages = self._get_rez_packages_for_app(app_name)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
-                # Use bash -ilc for interactive login shell to ensure shell functions like ws are loaded
-                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
+                # Use bash -lc (login shell) to load workspace functions without blocking
+                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
                 self.logger.debug(
-                    f"Constructed rez command with bash -ilc: {full_command}"
+                    f"Constructed rez command with bash -lc: {full_command}"
                 )
                 timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                 self.command_executed.emit(

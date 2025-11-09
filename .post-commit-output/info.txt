@@ -1,5 +1,5 @@
-Post-commit hook executed at Sun Nov  9 12:22:29 GMT 2025
-Commit: 7fad1efd1a17d4700d755e4c6b139e5b07b63c08
+Post-commit hook executed at Sun Nov  9 12:26:49 GMT 2025
+Commit: 149ebd3ee01a7e57f50fcb04189e9bc8fc993205
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: debug: Disable SessionWarmer to diagnose event loop freeze
+Message: fix: SessionWarmer event loop freeze with login shell mode
