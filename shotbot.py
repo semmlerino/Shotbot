@@ -319,7 +319,10 @@ Environment Variables:
     app.setPalette(palette)
 
     # Create main window
+    logger.info("=" * 60)
+    logger.info("Creating MainWindow...")
     window = MainWindow()
+    logger.info("MainWindow created successfully")
 
     # In headless mode, patch the window to prevent display operations
     if headless_mode:
@@ -330,7 +333,10 @@ Environment Variables:
         logger.info("MainWindow patched for headless operation")
 
     # Show window (will be no-op in headless mode due to patching)
+    logger.info("Calling window.show()...")
     window.show()
+    logger.info("window.show() completed - window is visible")
+    logger.info("=" * 60)
 
     # Auto-screenshot functionality
     if screenshot_seconds is not None and not headless_mode:
@@ -363,7 +369,13 @@ Environment Variables:
         QTimer.singleShot(delay_ms, take_auto_screenshot)
 
     # Run application
-    sys.exit(app.exec())
+    logger.info("=" * 60)
+    logger.info("About to start Qt event loop with app.exec()...")
+    logger.info("This should process all pending QTimer.singleShot events")
+    logger.info("=" * 60)
+    exit_code = app.exec()
+    logger.info(f"Event loop exited with code: {exit_code}")
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":
