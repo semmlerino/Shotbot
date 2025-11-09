@@ -495,9 +495,11 @@ class TestMainWindowCompleteWorkflows:
 
             # Attempt refresh - should emit error signal
             try:
-                with qtbot.waitSignal(window.shot_model.error_occurred, timeout=1000):
-                    with contextlib.suppress(RuntimeError):
-                        window._refresh_shots()
+                with (
+                    qtbot.waitSignal(window.shot_model.error_occurred, timeout=1000),
+                    contextlib.suppress(RuntimeError),
+                ):
+                    window._refresh_shots()
             except Exception:
                 # Error signal may not be emitted if error handling prevents it
                 # Catch all exceptions including pytestqt.exceptions.TimeoutError

@@ -438,7 +438,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 "Progress reporter created and connected in worker thread"
             )
 
-            self.logger.info("Starting enhanced 3DE scene discovery")
+            # Emit started signal (specific discovery mode will be logged by sub-methods)
             self.started.emit()
 
             if not self.shots:

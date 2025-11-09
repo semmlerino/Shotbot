@@ -50,6 +50,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
+import time
 from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
@@ -154,6 +155,7 @@ class SessionWarmer(ThreadSafeWorker):
                 return
 
             logger.debug("Starting background session pre-warming")
+            start_time = time.time()
 
             # Check if we should stop before executing
             if self.should_stop():
@@ -165,7 +167,8 @@ class SessionWarmer(ThreadSafeWorker):
                 timeout=15,  # Give enough time for first initialization
                 use_login_shell=True,  # Use bash -l to avoid terminal blocking
             )
-            logger.info("Bash session pre-warming completed successfully")
+            duration = time.time() - start_time
+            logger.info(f"Bash session pre-warming completed successfully ({duration:.2f}s)")
         except Exception as e:
             # Don't fail the app if pre-warming fails
             logger.warning(f"Session pre-warming failed (non-critical): {e}")
@@ -780,14 +783,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             )
         else:
             self._update_status("Loading shots and scenes...")
-            # No cache exists - fetch immediately in background
+            # No cache exists - background refresh already started by initialize_async()
             self.logger.info(
-                "No cached data found - fetching fresh data in background",
+                "No cached data found - background refresh already in progress from initialize_async()",
             )
-            # Schedule immediate background refresh
-            self.logger.info("Scheduling QTimer.singleShot(0, self._refresh_shots)...")
-            QTimer.singleShot(0, self._refresh_shots)
-            self.logger.info("QTimer.singleShot scheduled (will run when event loop starts)")
 
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         # Previous shots now only refresh on explicit user action via "Refresh" button

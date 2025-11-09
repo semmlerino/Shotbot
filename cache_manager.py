@@ -46,7 +46,7 @@ import shutil
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, Protocol, TypeAlias, cast, final
+from typing import TYPE_CHECKING, ClassVar, NamedTuple, Protocol, TypeAlias, cast, final
 
 # Third-party imports
 from PIL import Image
@@ -191,6 +191,9 @@ class CacheManager(LoggingMixin, QObject):
     cache_updated = Signal()
     shots_migrated = Signal(list)  # Emitted when shots migrate to Previous Shots
 
+    # Track initialized cache directories to suppress duplicate logs
+    _initialized_cache_dirs: ClassVar[set[str]] = set()
+
     def __init__(
         self,
         cache_dir: Path | None = None,
@@ -238,7 +241,11 @@ class CacheManager(LoggingMixin, QObject):
         # Ensure directories exist
         self._ensure_cache_dirs()
 
-        self.logger.info(f"SimpleCacheManager initialized: {self.cache_dir}")
+        # Log initialization only once per cache directory to avoid duplicate logs
+        cache_dir_str = str(self.cache_dir)
+        if cache_dir_str not in CacheManager._initialized_cache_dirs:
+            CacheManager._initialized_cache_dirs.add(cache_dir_str)
+            self.logger.debug(f"SimpleCacheManager initialized: {self.cache_dir}")
 
     def _ensure_cache_dirs(self) -> None:
         """Ensure cache directories exist."""

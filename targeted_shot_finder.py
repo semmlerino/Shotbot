@@ -60,7 +60,7 @@ class TargetedShotsFinder(ShotFinderBase):
             rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
         )
 
-        self.logger.info(f"TargetedShotsFinder initialized for user: {self.username}")
+        self.logger.debug(f"TargetedShotsFinder initialized for user: {self.username}")
 
     # Progress methods are inherited from ShotFinderBase (ProgressReportingMixin):
     # - set_progress_callback()

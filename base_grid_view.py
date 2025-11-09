@@ -392,7 +392,9 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             for show in sorted(shows):
                 self.show_combo.addItem(show)
 
-            self.logger.debug(f"Populated show filter with {len(shows)} shows")
+            show_count = len(shows)
+            show_word = "show" if show_count == 1 else "shows"
+            self.logger.debug(f"Populated show filter with {show_count} {show_word}")
         finally:
             # Re-enable signals
             _ = self.show_combo.blockSignals(False)

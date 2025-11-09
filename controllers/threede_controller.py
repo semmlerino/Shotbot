@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 from config import Config
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
-from progress_manager import ProgressManager
+from progress_manager import ProgressManager, ProgressOperation
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 from threede_scene_worker import ThreeDESceneWorker
@@ -127,6 +127,9 @@ class ThreeDEController(LoggingMixin):
         self._threede_worker: ThreeDESceneWorker | None = None
         self._worker_mutex: QMutex = QMutex()
         # NOTE: Current scene is managed by launcher_controller (single source of truth)
+
+        # Progress operation tracking for cleanup
+        self._current_progress_operation: ProgressOperation | None = None
 
         # Scan debouncing to prevent restart spam
         self._last_scan_time: float = 0.0
@@ -319,6 +322,24 @@ class ThreeDEController(LoggingMixin):
                 final_timeout_ms = 200 if is_test_environment else 1000
                 _ = worker_to_cleanup.wait(final_timeout_ms)
 
+        # Ensure any open progress operation is finished
+        # This handles cases where worker is terminated without emitting finished/error signals
+        if self._current_progress_operation is not None:
+            # SAFETY: Check if our operation is still on top of the stack
+            # If another operation was started after ours, don't finish the wrong one
+            current_top = ProgressManager.get_current_operation()
+            if current_top == self._current_progress_operation:
+                self.logger.debug("Finishing orphaned progress operation during cleanup")
+                ProgressManager.finish_operation(success=False, error_message="Operation cancelled during shutdown")
+            # Our operation was already finished or another operation is on top
+            elif current_top is None:
+                self.logger.debug("3DE progress operation already finished during cleanup")
+            else:
+                self.logger.warning(
+                    "3DE progress operation not on top of stack during cleanup - skipping finish to prevent stack corruption"
+                )
+            self._current_progress_operation = None
+
         # Disconnect signals after worker has stopped
         self._disconnect_worker_signals(worker_to_cleanup)
 
@@ -346,8 +367,8 @@ class ThreeDEController(LoggingMixin):
         if self.window.closing:
             return
 
-        # Start progress for 3DE discovery
-        _ = ProgressManager.start_operation("Scanning for 3DE scenes")
+        # Start progress for 3DE discovery and store reference for cleanup
+        self._current_progress_operation = ProgressManager.start_operation("3DE Scenes: Scanning user directories")
 
     @Slot(int, int, float, str, str)  # pyright: ignore[reportAny]
     def on_discovery_progress(
@@ -392,6 +413,7 @@ class ThreeDEController(LoggingMixin):
 
         # Finish progress operation and hide loading state
         ProgressManager.finish_operation(success=True)
+        self._current_progress_operation = None  # Clear reference after finishing
         if self.window.threede_item_model:
             self.window.threede_item_model.set_loading_state(False)
 
@@ -410,8 +432,13 @@ class ThreeDEController(LoggingMixin):
         Args:
             error_message: Error message from worker
         """
+        # Check if we're closing to avoid double-finish during shutdown
+        if self.window.closing:
+            return
+
         # Finish progress operation with error
         ProgressManager.finish_operation(success=False, error_message=error_message)
+        self._current_progress_operation = None  # Clear reference after finishing
 
         # Hide loading state
         self.window.threede_item_model.set_loading_state(False)

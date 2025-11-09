@@ -51,7 +51,7 @@ class PreviousShotsFinder(ShotFinderBase):
         self._shot_pattern_fallback: re.Pattern[str] = re.compile(
             r"(.*?/shows/([^/]+)/shots/([^/]+)/([^/]+))(?:/|$)"
         )
-        self.logger.info(f"PreviousShotsFinder initialized for user: {self.username}")
+        self.logger.debug(f"PreviousShotsFinder initialized for user: {self.username}")
 
     def find_user_shots(self, shows_root: Path | None = None) -> list[Shot]:
         """Find all shots that contain user work directories.

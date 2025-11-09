@@ -602,7 +602,7 @@ def suppress_qmessagebox(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Instance-style dialog patches (catch .exec() and .open() usage)
     monkeypatch.setattr(QMessageBox, "exec", _ok, raising=True)
-    monkeypatch.setattr(QMessageBox, "open", lambda *args, **kwargs: None, raising=True)
+    monkeypatch.setattr(QMessageBox, "open", lambda *_args, **_kwargs: None, raising=True)
 
 
 @pytest.fixture(autouse=True)
@@ -648,7 +648,7 @@ def clear_module_caches() -> Iterator[None]:
 
     # Clear LRU caches and other cached functions BEFORE test
     for mod in modules_to_clear:
-        for name, obj in inspect.getmembers(mod):
+        for _name, obj in inspect.getmembers(mod):
             if hasattr(obj, "cache_clear"):
                 obj.cache_clear()
 
@@ -656,7 +656,7 @@ def clear_module_caches() -> Iterator[None]:
 
     # Clear again after test (defense in depth)
     for mod in modules_to_clear:
-        for name, obj in inspect.getmembers(mod):
+        for _name, obj in inspect.getmembers(mod):
             if hasattr(obj, "cache_clear"):
                 obj.cache_clear()
 

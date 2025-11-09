@@ -268,7 +268,7 @@ class PreviousShotsView(BaseGridView):
         self._status_label.setText("Scanning for new approved shots...")
 
         # Start progress operation
-        _ = ProgressManager.start_operation("Scanning for previous shots")
+        _ = ProgressManager.start_operation("Previous Shots: Discovering archived shots")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_scan_finished(self) -> None:

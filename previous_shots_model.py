@@ -56,7 +56,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         super().__init__(parent)
 
         self._shot_model = shot_model
-        self._cache_manager = cache_manager or CacheManager()
+        self._cache_manager: CacheManager = cache_manager or CacheManager()
         self._finder = ParallelShotsFinder()
         self._previous_shots: list[Shot] = []
         self._is_scanning = False
@@ -425,7 +425,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """
         try:
             # Load both sources (persistent - no TTL expiration)
-            scanned_data = self._cache_manager.get_persistent_previous_shots() or []
+            scanned_data = self._cache_manager.get_persistent_previous_shots() or []  # pyright: ignore[reportAttributeAccessIssue]
             migrated_data = self._cache_manager.get_migrated_shots() or []
 
             # Merge with deduplication using composite key

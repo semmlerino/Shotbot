@@ -215,6 +215,7 @@ Environment Variables:
     setup_logging()
 
     logger = logging.getLogger(__name__)
+    logger.info(f"ShotBot starting (PID: {os.getpid()})")
 
     # Check for headless mode
     headless_mode = headless_flag or os.environ.get("SHOTBOT_HEADLESS", "").lower() in (

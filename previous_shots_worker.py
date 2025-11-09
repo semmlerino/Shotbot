@@ -4,16 +4,19 @@ from __future__ import annotations
 # Standard library imports
 import time
 from pathlib import Path
-from typing import final
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
 
 # Local application imports
 from previous_shots_finder import ParallelShotsFinder
-from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
 from typing_compat import override
+
+
+if TYPE_CHECKING:
+    from shot_model import Shot
 
 
 @final

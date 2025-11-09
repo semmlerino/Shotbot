@@ -206,7 +206,9 @@ class ShotGridView(BaseGridView):
                 )
             show_list: list[str] = list(shows.get_available_shows())
             super().populate_show_filter(show_list)
-            self.logger.info(f"Populated show filter with {len(show_list)} shows")
+            show_count = len(show_list)
+            show_word = "show" if show_count == 1 else "shows"
+            self.logger.info(f"Populated show filter with {show_count} {show_word}")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_model_updated(self) -> None:

@@ -202,7 +202,9 @@ class ThreeDEGridView(BaseGridView):
             assert isinstance(shows, ThreeDESceneModel)
             model_shows = shows.get_unique_shows()
             super().populate_show_filter(model_shows)
-            self.logger.info(f"Populated show filter with {len(model_shows)} shows")
+            show_count = len(model_shows)
+            show_word = "show" if show_count == 1 else "shows"
+            self.logger.info(f"Populated show filter with {show_count} {show_word}")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_scenes_updated(self) -> None:
