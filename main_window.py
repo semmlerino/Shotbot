@@ -691,11 +691,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_previous_shots_updated
         )
 
-        # Launcher panel app launch
-        _ = self.launcher_panel.app_launch_requested.connect(
-            self.launcher_controller.launch_app
-        )
-
         # Tab widget - handle tab changes to update shot context
         _ = self.tab_widget.currentChanged.connect(self._on_tab_changed)
 

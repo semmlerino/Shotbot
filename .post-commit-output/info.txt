@@ -1,5 +1,5 @@
-Post-commit hook executed at Sun Nov  9 12:39:21 GMT 2025
-Commit: c0556439887e1a0f6dab15491d202d2629465ddd
+Post-commit hook executed at Sun Nov  9 12:42:36 GMT 2025
+Commit: db32cdf4f4af8da4004729198607ba034c496fbb
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Replace bash -ilc with bash -lc in launcher commands
+Message: debug: Add comprehensive logging to diagnose double-launch issue

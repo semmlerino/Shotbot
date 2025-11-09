@@ -1,1 +1,1 @@
-fix: Replace bash -ilc with bash -lc in launcher commands
+debug: Add comprehensive logging to diagnose double-launch issue
