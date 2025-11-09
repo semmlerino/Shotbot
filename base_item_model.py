@@ -761,11 +761,13 @@ class BaseItemModel(
         self.items_updated.emit()
 
         # CRITICAL: Trigger initial thumbnail load for visible items
-        # Set visible range to cover all items (views will refine this on scroll)
+        # Set visible range to a reasonable initial value (view will refine this on first paint)
+        # Use min(30, item_count) to avoid loading all thumbnails on startup
         if self._items:
-            self._visible_end = len(self._items) - 1
-            # Schedule immediate thumbnail load
-            self.logger.debug(f"Scheduling thumbnail load timer for {len(self._items)} items")
+            initial_load_count = min(30, len(self._items))
+            self._visible_end = initial_load_count - 1
+            # Schedule immediate thumbnail load for initial visible items only
+            self.logger.debug(f"Scheduling thumbnail load timer for {initial_load_count} items (total: {len(self._items)})")
             QTimer.singleShot(100, self._do_load_visible_thumbnails)
             self.logger.debug("Timer scheduled successfully")
 

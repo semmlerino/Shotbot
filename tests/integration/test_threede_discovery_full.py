@@ -57,6 +57,18 @@ class TestThreeDEDiscoveryIntegration:
             ("jack_ryan", "MA_074", "0340", "published-mm"),
         ]
 
+        # Shots with published matchmove (publish/mm directory exists)
+        # These shots will be included in discovery results
+        shots_with_published_mm = {
+            ("gator", "013_DC", "2120"),
+            ("jack_ryan", "MA_074", "0340"),
+            ("gator", "019_JF", "1060"),
+            ("jack_ryan", "DM_062", "3220"),
+            ("jack_ryan", "DM_062", "3280"),
+            ("broken_eggs", "BRX_119", "0010"),
+            ("broken_eggs", "BRX_170", "0100"),
+        }
+
         created_files = []
         for show, seq, shot, user in shots_data:
             shot_dir = f"{seq}_{shot}"
@@ -93,6 +105,13 @@ class TestThreeDEDiscoveryIntegration:
             file_path.write_text("# Mock 3DE file")
             created_files.append((file_path, show, seq, shot, user))
 
+            # Create publish/mm directory for shots with published matchmove
+            if (show, seq, shot) in shots_with_published_mm:
+                publish_mm_dir = (
+                    shows_root / show / "shots" / seq / shot_dir / "publish" / "mm"
+                )
+                publish_mm_dir.mkdir(parents=True, exist_ok=True)
+
         return shows_root, created_files
 
     @pytest.fixture
@@ -107,7 +126,7 @@ class TestThreeDEDiscoveryIntegration:
         shows_root, _ = temp_vfx_structure
 
         def _make():
-            # User only has these 2 shots assigned
+            # User has shots assigned across multiple shows
             # Use the actual temp directory paths
             return [
                 Shot(
@@ -121,6 +140,12 @@ class TestThreeDEDiscoveryIntegration:
                     "jack_ryan",
                     "MA_074",
                     "0340",
+                ),
+                Shot(
+                    f"{shows_root}/broken_eggs/shots/BRX_119/BRX_119_0010",
+                    "broken_eggs",
+                    "BRX_119",
+                    "0010",
                 ),
             ]
 
@@ -159,8 +184,13 @@ class TestThreeDEDiscoveryIntegration:
 
         # CRITICAL ASSERTION: Should find ALL scenes except gabriel-h's
         # With the bug: Would find only 1 (published-mm on MA_074_0340)
-        # With the fix: Should find 8 scenes from other users
+        # With the fix: Should find 6+ scenes from other users (shots with publish/mm)
         found_users = {scene.user for scene in scenes}
+
+        # Debug: Print found scenes
+        print(f"\nFound {len(scenes)} scenes:")
+        for scene in scenes:
+            print(f"  {scene.show}/{scene.sequence}/{scene.shot} - {scene.user}")
 
         assert len(scenes) >= 6, f"Should find at least 6 scenes, found {len(scenes)}"
         assert "gabriel-h" not in found_users, "Should exclude current user"

@@ -692,3 +692,44 @@ def test_update_status_handles_missing_method(
     del mock_main_window.update_status
 
     orchestrator._update_status("Test message")  # Should not raise
+
+
+# ============================================================================
+# Debouncing Tests (Issue #2 Fix)
+# ============================================================================
+
+
+def test_refresh_shot_display_debounces_rapid_calls(
+    qapp: QApplication, qtbot: QtBot, orchestrator: RefreshOrchestrator, mock_main_window: Mock
+) -> None:
+    """Test that rapid _refresh_shot_display calls are debounced.
+
+    Issue #2 fix: Prevents duplicate set_shots() and populate_show_filter()
+    when both shots_loaded and shots_changed signals fire rapidly within 500ms.
+    """
+
+    # Track call count
+    call_count = 0
+    original_set_shots = mock_main_window.shot_item_model.set_shots
+
+    def counting_set_shots(shots):  # type: ignore[no-untyped-def]
+        nonlocal call_count
+        call_count += 1
+        return original_set_shots(shots)
+
+    mock_main_window.shot_item_model.set_shots = counting_set_shots
+
+    # Call refresh multiple times rapidly (within 500ms debounce window)
+    orchestrator._refresh_shot_display()
+    orchestrator._refresh_shot_display()
+    orchestrator._refresh_shot_display()
+
+    # Should only execute once due to debouncing (first call goes through)
+    assert call_count == 1, "Expected exactly 1 call due to debouncing"
+
+    # Wait for debounce interval to pass (500ms + 200ms margin)
+    qtbot.wait(700)
+
+    # Now a new call should execute (debounce window expired)
+    orchestrator._refresh_shot_display()
+    assert call_count == 2, "Expected 2nd call after debounce window expired"

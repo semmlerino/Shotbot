@@ -177,6 +177,13 @@ class ThreeDEController(LoggingMixin):
             self.logger.debug("Ignoring refresh request during shutdown")
             return
 
+        # GUARD: If worker is already running, skip this request entirely
+        # This prevents duplicate progress operations during rapid refresh calls
+        with QMutexLocker(self._worker_mutex):
+            if self._threede_worker and not self._threede_worker.isFinished():
+                self.logger.debug("3DE worker already running, skipping duplicate refresh request")
+                return
+
         # DEBOUNCE: Prevent scan restart spam (e.g., rapid shot refreshes)
         now = time.time()
         time_since_last_scan = now - self._last_scan_time

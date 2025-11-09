@@ -114,9 +114,8 @@ def run_thumbnail_loaders_inline(monkeypatch: pytest.MonkeyPatch) -> Iterator[No
 
     import thumbnail_widget_base as _thumb_module
 
-    # Patch both the module under test and this module's alias so calls are inline.
+    # Patch the module under test so QThreadPool.globalInstance() calls are inline.
     monkeypatch.setattr(_thumb_module, "QThreadPool", _InlineQThreadPool)
-    monkeypatch.setattr(sys.modules[__name__], "QThreadPool", _InlineQThreadPool)
 
     return
 

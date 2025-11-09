@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 from PySide6.QtCore import QObject, Signal
@@ -59,6 +60,8 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         super().__init__()
         LoggingMixin.__init__(self)
         self.main_window: RefreshOrchestratorMainWindowProtocol = main_window
+        self._last_refresh_time: float = 0.0  # Debounce duplicate display refreshes
+        self._refresh_debounce_interval: float = 0.5  # 500ms debounce window
         self.logger.debug("RefreshOrchestrator initialized")
 
     def refresh_current_tab(self) -> None:
@@ -214,6 +217,17 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
     def _refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
+        # Debounce rapid refresh calls (e.g., cached shots followed by fresh shots)
+        now = time.time()
+        time_since_last_refresh = now - self._last_refresh_time
+        if self._last_refresh_time > 0 and time_since_last_refresh < self._refresh_debounce_interval:
+            self.logger.debug(
+                f"Skipping duplicate refresh (last refresh {time_since_last_refresh:.2f}s ago)"
+            )
+            return
+
+        self._last_refresh_time = now
+
         # Always use Model/View implementation
         if hasattr(self.main_window, "shot_item_model") and hasattr(
             self.main_window, "shot_grid"

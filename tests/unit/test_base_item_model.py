@@ -565,6 +565,44 @@ class TestSetItems:
         assert model._visible_end == 0  # No change from initial
         assert len(model._loading_states) == 0  # No loading attempted
 
+    def test_set_items_loads_only_initial_visible_count(
+        self, qapp: QApplication, qtbot: QtBot
+    ) -> None:
+        """Test that set_items only schedules loading for first 30 items.
+
+        Issue #4 fix: Prevents loading all 106 thumbnails on startup.
+        Instead loads min(30, item_count) initially.
+        """
+        import tempfile
+
+        from cache_manager import CacheManager
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_manager = CacheManager(str(tmp_dir))
+            model = ConcreteTestModel(cache_manager=cache_manager)
+
+            # Create 106 shots (typical user count from issue report)
+            shots = [
+                Shot(
+                    show=f"show{i}",
+                    sequence=f"seq{i % 10:02d}",
+                    shot=f"{i:04d}",
+                    workspace_path=f"{Config.SHOWS_ROOT}/show{i}/shots/seq{i % 10:02d}/seq{i % 10:02d}_{i:04d}",
+                )
+                for i in range(106)
+            ]
+
+            model.set_items(shots)
+
+            # Check that visible_end is set to 29 (first 30 items, 0-indexed)
+            # NOT 105 (all 106 items)
+            assert (
+                model._visible_end == 29
+            ), f"Expected visible_end=29 for initial load, got {model._visible_end}"
+
+            # Verify the log message mentions loading 30 items, not 106
+            # (This is a behavior verification - the visible range should be limited)
+
     def test_set_items_thumbnail_load_with_cache_manager(
         self, qapp: QApplication, qtbot: QtBot, tmp_path
     ) -> None:

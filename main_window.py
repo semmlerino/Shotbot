@@ -364,10 +364,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if not os.environ.get("SHOTBOT_NO_INITIAL_LOAD"):
             self._initial_load()
 
-        # No longer need background refresh for shots - they use signals now
-        # Only keep background refresh for 3DE scenes if needed
+        # No longer need periodic background polling for shots - they use reactive signals now
+        # One-shot timers during initialization are still used for async loading
+        # Only background workers are used for 3DE scene discovery
         self.logger.info(
-            "Shot model now uses reactive signals - background polling disabled for shots"
+            "Shot model uses reactive signals - periodic polling disabled (async init via QTimer)"
         )
         self.logger.info("=" * 60)
         self.logger.info("MainWindow.__init__() COMPLETE - returning to Qt event loop")

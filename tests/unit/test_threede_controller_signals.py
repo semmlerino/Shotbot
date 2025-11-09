@@ -181,3 +181,36 @@ def test_threede_multiple_refresh_no_duplicate_warnings(
 
     finally:
         sys.stderr = old_stderr
+
+
+def test_refresh_threede_scenes_guards_against_concurrent_calls(
+    qapp: QApplication,
+    threede_controller: ThreeDEController,
+    qtbot,
+) -> None:
+    """Test that concurrent refresh calls are rejected if worker is running.
+
+    Issue #3 fix: Prevents duplicate progress operations "Scanning for 3DE scenes".
+    Second call should return early if worker is already active.
+    """
+    from unittest.mock import MagicMock
+
+    # Directly set a mock worker to simulate one already running
+    # This tests the guard logic without needing to actually start a worker
+    mock_worker = MagicMock()
+    mock_worker.isFinished.return_value = False  # Worker appears to be running
+    threede_controller._threede_worker = mock_worker
+
+    # Try to refresh while worker is "running"
+    # The guard should detect this and return early
+    method_calls_before = len(mock_worker.method_calls)
+    threede_controller.refresh_threede_scenes()
+    method_calls_after = len(mock_worker.method_calls)
+
+    # No additional methods should be called on the worker (guard prevented new worker creation)
+    # The only call might be isFinished() for the check itself
+    assert method_calls_after - method_calls_before <= 1, \
+        f"Expected at most 1 call (isFinished check), got {method_calls_after - method_calls_before} new calls"
+
+    # Cleanup: Remove mock worker
+    threede_controller._threede_worker = None

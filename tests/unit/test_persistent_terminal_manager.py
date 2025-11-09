@@ -361,6 +361,51 @@ class TestPersistentTerminalManager:
         # Assert: Tried to recreate FIFO
         mock_ensure.assert_called()
 
+    def test_send_command_polls_dispatcher_readiness(
+        self, terminal_manager: PersistentTerminalManager
+    ) -> None:
+        """Test that terminal launch waits for dispatcher via polling.
+
+        Issue #6 fix: Replaces fixed 1.5s delay with polling _is_dispatcher_running()
+        until ready or 5s timeout.
+        """
+        import time
+
+        # Mock terminal launch and initial state
+        terminal_manager._launch_terminal = MagicMock(return_value=True)  # type: ignore[method-assign]
+        terminal_manager._is_terminal_alive = MagicMock(return_value=False)  # type: ignore[method-assign]
+
+        # Simulate dispatcher becoming ready after 0.3s (3 poll attempts at 0.1s intervals)
+        poll_count = 0
+
+        def mock_dispatcher_running() -> bool:
+            nonlocal poll_count
+            poll_count += 1
+            return poll_count >= 3  # Ready on 3rd check (~0.3s)
+
+        terminal_manager._is_dispatcher_running = mock_dispatcher_running  # type: ignore[method-assign]
+
+        # Mock FIFO operations to succeed
+        with (
+            patch("os.open", return_value=3),
+            patch("os.fdopen", MagicMock()),
+        ):
+            start = time.time()
+            result = terminal_manager.send_command("test", ensure_terminal=True)
+            elapsed = time.time() - start
+
+        # Should succeed
+        assert result is True, "Command should succeed after dispatcher becomes ready"
+
+        # Should have polled at least 3 times before dispatcher was ready
+        # (May be 3 or 4 depending on timing - dispatcher ready on 3rd check)
+        assert poll_count >= 3, f"Expected at least 3 poll attempts, got {poll_count}"
+        assert poll_count <= 4, f"Expected at most 4 poll attempts, got {poll_count}"
+
+        # Should complete much faster than old 1.5s fixed delay
+        # (3-4 polls * 0.1s = ~0.3-0.4s, allowing overhead for setup/teardown)
+        assert elapsed < 1.0, f"Took {elapsed:.2f}s, expected < 1.0s with polling"
+
     def test_clear_terminal(self, terminal_manager: PersistentTerminalManager) -> None:
         """Test terminal clearing command."""
         with patch.object(terminal_manager, "send_command") as mock_send:

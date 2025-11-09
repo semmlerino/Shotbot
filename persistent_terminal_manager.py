@@ -252,9 +252,24 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             if not self._launch_terminal():
                 self.logger.error("Failed to launch terminal")
                 return False
-            # Increased delay to ensure dispatcher is fully initialized
-            # Give terminal time to set up
-            time.sleep(1.5)
+
+            # Wait for dispatcher to be ready with timeout (replaces fixed delay)
+            # Poll _is_dispatcher_running() until ready or timeout
+            timeout = 5.0  # 5 second timeout
+            poll_interval = 0.1  # Check every 100ms
+            elapsed = 0.0
+
+            while elapsed < timeout:
+                if self._is_dispatcher_running():
+                    self.logger.info(f"Dispatcher ready after {elapsed:.2f}s")
+                    break
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+            else:
+                # Timeout - dispatcher didn't become ready
+                self.logger.warning(
+                    f"Dispatcher not ready after {timeout}s timeout - proceeding anyway"
+                )
 
         # Ensure FIFO exists before trying to use it
         if not Path(self.fifo_path).exists():
@@ -379,9 +394,20 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                                 self.logger.info(
                                     "Terminal restarted successfully, retrying command..."
                                 )
-                                # Increased delay to ensure dispatcher is fully initialized
-                                # before sending command (prevents FIFO corruption)
-                                time.sleep(1.5)  # Give terminal time to set up
+                                # Wait for dispatcher with timeout (replaces fixed delay)
+                                timeout = 3.0  # 3 second timeout for restart
+                                poll_interval = 0.1
+                                elapsed = 0.0
+
+                                while elapsed < timeout:
+                                    if self._is_dispatcher_running():
+                                        self.logger.info(f"Dispatcher ready after restart ({elapsed:.2f}s)")
+                                        break
+                                    time.sleep(poll_interval)
+                                    elapsed += poll_interval
+                                else:
+                                    self.logger.warning(f"Dispatcher not ready after {timeout}s - retrying anyway")
+
                                 continue  # Retry the command
                             self.logger.error("Failed to restart terminal")
                         else:
@@ -473,15 +499,21 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Launch new terminal
         if self._launch_terminal():
-            # Give dispatcher more time to fully initialize
-            # This prevents race conditions where we try to write before reader is ready
-            self.logger.debug("Waiting for dispatcher to fully initialize...")
-            time.sleep(1.5)
+            # Wait for dispatcher to be ready with timeout (replaces fixed delay)
+            self.logger.debug("Waiting for dispatcher to be ready...")
+            timeout = 5.0  # 5 second timeout
+            poll_interval = 0.1
+            elapsed = 0.0
 
-            # Verify dispatcher is actually running
-            if self._is_dispatcher_running():
-                self.logger.info("Terminal restarted successfully with active dispatcher")
-                return True
+            while elapsed < timeout:
+                if self._is_dispatcher_running():
+                    self.logger.info(f"Terminal restarted successfully - dispatcher ready after {elapsed:.2f}s")
+                    return True
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+
+            # Timeout - dispatcher didn't become ready
+            self.logger.warning(f"Dispatcher not ready after {timeout}s timeout")
             self.logger.warning("Terminal launched but dispatcher not responding yet")
             return True  # Terminal is up, dispatcher might just need more time
 
