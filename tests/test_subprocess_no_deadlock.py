@@ -5,6 +5,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 
 sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 
@@ -100,7 +102,7 @@ for i in range(1024):
         except subprocess.TimeoutExpired:
             proc_pipe.kill()
             proc_pipe.wait()
-            assert False, "PIPE approach also deadlocked - fix failed!"
+            pytest.fail("PIPE approach also deadlocked - fix failed!")
 
 
 def test_launcher_worker_no_deadlock() -> None:

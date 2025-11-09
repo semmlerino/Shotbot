@@ -776,13 +776,11 @@ def mock_environment(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]
     monkeypatch.setenv("SHOTBOT_MODE", "test")
     monkeypatch.setenv("USER", "test_user")
 
-    test_env = {
+    # Cleanup is automatic via monkeypatch
+    return {
         "SHOTBOT_MODE": "test",
         "USER": "test_user",
     }
-
-    return test_env
-    # Cleanup is automatic via monkeypatch
 
 
 @pytest.fixture

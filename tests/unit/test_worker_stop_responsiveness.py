@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import threading
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
@@ -314,7 +315,7 @@ class TestFileSystemScannerInterruptibility:
             assert isinstance(result, list)
 
     def test_timeout_still_enforced_without_cancel_flag(self) -> None:
-        """Test that 300s timeout is still enforced when cancel_flag is None."""
+        """Test that timeout is still enforced when cancel_flag is None."""
         scanner = FileSystemScanner()
 
         # Mock a process that runs forever
@@ -327,7 +328,7 @@ class TestFileSystemScannerInterruptibility:
             call_count += 1
             # Simulate long-running process
             # After enough calls to exceed timeout, return finished
-            if call_count > 3100:  # More than 300s worth of 0.1s intervals
+            if call_count > 1600:  # More than 150s worth of 0.1s intervals
                 return 0
             return None
 
@@ -341,18 +342,116 @@ class TestFileSystemScannerInterruptibility:
             patch("pathlib.Path.exists", return_value=True),
             patch("time.sleep"),  # Speed up test
         ):
-            result = scanner.find_all_3de_files_in_show_targeted(
-                show_root="/shows",
-                show="test_show",
+            # Call the low-level method directly to test timeout behavior
+            result = scanner._run_find_with_polling(
+                find_cmd=["find", "/shows/test", "-name", "*.3de"],
+                show_path=Path("/shows/test"),
+                show="test",
                 excluded_users=set(),
                 cancel_flag=None,  # No cancel flag
+                max_wait_time=150,  # Same timeout as used in find_all_3de_files_in_show_targeted
             )
 
             # Should timeout and kill process
             assert mock_process.kill.called, "Process should be killed on timeout"
 
-            # Should return empty list (fallback was called)
-            assert isinstance(result, list)
+            # Should return None on timeout (changed in Phase 2)
+            assert result is None, "Timeout should return None (not [])"
+
+    def test_timeout_returns_none_not_empty_list(self) -> None:
+        """Test that timeout returns None (not []) to distinguish from empty results.
+
+        This is a regression test for Phase 2 timeout handling where we changed
+        timeout behavior to return None instead of [] so callers can distinguish
+        between:
+        - Timeout: None (incomplete search)
+        - Empty results: [] (successful search, no files found)
+        """
+        scanner = FileSystemScanner()
+
+        # Mock a process that times out immediately
+        mock_process = Mock()
+        mock_process.poll.return_value = None  # Never finishes
+        mock_process.kill = Mock()
+        mock_process.wait = Mock()
+
+        with (
+            patch("filesystem_scanner.subprocess.Popen", return_value=mock_process),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("time.sleep"),  # Speed up test
+        ):
+            # Use very short timeout to trigger immediately
+            result = scanner._run_find_with_polling(
+                find_cmd=["find", "/fake/path", "-name", "*.3de"],
+                show_path=Path("/shows/test"),
+                show="test",
+                excluded_users=set(),
+                cancel_flag=None,
+                max_wait_time=0.001,  # Immediate timeout
+            )
+
+            # Critical: timeout must return None (not [])
+            assert result is None, "Timeout should return None"
+            assert result != [], "Timeout should NOT return empty list"
+
+            # Verify process was killed
+            assert mock_process.kill.called, "Process should be killed on timeout"
+
+    def test_successful_empty_search_returns_empty_list(self) -> None:
+        """Test that successful search with no results returns [] (not None).
+
+        Verifies that [] is reserved for successful-but-empty searches,
+        while None is reserved for timeout.
+        """
+        scanner = FileSystemScanner()
+
+        # Mock a process that completes successfully with no output
+        mock_process = Mock()
+        mock_process.poll.return_value = 0  # Finished successfully
+        mock_process.communicate.return_value = ("", "")  # No stdout, no stderr
+        mock_process.returncode = 0
+
+        with (
+            patch("filesystem_scanner.subprocess.Popen", return_value=mock_process),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            result = scanner._run_find_with_polling(
+                find_cmd=["find", "/fake/path", "-name", "*.3de"],
+                show_path=Path("/shows/test"),
+                show="test",
+                excluded_users=set(),
+                cancel_flag=None,
+            )
+
+            # Critical: successful empty search returns []
+            assert result == [], "Successful empty search should return []"
+            assert result is not None, "Successful search should NOT return None"
+
+    def test_max_wait_time_validation(self) -> None:
+        """Test that max_wait_time <= 0 raises ValueError."""
+        scanner = FileSystemScanner()
+
+        # Test with zero timeout
+        with pytest.raises(ValueError, match="max_wait_time must be positive"):
+            scanner._run_find_with_polling(
+                find_cmd=["find", "/fake/path"],
+                show_path=Path("/shows/test"),
+                show="test",
+                excluded_users=set(),
+                cancel_flag=None,
+                max_wait_time=0,  # Invalid!
+            )
+
+        # Test with negative timeout
+        with pytest.raises(ValueError, match="max_wait_time must be positive"):
+            scanner._run_find_with_polling(
+                find_cmd=["find", "/fake/path"],
+                show_path=Path("/shows/test"),
+                show="test",
+                excluded_users=set(),
+                cancel_flag=None,
+                max_wait_time=-1,  # Invalid!
+            )
 
 
 @pytest.mark.concurrency

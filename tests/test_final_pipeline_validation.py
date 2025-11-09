@@ -9,6 +9,8 @@ This test validates the entire pipeline from ws -sg parsing through
 import sys
 from pathlib import Path
 
+import pytest
+
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -281,7 +283,7 @@ def test_complete_pipeline() -> None:
 
         if not found:
             print(f"  ❌ Missing {show}/{sequence}/{expected_shot} in parsed shots")
-            assert False, f"Missing {show}/{sequence}/{expected_shot} in parsed shots"
+            pytest.fail(f"Missing {show}/{sequence}/{expected_shot} in parsed shots")
         print(f"  ✓ Found {show}/{sequence}/{expected_shot} in parsed shots")
 
     # Step 4: Validate 3DE path parsing would work

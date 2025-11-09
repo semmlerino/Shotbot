@@ -489,8 +489,6 @@ class TestMainWindowCompleteWorkflows:
         window = main_window
 
         # Step 1: Simulate shot loading error
-        error_spy = QSignalSpy(window.shot_model.error_occurred)
-
         # Trigger error in shot model and wait for error signal
         with patch.object(window.shot_model, "refresh_shots") as mock_refresh:
             mock_refresh.side_effect = RuntimeError("Test error")

@@ -312,10 +312,17 @@ class TestShotModelSignalIntegration:
         signal_order = []
 
         # Connect to all signals with recording callbacks
-        started_handler = lambda: signal_order.append("started")
-        changed_handler = lambda _: signal_order.append("changed")
-        cache_handler = lambda: signal_order.append("cache")
-        finished_handler = lambda *_: signal_order.append("finished")
+        def started_handler() -> None:
+            signal_order.append("started")
+
+        def changed_handler(_: object) -> None:
+            signal_order.append("changed")
+
+        def cache_handler() -> None:
+            signal_order.append("cache")
+
+        def finished_handler(*_: object) -> None:
+            signal_order.append("finished")
 
         model.refresh_started.connect(started_handler)
         model.shots_changed.connect(changed_handler)

@@ -628,7 +628,7 @@ class FileSystemScanner(LoggingMixin):
         excluded_users: set[str],
         cancel_flag: Callable[[], bool] | None,
         max_wait_time: float = 300.0,
-    ) -> list[tuple[Path, str, str, str, str, str]]:
+    ) -> list[tuple[Path, str, str, str, str, str]] | None:
         """Run a find command with cancellation polling and return parsed results.
 
         Args:
@@ -642,6 +642,10 @@ class FileSystemScanner(LoggingMixin):
         Returns:
             List of tuples: (file_path, show, sequence, shot, user, plate)
         """
+        # Validate parameters
+        if max_wait_time <= 0:
+            raise ValueError(f"max_wait_time must be positive, got {max_wait_time}")
+
         # Standard library imports
         import subprocess
         import time
@@ -678,7 +682,7 @@ class FileSystemScanner(LoggingMixin):
                     )
                     process.kill()
                     _ = process.wait()
-                    return []  # Return empty on timeout
+                    return None  # Explicit timeout signal
 
                 # Sleep briefly and update elapsed time
                 time.sleep(poll_interval)
@@ -831,9 +835,17 @@ class FileSystemScanner(LoggingMixin):
 
             # Search 1: User directories - find actual .3de files
             self.logger.debug(f"Search 1 (user): {' '.join(find_cmd_user)}")
-            user_results = self._run_find_with_polling(
+
+            # Run user directory search with timeout detection
+            user_results_raw = self._run_find_with_polling(
                 find_cmd_user, show_path, show, excluded_users, cancel_flag, max_wait_time=150
             )
+
+            # Track timeout state for conditional messaging
+            user_timed_out = user_results_raw is None
+
+            # Convert None to empty list for safe iteration
+            user_results = user_results_raw if user_results_raw is not None else []
 
             # Check cancellation between searches
             if cancel_flag and cancel_flag():
@@ -924,8 +936,9 @@ class FileSystemScanner(LoggingMixin):
                     result for result in user_results
                     if (result[2], result[3]) in shots_with_published_mm  # (sequence, shot)
                 ]
+                msg_prefix = "⚠️ Partial results (timeout):" if user_timed_out else "Filtered"
                 self.logger.info(
-                    f"Filtered {len(user_results)} user files to {len(results)} from shots with published MM"
+                    f"{msg_prefix} {len(user_results)} user files to {len(results)} from shots with published MM"
                 )
             else:
                 # No publish/mm directories found - show all user results
@@ -940,9 +953,14 @@ class FileSystemScanner(LoggingMixin):
 
             # Log combined results
             elapsed = time.time() - start_time
-            self.logger.info(
-                f"✅ Dual search complete: {len(user_results)} user files found, {len(results)} files from shots with published MM ({len(unique_shots)} shots, {elapsed:.1f}s)"
-            )
+            if user_timed_out:
+                self.logger.warning(
+                    f"⚠️ Search incomplete (timeout): {len(user_results)} user files found, {len(results)} files from shots with published MM ({len(unique_shots)} shots, {elapsed:.1f}s)"
+                )
+            else:
+                self.logger.info(
+                    f"✅ Dual search complete: {len(user_results)} user files found, {len(results)} files from shots with published MM ({len(unique_shots)} shots, {elapsed:.1f}s)"
+                )
 
             # Fall back to Python search if user search failed
             if not results:
