@@ -116,15 +116,20 @@ class TestPersistentTerminalManager(QObject):
 
     __test__ = False  # Prevent pytest collection
 
-    # Signals
+    # Signals (matching real PersistentTerminalManager)
     command_finished = Signal(str, int)  # key, return_code
     command_error = Signal(str, str)  # key, error_message
+    operation_started = Signal(str)  # operation_name
+    operation_progress = Signal(str, str)  # operation_name, status_message
+    operation_finished = Signal(str, bool, str)  # operation_name, success, message
+    command_result = Signal(bool, str)  # success, error_message
 
     def __init__(self) -> None:
         """Initialize test terminal manager."""
         super().__init__()
-        self.executed_commands: list[tuple[str, list[str]]] = []
+        self.executed_commands: list[tuple[str, str]] = []  # Changed from list[str] to str
         self.is_available = True
+        self._fallback_mode = False  # Add fallback mode attribute
 
     def is_terminal_available(self) -> bool:
         """Check if terminal is available."""
@@ -132,14 +137,22 @@ class TestPersistentTerminalManager(QObject):
 
     def execute_command(self, key: str, command: list[str]) -> None:
         """Record command execution."""
-        self.executed_commands.append((key, command))
         # Simulate immediate success
         self.command_finished.emit(key, 0)
 
     def send_command(self, command: str) -> bool:
-        """Send command to terminal (mocked)."""
-        self.executed_commands.append(("sent", command))
+        """Send command to terminal (mocked - synchronous)."""
+        self.executed_commands.append(("sync", command))
         return True
+
+    def send_command_async(self, command: str) -> None:
+        """Send command asynchronously (mocked)."""
+        self.executed_commands.append(("async", command))
+        # Simulate immediate success via signals
+        self.operation_started.emit("send_command")
+        self.operation_progress.emit("send_command", "Sending command")
+        self.command_result.emit(True, "")
+        self.operation_finished.emit("send_command", True, "Command sent")
 
 
 class TestCommandLauncher:
@@ -452,7 +465,7 @@ class TestCommandLauncher:
     def test_persistent_terminal_usage(
         self, mock_rez: MagicMock, mock_validate: MagicMock, qtbot: QtBot
     ) -> None:
-        """Test using persistent terminal manager."""
+        """Test using persistent terminal manager with async API."""
         terminal = TestPersistentTerminalManager()
         launcher = CommandLauncher(
             raw_plate_finder=TestRawPlateFinder,
@@ -465,7 +478,7 @@ class TestCommandLauncher:
         shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         launcher.set_current_shot(shot)
 
-        # Launch app - should use persistent terminal
+        # Launch app - should use persistent terminal (async)
         result = launcher.launch_app("nuke")
 
         # Should be successful
@@ -474,10 +487,10 @@ class TestCommandLauncher:
         # Wait for any Qt events to process
         process_qt_events()
 
-        # Verify terminal was used
+        # Verify terminal was used with async API
         assert len(terminal.executed_commands) == 1
-        key, command = terminal.executed_commands[0]
-        assert key == "sent"
+        mode, command = terminal.executed_commands[0]
+        assert mode == "async"  # Verify async method was used
         assert "nuke" in command
 
     @patch.object(
@@ -488,9 +501,9 @@ class TestCommandLauncher:
     def test_persistent_terminal_unavailable(
         self, mock_validate: MagicMock, qtbot: QtBot
     ) -> None:
-        """Test fallback when persistent terminal is unavailable."""
+        """Test fallback when persistent terminal is in fallback mode."""
         terminal = TestPersistentTerminalManager()
-        terminal.send_command = lambda _cmd: False  # Make send_command fail
+        terminal._fallback_mode = True  # Simulate terminal in fallback mode
 
         launcher = CommandLauncher(
             raw_plate_finder=TestRawPlateFinder,
@@ -518,8 +531,9 @@ class TestCommandLauncher:
             # Wait for QTimer.singleShot(100ms) callback to complete
             process_qt_events()
 
-            # Verify subprocess was used as fallback
+            # Verify subprocess was used as fallback (terminal was NOT used)
             assert mock_popen.called
+            assert len(terminal.executed_commands) == 0  # Terminal should not have been used
 
 
 class TestCommandLauncherSignals:

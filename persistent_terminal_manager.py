@@ -21,10 +21,74 @@ from typing import final
 
 # Third-party imports
 import psutil
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QThread, Signal
 
 # Local application imports
 from logging_mixin import LoggingMixin
+
+
+class TerminalOperationWorker(QThread):
+    """Worker thread for running blocking terminal operations asynchronously.
+
+    This worker runs blocking operations (health checks, terminal restart)
+    in a background thread to prevent GUI freezes.
+    """
+
+    # Signals
+    progress: Signal = Signal(str)  # Status message
+    operation_finished: Signal = Signal(bool, str)  # success, message
+
+    def __init__(self, manager: PersistentTerminalManager, operation: str) -> None:
+        """Initialize worker.
+
+        Args:
+            manager: The terminal manager instance
+            operation: Operation name ('health_check' or 'send_command')
+        """
+        super().__init__()
+        self.manager: PersistentTerminalManager = manager
+        self.operation: str = operation
+        self.command: str = ""  # For send_command operation
+
+    def run(self) -> None:  # type: ignore[override]
+        """Execute the operation in background thread."""
+        try:
+            if self.operation == "health_check":
+                self._run_health_check()
+            elif self.operation == "send_command":
+                self._run_send_command()
+        except Exception as e:
+            self.operation_finished.emit(False, f"Operation failed: {e!s}")
+
+    def _run_health_check(self) -> None:
+        """Run health check operation."""
+        self.progress.emit("Checking terminal health...")
+
+        if self.manager._is_dispatcher_healthy():  # pyright: ignore[reportPrivateUsage]
+            self.operation_finished.emit(True, "Terminal healthy")
+            return
+
+        self.progress.emit("Terminal unhealthy, attempting recovery...")
+
+        if self.manager._ensure_dispatcher_healthy():  # pyright: ignore[reportPrivateUsage]
+            self.operation_finished.emit(True, "Terminal recovered")
+        else:
+            self.operation_finished.emit(False, "Terminal recovery failed")
+
+    def _run_send_command(self) -> None:
+        """Run send command operation."""
+        self.progress.emit(f"Sending command: {self.command[:50]}...")
+
+        # Ensure terminal is healthy first
+        if not self.manager._ensure_dispatcher_healthy():  # pyright: ignore[reportPrivateUsage]
+            self.operation_finished.emit(False, "Terminal not healthy")
+            return
+
+        # Send command
+        if self.manager._send_command_direct(self.command):  # pyright: ignore[reportPrivateUsage]
+            self.operation_finished.emit(True, "Command sent successfully")
+        else:
+            self.operation_finished.emit(False, "Failed to send command")
 
 
 @final
@@ -35,6 +99,12 @@ class PersistentTerminalManager(LoggingMixin, QObject):
     terminal_started = Signal(int)  # PID of terminal
     terminal_closed = Signal()
     command_sent = Signal(str)  # Command that was sent
+
+    # Progress signals for non-blocking operations
+    operation_started = Signal(str)  # operation_name
+    operation_progress = Signal(str, str)  # operation_name, status_message
+    operation_finished = Signal(str, bool, str)  # operation_name, success, message
+    command_result = Signal(bool, str)  # success, error_message (empty if success)
 
     def __init__(
         self, fifo_path: str | None = None, dispatcher_path: str | None = None
@@ -78,6 +148,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # This prevents byte-level corruption when multiple threads
         # call send_command() concurrently
         self._write_lock = threading.Lock()
+
+        # Active workers for async operations (prevents garbage collection)
+        self._active_workers: list[TerminalOperationWorker] = []
 
         # Ensure FIFO exists
         if not self._ensure_fifo():
@@ -557,6 +630,79 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
             # If we get here, all attempts failed
             return False
+
+    def send_command_async(self, command: str, ensure_terminal: bool = True) -> None:
+        """Send a command to the persistent terminal asynchronously (non-blocking).
+
+        This method returns immediately and performs all blocking operations
+        (health checks, terminal restart) in a background thread. Progress
+        and completion are reported via signals.
+
+        Signals emitted:
+            - operation_started(str): When operation begins
+            - operation_progress(str, str): Progress updates
+            - command_result(bool, str): Final result (success, error_message)
+
+        Args:
+            command: The command to execute
+            ensure_terminal: Whether to launch terminal if not running
+
+        Note:
+            For tests and CLI usage, use send_command() (blocking) instead.
+            This async method is designed for GUI applications to prevent freezing.
+        """
+        # Validate command before proceeding
+        if not command or not command.strip():
+            self.logger.error("Attempted to send empty command")
+            self.command_result.emit(False, "Empty command")
+            return
+
+        # Check if we're in fallback mode
+        if self._fallback_mode:
+            self.logger.warning("Persistent terminal in fallback mode - cannot send command")
+            self.command_result.emit(False, "Terminal in fallback mode")
+            return
+
+        # Create worker for background operation
+        worker = TerminalOperationWorker(self, "send_command")
+        worker.command = command
+
+        # Connect signals
+        def on_progress(msg: str) -> None:
+            self.operation_progress.emit("send_command", msg)
+
+        _ = worker.progress.connect(on_progress)
+        _ = worker.operation_finished.connect(self._on_async_command_finished)
+
+        # Store worker reference to prevent garbage collection
+        self._active_workers.append(worker)
+
+        # Clean up worker when finished
+        _ = worker.operation_finished.connect(lambda: self._active_workers.remove(worker))
+        _ = worker.operation_finished.connect(worker.deleteLater)
+
+        # Emit operation started signal
+        self.operation_started.emit("send_command")
+
+        # Start background operation
+        worker.start()
+
+    def _on_async_command_finished(self, success: bool, message: str) -> None:
+        """Handle async command completion.
+
+        Args:
+            success: Whether the command was sent successfully
+            message: Status message
+        """
+        if success:
+            self.logger.info(f"Async command completed: {message}")
+            self.command_result.emit(True, "")
+        else:
+            self.logger.error(f"Async command failed: {message}")
+            self.command_result.emit(False, message)
+
+        # Emit operation finished signal
+        self.operation_finished.emit("send_command", success, message)
 
     def _ensure_dispatcher_healthy(self) -> bool:
         """Ensure dispatcher is healthy, attempting recovery if needed.

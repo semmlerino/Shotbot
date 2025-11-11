@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Standard library imports
 import errno
-import os
 import stat
 import tempfile
 from collections.abc import Generator
@@ -274,6 +273,7 @@ class TestPersistentTerminalManager:
 
         with (
             patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
+            patch.object(terminal_manager, "_is_dispatcher_healthy", return_value=True),
             patch("os.path.exists", return_value=True),
         ):
             # Act: Send command
@@ -318,6 +318,7 @@ class TestPersistentTerminalManager:
                 terminal_manager, "restart_terminal", return_value=True
             ) as mock_restart,
             patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
+            patch.object(terminal_manager, "_is_dispatcher_alive", return_value=True),
             patch.object(
                 terminal_manager,
                 "_is_dispatcher_running",
@@ -374,6 +375,7 @@ class TestPersistentTerminalManager:
         # Mock terminal launch and initial state
         terminal_manager._launch_terminal = MagicMock(return_value=True)  # type: ignore[method-assign]
         terminal_manager._is_terminal_alive = MagicMock(return_value=False)  # type: ignore[method-assign]
+        terminal_manager._is_dispatcher_alive = MagicMock(return_value=True)  # type: ignore[method-assign]
 
         # Simulate dispatcher becoming ready after 0.3s (3 poll attempts at 0.1s intervals)
         poll_count = 0
@@ -519,46 +521,37 @@ class TestPersistentTerminalManager:
         mock_close.assert_not_called()
 
 
-    @patch("os.open")
     def test_is_dispatcher_running_checks_fifo_reader(
-        self, mock_open: MagicMock, terminal_manager: PersistentTerminalManager
+        self, terminal_manager: PersistentTerminalManager
     ) -> None:
-        """Test dispatcher running check uses non-blocking FIFO open."""
-        # Arrange: Mock successful non-blocking open (reader is present)
-        mock_fd = 42
-        mock_open.return_value = mock_fd
-
+        """Test dispatcher running check uses heartbeat mechanism."""
+        # Arrange: Mock successful heartbeat ping (dispatcher is responding)
         with (
             patch("os.path.exists", return_value=True),
-            patch("os.close") as mock_close,
+            patch.object(terminal_manager, "_send_heartbeat_ping", return_value=True) as mock_heartbeat,
         ):
             # Act: Check if dispatcher is running
             result = terminal_manager._is_dispatcher_running()
 
-        # Assert: Non-blocking FIFO open was attempted
+        # Assert: Heartbeat ping was attempted with 3.0s timeout
         assert result is True
-        mock_open.assert_called_once()
-        call_args = mock_open.call_args
-        assert call_args[0][0] == terminal_manager.fifo_path
-        # Verify O_WRONLY | O_NONBLOCK flags were used
-        assert call_args[0][1] & os.O_WRONLY
-        assert call_args[0][1] & os.O_NONBLOCK
-        mock_close.assert_called_once_with(mock_fd)
+        mock_heartbeat.assert_called_once_with(timeout=3.0)
 
-    @patch("os.open")
     def test_is_dispatcher_running_detects_no_reader(
-        self, mock_open: MagicMock, terminal_manager: PersistentTerminalManager
+        self, terminal_manager: PersistentTerminalManager
     ) -> None:
-        """Test dispatcher running check detects missing reader (ENXIO)."""
-        # Arrange: Mock ENXIO error (no reader on FIFO)
-        mock_open.side_effect = OSError(errno.ENXIO, "No such device or address")
-
-        with patch("os.path.exists", return_value=True):
+        """Test dispatcher running check detects unresponsive dispatcher."""
+        # Arrange: Mock failed heartbeat ping (dispatcher not responding)
+        with (
+            patch("os.path.exists", return_value=True),
+            patch.object(terminal_manager, "_send_heartbeat_ping", return_value=False) as mock_heartbeat,
+        ):
             # Act: Check if dispatcher is running
             result = terminal_manager._is_dispatcher_running()
 
-        # Assert: Correctly detected no reader
+        # Assert: Correctly detected unresponsive dispatcher
         assert result is False
+        mock_heartbeat.assert_called_once_with(timeout=3.0)
 
     @patch("os.open")
     @patch("os.fdopen")
@@ -596,6 +589,7 @@ class TestPersistentTerminalManager:
 
         with (
             patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
+            patch.object(terminal_manager, "_is_dispatcher_alive", return_value=True),
             patch.object(terminal_manager, "_is_dispatcher_running", return_value=True),
             patch.object(terminal_manager, "restart_terminal", side_effect=mock_restart),
             patch("os.path.exists", return_value=True),
@@ -628,10 +622,17 @@ class TestPersistentTerminalManager:
         behavior in case the dispatcher crashes for other reasons.
         """
         # Arrange: Terminal is alive but dispatcher is not running
-        mock_open.side_effect = OSError(errno.ENXIO, "No reader")
+        # Mock os.open to succeed for the command send after recovery
+        mock_open.return_value = 42
 
         with (
             patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
+            patch.object(terminal_manager, "_is_dispatcher_alive", return_value=True),
+            patch.object(
+                terminal_manager,
+                "_is_dispatcher_running",
+                side_effect=[False, True],  # First fails, after restart succeeds
+            ),
             patch("os.path.exists", return_value=True),
             patch.object(
                 terminal_manager, "restart_terminal", return_value=True
@@ -645,12 +646,6 @@ class TestPersistentTerminalManager:
             mock_file = MagicMock()
             mock_fdopen.return_value.__enter__ = Mock(return_value=mock_file)
             mock_fdopen.return_value.__exit__ = Mock(return_value=False)
-
-            # Reset mock_open for second attempt after restart
-            mock_open.side_effect = [
-                OSError(errno.ENXIO, "No reader"),  # First check fails
-                42,  # After restart, FIFO open succeeds
-            ]
 
             # Act: Try to send command with ensure_terminal=True
             result = terminal_manager.send_command("test", ensure_terminal=True)

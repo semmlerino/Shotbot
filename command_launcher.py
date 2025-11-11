@@ -5,6 +5,7 @@ from __future__ import annotations
 # Standard library imports
 import errno
 import os
+import shlex
 import shutil
 import subprocess
 from datetime import UTC, datetime
@@ -89,6 +90,15 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Initialize the Nuke launch handler
         self.nuke_handler = NukeLaunchRouter()
+
+        # Connect to terminal manager progress signals if available
+        if self.persistent_terminal:
+            _ = self.persistent_terminal.operation_progress.connect(
+                self._on_terminal_progress
+            )
+            _ = self.persistent_terminal.command_result.connect(
+                self._on_terminal_command_result
+            )
 
         # Use injected dependencies or fall back to defaults
         # Note: These are now deprecated and will be removed in the next phase
@@ -447,29 +457,32 @@ class CommandLauncher(LoggingMixin, QObject):
             and Config.PERSISTENT_TERMINAL_ENABLED
             and Config.USE_PERSISTENT_TERMINAL
         ):
-            # Dispatcher handles backgrounding of GUI apps
-            self.logger.info(
-                f"Sending command to persistent terminal: {full_command}"
-            )
-            is_gui = self._is_gui_app(app_name)
-            self.logger.debug(
-                f"Command details:\n  Command: {full_command!r}\n  Is GUI app: {is_gui}"
-            )
+            # Check if persistent terminal is in fallback mode (quick synchronous check)
+            if self.persistent_terminal._fallback_mode:  # pyright: ignore[reportPrivateUsage]
+                self.logger.warning(
+                    "Persistent terminal in fallback mode, launching in new terminal"
+                )
+                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp,
+                    "⚠ Persistent terminal unavailable, launching in new terminal...",
+                )
+                # Fall through to launch new terminal
+            else:
+                # Dispatcher handles backgrounding of GUI apps
+                self.logger.info(
+                    f"Sending command to persistent terminal (async): {full_command}"
+                )
+                is_gui = self._is_gui_app(app_name)
+                self.logger.debug(
+                    f"Command details:\n  Command: {full_command!r}\n  Is GUI app: {is_gui}"
+                )
 
-            success = self.persistent_terminal.send_command(full_command)
-            if success:
-                self.logger.debug("Command successfully sent to persistent terminal")
+                # Use async send - returns immediately, GUI stays responsive
+                # Progress and completion are reported via signals
+                self.persistent_terminal.send_command_async(full_command)
+                self.logger.debug("Command queued for async execution in persistent terminal")
                 return True
-            self.logger.warning(
-                "Failed to send command to persistent terminal, falling back to new terminal"
-            )
-            # Emit user-friendly message about fallback
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            self.command_executed.emit(
-                timestamp,
-                "⚠ Persistent terminal not available, launching in new terminal...",
-            )
-            # Fall through to launch new terminal - WITHOUT the & operator
 
         # Launch in new terminal (original behavior)
         # Pre-check for available terminal
@@ -645,30 +658,31 @@ class CommandLauncher(LoggingMixin, QObject):
             and Config.PERSISTENT_TERMINAL_ENABLED
             and Config.USE_PERSISTENT_TERMINAL
         ):
-            # Dispatcher handles backgrounding of GUI apps
-            self.logger.info(
-                f"Sending scene command to persistent terminal: {full_command}"
-            )
-            self.logger.debug(
-                f"Is GUI app: {self._is_gui_app(app_name)}"
-            )
-
-            success = self.persistent_terminal.send_command(full_command)
-            if success:
-                self.logger.debug(
-                    "Scene command successfully sent to persistent terminal"
+            # Check if persistent terminal is in fallback mode (quick synchronous check)
+            if self.persistent_terminal._fallback_mode:  # pyright: ignore[reportPrivateUsage]
+                self.logger.warning(
+                    "Persistent terminal in fallback mode, launching in new terminal"
                 )
+                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp,
+                    "⚠ Persistent terminal unavailable, launching in new terminal...",
+                )
+                # Fall through to launch new terminal
+            else:
+                # Dispatcher handles backgrounding of GUI apps
+                self.logger.info(
+                    f"Sending scene command to persistent terminal (async): {full_command}"
+                )
+                self.logger.debug(
+                    f"Is GUI app: {self._is_gui_app(app_name)}"
+                )
+
+                # Use async send - returns immediately, GUI stays responsive
+                # Progress and completion are reported via signals
+                self.persistent_terminal.send_command_async(full_command)
+                self.logger.debug("Scene command queued for async execution in persistent terminal")
                 return True
-            self.logger.warning(
-                "Failed to send command to persistent terminal, falling back to new terminal"
-            )
-            # Emit user-friendly message about fallback
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            self.command_executed.emit(
-                timestamp,
-                "⚠ Persistent terminal not available, launching in new terminal...",
-            )
-            # Fall through to launch new terminal - WITHOUT the & operator
 
         # Launch in new terminal (original behavior)
         # Pre-check for available terminal
@@ -871,30 +885,31 @@ class CommandLauncher(LoggingMixin, QObject):
             and Config.PERSISTENT_TERMINAL_ENABLED
             and Config.USE_PERSISTENT_TERMINAL
         ):
-            # Dispatcher handles backgrounding of GUI apps
-            self.logger.info(
-                f"Sending scene context command to persistent terminal: {full_command}"
-            )
-            self.logger.debug(
-                f"Is GUI app: {self._is_gui_app(app_name)}"
-            )
-
-            success = self.persistent_terminal.send_command(full_command)
-            if success:
-                self.logger.debug(
-                    "Scene context command successfully sent to persistent terminal"
+            # Check if persistent terminal is in fallback mode (quick synchronous check)
+            if self.persistent_terminal._fallback_mode:  # pyright: ignore[reportPrivateUsage]
+                self.logger.warning(
+                    "Persistent terminal in fallback mode, launching in new terminal"
                 )
+                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp,
+                    "⚠ Persistent terminal unavailable, launching in new terminal...",
+                )
+                # Fall through to launch new terminal
+            else:
+                # Dispatcher handles backgrounding of GUI apps
+                self.logger.info(
+                    f"Sending scene context command to persistent terminal (async): {full_command}"
+                )
+                self.logger.debug(
+                    f"Is GUI app: {self._is_gui_app(app_name)}"
+                )
+
+                # Use async send - returns immediately, GUI stays responsive
+                # Progress and completion are reported via signals
+                self.persistent_terminal.send_command_async(full_command)
+                self.logger.debug("Scene context command queued for async execution in persistent terminal")
                 return True
-            self.logger.warning(
-                "Failed to send command to persistent terminal, falling back to new terminal"
-            )
-            # Emit user-friendly message about fallback
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            self.command_executed.emit(
-                timestamp,
-                "⚠ Persistent terminal not available, launching in new terminal...",
-            )
-            # Fall through to launch new terminal
 
         # Launch in new terminal (fallback or when persistent terminal disabled)
         # Pre-check for available terminal
@@ -1056,20 +1071,51 @@ class CommandLauncher(LoggingMixin, QObject):
     def _add_dispatcher_logging(self, command: str) -> str:
         """Add logging redirection to capture command output.
 
-        Redirects both stdout and stderr to a log file for debugging launch failures.
+        Gracefully handles directory creation failures and special characters in paths.
 
         Args:
             command: The command to add logging to
 
         Returns:
-            Command with logging redirection appended
+            Command with logging redirection appended, or original command if logging unavailable
         """
         log_dir = Path.home() / ".shotbot" / "logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / "dispatcher.out"
-        return f"{command} 2>&1 | tee -a {log_file}"
+
+        try:
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_file = log_dir / "dispatcher.out"
+            # Quote log file path to handle spaces/special chars in paths
+            quoted_log_file = shlex.quote(str(log_file))
+            return f"{command} 2>&1 | tee -a {quoted_log_file}"
+        except (OSError, PermissionError) as e:
+            # Gracefully degrade: log without tee if setup fails
+            self.logger.warning(
+                f"Failed to setup command logging at {log_dir}: {e}. "
+                f"Commands will execute without logging."
+            )
+            return command
 
     def _emit_error(self, error: str) -> None:
         """Emit error with timestamp."""
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
         self.command_error.emit(timestamp, error)
+
+    def _on_terminal_progress(self, operation: str, message: str) -> None:
+        """Handle progress updates from terminal operations.
+
+        Args:
+            operation: Name of the operation (e.g., "send_command")
+            message: Progress status message
+        """
+        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        self.command_executed.emit(timestamp, f"[{operation}] {message}")
+
+    def _on_terminal_command_result(self, success: bool, error_message: str) -> None:
+        """Handle command result from terminal operations.
+
+        Args:
+            success: Whether the command completed successfully
+            error_message: Error message if failed (empty if success)
+        """
+        if not success:
+            self._emit_error(f"Terminal operation failed: {error_message}")

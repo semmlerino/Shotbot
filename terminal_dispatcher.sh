@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail  # Enable pipefail to capture correct exit codes in pipelines
 # ShotBot Terminal Dispatcher
 # Reads commands from FIFO and executes them in the same terminal session
 
@@ -35,6 +36,8 @@ cleanup_and_exit() {
     log_info "Dispatcher exiting: $reason (exit code: $exit_code)"
     # Clean up heartbeat file
     rm -f "$HEARTBEAT_FILE"
+    # Close persistent FIFO file descriptor if open
+    exec 3<&- 2>/dev/null || true
     exit "$exit_code"
 }
 
@@ -128,13 +131,19 @@ is_gui_app() {
 # Ignore signals from backgrounded jobs to prevent read loop interruption
 trap '' SIGCHLD SIGHUP SIGPIPE
 
+# Open FIFO with persistent file descriptor to avoid reader gap race conditions
+# Using FD 3 for persistent read access - this eliminates windows where no reader exists
+log_info "Opening FIFO with persistent file descriptor"
+exec 3< "$FIFO"
+
 # Main command loop
-# Each iteration opens FIFO fresh to avoid EOF race conditions with health checks
+# Using persistent FD 3 to read commands, avoiding race conditions where
+# no reader exists between iterations (which would cause ENXIO errors on writes)
 log_info "Entering main command loop"
 while true; do
-    # Read command from FIFO (opens fresh on each iteration)
-    # This blocks until a writer connects, avoiding EOF issues from transient health checks
-    if read -r cmd < "$FIFO"; then
+    # Read command from persistent FD 3
+    # This keeps the FIFO open continuously, ensuring writes never fail with ENXIO
+    if read -r cmd <&3; then
         # Skip empty commands
         if [ -z "$cmd" ]; then
             log_debug "Skipping empty command"
