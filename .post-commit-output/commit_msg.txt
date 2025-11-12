@@ -1,1 +1,1 @@
-refactor: Phase C improvements (P2-1, P2-2) - Qt best practices and API simplification
+fix: Update integration tests for CommandLauncher refactoring
