@@ -24,12 +24,8 @@ from nuke_launch_router import NukeLaunchRouter
 
 if TYPE_CHECKING:
     # Local application imports
-    from maya_latest_finder import MayaLatestFinder as MayaLatestFinderType
-    from nuke_script_generator import NukeScriptGenerator as NukeScriptGeneratorType
     from persistent_terminal_manager import PersistentTerminalManager
-    from raw_plate_finder import RawPlateFinder as RawPlateFinderType
     from shot_model import Shot
-    from threede_latest_finder import ThreeDELatestFinder as ThreeDELatestFinderType
     from threede_scene_model import ThreeDEScene
 else:
     # Import at runtime to avoid circular imports
@@ -64,22 +60,16 @@ class CommandLauncher(LoggingMixin, QObject):
 
     def __init__(
         self,
-        raw_plate_finder: type[RawPlateFinderType] | None = None,
-        nuke_script_generator: type[NukeScriptGeneratorType] | None = None,
-        threede_latest_finder: type[ThreeDELatestFinderType] | None = None,
-        maya_latest_finder: type[MayaLatestFinderType] | None = None,
         persistent_terminal: PersistentTerminalManager | None = None,
+        parent: QObject | None = None,
     ) -> None:
         """Initialize CommandLauncher with optional dependencies.
 
         Args:
-            raw_plate_finder: Class for finding raw plates (defaults to RawPlateFinder)
-            nuke_script_generator: Class for generating Nuke scripts (defaults to NukeScriptGenerator)
-            threede_latest_finder: Class for finding latest 3DE scenes (defaults to ThreeDELatestFinder)
-            maya_latest_finder: Class for finding latest Maya scenes (defaults to MayaLatestFinder)
             persistent_terminal: Optional persistent terminal manager for single terminal mode
+            parent: Optional parent QObject for proper Qt ownership
         """
-        super().__init__()
+        super().__init__(parent)
         self.current_shot: Shot | None = None
         self.persistent_terminal = persistent_terminal
 
@@ -96,48 +86,17 @@ class CommandLauncher(LoggingMixin, QObject):
         _ = self.process_executor.execution_completed.connect(self._on_execution_completed)
         _ = self.process_executor.execution_error.connect(self._on_execution_error)
 
-        # Use injected dependencies or fall back to defaults
-        # Note: These are now deprecated and will be removed in the next phase
-        # They're kept for backward compatibility with other methods
-        if raw_plate_finder is None:
-            # Local application imports
-            from raw_plate_finder import (
-                RawPlateFinder,
-            )
+        # Initialize scene/file finders (created internally, not injected)
+        # Local application imports
+        from maya_latest_finder import MayaLatestFinder
+        from raw_plate_finder import RawPlateFinder
+        from threede_latest_finder import ThreeDELatestFinder
+        from nuke_script_generator import NukeScriptGenerator
 
-            self._raw_plate_finder = RawPlateFinder
-        else:
-            self._raw_plate_finder = raw_plate_finder
-
-        if nuke_script_generator is None:
-            # Local application imports
-            from nuke_script_generator import (
-                NukeScriptGenerator,
-            )
-
-            self._nuke_script_generator = NukeScriptGenerator
-        else:
-            self._nuke_script_generator = nuke_script_generator
-
-        if threede_latest_finder is None:
-            # Local application imports
-            from threede_latest_finder import (
-                ThreeDELatestFinder,
-            )
-
-            self._threede_latest_finder = ThreeDELatestFinder()
-        else:
-            self._threede_latest_finder = threede_latest_finder()
-
-        if maya_latest_finder is None:
-            # Local application imports
-            from maya_latest_finder import (
-                MayaLatestFinder,
-            )
-
-            self._maya_latest_finder = MayaLatestFinder()
-        else:
-            self._maya_latest_finder = maya_latest_finder()
+        self._raw_plate_finder = RawPlateFinder
+        self._nuke_script_generator = NukeScriptGenerator
+        self._threede_latest_finder = ThreeDELatestFinder()
+        self._maya_latest_finder = MayaLatestFinder()
 
     def cleanup(self) -> None:
         """Disconnect signals and cleanup resources.
@@ -147,14 +106,15 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Notes:
             Safe to call multiple times. Silently handles already-disconnected signals.
+            Safe to call even if __init__ failed partway through.
         """
         try:
             _ = self.process_executor.execution_started.disconnect(self._on_execution_started)
             _ = self.process_executor.execution_progress.disconnect(self._on_execution_progress)
             _ = self.process_executor.execution_completed.disconnect(self._on_execution_completed)
             _ = self.process_executor.execution_error.disconnect(self._on_execution_error)
-        except (RuntimeError, TypeError):
-            # Signals already disconnected or object destroyed
+        except (RuntimeError, TypeError, AttributeError):
+            # Signals already disconnected, object destroyed, or __init__ failed before creating process_executor
             pass
 
     def __del__(self) -> None:

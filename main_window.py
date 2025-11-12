@@ -325,7 +325,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 )
 
             self.command_launcher = CommandLauncher(
-                persistent_terminal=self.persistent_terminal
+                persistent_terminal=self.persistent_terminal,
+                parent=self,
             )
             self.launcher_manager = LauncherManager(
                 process_pool=self._process_pool, parent=self

@@ -416,6 +416,57 @@ def main_window_with_real_components(
     ProgressManager.start_operation = test_progress_manager.start_operation
     ProgressManager.finish_operation = test_progress_manager.finish_operation
 
+    # Mock the modules that CommandLauncher will import in __init__
+    # Standard library imports
+    import sys
+    import types
+
+    # Create mock classes for CommandLauncher's internal imports with required methods
+    class MockRawPlateFinder:
+        """Mock for RawPlateFinder."""
+        @staticmethod
+        def find_latest_raw_plate(*args: Any, **kwargs: Any) -> None:
+            return None
+        @staticmethod
+        def verify_plate_exists(*args: Any, **kwargs: Any) -> bool:
+            return False
+        @staticmethod
+        def get_version_from_path(*args: Any, **kwargs: Any) -> str | None:
+            return None
+
+    class MockNukeScriptGenerator:
+        """Mock for NukeScriptGenerator."""
+        @staticmethod
+        def create_plate_script(*args: Any, **kwargs: Any) -> str | None:
+            return None
+
+    class MockThreeDELatestFinder:
+        """Mock for ThreeDELatestFinder."""
+        def find_latest_threede_scene(self, *args: Any, **kwargs: Any) -> str | None:
+            return None
+
+    class MockMayaLatestFinder:
+        """Mock for MayaLatestFinder."""
+        def find_latest_maya_scene(self, *args: Any, **kwargs: Any) -> str | None:
+            return None
+
+    # Create mock modules
+    mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
+    mock_raw_plate_finder.RawPlateFinder = MockRawPlateFinder
+    sys.modules["raw_plate_finder"] = mock_raw_plate_finder
+
+    mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
+    mock_nuke_script_generator.NukeScriptGenerator = MockNukeScriptGenerator
+    sys.modules["nuke_script_generator"] = mock_nuke_script_generator
+
+    mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
+    mock_threede_latest_finder.ThreeDELatestFinder = MockThreeDELatestFinder
+    sys.modules["threede_latest_finder"] = mock_threede_latest_finder
+
+    mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
+    mock_maya_latest_finder.MayaLatestFinder = MockMayaLatestFinder
+    sys.modules["maya_latest_finder"] = mock_maya_latest_finder
+
     # NOW create the MainWindow with all patches in place
     window = MainWindow(cache_manager=real_cache_manager)
     qtbot.addWidget(window)

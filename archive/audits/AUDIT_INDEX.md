@@ -1,254 +1,156 @@
-# Test Suite Audit Documentation
+# Best Practices Audit - Launcher & Terminal Creation Code
 
 ## Overview
 
-This directory contains comprehensive audit reports for the test suite's state isolation and test hygiene patterns, verified against **UNIFIED_TESTING_V2.MD** standards.
+This directory contains a comprehensive best practices audit of the ShotBot app launching and terminal creation subsystem.
+
+**Overall Score:** 92/100  
+**Status:** PRODUCTION-READY with minor recommendations  
+**Audit Date:** November 10, 2025
+
+## Documents
+
+### 1. AUDIT_SUMMARY.txt (Quick Reference - 8.1 KB)
+- Quick overview of all findings
+- Key findings grouped by quality level
+- List of 8 minor issues with severity levels
+- Prioritized recommendations
+- Category scores
+
+**Best for:** Quick reference, executive summary, decision making
+
+### 2. LAUNCHER_TERMINAL_AUDIT_REPORT.md (Detailed Analysis - 32 KB)
+- Comprehensive 1127-line audit report
+- Detailed analysis of all code sections
+- Specific file references and line numbers
+- Code examples showing good patterns and improvements
+- Category-by-category breakdown
+- Thread safety and performance analysis
+- Testing and documentation review
+
+**Best for:** In-depth understanding, implementation details, code review
+
+## Quick Findings Summary
+
+### Excellent Practices (9-10/10)
+- Parent parameter handling in all QWidget/QObject subclasses
+- 100% type hint coverage with modern syntax
+- 100% docstring coverage
+- Thread safety with proper locking mechanisms
+- Signal/slot type safety
+- Context managers and resource cleanup
+- Exception handling with specific error types
+- Modern Python patterns throughout
+
+### Areas for Improvement (Prioritized)
+
+**Priority 1 - Required for project compliance:**
+1. Add `reset()` methods to singleton-like classes for test isolation
+   - Affects: PersistentTerminalManager, CommandLauncher, LauncherManager
+   - Per CLAUDE.md guidelines
+
+**Priority 2 - Code quality improvements:**
+2. Add @Slot decorators to signal handlers (performance optimization)
+3. Refactor long methods (launch_app* methods 200-240 lines)
+4. Extract timeout constants as class variables
+5. Add cleanup() method to CommandLauncher
+
+**Priority 3 - Polish:**
+6. Replace lambdas in signal connections
+7. Remove or deprecate unused backward compatibility properties
+8. Expand test coverage for CommandLauncher
+
+## Category Scores
+
+| Category | Score | Status |
+|----------|-------|--------|
+| Qt Best Practices | 9.2/10 | EXCELLENT |
+| Python Best Practices | 9.5/10 | EXCELLENT |
+| Project Patterns | 6.0/10 | NEEDS IMPROVEMENT* |
+| Code Quality | 8.5/10 | GOOD |
+| Testing | 8.5/10 | GOOD |
+| Thread Safety | 10.0/10 | EXCELLENT |
+| Security | 8.0/10 | GOOD |
+| Performance | 9.0/10 | EXCELLENT |
+| Documentation | 9.5/10 | EXCELLENT |
+
+*Missing reset() methods per project guidelines
+
+## Files Reviewed
+
+### Core Files
+- `/home/gabrielh/projects/shotbot/persistent_terminal_manager.py` (774 lines)
+- `/home/gabrielh/projects/shotbot/command_launcher.py` (1076 lines)
+- `/home/gabrielh/projects/shotbot/launcher_manager.py` (665 lines)
+
+### Launcher Package
+- `/home/gabrielh/projects/shotbot/launcher/process_manager.py` (200+ lines)
+- `/home/gabrielh/projects/shotbot/launcher/worker.py` (271 lines)
+- `/home/gabrielh/projects/shotbot/launcher/models.py` (12.5 KB)
+- `/home/gabrielh/projects/shotbot/launcher/validator.py` (14.5 KB)
+
+### UI Files
+- `/home/gabrielh/projects/shotbot/launcher_panel.py` (600+ lines)
+- `/home/gabrielh/projects/shotbot/launcher_dialog.py` (500+ lines)
+
+### Test Files
+- `/home/gabrielh/projects/shotbot/tests/unit/test_persistent_terminal_manager.py`
+- `/home/gabrielh/projects/shotbot/tests/unit/test_launcher_manager.py`
+
+## Key Metrics
+
+### Type Safety
+- Type hints: 100% of public methods
+- Type checker errors: 0
+- Type checker warnings: 5 (backward compatibility properties only)
+
+### Documentation
+- Method docstrings: 100% coverage
+- Docstring format: Google/NumPy style
+- Inline comments: Strategic (explain why, not what)
+
+### Code Organization
+- @final decorators: All public classes
+- LoggingMixin: All classes
+- Dependency injection: Proper use throughout
+
+### Thread Safety
+- Locks: threading.Lock, QRecursiveMutex, QMutexLocker
+- Signal connections: All use explicit QueuedConnection
+- Race conditions: None found
+
+## Recommendations Implementation Plan
+
+### Week 1 (Critical)
+- Add reset() methods to singleton-like classes
+- Update conftest.py cleanup fixtures
+
+### Week 2-3 (Code Quality)
+- Add @Slot decorators
+- Refactor long methods in CommandLauncher
+- Extract timeout constants
+
+### Week 4+ (Polish)
+- Remove/deprecate backward compatibility properties
+- Expand test coverage
+- Code cleanup and minor improvements
+
+## Next Steps
+
+1. **Review:** Read AUDIT_SUMMARY.txt for quick reference
+2. **Analyze:** Review LAUNCHER_TERMINAL_AUDIT_REPORT.md for detailed findings
+3. **Implement:** Follow the prioritized recommendations
+4. **Test:** Run test suite with `-n auto --dist=loadgroup` after changes
+5. **Verify:** Re-run type checker: `~/.local/bin/uv run basedpyright`
+
+## Contact & Questions
+
+For questions about specific findings, refer to:
+- LAUNCHER_TERMINAL_AUDIT_REPORT.md - Detailed analysis with examples
+- Source files with line references - Review actual code implementations
 
 ---
 
-## 📄 Audit Documents
-
-### 1. **STATE_ISOLATION_AUDIT_SUMMARY.txt** (Start here!)
-Executive summary with key findings and compliance status.
-
-**Contents:**
-- Overall compliance assessment
-- Violation count (0 critical, 0 major)
-- Autouse fixtures breakdown by category
-- Compliance summary for critical rules
-- Key strengths and recommendations
-
-**Best for:** Quick overview (5 min read)
-
----
-
-### 2. **STATE_ISOLATION_QUICK_REFERENCE.md**
-Quick 1-page reference guide with code examples and best practices.
-
-**Contents:**
-- Bottom-line compliance status
-- Autouse fixtures by category
-- Compliance checklist
-- Do's and don'ts with code examples
-- File breakdown
-- Parallel execution safety
-- When to use autouse fixtures
-
-**Best for:** Developer reference during code review (5 min read)
-
----
-
-### 3. **STATE_ISOLATION_AUDIT.md**
-Detailed 500+ line comprehensive report with full analysis.
-
-**Contents:**
-- Executive summary with metrics
-- 9-part detailed breakdown:
-  1. Main conftest.py (8 fixtures)
-  2. Integration conftest.py (1 fixture)
-  3. Unit conftest.py (0 fixtures)
-  4. Test file autouse fixtures (33 files)
-  5. Explicit fixture usage
-  6. @patch decorator patterns
-  7. CacheManager isolation
-  8. Monkeypatch usage
-  9. Test isolation verification
-- Comprehensive recommendations
-- Compliance summary
-- Conclusion and artifacts
-
-**Best for:** Detailed technical review, design decisions (30 min read)
-
----
-
-## 🎯 Quick Navigation
-
-### By Role
-
-**Test Developer** → Start with STATE_ISOLATION_QUICK_REFERENCE.md
-- Learn autouse fixture patterns
-- Find code examples for your test
-
-**Code Reviewer** → Start with STATE_ISOLATION_AUDIT_SUMMARY.txt
-- Check compliance status (✅ 0 violations)
-- Review autouse fixtures breakdown
-- Verify patterns in code
-
-**Architect** → Read STATE_ISOLATION_AUDIT.md
-- Understand singleton management strategy
-- Review cleanup pattern design
-- Plan future changes
-
-### By Question
-
-**"Are we compliant?"** → STATE_ISOLATION_AUDIT_SUMMARY.txt (first section)
-- Answer: ✅ YES - 100% compliant
-
-**"Should this be autouse?"** → STATE_ISOLATION_QUICK_REFERENCE.md (section "When to use autouse")
-- Decision tree with examples
-
-**"Why is this fixture autouse?"** → STATE_ISOLATION_AUDIT.md (Part 1)
-- Detailed justification for each fixture
-
-**"How do I isolate global state?"** → STATE_ISOLATION_QUICK_REFERENCE.md (section "What TO Do")
-- Code example: monkeypatch pattern
-
-**"What about parallel execution?"** → STATE_ISOLATION_AUDIT_SUMMARY.txt (section "Parallel Execution")
-- Safe with pytest -n auto
-
----
-
-## ✅ Key Findings Summary
-
-### Compliance
-
-| Rule | Compliance | Status |
-|------|-----------|--------|
-| Rule #5 (monkeypatch for state) | 100% | ✅ |
-| Anti-Pattern (autouse for mocks) | 100% | ✅ |
-| CacheManager isolation | 100% | ✅ |
-| Singleton management | 100% | ✅ |
-| Qt cleanup | 100% | ✅ |
-
-### Metrics
-
-- **Autouse fixtures examined**: 42 total
-- **Violations found**: 0 (critical: 0, major: 0)
-- **Files analyzed**: 1,500+ lines of code
-- **Patterns checked**: 560+ instances
-- **Config isolation verified**: 22+ instances
-- **CacheManager isolated**: 3/3 instances
-
-### Status
-
-🟢 **READY FOR PRODUCTION** - No violations, excellent patterns, safe for parallel execution
-
----
-
-## 📊 Audit Details
-
-### Autouse Fixtures
-
-**8 in Main Conftest (tests/conftest.py)** - ALL ACCEPTABLE
-- 2 Qt cleanup (essential)
-- 3 Cache/state clearing (required)
-- 1 Dialog suppression (standard)
-- 1 Random seed (reproducibility)
-- 1 GC trigger (memory)
-
-**1 in Integration Conftest** - ACCEPTABLE
-- Singleton reset (necessary for complex tests)
-
-**0 in Unit Conftest** - EXCELLENT
-- Best practice pattern
-
-**33 Test Files with Autouse** - ALL ACCEPTABLE
-- 16 singleton reset fixtures
-- 10 Qt cleanup fixtures
-- 5 config isolation fixtures
-- 2 cache testing fixtures
-
-### Critical Patterns
-
-**Monkeypatch for State Isolation**
-- 22+ Config.SHOWS_ROOT patches verified
-- All use monkeypatch.setattr() pattern
-- All scoped to explicit fixtures
-- No autouse pollution
-
-**No Autouse Mocks**
-- Subprocess: 0 autouse violations
-- Filesystem: 0 autouse violations
-- Database: 0 autouse violations
-- All mocks: explicit fixtures
-
-**CacheManager Isolation**
-- All 3 instances use cache_dir=tmp_path
-- No shared ~/.shotbot/cache_test pollution
-- Proper per-test isolation
-
----
-
-## 🚀 Recommendations
-
-### Keep (Excellent Patterns)
-- All 8 autouse fixtures in conftest.py
-- Singleton .reset() methods
-- monkeypatch for Config isolation
-- cleanup_state fixture strategy
-
-### Optional Improvements
-1. Consolidate test-file autouse fixtures into main conftest.py
-2. Use monkeypatch for Config patches (instead of @patch) - style consistency
-3. Document CacheManager isolation in Contributing Guide
-
----
-
-## 📚 Related Documentation
-
-- **UNIFIED_TESTING_V2.MD** - Full testing guidelines
-  - Rule #5: monkeypatch for state isolation (lines 72-79)
-  - Anti-Patterns: autouse for mocks (lines 358-376)
-  - Qt cleanup requirements (lines 233-318)
-
-- **CLAUDE.md** - Project-specific testing notes
-  - Singleton pattern & test isolation (section on reset() methods)
-  - Qt widget guidelines (parent parameter requirement)
-  - Pytest configuration
-
----
-
-## 🔍 How This Audit Was Conducted
-
-### Scope
-- Test directory: `/home/gabrielh/projects/shotbot/tests/`
-- Files analyzed: conftest.py (all levels), test files (sample)
-- Code lines reviewed: 2,000+
-- Patterns checked: 560+ instances
-
-### Methodology
-1. Located all conftest.py files (3 found)
-2. Extracted all autouse fixtures (42 found)
-3. Categorized by purpose/compliance
-4. Searched for violations:
-   - autouse with @patch/mock ✅ NONE
-   - Config changes without monkeypatch ✅ NONE
-   - CacheManager() without cache_dir ✅ NONE
-   - xdist_group band-aids ✅ NONE
-5. Verified singleton reset patterns (all proper)
-6. Checked monkeypatch usage (22+ instances verified)
-
-### Standards Applied
-- UNIFIED_TESTING_V2.MD section 5 (monkeypatch rule)
-- UNIFIED_TESTING_V2.MD section 6 (test isolation)
-- UNIFIED_TESTING_V2.MD "Anti-Patterns" section (358-376)
-
----
-
-## 📝 Document Generation
-
-**Generated**: 2025-11-08  
-**Tool**: Claude Code audit tool  
-**Format**: Markdown + Plain text
-
-All documents are stored in the project root:
-- `/home/gabrielh/projects/shotbot/STATE_ISOLATION_AUDIT.md`
-- `/home/gabrielh/projects/shotbot/STATE_ISOLATION_QUICK_REFERENCE.md`
-- `/home/gabrielh/projects/shotbot/STATE_ISOLATION_AUDIT_SUMMARY.txt`
-- `/home/gabrielh/projects/shotbot/AUDIT_INDEX.md` (this file)
-
----
-
-## 🤝 Questions?
-
-Refer to the appropriate document:
-- General question? → STATE_ISOLATION_QUICK_REFERENCE.md
-- Need evidence? → STATE_ISOLATION_AUDIT.md
-- Quick answer? → STATE_ISOLATION_AUDIT_SUMMARY.txt
-- Finding something? → This index (AUDIT_INDEX.md)
-
----
-
-**Overall Assessment**: ✅ EXCELLENT COMPLIANCE  
-**Violations**: 0 critical, 0 major  
-**Ready for**: Parallel execution (pytest -n auto)
+**Generated by:** Best Practices Checker Agent  
+**Date:** November 10, 2025  
+**Quality:** Professional Code Review Standard

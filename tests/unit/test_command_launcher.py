@@ -164,13 +164,31 @@ class TestCommandLauncher:
     """Test CommandLauncher functionality."""
 
     @pytest.fixture
-    def launcher(self) -> CommandLauncher:
+    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
         """Create CommandLauncher with test doubles."""
+        # Mock the modules that will be imported in __init__
+        # These need to be mocked at the module level before CommandLauncher imports them
+        import sys
+        import types
+
+        # Create mock modules
+        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
+        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
+        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
+
+        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
+        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
+        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
+
+        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
+        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
+        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
+
+        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
+        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
+        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
+
         return CommandLauncher(
-            raw_plate_finder=TestRawPlateFinder,
-            nuke_script_generator=TestNukeScriptGenerator,
-            threede_latest_finder=TestThreeDELatestFinder,
-            maya_latest_finder=TestMayaLatestFinder,
             persistent_terminal=None,  # Test without persistent terminal first
         )
 
@@ -468,15 +486,32 @@ class TestCommandLauncher:
     @patch("command_launcher.Config.USE_PERSISTENT_TERMINAL", True)
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     def test_persistent_terminal_usage(
-        self, mock_rez: MagicMock, mock_validate: MagicMock, qtbot: QtBot
+        self, mock_rez: MagicMock, mock_validate: MagicMock, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test using persistent terminal manager with async API."""
+        # Mock the modules that will be imported in __init__
+        import sys
+        import types
+
+        # Create mock modules
+        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
+        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
+        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
+
+        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
+        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
+        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
+
+        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
+        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
+        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
+
+        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
+        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
+        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
+
         terminal = TestPersistentTerminalManager()
         launcher = CommandLauncher(
-            raw_plate_finder=TestRawPlateFinder,
-            nuke_script_generator=TestNukeScriptGenerator,
-            threede_latest_finder=TestThreeDELatestFinder,
-            maya_latest_finder=TestMayaLatestFinder,
             persistent_terminal=terminal,
         )
 
@@ -504,17 +539,34 @@ class TestCommandLauncher:
     @patch("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", True)
     @patch("command_launcher.Config.USE_PERSISTENT_TERMINAL", True)
     def test_persistent_terminal_unavailable(
-        self, mock_validate: MagicMock, qtbot: QtBot
+        self, mock_validate: MagicMock, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test fallback when persistent terminal is in fallback mode."""
+        # Mock the modules that will be imported in __init__
+        import sys
+        import types
+
+        # Create mock modules
+        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
+        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
+        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
+
+        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
+        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
+        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
+
+        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
+        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
+        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
+
+        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
+        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
+        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
+
         terminal = TestPersistentTerminalManager()
         terminal._fallback_mode = True  # Simulate terminal in fallback mode
 
         launcher = CommandLauncher(
-            raw_plate_finder=TestRawPlateFinder,
-            nuke_script_generator=TestNukeScriptGenerator,
-            threede_latest_finder=TestThreeDELatestFinder,
-            maya_latest_finder=TestMayaLatestFinder,
             persistent_terminal=terminal,
         )
 
@@ -545,13 +597,30 @@ class TestCommandLauncherSignals:
     """Test CommandLauncher signal emissions."""
 
     @pytest.fixture
-    def launcher(self) -> CommandLauncher:
+    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
         """Create CommandLauncher with test doubles."""
+        # Mock the modules that will be imported in __init__
+        import sys
+        import types
+
+        # Create mock modules
+        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
+        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
+        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
+
+        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
+        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
+        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
+
+        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
+        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
+        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
+
+        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
+        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
+        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
+
         return CommandLauncher(
-            raw_plate_finder=TestRawPlateFinder,
-            nuke_script_generator=TestNukeScriptGenerator,
-            threede_latest_finder=TestThreeDELatestFinder,
-            maya_latest_finder=TestMayaLatestFinder,
             persistent_terminal=None,
         )
 

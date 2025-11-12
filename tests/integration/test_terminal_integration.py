@@ -119,6 +119,16 @@ class TestTerminalIntegrationFlow:
                 "_is_terminal_alive",
                 return_value=True,
             ),
+            patch.object(
+                integrated_launcher.persistent_terminal,
+                "_is_dispatcher_alive",
+                return_value=True,
+            ),
+            patch.object(
+                integrated_launcher.persistent_terminal,
+                "_is_dispatcher_running",
+                return_value=True,
+            ),
             patch("os.open", return_value=42),
             patch("os.fdopen") as mock_fdopen,
             patch("config.Config.USE_PERSISTENT_TERMINAL", True),
@@ -244,8 +254,9 @@ class TestTerminalIntegrationFlow:
             nonlocal restart_count
             restart_count += 1
             # After restart, dispatcher should be running
-            # Update the mock to reflect this
+            # Update both mocks to reflect healthy state
             integrated_launcher.persistent_terminal._is_dispatcher_running = Mock(return_value=True)  # type: ignore[method-assign]
+            integrated_launcher.persistent_terminal._is_dispatcher_alive = Mock(return_value=True)  # type: ignore[method-assign]
             return True
 
         # Simulate terminal dying and being restarted
@@ -268,13 +279,20 @@ class TestTerminalIntegrationFlow:
             patch("os.fdopen") as mock_fdopen,
         ):
             # Set up dispatcher to be dead initially, then alive after restart
-            dispatcher_states = [False, True]  # First call: dead, after restart: alive
+            running_states = [False, True]  # First call: dead, after restart: alive
+            alive_states = [False, True]  # First call: dead, after restart: alive
 
             def dispatcher_running_side_effect() -> bool:
-                return dispatcher_states.pop(0) if dispatcher_states else True
+                return running_states.pop(0) if running_states else True
+
+            def dispatcher_alive_side_effect() -> bool:
+                return alive_states.pop(0) if alive_states else True
 
             integrated_launcher.persistent_terminal._is_dispatcher_running = Mock(  # type: ignore[method-assign]
                 side_effect=dispatcher_running_side_effect
+            )
+            integrated_launcher.persistent_terminal._is_dispatcher_alive = Mock(  # type: ignore[method-assign]
+                side_effect=dispatcher_alive_side_effect
             )
 
             # Set terminal PID so force kill logic executes
@@ -360,6 +378,11 @@ class TestTerminalIntegrationFlow:
             patch.object(
                 integrated_launcher.persistent_terminal,
                 "_is_terminal_alive",
+                return_value=True,
+            ),
+            patch.object(
+                integrated_launcher.persistent_terminal,
+                "_is_dispatcher_alive",
                 return_value=True,
             ),
             patch.object(

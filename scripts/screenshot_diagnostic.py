@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-import pyautogui
+import pyautogui  # type: ignore[reportMissingModuleSource]
 
 
 try:

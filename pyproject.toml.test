@@ -1,6 +1,0 @@
-
-# Test strict inference settings
-strictListInference = true
-strictDictionaryInference = true
-strictSetInference = true
-reportImplicitStringConcatenation = "warning"

@@ -476,9 +476,38 @@ def cleanup_state() -> Iterator[None]:
     except (RuntimeError, AttributeError, ImportError):
         pass
 
+    # Clear OptimizedShotParser pattern cache to prevent test contamination
+    # The cache is keyed by Config.SHOWS_ROOT; if tests change this config,
+    # the cached patterns become invalid for subsequent tests
+    try:
+        import optimized_shot_parser
+        optimized_shot_parser._PATTERN_CACHE.clear()
+    except (RuntimeError, AttributeError, ImportError):
+        pass
+
+    # Reset Config.SHOWS_ROOT in SETUP phase to prevent contamination
+    # This runs BEFORE the test body to ensure clean state
+    try:
+        import os
+
+        from config import Config
+        Config.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
+    except (RuntimeError, AttributeError, ImportError):
+        pass
+
     yield
 
     # ===== AFTER TEST: Comprehensive cleanup (defense in depth) =====
+
+    # Reset Config.SHOWS_ROOT in teardown to clean up after tests that don't use monkeypatch
+    # Tests that DO use monkeypatch will have their values restored automatically by pytest
+    try:
+        import os
+
+        from config import Config
+        Config.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
+    except (RuntimeError, AttributeError, ImportError):
+        pass
 
     # Qt Event Processing - Process pending events before cleanup
     # This ensures Qt is in a stable state before we start tearing things down

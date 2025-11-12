@@ -1,0 +1,149 @@
+
+===================WORKSPACE IS SET TO====================
+ SHOW: jack_ryan
+ SEQUENCE: AS_193
+ SHOT: AS_193_1880
+----------------------------------------------------------
+ WORKSPACE: AS_193_1880
+ WORKSPACE_TYPE: shot
+ WORKSPACE_PATH: /shows/jack_ryan/shots/AS_193/AS_193_1880
+==========================================================
+
+PIPELINE 3DE WRAPPER
+[INFO] ShotGrid Desktop already running.
+Could not find platform independent libraries <prefix>
+Could not find platform dependent libraries <exec_prefix>
+Consider setting $PYTHONHOME to <prefix>[:<exec_prefix>]
+
+===================WORKSPACE IS SET TO====================
+ SHOW: jack_ryan
+ SEQUENCE: TB_090
+ SHOT: TB_090_0020
+----------------------------------------------------------
+ WORKSPACE: TB_090_0020
+ WORKSPACE_TYPE: shot
+ WORKSPACE_PATH: /shows/jack_ryan/shots/TB_090/TB_090_0020
+==========================================================
+
+[INFO] Launching Maya 2026...
+Initialized VP2.0 renderer {
+  Version : 2016.11.62.12. Feature Level 5.
+  Adapter : Quadro RTX 5000/PCIe/SSE2
+  Vendor ID: 4318. Device ID : 
+  Driver : 4.6.0 NVIDIA 570.124.04.
+  API : OpenGL V.4.6.
+  Max texture size : 16384 * 16384.
+  Max texture coords : 32
+  Shader versions supported (Vertex: 5, Geometry: 5, Pixel 5).
+  Shader compiler profile : (Best card profile)
+  Active stereo support available : 0
+  GPU Memory Limit : 16384 MB.
+  CPU Memory Limit : 121620 MB.
+  MultiDraw consolidation : enabled
+}
+OpenCL evaluator is attempting to initialize OpenCL.
+Detected 1 OpenCL Platforms: 
+ 0: NVIDIA Corporation. NVIDIA CUDA. OpenCL 3.0 CUDA 12.8.90.
+ Supported extensions: cl_khr_global_int32_base_atomics cl_khr_global_int32_extended_atomics cl_khr_local_int32_base_atomics cl_khr_local_int32_extended_atomics cl_khr_fp64 cl_khr_3d_image_writes cl_khr_byte_addressable_store cl_khr_icd cl_khr_gl_sharing cl_nv_compiler_options cl_nv_device_attribute_query cl_nv_pragma_unroll cl_nv_copy_opts cl_khr_gl_event cl_nv_create_buffer cl_khr_int64_base_atomics cl_khr_int64_extended_atomics cl_nv_kernel_attribute cl_khr_device_uuid cl_khr_pci_bus_info cl_khr_external_semaphore cl_khr_external_memory cl_khr_external_semaphore_opaque_fd cl_khr_external_memory_opaque_fd cl_khr_semaphore 
+ Selected matching OpenCL Platform: NVIDIA Corporation NVIDIA CUDA OpenCL 3.0 CUDA 12.8.90.
+OpenCL evaluator choosing OpenCL platform NVIDIA Corporation.
+Choosing OpenCL Device Quadro RTX 5000.  Device Type: GPU  Device is available.
+
+00:00:00  1232MB         | log started Sun Nov  9 20:04:32 2025
+00:00:00  1232MB         | Arnold 7.4.2.0 [4b653881] linux x86_64 clang-15.0.7 oiio-2.6.3 osl-1.13.3 vdb-11.0.0 adlsdk-9.5.0.53 clmhub-3.1.1.43 rlm-17.0.1 optix-8.0.0 2025/05/06 16:04:36
+00:00:00  1232MB         | running on tempest.blue-bolt.lan, pid=895821
+00:00:00  1232MB         |  1 x Intel(R) Xeon(R) W-2275 CPU @ 3.30GHz (14 cores, 28 logical) with 128021MB
+00:00:00  1232MB         |  NVIDIA driver version 570.124
+00:00:00  1232MB         |  GPU 0: Quadro RTX 5000 @ 1815MHz (compute 7.5) with 15921MB (6368MB available) (NVLink:0)
+00:00:00  1232MB         |  Rocky Linux 9.5 (Blue Onyx), Linux kernel 5.14.0-503.14.1.el9_5.x86_64
+00:00:00  1232MB         |  soft limit for open files changed from 1024 to 65533
+00:00:00  1232MB         |  
+00:00:00  1232MB         | Installing system handler with mask 255
+00:00:00  1245MB         | [metadata] loading metadata file: /software/bluebolt/rez/packages/thirdparty/mtoa/5.5.2/platform-linux/maya-2026/bin/arnold.mtd
+00:00:00  1248MB         | loading plugins from /software/bluebolt/rez/packages/thirdparty/mtoa/5.5.2/platform-linux/maya-2026/shaders ...
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkFloatConstant uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkFloatComposite uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkFloatCondition uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkFloatCorrect uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkFloatLogic uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkFloatMask uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkFloatMath uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkColorComposite uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkColorCondition uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkColorConstant uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkColorCorrect uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkColorLogic uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkColorMask uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkColorMath uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkChannels uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkPremultiply uses Arnold 7.4.2.0
+00:00:00  1248MB         |  lookdevkit_shaders.so: ldkSimplexNoise uses Arnold 7.4.2.0
+00:00:00  1248MB         |  renderSetup_shaders.so: applyAbsFloatOverride uses Arnold 7.4.2.0
+00:00:00  1248MB         |  renderSetup_shaders.so: applyAbs2FloatsOverride uses Arnold 7.4.2.0
+00:00:00  1248MB         |  renderSetup_shaders.so: applyAbs3FloatsOverride uses Arnold 7.4.2.0
+00:00:00  1248MB         |  renderSetup_shaders.so: applyAbsIntOverride uses Arnold 7.4.2.0
+00:00:00  1248MB         |  renderSetup_shaders.so: applyRelFloatOverride uses Arnold 7.4.2.0
+00:00:00  1248MB         |  renderSetup_shaders.so: applyRel2FloatsOverride uses Arnold 7.4.2.0
+00:00:00  1248MB         |  renderSetup_shaders.so: applyRel3FloatsOverride uses Arnold 7.4.2.0
+00:00:00  1248MB         |  renderSetup_shaders.so: applyRelIntOverride uses Arnold 7.4.2.0
+00:00:00  1248MB         |  hairPhysicalShader_shaders.so: HairPhysicalShaderDiffuseColorAdapter uses Arnold 7.4.2.0
+00:00:00  1248MB         |  hairPhysicalShader_shaders.so: HairPhysicalShaderSpecularWeightAdapter uses Arnold 7.4.2.0
+00:00:00  1248MB         |  hairPhysicalShader_shaders.so: HairPhysicalShaderSpecularGlossAdapter uses Arnold 7.4.2.0
+00:00:00  1248MB         |  hairPhysicalShader_shaders.so: HairPhysicalShaderTransmissionWeightAdapter uses Arnold 7.4.2.0
+00:00:00  1248MB         |  hairPhysicalShader_shaders.so: HairPhysicalShaderTransmissionSpreadAdapter uses Arnold 7.4.2.0
+00:00:00  1248MB         |  xgenSpline_shaders.so: XGenHairMapping uses Arnold 7.4.2.0
+00:00:00  1248MB         |  mtoa_shaders.so: MayaBulge uses Arnold 7.4.2.0
+00:00:00  1248MB         |  mtoa_shaders.so: MayaCloth uses Arnold 7.4.2.0
+00:00:00  1248MB         |  mtoa_shaders.so: MayaGrid uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaFractal uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaNoise uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaCloud uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaCloudAlpha uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaSnow uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaSolidFractal uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaVolumeNoise uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaBrownian uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaStucco uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MtoaWriteColor uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MtoaWriteFloat uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaEnvSphere uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaFluid uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaMarble uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaMountain uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaWater uses Arnold 7.4.2.0
+00:00:00  1249MB         |  mtoa_shaders.so: MayaCrater uses Arnold 7.4.2.0
+00:00:00  1250MB         |  mtoa_shaders.so: MayaLeather uses Arnold 7.4.2.0
+00:00:00  1250MB         |  mtoa_shaders.so: MayaGranite uses Arnold 7.4.2.0
+00:00:00  1250MB         |  mtoa_shaders.so: MayaRock uses Arnold 7.4.2.0
+00:00:00  1250MB         |  mtoa_shaders.so: MayaFluidData uses Arnold 7.4.2.0
+00:00:00  1250MB         |  mtoa_shaders.so: MayaFluidTexture2D uses Arnold 7.4.2.0
+00:00:00  1250MB         | loading plugins from /software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/procedurals/arnold/74 ...
+00:00:00  1273MB         |  glmCrowdArnoldPlugin.so: CrowdProcArnold uses Arnold 7.4.0.0
+00:00:00  1273MB         |  glmCrowdArnoldPlugin.so: CrowdArnoldCharacterProcedural uses Arnold 7.4.0.0
+00:00:00  1273MB         |  [metadata] loading metadata file: /software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/procedurals/arnold/74/glmCrowdArnoldPlugin.mtd
+00:00:00  1273MB         | loading plugins from /software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/shaders/arnold/74 ...
+00:00:00  1273MB         |  glmCrowdArnoldShaders.so: CrowdSwitchShaderArnold uses Arnold 7.4.0.0
+00:00:00  1273MB         |  glmCrowdArnoldShaders.so: CrowdHSLShaderArnold uses Arnold 7.4.0.0
+00:00:00  1273MB         |  [metadata] loading metadata file: /software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/shaders/arnold/74/glmCrowdArnoldShaders.mtd
+00:00:00  1273MB         | loading plugins from /software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/shaders/osl ...
+00:00:00  1273MB         |  [osl] auto compiling /software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/shaders/osl/glmSwitchOSL.osl
+00:00:00  1273MB         |  PATH -I/software/bluebolt/rez/packages/thirdparty/mtoa/5.5.2/platform-linux/maya-2026/bin/../materialx/stdlib/genosl/include
+00:00:00  1277MB ERROR   |   [osl] error: Could not open "/software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/shaders/osl/glmSwitchOSL.oso.cd13-015f-e51a-077b.tmp"
+00:00:00  1277MB         |  [osl] auto compiling /software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/shaders/osl/glmHSLOSL.osl
+00:00:00  1277MB         |  PATH -I/software/bluebolt/rez/packages/thirdparty/mtoa/5.5.2/platform-linux/maya-2026/bin/../materialx/stdlib/genosl/include
+00:00:00  1277MB ERROR   |   [osl] error: Could not open "/software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/shaders/osl/glmHSLOSL.oso.1b64-a30a-5952-e5c9.tmp"
+00:00:00  1277MB         |  [osl] auto compiling /software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/shaders/osl/glmSwitchArrayOSL.osl
+00:00:00  1277MB         |  PATH -I/software/bluebolt/rez/packages/thirdparty/mtoa/5.5.2/platform-linux/maya-2026/bin/../materialx/stdlib/genosl/include
+00:00:00  1277MB ERROR   |   [osl] error: Could not open "/software/bluebolt/rez/packages/thirdparty/golaem/9.2/platform-linux/maya-2026/Golaem-9.2-Maya2026/shaders/osl/glmSwitchArrayOSL.oso.178f-09c2-cb8f-95c5.tmp"
+00:00:00  1277MB         | loaded 60 plugins from 7 lib(s) in 0:00.12
+00:00:00  1277MB         | loading plugins from /software/bluebolt/rez/packages/thirdparty/mtoa/5.5.2/platform-linux/maya-2026/bin/../plugins ...
+00:00:00  1277MB         |  alembic_proc.so: alembic uses Arnold 7.4.2.0
+00:00:00  1301MB         |  usd_proc.so: usd uses Arnold 7.4.2.0
+00:00:00  1301MB         | loaded 2 plugins from 2 lib(s) in 0:00.08
+00:00:00  1301MB WARNING | unable to create log file /disk1/tmp/mtoa//arnold.log: No such file or directory
+00:00:00  1315MB WARNING | [mtoa.attr] CExtensionAttrHelper was passed an unknown Maya node type "CrowdRenderProxy"
+00:00:00  1315MB ERROR   | [mtoa.attr] Unable to create extension attribute .aiUserOptions
+00:00:00  1315MB ERROR   | [mtoa.attr] Unable to create extension attribute .aiSelfShadows
+00:00:00  1315MB ERROR   | [mtoa.attr] Unable to create extension attribute .aiOpaque
+00:00:00  1315MB ERROR   | [mtoa.attr] Unable to create extension attribute .aiMatte
+00:00:00  1315MB ERROR   | [mtoa.attr] Unable to create extension attribute .aiTraceSets

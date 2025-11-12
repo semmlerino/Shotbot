@@ -1,0 +1,226 @@
+================================================================================
+TERMINAL & APP LAUNCHING SYSTEM - BEST PRACTICES AUDIT SUMMARY
+================================================================================
+
+OVERALL COMPLIANCE SCORE: 75/100
+
+Files Audited:
+  - persistent_terminal_manager.py (782 lines)
+  - command_launcher.py (1,088 lines)  
+  - terminal_dispatcher.sh (238 lines)
+  - launcher_manager.py (partial)
+
+================================================================================
+CRITICAL ISSUES (Must Fix - Blocks Testing)
+================================================================================
+
+1. MISSING PARENT PARAMETER ON QOBJECT SUBCLASSES
+   Severity: HIGH
+   Files: persistent_terminal_manager.py:39, command_launcher.py:66
+   Impact: Qt object ownership issues, memory management complications
+   
+   Both PersistentTerminalManager and CommandLauncher inherit from QObject
+   but don't accept parent parameter. Violates CLAUDE.md requirements.
+   
+   Fix: Add parent: QObject | None = None parameter to __init__()
+        and pass to super().__init__(parent)
+   
+   Estimated effort: 10 minutes per file
+
+2. BLOCKING UI OPERATIONS (time.sleep in Event Loop)
+   Severity: HIGH
+   Location: persistent_terminal_manager.py lines 290-734
+   Impact: UI freeze during terminal operations, unreliable testing
+   
+   Multiple time.sleep() calls in methods called from UI thread:
+   - _send_heartbeat_ping() (lines 290-293)
+   - _launch_terminal() (lines 425, 445)
+   - _ensure_dispatcher_healthy() (lines 601, 671, 681, 705, 725-734)
+   
+   Fix: Replace with QTimer-based async operations
+   
+   Estimated effort: 2-3 hours (complex refactoring)
+
+3. SIGNIFICANT CODE DUPLICATION
+   Severity: MEDIUM->HIGH
+   Location: command_launcher.py lines 259-973
+   Impact: 250+ lines of duplicate code, maintenance nightmare
+   
+   Three launch methods with ~90% duplicate code:
+   - launch_app() (290 lines)
+   - launch_app_with_scene() (200 lines)
+   - launch_app_with_scene_context() (225 lines)
+   
+   Common blocks repeated:
+   - Workspace validation
+   - App-specific command handling
+   - Rez wrapping
+   - Terminal execution
+   
+   Fix: Extract common logic into helper methods
+   
+   Estimated effort: 3-4 hours
+
+================================================================================
+HIGH PRIORITY ISSUES (Do Next - Improves Performance)
+================================================================================
+
+4. MISSING @Slot DECORATORS
+   Severity: MEDIUM
+   Impact: Performance penalty, no Qt optimization
+   
+   Methods that should have @Slot:
+   - PersistentTerminalManager: send_command(), restart_terminal(),
+     clear_terminal(), close_terminal()
+   - CommandLauncher: launch_app*() methods
+   
+   Fix: Add @Slot decorators with proper type signatures
+   
+   Estimated effort: 30 minutes
+
+5. MAGIC NUMBERS WITHOUT CONSTANTS
+   Severity: MEDIUM
+   Location: persistent_terminal_manager.py (multiple)
+   Impact: Maintenance difficulty, hard to understand rationale
+   
+   Examples:
+   - self._heartbeat_timeout = 60.0 (line 69)
+   - time.sleep(0.5) (line 425)
+   - timeout = 3.0 (line 433)
+   - timeout = 5.0 (line 725)
+   
+   Fix: Extract to class-level constants with documentation
+        (HEARTBEAT_TIMEOUT, TERMINAL_START_DELAY, etc.)
+   
+   Estimated effort: 45 minutes
+
+6. FRAGILE COMMAND PARSING IN SHELL SCRIPT
+   Severity: MEDIUM->LOW
+   Location: terminal_dispatcher.sh lines 85-126
+   Impact: is_gui_app() regex parsing could break with unusual commands
+   
+   Fix: Use environment variable instead of regex parsing
+   
+   Estimated effort: 30 minutes (both Python + shell changes)
+
+================================================================================
+MEDIUM PRIORITY ISSUES (Do Third - Code Quality)
+================================================================================
+
+7. HARDCODED APPLICATION LISTS
+   Severity: LOW
+   Locations: command_launcher.py:985, terminal_dispatcher.sh:110
+   Impact: Maintenance burden, duplication
+   
+   GUI apps list duplicated in multiple places.
+   
+   Fix: Centralize in config.py as Config.GUI_APPLICATIONS
+   
+   Estimated effort: 15 minutes
+
+8. MISSING SHELL ERROR HANDLING
+   Severity: LOW
+   Location: terminal_dispatcher.sh line 2
+   Impact: Silent failures on undefined variables
+   
+   Missing: set -u (error on undefined variables)
+   
+   Fix: Add set -u to shell script
+   
+   Estimated effort: 5 minutes
+
+9. EVAL() WITHOUT SECURITY DOCUMENTATION
+   Severity: MEDIUM->LOW
+   Location: terminal_dispatcher.sh lines 205, 214
+   Impact: Security assumptions not documented
+   
+   Note: Actually safe due to Python-side validation, but undocumented
+   
+   Fix: Add comment explaining pre-validation in Python
+   
+   Estimated effort: 5 minutes
+
+================================================================================
+POSITIVE FINDINGS (Strengths)
+================================================================================
+
+EXCELLENT PRACTICES:
+  ✅ Modern type hints (union syntax: str | None)
+  ✅ PEP 563 compliance (from __future__ import annotations)
+  ✅ Proper Pathlib usage (no os.path)
+  ✅ Context managers for resource cleanup
+  ✅ Thread-safe FIFO communication with locks
+  ✅ Comprehensive error handling (specific exception types)
+  ✅ Non-blocking I/O operations (os.O_NONBLOCK)
+  ✅ Zombie process detection
+  ✅ Signal handling in shell script (trap EXIT, ERR, INT, TERM)
+  ✅ Excellent documentation (docstrings, comments)
+  ✅ Dependency injection pattern (testability)
+  ✅ Async callback with functools.partial (no lambda race conditions)
+
+================================================================================
+COMPLIANCE MATRIX VS CLAUDE.MD
+================================================================================
+
+Requirement                        Status  Notes
+─────────────────────────────────  ──────  ──────────────────────────────────
+Qt parent parameter required       FAIL    Both classes missing parent param
+Type hints (3.11+)                 PASS    Modern union syntax throughout
+Pathlib for paths                  PASS    Used consistently
+Context managers                   PASS    FIFO operations wrapped
+PEP 8 compliance                   PASS    Code follows PEP 8
+f-strings                          PASS    Used throughout
+Error handling                     PASS    Comprehensive try-except
+Singleton reset()                  N/A     Not singletons (good choice)
+@Slot decorators                   PARTIAL Missing on key methods
+
+================================================================================
+RECOMMENDED ACTION PLAN
+================================================================================
+
+PHASE 1 - CRITICAL (Week 1)
+  1. Add parent parameters to QObject subclasses
+  2. Create issue: "Replace time.sleep() with QTimer for non-blocking operations"
+  3. Create issue: "Refactor 3x launch_app methods to reduce 250 LOC duplication"
+  
+PHASE 2 - HIGH (Week 2)
+  1. Add @Slot decorators to all methods
+  2. Extract magic numbers to class constants
+  3. Refactor is_gui_app() to use environment variables
+  
+PHASE 3 - MEDIUM (Week 3)
+  1. Centralize application list in config.py
+  2. Add set -u to shell script
+  3. Document eval() security assumptions
+  
+PHASE 4 - POLISH (Ongoing)
+  1. Run full test suite (pytest tests/ -n auto --dist=loadgroup)
+  2. Type check (basedpyright)
+  3. Lint (ruff check)
+
+================================================================================
+ESTIMATED TOTAL EFFORT
+================================================================================
+
+Critical:      5 + 150 + 180 minutes = 335 minutes (5.6 hours)
+High:          30 + 45 + 30 minutes = 105 minutes (1.75 hours)
+Medium:        15 + 5 + 5 minutes = 25 minutes (0.4 hours)
+─────────────────────────────────────────────────────
+TOTAL:         ~465 minutes (7.75 hours, or ~2 business days)
+
+With testing: Add ~2 hours
+
+================================================================================
+FILES TO REVIEW
+================================================================================
+
+Main audit report with detailed examples:
+  /home/gabrielh/projects/shotbot/LAUNCHER_BEST_PRACTICES_AUDIT.md
+
+Code fixes with specific examples:
+  /home/gabrielh/projects/shotbot/LAUNCHER_FIXES_WITH_CODE.md
+
+Quick reference (this file):
+  /home/gabrielh/projects/shotbot/LAUNCHER_AUDIT_SUMMARY.txt
+
+================================================================================
