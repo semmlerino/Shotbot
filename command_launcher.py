@@ -139,6 +139,28 @@ class CommandLauncher(LoggingMixin, QObject):
         else:
             self._maya_latest_finder = maya_latest_finder()
 
+    def cleanup(self) -> None:
+        """Disconnect signals and cleanup resources.
+
+        This method should be called when CommandLauncher is being destroyed
+        to prevent memory leaks and ensure proper resource cleanup.
+
+        Notes:
+            Safe to call multiple times. Silently handles already-disconnected signals.
+        """
+        try:
+            _ = self.process_executor.execution_started.disconnect(self._on_execution_started)
+            _ = self.process_executor.execution_progress.disconnect(self._on_execution_progress)
+            _ = self.process_executor.execution_completed.disconnect(self._on_execution_completed)
+            _ = self.process_executor.execution_error.disconnect(self._on_execution_error)
+        except (RuntimeError, TypeError):
+            # Signals already disconnected or object destroyed
+            pass
+
+    def __del__(self) -> None:
+        """Ensure cleanup on destruction."""
+        self.cleanup()
+
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context."""
         self.current_shot = shot
@@ -208,7 +230,7 @@ class CommandLauncher(LoggingMixin, QObject):
             return False
 
         # Check if persistent terminal is in fallback mode (quick synchronous check)
-        if self.persistent_terminal._fallback_mode:  # pyright: ignore[reportPrivateUsage]
+        if self.persistent_terminal.is_fallback_mode:
             self.logger.warning(
                 "Persistent terminal in fallback mode, launching in new terminal"
             )
@@ -503,15 +525,10 @@ class CommandLauncher(LoggingMixin, QObject):
         if self.env_manager.is_rez_available(Config):
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
-                packages_str = " ".join(rez_packages)
-                # Use bash -ilc (interactive + login) for workspace function loading
-                # Safe in terminal context (persistent terminal or gnome-terminal has TTY)
-                # SessionWarmer uses -l only (background thread, no TTY)
-                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
-                self.logger.debug(
-                    f"Constructed rez command with bash -ilc: {full_command}"
-                )
+                # Use CommandBuilder to wrap with rez environment
+                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
                 timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                packages_str = " ".join(rez_packages)
                 self.command_executed.emit(
                     timestamp, f"Using rez environment with packages: {packages_str}"
                 )
@@ -608,13 +625,8 @@ class CommandLauncher(LoggingMixin, QObject):
         if self.env_manager.is_rez_available(Config):
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
-                packages_str = " ".join(rez_packages)
-                # Use bash -ilc (interactive + login) for workspace function loading
-                # Safe in terminal context (persistent terminal or gnome-terminal has TTY)
-                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
-                self.logger.debug(
-                    f"Constructed rez scene command with bash -ilc: {full_command}"
-                )
+                # Use CommandBuilder to wrap with rez environment
+                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
             else:
                 full_command = ws_command
         else:
@@ -727,14 +739,10 @@ class CommandLauncher(LoggingMixin, QObject):
         if self.env_manager.is_rez_available(Config):
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
-                packages_str = " ".join(rez_packages)
-                # Use bash -ilc (interactive + login) for workspace function loading
-                # Safe in terminal context (persistent terminal or gnome-terminal has TTY)
-                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
-                self.logger.debug(
-                    f"Constructed rez command with bash -ilc: {full_command}"
-                )
+                # Use CommandBuilder to wrap with rez environment
+                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
                 timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                packages_str = " ".join(rez_packages)
                 self.command_executed.emit(
                     timestamp, f"Using rez environment with packages: {packages_str}"
                 )

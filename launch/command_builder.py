@@ -60,34 +60,38 @@ class CommandBuilder:
             path: Path to validate and escape
 
         Returns:
-            Safely escaped path string using shlex.quote()
+            Safely escaped normalized path string using shlex.quote()
 
         Raises:
-            ValueError: If path contains dangerous characters or patterns
-                       that could allow command injection
+            ValueError: If path is empty, invalid, or contains dangerous
+                       characters that could allow command injection
 
         Notes:
-            - Checks for command separators, redirections, substitutions
-            - Checks for path traversal patterns
+            - Normalizes path first (resolves .., ., symlinks)
+            - Checks normalized path for command injection characters
             - Uses shlex.quote() for safe shell escaping
-            - Adds single quotes and escapes internal single quotes
+            - Path traversal patterns (..) are safe after normalization
         """
-        # Check for command injection attempts
-        for char in CommandBuilder.DANGEROUS_CHARS:
-            if char in path:
-                raise ValueError(
-                    f"Path contains dangerous character '{char}' that could allow command injection: {path[:100]}"
-                )
+        if not path:
+            raise ValueError("Path cannot be empty")
 
-        # Check for dangerous patterns
-        for pattern in CommandBuilder.DANGEROUS_PATTERNS:
-            if pattern in path:
+        # Normalize path FIRST (resolves .., ., symlinks, makes absolute)
+        try:
+            normalized = str(Path(path).resolve())
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Invalid path: {e}") from e
+
+        # Check for command injection attempts in NORMALIZED path
+        # (After normalization, .. and . are resolved, so we only check
+        # for actual command injection characters, not path traversal)
+        for char in CommandBuilder.DANGEROUS_CHARS:
+            if char in normalized:
                 raise ValueError(
-                    f"Path contains dangerous pattern '{pattern}': {path[:100]}"
+                    f"Path contains dangerous character '{char}' that could allow command injection: {normalized[:100]}"
                 )
 
         # Use shlex.quote for safe shell escaping
-        return shlex.quote(path)
+        return shlex.quote(normalized)
 
     @staticmethod
     def build_workspace_command(workspace: str, app_command: str) -> str:
@@ -127,12 +131,12 @@ class CommandBuilder:
         return f'rez env {packages_str} -- bash -ilc "{command}"'
 
     @staticmethod
-    def apply_nuke_environment_fixes(command: str, config: Config) -> str:
+    def apply_nuke_environment_fixes(command: str, config: "type[Config]") -> str:
         """Apply Nuke-specific environment fixes to prevent crashes.
 
         Args:
             command: Base Nuke command
-            config: Application configuration
+            config: Application configuration class (not instance)
 
         Returns:
             Command with environment variable prefixes applied
@@ -167,11 +171,11 @@ class CommandBuilder:
         return command
 
     @staticmethod
-    def get_nuke_fix_summary(config: Config) -> list[str]:
+    def get_nuke_fix_summary(config: "type[Config]") -> list[str]:
         """Get human-readable summary of Nuke environment fixes.
 
         Args:
-            config: Application configuration
+            config: Application configuration class (not instance)
 
         Returns:
             List of fix descriptions for user display
@@ -230,7 +234,7 @@ class CommandBuilder:
     def build_full_command(
         app_command: str,
         workspace: str | None,
-        config: Config,
+        config: "type[Config]",
         rez_packages: list[str] | None = None,
         apply_nuke_fixes: bool = False,
         add_logging_redirect: bool = True,
@@ -246,7 +250,7 @@ class CommandBuilder:
         Args:
             app_command: Base application command
             workspace: Optional workspace path (already validated)
-            config: Application configuration
+            config: Application configuration class (not instance)
             rez_packages: Optional Rez packages to load
             apply_nuke_fixes: Whether to apply Nuke environment fixes
             add_logging_redirect: Whether to add logging redirection

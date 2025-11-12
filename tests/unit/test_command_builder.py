@@ -130,23 +130,38 @@ class TestPathValidation:
         with pytest.raises(ValueError, match=r"dangerous character.*\$\(\("):
             CommandBuilder.validate_path(path)
 
-    def test_path_traversal_dotdot_slash_rejected(self) -> None:
-        """Test rejection of path with ../ (path traversal)."""
-        path = "/home/user/../../etc/passwd"
-        with pytest.raises(ValueError, match=r"dangerous pattern.*\.\./"):
-            CommandBuilder.validate_path(path)
+    def test_path_with_dotdot_normalizes_safely(self) -> None:
+        """Test that paths with .. normalize correctly (VFX pipeline use case)."""
+        # VFX pipelines often have paths like /mnt/project/../archive
+        # These should normalize safely to /mnt/archive
+        path = "/home/user/project/../file.txt"
+        result = CommandBuilder.validate_path(path)
+        # Path is normalized (.. is resolved)
+        assert "file.txt" in result
+        assert ".." not in result  # .. is resolved by normalization
+        # shlex.quote adds quotes only if needed (e.g., for spaces)
+        # Simple paths like /home/user/file.txt don't need quotes
+        assert "/home/user/file.txt" in result or "'/home/user/file.txt'" in result
 
-    def test_path_traversal_slash_dotdot_rejected(self) -> None:
-        """Test rejection of path with /.. (path traversal variant)."""
-        path = "/home/user/../.."
-        with pytest.raises(ValueError, match=r"dangerous pattern.*/\.\."):
-            CommandBuilder.validate_path(path)
+    def test_path_with_dot_normalizes_safely(self) -> None:
+        """Test that paths with . normalize correctly."""
+        path = "/home/user/./file.txt"
+        result = CommandBuilder.validate_path(path)
+        assert "file.txt" in result
+        # shlex.quote adds quotes only if needed
+        assert "/home/user/file.txt" in result or "'/home/user/file.txt'" in result
 
-    def test_hidden_file_access_rejected(self) -> None:
-        """Test rejection of path with ~/. (hidden file access)."""
-        path = "~/.ssh/id_rsa"
-        with pytest.raises(ValueError, match=r"dangerous pattern.*/\."):
-            CommandBuilder.validate_path(path)
+    def test_path_with_dots_in_dirname_allowed(self) -> None:
+        """Test that paths with dots in directory names are allowed (e.g., v2.5)."""
+        path = "/projects/v2.5/scenes/shot.nk"
+        result = CommandBuilder.validate_path(path)
+        assert "v2.5" in result
+        assert "shot.nk" in result
+
+    def test_empty_path_rejected(self) -> None:
+        """Test that empty paths are rejected."""
+        with pytest.raises(ValueError, match="empty"):
+            CommandBuilder.validate_path("")
 
 
 class TestWorkspaceCommand:

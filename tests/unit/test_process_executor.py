@@ -31,6 +31,11 @@ class MockPersistentTerminalManager(QObject):
         self.last_command: str | None = None
         self._fallback_mode = False
 
+    @property
+    def is_fallback_mode(self) -> bool:
+        """Check if persistent terminal is in fallback mode."""
+        return self._fallback_mode
+
     def send_command_async(self, command: str) -> None:
         """Mock async command sending."""
         self.send_command_async_called = True

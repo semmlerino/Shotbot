@@ -126,7 +126,7 @@ class ProcessExecutor(QObject):
             return False
 
         # Check if terminal is in fallback mode
-        if self.persistent_terminal._fallback_mode:  # pyright: ignore[reportPrivateUsage]
+        if self.persistent_terminal.is_fallback_mode:
             self.logger.warning("Persistent terminal is in fallback mode")
             return False
 

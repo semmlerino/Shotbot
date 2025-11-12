@@ -131,6 +131,11 @@ class TestPersistentTerminalManager(QObject):
         self.is_available = True
         self._fallback_mode = False  # Add fallback mode attribute
 
+    @property
+    def is_fallback_mode(self) -> bool:
+        """Check if persistent terminal is in fallback mode."""
+        return self._fallback_mode
+
     def is_terminal_available(self) -> bool:
         """Check if terminal is available."""
         return self.is_available
