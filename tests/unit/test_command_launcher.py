@@ -207,7 +207,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_nuke(
         self,
@@ -248,7 +248,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_nuke_with_raw_plate(
         self,
@@ -282,7 +282,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_3de(
         self,
@@ -316,7 +316,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_3de_with_scene(
         self,
@@ -349,7 +349,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_maya(
         self,
@@ -383,7 +383,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_rv(
         self,
@@ -427,7 +427,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_subprocess_failure(
         self,
@@ -461,7 +461,7 @@ class TestCommandLauncher:
     )
     @patch("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", True)
     @patch("command_launcher.Config.USE_PERSISTENT_TERMINAL", True)
-    @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     def test_persistent_terminal_usage(
         self, mock_rez: MagicMock, mock_validate: MagicMock, qtbot: QtBot
     ) -> None:
@@ -518,7 +518,7 @@ class TestCommandLauncher:
 
         with (
             patch("command_launcher.subprocess.Popen") as mock_popen,
-            patch.object(CommandLauncher, "_is_rez_available", return_value=False),
+            patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False),
         ):
             mock_popen.return_value = MagicMock()
 
@@ -560,7 +560,7 @@ class TestCommandLauncherSignals:
                 CommandLauncher, "_validate_workspace_before_launch", return_value=True
             ),
             patch("command_launcher.subprocess.Popen") as mock_popen,
-            patch.object(CommandLauncher, "_is_rez_available", return_value=False),
+            patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False),
         ):
             mock_popen.return_value = MagicMock()
 

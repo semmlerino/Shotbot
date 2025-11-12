@@ -188,6 +188,166 @@ class CommandLauncher(LoggingMixin, QObject):
     # - _detect_available_terminal() → self.env_manager.detect_terminal()
     # - _validate_path_for_shell() → CommandBuilder.validate_path(path)
 
+    def _try_persistent_terminal(self, full_command: str) -> bool:
+        """Try executing command in persistent terminal.
+
+        Template method helper for persistent terminal execution.
+
+        Args:
+            full_command: Complete command to execute
+
+        Returns:
+            True if command was successfully queued in persistent terminal,
+            False if should fallback to new terminal window
+        """
+        if not (
+            self.persistent_terminal
+            and Config.PERSISTENT_TERMINAL_ENABLED
+            and Config.USE_PERSISTENT_TERMINAL
+        ):
+            return False
+
+        # Check if persistent terminal is in fallback mode (quick synchronous check)
+        if self.persistent_terminal._fallback_mode:  # pyright: ignore[reportPrivateUsage]
+            self.logger.warning(
+                "Persistent terminal in fallback mode, launching in new terminal"
+            )
+            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+            self.command_executed.emit(
+                timestamp,
+                "⚠ Persistent terminal unavailable, launching in new terminal...",
+            )
+            return False
+
+        # Dispatcher handles backgrounding of GUI apps
+        self.logger.info(
+            f"Sending command to persistent terminal (async): {full_command}"
+        )
+
+        # Use async send - returns immediately, GUI stays responsive
+        # Progress and completion are reported via signals
+        self.persistent_terminal.send_command_async(full_command)
+        self.logger.debug("Command queued for async execution in persistent terminal")
+        return True
+
+    def _launch_in_new_terminal(
+        self, full_command: str, app_name: str, error_context: str = ""
+    ) -> bool:
+        """Launch command in new terminal window with full error handling.
+
+        Template method helper for new terminal window execution.
+
+        Args:
+            full_command: Complete command to execute
+            app_name: Application name (for spawn verification and error messages)
+            error_context: Additional context for error messages (e.g., " with scene")
+
+        Returns:
+            True if launch successful, False otherwise
+        """
+        # Pre-check for available terminal
+        terminal = self.env_manager.detect_terminal()
+        if terminal is None:
+            self._emit_error(
+                "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
+            )
+            return False
+
+        try:
+            # Build command for the detected terminal
+            if terminal == "gnome-terminal":
+                term_cmd = ["gnome-terminal", "--", "bash", "-ilc", full_command]
+            elif terminal == "konsole":
+                term_cmd = ["konsole", "-e", "bash", "-ilc", full_command]
+            elif terminal in ["xterm", "x-terminal-emulator"]:
+                term_cmd = [terminal, "-e", "bash", "-ilc", full_command]
+            else:
+                # Fallback to direct execution
+                term_cmd = ["/bin/bash", "-ilc", full_command]
+
+            process = subprocess.Popen(term_cmd)
+
+            # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
+            # Use functools.partial for safe reference capture (avoids lambda race conditions)
+            QTimer.singleShot(
+                100, partial(self.process_executor.verify_spawn, process, app_name)
+            )
+
+            return True
+
+        except FileNotFoundError as e:
+            # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
+            filename_not_found: str = _safe_filename_str(
+                cast("str | bytes | int | None", e.filename)
+            )
+            self._emit_error(
+                f"Cannot launch {app_name}{error_context}: Application or terminal not found. Details: {filename_not_found}"
+            )
+            NotificationManager.error(
+                "Launch Failed", f"{app_name} executable not found"
+            )
+            # Clear cache on failure - terminal may have been uninstalled
+            self.env_manager.reset_cache()
+            return False
+
+        except PermissionError as e:
+            # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
+            filename_perm: str = _safe_filename_str(
+                cast("str | bytes | int | None", e.filename)
+            )
+            self._emit_error(
+                f"Cannot launch {app_name}{error_context}: Permission denied. Check file permissions for: {filename_perm}"
+            )
+            return False
+
+        except OSError as e:
+            # Type-safe: e.errno and e.strerror can be None - Task 6.3
+            if e.errno == errno.EACCES:
+                msg = "Permission denied - check file permissions"
+            elif e.errno == errno.ENOSPC:
+                msg = "No space left on device"
+            elif e.errno == errno.EMFILE:
+                msg = "Too many open files"
+            elif e.errno == errno.ENOMEM:
+                msg = "Out of memory"
+            else:
+                errno_str = str(e.errno) if e.errno is not None else "unknown"
+                strerror = e.strerror if e.strerror else "unknown error"
+                msg = f"{strerror} (errno {errno_str})"
+
+            self._emit_error(f"Cannot launch {app_name}{error_context}: {msg}")
+            return False
+
+        except Exception as e:
+            # Fallback for unexpected errors - Task 6.3
+            # Clear cache on failure - terminal may have been uninstalled
+            self.env_manager.reset_cache()
+            self._emit_error(f"Failed to launch {app_name}{error_context}: {e!s}")
+            return False
+
+    def _execute_launch(
+        self, full_command: str, app_name: str, error_context: str = ""
+    ) -> bool:
+        """Execute command via persistent terminal or new window.
+
+        Template method for all launch operations. Tries persistent terminal first,
+        then falls back to new terminal window if unavailable.
+
+        Args:
+            full_command: Complete command to execute (with logging, rez, etc.)
+            app_name: Application name (for spawn verification)
+            error_context: Additional context for error messages (e.g., " with scene")
+
+        Returns:
+            True if launch successful, False otherwise
+        """
+        # Try persistent terminal first
+        if self._try_persistent_terminal(full_command):
+            return True
+
+        # Fallback to new terminal window
+        return self._launch_in_new_terminal(full_command, app_name, error_context)
+
     def launch_app(
         self,
         app_name: str,
@@ -374,113 +534,8 @@ class CommandLauncher(LoggingMixin, QObject):
             f"Constructed command for {app_name}:\n  Command: {full_command!r}\n  Length: {len(full_command)} chars\n  Workspace: {workspace}\n  Shot: {shot_name}"
         )
 
-        # Use persistent terminal if available and enabled
-        if (
-            self.persistent_terminal
-            and Config.PERSISTENT_TERMINAL_ENABLED
-            and Config.USE_PERSISTENT_TERMINAL
-        ):
-            # Check if persistent terminal is in fallback mode (quick synchronous check)
-            if self.persistent_terminal._fallback_mode:  # pyright: ignore[reportPrivateUsage]
-                self.logger.warning(
-                    "Persistent terminal in fallback mode, launching in new terminal"
-                )
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-                self.command_executed.emit(
-                    timestamp,
-                    "⚠ Persistent terminal unavailable, launching in new terminal...",
-                )
-                # Fall through to launch new terminal
-            else:
-                # Dispatcher handles backgrounding of GUI apps
-                self.logger.info(
-                    f"Sending command to persistent terminal (async): {full_command}"
-                )
-                is_gui = self.process_executor.is_gui_app(app_name)
-                self.logger.debug(
-                    f"Command details:\n  Command: {full_command!r}\n  Is GUI app: {is_gui}"
-                )
-
-                # Use async send - returns immediately, GUI stays responsive
-                # Progress and completion are reported via signals
-                self.persistent_terminal.send_command_async(full_command)
-                self.logger.debug("Command queued for async execution in persistent terminal")
-                return True
-
-        # Launch in new terminal (original behavior)
-        # Pre-check for available terminal
-        terminal = self.env_manager.detect_terminal()
-        if terminal is None:
-            self._emit_error(
-                "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
-            )
-            return False
-
-        try:
-            # Build command for the detected terminal
-            if terminal == "gnome-terminal":
-                term_cmd = ["gnome-terminal", "--", "bash", "-ilc", full_command]
-            elif terminal == "konsole":
-                term_cmd = ["konsole", "-e", "bash", "-ilc", full_command]
-            elif terminal in ["xterm", "x-terminal-emulator"]:
-                term_cmd = [terminal, "-e", "bash", "-ilc", full_command]
-            else:
-                # Fallback to direct execution
-                term_cmd = ["/bin/bash", "-ilc", full_command]
-
-            process = subprocess.Popen(term_cmd)
-
-            # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
-            # Use functools.partial for safe reference capture (avoids lambda race conditions)
-            QTimer.singleShot(100, partial(self.process_executor.verify_spawn, process, app_name))
-
-            return True
-
-        except FileNotFoundError as e:
-            # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
-            filename_not_found: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
-            self._emit_error(
-                f"Cannot launch {app_name}: Application or terminal not found. Details: {filename_not_found}"
-            )
-            NotificationManager.error(
-                "Launch Failed", f"{app_name} executable not found"
-            )
-            # Clear cache on failure - terminal may have been uninstalled
-            self.env_manager.reset_cache()
-            return False
-
-        except PermissionError as e:
-            # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
-            filename_perm: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
-            self._emit_error(
-                f"Cannot launch {app_name}: Permission denied. Check file permissions for: {filename_perm}"
-            )
-            return False
-
-        except OSError as e:
-            # Type-safe: e.errno and e.strerror can be None - Task 6.3
-            if e.errno == errno.EACCES:
-                msg = "Permission denied - check file permissions"
-            elif e.errno == errno.ENOSPC:
-                msg = "No space left on device"
-            elif e.errno == errno.EMFILE:
-                msg = "Too many open files"
-            elif e.errno == errno.ENOMEM:
-                msg = "Out of memory"
-            else:
-                errno_str = str(e.errno) if e.errno is not None else "unknown"
-                strerror = e.strerror if e.strerror else "unknown error"
-                msg = f"{strerror} (errno {errno_str})"
-
-            self._emit_error(f"Cannot launch {app_name}: {msg}")
-            return False
-
-        except Exception as e:
-            # Fallback for unexpected errors - Task 6.3
-            # Clear cache on failure - terminal may have been uninstalled
-            self.env_manager.reset_cache()
-            self._emit_error(f"Failed to launch {app_name}: {e!s}")
-            return False
+        # Use template method for terminal launch
+        return self._execute_launch(full_command, app_name)
 
     def launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:
         """Launch an application with a specific 3DE scene file.
@@ -575,112 +630,8 @@ class CommandLauncher(LoggingMixin, QObject):
             f"{full_command} (Scene by: {scene.user}, Plate: {scene.plate})",
         )
 
-        # Use persistent terminal if available and enabled
-        if (
-            self.persistent_terminal
-            and Config.PERSISTENT_TERMINAL_ENABLED
-            and Config.USE_PERSISTENT_TERMINAL
-        ):
-            # Check if persistent terminal is in fallback mode (quick synchronous check)
-            if self.persistent_terminal._fallback_mode:  # pyright: ignore[reportPrivateUsage]
-                self.logger.warning(
-                    "Persistent terminal in fallback mode, launching in new terminal"
-                )
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-                self.command_executed.emit(
-                    timestamp,
-                    "⚠ Persistent terminal unavailable, launching in new terminal...",
-                )
-                # Fall through to launch new terminal
-            else:
-                # Dispatcher handles backgrounding of GUI apps
-                self.logger.info(
-                    f"Sending scene command to persistent terminal (async): {full_command}"
-                )
-                self.logger.debug(
-                    f"Is GUI app: {self.process_executor.is_gui_app(app_name)}"
-                )
-
-                # Use async send - returns immediately, GUI stays responsive
-                # Progress and completion are reported via signals
-                self.persistent_terminal.send_command_async(full_command)
-                self.logger.debug("Scene command queued for async execution in persistent terminal")
-                return True
-
-        # Launch in new terminal (original behavior)
-        # Pre-check for available terminal
-        terminal = self.env_manager.detect_terminal()
-        if terminal is None:
-            self._emit_error(
-                "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
-            )
-            return False
-
-        try:
-            # Build command for the detected terminal
-            if terminal == "gnome-terminal":
-                term_cmd = ["gnome-terminal", "--", "bash", "-ilc", full_command]
-            elif terminal == "konsole":
-                term_cmd = ["konsole", "-e", "bash", "-ilc", full_command]
-            elif terminal in ["xterm", "x-terminal-emulator"]:
-                term_cmd = [terminal, "-e", "bash", "-ilc", full_command]
-            else:
-                # Fallback to direct execution
-                term_cmd = ["/bin/bash", "-ilc", full_command]
-
-            process = subprocess.Popen(term_cmd)
-
-            # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
-            # Use functools.partial for safe reference capture (avoids lambda race conditions)
-            QTimer.singleShot(100, partial(self.process_executor.verify_spawn, process, app_name))
-
-            return True
-
-        except FileNotFoundError as e:
-            # Type-safe: e.filename can be None - Task 6.3
-            filename_not_found_scene: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
-            self._emit_error(
-                f"Cannot launch {app_name} with scene: Application or terminal not found. Details: {filename_not_found_scene}"
-            )
-            NotificationManager.error(
-                "Launch Failed", f"{app_name} executable not found"
-            )
-            # Clear cache on failure - terminal may have been uninstalled
-            self.env_manager.reset_cache()
-            return False
-
-        except PermissionError as e:
-            # Type-safe: e.filename can be None - Task 6.3
-            filename_perm_scene: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
-            self._emit_error(
-                f"Cannot launch {app_name} with scene: Permission denied. Check file permissions for: {filename_perm_scene}"
-            )
-            return False
-
-        except OSError as e:
-            # Type-safe: e.errno and e.strerror can be None - Task 6.3
-            if e.errno == errno.EACCES:
-                msg = "Permission denied - check file permissions"
-            elif e.errno == errno.ENOSPC:
-                msg = "No space left on device"
-            elif e.errno == errno.EMFILE:
-                msg = "Too many open files"
-            elif e.errno == errno.ENOMEM:
-                msg = "Out of memory"
-            else:
-                errno_str = str(e.errno) if e.errno is not None else "unknown"
-                strerror = e.strerror if e.strerror else "unknown error"
-                msg = f"{strerror} (errno {errno_str})"
-
-            self._emit_error(f"Cannot launch {app_name} with scene: {msg}")
-            return False
-
-        except Exception as e:
-            # Fallback for unexpected errors - Task 6.3
-            # Clear cache on failure - terminal may have been uninstalled
-            self.env_manager.reset_cache()
-            self._emit_error(f"Failed to launch {app_name} with scene: {e!s}")
-            return False
+        # Use template method for terminal launch
+        return self._execute_launch(full_command, app_name, " with scene")
 
     def launch_app_with_scene_context(
         self,
@@ -802,112 +753,8 @@ class CommandLauncher(LoggingMixin, QObject):
             f"{full_command} (Context: {scene.user}'s {scene.plate})",
         )
 
-        # Use persistent terminal if available and enabled
-        if (
-            self.persistent_terminal
-            and Config.PERSISTENT_TERMINAL_ENABLED
-            and Config.USE_PERSISTENT_TERMINAL
-        ):
-            # Check if persistent terminal is in fallback mode (quick synchronous check)
-            if self.persistent_terminal._fallback_mode:  # pyright: ignore[reportPrivateUsage]
-                self.logger.warning(
-                    "Persistent terminal in fallback mode, launching in new terminal"
-                )
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-                self.command_executed.emit(
-                    timestamp,
-                    "⚠ Persistent terminal unavailable, launching in new terminal...",
-                )
-                # Fall through to launch new terminal
-            else:
-                # Dispatcher handles backgrounding of GUI apps
-                self.logger.info(
-                    f"Sending scene context command to persistent terminal (async): {full_command}"
-                )
-                self.logger.debug(
-                    f"Is GUI app: {self.process_executor.is_gui_app(app_name)}"
-                )
-
-                # Use async send - returns immediately, GUI stays responsive
-                # Progress and completion are reported via signals
-                self.persistent_terminal.send_command_async(full_command)
-                self.logger.debug("Scene context command queued for async execution in persistent terminal")
-                return True
-
-        # Launch in new terminal (fallback or when persistent terminal disabled)
-        # Pre-check for available terminal
-        terminal = self.env_manager.detect_terminal()
-        if terminal is None:
-            self._emit_error(
-                "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
-            )
-            return False
-
-        try:
-            # Build command for the detected terminal
-            if terminal == "gnome-terminal":
-                term_cmd = ["gnome-terminal", "--", "bash", "-ilc", full_command]
-            elif terminal == "konsole":
-                term_cmd = ["konsole", "-e", "bash", "-ilc", full_command]
-            elif terminal in ["xterm", "x-terminal-emulator"]:
-                term_cmd = [terminal, "-e", "bash", "-ilc", full_command]
-            else:
-                # Fallback to direct execution
-                term_cmd = ["/bin/bash", "-ilc", full_command]
-
-            process = subprocess.Popen(term_cmd)
-
-            # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
-            # Use functools.partial for safe reference capture (avoids lambda race conditions)
-            QTimer.singleShot(100, partial(self.process_executor.verify_spawn, process, app_name))
-
-            return True
-
-        except FileNotFoundError as e:
-            # Type-safe: e.filename can be None - Task 6.3
-            filename_not_found_ctx: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
-            self._emit_error(
-                f"Cannot launch {app_name} in scene context: Application or terminal not found. Details: {filename_not_found_ctx}"
-            )
-            NotificationManager.error(
-                "Launch Failed", f"{app_name} executable not found"
-            )
-            # Clear cache on failure - terminal may have been uninstalled
-            self.env_manager.reset_cache()
-            return False
-
-        except PermissionError as e:
-            # Type-safe: e.filename can be None - Task 6.3
-            filename_perm_ctx: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
-            self._emit_error(
-                f"Cannot launch {app_name} in scene context: Permission denied. Check file permissions for: {filename_perm_ctx}"
-            )
-            return False
-
-        except OSError as e:
-            # Type-safe: e.errno and e.strerror can be None - Task 6.3
-            if e.errno == errno.EACCES:
-                msg = "Permission denied - check file permissions"
-            elif e.errno == errno.ENOSPC:
-                msg = "No space left on device"
-            elif e.errno == errno.EMFILE:
-                msg = "Too many open files"
-            elif e.errno == errno.ENOMEM:
-                msg = "Out of memory"
-            else:
-                errno_str = str(e.errno) if e.errno is not None else "unknown"
-                strerror = e.strerror if e.strerror else "unknown error"
-                msg = f"{strerror} (errno {errno_str})"
-
-            self._emit_error(f"Cannot launch {app_name} in scene context: {msg}")
-            return False
-
-        except Exception as e:
-            # Fallback for unexpected errors - Task 6.3
-            # Clear cache on failure - terminal may have been uninstalled
-            self.env_manager.reset_cache()
-            self._emit_error(f"Failed to launch {app_name} in scene context: {e!s}")
-            return False
+        # Use template method for terminal launch
+        return self._execute_launch(full_command, app_name, " in scene context")
 
     # Methods removed - now using launch components:
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
