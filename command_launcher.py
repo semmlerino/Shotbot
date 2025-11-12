@@ -6,6 +6,7 @@ from __future__ import annotations
 import errno
 import os
 import subprocess
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
@@ -44,6 +45,30 @@ def _safe_filename_str(filename: str | bytes | int | None) -> str:
     if isinstance(filename, bytes):
         return filename.decode("utf-8", errors="replace")
     return str(filename)
+
+
+@dataclass(frozen=True)
+class LaunchContext:
+    """Value object encapsulating application launch parameters.
+
+    This immutable dataclass simplifies CommandLauncher's API by grouping
+    related launch options together, reducing parameter coupling.
+
+    Attributes:
+        include_raw_plate: Whether to include raw plate Read node (Nuke only)
+        open_latest_threede: Whether to open latest 3DE scene file (3DE only)
+        open_latest_maya: Whether to open latest Maya scene file (Maya only)
+        open_latest_scene: Whether to open latest Nuke script (Nuke only)
+        create_new_file: Whether to create a new version (Nuke only)
+        selected_plate: Selected plate space for Nuke workspace scripts
+    """
+
+    include_raw_plate: bool = False
+    open_latest_threede: bool = False
+    open_latest_maya: bool = False
+    open_latest_scene: bool = False
+    create_new_file: bool = False
+    selected_plate: str | None = None
 
 
 @final
@@ -333,6 +358,8 @@ class CommandLauncher(LoggingMixin, QObject):
     def launch_app(
         self,
         app_name: str,
+        context: LaunchContext | None = None,
+        # Legacy parameters for backward compatibility
         include_raw_plate: bool = False,
         open_latest_threede: bool = False,
         open_latest_maya: bool = False,
@@ -344,16 +371,32 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Args:
             app_name: Name of the application to launch
-            include_raw_plate: Whether to include raw plate Read node (Nuke only)
-            open_latest_threede: Whether to open the latest 3DE scene file (3DE only)
-            open_latest_maya: Whether to open the latest Maya scene file (Maya only)
-            open_latest_scene: Whether to open the latest Nuke script (Nuke only)
-            create_new_file: Whether to create a new version (Nuke only)
-            selected_plate: Selected plate space for Nuke workspace scripts (e.g., "FG01", "BG01")
+            context: Launch context with options (preferred)
+            include_raw_plate: (Legacy) Whether to include raw plate Read node (Nuke only)
+            open_latest_threede: (Legacy) Whether to open the latest 3DE scene file (3DE only)
+            open_latest_maya: (Legacy) Whether to open the latest Maya scene file (Maya only)
+            open_latest_scene: (Legacy) Whether to open the latest Nuke script (Nuke only)
+            create_new_file: (Legacy) Whether to create a new version (Nuke only)
+            selected_plate: (Legacy) Selected plate space for Nuke workspace scripts
 
         Returns:
             True if launch was successful, False otherwise
+
+        Note:
+            The context parameter is preferred. Legacy parameters are kept for
+            backward compatibility but will be removed in a future version.
         """
+        # Handle backward compatibility: if context not provided, create from legacy params
+        if context is None:
+            context = LaunchContext(
+                include_raw_plate=include_raw_plate,
+                open_latest_threede=open_latest_threede,
+                open_latest_maya=open_latest_maya,
+                open_latest_scene=open_latest_scene,
+                create_new_file=create_new_file,
+                selected_plate=selected_plate,
+            )
+
         if not self.current_shot:
             self._emit_error("No shot selected")
             return False
@@ -375,13 +418,13 @@ class CommandLauncher(LoggingMixin, QObject):
         if app_name == "nuke":
             # Use the unified Nuke handler for all Nuke-specific logic
             options = {
-                "open_latest_scene": open_latest_scene,
-                "create_new_file": create_new_file,
-                "include_raw_plate": include_raw_plate,
+                "open_latest_scene": context.open_latest_scene,
+                "create_new_file": context.create_new_file,
+                "include_raw_plate": context.include_raw_plate,
             }
 
             command, log_messages = self.nuke_handler.prepare_nuke_command(
-                self.current_shot, command, options, selected_plate=selected_plate
+                self.current_shot, command, options, selected_plate=context.selected_plate
             )
 
             # Emit log messages
@@ -392,7 +435,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Old Nuke handling code has been removed - see NukeLaunchHandler
 
         # Handle 3DE with latest scene file
-        if app_name == "3de" and open_latest_threede:
+        if app_name == "3de" and context.open_latest_threede:
             latest_scene = self._threede_latest_finder.find_latest_threede_scene(
                 self.current_shot.workspace_path,
                 self.current_shot.full_name,
@@ -421,7 +464,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 )
 
         # Handle Maya with latest scene file
-        if app_name == "maya" and open_latest_maya:
+        if app_name == "maya" and context.open_latest_maya:
             latest_scene = self._maya_latest_finder.find_latest_maya_scene(
                 self.current_shot.workspace_path,
                 self.current_shot.full_name,
