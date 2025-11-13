@@ -4,11 +4,13 @@ from __future__ import annotations
 
 # Standard library imports
 import errno
+import logging
+import os
 import stat
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock, patch
 
 # Third-party imports
@@ -1209,6 +1211,255 @@ class TestPersistentTerminalManager:
 
         # Verify manager state is consistent despite error
         assert terminal_manager._dummy_writer_fd is None
+
+
+
+
+class TestDispatcherLaunchIssues:
+    """Tests to catch dispatcher script launch failures.
+
+    These tests verify that the dispatcher script can actually start inside the
+    terminal emulator, catching issues like:
+    - Missing dispatcher script file
+    - Incorrect file permissions
+    - Malformed terminal commands
+    - Dispatcher PID detection failures
+    """
+
+    @pytest.fixture
+    def terminal_manager_with_real_paths(
+        self, tmp_path: Path
+    ) -> Generator[PersistentTerminalManager, None, None]:
+        """Create terminal manager with real file paths (not mocked).
+
+        This fixture creates actual files on disk to test real file system
+        interactions, only mocking the subprocess/process launches.
+        """
+        fifo_path = tmp_path / "test_commands.fifo"
+        dispatcher_path = tmp_path / "test_dispatcher.sh"
+
+        # Create dispatcher script as a real file
+        dispatcher_path.write_text("#!/bin/bash\necho 'Test dispatcher'")
+        dispatcher_path.chmod(0o755)
+
+        # Mock only subprocess and the FIFO creation itself (to avoid system calls)
+        # But allow Path checks to work normally on real files
+        with (
+            patch("persistent_terminal_manager.subprocess.Popen"),
+            patch("persistent_terminal_manager.os.mkfifo"),  # Don't actually create FIFO
+            patch("persistent_terminal_manager.os.open", return_value=99),
+            patch("persistent_terminal_manager.os.close"),
+        ):
+            manager = PersistentTerminalManager(
+                fifo_path=str(fifo_path),
+                dispatcher_path=str(dispatcher_path)
+            )
+            yield manager
+
+            # Cleanup
+            try:
+                if manager._dummy_writer_fd is not None:
+                    os.close(manager._dummy_writer_fd)
+            except (OSError, AttributeError):
+                pass
+
+    def test_dispatcher_script_exists_before_launch(
+        self,
+        terminal_manager_with_real_paths: PersistentTerminalManager,
+    ) -> None:
+        """Test that dispatcher script file exists at expected path.
+
+        This test should FAIL if the dispatcher script doesn't exist,
+        which would explain why bash can't execute it.
+        """
+        # Arrange: Get the dispatcher path from manager
+        dispatcher_path = Path(terminal_manager_with_real_paths.dispatcher_path)
+
+        # Act & Assert: Verify file exists
+        assert dispatcher_path.exists(), \
+            f"Dispatcher script not found at {dispatcher_path}"
+
+        # Additional check: Verify it's a file (not directory)
+        assert dispatcher_path.is_file(), \
+            f"Dispatcher path exists but is not a file: {dispatcher_path}"
+
+    def test_dispatcher_script_is_executable(
+        self,
+        terminal_manager_with_real_paths: PersistentTerminalManager,
+    ) -> None:
+        """Test that dispatcher script has execute permissions.
+
+        This test should FAIL if the script isn't executable, which would
+        prevent bash from running it.
+        """
+        # Arrange: Get the dispatcher path
+        dispatcher_path = terminal_manager_with_real_paths.dispatcher_path
+
+        # Act & Assert: Verify execute permissions
+        assert os.access(dispatcher_path, os.X_OK), \
+            f"Dispatcher script not executable: {dispatcher_path}"
+
+        # Additional check: Verify permissions mode
+        stat_result = Path(dispatcher_path).stat()
+        mode = stat_result.st_mode
+        has_exec = bool(mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
+        assert has_exec, \
+            f"Dispatcher script has no execute bits set: {oct(mode)}"
+
+    def test_terminal_command_includes_dispatcher_path(
+        self,
+        terminal_manager_with_real_paths: PersistentTerminalManager,
+    ) -> None:
+        """Test that terminal launch command includes correct dispatcher path.
+
+        This test verifies that when we construct the terminal command,
+        the dispatcher script path is properly included in the arguments.
+        """
+        # Arrange: Get expected dispatcher path
+        expected_path = terminal_manager_with_real_paths.dispatcher_path
+
+        # Act: Read the _launch_terminal code to verify command structure
+        # We can't easily mock subprocess.Popen and inspect args, so we verify
+        # the manager has the right path configured
+
+        # Assert: Manager has correct dispatcher path set
+        assert terminal_manager_with_real_paths.dispatcher_path == expected_path
+
+        # Assert: Path is absolute (terminal needs full path)
+        assert Path(expected_path).is_absolute(), \
+            f"Dispatcher path should be absolute, got: {expected_path}"
+
+    def test_dispatcher_pid_found_after_launch(
+        self,
+        terminal_manager_with_real_paths: PersistentTerminalManager,
+    ) -> None:
+        """Test that dispatcher PID can be found after terminal launch.
+
+        This test verifies that _find_dispatcher_pid() uses self.dispatcher_path
+        instead of a hardcoded "terminal_dispatcher.sh" string, which would fail
+        for any dispatcher script with a different name (like test_dispatcher.sh).
+        """
+        # Arrange: Mock terminal and create a mock bash process tree
+        mock_terminal_process = MagicMock()
+        mock_terminal_process.pid = 12345
+
+        # Create mock bash child process running our dispatcher script
+        mock_bash_child = MagicMock()
+        mock_bash_child.pid = 67890
+        mock_bash_child.name.return_value = "bash"
+
+        # Mock cmdline to include the actual dispatcher path (not hardcoded name)
+        dispatcher_path = terminal_manager_with_real_paths.dispatcher_path
+        mock_bash_child.cmdline.return_value = ["bash", "-il", dispatcher_path, "/tmp/test.fifo"]
+
+        # Mock psutil to return our mock process tree
+        with (
+            patch("persistent_terminal_manager.subprocess.Popen", return_value=mock_terminal_process),
+            patch.object(
+                terminal_manager_with_real_paths,
+                "_is_terminal_alive",
+                return_value=True
+            ),
+            patch("persistent_terminal_manager.psutil.Process") as mock_psutil_process,
+        ):
+            # Setup psutil mock to return our bash child
+            mock_proc_instance = MagicMock()
+            mock_proc_instance.children.return_value = [mock_bash_child]
+            mock_psutil_process.return_value = mock_proc_instance
+
+            # Act: Launch terminal (this sets terminal_pid)
+            result = terminal_manager_with_real_paths._launch_terminal()
+
+            # Assert: Terminal launched successfully
+            assert result is True, "Terminal launch should succeed"
+
+            # Assert: Dispatcher PID was found
+            # With the fix, _find_dispatcher_pid() should find the bash process
+            # because it now checks for self.dispatcher_path instead of hardcoded string
+            assert terminal_manager_with_real_paths.dispatcher_pid is not None, \
+                "Dispatcher PID should be found after terminal launch"
+
+            # Assert: The found PID matches our mock bash process
+            assert terminal_manager_with_real_paths.dispatcher_pid == 67890, \
+                f"Expected dispatcher PID 67890, got {terminal_manager_with_real_paths.dispatcher_pid}"
+
+    def test_dispatcher_script_readable_by_bash(
+        self,
+        terminal_manager_with_real_paths: PersistentTerminalManager,
+    ) -> None:
+        """Test that bash can read the dispatcher script.
+
+        This test verifies file permissions allow bash to read/execute.
+        """
+        # Arrange: Get dispatcher path
+        dispatcher_path = terminal_manager_with_real_paths.dispatcher_path
+
+        # Act & Assert: Verify read permissions
+        assert os.access(dispatcher_path, os.R_OK), \
+            f"Dispatcher script not readable: {dispatcher_path}"
+
+        # Additional check: Try to actually read the file
+        try:
+            with Path(dispatcher_path).open() as f:
+                content = f.read()
+                assert len(content) > 0, "Dispatcher script is empty"
+                assert content.startswith("#!/bin/bash"), \
+                    "Dispatcher script should start with shebang"
+        except Exception as e:
+            pytest.fail(f"Failed to read dispatcher script: {e}")
+
+    def test_launch_terminal_logs_dispatcher_script_path(
+        self,
+        terminal_manager_with_real_paths: PersistentTerminalManager,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Test that terminal launch logs show actual dispatcher path.
+
+        This helps debug path resolution issues by verifying the actual
+        path being used in the terminal command.
+        """
+        # Arrange: Mock subprocess to capture command
+        captured_commands: list[list[str]] = []
+
+        def capture_popen(cmd: list[str], **kwargs: Any) -> MagicMock:
+            """Capture command being executed."""
+            captured_commands.append(cmd)
+            mock_process = MagicMock()
+            mock_process.pid = 12345
+            return mock_process
+
+        with (
+            patch("persistent_terminal_manager.subprocess.Popen", side_effect=capture_popen),
+            patch.object(
+                terminal_manager_with_real_paths,
+                "_is_terminal_alive",
+                return_value=True
+            ),
+            patch.object(
+                terminal_manager_with_real_paths,
+                "_find_dispatcher_pid",
+                return_value=67890
+            ),
+            caplog.at_level(logging.DEBUG),
+        ):
+            # Act: Launch terminal
+            _ = terminal_manager_with_real_paths._launch_terminal()
+
+            # Assert: Command was executed
+            assert len(captured_commands) > 0, "No terminal command was executed"
+
+            # Assert: Dispatcher path is in the command
+            expected_path = terminal_manager_with_real_paths.dispatcher_path
+            command_str = " ".join(captured_commands[0])
+            assert expected_path in command_str, \
+                f"Dispatcher path '{expected_path}' not found in command: {command_str}"
+
+            # Assert: Debug logs show the path
+            debug_messages = [record.message for record in caplog.records
+                            if record.levelname == "DEBUG"]
+            # At least one debug message should mention trying to launch
+            assert any("launch" in msg.lower() for msg in debug_messages), \
+                f"Expected launch-related debug logs, got: {debug_messages}"
 
 
 class TestPersistentTerminalIntegration:

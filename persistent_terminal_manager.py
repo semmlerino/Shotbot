@@ -327,7 +327,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             # Get the terminal process
             terminal_proc = psutil.Process(self.terminal_pid)
 
-            # Look for bash child process running terminal_dispatcher.sh
+            # Get the dispatcher script basename for matching
+            dispatcher_name = Path(self.dispatcher_path).name
+
+            # Look for bash child process running our dispatcher script
             for child in terminal_proc.children(recursive=True):
                 try:
                     # Check if this is a bash process
@@ -335,8 +338,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                         continue
 
                     # Check if it's running our dispatcher script
+                    # Match against the full path or just the basename
                     cmdline = child.cmdline()
-                    if any("terminal_dispatcher.sh" in arg for arg in cmdline):
+                    if any(self.dispatcher_path in arg or dispatcher_name in arg for arg in cmdline):
                         self.logger.debug(
                             f"Found dispatcher process: PID {child.pid}, cmdline: {cmdline}"
                         )
