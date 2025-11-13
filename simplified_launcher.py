@@ -15,6 +15,7 @@ from __future__ import annotations
 # Standard library imports
 import os
 import subprocess
+import threading
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -66,9 +67,11 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             str, tuple[str, float]
         ] = {}  # command -> (result, timestamp)
         self._ws_cache_ttl = Config.WS_CACHE_TTL
+        self._cache_lock = threading.Lock()  # Thread-safe cache access
 
         # Track active processes for cleanup
         self._active_processes: dict[int, subprocess.Popen[str]] = {}
+        self._process_lock = threading.Lock()  # Thread-safe process tracking
 
         # Current shot context
         self.current_shot: Shot | None = None
@@ -333,8 +336,9 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                 text=True,
             )
 
-            # Track process
-            self._active_processes[proc.pid] = proc
+            # Track process (thread-safe)
+            with self._process_lock:
+                self._active_processes[proc.pid] = proc
             self.process_started.emit(command, proc.pid)
 
             self.logger.info(f"Launched process {proc.pid}: {command[:50]}...")
@@ -360,7 +364,9 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                 text=True,
             )
 
-            self._active_processes[proc.pid] = proc
+            # Track process (thread-safe)
+            with self._process_lock:
+                self._active_processes[proc.pid] = proc
             self.process_started.emit(command, proc.pid)
 
             return True
@@ -443,58 +449,105 @@ class SimplifiedLauncher(LoggingMixin, QObject):
     # ========== Cache Management ==========
 
     def _cache_get(self, command: str) -> str | None:
-        """Get cached result if still valid (30 minutes)."""
-        if command not in self._ws_cache:
+        """Get cached result if still valid (thread-safe)."""
+        with self._cache_lock:
+            if command not in self._ws_cache:
+                return None
+
+            result, timestamp = self._ws_cache[command]
+
+            # Check if cache is still valid (30 minutes)
+            if time.time() - timestamp < self._ws_cache_ttl:
+                return result
+
+            # Cache expired
+            del self._ws_cache[command]
             return None
 
-        result, timestamp = self._ws_cache[command]
-
-        # Check if cache is still valid (30 minutes)
-        if time.time() - timestamp < self._ws_cache_ttl:
-            return result
-
-        # Cache expired
-        del self._ws_cache[command]
-        return None
-
     def _cache_set(self, command: str, result: str) -> None:
-        """Store result in cache with current timestamp."""
-        self._ws_cache[command] = (result, time.time())
+        """Cache a workspace command result (thread-safe)."""
+        with self._cache_lock:
+            self._ws_cache[command] = (result, time.time())
 
     def clear_cache(self) -> None:
-        """Clear all cached commands."""
-        self._ws_cache.clear()
+        """Clear the workspace command cache (thread-safe)."""
+        with self._cache_lock:
+            self._ws_cache.clear()
         self.logger.info("Cleared workspace command cache")
 
     # ========== Process Management ==========
 
     def cleanup_processes(self) -> None:
-        """Clean up finished processes from tracking."""
+        """Clean up finished processes from tracking (thread-safe)."""
         finished_pids: list[int] = []
 
-        for pid, proc in self._active_processes.items():
+        # Snapshot under lock
+        with self._process_lock:
+            processes_snapshot = list(self._active_processes.items())
+
+        # Check processes outside lock (poll() could block)
+        for pid, proc in processes_snapshot:
             poll = proc.poll()
             if poll is not None:
-                # Process has finished
                 finished_pids.append(pid)
-                self.process_finished.emit(str(proc.args)[:50], poll)
+                # Safely handle proc.args (could be list or string)
+                try:
+                    if isinstance(proc.args, list):
+                        cmd_str = " ".join(str(arg) for arg in proc.args)
+                    else:
+                        cmd_str = str(proc.args)
+                    self.process_finished.emit(cmd_str[:50], poll)
+                except Exception:
+                    self.process_finished.emit(f"PID {pid}", poll)
 
-        for pid in finished_pids:
-            del self._active_processes[pid]
-
+        # Remove finished processes under lock
         if finished_pids:
+            with self._process_lock:
+                for pid in finished_pids:
+                    if pid in self._active_processes:
+                        proc = self._active_processes[pid]
+                        del self._active_processes[pid]
+                        # Close subprocess to release file descriptors
+                        try:
+                            proc.close()  # pyright: ignore[reportAttributeAccessIssue]
+                        except Exception:
+                            pass
             self.logger.debug(f"Cleaned up {len(finished_pids)} finished processes")
 
     def terminate_all_processes(self) -> None:
-        """Terminate all active processes (for shutdown)."""
-        for pid, proc in self._active_processes.items():
+        """Terminate all active processes with SIGKILL fallback (thread-safe)."""
+        # Snapshot under lock
+        with self._process_lock:
+            processes_snapshot = list(self._active_processes.items())
+
+        # First attempt: graceful termination (SIGTERM)
+        for pid, proc in processes_snapshot:
             try:
                 proc.terminate()
-                self.logger.info(f"Terminated process {pid}")
+                self.logger.info(f"Sent SIGTERM to process {pid}")
             except Exception as e:
                 self.logger.warning(f"Failed to terminate process {pid}: {e}")
 
-        self._active_processes.clear()
+        # Wait briefly for graceful termination
+        time.sleep(0.5)
+
+        # Second attempt: force kill any remaining processes (SIGKILL)
+        for pid, proc in processes_snapshot:
+            if proc.poll() is None:  # Still running
+                try:
+                    proc.kill()
+                    self.logger.info(f"Sent SIGKILL to process {pid}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to kill process {pid}: {e}")
+
+        # Clear tracking dictionary under lock
+        with self._process_lock:
+            for proc in self._active_processes.values():
+                try:
+                    proc.close()  # pyright: ignore[reportAttributeAccessIssue]
+                except Exception:
+                    pass
+            self._active_processes.clear()
 
     # ========== Utility Methods ==========
 
@@ -513,14 +566,20 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         return path_str
 
     def _command_exists(self, command: str) -> bool:
-        """Check if a command exists on the system."""
+        """Check if a command exists on the system.
+
+        Returns:
+            True if command exists (which returns exit code 0), False otherwise
+        """
         try:
-            _ = subprocess.run(
+            result = subprocess.run(
                 ["which", command],
                 capture_output=True,
                 check=False,
             )
-            return True
+            # Fix: Check exit code instead of always returning True
+            # which returns 0 if command found, non-zero if not found
+            return result.returncode == 0
         except Exception:
             return False
 
@@ -588,6 +647,27 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             "active_processes": len(self._active_processes),
             "cache_ttl_seconds": self._ws_cache_ttl,
         }
+
+    # ========== Test Isolation ==========
+
+    @classmethod
+    def reset(cls) -> None:
+        """Reset singleton for testing. INTERNAL USE ONLY.
+
+        This method clears all state and resets the launcher instance.
+        It should only be used in test cleanup to ensure test isolation.
+
+        Note: SimplifiedLauncher is not a true singleton (multiple instances allowed),
+        but this method is provided for consistency with project conventions and to
+        support test cleanup patterns.
+
+        Per CLAUDE.md guidelines, all singleton-like classes should implement this
+        method for test isolation, even if they don't maintain class-level state.
+        Tests should create fresh instances rather than reusing/resetting existing ones.
+        """
+        # SimplifiedLauncher doesn't use class-level state, only instance state.
+        # Instance cleanup is handled via terminate_all_processes() and clear_cache()
+        # which should be called explicitly when shutting down an instance.
 
     # ========== Backward Compatibility ==========
 

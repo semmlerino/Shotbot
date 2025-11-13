@@ -55,14 +55,20 @@ class TerminalOperationWorker(QThread):
     progress: Signal = Signal(str)  # Status message
     operation_finished: Signal = Signal(bool, str)  # success, message
 
-    def __init__(self, manager: PersistentTerminalManager, operation: str) -> None:
+    def __init__(
+        self,
+        manager: PersistentTerminalManager,
+        operation: str,
+        parent: QObject | None = None,
+    ) -> None:
         """Initialize worker.
 
         Args:
             manager: The terminal manager instance
             operation: Operation name ('health_check' or 'send_command')
+            parent: Optional parent QObject for proper Qt ownership
         """
-        super().__init__()
+        super().__init__(parent)
         self.manager: PersistentTerminalManager = manager
         self.operation: str = operation
         self.command: str = ""  # For send_command operation
@@ -78,7 +84,15 @@ class TerminalOperationWorker(QThread):
             self.operation_finished.emit(False, f"Operation failed: {e!s}")
 
     def _run_health_check(self) -> None:
-        """Run health check operation."""
+        """Run health check operation.
+
+        Thread-Safety Note:
+            This method runs in a worker thread and calls manager methods that access
+            shared state. This is SAFE because:
+            - _is_dispatcher_healthy() and _ensure_dispatcher_healthy() use internal
+              locks (_write_lock, _state_lock) to protect all shared state access
+            - These methods are designed to be thread-safe and callable from workers
+        """
         self.progress.emit("Checking terminal health...")
 
         if self.manager._is_dispatcher_healthy():  # pyright: ignore[reportPrivateUsage]
@@ -93,7 +107,15 @@ class TerminalOperationWorker(QThread):
             self.operation_finished.emit(False, "Terminal recovery failed")
 
     def _run_send_command(self) -> None:
-        """Run send command operation."""
+        """Run send command operation.
+
+        Thread-Safety Note:
+            This method runs in a worker thread and calls manager methods that access
+            shared state. This is SAFE because:
+            - _ensure_dispatcher_healthy() and _send_command_direct() use internal
+              locks (_write_lock, _state_lock) to protect all shared state access
+            - These methods are designed to be thread-safe and callable from workers
+        """
         self.progress.emit(f"Sending command: {self.command[:50]}...")
 
         # Ensure terminal is healthy first
@@ -171,6 +193,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Active workers for async operations (prevents garbage collection)
         self._active_workers: list[TerminalOperationWorker] = []
+        self._workers_lock = threading.Lock()  # Thread-safe worker list access
 
         # Ensure FIFO exists (but don't open dummy writer yet - no dispatcher running)
         if not self._ensure_fifo(open_dummy_writer=False):
@@ -483,6 +506,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         2. FIFO has a reader (existing check)
         3. Heartbeat response (if enabled)
 
+        Thread-Safe:
+            Can be called from worker threads. Uses internal locks to protect
+            shared state access (_write_lock for FIFO operations).
+
         Returns:
             True if dispatcher appears healthy, False otherwise
         """
@@ -523,14 +550,31 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         if not Path(self.fifo_path).exists():
             return False
 
+        fd = None  # Track FD for cleanup in case of errors
         try:
             with self._write_lock:
                 fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
+                # Now wrap in fdopen (which takes ownership of fd)
                 with os.fdopen(fd, "wb", buffering=0) as fifo:
+                    fd = None  # fdopen took ownership, clear reference
                     _ = fifo.write(command.encode("utf-8"))
                     _ = fifo.write(b"\n")
             return True
-        except OSError:
+        except OSError as e:
+            # Clean up fd if fdopen() never took ownership
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass  # Already closed or invalid
+
+            # Log specific error types for debugging
+            if e.errno == errno.ENXIO:
+                self.logger.debug("No reader on FIFO (ENXIO)")
+            elif e.errno == errno.EAGAIN:
+                self.logger.warning("FIFO write would block (buffer full?)")
+            else:
+                self.logger.error(f"Failed to write to FIFO: {e}")
             return False
 
     def _launch_terminal(self) -> bool:
@@ -775,7 +819,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             return
 
         # Create worker for background operation
-        worker = TerminalOperationWorker(self, "send_command")
+        worker = TerminalOperationWorker(self, "send_command", parent=self)
         worker.command = command
 
         # Connect signals
@@ -785,12 +829,18 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         _ = worker.progress.connect(on_progress)
         _ = worker.operation_finished.connect(self._on_async_command_finished)
 
-        # Store worker reference to prevent garbage collection
-        self._active_workers.append(worker)
+        # Store worker reference to prevent garbage collection (thread-safe)
+        with self._workers_lock:
+            self._active_workers.append(worker)
 
         # Clean up worker when finished
-        _ = worker.operation_finished.connect(lambda: self._active_workers.remove(worker))
-        _ = worker.operation_finished.connect(worker.deleteLater)
+        def cleanup_worker() -> None:
+            with self._workers_lock:
+                if worker in self._active_workers:
+                    self._active_workers.remove(worker)
+            worker.deleteLater()
+
+        _ = worker.operation_finished.connect(cleanup_worker)
 
         # Emit operation started signal
         self.operation_started.emit("send_command")
@@ -817,6 +867,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
     def _ensure_dispatcher_healthy(self) -> bool:
         """Ensure dispatcher is healthy, attempting recovery if needed.
+
+        Thread-Safe:
+            Can be called from worker threads. Uses internal locks to protect
+            shared state access and recovery operations.
 
         Returns:
             True if dispatcher is healthy, False if recovery failed
@@ -942,7 +996,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         return True
 
     def restart_terminal(self) -> bool:
-        """Restart the persistent terminal.
+        """Restart the persistent terminal with atomic FIFO recreation.
+
+        Uses atomic FIFO replacement to prevent race conditions between
+        FIFO cleanup and dispatcher startup.
 
         Returns:
             True if terminal was restarted successfully
@@ -956,21 +1013,42 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # Close dummy writer FD before cleaning up FIFO
         self._close_dummy_writer_fd()
 
-        # Clean up and recreate FIFO to prevent stale file handle issues
-        self.logger.debug("Cleaning up FIFO before restart")
+        # ATOMIC FIFO REPLACEMENT to avoid race condition
+        # Use unique temp path, then atomic rename
+        temp_fifo = f"{self.fifo_path}.{os.getpid()}.tmp"
+
+        # Clean up old FIFO
         if Path(self.fifo_path).exists():
             try:
                 Path(self.fifo_path).unlink()
+                # CRITICAL: fsync parent directory to ensure unlink is committed
+                parent_dir = Path(self.fifo_path).parent
+                parent_fd = os.open(str(parent_dir), os.O_RDONLY)
+                try:
+                    os.fsync(parent_fd)
+                finally:
+                    os.close(parent_fd)
                 self.logger.debug(f"Removed stale FIFO at {self.fifo_path}")
             except OSError as e:
                 self.logger.warning(f"Could not remove stale FIFO: {e}")
 
-        # Recreate FIFO (but don't open dummy writer yet - no dispatcher running)
-        if not self._ensure_fifo(open_dummy_writer=False):
-            self.logger.error("Failed to recreate FIFO during restart")
+        # Create temp FIFO and atomically rename
+        try:
+            os.mkfifo(temp_fifo, 0o600)
+            # Use os.rename() for guaranteed atomic operation (not Path.rename())
+            os.rename(temp_fifo, self.fifo_path)  # noqa: PTH104
+            self.logger.debug(f"Atomically created FIFO at {self.fifo_path}")
+        except OSError as e:
+            self.logger.error(f"Failed to create FIFO atomically: {e}")
+            # Cleanup temp FIFO if it exists
+            try:
+                Path(temp_fifo).unlink()
+            except OSError:
+                pass
             return False
 
         # Launch new terminal (starts dispatcher/reader)
+        # FIFO is now guaranteed to exist and be valid - no race condition
         if self._launch_terminal():
             # Wait for dispatcher to be ready with timeout (replaces fixed delay)
             self.logger.debug("Waiting for dispatcher to be ready...")
