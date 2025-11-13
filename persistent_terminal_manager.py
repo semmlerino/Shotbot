@@ -149,6 +149,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         self.terminal_pid: int | None = None
         self.terminal_process: subprocess.Popen[bytes] | None = None
         self.dispatcher_pid: int | None = None  # Track dispatcher bash script PID
+        self._dummy_writer_fd: int | None = None  # Keeps FIFO alive to prevent EOF
 
         # Health monitoring
         self._last_heartbeat_time: float = 0.0
@@ -212,6 +213,20 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         except OSError as e:
             self.logger.error(f"Could not stat FIFO path {self.fifo_path}: {e}")
             return False
+
+        # Open dummy writer to keep FIFO alive and prevent EOF
+        # This prevents the bash reader from receiving EOF when command writers close
+        if self._dummy_writer_fd is None:
+            try:
+                self._dummy_writer_fd = os.open(
+                    self.fifo_path, os.O_WRONLY | os.O_NONBLOCK
+                )
+                self.logger.debug(
+                    f"Opened dummy writer (FD {self._dummy_writer_fd}) to keep FIFO alive"
+                )
+            except OSError as e:
+                self.logger.error(f"Failed to open dummy writer: {e}")
+                return False
 
         return True
 
@@ -858,6 +873,16 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         _ = self.close_terminal()
         time.sleep(0.5)
 
+        # Close dummy writer FD before cleaning up FIFO
+        if self._dummy_writer_fd is not None:
+            try:
+                os.close(self._dummy_writer_fd)
+                self.logger.debug(f"Closed dummy writer FD {self._dummy_writer_fd} for restart")
+                self._dummy_writer_fd = None
+            except OSError as e:
+                self.logger.warning(f"Error closing dummy writer during restart: {e}")
+                self._dummy_writer_fd = None
+
         # Clean up and recreate FIFO to prevent stale file handle issues
         self.logger.debug("Cleaning up FIFO before restart")
         if Path(self.fifo_path).exists():
@@ -867,7 +892,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             except OSError as e:
                 self.logger.warning(f"Could not remove stale FIFO: {e}")
 
-        # Recreate FIFO
+        # Recreate FIFO (this will also reopen dummy writer)
         if not self._ensure_fifo():
             self.logger.error("Failed to recreate FIFO during restart")
             return False
@@ -901,6 +926,16 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         if self._is_terminal_alive():
             _ = self.close_terminal()
 
+        # Close dummy writer FD first
+        if self._dummy_writer_fd is not None:
+            try:
+                os.close(self._dummy_writer_fd)
+                self.logger.debug(f"Closed dummy writer FD {self._dummy_writer_fd}")
+                self._dummy_writer_fd = None
+            except OSError as e:
+                self.logger.warning(f"Error closing dummy writer: {e}")
+                self._dummy_writer_fd = None
+
         # Remove FIFO if it exists
         if Path(self.fifo_path).exists():
             try:
@@ -915,6 +950,16 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         This is useful when we want to keep the terminal open
         after the application exits.
         """
+        # Close dummy writer FD first
+        if self._dummy_writer_fd is not None:
+            try:
+                os.close(self._dummy_writer_fd)
+                self.logger.debug(f"Closed dummy writer FD {self._dummy_writer_fd}")
+                self._dummy_writer_fd = None
+            except OSError as e:
+                self.logger.warning(f"Error closing dummy writer: {e}")
+                self._dummy_writer_fd = None
+
         # Only remove FIFO, leave terminal running
         if Path(self.fifo_path).exists():
             try:
@@ -928,6 +973,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
     def __del__(self) -> None:
         """Cleanup on deletion."""
         try:
+            # Close dummy writer FD
+            if hasattr(self, "_dummy_writer_fd") and self._dummy_writer_fd is not None:
+                with contextlib.suppress(OSError):
+                    os.close(self._dummy_writer_fd)
+
             # Only cleanup FIFO, leave terminal running
             if hasattr(self, "fifo_path") and Path(self.fifo_path).exists():
                 Path(self.fifo_path).unlink()

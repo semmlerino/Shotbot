@@ -655,6 +655,157 @@ class TestPersistentTerminalManager:
         mock_kill.assert_called_once_with(12345, 9)  # SIGKILL
         mock_restart.assert_called_once()
 
+    @patch("pathlib.Path.exists")
+    @patch("os.mkfifo")
+    @patch("pathlib.Path.stat")
+    @patch("os.open")
+    @patch("os.close")
+    def test_dummy_writer_fd_opened_during_ensure_fifo(
+        self,
+        mock_close: MagicMock,
+        mock_open: MagicMock,
+        mock_stat: MagicMock,
+        mock_mkfifo: MagicMock,
+        mock_exists: MagicMock,
+    ) -> None:
+        """Test dummy writer FD is opened to prevent FIFO EOF."""
+        # Arrange: FIFO doesn't exist initially, then exists after creation
+        mock_exists.side_effect = [False, True]
+        mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
+        mock_open.return_value = 42  # Dummy FD number
+
+        # Act: Create manager (which ensures FIFO and opens dummy writer)
+        import os as real_os
+        with patch("os.O_WRONLY", real_os.O_WRONLY), patch("os.O_NONBLOCK", real_os.O_NONBLOCK):
+            manager = PersistentTerminalManager(fifo_path="/tmp/test.fifo")
+
+        # Assert: FIFO created and dummy writer opened
+        mock_mkfifo.assert_called_once_with("/tmp/test.fifo", 0o600)
+        mock_open.assert_called_once_with(
+            "/tmp/test.fifo", real_os.O_WRONLY | real_os.O_NONBLOCK
+        )
+        assert manager._dummy_writer_fd == 42
+
+    @patch("os.close")
+    def test_cleanup_closes_dummy_writer_fd(
+        self, mock_close: MagicMock, terminal_manager: PersistentTerminalManager
+    ) -> None:
+        """Test cleanup closes dummy writer FD before removing FIFO."""
+        # Arrange: Set dummy writer FD
+        terminal_manager._dummy_writer_fd = 42
+
+        # Mock FIFO operations
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.unlink"),
+            patch.object(terminal_manager, "_is_terminal_alive", return_value=False),
+        ):
+            # Act: Cleanup
+            terminal_manager.cleanup()
+
+        # Assert: Dummy writer FD was closed
+        mock_close.assert_called_once_with(42)
+        assert terminal_manager._dummy_writer_fd is None
+
+    @patch("os.close")
+    def test_cleanup_handles_missing_dummy_writer_fd(
+        self, mock_close: MagicMock, terminal_manager: PersistentTerminalManager
+    ) -> None:
+        """Test cleanup handles case where dummy writer FD is None."""
+        # Arrange: No dummy writer FD
+        terminal_manager._dummy_writer_fd = None
+
+        # Mock FIFO operations
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.unlink"),
+            patch.object(terminal_manager, "_is_terminal_alive", return_value=False),
+        ):
+            # Act: Cleanup (should not raise exception)
+            terminal_manager.cleanup()
+
+        # Assert: close() was not called
+        mock_close.assert_not_called()
+
+    @patch("os.close")
+    @patch("os.open")
+    def test_restart_terminal_closes_and_reopens_dummy_writer(
+        self,
+        mock_open: MagicMock,
+        mock_close: MagicMock,
+        terminal_manager: PersistentTerminalManager,
+    ) -> None:
+        """Test restart_terminal closes dummy writer before FIFO cleanup and reopens."""
+        # Arrange: Set initial dummy writer FD
+        terminal_manager._dummy_writer_fd = 42
+        mock_open.return_value = 99  # New FD after restart
+
+        # Mock all required operations
+        with (
+            patch.object(terminal_manager, "close_terminal"),
+            patch("time.sleep"),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.unlink"),
+            patch("os.mkfifo"),
+            patch("pathlib.Path.stat") as mock_stat,
+            patch.object(terminal_manager, "_launch_terminal", return_value=True),
+            patch.object(terminal_manager, "_is_dispatcher_running", return_value=True),
+        ):
+            mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
+            import os as real_os
+            with patch("os.O_WRONLY", real_os.O_WRONLY), patch("os.O_NONBLOCK", real_os.O_NONBLOCK):
+                # Act: Restart terminal
+                result = terminal_manager.restart_terminal()
+
+        # Assert: Old FD closed, new FD opened
+        assert result is True
+        mock_close.assert_called_once_with(42)  # Old FD closed
+        # New FD opened (will be called after FIFO recreation in _ensure_fifo)
+        assert mock_open.called
+
+    @patch("os.close")
+    def test_cleanup_fifo_only_closes_dummy_writer(
+        self, mock_close: MagicMock, terminal_manager: PersistentTerminalManager
+    ) -> None:
+        """Test cleanup_fifo_only closes dummy writer FD."""
+        # Arrange: Set dummy writer FD
+        terminal_manager._dummy_writer_fd = 42
+
+        # Mock FIFO operations
+        with patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.unlink"):
+            # Act: Cleanup FIFO only
+            terminal_manager.cleanup_fifo_only()
+
+        # Assert: Dummy writer FD was closed
+        mock_close.assert_called_once_with(42)
+        assert terminal_manager._dummy_writer_fd is None
+
+    @patch("os.close")
+    def test_del_closes_dummy_writer_fd(self, mock_close: MagicMock) -> None:
+        """Test __del__ closes dummy writer FD during garbage collection."""
+        # Arrange: Create manager with dummy writer FD
+        with (
+            patch("os.path.exists", return_value=False),
+            patch("os.mkfifo"),
+            patch("os.stat") as mock_stat,
+            patch("os.open", return_value=42),
+        ):
+            mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
+            import os as real_os
+            with patch("os.O_WRONLY", real_os.O_WRONLY), patch("os.O_NONBLOCK", real_os.O_NONBLOCK):
+                manager = PersistentTerminalManager(fifo_path="/tmp/test.fifo")
+
+        # Verify dummy writer was opened
+        assert manager._dummy_writer_fd == 42
+
+        # Mock Path operations for __del__
+        with patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.unlink"):
+            # Act: Trigger __del__ by deleting manager
+            manager.__del__()
+
+        # Assert: Dummy writer FD was closed
+        mock_close.assert_called_with(42)
+
 
 class TestPersistentTerminalIntegration:
     """Integration tests for persistent terminal with Qt event loop."""
