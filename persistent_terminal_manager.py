@@ -3,24 +3,11 @@
 This module manages a single persistent terminal window that handles all commands,
 eliminating the need to spawn new terminals for each command.
 
-DEPRECATED: This module is deprecated in favor of simplified_launcher.py.
-The SimplifiedLauncher consolidates functionality from 4 modules (3,153 lines) into one (610 lines).
-To use this legacy launcher, set environment variable: USE_SIMPLIFIED_LAUNCHER=false
-
-Migration: Use simplified_launcher.SimplifiedLauncher instead.
+PRIMARY LAUNCHER: This is the production launcher system for Shotbot.
+Provides FIFO-based communication with persistent terminal sessions.
 """
 
 from __future__ import annotations
-
-import warnings
-
-
-warnings.warn(
-    "persistent_terminal_manager is deprecated. Use simplified_launcher.SimplifiedLauncher instead. "
-    "Set USE_SIMPLIFIED_LAUNCHER=false to continue using this module.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 import contextlib
 
@@ -42,6 +29,16 @@ from PySide6.QtCore import QObject, QThread, Signal
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
+
+
+# Module-level constants
+_TERMINAL_RESTART_DELAY_SECONDS = 0.5  # Delay before restarting terminal
+_FIFO_READY_TIMEOUT_SECONDS = 2.0  # Timeout for FIFO readiness check
+_DISPATCHER_HEALTH_CHECK_TIMEOUT_SECONDS = 3.0  # Timeout for dispatcher health checks
+_DISPATCHER_STARTUP_TIMEOUT_SECONDS = 5.0  # Timeout for dispatcher startup/restart
+_HEARTBEAT_SEND_TIMEOUT_SECONDS = 3.0  # Timeout for sending heartbeat pings
+_WORKER_POLL_INTERVAL_SECONDS = 0.1  # Polling interval for worker threads
+_CLEANUP_POLL_INTERVAL_SECONDS = 0.2  # Polling interval for cleanup operations
 
 
 class TerminalOperationWorker(QThread):
@@ -146,15 +143,19 @@ class PersistentTerminalManager(LoggingMixin, QObject):
     command_result = Signal(bool, str)  # success, error_message (empty if success)
 
     def __init__(
-        self, fifo_path: str | None = None, dispatcher_path: str | None = None
+        self,
+        fifo_path: str | None = None,
+        dispatcher_path: str | None = None,
+        parent: QObject | None = None,
     ) -> None:
         """Initialize the persistent terminal manager.
 
         Args:
             fifo_path: Path to the FIFO for command communication
             dispatcher_path: Path to the terminal dispatcher script
+            parent: Optional parent QObject for proper Qt ownership
         """
-        super().__init__()
+        super().__init__(parent)
 
         # Set up paths
         self.fifo_path = fifo_path or Config.FIFO_PATH
@@ -189,7 +190,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # This prevents byte-level corruption when multiple threads
         # call send_command() concurrently
         self._write_lock = threading.Lock()
-        self._state_lock = threading.Lock()  # Protects _dummy_writer_fd, _fd_closed
+        # Protects all shared state accessed from worker threads:
+        # terminal_pid, terminal_process, dispatcher_pid, _restart_attempts,
+        # _fallback_mode, _last_heartbeat_time, _dummy_writer_fd, _fd_closed
+        self._state_lock = threading.Lock()
 
         # Active workers for async operations (prevents garbage collection)
         self._active_workers: list[TerminalOperationWorker] = []
@@ -342,40 +346,50 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         if not Path(self.fifo_path).exists():
             return False
 
-        # Use 3.0s timeout to avoid false negatives when bash is executing commands
+        # Use longer timeout to avoid false negatives when bash is executing commands
         # This tests the full round-trip: write → bash reads → bash responds
-        return self._send_heartbeat_ping(timeout=3.0)
+        return self._send_heartbeat_ping(timeout=_HEARTBEAT_SEND_TIMEOUT_SECONDS)
 
     def _is_terminal_alive(self) -> bool:
-        """Check if the terminal process is still running."""
-        if self.terminal_pid is None:
-            return False
+        """Check if the terminal process is still running.
 
-        try:
-            # Check if process exists (doesn't actually kill it)
-            os.kill(self.terminal_pid, 0)
-            return True
-        except ProcessLookupError:
-            self.logger.debug(f"Terminal process {self.terminal_pid} no longer exists")
-            self.terminal_pid = None
-            self.terminal_process = None
-            return False
-        except PermissionError:
-            # Process exists but we can't access it
-            return True
+        Thread-Safe: Uses _state_lock to protect terminal_pid and terminal_process.
+        """
+        with self._state_lock:
+            if self.terminal_pid is None:
+                return False
+
+            try:
+                # Check if process exists (doesn't actually kill it)
+                os.kill(self.terminal_pid, 0)
+                return True
+            except ProcessLookupError:
+                self.logger.debug(f"Terminal process {self.terminal_pid} no longer exists")
+                self.terminal_pid = None
+                self.terminal_process = None
+                return False
+            except PermissionError:
+                # Process exists but we can't access it
+                return True
 
     def _find_dispatcher_pid(self) -> int | None:
         """Find the PID of the dispatcher bash script.
 
+        Thread-Safe: Uses _state_lock to read terminal_pid.
+
         Returns:
             PID of dispatcher script if found, None otherwise
         """
-        if self.terminal_pid is None:
+        # Snapshot terminal_pid under lock
+        with self._state_lock:
+            terminal_pid = self.terminal_pid
+
+        if terminal_pid is None:
             return None
 
         try:
             # Get the terminal process
-            terminal_proc = psutil.Process(self.terminal_pid)
+            terminal_proc = psutil.Process(terminal_pid)
 
             # Get the dispatcher script basename for matching
             dispatcher_name = Path(self.dispatcher_path).name
@@ -399,7 +413,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                     continue
 
             self.logger.debug(
-                f"No dispatcher script found under terminal PID {self.terminal_pid}"
+                f"No dispatcher script found under terminal PID {terminal_pid}"
             )
             return None
 
@@ -410,32 +424,41 @@ class PersistentTerminalManager(LoggingMixin, QObject):
     def _is_dispatcher_alive(self) -> bool:
         """Check if the dispatcher bash script is running.
 
+        Thread-Safe: Uses _state_lock to protect dispatcher_pid.
+
         Returns:
             True if dispatcher process is running, False otherwise
         """
-        if self.dispatcher_pid is None:
-            # Try to find it
-            self.dispatcher_pid = self._find_dispatcher_pid()
+        with self._state_lock:
             if self.dispatcher_pid is None:
-                return False
+                # Try to find it
+                self.dispatcher_pid = self._find_dispatcher_pid()
+                if self.dispatcher_pid is None:
+                    return False
+
+            dispatcher_pid = self.dispatcher_pid
 
         try:
             # Check if dispatcher process still exists
-            proc = psutil.Process(self.dispatcher_pid)
+            proc = psutil.Process(dispatcher_pid)
             if proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE:
                 return True
             self.logger.debug(
-                f"Dispatcher process {self.dispatcher_pid} is not running or is zombie"
+                f"Dispatcher process {dispatcher_pid} is not running or is zombie"
             )
-            self.dispatcher_pid = None
+            with self._state_lock:
+                self.dispatcher_pid = None
             return False
         except (psutil.NoSuchProcess, psutil.AccessDenied):
-            self.logger.debug(f"Dispatcher process {self.dispatcher_pid} no longer exists")
-            self.dispatcher_pid = None
+            self.logger.debug(f"Dispatcher process {dispatcher_pid} no longer exists")
+            with self._state_lock:
+                self.dispatcher_pid = None
             return False
 
     def _check_heartbeat(self) -> bool:
         """Check if a recent heartbeat exists.
+
+        Thread-Safe: Uses _state_lock to protect _last_heartbeat_time.
 
         Returns:
             True if recent heartbeat found, False otherwise
@@ -455,7 +478,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             age = time.time() - mtime
 
             if age < self._heartbeat_timeout:
-                self._last_heartbeat_time = mtime
+                with self._state_lock:
+                    self._last_heartbeat_time = mtime
                 self.logger.debug(f"Heartbeat OK (age: {age:.1f}s)")
                 return True
             self.logger.debug(f"Heartbeat stale (age: {age:.1f}s)")
@@ -489,7 +513,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             while (time.time() - start_time) < timeout:
                 if self._check_heartbeat():
                     return True
-                time.sleep(0.1)
+                time.sleep(_WORKER_POLL_INTERVAL_SECONDS)
 
             self.logger.debug(f"No heartbeat response after {timeout}s")
             return False
@@ -525,8 +549,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Check 3: Recent heartbeat (optional - only if we've received one before)
         # This prevents false negatives on first run
-        if self._last_heartbeat_time > 0:
-            age = time.time() - self._last_heartbeat_time
+        with self._state_lock:
+            last_heartbeat_time = self._last_heartbeat_time
+
+        if last_heartbeat_time > 0:
+            age = time.time() - last_heartbeat_time
             if age > self._heartbeat_timeout:
                 self.logger.debug(
                     f"Health check failed: No recent heartbeat (last: {age:.1f}s ago)"
@@ -541,13 +568,33 @@ class PersistentTerminalManager(LoggingMixin, QObject):
     def _send_command_direct(self, command: str) -> bool:
         """Send command to FIFO without health checks (internal use only).
 
+        This method sends a command directly to the FIFO without performing
+        health checks or terminal existence validation. It should only be
+        called from methods that have already validated terminal state.
+
         Args:
-            command: Command to send
+            command: Command string to send (newline will be appended)
 
         Returns:
             True if sent successfully, False otherwise
+
+        Thread Safety:
+            Thread-safe through _write_lock. Multiple threads can call
+            this concurrently.
+
+        Resource Management:
+            - Opens file descriptor with O_WRONLY | O_NONBLOCK
+            - Wraps fd in fdopen for automatic cleanup
+            - Ensures fd is closed even if fdopen fails
+            - No file descriptor leaks in any error path
+
+        Error Handling:
+            - ENXIO: No reader available (dispatcher not running)
+            - EAGAIN: Write would block (buffer full)
+            - Other OSError: Logged with full error details
         """
         if not Path(self.fifo_path).exists():
+            self.logger.debug(f"FIFO does not exist: {self.fifo_path}")
             return False
 
         fd = None  # Track FD for cleanup in case of errors
@@ -561,7 +608,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                     _ = fifo.write(b"\n")
             return True
         except OSError as e:
-            # Clean up fd if fdopen() never took ownership
+            # ✅ Clean up fd if fdopen() never took ownership
             if fd is not None:
                 try:
                     os.close(fd)
@@ -570,11 +617,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
             # Log specific error types for debugging
             if e.errno == errno.ENXIO:
-                self.logger.debug("No reader on FIFO (ENXIO)")
+                self.logger.debug("No reader on FIFO (ENXIO) - dispatcher may not be running")
             elif e.errno == errno.EAGAIN:
-                self.logger.warning("FIFO write would block (buffer full?)")
+                self.logger.warning("FIFO write would block (buffer full?) - command may be delayed")
             else:
-                self.logger.error(f"Failed to write to FIFO: {e}")
+                self.logger.error(f"Failed to write to FIFO {self.fifo_path}: {e}")
             return False
 
     def _launch_terminal(self) -> bool:
@@ -582,9 +629,21 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         Returns:
             True if terminal launched successfully, False otherwise
+
+        Resource Management:
+            - Creates subprocess.Popen for terminal emulator
+            - Tracks process via self.terminal_process
+            - On failure, process is NOT cleaned up (will terminate naturally)
+
+        Error Handling:
+            - FileNotFoundError: Terminal emulator not found (try next)
+            - Other exceptions: Logged and continue to next emulator
         """
         if not Path(self.dispatcher_path).exists():
-            self.logger.error(f"Dispatcher script not found: {self.dispatcher_path}")
+            self.logger.error(
+                f"Dispatcher script not found: {self.dispatcher_path}. "
+                f"Cannot launch persistent terminal without dispatcher."
+            )
             return False
 
         # Try different terminal emulators
@@ -638,27 +697,34 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         for cmd in terminal_commands:
             try:
                 self.logger.debug(f"Trying to launch terminal with: {cmd[0]}")
-                self.terminal_process = subprocess.Popen(cmd, start_new_session=True)
-                self.terminal_pid = self.terminal_process.pid
+                proc = subprocess.Popen(cmd, start_new_session=True)
+                pid = proc.pid
+
+                # Store under lock
+                with self._state_lock:
+                    self.terminal_process = proc
+                    self.terminal_pid = pid
 
                 # Give terminal time to start
-                time.sleep(0.5)
+                time.sleep(_TERMINAL_RESTART_DELAY_SECONDS)
 
                 if self._is_terminal_alive():
                     self.logger.info(
-                        f"Terminal emulator launched with PID: {self.terminal_pid}"
+                        f"Terminal emulator launched with PID: {pid}"
                     )
 
-                    # Wait for dispatcher script to start (up to 3 seconds)
-                    timeout = 3.0
-                    poll_interval = 0.2
+                    # Wait for dispatcher script to start
+                    timeout = _DISPATCHER_STARTUP_TIMEOUT_SECONDS
+                    poll_interval = _CLEANUP_POLL_INTERVAL_SECONDS
                     elapsed = 0.0
 
                     while elapsed < timeout:
-                        self.dispatcher_pid = self._find_dispatcher_pid()
-                        if self.dispatcher_pid is not None:
+                        found_pid = self._find_dispatcher_pid()
+                        if found_pid is not None:
+                            with self._state_lock:
+                                self.dispatcher_pid = found_pid
                             self.logger.info(
-                                f"Dispatcher script started with PID: {self.dispatcher_pid}"
+                                f"Dispatcher script started with PID: {found_pid}"
                             )
                             break
                         time.sleep(poll_interval)
@@ -668,7 +734,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                             "Dispatcher PID not found after terminal launch - may not have started yet"
                         )
 
-                    self.terminal_started.emit(self.terminal_pid)
+                    self.terminal_started.emit(pid)
                     return True
 
             except FileNotFoundError:
@@ -692,7 +758,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             True if command was sent successfully, False otherwise
         """
         # Check if we're in fallback mode
-        if self._fallback_mode:
+        with self._state_lock:
+            fallback_mode = self._fallback_mode
+
+        if fallback_mode:
             self.logger.warning(
                 "Persistent terminal in fallback mode - cannot send command"
             )
@@ -709,11 +778,17 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         except UnicodeEncodeError:
             self.logger.warning(f"Command contains non-ASCII characters: {command!r}")
 
-        # Perform comprehensive health check
+        # Perform comprehensive health check if requested
         if ensure_terminal:
+            # Log if terminal not running (informational only - health check will handle it)
+            if not self._is_dispatcher_running():
+                self.logger.warning("Terminal not running, health check will attempt recovery")
             if not self._ensure_dispatcher_healthy():
                 # Health check failed and recovery attempts exhausted
-                if self._fallback_mode:
+                with self._state_lock:
+                    fallback_mode = self._fallback_mode
+
+                if fallback_mode:
                     self.logger.error(
                         "Persistent terminal unavailable - fallback mode activated"
                     )
@@ -723,14 +798,18 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 )
                 return False
 
-        # Debug logging
+        # Debug logging - snapshot PIDs under lock
+        with self._state_lock:
+            terminal_pid = self.terminal_pid
+            dispatcher_pid = self.dispatcher_pid
+
         self.logger.debug(
             f"Sending command to FIFO:\n"
             f"  Command: {command!r}\n"
             f"  Length: {len(command)} chars\n"
             f"  FIFO: {self.fifo_path}\n"
-            f"  Terminal PID: {self.terminal_pid}\n"
-            f"  Dispatcher PID: {self.dispatcher_pid}"
+            f"  Terminal PID: {terminal_pid}\n"
+            f"  Dispatcher PID: {dispatcher_pid}"
         )
 
         # Acquire lock to serialize FIFO writes
@@ -762,7 +841,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                                 f"FIFO disappeared, recreating (attempt {attempt + 1}/{max_retries})"
                             )
                             if self._ensure_fifo():
-                                time.sleep(0.2)
+                                time.sleep(_CLEANUP_POLL_INTERVAL_SECONDS)
                                 continue
                         self.logger.error(f"Failed to send command to FIFO: {e}")
                     elif e.errno == errno.ENXIO:
@@ -771,7 +850,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                             "No reader available for FIFO - dispatcher may have crashed"
                         )
                         # Mark for health check on next command
-                        self.dispatcher_pid = None
+                        with self._state_lock:
+                            self.dispatcher_pid = None
                     elif e.errno == errno.EAGAIN:
                         self.logger.warning("FIFO write would block (buffer full?)")
                     else:
@@ -813,7 +893,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             return
 
         # Check if we're in fallback mode
-        if self._fallback_mode:
+        with self._state_lock:
+            fallback_mode = self._fallback_mode
+
+        if fallback_mode:
             self.logger.warning("Persistent terminal in fallback mode - cannot send command")
             self.command_result.emit(False, "Terminal in fallback mode")
             return
@@ -877,37 +960,55 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         """
         # Check if dispatcher is healthy
         if self._is_dispatcher_healthy():
+            self.logger.debug("Dispatcher health check passed")
             return True
 
-        self.logger.warning("Dispatcher health check failed - attempting recovery")
+        # Snapshot PIDs for logging under lock
+        with self._state_lock:
+            terminal_pid = self.terminal_pid
+            dispatcher_pid = self.dispatcher_pid
+
+        self.logger.warning(
+            "Dispatcher health check failed - attempting recovery. "
+            f"Terminal PID: {terminal_pid}, Dispatcher PID: {dispatcher_pid}"
+        )
 
         # Check if we've exceeded restart attempts
-        if self._restart_attempts >= self._max_restart_attempts:
-            self.logger.error(
-                f"Exceeded maximum restart attempts ({self._max_restart_attempts}) - "
-                f"entering fallback mode"
-            )
-            self._fallback_mode = True
-            return False
+        with self._state_lock:
+            if self._restart_attempts >= self._max_restart_attempts:
+                self.logger.error(
+                    f"Exceeded maximum restart attempts ({self._max_restart_attempts}) - "
+                    f"entering fallback mode. Terminal will not auto-recover."
+                )
+                self._fallback_mode = True
+                return False
 
-        # Attempt to restart terminal
-        self._restart_attempts += 1
+            # Attempt to restart terminal
+            self._restart_attempts += 1
+            restart_attempt = self._restart_attempts
+
         self.logger.info(
-            f"Attempting terminal restart ({self._restart_attempts}/{self._max_restart_attempts})"
+            f"Attempting terminal restart ({restart_attempt}/{self._max_restart_attempts}) "
+            f"- reason: health check failure"
         )
 
         # Force kill existing terminal if needed
-        if self._is_terminal_alive() and self.terminal_pid:
-            try:
-                os.kill(self.terminal_pid, signal.SIGKILL)
-                self.logger.info(f"Force killed terminal process {self.terminal_pid}")
-                time.sleep(0.5)
-            except (ProcessLookupError, PermissionError) as e:
-                self.logger.debug(f"Could not kill terminal: {e}")
+        if self._is_terminal_alive():
+            with self._state_lock:
+                pid_to_kill = self.terminal_pid
 
-            self.terminal_pid = None
-            self.terminal_process = None
-            self.dispatcher_pid = None
+            if pid_to_kill:
+                try:
+                    os.kill(pid_to_kill, signal.SIGKILL)
+                    self.logger.info(f"Force killed terminal process {pid_to_kill}")
+                    time.sleep(_TERMINAL_RESTART_DELAY_SECONDS)
+                except (ProcessLookupError, PermissionError) as e:
+                    self.logger.debug(f"Could not kill terminal: {e}")
+
+            with self._state_lock:
+                self.terminal_pid = None
+                self.terminal_process = None
+                self.dispatcher_pid = None
 
         # Restart terminal
         if not self.restart_terminal():
@@ -915,8 +1016,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             return False
 
         # Wait for dispatcher to become healthy
-        timeout = 5.0
-        poll_interval = 0.2
+        timeout = _DISPATCHER_STARTUP_TIMEOUT_SECONDS
+        poll_interval = _CLEANUP_POLL_INTERVAL_SECONDS
         elapsed = 0.0
 
         while elapsed < timeout:
@@ -925,7 +1026,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                     f"Dispatcher recovered successfully after {elapsed:.2f}s"
                 )
                 # Reset restart counter on successful recovery
-                self._restart_attempts = 0
+                with self._state_lock:
+                    self._restart_attempts = 0
                 return True
             time.sleep(poll_interval)
             elapsed += poll_interval
@@ -937,19 +1039,25 @@ class PersistentTerminalManager(LoggingMixin, QObject):
     def is_fallback_mode(self) -> bool:
         """Check if persistent terminal is in fallback mode.
 
+        Thread-Safe: Uses _state_lock to protect _fallback_mode.
+
         Returns:
             True if in fallback mode (persistent terminal unavailable)
         """
-        return self._fallback_mode
+        with self._state_lock:
+            return self._fallback_mode
 
     def reset_fallback_mode(self) -> None:
         """Reset fallback mode and restart attempts.
 
+        Thread-Safe: Uses _state_lock to protect _fallback_mode and _restart_attempts.
+
         This allows retrying the persistent terminal after it has been
         disabled due to too many failures.
         """
-        self._fallback_mode = False
-        self._restart_attempts = 0
+        with self._state_lock:
+            self._fallback_mode = False
+            self._restart_attempts = 0
         self.logger.info("Fallback mode reset - persistent terminal re-enabled")
 
     def clear_terminal(self) -> bool:
@@ -972,26 +1080,32 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             self.logger.debug("Dispatcher running, sending EXIT_TERMINAL for graceful exit")
             _ = self.send_command("EXIT_TERMINAL", ensure_terminal=False)
             # Give it time to exit gracefully
-            time.sleep(0.5)
+            time.sleep(_TERMINAL_RESTART_DELAY_SECONDS)
         else:
             self.logger.debug("Dispatcher not running, skipping graceful exit")
 
         # Force kill if still running
-        if self._is_terminal_alive() and self.terminal_pid:
-            try:
-                self.logger.debug(f"Force killing terminal process {self.terminal_pid}")
-                os.kill(self.terminal_pid, signal.SIGTERM)
-                time.sleep(0.5)
-                if self._is_terminal_alive():
-                    os.kill(self.terminal_pid, signal.SIGKILL)
-                self.logger.info(f"Force killed terminal process {self.terminal_pid}")
-            except ProcessLookupError:
-                pass
-            except Exception as e:
-                self.logger.error(f"Error killing terminal process: {e}")
+        if self._is_terminal_alive():
+            with self._state_lock:
+                pid_to_kill = self.terminal_pid
 
-        self.terminal_pid = None
-        self.terminal_process = None
+            if pid_to_kill:
+                try:
+                    self.logger.debug(f"Force killing terminal process {pid_to_kill}")
+                    os.kill(pid_to_kill, signal.SIGTERM)
+                    time.sleep(_TERMINAL_RESTART_DELAY_SECONDS)
+                    if self._is_terminal_alive():
+                        os.kill(pid_to_kill, signal.SIGKILL)
+                    self.logger.info(f"Force killed terminal process {pid_to_kill}")
+                except ProcessLookupError:
+                    pass
+                except Exception as e:
+                    self.logger.error(f"Error killing terminal process: {e}")
+
+        with self._state_lock:
+            self.terminal_pid = None
+            self.terminal_process = None
+
         self.terminal_closed.emit()
         return True
 
@@ -1003,12 +1117,21 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         Returns:
             True if terminal was restarted successfully
+
+        Thread Safety:
+            Not thread-safe - should only be called from main thread or
+            with external synchronization.
+
+        TODO: Add tests for:
+          - TerminalOperationWorker Qt lifecycle with parent parameter
+          - Atomic FIFO recreation under race conditions
+          - FD leak prevention in _send_command_direct()
         """
-        self.logger.info("Restarting terminal...")
+        self.logger.info("Restarting terminal (reason: health check failure or manual restart)")
 
         # Close existing terminal
         _ = self.close_terminal()
-        time.sleep(0.5)
+        time.sleep(_TERMINAL_RESTART_DELAY_SECONDS)
 
         # Close dummy writer FD before cleaning up FIFO
         self._close_dummy_writer_fd()
@@ -1017,12 +1140,15 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # Use unique temp path, then atomic rename
         temp_fifo = f"{self.fifo_path}.{os.getpid()}.tmp"
 
+        # Ensure parent directory exists
+        parent_dir = Path(self.fifo_path).parent
+        parent_dir.mkdir(parents=True, exist_ok=True)
+
         # Clean up old FIFO
         if Path(self.fifo_path).exists():
             try:
                 Path(self.fifo_path).unlink()
                 # CRITICAL: fsync parent directory to ensure unlink is committed
-                parent_dir = Path(self.fifo_path).parent
                 parent_fd = os.open(str(parent_dir), os.O_RDONLY)
                 try:
                     os.fsync(parent_fd)
@@ -1040,11 +1166,13 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             self.logger.debug(f"Atomically created FIFO at {self.fifo_path}")
         except OSError as e:
             self.logger.error(f"Failed to create FIFO atomically: {e}")
-            # Cleanup temp FIFO if it exists
-            try:
-                Path(temp_fifo).unlink()
-            except OSError:
-                pass
+            # ✅ CLEANUP: Ensure temp file removed on error (only if it exists)
+            if Path(temp_fifo).exists():
+                try:
+                    Path(temp_fifo).unlink()
+                    self.logger.debug(f"Cleaned up temp FIFO: {temp_fifo}")
+                except OSError as cleanup_error:
+                    self.logger.warning(f"Failed to clean up temp FIFO: {cleanup_error}")
             return False
 
         # Launch new terminal (starts dispatcher/reader)
@@ -1052,8 +1180,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         if self._launch_terminal():
             # Wait for dispatcher to be ready with timeout (replaces fixed delay)
             self.logger.debug("Waiting for dispatcher to be ready...")
-            timeout = 5.0  # 5 second timeout
-            poll_interval = 0.1
+            timeout = _DISPATCHER_STARTUP_TIMEOUT_SECONDS
+            poll_interval = _WORKER_POLL_INTERVAL_SECONDS
             elapsed = 0.0
 
             while elapsed < timeout:

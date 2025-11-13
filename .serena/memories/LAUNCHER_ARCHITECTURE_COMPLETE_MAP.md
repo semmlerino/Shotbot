@@ -2,9 +2,14 @@
 
 ## Overview
 
-**⚠️ CRITICAL: SimplifiedLauncher is broken (missing Rez/workspace setup, parameter bugs, no thread safety) and will be removed soon. Use legacy CommandLauncher until fixed.**
+**⚠️ ARCHITECTURAL CHANGE: PersistentTerminalManager is the primary launcher system. SimplifiedLauncher is deprecated and will be removed.**
 
-Shotbot has a dual-launcher architecture: **SimplifiedLauncher (broken, will be removed)** vs **Legacy Launcher Stack (working, use this)**. This document comprehensively maps all launching-related code.
+Shotbot's launcher architecture:
+- **PersistentTerminalManager**: Primary production launcher (FIFO-based, robust)
+- **SimplifiedLauncher**: DEPRECATED (broken, missing features, will be removed)
+- **Legacy Stack**: Being consolidated into PersistentTerminalManager
+
+This document comprehensively maps all launching-related code.
 
 ---
 
@@ -26,30 +31,31 @@ Shotbot has a dual-launcher architecture: **SimplifiedLauncher (broken, will be 
 ```python
 use_simplified_launcher = os.environ.get("USE_SIMPLIFIED_LAUNCHER", "true").lower() == "true"
 ```
-- **Default**: SimplifiedLauncher (true)
-- **Fallback**: Legacy stack (set to false)
+- **⚠️ WARNING**: Default is "true" but SimplifiedLauncher is BROKEN
+- **Recommended**: Set to "false" to use PersistentTerminalManager (working)
+- **Future**: Flag will be removed, PersistentTerminalManager will be default
 
 **Initialization logic**:
 1. Check feature flag
-2. If true: Create SimplifiedLauncher instance
-3. If false: Create CommandLauncher + LauncherManager + PersistentTerminalManager (deprecated)
+2. If true: Create SimplifiedLauncher instance (⚠️ BROKEN - DO NOT USE)
+3. If false: Create CommandLauncher + LauncherManager + PersistentTerminalManager (✅ USE THIS)
 
 ---
 
-## 2. CURRENT DEFAULT: SIMPLIFIED LAUNCHER (⚠️ BROKEN - USE LEGACY INSTEAD)
+## 2. PRIMARY LAUNCHER: PERSISTENT TERMINAL MANAGER
 
-**⚠️ WARNING: SimplifiedLauncher is broken and will be removed. Set `USE_SIMPLIFIED_LAUNCHER=false` to use working CommandLauncher.**
+**✅ PRODUCTION READY: PersistentTerminalManager is the primary launcher system.**
 
-### 2.1 SimplifiedLauncher
-**File**: `/home/gabrielh/projects/shotbot/simplified_launcher.py`
+### 2.1 PersistentTerminalManager
+**File**: `/home/gabrielh/projects/shotbot/persistent_terminal_manager.py`
 
-**Class**: `SimplifiedLauncher` (lines 38-609)
+**Class**: `PersistentTerminalManager` (lines 40-522)
 
-**Status**: BROKEN - Missing Rez/workspace integration, parameter forwarding bugs, no thread safety
+**Status**: PRODUCTION - Primary launcher system, robust and feature-complete
 
-**Description**: Attempted streamlined launcher (610 lines vs 3,153 lines for legacy) but critically incomplete
+**Description**: Persistent terminal session manager with FIFO communication (522 lines)
 
-### 2.1.1 SimplifiedLauncher Flow Diagram
+### 2.1.1 PersistentTerminalManager Flow Diagram
 
 ```
 User Action
@@ -58,93 +64,108 @@ LauncherController.launch_app("nuke")
     ↓
 MainWindow.command_launcher.set_current_shot(shot)
     ↓
-SimplifiedLauncher.launch_app()
-    ├─→ _build_app_command()
-    │   └─→ CommandBuilder (workspace integration)
+CommandLauncher.launch_app()
+    ├─→ EnvironmentManager.build_environment()
     │
-    ├─→ _get_app_environment()
-    │   └─→ EnvironmentManager
+    ├─→ ProcessExecutor._execute_launch()
+    │   └─→ PersistentTerminalManager.send_command()
+    │       ├─→ Atomic FIFO recreation (if needed)
+    │       ├─→ TerminalOperationWorker (QThread)
+    │       │   ├─→ Write command to FIFO
+    │       │   ├─→ Non-blocking write with timeout
+    │       │   └─→ Monitor execution
+    │       │
+    │       └─→ Process tracking + cleanup
     │
-    ├─→ _find_latest_scene() (if 3DE)
-    │   └─→ Cache + filesystem scan
-    │
-    ├─→ SimpleNukeLauncher (if Nuke)
-    │   └─→ Script generation + setup
-    │
-    └─→ ProcessExecutor
-        ├─→ _execute_in_terminal()
-        │   └─→ Open new terminal + run command
-        │
-        └─→ _execute_background()
-            └─→ Run without terminal
+    └─→ Emit Signals (thread-safe Qt signals)
+        ├─→ command_executed
+        ├─→ command_error
+        └─→ operation_completed
 
     ↓
-Emit Signals:
-├─→ command_executed
-├─→ command_error
-├─→ process_started
-└─→ process_finished
-
-    ↓
-UI Updated
+UI Updated (main thread)
 ```
 
-**Signals** (lines 50-53):
+**Signals**:
 - `command_executed`: Command successfully executed
-- `command_error`: Command failed
-- `process_started`: Process started
-- `process_finished`: Process finished
+- `command_error`: Command failed with error message
+- `operation_completed`: Background operation completed
 
 **Core methods**:
-- `__init__()`: Initialize launcher with Nuke handler
-- `set_current_shot(shot)`: Set context for launches (line 76)
-- `launch_vfx_app(app_name, use_raw_plate=False, open_latest_3de=False)`: Main launch method (line 84)
-- `launch_app()`: Legacy alias (line 593)
-- `launch_app_with_scene()`: Launch with scene context (line 589)
-- `execute_ws_command()`: Execute workspace command (line 229)
-- `launch_custom_command()`: Execute custom launcher (line 285)
+- `__init__(parent, fifo_path)`: Initialize with Qt parent for lifecycle management
+- `send_command(command)`: Send command to persistent terminal (async)
+- `cleanup()`: Cleanup resources (FIFO, worker threads)
+- `_recreate_fifo_atomic()`: Safely recreate FIFO (handles stale pipes)
+- `_send_operation()`: Background operation execution
 
-**Helper methods**:
-- `_build_app_command()`: Build command for app (line 166)
-- `_get_app_environment()`: Get environment vars (line 211)
-- `_execute_in_terminal()`: Run in new terminal (line 314)
-- `_execute_background()`: Run background process (line 343)
-- `_find_latest_scene()`: Find latest 3DE scene (line 381)
-- `_find_latest_nuke_workspace_script()`: Find latest Nuke workspace script (line 421)
+**Worker Thread**:
+- `TerminalOperationWorker`: QThread for async FIFO writes
+  - Proper Qt parent-child relationship
+  - Signal-based completion notification
+  - Error handling with signals
+  - Thread-safe operation
 
-**Process management**:
-- `cleanup_processes()`: Cleanup terminated processes (line 466)
-- `terminate_all_processes()`: Terminate all processes (line 483)
-- `_active_processes`: Dict tracking active processes (line 66)
+**FIFO Management**:
+- Atomic FIFO recreation (removes stale pipes from crashes)
+- Non-blocking write operations with timeout
+- Error handling for missing/broken FIFOs
+- Graceful cleanup on shutdown
 
-**Cache management** (workspace discovery):
-- `_cache_get()`: Get cached workspace info (line 440)
-- `_cache_set()`: Cache workspace info (line 455)
-- `clear_cache()`: Clear cache (line 459)
-- `invalidate_cache()`: Invalidate cache (line 550)
-- `_ws_cache`: Workspace cache dict (line 60)
-- `_ws_cache_ttl`: Cache TTL in seconds (line 63)
+**Process Tracking**:
+- Background process monitoring
+- Resource cleanup on completion
+- Error propagation via signals
 
-**Handlers**:
-- `nuke_handler`: SimpleNukeLauncher instance (line 72)
+**Thread Safety**:
+- QMutex for FIFO operations
+- Qt signal/slot for cross-thread communication
+- Proper Qt parent-child lifecycle
 
-**Internal state**:
-- `current_shot`: Currently selected shot (line 69)
+**Configuration** (from config.py):
+- `PERSISTENT_TERMINAL_ENABLED`: Enable/disable terminal
+- `PERSISTENT_TERMINAL_FIFO`: FIFO path (default: /tmp/shotbot_commands.fifo)
+- `PERSISTENT_TERMINAL_TITLE`: Terminal window title
 
 ---
 
-## 3. DEPRECATED LEGACY LAUNCHER STACK
+## 3. DEPRECATED: SIMPLIFIED LAUNCHER (WILL BE REMOVED)
 
-### 3.1 CommandLauncher
+**⚠️ SimplifiedLauncher is DEPRECATED and will be removed. DO NOT USE.**
+
+### 3.1 SimplifiedLauncher (DEPRECATED)
+**File**: `/home/gabrielh/projects/shotbot/simplified_launcher.py`
+
+**Class**: `SimplifiedLauncher` (lines 38-609)
+
+**Status**: DEPRECATED - Critical bugs, incomplete implementation, will be removed
+
+**Description**: Attempted streamlined launcher (610 lines) but critically flawed
+
+**Known Issues**:
+- Missing Rez/workspace integration
+- Parameter forwarding bugs
+- No proper thread safety
+- Incomplete FIFO support
+- Missing persistent terminal features
+
+**Migration Path**: Use PersistentTerminalManager via legacy launcher stack
+
+---
+
+## 4. LEGACY LAUNCHER STACK (BEING CONSOLIDATED)
+
+**The legacy launcher stack is being consolidated into PersistentTerminalManager.**
+
+### 4.1 CommandLauncher
 **File**: `/home/gabrielh/projects/shotbot/command_launcher.py`
 
 **Class**: `CommandLauncher` (lines 90-845)
 
-**Status**: DEPRECATED - Set `USE_SIMPLIFIED_LAUNCHER=false` to use
+**Status**: PRODUCTION - Works correctly, being consolidated into PersistentTerminalManager
 
-**Description**: Complex legacy launcher with 756 lines
+**Description**: Full-featured launcher with 756 lines, integrates with PersistentTerminalManager
 
-### 3.1.1 Legacy Launcher Flow Diagram
+### 4.1.1 Legacy Launcher Flow Diagram
 
 ```
 User Action
@@ -195,21 +216,18 @@ CommandLauncher.launch_app()
 - `persistent_terminal`: Optional terminal manager
 - `_raw_plate_finder`, `_nuke_script_generator`, `_threede_latest_finder`, `_maya_latest_finder`
 
-**Deprecation warning** (lines 5-17):
-```
-To use this legacy launcher, set environment variable: USE_SIMPLIFIED_LAUNCHER=false
-```
+**Usage**: Set `USE_SIMPLIFIED_LAUNCHER=false` to use this working implementation
 
-### 3.2 LauncherManager
+### 4.2 LauncherManager
 **File**: `/home/gabrielh/projects/shotbot/launcher_manager.py`
 
 **Class**: `LauncherManager` (lines 63-679)
 
-**Status**: DEPRECATED - Set `USE_SIMPLIFIED_LAUNCHER=false` to use
+**Status**: PRODUCTION - Custom launcher management, will be integrated into unified system
 
 **Description**: Custom launcher management (617 lines)
 
-#### 3.2.1 Custom Launcher Execution Flow (Legacy)
+#### 4.2.1 Custom Launcher Execution Flow
 
 ```
 User Clicks Custom Launcher Button
@@ -271,28 +289,14 @@ Clean Up Finished Workers
 - `_validator`: LauncherValidator instance
 - `_process_manager`: LauncherProcessManager instance
 
-**Deprecation warning** (lines 8-20)
+**Status**: Will be integrated into unified launcher system
 
-### 3.3 PersistentTerminalManager
-**File**: `/home/gabrielh/projects/shotbot/persistent_terminal_manager.py`
-
-**Class**: `PersistentTerminalManager` (deprecated)
-
-**Status**: DEPRECATED - Terminal feature, legacy only
-
-**Components**:
-- `TerminalOperationWorker`: Worker for terminal operations
-
-**Configuration**:
-- Requires FIFO path (Config.PERSISTENT_TERMINAL_FIFO)
-- Config flags: Config.PERSISTENT_TERMINAL_ENABLED, Config.USE_PERSISTENT_TERMINAL
-
-### 3.4 ProcessPoolManager
+### 4.3 ProcessPoolManager
 **File**: `/home/gabrielh/projects/shotbot/process_pool_manager.py`
 
-**Class**: `ProcessPoolManager` (deprecated)
+**Class**: `ProcessPoolManager`
 
-**Status**: DEPRECATED - Process pool singleton, legacy system
+**Status**: PRODUCTION - Process pool singleton, will be integrated into unified system
 
 **Components**:
 - `CommandCache`: Caches command results
@@ -302,13 +306,13 @@ Clean Up Finished Workers
 - `get_instance()`: Get singleton
 - `reset()`: Reset singleton (for testing)
 
-**Deprecation warning** (lines 8-20)
+**Note**: Functionality will be integrated into PersistentTerminalManager-based unified system
 
 ---
 
-## 4. LAUNCHER CONTROLLER
+## 5. LAUNCHER CONTROLLER
 
-### 4.1 LauncherController
+### 5.1 LauncherController
 **File**: `/home/gabrielh/projects/shotbot/controllers/launcher_controller.py`
 
 **Class**: `LauncherController` (lines 69-754)
@@ -340,9 +344,9 @@ Clean Up Finished Workers
 
 ---
 
-## 5. LAUNCHER MODELS & COMPONENTS
+## 6. LAUNCHER MODELS & COMPONENTS
 
-### 5.1 Launcher Subsystem Architecture Diagram
+### 6.1 Launcher Subsystem Architecture Diagram
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -381,7 +385,7 @@ Clean Up Finished Workers
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 Launcher Submodule (launcher/)
+### 6.2 Launcher Submodule (launcher/)
 **Directory**: `/home/gabrielh/projects/shotbot/launcher/`
 
 **Files and classes**:
@@ -432,11 +436,11 @@ Clean Up Finished Workers
 
 ---
 
-## 6. LAUNCH UTILITIES (launch/ submodule)
+## 7. LAUNCH UTILITIES (launch/ submodule)
 
 **Directory**: `/home/gabrielh/projects/shotbot/launch/`
 
-### 6.0 Launch Utilities Architecture Diagram
+### 7.0 Launch Utilities Architecture Diagram
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -466,7 +470,7 @@ Clean Up Finished Workers
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 6.1 CommandBuilder
+### 7.1 CommandBuilder
 **File**: `/home/gabrielh/projects/shotbot/launch/command_builder.py`
 
 **Class**: `CommandBuilder`
@@ -474,7 +478,7 @@ Clean Up Finished Workers
 - Handles command escaping
 - Integrates workspace (ws) commands
 
-### 6.2 EnvironmentManager
+### 7.2 EnvironmentManager
 **File**: `/home/gabrielh/projects/shotbot/launch/environment_manager.py`
 
 **Class**: `EnvironmentManager`
@@ -482,7 +486,7 @@ Clean Up Finished Workers
 - Sets up VFX tool environments
 - Configures workspace integration
 
-### 6.3 ProcessExecutor
+### 7.3 ProcessExecutor
 **File**: `/home/gabrielh/projects/shotbot/launch/process_executor.py`
 
 **Class**: `ProcessExecutor`
@@ -493,9 +497,9 @@ Clean Up Finished Workers
 
 ---
 
-## 7. NUKE-SPECIFIC LAUNCHING
+## 8. NUKE-SPECIFIC LAUNCHING
 
-### 7.0 Nuke Launch Flow Diagram
+### 8.0 Nuke Launch Flow Diagram
 
 ```
 SimplifiedLauncher._build_app_command("nuke")
@@ -526,7 +530,7 @@ Build command:
     └─→ nuke_launch_handler.py (launch handling)
 ```
 
-### 7.1 SimpleNukeLauncher
+### 8.1 SimpleNukeLauncher
 **File**: `/home/gabrielh/projects/shotbot/simple_nuke_launcher.py`
 
 **Class**: `SimpleNukeLauncher` (lines 24-242)
@@ -538,12 +542,12 @@ Build command:
 - `_create_script_via_nuke_api()`: Create via API (line 100)
 - `create_new_version()`: Create new script version (line 186)
 
-### 7.2 Nuke Launch Handler
+### 8.2 Nuke Launch Handler
 **File**: `/home/gabrielh/projects/shotbot/nuke_launch_handler.py`
 
 **Description**: Handles Nuke-specific launching logic
 
-### 7.3 Nuke Script Generator
+### 8.3 Nuke Script Generator
 **File**: `/home/gabrielh/projects/shotbot/nuke_script_generator.py`
 
 **Class**: `NukeScriptGenerator`
@@ -551,31 +555,31 @@ Build command:
 - Adds undistortion nodes
 - Configures raw plate reading
 
-### 7.4 Nuke Workspace Manager
+### 8.4 Nuke Workspace Manager
 **File**: `/home/gabrielh/projects/shotbot/nuke_workspace_manager.py`
 
 **Description**: Manages Nuke workspace/project structure
 
-### 7.5 Nuke Launch Router
+### 8.5 Nuke Launch Router
 **File**: `/home/gabrielh/projects/shotbot/nuke_launch_router.py`
 
 **Description**: Routes launches to correct Nuke instances
 
-### 7.6 Nuke Script Templates
+### 8.6 Nuke Script Templates
 **File**: `/home/gabrielh/projects/shotbot/nuke_script_templates.py`
 
 **Description**: Templates for Nuke script generation
 
-### 7.7 Nuke Media Detector
+### 8.7 Nuke Media Detector
 **File**: `/home/gabrielh/projects/shotbot/nuke_media_detector.py`
 
 **Description**: Detects media for Nuke launching
 
 ---
 
-## 8. LAUNCHER UI COMPONENTS
+## 9. LAUNCHER UI COMPONENTS
 
-### 8.1 LauncherPanel
+### 9.1 LauncherPanel
 **File**: `/home/gabrielh/projects/shotbot/launcher_panel.py`
 
 **Classes**:
@@ -586,7 +590,7 @@ Build command:
 
 **Purpose**: UI for launching applications with options (raw plate, open 3DE, etc.)
 
-### 8.2 LauncherDialog (manager UI)
+### 9.2 LauncherDialog (manager UI)
 **File**: `/home/gabrielh/projects/shotbot/launcher_dialog.py`
 
 **Classes**:
@@ -599,9 +603,9 @@ Build command:
 
 ---
 
-## 9. CONFIGURATION & SETTINGS
+## 10. CONFIGURATION & SETTINGS
 
-### 9.1 Config Module
+### 10.1 Config Module
 **File**: `/home/gabrielh/projects/shotbot/config.py`
 
 **Settings for launching** (lines 117-125):
@@ -612,16 +616,16 @@ PERSISTENT_TERMINAL_FIFO: str = "/tmp/shotbot_commands.fifo"
 PERSISTENT_TERMINAL_TITLE: str = "ShotBot Terminal"
 ```
 
-### 9.2 Environment Variables
+### 10.2 Environment Variables
 
 **Feature flag**:
 - `USE_SIMPLIFIED_LAUNCHER` (default: "true")
-  - true = Use SimplifiedLauncher (new default)
-  - false = Use legacy stack (CommandLauncher, LauncherManager, etc.)
+  - ⚠️ true = Use SimplifiedLauncher (BROKEN - DO NOT USE)
+  - ✅ false = Use PersistentTerminalManager via legacy stack (RECOMMENDED)
 
-**Persistent terminal** (legacy):
-- `PERSISTENT_TERMINAL_ENABLED` (default: "false")
-- `USE_PERSISTENT_TERMINAL` (default: "false")
+**Persistent terminal**:
+- `PERSISTENT_TERMINAL_ENABLED` (default: "false" - should be "true" for production)
+- `USE_PERSISTENT_TERMINAL` (default: "false" - should be "true" for production)
 
 **Other**:
 - `SHOTBOT_MOCK`: Mock mode for testing
@@ -629,9 +633,9 @@ PERSISTENT_TERMINAL_TITLE: str = "ShotBot Terminal"
 
 ---
 
-## 10. TESTING STRUCTURE
+## 11. TESTING STRUCTURE
 
-### 10.0 Testing Architecture Overview
+### 11.0 Testing Architecture Overview
 
 ```
 TESTS/UNIT/ (Isolated component testing)
@@ -667,7 +671,7 @@ TESTS/INTEGRATION/ (Full workflow testing)
     └─→ Terminal execution (legacy)
 ```
 
-### 10.1 Unit Tests
+### 11.1 Unit Tests
 **Directory**: `/home/gabrielh/projects/shotbot/tests/unit/`
 
 **Launcher-related test files**:
@@ -686,7 +690,7 @@ TESTS/INTEGRATION/ (Full workflow testing)
 - `test_launcher_controller.py`: Controller tests
 - `test_simple_nuke_launcher.py`: SimpleNukeLauncher tests
 
-### 10.2 Integration Tests
+### 11.2 Integration Tests
 **Directory**: `/home/gabrielh/projects/shotbot/tests/integration/`
 
 **Launcher-related test files**:
@@ -698,9 +702,9 @@ TESTS/INTEGRATION/ (Full workflow testing)
 
 ---
 
-## 11. ARCHITECTURE DIAGRAMS
+## 12. ARCHITECTURE DIAGRAMS
 
-### 11.1 Component Hierarchy (Detailed)
+### 12.1 Component Hierarchy (Detailed)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -752,7 +756,7 @@ TESTS/INTEGRATION/ (Full workflow testing)
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 11.2 Simplified Component Tree
+### 12.2 Simplified Component Tree
 
 ```
 MAINWINDOW
@@ -788,9 +792,18 @@ MAINWINDOW
 
 ---
 
-## 12. SIGNAL FLOW DIAGRAMS
+## 13. SIGNAL FLOW DIAGRAMS
 
-### 12.1 SimplifiedLauncher Signals
+### 13.1 PersistentTerminalManager Signals
+
+```
+PersistentTerminalManager SIGNALS:
+├─→ command_executed(command: str, result: int)
+├─→ command_error(error: str)
+└─→ operation_completed()
+```
+
+### 13.2 SimplifiedLauncher Signals (DEPRECATED)
 
 ```
 SimplifiedLauncher SIGNALS:
@@ -800,7 +813,7 @@ SimplifiedLauncher SIGNALS:
 └─→ process_finished(pid: int, return_code: int)
 ```
 
-### 12.2 Legacy Launcher Signals
+### 13.3 Legacy Launcher Signals
 
 ```
 CommandLauncher SIGNALS:
@@ -827,7 +840,7 @@ LauncherController RESPONDS TO:
 └─→ launcher_manager.execution_finished
 ```
 
-### 12.3 Process Lifecycle Diagram
+### 13.4 Process Lifecycle Diagram
 
 ```
 launch_app() call
@@ -858,7 +871,7 @@ Process cleanup
     └─→ Log execution metrics
 ```
 
-### 12.4 Shot Context Flow
+### 13.5 Shot Context Flow
 
 ```
 MainWindow._on_shot_selected(shot)
@@ -886,23 +899,22 @@ LauncherController.launch_app()
         └─→ Use current_shot for environment setup
 ```
 
-## 12. KEY RELATIONSHIPS
+## 14. KEY RELATIONSHIPS
 
-### SimplifiedLauncher flow:
-1. MainWindow creates SimplifiedLauncher (feature flag true)
+1. MainWindow creates CommandLauncher (feature flag false)
+2. MainWindow creates PersistentTerminalManager
+3. LauncherController coordinates launches
+4. CommandLauncher receives launch request
+5. Uses ProcessExecutor which uses PersistentTerminalManager
+6. PersistentTerminalManager sends command via FIFO
+7. Emits signals for UI feedback
+
+### SimplifiedLauncher flow (DEPRECATED):
+1. MainWindow creates SimplifiedLauncher (feature flag true - BROKEN)
 2. LauncherController coordinates launches
 3. SimplifiedLauncher receives launch request
-4. Executes command via EnvironmentManager + ProcessExecutor
-5. Emits signals for UI feedback
-
-### Legacy launcher flow:
-1. MainWindow creates CommandLauncher (feature flag false)
-2. MainWindow creates LauncherManager
-3. MainWindow creates PersistentTerminalManager (if enabled)
-4. LauncherController coordinates launches
-5. CommandLauncher receives launch request
-6. Uses ProcessExecutor (which uses PersistentTerminalManager if enabled)
-7. Emits signals for UI feedback
+4. ⚠️ MISSING workspace integration, broken parameter forwarding
+5. DO NOT USE - deprecated and will be removed
 
 ### Custom launcher flow:
 1. LauncherController receives custom launcher request
@@ -913,14 +925,14 @@ LauncherController.launch_app()
 
 ---
 
-## 13. WORKSPACE (WS) INTEGRATION
+## 15. WORKSPACE (WS) INTEGRATION
 
 **Purpose**: VFX production workspace management system
 
-**SimplifiedLauncher integration**:
-- `execute_ws_command()`: Execute workspace commands (line 229)
-- `_cache_get()`: Cache workspace discovery (line 440)
-- `_find_latest_nuke_workspace_script()`: Find scripts (line 421)
+**PersistentTerminalManager integration**:
+- Sends commands to persistent bash session
+- Commands execute in workspace environment
+- Session maintains workspace context
 
 **EnvironmentManager integration**:
 - Sets up workspace environment variables
@@ -931,28 +943,32 @@ LauncherController.launch_app()
 
 ---
 
-## 14. DEPRECATION TIMELINE
+## 16. ARCHITECTURAL TRANSITION TIMELINE
 
-**2025-11-12 Phase 1** (CURRENT):
-- SimplifiedLauncher set as default
-- Legacy modules emit deprecation warnings
-- Both systems functional
+**2025-11-13** (CURRENT):
+- **SimplifiedLauncher**: DEPRECATED (broken, will be removed)
+- **PersistentTerminalManager**: PRIMARY LAUNCHER (production-ready)
+- **Legacy Stack**: Being consolidated into PersistentTerminalManager
 
-**2025-11-12 Phase 2**:
-- Integration tests updated for both launchers
-- Legacy system maintained for backward compatibility
+**Recommended Configuration**:
+```bash
+export USE_SIMPLIFIED_LAUNCHER=false  # Use PersistentTerminalManager
+export PERSISTENT_TERMINAL_ENABLED=true  # Enable FIFO communication
+```
 
 **Future**:
-- Legacy modules will be archived/removed
+- SimplifiedLauncher will be archived/removed
+- Legacy stack (CommandLauncher, LauncherManager, ProcessPoolManager) functionality will be consolidated into PersistentTerminalManager
+- Feature flag will be removed, PersistentTerminalManager will be the only launcher
 
 ---
 
-## 15. FILE PATHS SUMMARY
+## 17. FILE PATHS SUMMARY
 
-### Active (Current Default)
+### Primary Launcher (Production)
 ```
-/home/gabrielh/projects/shotbot/simplified_launcher.py
-/home/gabrielh/projects/shotbot/simple_nuke_launcher.py
+/home/gabrielh/projects/shotbot/persistent_terminal_manager.py
+/home/gabrielh/projects/shotbot/command_launcher.py
 /home/gabrielh/projects/shotbot/launcher_panel.py
 /home/gabrielh/projects/shotbot/launcher_dialog.py
 /home/gabrielh/projects/shotbot/controllers/launcher_controller.py
@@ -974,12 +990,15 @@ LauncherController.launch_app()
   └── __init__.py
 ```
 
-### Deprecated (Legacy)
+### Being Consolidated
 ```
-/home/gabrielh/projects/shotbot/command_launcher.py
 /home/gabrielh/projects/shotbot/launcher_manager.py
-/home/gabrielh/projects/shotbot/persistent_terminal_manager.py
 /home/gabrielh/projects/shotbot/process_pool_manager.py
+```
+
+### Deprecated (Will Be Removed)
+```
+/home/gabrielh/projects/shotbot/simplified_launcher.py
 ```
 
 ### Nuke Integration
@@ -994,7 +1013,7 @@ LauncherController.launch_app()
 
 ---
 
-## 16. QUICK REFERENCE: KEY ENTRY POINTS
+## 18. QUICK REFERENCE: KEY ENTRY POINTS
 
 | Action | Code Path |
 |--------|-----------|
@@ -1009,9 +1028,9 @@ LauncherController.launch_app()
 
 ---
 
-## 17. FEATURE FLAG USAGE
+## 19. FEATURE FLAG USAGE
 
-### 17.1 Decision Tree: Which Launcher?
+### 19.1 Decision Tree: Which Launcher?
 
 ```
                     User clicks "Launch Nuke"
@@ -1020,23 +1039,20 @@ LauncherController.launch_app()
                               ↓
                      ┌────────┴────────┐
                      ↓                 ↓
-                  true            false
-                  ↓                 ↓
-           SimplifiedLauncher  CommandLauncher
-           • ⚠️ BROKEN          • Working
-           • Will be removed   • Use this
-           • DO NOT USE        • Production ready
-           • Default (BAD)     • Recommended
-                 ↓
-           NukeHandler selection
-                 ↓
-          SimpleNukeLauncher
-           (218 lines)
+                  true (❌)         false (✅)
+                     ↓                 ↓
+           SimplifiedLauncher  PersistentTerminalManager
+           • ⚠️ BROKEN         • ✅ Production ready
+           • DEPRECATED        • Robust FIFO communication
+           • DO NOT USE        • Thread-safe
+           • Will be removed   • RECOMMENDED
+                     ↓
+                  ERROR
 ```
 
-**RECOMMENDATION: Set `USE_SIMPLIFIED_LAUNCHER=false` until SimplifiedLauncher is fixed or removed.**
+**⚠️ CRITICAL: Set `USE_SIMPLIFIED_LAUNCHER=false` to use working PersistentTerminalManager**
 
-### 17.2 Implementation
+### 19.2 Implementation
 
 **In code** (main_window.py lines 298-328):
 ```python
@@ -1054,9 +1070,10 @@ else:
     self.launcher_manager = LauncherManager(...)
 ```
 
-**To use working launcher (RECOMMENDED)**:
+**To use PersistentTerminalManager (RECOMMENDED)**:
 ```bash
 export USE_SIMPLIFIED_LAUNCHER=false
+export PERSISTENT_TERMINAL_ENABLED=true
 python shotbot.py
 ```
 

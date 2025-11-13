@@ -26,6 +26,7 @@ from PySide6.QtCore import QObject, Signal
 
 # Local application imports
 from config import Config
+from launch.environment_manager import EnvironmentManager
 from logging_mixin import LoggingMixin
 from maya_latest_finder_refactored import MayaLatestFinder
 from nuke_launch_handler import NukeLaunchHandler
@@ -35,6 +36,10 @@ if TYPE_CHECKING:
     # Local application imports
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
+
+
+# Module-level constants
+_SIGTERM_WAIT_SECONDS = 0.5  # Wait time between SIGTERM and SIGKILL
 
 
 @final
@@ -79,6 +84,9 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         # Initialize Nuke handler for consolidated Nuke functionality
         self.nuke_handler = NukeLaunchHandler()
 
+        # Initialize environment manager for terminal detection and environment setup
+        self.env_manager = EnvironmentManager()
+
         self.logger.info("SimplifiedLauncher initialized with 30-minute cache TTL")
 
     def set_current_shot(self, shot: Shot | None) -> None:
@@ -117,6 +125,13 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         if app_name not in Config.APPS:
             self._emit_error(f"Unknown application: {app_name}")
             return False
+
+        # Log launch attempt with context
+        self.logger.info(
+            f"Launching {app_name} for {shot.full_name if shot else 'no shot'} "
+            f"(open_latest={options.get('open_latest', False)}, "
+            f"include_plate={options.get('include_plate', False)})"
+        )
 
         # Special handling for Nuke using NukeLaunchHandler
         if app_name == "nuke" and shot:
@@ -320,7 +335,30 @@ class SimplifiedLauncher(LoggingMixin, QObject):
     # ========== Terminal Execution ==========
 
     def _execute_in_terminal(self, command: str, env: dict[str, str]) -> bool:
-        """Execute command in a visible terminal window."""
+        """Execute command in a visible terminal window.
+
+        This method is thread-safe and handles:
+        - Terminal emulator detection and selection
+        - Environment variable merging
+        - Process tracking and cleanup
+        - Signal emission for command execution status
+
+        Args:
+            command: Shell command to execute
+            env: Environment variables to set for the process
+
+        Returns:
+            True if command was successfully started in terminal,
+            False if terminal launch failed.
+
+        Thread Safety:
+            Thread-safe through _process_lock for process tracking.
+            Multiple threads can call this concurrently.
+
+        Raises:
+            No exceptions raised - all errors logged and return False.
+        """
+        proc = None  # Track process for cleanup in case of errors
         try:
             # Determine terminal emulator
             terminal_cmd = self._get_terminal_command(command)
@@ -344,9 +382,32 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             self.logger.info(f"Launched process {proc.pid}: {command[:50]}...")
             return True
 
+        except FileNotFoundError as e:
+            error_msg = (
+                f"Terminal emulator not found: {e}. "
+                f"Please install a supported terminal (gnome-terminal, konsole, xterm)."
+            )
+            self.logger.error(error_msg)
+            self._emit_error(error_msg)
+            # Clean up proc if created but not tracked
+            if proc is not None:
+                try:
+                    proc.kill()
+                    proc.close()  # pyright: ignore[reportAttributeAccessIssue]
+                except Exception:
+                    pass
+            return False
         except Exception as e:
-            self.logger.error(f"Failed to launch in terminal: {e}")
-            self._emit_error(str(e))
+            error_msg = f"Failed to launch command in terminal: {e}"
+            self.logger.error(error_msg)
+            self._emit_error(error_msg)
+            # Clean up proc if created but not tracked
+            if proc is not None:
+                try:
+                    proc.kill()
+                    proc.close()  # pyright: ignore[reportAttributeAccessIssue]
+                except Exception:
+                    pass
             return False
 
     def _execute_background(self, command: str, env: dict[str, str]) -> bool:
@@ -376,15 +437,29 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             return False
 
     def _get_terminal_command(self, command: str) -> list[str]:
-        """Get the terminal emulator command for the current system."""
-        # Check for common terminal emulators
-        if self._command_exists("gnome-terminal"):
+        """Get the terminal emulator command for the current system.
+
+        Uses EnvironmentManager for consistent terminal detection.
+
+        Args:
+            command: The command to execute in the terminal
+
+        Returns:
+            List of command arguments for subprocess.Popen
+        """
+        # Use EnvironmentManager to detect available terminal
+        terminal = self.env_manager.detect_terminal()
+
+        if terminal == "gnome-terminal":
             return ["gnome-terminal", "--", "bash", "-c", command]
-        if self._command_exists("konsole"):
+        if terminal == "konsole":
             return ["konsole", "-e", "bash", "-c", command]
-        if self._command_exists("xterm"):
+        if terminal == "xterm":
             return ["xterm", "-e", "bash", "-c", command]
-        # Fallback to direct execution
+        if terminal == "x-terminal-emulator":
+            return ["x-terminal-emulator", "-e", "bash", "-c", command]
+        # Fallback to direct execution if no terminal found
+        self.logger.warning("No terminal emulator found, executing directly")
         return ["bash", "-c", command]
 
     # ========== Helper Methods ==========
@@ -449,25 +524,42 @@ class SimplifiedLauncher(LoggingMixin, QObject):
     # ========== Cache Management ==========
 
     def _cache_get(self, command: str) -> str | None:
-        """Get cached result if still valid (thread-safe)."""
+        """Get cached result if still valid (thread-safe).
+
+        Args:
+            command: Command to look up in cache
+
+        Returns:
+            Cached result if valid, None if cache miss or expired
+        """
         with self._cache_lock:
             if command not in self._ws_cache:
+                self.logger.debug(f"Cache miss for command: {command[:50]}...")
                 return None
 
             result, timestamp = self._ws_cache[command]
 
             # Check if cache is still valid (30 minutes)
-            if time.time() - timestamp < self._ws_cache_ttl:
+            age = time.time() - timestamp
+            if age < self._ws_cache_ttl:
+                self.logger.debug(f"Cache hit for command: {command[:50]}... (age: {age:.1f}s)")
                 return result
 
             # Cache expired
             del self._ws_cache[command]
+            self.logger.debug(f"Cache expired for command: {command[:50]}... (age: {age:.1f}s)")
             return None
 
     def _cache_set(self, command: str, result: str) -> None:
-        """Cache a workspace command result (thread-safe)."""
+        """Cache a workspace command result (thread-safe).
+
+        Args:
+            command: Command that was executed
+            result: Command output to cache
+        """
         with self._cache_lock:
             self._ws_cache[command] = (result, time.time())
+            self.logger.debug(f"Cached result for command: {command[:50]}... (TTL: {self._ws_cache_ttl}s)")
 
     def clear_cache(self) -> None:
         """Clear the workspace command cache (thread-safe)."""
@@ -515,10 +607,22 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             self.logger.debug(f"Cleaned up {len(finished_pids)} finished processes")
 
     def terminate_all_processes(self) -> None:
-        """Terminate all active processes with SIGKILL fallback (thread-safe)."""
+        """Terminate all active processes with SIGKILL fallback (thread-safe).
+
+        Uses two-phase termination:
+        1. Send SIGTERM to all processes (graceful)
+        2. Wait _SIGTERM_WAIT_SECONDS
+        3. Send SIGKILL to any remaining processes (forced)
+        """
         # Snapshot under lock
         with self._process_lock:
             processes_snapshot = list(self._active_processes.items())
+
+        if not processes_snapshot:
+            self.logger.debug("No active processes to terminate")
+            return
+
+        self.logger.info(f"Terminating {len(processes_snapshot)} active processes")
 
         # First attempt: graceful termination (SIGTERM)
         for pid, proc in processes_snapshot:
@@ -529,16 +633,21 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                 self.logger.warning(f"Failed to terminate process {pid}: {e}")
 
         # Wait briefly for graceful termination
-        time.sleep(0.5)
+        time.sleep(_SIGTERM_WAIT_SECONDS)
 
         # Second attempt: force kill any remaining processes (SIGKILL)
+        killed_count = 0
         for pid, proc in processes_snapshot:
             if proc.poll() is None:  # Still running
                 try:
                     proc.kill()
+                    killed_count += 1
                     self.logger.info(f"Sent SIGKILL to process {pid}")
                 except Exception as e:
                     self.logger.warning(f"Failed to kill process {pid}: {e}")
+
+        if killed_count > 0:
+            self.logger.info(f"Force killed {killed_count} processes that didn't respond to SIGTERM")
 
         # Clear tracking dictionary under lock
         with self._process_lock:
@@ -548,6 +657,8 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                 except Exception:
                     pass
             self._active_processes.clear()
+
+        self.logger.info("Process termination complete")
 
     # ========== Utility Methods ==========
 
@@ -664,6 +775,13 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         Per CLAUDE.md guidelines, all singleton-like classes should implement this
         method for test isolation, even if they don't maintain class-level state.
         Tests should create fresh instances rather than reusing/resetting existing ones.
+
+        TODO: Add tests for:
+          - Thread-safe cache operations under concurrent access
+          - Process cleanup during shutdown
+          - Two-phase termination (SIGTERM → SIGKILL)
+          - EnvironmentManager integration for terminal detection
+          - Resource cleanup in error paths (_execute_in_terminal)
         """
         # SimplifiedLauncher doesn't use class-level state, only instance state.
         # Instance cleanup is handled via terminate_all_processes() and clear_cache()

@@ -495,112 +495,111 @@ cache_manager.clear_cache()  # Clears all caches including 3DE scenes
 
 ## Launcher System Architecture
 
-### SimplifiedLauncher (Current Default)
+### PersistentTerminalManager (Primary Launcher)
 
-**As of 2025-11-12, SimplifiedLauncher is the default launcher implementation.**
+**PersistentTerminalManager is the production launcher system** for Shotbot.
+
+**File**: `persistent_terminal_manager.py`
 
 #### Overview
-SimplifiedLauncher is a streamlined, single-module launcher that replaces the legacy 4-module orchestration system. It provides all core launching functionality with 80% less code.
+PersistentTerminalManager provides robust terminal session management with persistent FIFO-based communication for reliable command execution in VFX production environments.
 
-**Benefits**:
-- **Single Module**: 610 lines vs 3,153 lines (4 legacy modules)
-- **Simpler Architecture**: Direct implementation without complex orchestration
-- **Easier Maintenance**: One file to understand and modify
-- **Same Functionality**: All core features preserved (terminal launching, environment setup, Nuke integration)
-
-**File**: `launcher/simplified_launcher.py`
+**Architecture**:
+- Persistent terminal sessions via FIFO (named pipe) communication
+- Background command execution with process tracking
+- Worker thread management with Qt parent-child relationships
+- Atomic FIFO recreation for robust restart handling
+- Comprehensive error handling and logging
 
 #### Key Features
-- Terminal launching with `ws` workspace integration
-- Background command execution
-- Nuke-specific integrations (undistortion nodes, raw plates)
-- Signal-based communication (command_executed, command_error)
-- Thread-safe operation
+- **FIFO Communication**: Reliable inter-process communication via named pipes
+- **Terminal Persistence**: Sessions remain active across multiple commands
+- **Process Lifecycle Management**: Track and cleanup background processes
+- **Signal-Based Communication**: Qt signals for thread-safe coordination (command_executed, command_error)
+- **Thread Safety**: Proper locking and Qt parent-child relationships
+- **Atomic Operations**: Safe FIFO recreation and session management
 
-### Legacy Launcher System (Deprecated)
+#### Core Components
+**TerminalOperationWorker**: QThread worker for asynchronous command execution
+- Background operation execution
+- Signal emission for completion/errors
+- Proper Qt parent-child lifecycle management
 
-**The legacy launcher system is deprecated as of 2025-11-12.**
+**FIFO Management**:
+- Atomic recreation on startup (handles stale FIFOs from crashes)
+- Non-blocking write operations
+- Timeout handling for terminal availability
+- Graceful cleanup on shutdown
 
-#### Deprecated Modules
-The following modules are deprecated and should not be used in new code:
-
-1. **command_launcher.py** (1,046 lines) - Main launcher orchestration
-2. **launcher_manager.py** (916 lines) - State management and coordination
-3. **process_pool_manager.py** (669 lines) - Process pool management
-4. **persistent_terminal_manager.py** (522 lines) - Terminal persistence
-
-**Total**: 3,153 lines of deprecated code
-
-#### Deprecation Warnings
-All deprecated modules emit deprecation warnings when imported:
+#### Usage Pattern
 ```python
-warnings.warn(
-    "CommandLauncher is deprecated. Use SimplifiedLauncher instead.",
-    DeprecationWarning,
-    stacklevel=2
-)
+from persistent_terminal_manager import PersistentTerminalManager
+
+# Initialize
+terminal_mgr = PersistentTerminalManager(parent=self)
+
+# Connect signals
+terminal_mgr.command_executed.connect(self.on_command_executed)
+terminal_mgr.command_error.connect(self.on_command_error)
+
+# Execute command
+terminal_mgr.send_command("ws nuke shot_name")
 ```
 
-#### Reverting to Legacy Launcher
-If you need to temporarily revert to the legacy launcher system:
+### SimplifiedLauncher (⚠️ DEPRECATED - Will Be Removed)
 
-**Environment Variable**:
-```bash
-export USE_SIMPLIFIED_LAUNCHER=false
-python shotbot.py
-```
+**SimplifiedLauncher is deprecated and will be removed.** It has critical bugs and architectural issues.
 
-**In Code** (main_window.py):
-```python
-# Line 300: Change default from "true" to "false"
-use_simplified = os.getenv("USE_SIMPLIFIED_LAUNCHER", "false").lower() == "true"
-```
+**File**: `launcher/simplified_launcher.py` (will be removed)
 
-**Note**: The legacy system is maintained for backward compatibility only. It will be removed in a future release.
+**Known Issues**:
+- Missing Rez/workspace integration
+- Parameter forwarding bugs
+- No proper thread safety
+- Incomplete implementation
+- Missing persistent terminal support
 
-### Migration Timeline
+**Status**: DO NOT USE in production code. Use PersistentTerminalManager instead.
 
-- **2025-11-12 Phase 1**: SimplifiedLauncher set as default, deprecation warnings added
-- **2025-11-12 Phase 2**: Integration tests updated for both launchers
-- **Future**: Legacy modules will be archived after extended validation period
+**Note**: SimplifiedLauncher will be archived and removed in a future release once all code paths are migrated to PersistentTerminalManager.
+
+### Legacy Launcher Consolidation
+
+The legacy launcher stack (CommandLauncher, LauncherManager, ProcessPoolManager) is being consolidated into PersistentTerminalManager as the unified launcher system.
+
+**Current Architecture**:
+- **PersistentTerminalManager**: Primary launcher (production-ready)
+- **CommandLauncher**: Being consolidated into PersistentTerminalManager
+- **LauncherManager**: Custom launcher management (to be integrated)
+- **ProcessPoolManager**: Process pool functionality (to be integrated)
 
 ### For Developers
 
-#### Using SimplifiedLauncher
+#### Using PersistentTerminalManager
 ```python
-from launcher.simplified_launcher import SimplifiedLauncher
+from persistent_terminal_manager import PersistentTerminalManager
 
-# Initialize
-launcher = SimplifiedLauncher(parent=self)
+# Initialize with Qt parent for proper lifecycle
+terminal_mgr = PersistentTerminalManager(parent=self)
 
 # Connect signals
-launcher.command_executed.connect(self.on_command_executed)
-launcher.command_error.connect(self.on_command_error)
+terminal_mgr.command_executed.connect(self.on_command_executed)
+terminal_mgr.command_error.connect(self.on_command_error)
 
-# Launch application
-launcher.set_current_shot(shot)
-success = launcher.launch_app("nuke")
+# Send command (async execution)
+terminal_mgr.send_command("ws nuke MY_SHOT_v001")
+
+# Cleanup (automatic via Qt parent-child, but can call explicitly)
+terminal_mgr.cleanup()
 ```
 
-#### Testing Both Launchers
-Integration tests handle both implementations:
+#### Configuration
+PersistentTerminalManager configuration is in `config.py`:
+
 ```python
-# Tests conditionally check for launcher type
-if hasattr(main_window, 'launcher_manager'):
-    # Legacy launcher
-    assert main_window.launcher_manager.current_shot == shot
-else:
-    # SimplifiedLauncher
-    assert main_window.command_launcher.current_shot == shot
+# Terminal configuration
+PERSISTENT_TERMINAL_ENABLED: bool = True
+PERSISTENT_TERMINAL_FIFO: str = "/tmp/shotbot_commands.fifo"
+PERSISTENT_TERMINAL_TITLE: str = "ShotBot Terminal"
 ```
-
-#### Migration Checklist
-If you're updating code that uses the launcher:
-
-1. ✅ Use `command_launcher` attribute (works for both implementations)
-2. ✅ Connect to standard signals (`command_executed`, `command_error`)
-3. ✅ Use `set_current_shot()` and `launch_app()` methods
-4. ❌ Don't access `launcher_manager` directly (deprecated)
-5. ❌ Don't use `process_pool_manager` directly (deprecated)
-6. ❌ Don't use `persistent_terminal_manager` directly (deprecated)
 
