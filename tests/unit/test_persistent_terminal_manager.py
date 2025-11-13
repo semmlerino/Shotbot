@@ -668,19 +668,31 @@ class TestPersistentTerminalManager:
         mock_mkfifo: MagicMock,
         mock_exists: MagicMock,
     ) -> None:
-        """Test dummy writer FD is opened to prevent FIFO EOF."""
+        """Test dummy writer FD is opened when explicitly requested.
+
+        After fix, __init__ doesn't open dummy writer (defers until dispatcher starts).
+        This test verifies _ensure_fifo(open_dummy_writer=True) works correctly.
+        """
         # Arrange: FIFO doesn't exist initially, then exists after creation
-        mock_exists.side_effect = [False, True]
+        # Need multiple True values for all the exists() checks in _ensure_fifo()
+        mock_exists.side_effect = [False, True, True, True]  # Init + manual call checks
         mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
         mock_open.return_value = 42  # Dummy FD number
 
-        # Act: Create manager (which ensures FIFO and opens dummy writer)
+        # Act: Create manager (FIFO created, dummy writer NOT opened)
         import os as real_os
         with patch("os.O_WRONLY", real_os.O_WRONLY), patch("os.O_NONBLOCK", real_os.O_NONBLOCK):
             manager = PersistentTerminalManager(fifo_path="/tmp/test.fifo")
 
-        # Assert: FIFO created and dummy writer opened
-        mock_mkfifo.assert_called_once_with("/tmp/test.fifo", 0o600)
+            # Assert: FIFO created but dummy writer NOT opened during init
+            mock_mkfifo.assert_called_once_with("/tmp/test.fifo", 0o600)
+            assert manager._dummy_writer_fd is None, "Dummy writer should not be opened during init"
+
+            # Now explicitly call _ensure_fifo with open_dummy_writer=True
+            result = manager._ensure_fifo(open_dummy_writer=True)
+
+        # Assert: Dummy writer opened when explicitly requested
+        assert result is True
         mock_open.assert_called_once_with(
             "/tmp/test.fifo", real_os.O_WRONLY | real_os.O_NONBLOCK
         )
@@ -783,19 +795,20 @@ class TestPersistentTerminalManager:
     @patch("os.close")
     def test_del_closes_dummy_writer_fd(self, mock_close: MagicMock) -> None:
         """Test __del__ closes dummy writer FD during garbage collection."""
-        # Arrange: Create manager with dummy writer FD
+        # Arrange: Create manager and manually set dummy writer FD
+        # (Init no longer opens dummy writer automatically)
         with (
             patch("os.path.exists", return_value=False),
             patch("os.mkfifo"),
             patch("os.stat") as mock_stat,
-            patch("os.open", return_value=42),
         ):
             mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
-            import os as real_os
-            with patch("os.O_WRONLY", real_os.O_WRONLY), patch("os.O_NONBLOCK", real_os.O_NONBLOCK):
-                manager = PersistentTerminalManager(fifo_path="/tmp/test.fifo")
+            manager = PersistentTerminalManager(fifo_path="/tmp/test.fifo")
 
-        # Verify dummy writer was opened
+        # Manually set dummy writer FD to simulate it being opened later
+        manager._dummy_writer_fd = 42
+
+        # Verify dummy writer FD is set
         assert manager._dummy_writer_fd == 42
 
         # Mock Path operations for __del__
@@ -805,6 +818,397 @@ class TestPersistentTerminalManager:
 
         # Assert: Dummy writer FD was closed
         mock_close.assert_called_with(42)
+
+    @patch("os.close")
+    @patch("os.open")
+    @patch("os.mkfifo")
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.stat")
+    @patch("time.sleep")
+    def test_restart_terminal_opens_dummy_writer_after_dispatcher_starts(
+        self,
+        mock_sleep: MagicMock,
+        mock_stat: MagicMock,
+        mock_exists: MagicMock,
+        mock_mkfifo: MagicMock,
+        mock_open: MagicMock,
+        mock_close: MagicMock,
+        terminal_manager: PersistentTerminalManager,
+    ) -> None:
+        """Test restart_terminal opens dummy writer AFTER dispatcher starts.
+
+        This test catches the bug where _ensure_fifo() tries to open dummy writer
+        BEFORE _launch_terminal() starts the dispatcher, causing ENXIO errors.
+
+        Current buggy order (line 895-901):
+        1. _ensure_fifo() - Opens dummy writer (ENXIO!)
+        2. _launch_terminal() - Starts dispatcher (reader)
+
+        Correct order should be:
+        1. Create FIFO file
+        2. _launch_terminal() - Start dispatcher (reader)
+        3. Open dummy writer - Now reader exists, no ENXIO
+        """
+        # Arrange: Track call order
+        call_order: list[str] = []
+
+        # Set initial dummy writer FD
+        terminal_manager._dummy_writer_fd = 42
+
+        # Mock Path.exists to return True for FIFO (so it gets removed)
+        mock_exists.return_value = True
+
+        # Mock FIFO stat
+        mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
+
+        # Track os.open calls - simulate ENXIO if writer opens before dispatcher
+        def track_open(path: str, flags: int) -> int:
+            """Track dummy writer opens."""
+            # Check if this is a write-only open (dummy writer)
+            import os as real_os
+            if flags & real_os.O_WRONLY:
+                call_order.append("dummy_writer_open")
+                # Simulate ENXIO if dispatcher hasn't started yet
+                if "launch_terminal" not in call_order:
+                    raise OSError(errno.ENXIO, "No reader available")
+            return 99  # New FD
+
+        mock_open.side_effect = track_open
+
+        # Track _launch_terminal calls
+        def track_launch() -> bool:
+            """Track dispatcher launch."""
+            call_order.append("launch_terminal")
+            return True  # Simulate successful launch
+
+        # Track _is_dispatcher_running for final health check
+        def mock_dispatcher_running() -> bool:
+            """Mock dispatcher running check."""
+            return "launch_terminal" in call_order
+
+        with (
+            patch.object(terminal_manager, "_launch_terminal", side_effect=track_launch),
+            patch.object(terminal_manager, "_is_dispatcher_running", side_effect=mock_dispatcher_running),
+            patch.object(terminal_manager, "close_terminal"),
+        ):
+            # Act: Restart terminal
+            result = terminal_manager.restart_terminal()
+
+        # Assert: This test SHOULD FAIL with current code
+        # Current code opens dummy writer BEFORE launching terminal
+        # Expected order: ["launch_terminal", "dummy_writer_open"]
+        # Actual buggy order: ["dummy_writer_open"] (raises ENXIO before launch)
+
+        # This assertion will FAIL with current buggy code:
+        # - Either ENXIO is raised (test fails with exception)
+        # - Or call_order is wrong (assertion fails)
+        if result:  # If it didn't raise ENXIO
+            assert "launch_terminal" in call_order, "Dispatcher was never started"
+            assert call_order.index("launch_terminal") < call_order.index("dummy_writer_open"), \
+                f"Dummy writer opened before dispatcher started. Order: {call_order}"
+        else:
+            # restart_terminal returned False due to ENXIO
+            pytest.fail("restart_terminal failed - likely due to ENXIO from opening writer before reader")
+
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.stat")
+    @patch("os.open")
+    def test_ensure_fifo_with_no_reader_raises_enxio(
+        self,
+        mock_open: MagicMock,
+        mock_stat: MagicMock,
+        mock_exists: MagicMock,
+    ) -> None:
+        """Test _ensure_fifo handles ENXIO when opening writer with no reader.
+
+        This test demonstrates the POSIX FIFO semantics:
+        - open(fifo, O_WRONLY | O_NONBLOCK) with no reader = ENXIO error
+
+        Current code doesn't handle this case properly, assuming the reader
+        (dispatcher) already exists.
+        """
+        # Arrange: FIFO exists but has no reader
+        mock_exists.return_value = True
+        mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
+
+        # Simulate ENXIO when trying to open for writing (no reader)
+        mock_open.side_effect = OSError(errno.ENXIO, "No reader available")
+
+        # Act: Try to create manager (calls _ensure_fifo in __init__)
+        # This SHOULD handle ENXIO gracefully but currently doesn't
+        with patch("os.mkfifo"):  # Don't actually create FIFO
+            manager = PersistentTerminalManager(fifo_path="/tmp/test.fifo")
+
+        # Assert: Manager should handle ENXIO gracefully
+        # Current code logs error but doesn't handle it properly
+        assert manager._dummy_writer_fd is None, (
+            "Dummy writer FD should be None when ENXIO occurs"
+        )
+
+    @patch("os.open")
+    @patch("os.mkfifo")
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.stat")
+    @patch("time.sleep")
+    def test_dummy_writer_opens_only_after_dispatcher_ready(
+        self,
+        mock_sleep: MagicMock,
+        mock_stat: MagicMock,
+        mock_exists: MagicMock,
+        mock_mkfifo: MagicMock,
+        mock_open: MagicMock,
+        terminal_manager: PersistentTerminalManager,
+    ) -> None:
+        """Test dummy writer FD remains None until dispatcher is ready.
+
+        This is an end-to-end ordering test that verifies the complete flow:
+        1. Create FIFO
+        2. Start dispatcher (reader)
+        3. Wait for dispatcher ready
+        4. Open dummy writer (now safe, reader exists)
+        """
+        # Arrange: Track state
+        call_order: list[str] = []
+        dispatcher_ready = False
+
+        # Set initial state
+        terminal_manager._dummy_writer_fd = None
+
+        # Mock FIFO operations
+        mock_exists.return_value = True
+        mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
+
+        # Track os.open - should only be called after dispatcher ready
+        open_call_count = 0
+
+        def track_open(path: str, flags: int) -> int:
+            """Track dummy writer opens."""
+            nonlocal open_call_count
+            import os as real_os
+            if flags & real_os.O_WRONLY:
+                open_call_count += 1
+                call_order.append("dummy_writer_open")
+                # Verify dispatcher is ready before opening
+                if not dispatcher_ready:
+                    pytest.fail("Dummy writer opened before dispatcher was ready!")
+            return 42
+
+        mock_open.side_effect = track_open
+
+        # Mock dispatcher readiness
+        def mock_dispatcher_running() -> bool:
+            """Mock dispatcher running check."""
+            return dispatcher_ready
+
+        # Mock launch to set dispatcher ready
+        def mock_launch() -> bool:
+            """Mock terminal launch."""
+            nonlocal dispatcher_ready
+            call_order.append("launch_terminal")
+            # Simulate dispatcher startup delay
+            dispatcher_ready = True
+            return True
+
+        with (
+            patch.object(terminal_manager, "_launch_terminal", side_effect=mock_launch),
+            patch.object(terminal_manager, "_is_dispatcher_running", side_effect=mock_dispatcher_running),
+            patch.object(terminal_manager, "close_terminal"),
+            patch("os.close"),
+        ):
+            # Act: Restart terminal
+            result = terminal_manager.restart_terminal()
+
+        # Assert: Dummy writer only opened after dispatcher ready
+        assert result is True
+        assert call_order.index("launch_terminal") < call_order.index("dummy_writer_open"), \
+            f"Wrong order: {call_order}"
+        assert open_call_count == 1, "Dummy writer should be opened exactly once"
+
+    @patch("pathlib.Path.exists")
+    @patch("os.mkfifo")
+    @patch("pathlib.Path.stat")
+    @patch("os.open")
+    def test_initialization_order_prevents_enxio(
+        self,
+        mock_open: MagicMock,
+        mock_stat: MagicMock,
+        mock_mkfifo: MagicMock,
+        mock_exists: MagicMock,
+    ) -> None:
+        """Test __init__ doesn't raise ENXIO by deferring dummy writer opening.
+
+        After fix, __init__ should:
+        1. Create FIFO only (no dummy writer)
+        2. Defer dummy writer opening until terminal is launched
+
+        This prevents ENXIO since dummy writer isn't opened during init.
+        """
+        # Arrange: FIFO doesn't exist initially
+        mock_exists.return_value = False
+        mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
+
+        # Track if os.open was called with O_WRONLY (dummy writer)
+        writer_opened = False
+
+        def track_open(path: str, flags: int) -> int:
+            """Track if dummy writer opens during init."""
+            nonlocal writer_opened
+            import os as real_os
+            if flags & real_os.O_WRONLY:
+                writer_opened = True
+                # Would raise ENXIO if dispatcher not running
+                raise OSError(errno.ENXIO, "No reader available - dispatcher not started")
+            return 42
+
+        mock_open.side_effect = track_open
+
+        # Act: Create manager - should NOT raise ENXIO now
+        manager = PersistentTerminalManager(fifo_path="/tmp/test.fifo")
+
+        # Assert: Manager created successfully without opening dummy writer
+        assert manager._dummy_writer_fd is None, "Dummy writer should not be opened during init"
+        assert not writer_opened, "os.open(O_WRONLY) should not be called during init"
+        assert manager.fifo_path == "/tmp/test.fifo"
+
+        # The fix: __init__ calls _ensure_fifo(open_dummy_writer=False)
+        # Dummy writer will be opened later when terminal is actually launched
+
+    @patch("os.close")
+    @patch("os.open")
+    @patch("os.mkfifo")
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.stat")
+    @patch("time.sleep")
+    def test_rapid_restart_maintains_correct_order(
+        self,
+        mock_sleep: MagicMock,
+        mock_stat: MagicMock,
+        mock_exists: MagicMock,
+        mock_mkfifo: MagicMock,
+        mock_open: MagicMock,
+        mock_close: MagicMock,
+        terminal_manager: PersistentTerminalManager,
+    ) -> None:
+        """Test rapid restart cycles maintain correct operation order.
+
+        Stress test to verify that even in rapid restart scenarios,
+        the order is always: close → mkfifo → launch → open_writer
+        """
+        # Arrange: Track all restart cycles
+        restart_cycles: list[list[str]] = []
+        current_cycle: list[str] = []
+
+        mock_exists.return_value = True
+        mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
+
+        # Track operations in each cycle
+        def track_mkfifo(path: str, mode: int) -> None:
+            """Track FIFO creation."""
+            current_cycle.append("mkfifo")
+
+        def track_open(path: str, flags: int) -> int:
+            """Track dummy writer opens."""
+            import os as real_os
+            if flags & real_os.O_WRONLY:
+                current_cycle.append("open_writer")
+                # Verify dispatcher was launched before this
+                if "launch" not in current_cycle:
+                    pytest.fail(f"Writer opened before dispatcher in cycle {len(restart_cycles)}")
+            return 42
+
+        def track_close(fd: int) -> None:
+            """Track FD close."""
+            if fd == 42:  # Our dummy writer FD
+                current_cycle.append("close")
+
+        mock_mkfifo.side_effect = track_mkfifo
+        mock_open.side_effect = track_open
+        mock_close.side_effect = track_close
+
+        # Mock dispatcher operations
+        def mock_launch() -> bool:
+            """Track terminal launch."""
+            current_cycle.append("launch")
+            return True
+
+        def mock_dispatcher_running() -> bool:
+            """Mock dispatcher running."""
+            return "launch" in current_cycle
+
+        terminal_manager._dummy_writer_fd = 42  # Set initial FD
+
+        with (
+            patch.object(terminal_manager, "_launch_terminal", side_effect=mock_launch),
+            patch.object(terminal_manager, "_is_dispatcher_running", side_effect=mock_dispatcher_running),
+            patch.object(terminal_manager, "close_terminal"),
+            patch("pathlib.Path.unlink"),
+        ):
+            # Act: Run 3 rapid restart cycles
+            for _ in range(3):
+                current_cycle = []
+                result = terminal_manager.restart_terminal()
+                if result:
+                    restart_cycles.append(current_cycle[:])  # Save cycle
+                terminal_manager._dummy_writer_fd = 42  # Reset for next cycle
+
+        # Assert: All cycles followed correct order
+        assert len(restart_cycles) == 3, f"Expected 3 cycles, got {len(restart_cycles)}"
+
+        # Verify each cycle has correct order: launch before open_writer
+        for cycle_num, cycle in enumerate(restart_cycles):
+            # Verify launch happens before open_writer
+            if "open_writer" in cycle and "launch" in cycle:
+                assert cycle.index("launch") < cycle.index("open_writer"), \
+                    f"Cycle {cycle_num}: Wrong order {cycle}"
+
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.stat")
+    @patch("os.open")
+    def test_enxio_error_logged_appropriately(
+        self,
+        mock_open: MagicMock,
+        mock_stat: MagicMock,
+        mock_exists: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+        terminal_manager: PersistentTerminalManager,
+    ) -> None:
+        """Test ENXIO errors are logged when explicitly trying to open dummy writer.
+
+        Verifies that when _open_dummy_writer() is called before dispatcher is ready,
+        ENXIO is logged with helpful context.
+        """
+        # Arrange: FIFO exists but no reader
+        mock_exists.return_value = True
+        mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
+
+        # Simulate ENXIO error when opening writer
+        mock_open.side_effect = OSError(errno.ENXIO, "No such device or address")
+
+        # Act: Try to open dummy writer directly (no dispatcher running)
+        import logging
+        with caplog.at_level(logging.ERROR):
+            result = terminal_manager._open_dummy_writer()
+
+        # Assert: Operation failed
+        assert result is False, "Opening dummy writer should fail with ENXIO"
+
+        # Assert: ENXIO error was logged with context
+        error_logs = [record for record in caplog.records if record.levelname == "ERROR"]
+        assert len(error_logs) >= 2, f"Expected at least 2 error logs, got {len(error_logs)}"
+
+        # Check for relevant error messages
+        error_messages = [record.message for record in error_logs]
+
+        # Should log the failed open attempt
+        assert any("Failed to open dummy writer" in msg for msg in error_messages), \
+            f"Expected 'Failed to open dummy writer' in logs, got: {error_messages}"
+
+        # Should log ENXIO-specific guidance
+        assert any("ENXIO error" in msg and "No reader available" in msg for msg in error_messages), \
+            f"Expected ENXIO guidance in logs, got: {error_messages}"
+
+        # Verify manager state is consistent despite error
+        assert terminal_manager._dummy_writer_fd is None
 
 
 class TestPersistentTerminalIntegration:

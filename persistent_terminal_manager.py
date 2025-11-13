@@ -169,8 +169,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # Active workers for async operations (prevents garbage collection)
         self._active_workers: list[TerminalOperationWorker] = []
 
-        # Ensure FIFO exists
-        if not self._ensure_fifo():
+        # Ensure FIFO exists (but don't open dummy writer yet - no dispatcher running)
+        if not self._ensure_fifo(open_dummy_writer=False):
             self.logger.warning(
                 f"Failed to create FIFO at {self.fifo_path}, persistent terminal may not work properly"
             )
@@ -179,8 +179,13 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             f"PersistentTerminalManager initialized with FIFO: {self.fifo_path}"
         )
 
-    def _ensure_fifo(self) -> bool:
+    def _ensure_fifo(self, open_dummy_writer: bool = True) -> bool:
         """Ensure the FIFO exists for command communication.
+
+        Args:
+            open_dummy_writer: If True, open dummy writer FD to prevent EOF.
+                               If False, only create FIFO without opening writer.
+                               Set to False when dispatcher is not yet running.
 
         Returns:
             True if FIFO exists or was created successfully, False otherwise
@@ -216,7 +221,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Open dummy writer to keep FIFO alive and prevent EOF
         # This prevents the bash reader from receiving EOF when command writers close
-        if self._dummy_writer_fd is None:
+        # Only open if requested AND if not already open
+        if open_dummy_writer and self._dummy_writer_fd is None:
             try:
                 self._dummy_writer_fd = os.open(
                     self.fifo_path, os.O_WRONLY | os.O_NONBLOCK
@@ -226,9 +232,52 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 )
             except OSError as e:
                 self.logger.error(f"Failed to open dummy writer: {e}")
+                # Log warning but don't fail - dispatcher might not be running yet
+                # Caller should open dummy writer after dispatcher is ready
+                self.logger.warning(
+                    "Dummy writer could not be opened - dispatcher may not be running yet. "
+                    "Call _open_dummy_writer() after dispatcher is ready."
+                )
                 return False
 
         return True
+
+    def _open_dummy_writer(self) -> bool:
+        """Open dummy writer FD to keep FIFO alive.
+
+        This should be called AFTER the dispatcher (reader) has started,
+        to avoid ENXIO errors from opening write-only FIFO with no reader.
+
+        Returns:
+            True if dummy writer opened successfully or already open, False on error
+        """
+        # Already open - nothing to do
+        if self._dummy_writer_fd is not None:
+            self.logger.debug(f"Dummy writer already open (FD {self._dummy_writer_fd})")
+            return True
+
+        # Verify FIFO exists
+        if not Path(self.fifo_path).exists():
+            self.logger.error(f"Cannot open dummy writer - FIFO doesn't exist: {self.fifo_path}")
+            return False
+
+        # Open dummy writer (requires reader to be present)
+        try:
+            self._dummy_writer_fd = os.open(
+                self.fifo_path, os.O_WRONLY | os.O_NONBLOCK
+            )
+            self.logger.debug(
+                f"Opened dummy writer (FD {self._dummy_writer_fd}) to keep FIFO alive"
+            )
+            return True
+        except OSError as e:
+            self.logger.error(f"Failed to open dummy writer: {e}")
+            if e.errno == errno.ENXIO:
+                self.logger.error(
+                    "ENXIO error: No reader available. "
+                    "Ensure dispatcher is running before opening dummy writer."
+                )
+            return False
 
     def _is_dispatcher_running(self) -> bool:
         """Check if the terminal dispatcher is running and ready to read from FIFO.
@@ -892,12 +941,12 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             except OSError as e:
                 self.logger.warning(f"Could not remove stale FIFO: {e}")
 
-        # Recreate FIFO (this will also reopen dummy writer)
-        if not self._ensure_fifo():
+        # Recreate FIFO (but don't open dummy writer yet - no dispatcher running)
+        if not self._ensure_fifo(open_dummy_writer=False):
             self.logger.error("Failed to recreate FIFO during restart")
             return False
 
-        # Launch new terminal
+        # Launch new terminal (starts dispatcher/reader)
         if self._launch_terminal():
             # Wait for dispatcher to be ready with timeout (replaces fixed delay)
             self.logger.debug("Waiting for dispatcher to be ready...")
@@ -907,7 +956,14 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
             while elapsed < timeout:
                 if self._is_dispatcher_running():
-                    self.logger.info(f"Terminal restarted successfully - dispatcher ready after {elapsed:.2f}s")
+                    self.logger.info(f"Dispatcher ready after {elapsed:.2f}s")
+
+                    # Now that dispatcher is running, open dummy writer to prevent EOF
+                    if not self._open_dummy_writer():
+                        self.logger.warning("Failed to open dummy writer after dispatcher started")
+                        # Continue anyway - terminal is working, just no dummy writer protection
+
+                    self.logger.info("Terminal restarted successfully")
                     return True
                 time.sleep(poll_interval)
                 elapsed += poll_interval
@@ -915,6 +971,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             # Timeout - dispatcher didn't become ready
             self.logger.warning(f"Dispatcher not ready after {timeout}s timeout")
             self.logger.warning("Terminal launched but dispatcher not responding yet")
+
+            # Try to open dummy writer anyway (might work if dispatcher just slow to respond)
+            if not self._open_dummy_writer():
+                self.logger.warning("Failed to open dummy writer - FIFO EOF protection unavailable")
+
             return True  # Terminal is up, dispatcher might just need more time
 
         self.logger.error("Failed to launch terminal during restart")
