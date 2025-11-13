@@ -26,7 +26,7 @@ def test_imports():
         "command_launcher",
         "launcher_manager",
         "previous_shots_finder",
-        "threede_scene_finder",
+        # "threede_scene_finder",  # Removed in Phase 1 Task 1.2 (deleted alias layer)
     ]
 
     failed = []
