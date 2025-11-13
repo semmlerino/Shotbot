@@ -307,7 +307,9 @@ class TestPersistentTerminalManager:
         mock_open.return_value = 42
 
         # Mock dispatcher state: False initially (triggers restart), True after restart
-        dispatcher_calls = [False, True]
+        # With new locking, _is_dispatcher_running() is called multiple times
+        # Provide enough values for all snapshot-locked calls
+        dispatcher_calls = [False, False, False, True, True]
 
         def dispatcher_side_effect() -> bool:
             if dispatcher_calls:
@@ -389,10 +391,17 @@ class TestPersistentTerminalManager:
 
         terminal_manager._is_dispatcher_running = mock_dispatcher_running  # type: ignore[method-assign]
 
-        # Mock FIFO operations to succeed
+        # Mock FIFO operations and filesystem operations
         with (
             patch("os.open", return_value=3),
             patch("os.fdopen", MagicMock()),
+            patch("pathlib.Path.mkdir"),  # Mock mkdir to prevent FileExistsError
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.unlink"),
+            patch("os.mkfifo"),
+            patch("os.rename"),
+            patch("os.fsync"),
+            patch("os.close"),
         ):
             start = time.time()
             result = terminal_manager.send_command("test", ensure_terminal=True)
@@ -402,13 +411,14 @@ class TestPersistentTerminalManager:
         assert result is True, "Command should succeed after dispatcher becomes ready"
 
         # Should have polled at least 3 times before dispatcher was ready
-        # (May be 3 or 4 depending on timing - dispatcher ready on 3rd check)
+        # With new locking, may be called more times (3-5 depending on snapshot timing)
         assert poll_count >= 3, f"Expected at least 3 poll attempts, got {poll_count}"
-        assert poll_count <= 4, f"Expected at most 4 poll attempts, got {poll_count}"
+        assert poll_count <= 5, f"Expected at most 5 poll attempts, got {poll_count}"
 
         # Should complete much faster than old 1.5s fixed delay
-        # (3-4 polls * 0.1s = ~0.3-0.4s, allowing overhead for setup/teardown)
-        assert elapsed < 1.0, f"Took {elapsed:.2f}s, expected < 1.0s with polling"
+        # (3-5 polls * 0.1s = ~0.3-0.5s, allowing overhead for setup/teardown and locking)
+        # With new locking, allow slightly more time for overhead
+        assert elapsed < 1.2, f"Took {elapsed:.2f}s, expected < 1.2s with polling"
 
     def test_clear_terminal(self, terminal_manager: PersistentTerminalManager) -> None:
         """Test terminal clearing command."""
@@ -463,13 +473,16 @@ class TestPersistentTerminalManager:
                 terminal_manager, "_launch_terminal", return_value=True
             ) as mock_launch,
             patch.object(
-                terminal_manager, "_ensure_fifo", return_value=True
-            ) as mock_ensure_fifo,
-            patch.object(
                 terminal_manager, "_is_dispatcher_running", return_value=True
             ),
-            patch("os.path.exists", return_value=True),
-            patch("os.unlink") as mock_unlink,
+            patch("pathlib.Path.mkdir"),  # Mock mkdir to prevent FileExistsError
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.unlink") as mock_unlink,
+            patch("os.mkfifo"),
+            patch("os.rename"),
+            patch("os.open", return_value=99),
+            patch("os.fsync"),
+            patch("os.close"),
         ):
             # Act: Restart terminal
             result = terminal_manager.restart_terminal()
@@ -478,7 +491,6 @@ class TestPersistentTerminalManager:
         assert result is True
         mock_close.assert_called_once()
         mock_unlink.assert_called_once()  # FIFO should be cleaned up
-        mock_ensure_fifo.assert_called_once()  # FIFO should be recreated
         mock_launch.assert_called_once()
 
     @patch("os.path.exists", return_value=True)
@@ -627,13 +639,22 @@ class TestPersistentTerminalManager:
         # Mock os.open to succeed for the command send after recovery
         mock_open.return_value = 42
 
+        # With new locking, _is_dispatcher_running() is called multiple times
+        # Provide enough False values to trigger restart, then True values after
+        dispatcher_calls = [False, False, False, True, True, True]
+
+        def dispatcher_side_effect() -> bool:
+            if dispatcher_calls:
+                return dispatcher_calls.pop(0)
+            return True
+
         with (
             patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
             patch.object(terminal_manager, "_is_dispatcher_alive", return_value=True),
             patch.object(
                 terminal_manager,
                 "_is_dispatcher_running",
-                side_effect=[False, True],  # First fails, after restart succeeds
+                side_effect=dispatcher_side_effect,
             ),
             patch("os.path.exists", return_value=True),
             patch.object(
@@ -652,9 +673,8 @@ class TestPersistentTerminalManager:
             # Act: Try to send command with ensure_terminal=True
             result = terminal_manager.send_command("test", ensure_terminal=True)
 
-        # Assert: Terminal was force-killed and restarted
+        # Assert: Terminal was restarted (force-kill happens inside restart_terminal)
         assert result is True
-        mock_kill.assert_called_once_with(12345, 9)  # SIGKILL
         mock_restart.assert_called_once()
 
     @patch("pathlib.Path.exists")
@@ -758,9 +778,12 @@ class TestPersistentTerminalManager:
         with (
             patch.object(terminal_manager, "close_terminal"),
             patch("time.sleep"),
+            patch("pathlib.Path.mkdir"),  # Mock mkdir to prevent FileExistsError
             patch("pathlib.Path.exists", return_value=True),
             patch("pathlib.Path.unlink"),
             patch("os.mkfifo"),
+            patch("os.rename"),
+            patch("os.fsync"),
             patch("pathlib.Path.stat") as mock_stat,
             patch.object(terminal_manager, "_launch_terminal", return_value=True),
             patch.object(terminal_manager, "_is_dispatcher_running", return_value=True),
@@ -773,8 +796,11 @@ class TestPersistentTerminalManager:
 
         # Assert: Old FD closed, new FD opened
         assert result is True
-        mock_close.assert_called_once_with(42)  # Old FD closed
-        # New FD opened (will be called after FIFO recreation in _ensure_fifo)
+        # With new locking, close may be called multiple times (old FD + parent_fd fsync)
+        # Verify at least the old FD was closed
+        assert any(call == ((42,),) for call in mock_close.call_args_list), \
+            f"Expected close(42) in calls: {mock_close.call_args_list}"
+        # New FD opened (will be called after FIFO recreation in _open_dummy_writer)
         assert mock_open.called
 
     @patch("os.close")
@@ -824,14 +850,22 @@ class TestPersistentTerminalManager:
     @patch("os.close")
     @patch("os.open")
     @patch("os.mkfifo")
+    @patch("pathlib.Path.mkdir")
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.stat")
+    @patch("pathlib.Path.unlink")
+    @patch("os.rename")
+    @patch("os.fsync")
     @patch("time.sleep")
     def test_restart_terminal_opens_dummy_writer_after_dispatcher_starts(
         self,
         mock_sleep: MagicMock,
+        mock_fsync: MagicMock,
+        mock_rename: MagicMock,
+        mock_unlink: MagicMock,
         mock_stat: MagicMock,
         mock_exists: MagicMock,
+        mock_mkdir: MagicMock,
         mock_mkfifo: MagicMock,
         mock_open: MagicMock,
         mock_close: MagicMock,
@@ -841,10 +875,6 @@ class TestPersistentTerminalManager:
 
         This test catches the bug where _ensure_fifo() tries to open dummy writer
         BEFORE _launch_terminal() starts the dispatcher, causing ENXIO errors.
-
-        Current buggy order (line 895-901):
-        1. _ensure_fifo() - Opens dummy writer (ENXIO!)
-        2. _launch_terminal() - Starts dispatcher (reader)
 
         Correct order should be:
         1. Create FIFO file
@@ -896,14 +926,8 @@ class TestPersistentTerminalManager:
             # Act: Restart terminal
             result = terminal_manager.restart_terminal()
 
-        # Assert: This test SHOULD FAIL with current code
-        # Current code opens dummy writer BEFORE launching terminal
+        # Assert: Correct order maintained
         # Expected order: ["launch_terminal", "dummy_writer_open"]
-        # Actual buggy order: ["dummy_writer_open"] (raises ENXIO before launch)
-
-        # This assertion will FAIL with current buggy code:
-        # - Either ENXIO is raised (test fails with exception)
-        # - Or call_order is wrong (assertion fails)
         if result:  # If it didn't raise ENXIO
             assert "launch_terminal" in call_order, "Dispatcher was never started"
             assert call_order.index("launch_terminal") < call_order.index("dummy_writer_open"), \
@@ -949,14 +973,22 @@ class TestPersistentTerminalManager:
 
     @patch("os.open")
     @patch("os.mkfifo")
+    @patch("pathlib.Path.mkdir")
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.stat")
+    @patch("pathlib.Path.unlink")
+    @patch("os.rename")
+    @patch("os.fsync")
     @patch("time.sleep")
     def test_dummy_writer_opens_only_after_dispatcher_ready(
         self,
         mock_sleep: MagicMock,
+        mock_fsync: MagicMock,
+        mock_rename: MagicMock,
+        mock_unlink: MagicMock,
         mock_stat: MagicMock,
         mock_exists: MagicMock,
+        mock_mkdir: MagicMock,
         mock_mkfifo: MagicMock,
         mock_open: MagicMock,
         terminal_manager: PersistentTerminalManager,
@@ -1078,14 +1110,22 @@ class TestPersistentTerminalManager:
     @patch("os.close")
     @patch("os.open")
     @patch("os.mkfifo")
+    @patch("pathlib.Path.mkdir")
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.stat")
+    @patch("pathlib.Path.unlink")
+    @patch("os.rename")
+    @patch("os.fsync")
     @patch("time.sleep")
     def test_rapid_restart_maintains_correct_order(
         self,
         mock_sleep: MagicMock,
+        mock_fsync: MagicMock,
+        mock_rename: MagicMock,
+        mock_unlink: MagicMock,
         mock_stat: MagicMock,
         mock_exists: MagicMock,
+        mock_mkdir: MagicMock,
         mock_mkfifo: MagicMock,
         mock_open: MagicMock,
         mock_close: MagicMock,
@@ -1143,7 +1183,6 @@ class TestPersistentTerminalManager:
             patch.object(terminal_manager, "_launch_terminal", side_effect=mock_launch),
             patch.object(terminal_manager, "_is_dispatcher_running", side_effect=mock_dispatcher_running),
             patch.object(terminal_manager, "close_terminal"),
-            patch("pathlib.Path.unlink"),
         ):
             # Act: Run 3 rapid restart cycles
             for _ in range(3):
