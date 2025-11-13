@@ -47,6 +47,9 @@ from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
 from progress_manager import ProgressManager
 from shot_model import Shot
+from simplified_launcher import (
+    SimplifiedLauncher,  # noqa: TC001 - needed at runtime for Protocol
+)
 
 
 class LauncherTarget(Protocol):
