@@ -89,6 +89,18 @@ This directory contains the original analysis reports from the 6-agent deep dive
 - Integration points and dependencies
 - Cross-component communication patterns
 
+**LAUNCHER_SYSTEM_VISUAL_DIAGRAMS.md**
+- Visual diagrams of system components
+- State machine diagrams
+
+**LAUNCHER_TERMINAL_ARCHITECTURE_OVERVIEW.md**
+- High-level architecture overview
+- System component relationships
+
+**TERMINAL_AND_COMMAND_EXECUTION_THOROUGH_ANALYSIS.md**
+- Deep dive into command execution flow
+- Terminal lifecycle and state management
+
 ---
 
 ## Analysis Summary
