@@ -1,32 +1,14 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# Old encoded bundles (keep only in encoded_releases/)
+encoded_app_*.txt
 
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
-test_venv/
+# Build artifacts
+*.pyc
+__pycache__/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 
 # IDE
 .vscode/
@@ -34,45 +16,15 @@ test_venv/
 *.swp
 *.swo
 
+# Testing
+.pytest_cache/
+.coverage
+coverage_html/
+.hypothesis/
+
 # Logs
-logs/
 *.log
 
-# Archive directory (root-level only)
-/archive/
-
-# Temporary files
-*.tmp
-*.temp
-
-# Testing & Coverage
-.pytest_cache/
-.hypothesis/
-htmlcov/
-coverage_html/
-.coverage
-*.cover
-.tox/
-
-# Type checking & Linting
-.mypy_cache/
-.ruff_cache/
-.pytype/
-
-# Encoded releases
-encoded_app_*.txt
-encoded_app_*_metadata.json
-
-# Git hooks output
-.post-commit-output/
-
-# Development tools
-dev-tools/
-
-# Generated documentation and analysis files
-FINAL_DECORATOR_CANDIDATES.md
-UNANNOTATED_CLASS_ATTRIBUTES_ANALYSIS.md
-
-# Legacy config files (migrated to pyproject.toml)
-pytest.ini
-pytest.ini.*
+# OS
+.DS_Store
+Thumbs.db

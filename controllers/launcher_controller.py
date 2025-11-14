@@ -359,15 +359,18 @@ class LauncherController(LoggingMixin):
             # Execute launch
             success = self._execute_launch_with_options(app_name, options)
 
-        # Update UI based on success
+        # Update UI based on success (Phase 1: Don't show premature success)
         if success:
-            self.window.update_status(f"Launched {app_name}")
-            NotificationManager.toast(
-                f"Launched {app_name} successfully", NotificationType.SUCCESS
-            )
+            # Only update status, don't show success notification yet
+            # Notification will be shown when command_executed/command_verified signal arrives
+            self.window.update_status(f"Launching {app_name}...")
+            self.logger.info(f"Command queued for {app_name}, awaiting execution")
         else:
+            # Show error notification immediately for sync failures
             self.window.update_status(f"Failed to launch {app_name}")
-            # Error details are handled by _on_command_error
+            NotificationManager.toast(
+                f"Failed to launch {app_name}", NotificationType.ERROR
+            )
             # Error details are handled by _on_command_error
 
     def _launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:

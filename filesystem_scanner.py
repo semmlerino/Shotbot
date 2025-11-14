@@ -568,6 +568,7 @@ class FileSystemScanner(LoggingMixin):
         shot_tuples: list[tuple[str, str, str, str]],
         excluded_users: set[str] | None = None,
         batch_size: int = 10,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> Generator[tuple[list[tuple[str, Path]], int, int, str], None, None]:
         """Progressive scene finder that yields batches of results.
 
@@ -575,6 +576,7 @@ class FileSystemScanner(LoggingMixin):
             shot_tuples: List of (workspace_path, show, sequence, shot) tuples
             excluded_users: Set of usernames to exclude
             batch_size: Number of files per batch
+            cancel_flag: Optional callback to check if operation should be cancelled
 
         Yields:
             Tuple of (file_batch, current_shot, total_shots, status_message)
@@ -589,12 +591,22 @@ class FileSystemScanner(LoggingMixin):
         for current_shot_idx, (workspace_path, show, sequence, shot) in enumerate(
             shot_tuples, 1
         ):
+            # Check for cancellation at start of each shot iteration
+            if cancel_flag and cancel_flag():
+                self.logger.debug("Scene discovery cancelled by user")
+                return
+
             status_msg = f"Scanning {show}/{sequence}/{shot}"
 
             try:
                 # Check user directory
                 shot_path = Path(workspace_path)
                 user_dir = shot_path / "user"
+
+                # Check for cancellation before expensive I/O operation
+                if cancel_flag and cancel_flag():
+                    self.logger.debug("Scene discovery cancelled during shot scan")
+                    return
 
                 if user_dir.exists():
                     # Find files for this shot using progressive discovery

@@ -760,3 +760,164 @@ class TestThreeDESceneWorkerIntegration:
 
         finally:
             cleanup_worker()
+
+
+class TestWorkerInterruption:
+    """Test suite for worker interruption handling (Phase 3 improvements)."""
+
+    def test_worker_stops_quickly_when_interrupted(self, qtbot) -> None:
+        """Test worker stops within 2 seconds when interrupted.
+
+        This verifies Phase 3 improvements where cancel_flag is checked
+        in tight loops, allowing workers to stop quickly.
+        """
+        # Create a test double that simulates slow progressive discovery
+        class SlowProgressiveFinder:
+            """Test double that simulates slow scene discovery."""
+
+            @staticmethod
+            def find_all_scenes_progressive(
+                shot_tuples, excluded_users=None, batch_size=10, cancel_flag=None
+            ):
+                """Generator that would run for a long time if not cancelled."""
+                # Simulate discovering many shots (would take 100 seconds without cancellation)
+                for i in range(1000):
+                    # Check cancellation (this is what we're testing)
+                    if cancel_flag and cancel_flag():
+                        return  # Respect cancellation
+
+                    # Simulate slow operation
+                    time.sleep(0.1)
+                    # Yield a batch
+                    yield [], i, 1000, f"Processing shot {i}"
+
+            @staticmethod
+            def estimate_scan_size(shot_tuples, excluded_users=None):
+                """Return estimate."""
+                return 10, 1000
+
+        # Replace the finder with our slow test double
+        original_finder = threede_scene_worker.ThreeDESceneFinder
+        threede_scene_worker.ThreeDESceneFinder = SlowProgressiveFinder
+
+        try:
+            # Create worker with progressive mode enabled
+            shots = [
+                Shot(
+                    "TEST_SHOW",
+                    "SEQ01",
+                    "SHOT01",
+                    "/tmp/workspace",
+                )
+            ]
+            worker = ThreeDESceneWorker(
+                shots=shots, excluded_users=set(), enable_progressive=True
+            )
+
+            # Set up signal tracking
+            started = []
+            worker.started.connect(lambda: started.append(True))
+
+            # Start worker
+            worker.start()
+
+            # Wait for worker to actually start processing
+            qtbot.waitUntil(lambda: len(started) > 0, timeout=1000)
+
+            # Give it a moment to get into the loop
+            time.sleep(0.1)
+
+            # Request interruption
+            start_time = time.time()
+            worker.requestInterruption()
+
+            # Wait for worker to stop (should be < 2s)
+            success = worker.wait(2000)
+            elapsed = time.time() - start_time
+
+            # Verify it stopped quickly
+            assert success, "Worker should stop gracefully within 2 seconds"
+            assert (
+                elapsed < 2.0
+            ), f"Worker took {elapsed:.1f}s to stop (should be < 2s)"
+
+        finally:
+            # Restore original finder
+            threede_scene_worker.ThreeDESceneFinder = original_finder
+            # Ensure worker is stopped
+            if worker.isRunning():
+                worker.stop()
+                worker.wait(1000)
+
+    def test_cancel_flag_prevents_filesystem_iteration(self, qtbot) -> None:
+        """Test cancel_flag stops iteration before expensive filesystem I/O.
+
+        Verifies that cancellation is checked BEFORE file discovery operations,
+        not just between batches.
+        """
+        # Use a list to make it thread-safe (mutable container)
+        iteration_counts = [0]
+
+        class CountingProgressiveFinder:
+            """Test double that counts iterations."""
+
+            @staticmethod
+            def find_all_scenes_progressive(
+                shot_tuples, excluded_users=None, batch_size=10, cancel_flag=None
+            ):
+                """Generator that tracks how many iterations occurred."""
+                for i in range(100):
+                    # This should be checked BEFORE expensive operations
+                    if cancel_flag and cancel_flag():
+                        return
+
+                    iteration_counts[0] += 1
+                    time.sleep(0.01)  # Simulate some work
+                    yield [], i, 100, f"Shot {i}"
+
+            @staticmethod
+            def estimate_scan_size(shot_tuples, excluded_users=None):
+                return 10, 100
+
+        original_finder = threede_scene_worker.ThreeDESceneFinder
+        threede_scene_worker.ThreeDESceneFinder = CountingProgressiveFinder
+
+        try:
+            shots = [
+                Shot(
+                    "TEST_SHOW",
+                    "SEQ01",
+                    "SHOT01",
+                    "/tmp/workspace",
+                )
+            ]
+            worker = ThreeDESceneWorker(
+                shots=shots, excluded_users=set(), enable_progressive=True
+            )
+
+            worker.start()
+
+            # Give worker time to start and process some iterations
+            time.sleep(0.2)
+
+            # Cancel and wait
+            worker.requestInterruption()
+            worker.wait(2000)
+
+            # Get the final count
+            final_count = iteration_counts[0]
+
+            # Verify we didn't process all 100 shots (stopped early)
+            assert (
+                final_count < 100
+            ), f"Should stop early, but processed {final_count}/100 shots"
+            # But we should have processed at least a few (proving it started)
+            assert (
+                final_count > 0
+            ), "Should process some shots before cancellation"
+
+        finally:
+            threede_scene_worker.ThreeDESceneFinder = original_finder
+            if worker.isRunning():
+                worker.stop()
+                worker.wait(1000)

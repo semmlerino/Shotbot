@@ -207,8 +207,9 @@ class TestThreeDELaunchSignalIntegration:
         # Scene path should be set via set_current_scene()
         assert target.command_launcher._current_scene_path == test_scene.scene_path
 
-        # Verify no error was emitted (launch succeeded)
-        assert "Launched 3de" in target.status_messages
+        # Verify no error was emitted (launch queued - Phase 1)
+        # Phase 1: Status shows "Launching..." not "Launched" (verification in Phase 2)
+        assert "Launching 3de..." in target.status_messages
 
     def test_old_broken_behavior_would_fail(
         self, launcher_controller_with_scene_support, create_test_scene
@@ -255,8 +256,8 @@ class TestThreeDELaunchSignalIntegration:
         assert "artist1" in str(test_scene.scene_path)
         assert "plate01" in str(test_scene.scene_path)
 
-        # Verify launch succeeded
-        assert "Launched 3de" in target.status_messages
+        # Verify launch queued (Phase 1 - verification in Phase 2)
+        assert "Launching 3de..." in target.status_messages
 
     def test_multiple_scene_launches_update_context(
         self, launcher_controller_with_scene_support, create_test_scene
@@ -455,7 +456,8 @@ class TestLauncherPanelButtonWithSceneContext:
         assert len(target.command_launcher.executed_commands) == 1
         command = target.command_launcher.executed_commands[0]
         assert command["app_name"] == "3de"
-        assert "Launched 3de" in target.status_messages
+        # Phase 1: Status shows "Launching..." not "Launched" (verification in Phase 2)
+        assert "Launching 3de..." in target.status_messages
 
         # Verify scene metadata was used
         assert "artist1" in str(test_scene.scene_path)
@@ -529,4 +531,5 @@ class TestLauncherPanelButtonWithSceneContext:
             assert len(target.command_launcher.executed_commands) == 1
             command = target.command_launcher.executed_commands[0]
             assert command["app_name"] == app_name
-            assert f"Launched {app_name}" in target.status_messages
+            # Phase 1: Status shows "Launching..." not "Launched" (verification in Phase 2)
+            assert f"Launching {app_name}..." in target.status_messages

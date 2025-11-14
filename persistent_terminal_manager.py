@@ -19,6 +19,7 @@ import stat
 import subprocess
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import ClassVar, final
 
@@ -28,6 +29,7 @@ from PySide6.QtCore import QObject, QThread, Signal
 
 # Local application imports
 from config import Config
+from launch.process_verifier import ProcessVerifier
 from logging_mixin import LoggingMixin
 
 
@@ -120,11 +122,33 @@ class TerminalOperationWorker(QThread):
             self.operation_finished.emit(False, "Terminal not healthy")
             return
 
-        # Send command
-        if self.manager._send_command_direct(self.command):  # pyright: ignore[reportPrivateUsage]
-            self.operation_finished.emit(True, "Command sent successfully")
-        else:
+        # Emit executing signal (Phase 1)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.manager.command_executing.emit(timestamp)
+
+        # Send command to FIFO
+        if not self.manager._send_command_direct(self.command):  # pyright: ignore[reportPrivateUsage]
             self.operation_finished.emit(False, "Failed to send command")
+            return
+
+        # Command sent successfully - now verify process started (Phase 2)
+        self.manager.logger.debug("Command sent, starting verification...")  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Wait for process to start (with timeout)
+        success, message = self.manager._process_verifier.wait_for_process(  # pyright: ignore[reportPrivateUsage]
+            self.command
+        )
+
+        if success:
+            # Emit verified signal
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.manager.command_verified.emit(timestamp, message)
+            self.operation_finished.emit(True, f"Verified: {message}")
+        else:
+            # Verification failed - emit error signal
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.manager.command_error.emit(timestamp, f"Verification failed: {message}")  # pyright: ignore[reportAttributeAccessIssue]
+            self.operation_finished.emit(False, f"Verification failed: {message}")
 
 
 @final
@@ -145,6 +169,13 @@ class PersistentTerminalManager(LoggingMixin, QObject):
     operation_progress = Signal(str, str)  # operation_name, status_message
     operation_finished = Signal(str, bool, str)  # operation_name, success, message
     command_result = Signal(bool, str)  # success, error_message (empty if success)
+
+    # New async execution lifecycle signals (Phase 1 & 2)
+    command_queued = Signal(str, str)  # timestamp, command - emitted when queued
+    command_executing = Signal(str)  # timestamp - emitted when execution starts
+    command_verified = Signal(str, str)  # timestamp, message - emitted when verified (Phase 2)
+    command_error = Signal(str, str)  # timestamp, error - emitted on verification failure (Phase 2)
+    # Keep command_result for backward compatibility
 
     def __init__(
         self,
@@ -203,6 +234,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         self._active_workers: list[TerminalOperationWorker] = []
         self._workers_lock = threading.Lock()  # Thread-safe worker list access
 
+        # Process verification for launched applications (Phase 2)
+        self._process_verifier = ProcessVerifier(self.logger)
+
         # Ensure FIFO exists (but don't open dummy writer yet - no dispatcher running)
         if not self._ensure_fifo(open_dummy_writer=False):
             self.logger.warning(
@@ -212,6 +246,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         self.logger.info(
             f"PersistentTerminalManager initialized with FIFO: {self.fifo_path}"
         )
+
+        # Clean up old PID files on startup (Phase 2)
+        ProcessVerifier.cleanup_old_pid_files(max_age_hours=24)
 
         # Track instance for test cleanup
         with self.__class__._test_instances_lock:
@@ -881,10 +918,13 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         (health checks, terminal restart) in a background thread. Progress
         and completion are reported via signals.
 
-        Signals emitted:
+        Signals emitted (Phase 1 lifecycle):
+            - command_queued(str, str): When command is queued (timestamp, command)
+            - command_executing(str): When execution starts (timestamp)
+            - command_verified(str, str): When execution verified (timestamp, message)
+            - command_result(bool, str): Final result (success, error_message) - backward compat
             - operation_started(str): When operation begins
             - operation_progress(str, str): Progress updates
-            - command_result(bool, str): Final result (success, error_message)
 
         Args:
             command: The command to execute
@@ -908,6 +948,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             self.logger.warning("Persistent terminal in fallback mode - cannot send command")
             self.command_result.emit(False, "Terminal in fallback mode")
             return
+
+        # Emit queued signal immediately (Phase 1)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.command_queued.emit(timestamp, command)
+        self.logger.debug(f"[{timestamp}] Command queued: {command[:100]}...")
 
         # Create worker for background operation
         worker = TerminalOperationWorker(self, "send_command", parent=self)
@@ -1234,7 +1279,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         for worker in workers_to_stop:
             # Request stop and wait with timeout
             worker.requestInterruption()
-            if not worker.wait(3000):  # 3 second timeout
+            if not worker.wait(2000):  # 2 second timeout
                 self.logger.warning(f"Worker {id(worker)} did not stop gracefully")
                 worker.terminate()
                 _ = worker.wait(1000)  # Wait 1s for termination

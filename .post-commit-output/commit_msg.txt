@@ -1,1 +1,1 @@
-refactor: Delete unused BaseAssetFinder class and tests (Task 1.1)
+refactor: Remove SimplifiedLauncher and fix pytest teardown crashes

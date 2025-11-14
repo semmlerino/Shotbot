@@ -119,6 +119,13 @@ class CommandLauncher(LoggingMixin, QObject):
         _ = self.process_executor.execution_completed.connect(self._on_execution_completed)
         _ = self.process_executor.execution_error.connect(self._on_execution_error)
 
+        # Connect new Phase 1 & 2 lifecycle signals if persistent terminal is available
+        if self.persistent_terminal:
+            _ = self.persistent_terminal.command_queued.connect(self._on_command_queued)
+            _ = self.persistent_terminal.command_executing.connect(self._on_command_executing)
+            _ = self.persistent_terminal.command_verified.connect(self._on_command_verified)
+            _ = self.persistent_terminal.command_error.connect(self._on_command_error_internal)
+
         # Initialize scene/file finders (created internally, not injected)
         # Local application imports
         from maya_latest_finder import MayaLatestFinder
@@ -165,6 +172,15 @@ class CommandLauncher(LoggingMixin, QObject):
             except (RuntimeError, TypeError, AttributeError):
                 # Signals already disconnected, object destroyed, or __init__ failed before creating process_executor
                 pass
+
+            # Disconnect Phase 1 lifecycle signals
+            if self.persistent_terminal:
+                try:
+                    _ = self.persistent_terminal.command_queued.disconnect(self._on_command_queued)
+                    _ = self.persistent_terminal.command_executing.disconnect(self._on_command_executing)
+                except (RuntimeError, TypeError, AttributeError):
+                    # Signals already disconnected or __init__ failed
+                    pass
 
             # FIX: Cleanup ProcessExecutor's signal connections to PersistentTerminalManager
             # Without this, signal connections from ProcessExecutor to PersistentTerminalManager leak
@@ -219,6 +235,45 @@ class CommandLauncher(LoggingMixin, QObject):
             error_message: Error message
         """
         self._emit_error(f"[{operation}] {error_message}")
+
+    def _on_command_queued(self, timestamp: str, command: str) -> None:
+        """Handle command queued signal (Phase 1 - logging only).
+
+        Args:
+            timestamp: Timestamp when command was queued
+            command: The command that was queued
+        """
+        self.logger.debug(f"[{timestamp}] Command queued: {command[:100]}...")
+
+    def _on_command_executing(self, timestamp: str) -> None:
+        """Handle command executing signal (Phase 1 - logging only).
+
+        Args:
+            timestamp: Timestamp when command started executing
+        """
+        self.logger.debug(f"[{timestamp}] Command executing in terminal")
+
+    def _on_command_verified(self, timestamp: str, message: str) -> None:
+        """Handle command verified signal (Phase 2 - process started successfully).
+
+        Args:
+            timestamp: Timestamp when verification completed
+            message: Verification message (includes PID)
+        """
+        self.logger.info(f"[{timestamp}] ✓ Command verified: {message}")
+        # Emit to log viewer
+        self.command_executed.emit(timestamp, f"Verified: {message}")
+
+    def _on_command_error_internal(self, timestamp: str, error: str) -> None:
+        """Handle command error signal from persistent terminal (Phase 2).
+
+        Args:
+            timestamp: Timestamp when error occurred
+            error: Error message
+        """
+        self.logger.warning(f"[{timestamp}] Command error: {error}")
+        # Emit to log viewer (uses existing command_error signal)
+        self.command_error.emit(timestamp, error)
 
     # Methods removed - now using launch components:
     # - _is_rez_available() → self.env_manager.is_rez_available(Config)

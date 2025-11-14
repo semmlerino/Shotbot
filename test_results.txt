@@ -1,222 +1,370 @@
-bringing up nodes...
-bringing up nodes...
+============================= test session starts ==============================
+platform linux -- Python 3.13.3, pytest-8.4.2, pluggy-1.6.0
+PySide6 6.10.0 -- Qt runtime 6.10.0 -- Qt compiled 6.10.0
+rootdir: /home/gabrielh/projects/shotbot
+configfile: pyproject.toml
+plugins: xdist-3.8.0, qt-4.5.0, timeout-2.4.0, cov-7.0.0, mock-3.15.1, hypothesis-6.143.1
+timeout: 120.0s
+timeout method: thread
+timeout func_only: False
+created: 16/16 workers
+16 workers [2667 items]
 
-........................................................................ [  3%]
-........................................................................ [  6%]
-........................................................................ [  9%]
+.......Fatal Python error: Segmentation fault
+
+Thread 0x00007ff1133296c0 (most recent call first):
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 363 in wait
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 659 in wait
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 1340 in run
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 1041 in _bootstrap_inner
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 1012 in _bootstrap
+
+Thread 0x00007ff1219456c0 (most recent call first):
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007ff121f34740 (most recent call first):
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytestqt/plugin.py", line 220 in _process_events
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytestqt/plugin.py", line 202 in pytest_runtest_teardown
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 116 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 141 in runtestprotocol
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 343 in _main
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/remote.py", line 427 in <module>
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, PIL._imagingmath (total: 8)
+[gw3] node down: Not properly terminated
+F
+replacing crashed worker gw3
+........................................................................ [  2%]
+.............................................................s.s........ [  5%]
+................................................s....................... [  8%]
+........................................................................ [ 11%]
 ........................................................................ [ 13%]
 ........................................................................ [ 16%]
 ........................................................................ [ 19%]
-........................................................................ [ 22%]
-........................................................................ [ 26%]
+........................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
 ........................................................................ [ 29%]
 ........................................................................ [ 32%]
-........................................................................ [ 36%]
-........................................................................ [ 39%]
-........................................................................ [ 42%]
-........................................................................ [ 45%]
-........................................................................ [ 49%]
-........................................................................ [ 52%]
-........................................................................ [ 55%]
-........................................................................ [ 58%]
-........................................................................ [ 62%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+.............................s.......................................... [ 48%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+...................................................................s.... [ 59%]
+............................................................s....s...... [ 62%]
 ........................................................................ [ 65%]
-........................................................................ [ 68%]
-........................................................................ [ 72%]
+........................................................................ [ 67%]
+........................................................................ [ 70%]
+............s........................................................... [ 73%]
 ........................................................................ [ 75%]
 ........................................................................ [ 78%]
 ........................................................................ [ 81%]
-........................................................................ [ 85%]
-........................................................................ [ 88%]
-...............F........................................................ [ 91%]
+........................................................................ [ 83%]
+........................................................................ [ 86%]
+....................................................s................... [ 89%]
+.....................................s.................................. [ 92%]
 ........................................................................ [ 94%]
-........................................................................ [ 98%]
-....................................../mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/__init__.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/__init__.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/feature.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/feature.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/__init__.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/__init__.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/errorhandler.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/errorhandler.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/importhandler.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/importhandler.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/layout.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/layout.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/lib/__init__.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/lib/__init__.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/lib/enum_sig.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/lib/enum_sig.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/lib/pyi_generator.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/lib/pyi_generator.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/lib/tool.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/lib/tool.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/loader.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/loader.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/mapping.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/mapping.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/parser.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shibokensupport/signature/parser.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/lib/python3.13/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/signature_bootstrap.py': No source for code: '/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/signature_bootstrap.py'. (couldnt-parse); see https://coverage.readthedocs.io/en/7.10.7/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-                                   [100%]
-=================================== FAILURES ===================================
-________________ test_show_root_path_extraction_no_double_slash ________________
-[gw13] linux -- Python 3.13.3 /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/.venv/bin/python
-tests/unit/test_threede_scene_finder.py:481: in test_show_root_path_extraction_no_double_slash
-    assert "/shows" in show_roots, f"Expected '/shows' in show_roots, got: {show_roots}"
-E   AssertionError: Expected '/shows' in show_roots, got: set()
-E   assert '/shows' in set()
-================================ tests coverage ================================
-_______________ coverage: platform linux, python 3.13.3-final-0 ________________
+........................................................................ [ 97%]
+..............................................................Fatal Python error: Segmentation fault
 
-Name                                  Stmts   Miss Branch BrPart   Cover   Missing
-----------------------------------------------------------------------------------
-accessibility_manager.py                122     39     58     17  57.78%   31->exit, 32->exit, 44->exit, 106->116, 109->116, 116->exit, 119->exit, 137-146, 157-160, 215->220, 221, 224, 231, 237, 243, 249, 252, 255->exit, 270-306, 364-372
-auto_screenshot.py                       40     40     12      0   0.00%   4-77
-base_asset_finder.py                    138     12     66      9  89.71%   145-148, 154->152, 158-159, 163, 204->208, 219->221, 250->248, 254, 267->272, 288-289, 308, 321-322
-base_grid_view.py                       150     10     22      5  90.12%   53, 273->277, 322, 332->335, 335->339, 363, 377, 427-441
-base_item_model.py                      278     42     94     14  83.33%   231-232, 235, 313, 335-339, 432, 443-483, 494-526, 574->exit, 576->exit, 577->576, 586, 623, 630, 647, 682
-base_scene_finder.py                    109      6     58     10  90.42%   119, 176, 183, 204, 208, 215, 251->249, 284->287, 303->300, 305->300
-base_shot_model.py                      127     10     22      2  91.95%   115-120, 146->152, 180-183, 198-202
-base_thumbnail_delegate.py              219    121     56      7  40.36%   192-240, 246-260, 266-292, 297-303, 309-325, 330-336, 341-362, 367-384, 390-432, 446-463, 475, 479, 483, 503, 507, 511, 554->exit, 559-563
-bundle_app.py                           207    207    106      0   0.00%   8-531
-cache_config.py                         141     69     38      4  44.69%   53-61, 75-93, 113, 126-130, 139-143, 162->174, 188-208, 234-240, 245, 250, 255, 260, 264, 268, 276, 290-301, 317, 327-328, 342-344
-cache_manager.py                        319     66     88     12  77.40%   122-125, 169-172, 203-207, 263-265, 291-292, 339-363, 466, 622-632, 643-646, 655->exit, 660, 680->684, 687-688, 702->710, 726-728, 737, 742, 771, 787, 825-830, 844-847, 849-854, 897-901
-cleanup_manager.py                      110      0     34      3  97.92%   123->129, 141->151, 196->exit
-command_launcher.py                     429    263    164     26  37.10%   134-148, 152, 156, 167-172, 182, 193-194, 231, 244, 285-286, 292, 320-342, 349-371, 388-396, 404-406, 410-424, 449->461, 454, 491-494, 499, 501, 506, 530-562, 575-576, 588-595, 605-615, 623-625, 629-638, 656-687, 697-700, 705, 707, 712, 722-768, 788-968, 1010, 1029-1050
-config.py                               152      0      0      0 100.00%
-controllers/__init__.py                   2      0      0      0 100.00%
-controllers/launcher_controller.py      246     27     84     13  87.27%   57, 256-279, 298->318, 323, 331-332, 376-377, 417-427, 436, 467, 495, 524->532, 561->563, 658, 694, 707
-controllers/settings_controller.py      149     67     60     19  48.33%   62->exit, 63->exit, 64->exit, 65->exit, 66->exit, 67->exit, 70->exit, 71->exit, 115->118, 119->123, 126->130, 131, 140->142, 142->144, 144->148, 155-180, 201->207, 211-212, 228, 232-233, 240->244, 245->248, 250-251, 261-279, 284-297, 302-326, 335-356, 365-388
-controllers/threede_controller.py       246    159     72      9  30.19%   78->exit, 79->exit, 80->exit, 81->exit, 82->exit, 86->exit, 139->143, 143->146, 167-236, 244-285, 295-299, 320-327, 336-353, 363-369, 378, 383, 392-395, 416-420, 432-466, 474-476, 482, 493-500, 510-518, 522-536, 541-564, 569-584, 588-595, 599-606, 622-630, 645-686, 695-718, 730
-core/__init__.py                          0      0      0      0 100.00%
-core/shot_types.py                        4      0      0      0 100.00%
-debug_utils.py                          200    133     70      1  25.19%   67-94, 102-113, 117-125, 165-199, 210, 221, 236-289, 294-300, 315-340, 354-370, 389-395, 403-413, 417-425, 439-448
-design_system.py                        104      0      0      0 100.00%
-error_handling_mixin.py                 140    113     60      0  13.50%   82-101, 133-165, 198-224, 251, 278-304, 326-340, 358-360, 369-371, 375, 379-389, 397-406, 410, 433-439
-exceptions.py                            58     29     28      6  40.70%   50-51, 77-83, 114, 116, 118, 152, 154, 185-193, 222-230
-filesystem_coordinator.py                97      0     28      5  96.00%   27->29, 141->exit, 169->167, 173->exit, 229->232
-filesystem_scanner.py                   354    144    122     14  56.30%   92-101, 139, 182, 187-188, 197, 221-223, 262->261, 273-280, 317->346, 319->318, 324->318, 326->318, 331-333, 343-344, 377-386, 421-422, 430-432, 449-450, 464-502, 518-549, 568-606, 629->634, 644-645, 723, 729->738, 742->721, 755-782, 793->797, 812-851
-finder_utils.py                         114      1     40      1  98.70%   328
-headless_mode.py                        126     53     36      5  54.32%   73->80, 76-77, 85-86, 89->94, 91-92, 128-149, 161-173, 184-202, 240-250, 289-290, 306-331
-join_and_recreate.py                     55     55      6      0   0.00%   8-112
-launcher/__init__.py                     16      4      2      1  72.22%   27-30, 46->49
-launcher/config_manager.py               59     24     10      3  57.97%   35, 45-49, 54-55, 67-70, 83-85, 89-110
-launcher/models.py                      180      3     72     10  94.84%   138-141, 174->177, 263->287, 265->287, 287->298, 289->298, 298->325, 300->325, 304->308, 310->315
-launcher/process_manager.py             244     37     46      7  84.83%   168, 171, 181, 234-235, 241-243, 321-322, 339-340, 368->374, 378-380, 388, 397-399, 404-406, 428-431, 437->436, 449, 461->458, 464-466, 472->471, 491, 498-499, 503-505, 535-540
-launcher/repository.py                   79     54     26      0  23.81%   47-52, 64-83, 94-110, 121-140, 151, 162-165, 176-186, 194-199, 210, 226
-launcher/result_types.py                 20     20      0      0   0.00%   20-81
-launcher/validator.py                   159     16     72      5  90.91%   157-158, 170->168, 187-188, 192-193, 219-220, 234-238, 244->231, 275->281, 336->349, 425-427
-launcher/worker.py                      115     13     32      4  85.71%   124-125, 127->141, 187-193, 226->240, 273, 283-289
-launcher_dialog.py                      426     32    100     30  85.93%   144->exit, 149->exit, 154->exit, 270->282, 282->exit, 379->383, 403, 422-427, 434, 440, 685, 689->682, 705, 720->exit, 728, 738->exit, 745, 751, 757-758, 763->exit, 770->exit, 777->exit, 794, 801, 815-821, 831-835, 842-846, 852->858, 853, 860-862
-launcher_manager.py                     233    138     66      3  33.44%   107-110, 213-245, 257-278, 309-354, 366-372, 383, 394-396, 407, 415, 428, 444-449, 472-534, 553-581, 591, 599, 611, 626->632, 629-630, 632->638, 635-636, 638->644, 641-642, 645-647, 658-665
-launcher_panel.py                       239     16     42      7  91.10%   267, 287-292, 300-302, 312->exit, 326, 330-332, 346-347, 557, 568->exit
-log_viewer.py                            46      0      2      0 100.00%
-logging_mixin.py                        122     17     38     11  81.25%   79, 82->exit, 187, 224, 232, 328, 344, 358, 361, 362->365, 379-386, 389, 390->393, 395-401
-main_window.py                          521     86     96     31  78.44%   143-144, 150-169, 184, 190, 204, 229-230, 261->266, 281-294, 299, 325-328, 341->346, 365, 455->470, 643, 694-696, 716-718, 727-729, 733-735, 739-744, 750, 784-788, 842-843, 875->exit, 894, 904-905, 913->exit, 918, 1073->1072, 1104->1103, 1110-1111, 1130, 1135-1160, 1167-1168, 1183-1186, 1215, 1274-1277, 1283-1286, 1294-1297, 1303-1306, 1349-1374, 1378, 1388-1389, 1394, 1409, 1419, 1427, 1431
-maya_latest_finder.py                    70      3     42      3  94.64%   65, 136, 146
-maya_latest_finder_refactored.py         20      5      2      0  68.18%   77-83
-mock_strategy.py                        181    181     84      0   0.00%   7-413
-mock_workspace_pool.py                  140     63     56      1  48.98%   51-103, 141-163, 181-188, 196-201, 212-217, 310, 315, 318-319
-notification_manager.py                 261     40     68     10  81.76%   259-261, 300-302, 376, 422->434, 428-430, 458, 469, 471, 476->478, 503, 521->exit, 530, 552-555, 560-579, 584-587, 598, 603, 608, 613, 620, 629
-nuke_launch_handler.py                  152     34     68     14  74.55%   67-68, 72-73, 108-109, 131-144, 146->167, 165, 189-190, 209, 248, 292-306, 321-341, 396->408, 422
-nuke_launch_router.py                    59      1     12      1  97.18%   127
-nuke_media_detector.py                   65      2     28      0  97.85%   115-116
-nuke_script_generator.py                203     96     30      3  51.50%   145-146, 162, 203->223, 225-250, 268->277, 347-349, 370-402, 447-449, 475-507, 537-563, 591-625, 650-683
-nuke_script_templates.py                 37      0      4      0 100.00%
-nuke_undistortion_parser.py             267     23    114     10  90.81%   88-89, 145, 205, 239-240, 319, 338, 371, 396-399, 407, 431-432, 437-447
-nuke_workspace_manager.py                90     17     26      1  84.48%   80-82, 116-120, 135-139, 211, 224-228
-optimized_shot_parser.py                 90     55     42      2  32.58%   71->78, 85, 96-121, 134-202
-persistent_bash_session.py              446    446    194      0   0.00%   9-946
-persistent_terminal_manager.py          250     68     78     21  69.82%   90-92, 107-109, 127, 131, 149-151, 160-161, 217->208, 227-232, 246-252, 260-261, 269->303, 284-291, 299-300, 304-305, 310-311, 362->365, 366-389, 394-398, 417-420, 431, 433-436, 457->465, 466-467, 483-484, 489->493, 493->exit, 497-498, 507->exit, 513-514
-plate_discovery.py                      113     18     32      7  82.76%   54-55, 78-79, 87->86, 96-98, 160-163, 191->195, 203-205, 229, 240->239, 246-250
-previous_shots_finder.py                216    128     80      8  36.49%   65, 67, 112->107, 119-120, 147-148, 153-164, 170-171, 180-182, 230, 232, 277-282, 299-303, 350-388, 399-443, 456-514, 529-551, 570-604
-previous_shots_item_model.py             86     13     22      8  75.00%   63-65, 99, 119, 140, 148, 182-185, 225->229, 229->234, 245->253, 248, 255, 258
-previous_shots_model.py                 201     46     32      4  74.25%   91-105, 140-144, 156-163, 195-196, 226-231, 281-282, 479-480, 487-488, 496-518
-previous_shots_view.py                  192     36     40     16  74.14%   93->96, 174, 188->192, 196->211, 232->235, 239, 246->exit, 285->exit, 292->exit, 322, 332, 336->exit, 353, 357, 360->exit, 365->exit, 376->exit, 386-409, 417-447, 456, 461, 483-486, 495->499
-previous_shots_worker.py                129     97     46      1  18.86%   75, 80->82, 90-213, 224-256, 267-313
-process_pool_manager.py                 288     83     76     14  67.86%   42-43, 58-59, 62->68, 183-193, 224->227, 245, 284, 303-351, 378-380, 386, 407-409, 432-451, 475-477, 521-524, 535, 551-567, 581-587, 592->602, 613->615, 615->625, 617-622, 630-631
-progress_manager.py                     230     11     68      3  93.96%   173->181, 243-255, 275-277, 414->424
-progress_mixin.py                        95     39     28      0  55.28%   150-152, 174-175, 199-229, 244-252, 263-271
-protocols.py                             34     10      0      0  70.59%   36, 40, 49, 53, 58, 75, 84, 88, 92, 96
-qt_abc_meta.py                            3      0      0      0 100.00%
-qt_widget_mixin.py                      179    112     78     11  32.68%   85-89, 91->93, 94, 99-101, 109-113, 117-121, 137-163, 167-177, 184-196, 206-228, 244->241, 256-265, 274-275, 288-302, 314->exit, 318, 325-326, 327->332, 332->exit, 342, 353-356, 364-370, 374-386, 394, 398-402, 412-419, 423-425, 429-432
-raw_plate_finder.py                     139     40     52      6  69.63%   58-59, 65, 70, 82, 160->159, 193-194, 231-274, 298, 318-323
-refresh_orchestrator.py                  94      1     28      1  98.36%   37, 80->exit
-run_shotbot.py                           19     19      0      0   0.00%   5-38
-runnable_tracker.py                      97     49     18      3  44.35%   36->40, 47, 71-80, 92-103, 107, 111, 115, 131-145, 156-163, 175-178, 196-199, 210-214, 231, 238, 243
-scene_cache.py                          156     85     30      7  43.01%   57, 61, 65-66, 70, 118, 139-142, 146-148, 167-172, 175-177, 205, 228, 248-256, 267-284, 301-314, 318-325, 333-349, 357-373, 387-393, 401-402, 413-418
-scene_discovery_coordinator.py          272    154    102     13  39.84%   127->136, 130-132, 147->151, 158-163, 181-182, 195->205, 198-201, 213->216, 228-231, 253-286, 323, 334, 356->368, 365, 368->349, 375-379, 387-399, 407-409, 417-419, 427-429, 441-445, 457-467, 471, 513, 517, 541-728
-scene_discovery_strategy.py             193     95     50      7  48.97%   94, 117-118, 131-132, 135-136, 179-181, 199-200, 215-216, 226-227, 258-259, 283, 307-314, 332-333, 346-347, 360-413, 433-434, 449-459, 479-544, 560-561, 574-575, 588-589, 625-633
-scene_parser.py                         111     50     42      5  53.59%   111-113, 140, 147, 156-158, 162, 170-177, 190-192, 245-277, 288-299, 307, 315, 326, 337, 348
-screenshot_app.py                        80     80     32      0   0.00%   7-146
-screenshot_helper.py                      8      8      0      0   0.00%   4-19
-secure_command_executor.py              142     52     60     10  62.38%   93-96, 104-105, 108, 128, 148, 170, 174, 187, 192-195, 203-204, 213-217, 246-254, 275, 293, 297-300, 340-347, 357-363, 367-372, 376-377
-settings_dialog.py                      436    436     46      0   0.00%   46-897
-settings_manager.py                     273     48     38      5  81.03%   351-354, 358-359, 363-366, 370-373, 386-388, 402-404, 416-418, 424-425, 429-430, 435-438, 443-446, 450-460, 464-465, 481, 502-503, 507-508, 539->exit, 599-601, 613-614, 621->620, 651->exit, 662
-shot_filter.py                           26      1      8      0  97.06%   36
-shot_finder_base.py                      76     37     16      0  44.57%   109-127, 138-162, 174-205
-shot_grid_delegate.py                    21      3      2      0  78.26%   92-95
-shot_grid_view.py                       131     43     36     12  59.88%   79->82, 118, 128-132, 148->152, 169, 174, 212-221, 237, 241, 244->exit, 250->exit, 262->exit, 273, 276->exit, 282->276, 298-301, 305-306, 315-341, 349-368, 377, 383
-shot_info_panel.py                      205     89     38      6  51.85%   43, 49, 63, 166, 177, 197-271, 285->289, 314, 333-391
-shot_item_model.py                       71      2     14      4  92.94%   198->202, 202->207, 220, 223
-shot_model.py                           300     85     74      5  69.52%   96-142, 210-215, 244-249, 298-313, 334-336, 342-346, 369-370, 420, 470-471, 512->521, 550, 558->exit, 603-609, 632-634, 642-646, 674-675, 688-693, 704-708, 712, 724, 744, 767-777
-shotbot.py                              111     28     18      5  71.32%   234-243, 245->254, 260-262, 327-330, 337-363
-shotbot_types.py                         15     15      0      0   0.00%   8-42
-signal_manager.py                       170     13     44      5  91.59%   53, 57, 61, 127-129, 158-163, 189, 229-231, 250->249, 266->265, 312->309, 389->388, 442->exit
-simple_nuke_launcher.py                  79      5     12      3  91.21%   71->81, 94-98, 221->230, 226->230
-simplified_launcher.py                  256    128     92     12  44.25%   78->exit, 109-110, 182-189, 194, 203-207, 216->225, 246-281, 303-310, 338-341, 345-365, 371, 373, 375, 389, 398-419, 425-448, 458, 471-482, 486, 490-491, 497-510, 514-521, 547, 569-577, 584-594, 601-603, 610, 620
-take_screenshot.py                       21     21      6      0   0.00%   4-37
-targeted_shot_finder.py                 177     33     62     10  76.99%   107, 141->150, 144, 147->142, 223, 225, 304-305, 376, 397-399, 409, 420-422, 434-443, 460-483
-thread_safe_thumbnail_cache.py           86     86     20      0   0.00%   8-237
-thread_safe_worker.py                   219     89     74     12  53.24%   126-129, 143, 146, 151-157, 196, 200->203, 228-229, 295-297, 312-369, 404-409, 412-417, 426-430, 446-449, 479-484, 497-498, 514-567
-threading_fix_verification.py            29     29      0      0   0.00%   11-70
-threading_manager.py                    159      1     58      7  96.31%   32->exit, 33->exit, 34->exit, 35->exit, 36->exit, 159, 240->247, 361->378
-threading_utils.py                      262    119     52      5  50.96%   159-160, 208-213, 230-241, 323-324, 377-394, 448-451, 518, 526->529, 542, 566-567, 580-581, 613-623, 637-679, 693-700, 779-877
-threede_grid_delegate.py                 30     11      4      0  55.88%   94-115
-threede_grid_view.py                    175     70     38      7  53.52%   174-185, 190-191, 201-203, 208-212, 222-225, 230-233, 237->exit, 248-255, 265, 268->exit, 280->exit, 292-317, 333-337, 346-350, 361->exit, 363->exit, 367, 375-387
-threede_item_model.py                   112     42     32     12  56.94%   102, 105, 108, 111-115, 119, 121, 123-127, 145-148, 161-170, 191-195, 204, 213-232, 252, 259->263, 263->268, 293->289, 294
-threede_latest_finder.py                 69      5     42      6  90.09%   64, 74, 134, 139, 144, 148->146
-threede_latest_finder_refactored.py      51     51     24      0   0.00%   3-152
-threede_scene_finder.py                   7      0      0      0 100.00%
-threede_scene_finder_optimized.py        98     37     12      0  55.45%   62, 96, 107, 137-140, 148-151, 166-183, 190, 224-227, 237-278
-threede_scene_model.py                  140     12     28      1  92.26%   59, 166-169, 225-227, 250-251, 263, 293->299, 356-357
-threede_scene_worker.py                 299    183    104      8  32.75%   54-55, 69, 105->109, 118->125, 120->125, 140, 153, 161-166, 273->277, 280->exit, 302-306, 315-323, 336-358, 371-382, 391-408, 416-471, 479-578, 589-679, 687-792
-threede_thumbnail_widget.py              50     50      0      0   0.00%   6-148
-thumbnail_loading_indicator.py           72     43      4      0  38.16%   37-38, 42-63, 70-79, 83, 87-88, 95-97, 101-102, 106-137
-thumbnail_widget.py                      46      4      0      0  91.30%   128-134
-thumbnail_widget_base.py                315    184     66      6  35.96%   63-65, 69-154, 177, 181, 192-195, 202-307, 439-442, 448-461, 470-474, 478->exit, 485-491, 506-522, 526-527, 532, 542-556, 564, 569, 574->exit, 579->exit, 584-585
-timeout_config.py                        70     70     14      0   0.00%   8-146
-transfer_cli.py                         150    150     68      0   0.00%   9-325
-type_definitions.py                     228     17      2      0  92.61%   195, 199, 203, 207, 220, 224, 228, 238, 242, 255, 259, 263, 275, 279, 292, 296, 300
-ui_components.py                        284    284     24      0   0.00%   7-562
-undistortion_finder.py                   81     11     34      4  86.96%   73-77, 83, 95-97, 101, 123-127, 143->142, 167->172
-utils.py                                600    126    256     43  76.52%   64-66, 72-78, 89-95, 133, 138, 163-164, 168->174, 179-183, 306, 310-312, 339, 344-345, 347->333, 351, 361, 365->347, 381-387, 438-439, 448-450, 528->535, 543, 558-572, 592-596, 609, 661-721, 760, 765, 768->758, 777->768, 781, 785, 792, 798->777, 807->798, 809, 820->807, 829-836, 885->904, 886->885, 889->885, 895-900, 989-990, 1038->1043, 1048->1047, 1065, 1076-1091, 1147, 1163-1165, 1170->1169, 1172->1169, 1176-1180, 1296->1314, 1308-1312, 1348-1350, 1428-1432
-version_mixin.py                        118     12     62      2  88.89%   77, 85->96, 315-327, 339
-----------------------------------------------------------------------------------
-TOTAL                                 18421   7059   5316    664  58.43%
-============================= slowest 20 durations =============================
-4.10s call     tests/unit/test_optimized_threading.py::TestShotModelThreadSafety::test_cleanup_during_active_loading
-3.43s call     tests/unit/test_property_based.py::TestShotPathProperties::test_shot_path_roundtrip
-3.40s call     tests/unit/test_persistent_terminal_manager.py::TestPersistentTerminalManager::test_send_command_success
-3.16s call     tests/unit/test_thread_safety_validation.py::ThreadSafetyValidationTests::test_threadpool_manager
-2.22s teardown tests/unit/test_main_window_widgets.py::TestMainWindowUIComponents::test_menu_bar_exists
-2.11s teardown tests/unit/test_main_window_widgets.py::TestMainWindowUIComponents::test_status_bar_exists
-2.04s teardown tests/unit/test_main_window_widgets.py::TestMainWindowTabFunctionality::test_tab_navigation
-2.03s teardown tests/unit/test_main_window.py::TestSignalConnections::test_shot_model_refresh_behavior
-2.00s teardown tests/unit/test_main_window_widgets.py::TestMainWindowUIComponents::test_tab_widget_exists
-1.93s teardown tests/unit/test_main_window.py::TestThumbnailSizeControl::test_decrease_thumbnail_size
-1.82s teardown tests/unit/test_main_window_widgets.py::TestMainWindowIntegration::test_cache_manager_integration
-1.81s teardown tests/unit/test_main_window.py::TestApplicationLaunching::test_launch_app_with_selected_shot
-1.74s call     tests/unit/test_security_fixes.py::test_command_injection_blocked
-1.69s teardown tests/unit/test_main_window_widgets.py::TestMainWindowInitialization::test_cache_manager_assignment
-1.69s teardown tests/unit/test_main_window.py::TestApplicationLaunching::test_launch_app_without_shot_shows_error
-1.64s teardown tests/unit/test_main_window_widgets.py::TestMainWindowUIComponents::test_essential_components_exist
-1.64s teardown tests/unit/test_main_window_widgets.py::TestMainWindowUIComponents::test_splitter_configuration
-1.62s teardown tests/unit/test_main_window_widgets.py::TestMainWindowInitialization::test_window_central_widget
-1.59s teardown tests/unit/test_main_window.py::TestWindowCleanup::test_cleanup_on_close
-1.58s teardown tests/unit/test_main_window_widgets.py::TestMainWindowKeyboardShortcuts::test_refresh_shortcut
-=========================== short test summary info ============================
-FAILED tests/unit/test_threede_scene_finder.py::test_show_root_path_extraction_no_double_slash
-1 failed, 2197 passed in 89.62s (0:01:29)
+Thread 0x00007fab496296c0 (most recent call first):
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 363 in wait
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 659 in wait
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 1340 in run
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 1041 in _bootstrap_inner
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 1012 in _bootstrap
+
+Thread 0x00007fab57baa6c0 (most recent call first):
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007fab58199740 (most recent call first):
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytestqt/plugin.py", line 220 in _process_events
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytestqt/plugin.py", line 204 in pytest_runtest_teardown
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 116 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 141 in runtestprotocol
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 343 in _main
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/remote.py", line 427 in <module>
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1273. in serve
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, PIL._imagingmath (total: 8)
+[gw2] node down: Not properly terminated
+F
+replacing crashed worker gw2
+./home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/control.py:946: CoverageWarning: No data was collected. (no-data-collected); see https://coverage.readthedocs.io/en/7.11.0/messages.html#warning-no-data-collected
+  self._warn("No data was collected.", slug="no-data-collected")
+.INTERNALERROR> def worker_internal_error(
+INTERNALERROR>         self, node: WorkerController, formatted_error: str
+INTERNALERROR>     ) -> None:
+INTERNALERROR>         """
+INTERNALERROR>         pytest_internalerror() was called on the worker.
+INTERNALERROR>     
+INTERNALERROR>         pytest_internalerror() arguments are an excinfo and an excrepr, which can't
+INTERNALERROR>         be serialized, so we go with a poor man's solution of raising an exception
+INTERNALERROR>         here ourselves using the formatted message.
+INTERNALERROR>         """
+INTERNALERROR>         self._active_nodes.remove(node)
+INTERNALERROR>         try:
+INTERNALERROR> >           assert False, formatted_error
+INTERNALERROR> E           AssertionError: Traceback (most recent call last):
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/sqlitedb.py", line 122, in _execute
+INTERNALERROR> E                 return self.con.execute(sql, parameters)  # type: ignore[arg-type]
+INTERNALERROR> E                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+INTERNALERROR> E             sqlite3.OperationalError: no such table: file
+INTERNALERROR> E             
+INTERNALERROR> E             During handling of the above exception, another exception occurred:
+INTERNALERROR> E             
+INTERNALERROR> E             Traceback (most recent call last):
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/sqlitedb.py", line 127, in _execute
+INTERNALERROR> E                 return self.con.execute(sql, parameters)  # type: ignore[arg-type]
+INTERNALERROR> E                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+INTERNALERROR> E             sqlite3.OperationalError: no such table: file
+INTERNALERROR> E             
+INTERNALERROR> E             The above exception was the direct cause of the following exception:
+INTERNALERROR> E             
+INTERNALERROR> E             Traceback (most recent call last):
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 289, in wrap_session
+INTERNALERROR> E                 session.exitstatus = doit(config, session) or 0
+INTERNALERROR> E                                      ~~~~^^^^^^^^^^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 343, in _main
+INTERNALERROR> E                 config.hook.pytest_runtestloop(session=session)
+INTERNALERROR> E                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+INTERNALERROR> E                 return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+INTERNALERROR> E                        ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+INTERNALERROR> E                 return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+INTERNALERROR> E                        ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 167, in _multicall
+INTERNALERROR> E                 raise exception
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 139, in _multicall
+INTERNALERROR> E                 teardown.throw(exception)
+INTERNALERROR> E                 ~~~~~~~~~~~~~~^^^^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/logging.py", line 801, in pytest_runtestloop
+INTERNALERROR> E                 return (yield)  # Run all the tests.
+INTERNALERROR> E                         ^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 139, in _multicall
+INTERNALERROR> E                 teardown.throw(exception)
+INTERNALERROR> E                 ~~~~~~~~~~~~~~^^^^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/terminal.py", line 688, in pytest_runtestloop
+INTERNALERROR> E                 result = yield
+INTERNALERROR> E                          ^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 152, in _multicall
+INTERNALERROR> E                 teardown.send(result)
+INTERNALERROR> E                 ~~~~~~~~~~~~~^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytest_cov/plugin.py", line 349, in pytest_runtestloop
+INTERNALERROR> E                 self.cov_controller.finish()
+INTERNALERROR> E                 ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytest_cov/engine.py", line 55, in ensure_topdir_wrapper
+INTERNALERROR> E                 return meth(self, *args, **kwargs)
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytest_cov/engine.py", line 436, in finish
+INTERNALERROR> E                 self.cov.save()
+INTERNALERROR> E                 ~~~~~~~~~~~~~^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/control.py", line 843, in save
+INTERNALERROR> E                 data = self.get_data()
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/control.py", line 924, in get_data
+INTERNALERROR> E                 self._post_save_work()
+INTERNALERROR> E                 ~~~~~~~~~~~~~~~~~~~~^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/control.py", line 955, in _post_save_work
+INTERNALERROR> E                 self._data.touch_files(paths, plugin_name)
+INTERNALERROR> E                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/sqldata.py", line 662, in touch_files
+INTERNALERROR> E                 self._file_id(filename, add=True)
+INTERNALERROR> E                 ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/sqldata.py", line 444, in _file_id
+INTERNALERROR> E                 self._file_map[filename] = con.execute_for_rowid(
+INTERNALERROR> E                                            ~~~~~~~~~~~~~~~~~~~~~^
+INTERNALERROR> E                     "INSERT OR REPLACE INTO file (path) VALUES (?)",
+INTERNALERROR> E                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR> E                     (filename,),
+INTERNALERROR> E                     ^^^^^^^^^^^^
+INTERNALERROR> E                 )
+INTERNALERROR> E                 ^
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/sqlitedb.py", line 178, in execute_for_rowid
+INTERNALERROR> E                 with self.execute(sql, parameters) as cur:
+INTERNALERROR> E                      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+INTERNALERROR> E               File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/contextlib.py", line 141, in __enter__
+INTERNALERROR> E                 return next(self.gen)
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/sqlitedb.py", line 157, in execute
+INTERNALERROR> E                 cur = self._execute(sql, parameters)
+INTERNALERROR> E               File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/coverage/sqlitedb.py", line 145, in _executeTimeout (0:02:00)!
+Thread 0x00007fc701ffb6c0 (most recent call first):
+  File "/home/gabrielh/projects/shotbot/persistent_terminal_manager.py", line 431 in _find_dispatcher_pid
+  File "/home/gabrielh/projects/shotbot/persistent_terminal_manager.py", line 482 in _is_dispatcher_alive
+  File "/home/gabrielh/projects/shotbot/persistent_terminal_manager.py", line 588 in _is_dispatcher_healthy
+  File "/home/gabrielh/projects/shotbot/persistent_terminal_manager.py", line 1050 in _ensure_dispatcher_healthy
+  File "/home/gabrielh/projects/shotbot/persistent_terminal_manager.py", line 144 in _run_send_command
+  File "/home/gabrielh/projects/shotbot/persistent_terminal_manager.py", line 86 in do_work
+  File "/home/gabrielh/projects/shotbot/thread_safe_worker.py", line 351 in run
+
+Thread 0x00007fc712e296c0 (most recent call first):
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 1342 in run
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 1041 in _bootstrap_inner
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 1012 in _bootstrap
+
+Thread 0x00007fc72139b6c0 (most recent call first):
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 363 in wait
+  File "/home/gabrielh/.local/share/uv/python/cpython-3.13.3-linux-x86_64-gnu/lib/python3.13/threading.py", line 659 in wait
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 470 in waitall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1239 in _terminate_execution
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1176 in _thread_receiver
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Thread 0x00007fc72198a740 (most recent call first):
+  File "/home/gabrielh/projects/shotbot/persistent_terminal_manager.py", line 405 in _is_terminal_alive
+  File "/home/gabrielh/projects/shotbot/persistent_terminal_manager.py", line 1353 in cleanup
+  File "/home/gabrielh/projects/shotbot/cleanup_manager.py", line 212 in _cleanup_terminal
+  File "/home/gabrielh/projects/shotbot/cleanup_manager.py", line 75 in perform_cleanup
+  File "/home/gabrielh/projects/shotbot/main_window.py", line 1555 in closeEvent
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytestqt/qtbot.py", line 808 in _close_widgets
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytestqt/plugin.py", line 203 in pytest_runtest_teardown
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 116 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 141 in runtestprotocol
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 343 in _main
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/remote.py", line 427 in <module>
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+INTERNALERROR> E                 raise DataError(f"Couldn't use data file {self.filename!r}: {msg}") from exc
+INTERNALERROR> E             coverage.exceptions.DataError: Couldn't use data file '/home/gabrielh/projects/shotbot/.coverage.Gab-ROG.475992.XECJLUtx': no such table: file
+INTERNALERROR> E           assert False
+INTERNALERROR> 
+INTERNALERROR> .venv/lib/python3.13/site-packages/xdist/dsession.py:232: AssertionError
+INTERNALERROR> Traceback (most recent call last):
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 289, in wrap_session
+INTERNALERROR>     session.exitstatus = doit(config, session) or 0
+INTERNALERROR>                          ~~~~^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/main.py", line 343, in _main
+INTERNALERROR>     config.hook.pytest_runtestloop(session=session)
+INTERNALERROR>     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+INTERNALERROR>     return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+INTERNALERROR>            ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+INTERNALERROR>     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+INTERNALERROR>            ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 167, in _multicall
+INTERNALERROR>     raise exception
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 139, in _multicall
+INTERNALERROR>     teardown.throw(exception)
+INTERNALERROR>     ~~~~~~~~~~~~~~^^^^^^^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/logging.py", line 801, in pytest_runtestloop
+INTERNALERROR>     return (yield)  # Run all the tests.
+INTERNALERROR>             ^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 139, in _multicall
+INTERNALERROR>     teardown.throw(exception)
+INTERNALERROR>     ~~~~~~~~~~~~~~^^^^^^^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/_pytest/terminal.py", line 688, in pytest_runtestloop
+INTERNALERROR>     result = yield
+INTERNALERROR>              ^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 139, in _multicall
+INTERNALERROR>     teardown.throw(exception)
+INTERNALERROR>     ~~~~~~~~~~~~~~^^^^^^^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pytest_cov/plugin.py", line 345, in pytest_runtestloop
+INTERNALERROR>     result = yield
+INTERNALERROR>              ^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+INTERNALERROR>     res = hook_impl.function(*args)
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/dsession.py", line 138, in pytest_runtestloop
+INTERNALERROR>     self.loop_once()
+INTERNALERROR>     ~~~~~~~~~~~~~~^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/dsession.py", line 163, in loop_once
+INTERNALERROR>     call(**kwargs)
+INTERNALERROR>     ~~~~^^^^^^^^^^
+INTERNALERROR>   File "/home/gabrielh/projects/shotbot/.venv/lib/python3.13/site-packages/xdist/dsession.py", line 218, in worker_workerfinished
+INTERNALERROR>     self._active_nodes.remove(node)
+INTERNALERROR>     ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+INTERNALERROR> KeyError: <WorkerController gw9>
+
+===== 2 failed, 2654 passed, 10 skipped, 319 warnings in 135.19s (0:02:15) =====

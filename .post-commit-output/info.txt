@@ -1,5 +1,5 @@
-Post-commit hook executed at Wed Nov 12 23:47:59 GMT 2025
-Commit: 97bf77df323d07127b3d181544ec5250c317d0ea
+Post-commit hook executed at Fri Nov 14 10:24:54 GMT 2025
+Commit: 3f7dc6bdcec9b20fd4d3e8ab37d496f409287055
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: refactor: Delete unused BaseAssetFinder class and tests (Task 1.1)
+Message: refactor: Remove SimplifiedLauncher and fix pytest teardown crashes

@@ -6,9 +6,13 @@ set -o pipefail  # Enable pipefail to capture correct exit codes in pipelines
 FIFO="${1:-/tmp/shotbot_commands.fifo}"
 HEARTBEAT_FILE="/tmp/shotbot_heartbeat.txt"
 DEBUG_LOG="$HOME/.shotbot/logs/dispatcher_debug.log"
+PID_DIR="/tmp/shotbot_pids"
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$DEBUG_LOG")"
+
+# Create PID directory for process verification
+mkdir -p "$PID_DIR"
 
 # Debug mode flag (set SHOTBOT_TERMINAL_DEBUG=1 to enable)
 # Default to enabled for investigating corruption issues
@@ -128,6 +132,44 @@ is_gui_app() {
     return 1
 }
 
+# Function to extract app name from command for PID file naming
+# Returns the GUI app name (nuke, 3de, maya, etc.) or empty string
+extract_app_name() {
+    local cmd="$1"
+
+    # If command contains bash -ilc with quotes, extract the inner command
+    if [[ "$cmd" =~ bash[[:space:]]+-[^\"]*\"(.*)\" ]]; then
+        local inner_cmd="${BASH_REMATCH[1]}"
+
+        # Extract the last command after && if present
+        if [[ "$inner_cmd" == *"&&"* ]]; then
+            local last_segment="${inner_cmd##*&&}"
+            last_segment="${last_segment#"${last_segment%%[![:space:]]*}"}"
+            local actual_cmd="${last_segment%% *}"
+
+            # Check if this is a known GUI app
+            case "$actual_cmd" in
+                nuke|maya|rv|3de|houdini|katana|mari|clarisse)
+                    echo "$actual_cmd"
+                    return 0
+                    ;;
+            esac
+        fi
+    fi
+
+    # Fallback: Extract from direct invocations
+    local first_word="${cmd%% *}"
+    case "$first_word" in
+        nuke|maya|rv|3de|houdini|katana|mari|clarisse)
+            echo "$first_word"
+            return 0
+            ;;
+    esac
+
+    echo ""
+    return 1
+}
+
 # Signal handling for defense in depth
 # Ignore signals from backgrounded jobs to prevent read loop interruption
 trap '' SIGCHLD SIGHUP SIGPIPE
@@ -216,7 +258,18 @@ while true; do
             # Give a moment for the app to start
             sleep 0.5
             log_info "Launched GUI app with PID: $gui_pid"
-            echo "✓ Launched in background (PID: $gui_pid)"
+
+            # Write PID file for process verification (Phase 2)
+            app_name=$(extract_app_name "$cmd")
+            if [[ -n "$app_name" ]]; then
+                timestamp=$(date '+%Y%m%d_%H%M%S')
+                pid_file="$PID_DIR/${app_name}_${timestamp}.pid"
+                echo "$gui_pid" > "$pid_file"
+                log_info "Wrote PID file: $pid_file"
+                echo "✓ Launched in background (PID: $gui_pid, file: $pid_file)"
+            else
+                echo "✓ Launched in background (PID: $gui_pid)"
+            fi
         else
             # Execute command normally (blocking for non-GUI commands)
             log_info "Executing non-GUI command: $cmd"

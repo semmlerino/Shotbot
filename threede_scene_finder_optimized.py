@@ -236,8 +236,19 @@ class OptimizedThreeDESceneFinder:
         shot_tuples: list[tuple[str, str, str, str]],
         excluded_users: set[str] | None = None,
         batch_size: int = 10,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
-        """Progressive scene finder using refactored coordinator."""
+        """Progressive scene finder using refactored coordinator.
+
+        Args:
+            shot_tuples: List of (workspace_path, show, sequence, shot) tuples
+            excluded_users: Set of usernames to exclude
+            batch_size: Number of files per batch
+            cancel_flag: Optional callback to check if operation should be cancelled
+
+        Yields:
+            Tuple of (scene_batch, current_shot, total_shots, status_message)
+        """
         # Local application imports
         from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
@@ -257,7 +268,7 @@ class OptimizedThreeDESceneFinder:
             total_shots,
             status,
         ) in scanner.find_all_scenes_progressive(
-            shot_tuples, excluded_users, batch_size
+            shot_tuples, excluded_users, batch_size, cancel_flag
         ):
             # Convert file pairs to ThreeDEScene objects
             scenes: list[ThreeDEScene] = []

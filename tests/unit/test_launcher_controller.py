@@ -441,7 +441,8 @@ class TestApplicationLaunching:
         cmd, opts = target.command_launcher.executed_commands[0]
         assert cmd == "nuke"
         assert opts["shot"] == test_shot.full_name
-        assert "Launched nuke" in target.status_messages
+        # Phase 1: Status shows "Launching..." not "Launched" (no premature success)
+        assert "Launching nuke..." in target.status_messages
 
     def test_validate_launch_context_re_syncs_from_command_launcher(
         self,

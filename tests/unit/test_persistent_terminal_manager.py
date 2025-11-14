@@ -94,11 +94,16 @@ class TestPersistentTerminalManager:
         assert terminal_manager.terminal_pid is None
         assert terminal_manager.terminal_process is None
 
+    @patch("launch.process_verifier.ProcessVerifier.cleanup_old_pid_files")
     @patch("pathlib.Path.exists")
     @patch("os.mkfifo")
     @patch("pathlib.Path.stat")
     def test_ensure_fifo_creates_when_missing(
-        self, mock_stat: MagicMock, mock_mkfifo: MagicMock, mock_exists: MagicMock
+        self,
+        mock_stat: MagicMock,
+        mock_mkfifo: MagicMock,
+        mock_exists: MagicMock,
+        mock_cleanup: MagicMock,
     ) -> None:
         """Test FIFO creation when it doesn't exist."""
         # Arrange: FIFO doesn't exist initially, then exists after creation
@@ -110,6 +115,8 @@ class TestPersistentTerminalManager:
 
         # Assert: FIFO was created with correct permissions
         mock_mkfifo.assert_called_once_with("/tmp/test.fifo", 0o600)
+        # PID cleanup should be called on init (Phase 2)
+        mock_cleanup.assert_called_once_with(max_age_hours=24)
 
     @patch("os.path.exists", return_value=True)
     @patch("os.stat")
@@ -680,6 +687,7 @@ class TestPersistentTerminalManager:
         assert result is True
         mock_restart.assert_called_once()
 
+    @patch("launch.process_verifier.ProcessVerifier.cleanup_old_pid_files")
     @patch("pathlib.Path.exists")
     @patch("os.mkfifo")
     @patch("pathlib.Path.stat")
@@ -692,6 +700,7 @@ class TestPersistentTerminalManager:
         mock_stat: MagicMock,
         mock_mkfifo: MagicMock,
         mock_exists: MagicMock,
+        mock_cleanup: MagicMock,
     ) -> None:
         """Test dummy writer FD is opened when explicitly requested.
 

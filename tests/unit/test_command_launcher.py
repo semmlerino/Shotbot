@@ -124,6 +124,11 @@ class TestPersistentTerminalManager(QObject):
     operation_finished = Signal(str, bool, str)  # operation_name, success, message
     command_result = Signal(bool, str)  # success, error_message
 
+    # Phase 1 lifecycle signals (new)
+    command_queued = Signal(str, str)  # timestamp, command
+    command_executing = Signal(str)  # timestamp
+    command_verified = Signal(str, str)  # timestamp, message
+
     def __init__(self) -> None:
         """Initialize test terminal manager."""
         super().__init__()
