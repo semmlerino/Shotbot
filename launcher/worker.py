@@ -7,7 +7,9 @@ execution in a separate thread, extracted from the original launcher_manager.py.
 from __future__ import annotations
 
 # Standard library imports
+import os
 import shlex
+import signal
 import subprocess
 import threading
 from typing import IO, final
@@ -181,21 +183,39 @@ class LauncherWorker(ThreadSafeWorker):
             self._cleanup_process()
 
     def _terminate_process(self) -> None:
-        """Safely terminate the subprocess."""
+        """Safely terminate the subprocess and all children in its process group."""
         if not self._process:
             return
 
         try:
-            # Try graceful termination first
-            self._process.terminate()
+            # Get process group ID (same as process PID due to start_new_session=True)
+            try:
+                pgid = os.getpgid(self._process.pid)
+            except (ProcessLookupError, PermissionError):
+                # Process already dead
+                return
+
+            # Try graceful termination of entire process group
+            try:
+                os.killpg(pgid, signal.SIGTERM)
+                self.logger.debug(f"Sent SIGTERM to process group {pgid}")
+            except (ProcessLookupError, PermissionError):
+                # Process group already dead or we don't have permission
+                pass
+
+            # Wait for process to terminate
             try:
                 _ = self._process.wait(timeout=10)
+                self.logger.debug(f"Process group {pgid} terminated gracefully")
             except subprocess.TimeoutExpired:
-                # Force kill if necessary
+                # Force kill entire process group if necessary
                 self.logger.warning(
-                    f"Force killing launcher '{self.launcher_id}' after timeout",
+                    f"Force killing process group {pgid} for launcher '{self.launcher_id}' after timeout",
                 )
-                self._process.kill()
+                try:
+                    os.killpg(pgid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
                 _ = self._process.wait(timeout=5)
         except Exception as e:
             self.logger.error(

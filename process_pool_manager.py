@@ -223,22 +223,27 @@ class ProcessPoolManager(LoggingMixin, QObject):
     def __new__(
         cls, max_workers: int = 4, sessions_per_type: int = 3  # noqa: ARG004
     ) -> ProcessPoolManager:
-        """Ensure singleton pattern with proper thread safety using double-checked locking.
+        """Ensure singleton pattern with proper thread safety.
+
+        CRITICAL: Holds lock across both __new__ and __init__ to prevent race where
+        another thread gets uninitialized instance between __new__ and __init__.
 
         Note: Parameters are intentionally unused in __new__ (singleton returns existing
         instance) but must match __init__ signature for type checker consistency.
-
-        This implementation uses double-checked locking pattern which optimizes
-        the common case where the singleton is already initialized by avoiding
-        the lock acquisition. The inner check ensures thread safety during creation.
         """
         # Fast path - no lock if already initialized
         if cls._instance is None:
             with cls._lock:
                 # Double-check inside lock to prevent race condition
                 if cls._instance is None:
+                    # Create instance but DON'T set cls._instance yet
                     instance = super().__new__(cls)
+                    # Initialize BEFORE making visible (call __init__ manually)
+                    instance.__init__(max_workers, sessions_per_type)
+                    # Now safe to expose - fully initialized
                     cls._instance = instance
+                    # Set flag so __init__ doesn't run again
+                    cls._initialized = True
         return cls._instance
 
     def __init__(self, max_workers: int = 4, sessions_per_type: int = 3) -> None:
@@ -247,37 +252,35 @@ class ProcessPoolManager(LoggingMixin, QObject):
         Args:
             max_workers: Maximum concurrent workers
             sessions_per_type: Number of sessions to maintain per type for parallelism
+
+        Note: __new__ calls this manually under lock, so we don't need lock here.
+        If called directly (e.g., by Python after __new__), check if already initialized.
         """
-        # Lock to ensure only one thread initializes
-        with ProcessPoolManager._lock:
-            # Check if already initialized
-            if ProcessPoolManager._initialized:
-                return
+        # Check if already initialized (called by __new__ or Python)
+        if hasattr(self, "_init_done") and self._init_done:
+            return
 
-            # Set flag FIRST before any resource allocation to prevent race condition
-            ProcessPoolManager._initialized = True
+        super().__init__()
 
-            super().__init__()
+        self._executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_workers,
+        )
+        # Session pools: type -> list of sessions
+        self._session_pools: dict[str, list[PersistentBashSession]] = {}
+        self._session_round_robin: dict[str, int] = {}  # Track next session to use
+        self._session_creation_in_progress: dict[
+            str, bool
+        ] = {}  # Prevent double creation
+        self._sessions_per_type = sessions_per_type
+        self._cache = CommandCache(default_ttl=30)
+        self._session_lock = QMutex()  # Use Qt mutex for consistency
+        self._metrics = ProcessMetrics()
+        # Instance-level mutex and shutdown flag for thread-safe shutdown
+        self._mutex = QMutex()
+        self._shutdown_requested = False
 
-            self._executor = concurrent.futures.ThreadPoolExecutor(
-                max_workers=max_workers,
-            )
-            # Session pools: type -> list of sessions
-            self._session_pools: dict[str, list[PersistentBashSession]] = {}
-            self._session_round_robin: dict[str, int] = {}  # Track next session to use
-            self._session_creation_in_progress: dict[
-                str, bool
-            ] = {}  # Prevent double creation
-            self._sessions_per_type = sessions_per_type
-            self._cache = CommandCache(default_ttl=30)
-            self._session_lock = QMutex()  # Use Qt mutex for consistency
-            self._metrics = ProcessMetrics()
-            # Instance-level mutex and shutdown flag for thread-safe shutdown
-            self._mutex = QMutex()
-            self._shutdown_requested = False
-
-            # Mark initialization as complete
-            self._init_done = True
+        # Mark initialization as complete
+        self._init_done = True
 
         self.logger.info(f"ProcessPoolManager initialized with {max_workers} workers")
 

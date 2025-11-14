@@ -25,7 +25,7 @@ from typing import ClassVar, final
 
 # Third-party imports
 import psutil
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QObject, QThread, Qt, Signal
 
 # Local application imports
 from config import Config
@@ -122,8 +122,8 @@ class TerminalOperationWorker(QThread):
             self.operation_finished.emit(False, "Operation interrupted")
             return
 
-        # Ensure terminal is healthy first
-        if not self.manager._ensure_dispatcher_healthy():  # pyright: ignore[reportPrivateUsage]
+        # Ensure terminal is healthy first (pass worker reference for interruption checks)
+        if not self.manager._ensure_dispatcher_healthy(worker=self):  # pyright: ignore[reportPrivateUsage]
             self.operation_finished.emit(False, "Terminal not healthy")
             return
 
@@ -671,13 +671,14 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             - EAGAIN: Write would block (buffer full)
             - Other OSError: Logged with full error details
         """
-        if not Path(self.fifo_path).exists():
-            self.logger.debug(f"FIFO does not exist: {self.fifo_path}")
-            return False
-
         fd = None  # Track FD for cleanup in case of errors
         try:
             with self._write_lock:
+                # Check FIFO existence inside lock to prevent TOCTOU race
+                if not Path(self.fifo_path).exists():
+                    self.logger.debug(f"FIFO does not exist: {self.fifo_path}")
+                    return False
+
                 fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
                 # Now wrap in fdopen (which takes ownership of fd)
                 with os.fdopen(fd, "wb", buffering=0) as fifo:
@@ -922,9 +923,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 f"  Terminal PID: {terminal_pid}\n"
                 f"  Dispatcher PID: {dispatcher_pid}"
             )
-            # Send command to FIFO using non-blocking I/O
+            # Send command to FIFO using non-blocking I/O with retry
             fifo_fd = None
-            max_retries = 2
+            max_retries = 3
 
             for attempt in range(max_retries):
                 try:
@@ -942,28 +943,52 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                     return True
 
                 except OSError as e:
+                    is_last_attempt = attempt >= max_retries - 1
+
                     if e.errno == errno.ENOENT:
-                        # FIFO doesn't exist
-                        if attempt < max_retries - 1:
+                        # FIFO doesn't exist - try to recreate
+                        if not is_last_attempt:
                             self.logger.warning(
-                                f"FIFO disappeared, recreating (attempt {attempt + 1}/{max_retries})"
+                                f"FIFO missing, recreating (attempt {attempt + 1}/{max_retries})"
                             )
                             if self._ensure_fifo():
                                 time.sleep(_CLEANUP_POLL_INTERVAL_SECONDS)
                                 continue
-                        self.logger.error(f"Failed to send command to FIFO: {e}")
+                        self.logger.error(f"Failed to send command after {attempt + 1} attempts: FIFO missing")
+
                     elif e.errno == errno.ENXIO:
-                        # No reader available
+                        # No reader available - dispatcher may have crashed
+                        if not is_last_attempt:
+                            self.logger.warning(
+                                f"No FIFO reader, retrying (attempt {attempt + 1}/{max_retries})"
+                            )
+                            time.sleep(0.5)  # Give dispatcher time to recover
+                            continue
                         self.logger.error(
-                            "No reader available for FIFO - dispatcher may have crashed"
+                            f"No reader available for FIFO after {attempt + 1} attempts - "
+                            "dispatcher may have crashed"
                         )
                         # Mark for health check on next command
                         with self._state_lock:
                             self.dispatcher_pid = None
+
                     elif e.errno == errno.EAGAIN:
-                        self.logger.warning("FIFO write would block (buffer full?)")
+                        # Buffer full - retry with exponential backoff
+                        if not is_last_attempt:
+                            backoff: float = 0.1 * (2 ** attempt)  # 0.1s, 0.2s, 0.4s
+                            self.logger.warning(
+                                f"FIFO buffer full, retrying after {backoff}s "
+                                f"(attempt {attempt + 1}/{max_retries})"
+                            )
+                            time.sleep(backoff)
+                            continue
+                        self.logger.error(f"FIFO buffer full after {attempt + 1} attempts")
+
                     else:
+                        # Other errors - log and fail
                         self.logger.error(f"Failed to send command to FIFO: {e}")
+
+                    # Last attempt or unrecoverable error - return False
                     return False
                 finally:
                     # Clean up file descriptor if it wasn't converted to file object
@@ -1021,12 +1046,14 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         worker = TerminalOperationWorker(self, "send_command", parent=self)
         worker.command = command
 
-        # Connect signals
+        # Connect signals with explicit QueuedConnection for thread safety
         def on_progress(msg: str) -> None:
             self.operation_progress.emit("send_command", msg)
 
-        _ = worker.progress.connect(on_progress)
-        _ = worker.operation_finished.connect(self._on_async_command_finished)
+        _ = worker.progress.connect(on_progress, Qt.ConnectionType.QueuedConnection)
+        _ = worker.operation_finished.connect(
+            self._on_async_command_finished, Qt.ConnectionType.QueuedConnection
+        )
 
         # Store worker reference to prevent garbage collection (thread-safe)
         with self._workers_lock:
@@ -1039,7 +1066,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                     self._active_workers.remove(worker)
             worker.deleteLater()
 
-        _ = worker.operation_finished.connect(cleanup_worker)
+        _ = worker.operation_finished.connect(cleanup_worker, Qt.ConnectionType.QueuedConnection)
 
         # Emit operation started signal
         self.operation_started.emit("send_command")
@@ -1064,16 +1091,26 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # Emit operation finished signal
         self.operation_finished.emit("send_command", success, message)
 
-    def _ensure_dispatcher_healthy(self) -> bool:
+    def _ensure_dispatcher_healthy(
+        self, worker: TerminalOperationWorker | None = None
+    ) -> bool:
         """Ensure dispatcher is healthy, attempting recovery if needed.
 
         Thread-Safe:
             Can be called from worker threads. Uses internal locks to protect
             shared state access and recovery operations.
 
+        Args:
+            worker: Optional worker thread for interruption checks
+
         Returns:
             True if dispatcher is healthy, False if recovery failed
         """
+        # Check for worker interruption before starting
+        if worker and worker.isInterruptionRequested():
+            self.logger.debug("Worker interrupted before health check")
+            return False
+
         # Check if dispatcher is healthy
         if self._is_dispatcher_healthy():
             self.logger.debug("Dispatcher health check passed")
@@ -1089,25 +1126,52 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             f"Terminal PID: {terminal_pid}, Dispatcher PID: {dispatcher_pid}"
         )
 
-        # Check if we've exceeded restart attempts
-        with self._state_lock:
-            if self._restart_attempts >= self._max_restart_attempts:
-                self.logger.error(
-                    f"Exceeded maximum restart attempts ({self._max_restart_attempts}) - "
-                    f"entering fallback mode. Will retry after 5 minutes."
-                )
-                self._fallback_mode = True
-                self._fallback_entered_at = time.time()  # Record timestamp for auto-recovery
-                return False
+        # Serialize restart attempts under _restart_lock to prevent race condition
+        # where multiple threads increment counter before any restart completes
+        with self._restart_lock:
+            # Re-check health after acquiring restart lock (another thread may have fixed it)
+            if self._is_dispatcher_healthy():
+                self.logger.debug("Dispatcher healthy after acquiring restart lock")
+                return True
 
-            # Attempt to restart terminal
-            self._restart_attempts += 1
-            restart_attempt = self._restart_attempts
+            # Check if we've exceeded restart attempts
+            with self._state_lock:
+                if self._restart_attempts >= self._max_restart_attempts:
+                    self.logger.error(
+                        f"Exceeded maximum restart attempts ({self._max_restart_attempts}) - "
+                        f"entering fallback mode. Will retry after 5 minutes."
+                    )
+                    self._fallback_mode = True
+                    self._fallback_entered_at = time.time()  # Record timestamp for auto-recovery
+                    return False
 
-        self.logger.info(
-            f"Attempting terminal restart ({restart_attempt}/{self._max_restart_attempts}) "
-            f"- reason: health check failure"
-        )
+                # Increment attempt counter under restart lock (prevents double-counting)
+                self._restart_attempts += 1
+                restart_attempt = self._restart_attempts
+
+            self.logger.info(
+                f"Attempting terminal restart ({restart_attempt}/{self._max_restart_attempts}) "
+                f"- reason: health check failure"
+            )
+
+            # Perform restart (method already under _restart_lock)
+            return self._perform_restart_internal(worker)
+
+    def _perform_restart_internal(
+        self, worker: TerminalOperationWorker | None = None
+    ) -> bool:
+        """Internal restart implementation called under _restart_lock.
+
+        Args:
+            worker: Optional worker thread for interruption checks
+
+        Returns:
+            True if restart succeeded and dispatcher is healthy
+        """
+        # Check for interruption before restart
+        if worker and worker.isInterruptionRequested():
+            self.logger.debug("Worker interrupted before terminal restart")
+            return False
 
         # Force kill existing terminal if needed
         if self._is_terminal_alive():
@@ -1128,7 +1192,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 self.dispatcher_pid = None
 
         # Restart terminal
-        if not self.restart_terminal():
+        if not self.restart_terminal(worker=worker):
             self.logger.error("Failed to restart terminal")
             return False
 
@@ -1138,6 +1202,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         elapsed = 0.0
 
         while elapsed < timeout:
+            # Check for worker interruption during polling
+            if worker and worker.isInterruptionRequested():
+                self.logger.debug("Worker interrupted during dispatcher health check")
+                return False
+
             if self._is_dispatcher_healthy():
                 self.logger.info(
                     f"Dispatcher recovered successfully after {elapsed:.2f}s"
@@ -1247,11 +1316,16 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         self.terminal_closed.emit()
         return True
 
-    def restart_terminal(self) -> bool:
+    def restart_terminal(
+        self, worker: TerminalOperationWorker | None = None
+    ) -> bool:
         """Restart the persistent terminal with atomic FIFO recreation.
 
         Uses atomic FIFO replacement to prevent race conditions between
         FIFO cleanup and dispatcher startup.
+
+        Args:
+            worker: Optional worker thread for interruption checks
 
         Returns:
             True if terminal was restarted successfully
@@ -1327,13 +1401,22 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 elapsed = 0.0
 
                 while elapsed < timeout:
+                    # Check for worker interruption during polling
+                    if worker and worker.isInterruptionRequested():
+                        self.logger.debug("Worker interrupted during dispatcher startup wait")
+                        return False
+
                     if self._is_dispatcher_running():
                         self.logger.info(f"Dispatcher ready after {elapsed:.2f}s")
 
-                        # Now that dispatcher is running, open dummy writer to prevent EOF
+                        # CRITICAL: Open dummy writer BEFORE allowing commands
+                        # This prevents race where command writer closes FD before dummy opens,
+                        # sending EOF to dispatcher
                         if not self._open_dummy_writer():
                             self.logger.warning("Failed to open dummy writer after dispatcher started")
                             # Continue anyway - terminal is working, just no dummy writer protection
+                        else:
+                            self.logger.debug("Dummy writer opened - FIFO EOF protection active")
 
                         self.logger.info("Terminal restarted successfully")
                         return True
@@ -1356,43 +1439,85 @@ class PersistentTerminalManager(LoggingMixin, QObject):
     def cleanup(self) -> None:
         """Clean up resources (workers, FIFO, and terminal).
 
-        IMPORTANT: Workers must be stopped FIRST to prevent deadlock on _state_lock.
+        CRITICAL: Workers must be stopped FIRST to prevent deadlock on _state_lock.
+        After workers are stopped, we avoid acquiring ANY locks to prevent deadlock
+        with hung workers that may still hold locks.
         """
-        # 1. STOP ALL WORKERS FIRST (before acquiring any locks)
+        # 1. STOP ALL WORKERS FIRST
+        # CRITICAL: Acquire lock ONCE and clear list atomically to prevent race
         with self._workers_lock:
             workers_to_stop = list(self._active_workers)
+            self._active_workers.clear()  # Clear immediately to prevent new additions
 
         if workers_to_stop:
             self.logger.info(f"Stopping {len(workers_to_stop)} active workers before cleanup")
 
+        # Stop workers outside lock (prevent deadlock)
         for worker in workers_to_stop:
+            # Disconnect signals FIRST to prevent callbacks during shutdown
+            try:
+                _ = worker.progress.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+            try:
+                _ = worker.operation_finished.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+
             # Request stop and wait with extended timeout
             worker.requestInterruption()
             # Increased timeout from 2s to 10s to allow health checks and I/O to complete
             if not worker.wait(10000):  # 10 second timeout
                 # CRITICAL: Do NOT call terminate() - it kills threads holding locks
-                # This causes permanent deadlock. Instead, log error and continue cleanup.
+                # This causes permanent deadlock. Instead, log and abandon the worker.
                 self.logger.error(
                     f"Worker {id(worker)} did not stop after 10s. "
-                    "This indicates a hung operation. Continuing cleanup without termination "
-                    "to avoid deadlock from orphaned locks."
+                    "Abandoning worker to prevent deadlock. It may complete later."
                 )
-
-        # Clear workers list
-        with self._workers_lock:
-            self._active_workers.clear()
+                # DO NOT try to access manager state - worker may hold locks
 
         # Remove from test instances tracking
         with self.__class__._test_instances_lock:
             if self in self.__class__._test_instances:
                 self.__class__._test_instances.remove(self)
 
-        # 2. THEN cleanup terminal and resources (safe now that workers are stopped)
-        # Close terminal if running
-        if self._is_terminal_alive():
-            _ = self.close_terminal()
+        # 2. THEN cleanup terminal and resources
+        # CRITICAL: Do NOT call methods that acquire locks (like _is_terminal_alive)
+        # Workers are stopped, so we can safely read state without locks
+        terminal_pid_snapshot = self.terminal_pid
+        terminal_process_snapshot = self.terminal_process
 
-        # Close dummy writer FD first
+        # Close terminal if running (no locks needed - workers stopped)
+        if terminal_pid_snapshot is not None:
+            try:
+                # Try to send exit command to dispatcher if FIFO is open
+                if not self._fd_closed and self._dummy_writer_fd is not None:
+                    try:
+                        os.write(self._dummy_writer_fd, b"exit\n")
+                    except OSError:
+                        pass  # FIFO not writable, continue with terminate
+
+                # Give dispatcher time to exit gracefully
+                time.sleep(0.5)
+
+                # Force terminate if still alive
+                if terminal_process_snapshot and terminal_process_snapshot.poll() is None:
+                    try:
+                        terminal_process_snapshot.terminate()
+                        terminal_process_snapshot.wait(timeout=2.0)
+                    except subprocess.TimeoutExpired:
+                        try:
+                            terminal_process_snapshot.kill()
+                        except ProcessLookupError:
+                            pass
+                    except ProcessLookupError:
+                        pass  # Already dead
+
+                self.logger.debug(f"Closed terminal process {terminal_pid_snapshot}")
+            except Exception as e:
+                self.logger.warning(f"Error closing terminal: {e}")
+
+        # Close dummy writer FD
         self._close_dummy_writer_fd()
 
         # Remove FIFO if it exists

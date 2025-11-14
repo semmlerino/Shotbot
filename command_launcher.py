@@ -14,6 +14,8 @@ import errno
 import os
 import subprocess
 import threading
+import time
+import uuid
 import warnings
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -22,7 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QMetaObject, QObject, Qt, QTimer, Signal
 
 # Local application imports
 from config import Config
@@ -108,8 +110,11 @@ class CommandLauncher(LoggingMixin, QObject):
         self.persistent_terminal = persistent_terminal
 
         # Fallback retry mechanism - stores commands that failed async for retry
-        self._pending_fallback: dict[str, tuple[str, str]] = {}  # timestamp -> (cmd, app_name)
+        self._pending_fallback: dict[str, tuple[str, str, float]] = {}  # uuid -> (cmd, app_name, timestamp)
         self._fallback_lock = threading.Lock()  # Thread-safe dict access
+
+        # Track signal connections for proper cleanup
+        self._signal_connections: list[QMetaObject.Connection] = []
 
         # Initialize launch components
         self.env_manager = EnvironmentManager()
@@ -118,20 +123,53 @@ class CommandLauncher(LoggingMixin, QObject):
         # Initialize the Nuke launch handler
         self.nuke_handler = NukeLaunchRouter()
 
-        # Connect process executor signals
-        _ = self.process_executor.execution_progress.connect(self._on_execution_progress)
-        _ = self.process_executor.execution_completed.connect(self._on_execution_completed)
-        _ = self.process_executor.execution_error.connect(self._on_execution_error)
+        # Connect process executor signals (track for cleanup)
+        # Use QueuedConnection for thread-safe cross-thread signal handling
+        self._signal_connections.append(
+            self.process_executor.execution_progress.connect(
+                self._on_execution_progress, Qt.ConnectionType.QueuedConnection
+            )
+        )
+        self._signal_connections.append(
+            self.process_executor.execution_completed.connect(
+                self._on_execution_completed, Qt.ConnectionType.QueuedConnection
+            )
+        )
+        self._signal_connections.append(
+            self.process_executor.execution_error.connect(
+                self._on_execution_error, Qt.ConnectionType.QueuedConnection
+            )
+        )
 
         # Connect new Phase 1 & 2 lifecycle signals if persistent terminal is available
+        # Use QueuedConnection for thread-safe cross-thread signal handling
         if self.persistent_terminal:
-            _ = self.persistent_terminal.command_queued.connect(self._on_command_queued)
-            _ = self.persistent_terminal.command_executing.connect(self._on_command_executing)
-            _ = self.persistent_terminal.command_verified.connect(self._on_command_verified)
-            _ = self.persistent_terminal.command_error.connect(self._on_command_error_internal)
+            self._signal_connections.append(
+                self.persistent_terminal.command_queued.connect(
+                    self._on_command_queued, Qt.ConnectionType.QueuedConnection
+                )
+            )
+            self._signal_connections.append(
+                self.persistent_terminal.command_executing.connect(
+                    self._on_command_executing, Qt.ConnectionType.QueuedConnection
+                )
+            )
+            self._signal_connections.append(
+                self.persistent_terminal.command_verified.connect(
+                    self._on_command_verified, Qt.ConnectionType.QueuedConnection
+                )
+            )
+            self._signal_connections.append(
+                self.persistent_terminal.command_error.connect(
+                    self._on_command_error_internal, Qt.ConnectionType.QueuedConnection
+                )
+            )
             # Connect operation_finished for fallback retry mechanism
-            _ = self.persistent_terminal.operation_finished.connect(
-                self._on_persistent_terminal_operation_finished
+            self._signal_connections.append(
+                self.persistent_terminal.operation_finished.connect(
+                    self._on_persistent_terminal_operation_finished,
+                    Qt.ConnectionType.QueuedConnection,
+                )
             )
 
         # Initialize scene/file finders (created internally, not injected)
@@ -165,41 +203,24 @@ class CommandLauncher(LoggingMixin, QObject):
             Safe to call multiple times. Silently handles already-disconnected signals.
             Safe to call even if __init__ failed partway through.
         """
-        # Suppress RuntimeWarning from PySide6 disconnect() calls
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                category=RuntimeWarning,
-                message="Failed to disconnect.*from signal",
-            )
-            try:
-                _ = self.process_executor.execution_progress.disconnect(self._on_execution_progress)
-                _ = self.process_executor.execution_completed.disconnect(self._on_execution_completed)
-                _ = self.process_executor.execution_error.disconnect(self._on_execution_error)
-            except (RuntimeError, TypeError, AttributeError):
-                # Signals already disconnected, object destroyed, or __init__ failed before creating process_executor
-                pass
-
-            # Disconnect Phase 1 & 2 lifecycle signals
-            if self.persistent_terminal:
+        # Disconnect all tracked signal connections
+        # Using QObject.disconnect() with connection handle works even if sender is destroyed
+        if hasattr(self, "_signal_connections"):
+            for connection in self._signal_connections:
                 try:
-                    _ = self.persistent_terminal.command_queued.disconnect(self._on_command_queued)
-                    _ = self.persistent_terminal.command_executing.disconnect(self._on_command_executing)
-                    _ = self.persistent_terminal.command_verified.disconnect(self._on_command_verified)
-                    _ = self.persistent_terminal.command_error.disconnect(self._on_command_error_internal)
-                    _ = self.persistent_terminal.operation_finished.disconnect(
-                        self._on_persistent_terminal_operation_finished
-                    )
-                except (RuntimeError, TypeError, AttributeError):
-                    # Signals already disconnected or __init__ failed
+                    QObject.disconnect(connection)
+                except (RuntimeError, TypeError):
+                    # Connection already disconnected or sender/receiver destroyed
                     pass
+            self._signal_connections.clear()
 
-            # FIX: Cleanup ProcessExecutor's signal connections to PersistentTerminalManager
-            # Without this, signal connections from ProcessExecutor to PersistentTerminalManager leak
-            try:
+        # Cleanup ProcessExecutor's signal connections to PersistentTerminalManager
+        # Without this, signal connections from ProcessExecutor to PersistentTerminalManager leak
+        try:
+            if hasattr(self, "process_executor"):
                 self.process_executor.cleanup()
-            except (RuntimeError, TypeError, AttributeError):
-                pass
+        except (RuntimeError, TypeError, AttributeError):
+            pass
 
     def __del__(self) -> None:
         """Ensure cleanup on destruction."""
@@ -291,32 +312,20 @@ class CommandLauncher(LoggingMixin, QObject):
         """
         if success:
             # Clear any pending fallback for successful commands
-            # We don't know exact timestamp, so clear old ones (>30s ago)
-            from datetime import datetime
-
-            now = datetime.now()
+            # Remove entries older than 30 seconds
+            now = time.time()
             to_remove = []
 
             # Thread-safe dict iteration and cleanup
             with self._fallback_lock:
-                for ts in self._pending_fallback:
-                    try:
-                        parsed = datetime.strptime(ts, "%H:%M:%S")
-                        # Handle day rollover - assume same day if within reason
-                        elapsed = (now.hour * 3600 + now.minute * 60 + now.second) - (
-                            parsed.hour * 3600 + parsed.minute * 60 + parsed.second
-                        )
-                        if elapsed < 0:  # Day rollover
-                            elapsed += 86400
-                        if elapsed > 30:  # Older than 30 seconds
-                            to_remove.append(ts)
-                    except ValueError:
-                        # Invalid timestamp, remove it
-                        to_remove.append(ts)
+                for command_id, (_, _, creation_time) in self._pending_fallback.items():
+                    elapsed = now - creation_time
+                    if elapsed > 30:  # Older than 30 seconds
+                        to_remove.append(command_id)
 
                 # Use pop with default to avoid KeyError if another thread deleted
-                for ts in to_remove:
-                    _ = self._pending_fallback.pop(ts, None)
+                for command_id in to_remove:
+                    _ = self._pending_fallback.pop(command_id, None)
             return
 
         # Operation failed - check if we should fallback
@@ -324,18 +333,17 @@ class CommandLauncher(LoggingMixin, QObject):
             if not self._pending_fallback:
                 return  # No pending fallback
 
-            # Get oldest pending command (FIFO queue)
-            timestamps = sorted(self._pending_fallback.keys())
-            if not timestamps:
-                return
-
-            oldest_timestamp = timestamps[0]
+            # Get oldest pending command (FIFO queue) by creation time
+            oldest_id = min(
+                self._pending_fallback.keys(),
+                key=lambda k: self._pending_fallback[k][2]  # Sort by timestamp (3rd element)
+            )
             # Pop with default to avoid KeyError if another thread deleted it
-            result = self._pending_fallback.pop(oldest_timestamp, None)
+            result = self._pending_fallback.pop(oldest_id, None)
             if result is None:
                 return  # Another thread already processed this
 
-        full_command, app_name = result
+        full_command, app_name, _ = result
 
         self.logger.warning(
             f"Persistent terminal failed: {message}. Retrying with new terminal window."
@@ -391,9 +399,10 @@ class CommandLauncher(LoggingMixin, QObject):
         )
 
         # Store command for potential fallback retry if async execution fails
-        timestamp = self.timestamp
+        # Use UUID to prevent collisions from multiple commands in same second
+        command_id = str(uuid.uuid4())
         with self._fallback_lock:
-            self._pending_fallback[timestamp] = (full_command, app_name)
+            self._pending_fallback[command_id] = (full_command, app_name, time.time())
 
         # Use async send - returns immediately, GUI stays responsive
         # Progress and completion are reported via signals

@@ -279,7 +279,7 @@ class TestTerminalIntegrationFlow:
         """Test terminal auto-restart when it dies unexpectedly."""
         restart_count = 0
 
-        def mock_restart() -> bool:
+        def mock_restart(worker: Any = None) -> bool:
             nonlocal restart_count
             restart_count += 1
             # After restart, dispatcher should be running
@@ -308,8 +308,9 @@ class TestTerminalIntegrationFlow:
             patch("os.fdopen") as mock_fdopen,
         ):
             # Set up dispatcher to be dead initially, then alive after restart
-            running_states = [False, True]  # First call: dead, after restart: alive
-            alive_states = [False, True]  # First call: dead, after restart: alive
+            # Note: health check now re-checks after acquiring restart lock, so need 2 False values
+            running_states = [False, False, True]  # First call: dead, re-check: still dead, after restart: alive
+            alive_states = [False, False, True]  # First call: dead, re-check: still dead, after restart: alive
 
             def dispatcher_running_side_effect() -> bool:
                 return running_states.pop(0) if running_states else True
@@ -494,21 +495,22 @@ class TestTerminalCleanup:
                 self.qt_objects.append(manager)  # Track for cleanup
                 # Note: PersistentTerminalManager is QObject, not QWidget - no qtbot.addWidget needed
 
-                # Set terminal as running
+                # Set terminal as running with a mock process
+                mock_process = MagicMock()
+                mock_process.poll.return_value = None  # Process is running
                 manager.terminal_pid = 12345
+                manager.terminal_process = mock_process
 
-                with (
-                    patch.object(manager, "_is_terminal_alive", return_value=True),
-                    patch.object(manager, "close_terminal") as mock_close,
-                ):
-                    # Cleanup
-                    manager.cleanup()
+                # Cleanup - new implementation doesn't call close_terminal() to avoid deadlock
+                manager.cleanup()
 
-                    # Assert proper cleanup
-                    mock_close.assert_called_once()
-                    # Accept either str or Path - implementation may use either
-                    actual_call = mock_unlink.call_args[0][0]
-                    assert str(actual_call) == str(fifo_path)
+                # Assert proper cleanup:
+                # 1. Process termination was attempted
+                mock_process.terminate.assert_called_once()
+                # 2. FIFO was removed
+                # Accept either str or Path - implementation may use either
+                actual_call = mock_unlink.call_args[0][0]
+                assert str(actual_call) == str(fifo_path)
 
     @pytest.mark.qt
     def test_cleanup_fifo_only_keeps_terminal(self, qtbot) -> None:

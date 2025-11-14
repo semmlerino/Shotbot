@@ -1,1 +1,1 @@
-feat: Add command verification and improve worker shutdown handling
+docs: Archive previous bug fix documentation (November 2025)
