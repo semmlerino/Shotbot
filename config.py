@@ -115,7 +115,7 @@ class Config:
 
     # Persistent Terminal Settings
     PERSISTENT_TERMINAL_ENABLED: bool = (
-        True  # Master switch to enable/disable persistent terminal
+        False  # Master switch to enable/disable persistent terminal
     )
     USE_PERSISTENT_TERMINAL: bool = (
         True  # Use single terminal for all commands (when enabled)

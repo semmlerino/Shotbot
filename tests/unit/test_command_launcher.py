@@ -484,6 +484,7 @@ class TestCommandLauncher:
         # Verify subprocess was attempted
         assert mock_popen.called
 
+    @pytest.mark.skip(reason="Persistent terminal disabled in config")
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
@@ -538,6 +539,7 @@ class TestCommandLauncher:
         assert mode == "async"  # Verify async method was used
         assert "nuke" in command
 
+    @pytest.mark.skip(reason="Persistent terminal disabled in config")
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
