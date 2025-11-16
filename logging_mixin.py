@@ -88,7 +88,6 @@ class ContextualLogger:
 
     def __init__(self, logger: logging.Logger) -> None:  # pyright: ignore[reportMissingSuperCall]
         self._logger: logging.Logger = logger
-        self._lock: threading.RLock = threading.RLock()
 
     def _format_message(self, msg: str) -> str:
         """Format message with current context if available."""
