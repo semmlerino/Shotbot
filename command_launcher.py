@@ -3,7 +3,6 @@
 This module provides the production launcher system for Shotbot, handling:
 - Application launching with shot context
 - Rez environment integration
-- Persistent terminal management
 - Process lifecycle management
 """
 
@@ -13,9 +12,6 @@ from __future__ import annotations
 import errno
 import os
 import subprocess
-import threading
-import time
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
@@ -35,7 +31,6 @@ from nuke_launch_router import NukeLaunchRouter
 
 if TYPE_CHECKING:
     # Local application imports
-    from persistent_terminal_manager import PersistentTerminalManager
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 else:
@@ -95,30 +90,22 @@ class CommandLauncher(LoggingMixin, QObject):
 
     def __init__(
         self,
-        persistent_terminal: PersistentTerminalManager | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize CommandLauncher with optional dependencies.
 
         Args:
-            persistent_terminal: Optional persistent terminal manager for single terminal mode
             parent: Optional parent QObject for proper Qt ownership
         """
         super().__init__(parent)
         self.current_shot: Shot | None = None
-        self.persistent_terminal = persistent_terminal
-
-        # Fallback retry mechanism - stores commands that failed async for retry
-        self._pending_fallback: dict[str, tuple[str, str, float]] = {}  # uuid -> (cmd, app_name, timestamp)
-        self._fallback_lock = threading.Lock()  # Thread-safe dict access
-        self._fallback_cleanup_timer: QTimer | None = None  # Timer for periodic cleanup of stale entries
 
         # Track signal connections for proper cleanup
         self._signal_connections: list[QMetaObject.Connection] = []
 
         # Initialize launch components
         self.env_manager = EnvironmentManager()
-        self.process_executor = ProcessExecutor(persistent_terminal, Config, parent=self)
+        self.process_executor = ProcessExecutor(Config, parent=self)
 
         # Initialize the Nuke launch handler
         self.nuke_handler = NukeLaunchRouter()
@@ -140,37 +127,6 @@ class CommandLauncher(LoggingMixin, QObject):
                 self._on_execution_error, Qt.ConnectionType.QueuedConnection
             )
         )
-
-        # Connect new Phase 1 & 2 lifecycle signals if persistent terminal is available
-        # Use QueuedConnection for thread-safe cross-thread signal handling
-        if self.persistent_terminal:
-            self._signal_connections.append(
-                self.persistent_terminal.command_queued.connect(
-                    self._on_command_queued, Qt.ConnectionType.QueuedConnection
-                )
-            )
-            self._signal_connections.append(
-                self.persistent_terminal.command_executing.connect(
-                    self._on_command_executing, Qt.ConnectionType.QueuedConnection
-                )
-            )
-            self._signal_connections.append(
-                self.persistent_terminal.command_verified.connect(
-                    self._on_command_verified, Qt.ConnectionType.QueuedConnection
-                )
-            )
-            self._signal_connections.append(
-                self.persistent_terminal.command_error.connect(
-                    self._on_command_error_internal, Qt.ConnectionType.QueuedConnection
-                )
-            )
-            # Connect operation_finished for fallback retry mechanism
-            self._signal_connections.append(
-                self.persistent_terminal.operation_finished.connect(
-                    self._on_persistent_terminal_operation_finished,
-                    Qt.ConnectionType.QueuedConnection,
-                )
-            )
 
         # Initialize scene/file finders (created internally, not injected)
         # Local application imports
@@ -252,20 +208,10 @@ class CommandLauncher(LoggingMixin, QObject):
                     pass
             self._signal_connections.clear()
 
-        # Cleanup ProcessExecutor's signal connections to PersistentTerminalManager
-        # Without this, signal connections from ProcessExecutor to PersistentTerminalManager leak
+        # Cleanup ProcessExecutor's signal connections
         try:
             if hasattr(self, "process_executor"):
                 self.process_executor.cleanup()
-        except (RuntimeError, TypeError, AttributeError):
-            pass
-
-        # Stop and cleanup fallback cleanup timer
-        try:
-            if hasattr(self, "_fallback_cleanup_timer") and self._fallback_cleanup_timer is not None:
-                self._fallback_cleanup_timer.stop()
-                self._fallback_cleanup_timer.deleteLater()
-                self._fallback_cleanup_timer = None
         except (RuntimeError, TypeError, AttributeError):
             pass
 
@@ -306,245 +252,11 @@ class CommandLauncher(LoggingMixin, QObject):
         """
         self._emit_error(f"[{operation}] {error_message}")
 
-    def _on_command_queued(self, timestamp: str, command: str) -> None:
-        """Handle command queued signal (Phase 1 - logging only).
-
-        Args:
-            timestamp: Timestamp when command was queued
-            command: The command that was queued
-        """
-        self.logger.debug(f"[{timestamp}] Command queued: {command[:100]}...")
-
-    def _on_command_executing(self, timestamp: str) -> None:
-        """Handle command executing signal (Phase 1 - logging only).
-
-        Args:
-            timestamp: Timestamp when command started executing
-        """
-        self.logger.debug(f"[{timestamp}] Command executing in terminal")
-
-    def _on_command_verified(self, timestamp: str, message: str) -> None:
-        """Handle command verified signal (Phase 2 - process started successfully).
-
-        Args:
-            timestamp: Timestamp when verification completed
-            message: Verification message (includes PID)
-        """
-        self.logger.info(f"[{timestamp}] ✓ Command verified: {message}")
-        # Emit to log viewer
-        self.command_executed.emit(timestamp, f"Verified: {message}")
-
-    def _on_command_error_internal(self, timestamp: str, error: str) -> None:
-        """Handle command error signal from persistent terminal (Phase 2).
-
-        Args:
-            timestamp: Timestamp when error occurred
-            error: Error message
-        """
-        self.logger.warning(f"[{timestamp}] Command error: {error}")
-        # Emit to log viewer (uses existing command_error signal)
-        self.command_error.emit(timestamp, error)
-
-    def _on_persistent_terminal_operation_finished(
-        self, operation: str, success: bool, message: str
-    ) -> None:
-        """Handle persistent terminal operation completion with fallback retry.
-
-        If operation failed and we have a pending fallback, retry with new terminal.
-
-        Args:
-            operation: Operation type (e.g., "send_command")
-            success: Whether operation succeeded
-            message: Status/error message
-        """
-        if success:
-            # CRITICAL BUG FIX: Remove the specific command that succeeded (oldest entry)
-            # Previous implementation only removed entries >30s old, causing wrong commands to retry
-            with self._fallback_lock:
-                if not self._pending_fallback:
-                    return  # No pending entries
-
-                # Remove oldest entry (FIFO - should be the command that just completed)
-                oldest_id = min(
-                    self._pending_fallback.keys(),
-                    key=lambda k: self._pending_fallback[k][2]  # Sort by timestamp
-                )
-                _ = self._pending_fallback.pop(oldest_id, None)
-                self.logger.debug(f"Removed successful command from fallback queue: {oldest_id}")
-
-            # Also run time-based cleanup as safety net for stale entries
-            self._cleanup_stale_fallback_entries()
-            return
-
-        # CRITICAL BUG FIX #51: Distinguish verification timeout from send failure
-        # Verification timeout means command was sent successfully but app slow to start.
-        # Do NOT retry in this case - the app is already launching, retrying would create duplicate instance.
-        # Only retry on actual send failures (FIFO write errors, dispatcher not ready, etc.)
-        if "Verification failed" in message or "verification timeout" in message.lower():
-            self.logger.warning(
-                f"Command verification failed ({message}), but command was sent. "
-                "App may be slow to start. NOT retrying to prevent duplicate launch."
-            )
-            # Remove from fallback queue (command is running, just slow)
-            with self._fallback_lock:
-                if self._pending_fallback:
-                    oldest_id = min(
-                        self._pending_fallback.keys(),
-                        key=lambda k: self._pending_fallback[k][2]
-                    )
-                    _ = self._pending_fallback.pop(oldest_id, None)
-                    self.logger.debug(f"Removed slow-starting command from fallback queue: {oldest_id}")
-            return
-
-        # Operation failed - check if we should fallback
-        # CRITICAL: Hold lock through entire operation to prevent TOCTOU race.
-        # Without lock held, another thread could clear dict between empty check and min(),
-        # causing ValueError: min() arg is an empty sequence.
-        with self._fallback_lock:
-            if not self._pending_fallback:
-                return  # No pending fallback
-
-            # Get oldest pending command (FIFO queue) by creation time
-            # Lock still held - dict cannot be modified by other threads
-            oldest_id = min(
-                self._pending_fallback.keys(),
-                key=lambda k: self._pending_fallback[k][2]  # Sort by timestamp (3rd element)
-            )
-            # Pop with default to be extra defensive (shouldn't happen with lock held)
-            result = self._pending_fallback.pop(oldest_id, None)
-            if result is None:
-                return  # Another thread got it (shouldn't happen with lock held)
-
-        # Lock released - safe to use result (immutable tuple)
-        full_command, app_name, _ = result
-
-        self.logger.warning(
-            f"Persistent terminal send failed: {message}. Retrying with new terminal window."
-        )
-
-        # Retry with fallback
-        _ = self._launch_in_new_terminal(
-            full_command, app_name, "persistent terminal failed"
-        )
-
-    def _cleanup_stale_fallback_entries(self) -> None:
-        """Remove fallback entries older than 30 seconds.
-
-        This method is called both:
-        1. On successful command completion (existing behavior)
-        2. Periodically by QTimer (new behavior to prevent indefinite retention)
-
-        Thread Safety:
-            Uses _fallback_lock for thread-safe dict access
-        """
-        now = time.time()
-        to_remove = []
-
-        # Thread-safe dict iteration and cleanup
-        with self._fallback_lock:
-            for command_id, (_, _, creation_time) in self._pending_fallback.items():
-                elapsed = now - creation_time
-                if elapsed > 30:  # Older than 30 seconds
-                    to_remove.append(command_id)
-
-            # Use pop with default to avoid KeyError if another thread deleted
-            for command_id in to_remove:
-                _ = self._pending_fallback.pop(command_id, None)
-
-        # Log cleanup if any entries were removed
-        if to_remove:
-            self.logger.debug(
-                f"Cleaned up {len(to_remove)} stale fallback entries older than 30s"
-            )
-
-    def _schedule_fallback_cleanup(self) -> None:
-        """Schedule periodic cleanup of stale fallback entries.
-
-        Creates a single-shot QTimer that will clean up stale entries after 30 seconds.
-        This ensures entries don't remain indefinitely if no subsequent successful
-        commands occur.
-
-        Thread Safety:
-            Qt timers are thread-safe and will execute on the main thread
-        """
-        # Stop existing timer if any (prevents multiple timers)
-        if self._fallback_cleanup_timer is not None:
-            self._fallback_cleanup_timer.stop()
-            self._fallback_cleanup_timer.deleteLater()
-            self._fallback_cleanup_timer = None
-
-        # Create new single-shot timer for 30 second cleanup
-        self._fallback_cleanup_timer = QTimer(self)
-        self._fallback_cleanup_timer.setSingleShot(True)
-        _ = self._fallback_cleanup_timer.timeout.connect(self._cleanup_stale_fallback_entries)
-        self._fallback_cleanup_timer.start(30000)  # 30 seconds in milliseconds
-
     # Methods removed - now using launch components:
     # - _is_rez_available() → self.env_manager.is_rez_available(Config)
     # - _get_rez_packages_for_app() → self.env_manager.get_rez_packages(app_name, Config)
     # - _detect_available_terminal() → self.env_manager.detect_terminal()
     # - _validate_path_for_shell() → CommandBuilder.validate_path(path)
-
-    def _try_persistent_terminal(self, full_command: str, app_name: str = "") -> bool:
-        """Try executing command in persistent terminal.
-
-        Template method helper for persistent terminal execution. If the async
-        execution fails, the fallback mechanism will retry with a new terminal.
-
-        Args:
-            full_command: Complete command to execute
-            app_name: Application name (for fallback retry if needed)
-
-        Returns:
-            True if command was successfully queued in persistent terminal,
-            False if should fallback to new terminal window
-        """
-        if not (
-            self.persistent_terminal
-            and Config.PERSISTENT_TERMINAL_ENABLED
-            and Config.USE_PERSISTENT_TERMINAL
-        ):
-            return False
-
-        # Check if persistent terminal is in fallback mode (quick synchronous check)
-        if self.persistent_terminal.is_fallback_mode:
-            self.logger.warning(
-                "Persistent terminal in fallback mode, launching in new terminal"
-            )
-            timestamp = self.timestamp
-            self.command_executed.emit(
-                timestamp,
-                "⚠ Persistent terminal unavailable, launching in new terminal...",
-            )
-            return False
-
-        # Dispatcher handles backgrounding of GUI apps
-        self.logger.info(
-            f"Sending command to persistent terminal (async): {full_command}"
-        )
-
-        # Store command for potential fallback retry if async execution fails
-        # Use UUID to prevent collisions from multiple commands in same second
-        command_id = str(uuid.uuid4())
-        with self._fallback_lock:
-            self._pending_fallback[command_id] = (full_command, app_name, time.time())
-
-        # Schedule cleanup timer to prevent indefinite retention if no subsequent success
-        self._schedule_fallback_cleanup()
-
-        # Use async send - returns immediately, GUI stays responsive
-        # Progress and completion are reported via signals
-        # CRITICAL BUG FIX: Check return value - False means command was rejected synchronously
-        if not self.persistent_terminal.send_command_async(full_command):
-            # Command rejected (shutdown, empty, fallback mode, or not ready)
-            # Remove from fallback queue since it wasn't accepted
-            with self._fallback_lock:
-                _ = self._pending_fallback.pop(command_id, None)
-            self.logger.warning("Persistent terminal rejected command synchronously")
-            return False  # Let caller try new terminal fallback
-
-        self.logger.debug("Command queued for async execution in persistent terminal")
-        return True
 
     def _launch_in_new_terminal(
         self, full_command: str, app_name: str, error_context: str = ""
@@ -565,7 +277,8 @@ class CommandLauncher(LoggingMixin, QObject):
         terminal = self.env_manager.detect_terminal()
         if terminal is None:
             self._emit_error(
-                "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
+                "No terminal emulator found (checked: gnome-terminal, konsole, xfce4-terminal, "
+                "mate-terminal, alacritty, kitty, terminology, xterm, x-terminal-emulator)"
             )
             return False
 
@@ -575,7 +288,18 @@ class CommandLauncher(LoggingMixin, QObject):
                 term_cmd = ["gnome-terminal", "--", "bash", "-ilc", full_command]
             elif terminal == "konsole":
                 term_cmd = ["konsole", "-e", "bash", "-ilc", full_command]
-            elif terminal in ["xterm", "x-terminal-emulator"]:
+            elif terminal == "kitty":
+                # kitty uses different syntax: kitty bash -ilc "command"
+                term_cmd = ["kitty", "bash", "-ilc", full_command]
+            elif terminal in [
+                "xterm",
+                "x-terminal-emulator",
+                "xfce4-terminal",
+                "mate-terminal",
+                "alacritty",
+                "terminology",
+            ]:
+                # These terminals all use -e flag for command execution
                 term_cmd = [terminal, "-e", "bash", "-ilc", full_command]
             else:
                 # Fallback to direct execution
@@ -644,10 +368,9 @@ class CommandLauncher(LoggingMixin, QObject):
     def _execute_launch(
         self, full_command: str, app_name: str, error_context: str = ""
     ) -> bool:
-        """Execute command via persistent terminal or new window.
+        """Execute command in a new terminal window.
 
-        Template method for all launch operations. Tries persistent terminal first,
-        then falls back to new terminal window if unavailable.
+        Template method for all launch operations.
 
         Args:
             full_command: Complete command to execute (with logging, rez, etc.)
@@ -655,13 +378,8 @@ class CommandLauncher(LoggingMixin, QObject):
             error_context: Additional context for error messages (e.g., " with scene")
 
         Returns:
-            True if launch successful (or queued for async execution), False otherwise
+            True if launch successful, False otherwise
         """
-        # Try persistent terminal first (async, may retry with fallback later)
-        if self._try_persistent_terminal(full_command, app_name):
-            return True
-
-        # Fallback to new terminal window (synchronous)
         return self._launch_in_new_terminal(full_command, app_name, error_context)
 
     def launch_app(
@@ -811,8 +529,7 @@ class CommandLauncher(LoggingMixin, QObject):
             # Apply Nuke environment fixes if needed
             env_fixes = self._apply_nuke_environment_fixes(app_name)
 
-            # Build base command WITHOUT background operator
-            # We'll add & only when actually sending to persistent terminal
+            # Build workspace command with environment fixes
             ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
@@ -835,7 +552,7 @@ class CommandLauncher(LoggingMixin, QObject):
             full_command = ws_command
 
         # Add logging redirection for debugging
-        full_command = CommandBuilder.add_logging(full_command)
+        full_command = CommandBuilder.add_logging(full_command, Config)
 
         # Log the command to UI
         timestamp = self.timestamp
@@ -896,8 +613,7 @@ class CommandLauncher(LoggingMixin, QObject):
             # Apply Nuke environment fixes if needed (same as regular launch)
             env_fixes = self._apply_nuke_environment_fixes(app_name, "Nuke scene launch")
 
-            # Build base command WITHOUT background operator
-            # We'll add & only when actually sending to persistent terminal
+            # Build workspace command with environment fixes
             ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
@@ -915,7 +631,7 @@ class CommandLauncher(LoggingMixin, QObject):
             full_command = ws_command
 
         # Add logging redirection for debugging
-        full_command = CommandBuilder.add_logging(full_command)
+        full_command = CommandBuilder.add_logging(full_command, Config)
 
         # Log the command
         timestamp = self.timestamp
@@ -1034,7 +750,7 @@ class CommandLauncher(LoggingMixin, QObject):
             full_command = ws_command
 
         # Add logging redirection for debugging
-        full_command = CommandBuilder.add_logging(full_command)
+        full_command = CommandBuilder.add_logging(full_command, Config)
 
         # Log the command
         timestamp = self.timestamp

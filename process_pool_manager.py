@@ -275,7 +275,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             max_workers=max_workers,
         )
         self._cache = CommandCache(default_ttl=30)
-        self._session_lock = QMutex()  # Use Qt mutex for consistency
         self._metrics = ProcessMetrics()
         # Instance-level mutex and shutdown flag for thread-safe shutdown
         self._mutex = QMutex()
