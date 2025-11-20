@@ -71,8 +71,8 @@ class TestLauncherManager:
     def test_launcher_manager_initialization(self) -> None:
         """Test launcher manager initialization."""
         assert self.manager is not None
-        # Test basic functionality
-        assert hasattr(self.manager, "_active_processes")
+        # Test basic functionality - has process manager for execution
+        assert hasattr(self.manager, "_process_manager")
 
     def test_launcher_creation_with_factory(self, make_test_launcher) -> None:
         """Test launcher creation using factory fixture (UNIFIED_TESTING_GUIDE)."""

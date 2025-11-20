@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 
 # Third-party imports
-from PySide6.QtCore import QObject, QRecursiveMutex, QTimer, Signal
+from PySide6.QtCore import QObject, Signal
 
 # Local application imports
 from config import ThreadingConfig
@@ -37,8 +37,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     # Local application imports
-    from launcher.models import ProcessInfo
-    from launcher.worker import LauncherWorker
     from protocols import ProcessPoolInterface
     from shot_model import Shot
 
@@ -93,7 +91,7 @@ class LauncherManager(LoggingMixin, QObject):
         self._config_manager = LauncherConfigManager(config_dir)
         self._repository = LauncherRepository(self._config_manager)
         self._validator = LauncherValidator()
-        self._process_manager = LauncherProcessManager()
+        self._process_manager = LauncherProcessManager(parent=self)
         self._signals_connected = False  # Track signal connection state
 
         # Initialize process pool - use provided instance or default singleton
@@ -118,72 +116,10 @@ class LauncherManager(LoggingMixin, QObject):
             f"LauncherManager initialized with {self._repository.count()} launchers"
         )
 
-    # ==================== Backward Compatibility Properties ====================
-
-    @property
-    def _active_processes(self) -> dict[str, ProcessInfo]:
-        """Backward compatibility property for accessing active processes.
-
-        This exposes the _active_processes from the process manager to maintain
-        compatibility with existing tests and code that expect this attribute
-        directly on LauncherManager.
-
-        Returns:
-            Dictionary of active processes from the process manager
-        """
-        return self._process_manager.get_active_processes_dict()
-
-    @property
-    def _active_workers(self) -> dict[str, LauncherWorker]:
-        """Backward compatibility property for accessing active workers.
-
-        Returns:
-            Dictionary of active workers from the process manager
-        """
-        return self._process_manager.get_active_workers_dict()
-
-    @_active_workers.setter
-    def _active_workers(self, value: dict[str, LauncherWorker]) -> None:
-        """Setter for active workers (backward compatibility for tests).
-
-        Args:
-            value: Dictionary of active workers to set
-        """
-        # TODO: Add a public setter method in ProcessManager or refactor tests
-        self._process_manager._active_workers = value  # pyright: ignore[reportPrivateUsage]
-
-    @property
-    def _process_lock(self) -> QRecursiveMutex:
-        """Backward compatibility property for accessing process lock.
-
-        Returns:
-            Process lock from the process manager
-        """
-        return self._process_manager._process_lock  # pyright: ignore[reportPrivateUsage]
-
-    @property
-    def _cleanup_retry_timer(self) -> QTimer:
-        """Backward compatibility property for accessing cleanup retry timer.
-
-        Returns:
-            Cleanup retry timer from the process manager
-        """
-        return self._process_manager._cleanup_retry_timer  # pyright: ignore[reportPrivateUsage]
-
-    @property
-    def _cleanup_scheduled(self) -> bool:
-        """Backward compatibility property for accessing cleanup scheduled flag.
-
-        Returns:
-            Cleanup scheduled flag from the process manager
-        """
-        return self._process_manager._cleanup_scheduled  # pyright: ignore[reportPrivateUsage]
+    # ==================== Delegation Methods ====================
 
     def _cleanup_finished_workers(self) -> None:
-        """Backward compatibility method for cleaning up finished workers.
-
-        Delegates to the process manager's cleanup method.
-        """
+        """Clean up finished workers by delegating to process manager."""
         return self._process_manager._cleanup_finished_workers()  # pyright: ignore[reportPrivateUsage]
 
     # ==================== CRUD Operations ====================

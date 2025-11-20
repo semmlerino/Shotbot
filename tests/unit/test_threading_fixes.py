@@ -88,9 +88,10 @@ def launcher_manager(qtbot, test_subprocess, monkeypatch, mock_process_pool_mana
         # Stop all workers with timeout
         manager.stop_all_workers()
 
-        # Wait for workers to finish
-        for worker_id in list(manager._active_workers.keys()):
-            worker = manager._active_workers.get(worker_id)
+        # Wait for workers to finish - access ProcessManager directly
+        process_manager = manager._process_manager
+        for worker_id in list(process_manager._active_workers.keys()):
+            worker = process_manager._active_workers.get(worker_id)
             if worker and worker.isRunning():
                 worker.request_stop()
                 if not worker.wait(1000):  # 1 second timeout
@@ -98,18 +99,17 @@ def launcher_manager(qtbot, test_subprocess, monkeypatch, mock_process_pool_mana
                     worker.wait(100)
 
         # Clear the workers dict
-        manager._active_workers.clear()
+        process_manager._active_workers.clear()
 
         # Stop and clean up timers
-        if hasattr(manager, "_cleanup_retry_timer"):
-            timer = manager._cleanup_retry_timer
-            timer.stop()
-            try:
-                # Disconnect all signals to prevent late firing
-                timer.timeout.disconnect()
-            except (RuntimeError, TypeError):
-                pass  # Already disconnected or no connections
-            timer.deleteLater()
+        timer = process_manager._cleanup_retry_timer
+        timer.stop()
+        try:
+            # Disconnect all signals to prevent late firing
+            timer.timeout.disconnect()
+        except (RuntimeError, TypeError):
+            pass  # Already disconnected or no connections
+        timer.deleteLater()
 
     except Exception as e:
         logger.warning(f"Cleanup error (non-fatal): {e}")
@@ -121,7 +121,9 @@ class TestQTimerCascadePrevention:
     def test_rapid_cleanup_requests(self, launcher_manager, qtbot) -> None:
         """Test rapid cleanup requests don't cascade timers."""
         timer_activations = []
-        original_start = launcher_manager._cleanup_retry_timer.start
+        # Access ProcessManager directly instead of backward compat properties
+        process_manager = launcher_manager._process_manager
+        original_start = process_manager._cleanup_retry_timer.start
         test_timers = []  # Track all test timers for cleanup
 
         def track_timer_start(interval) -> None:
@@ -130,7 +132,7 @@ class TestQTimerCascadePrevention:
 
         # Per UNIFIED_TESTING_V2.MD: Use try/finally for Qt resources
         try:
-            launcher_manager._cleanup_retry_timer.start = track_timer_start
+            process_manager._cleanup_retry_timer.start = track_timer_start
 
             # Create explicit QTimer instances instead of singleShot
             # This allows proper cleanup and prevents resource leaks
@@ -149,7 +151,7 @@ class TestQTimerCascadePrevention:
                 f"Too many timer activations: {len(timer_activations)}"
             )
 
-            assert hasattr(launcher_manager, "_cleanup_scheduled")
+            assert hasattr(process_manager, "_cleanup_scheduled")
         finally:
             # Clean up all test timers
             for timer in test_timers:
@@ -162,7 +164,7 @@ class TestQTimerCascadePrevention:
                     timer.deleteLater()
 
             # Always restore original method, even on test failure
-            launcher_manager._cleanup_retry_timer.start = original_start
+            process_manager._cleanup_retry_timer.start = original_start
 
     def test_cleanup_coordination(self, launcher_manager, qtbot) -> None:
         """Test cleanup coordination behavior."""
@@ -175,13 +177,15 @@ class TestQTimerCascadePrevention:
         mock_worker.get_state.return_value = WorkerState.STOPPED
         mock_worker.isRunning.return_value = False
 
-        with QMutexLocker(launcher_manager._process_lock):
-            launcher_manager._active_workers = {"worker1": mock_worker}
+        # Access ProcessManager directly instead of backward compat properties
+        process_manager = launcher_manager._process_manager
+        with QMutexLocker(process_manager._process_lock):
+            process_manager._active_workers = {"worker1": mock_worker}
 
         launcher_manager._cleanup_finished_workers()
 
-        with QMutexLocker(launcher_manager._process_lock):
-            assert len(launcher_manager._active_workers) == 0
+        with QMutexLocker(process_manager._process_lock):
+            assert len(process_manager._active_workers) == 0
 
 
 class TestWorkerStateTransitions:
