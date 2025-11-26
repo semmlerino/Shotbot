@@ -28,6 +28,7 @@ def mock_config() -> MagicMock:
     config = MagicMock(spec=Config)
     config.USE_REZ_ENVIRONMENT = True
     config.REZ_AUTO_DETECT = True
+    config.REZ_FORCE_WRAP = False
     config.REZ_NUKE_PACKAGES = ["nuke", "nuke-plugins"]
     config.REZ_MAYA_PACKAGES = ["maya", "maya-plugins"]
     config.REZ_3DE_PACKAGES = ["3de"]
@@ -54,9 +55,31 @@ class TestRezAvailability:
         Returning False avoids double-wrapping commands.
         """
         mock_config.REZ_AUTO_DETECT = True
+        mock_config.REZ_FORCE_WRAP = False
 
         with patch.dict(os.environ, {"REZ_USED": "1"}):
             assert env_manager.is_rez_available(mock_config) is False
+
+    @patch("shutil.which")
+    def test_rez_force_wrap_overrides_rez_used(
+        self,
+        mock_which: MagicMock,
+        env_manager: EnvironmentManager,
+        mock_config: MagicMock,
+    ) -> None:
+        """Test that REZ_FORCE_WRAP=True allows wrapping even when REZ_USED is set.
+
+        Some base rez environments need additional app packages added.
+        REZ_FORCE_WRAP=True bypasses the REZ_USED check to allow this.
+        """
+        mock_config.REZ_AUTO_DETECT = True
+        mock_config.REZ_FORCE_WRAP = True
+        mock_which.return_value = "/usr/bin/rez"
+
+        with patch.dict(os.environ, {"REZ_USED": "1"}):
+            # With REZ_FORCE_WRAP=True, should proceed to check rez command
+            assert env_manager.is_rez_available(mock_config) is True
+            mock_which.assert_called_once_with("rez")
 
     def test_rez_not_detected_when_auto_detect_disabled(
         self, env_manager: EnvironmentManager, mock_config: MagicMock
