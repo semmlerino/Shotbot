@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, TypedDict
 if TYPE_CHECKING:
     # Standard library imports
     import subprocess
+    from typing import TextIO
 
 
 class ProcessInfoDict(TypedDict):
@@ -348,6 +349,7 @@ class ProcessInfo:
     timestamp: float
     validated: bool
     log_file: Path | None
+    stderr_handle: TextIO | None
 
     def __init__(  # pyright: ignore[reportMissingSuperCall]
         self,
@@ -357,6 +359,7 @@ class ProcessInfo:
         command: str,
         timestamp: float,
         log_file: Path | None = None,
+        stderr_handle: TextIO | None = None,
     ) -> None:
         """Initialize ProcessInfo.
 
@@ -367,6 +370,7 @@ class ProcessInfo:
             command: The command that was executed
             timestamp: Start timestamp
             log_file: Path to stderr log file for debugging launch failures
+            stderr_handle: Open file handle for stderr (must be closed when process exits)
         """
         self.process = process
         self.launcher_id = launcher_id
@@ -375,3 +379,4 @@ class ProcessInfo:
         self.timestamp = timestamp
         self.validated = False  # Whether process startup was validated
         self.log_file = log_file  # Path to stderr log file
+        self.stderr_handle = stderr_handle  # Open file handle (prevents GC race)

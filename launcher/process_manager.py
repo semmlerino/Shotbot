@@ -13,6 +13,7 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
+
 if TYPE_CHECKING:
     from typing import TextIO
 
@@ -119,7 +120,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
             # Open file for stderr capture - file stays open while process runs
             # The subprocess inherits the file descriptor and continues writing
-            stderr_handle = open(log_file, "w")  # noqa: SIM115 - need to keep open
+            stderr_handle = log_file.open("w")
 
             # Start the process with stderr capture
             process = subprocess.Popen(
@@ -134,7 +135,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
             # Generate unique process key
             process_key = self._generate_process_key(launcher_id, process.pid)
 
-            # Track the process (including log file path for later retrieval)
+            # Track the process (including log file path and handle for later cleanup)
             process_info = ProcessInfo(
                 process=process,
                 launcher_id=launcher_id,
@@ -142,6 +143,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
                 command=" ".join(command),
                 timestamp=time.time(),
                 log_file=log_file,
+                stderr_handle=stderr_handle,  # Store handle to prevent GC and enable cleanup
             )
 
             with QMutexLocker(self._process_lock):
@@ -496,6 +498,13 @@ class LauncherProcessManager(LoggingMixin, QObject):
         # Handle process termination (non-blocking)
         if process_info is not None:
             try:
+                # Close stderr handle (subprocess has its own copy of the fd)
+                if process_info.stderr_handle is not None:
+                    try:
+                        process_info.stderr_handle.close()
+                    except Exception:
+                        pass
+
                 if force:
                     process_info.process.kill()
                 else:
@@ -602,6 +611,13 @@ class LauncherProcessManager(LoggingMixin, QObject):
                                 f"(PID: {process_info.process.pid}, Key: {key})"
                             ),
                         )
+                        # Close stderr handle to prevent fd leak
+                        if process_info.stderr_handle is not None:
+                            try:
+                                process_info.stderr_handle.close()
+                                self.logger.debug(f"Closed stderr handle for process {key}")
+                            except Exception as e:
+                                self.logger.debug(f"Error closing stderr handle: {e}")
                         del self._active_processes[key]
                 self.logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
 
@@ -713,7 +729,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
             remaining_sec = deadline - time.monotonic()
             if remaining_sec <= 0:
                 self.logger.warning(
-                    f"Shutdown timeout reached, skipping remaining workers"
+                    "Shutdown timeout reached, skipping remaining workers"
                 )
                 break
 

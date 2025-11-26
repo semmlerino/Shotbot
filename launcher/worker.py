@@ -135,17 +135,18 @@ class LauncherWorker(ThreadSafeWorker):
 
             # Start threads to drain stdout and stderr (will be joined in cleanup)
             # Type narrowing: _process is guaranteed non-None after successful Popen()
-            # Create non-daemon threads for stream draining (must join explicitly)
+            # Create daemon threads for stream draining - allows app exit even if stuck
+            # We try to join them with timeout, but daemon ensures no blocking on exit
             self._stdout_thread = threading.Thread(
                 target=drain_stream,
                 args=(self._process.stdout,),
-                daemon=False,
+                daemon=True,
                 name=f"stdout-drain-{self.launcher_id}"
             )
             self._stderr_thread = threading.Thread(
                 target=drain_stream,
                 args=(self._process.stderr,),
-                daemon=False,
+                daemon=True,
                 name=f"stderr-drain-{self.launcher_id}"
             )
             self._stdout_thread.start()

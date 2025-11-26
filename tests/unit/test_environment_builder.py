@@ -62,7 +62,7 @@ class TestEnvironmentCommandBuilder:
         builder = EnvironmentCommandBuilder()
         env = LauncherEnvironment(type="rez", packages=["nuke-16"])
         result = builder.build_command("nuke", env)
-        assert "rez env nuke-16 -- bash -lc" in result
+        assert "rez env nuke-16 -- bash -ilc" in result
         # shlex.quote only adds quotes when necessary
         assert "nuke" in result
 
@@ -71,7 +71,7 @@ class TestEnvironmentCommandBuilder:
         builder = EnvironmentCommandBuilder()
         env = LauncherEnvironment(type="rez", packages=["nuke-16", "ocio-2.0"])
         result = builder.build_command("nuke", env)
-        assert "rez env nuke-16 ocio-2.0 -- bash -lc" in result
+        assert "rez env nuke-16 ocio-2.0 -- bash -ilc" in result
 
     def test_rez_without_packages_no_wrap(self) -> None:
         """Rez type with no packages does not wrap."""
@@ -86,7 +86,7 @@ class TestEnvironmentCommandBuilder:
         builder = EnvironmentCommandBuilder()
         env = LauncherEnvironment(type="rez", packages=["nuke"])
         result = builder.build_command("nuke --script 'test.nk'", env)
-        assert "rez env nuke -- bash -lc" in result
+        assert "rez env nuke -- bash -ilc" in result
         # The entire command should be quoted
         assert "nuke --script" in result
 
@@ -153,5 +153,5 @@ class TestEnvironmentCommandBuilder:
         env = LauncherEnvironment(type="rez", packages=["python"])
         result = builder.build_command("cd /tmp && python app.py", env)
         # shlex.quote will escape the entire command
-        assert "rez env python -- bash -lc" in result
+        assert "rez env python -- bash -ilc" in result
         assert "cd /tmp && python app.py" in result

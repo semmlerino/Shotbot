@@ -26,7 +26,7 @@ class EnvironmentCommandBuilder:
         >>> builder = EnvironmentCommandBuilder()
         >>> env = LauncherEnvironment(type="rez", packages=["nuke-16"])
         >>> builder.build_command("nuke", env)
-        "rez env nuke-16 -- bash -lc 'nuke'"
+        "rez env nuke-16 -- bash -ilc 'nuke'"
     """
 
     def build_command(
@@ -58,7 +58,7 @@ class EnvironmentCommandBuilder:
         if environment.type == "rez" and environment.packages:
             packages_str = " ".join(environment.packages)
             quoted_cmd = shlex.quote(base_command)
-            parts.append(f"rez env {packages_str} -- bash -lc {quoted_cmd}")
+            parts.append(f"rez env {packages_str} -- bash -ilc {quoted_cmd}")
         else:
             parts.append(base_command)
 

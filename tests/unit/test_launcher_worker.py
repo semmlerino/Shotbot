@@ -362,9 +362,9 @@ class TestWorkerExecution:
             # Verify both threads were started
             assert mock_thread.start.call_count == 2
 
-            # Verify daemon flag (changed to False to prevent thread leaks)
+            # Verify daemon flag (changed to True to allow app exit even if stuck)
             for call_args in mock_thread_cls.call_args_list:
-                assert call_args[1]["daemon"] is False
+                assert call_args[1]["daemon"] is True
 
             # Verify threads have names for debugging
             thread_names = [call_args[1].get("name", "") for call_args in mock_thread_cls.call_args_list]

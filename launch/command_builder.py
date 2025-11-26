@@ -50,13 +50,6 @@ class CommandBuilder:
         "$((", # Variable/arithmetic expansion
     )
 
-    # Dangerous path patterns
-    DANGEROUS_PATTERNS: Final[tuple[str, ...]] = (
-        "../",  # Path traversal
-        "/..",  # Path traversal variant
-        "~/.",  # Hidden file access attempts
-    )
-
     @staticmethod
     def validate_path(path: str) -> str:
         """Validate and escape a path for safe use in shell commands.
@@ -124,12 +117,13 @@ class CommandBuilder:
             packages: List of Rez packages to load
 
         Returns:
-            Rez-wrapped command: 'rez env {packages} -- bash -lc {quoted_command}'
+            Rez-wrapped command: 'rez env {packages} -- bash -ilc {quoted_command}'
 
         Notes:
-            - Uses bash -lc (login only, non-interactive) to avoid double shell init
-            - The outer terminal already provides interactive context (TTY)
-            - Using -ilc here would cause double ~/.bashrc sourcing and slow startup
+            - Uses bash -ilc (interactive login shell) to ensure shell functions are available
+            - Shell functions like 'ws' are defined in .bashrc, which requires -i flag
+            - Without -i, bash -lc may not source .bashrc (depends on .bash_profile setup)
+            - The minor startup overhead (~50ms) is worth the reliability gain
             - Uses shlex.quote() to safely escape the command for shell
             - Handles commands containing quotes, spaces, and special characters
         """
@@ -138,7 +132,7 @@ class CommandBuilder:
         # CRITICAL FIX: Use shlex.quote() to properly escape the command
         # This prevents shell injection and handles commands with quotes/special chars
         quoted_command = shlex.quote(command)
-        return f"rez env {packages_str} -- bash -lc {quoted_command}"
+        return f"rez env {packages_str} -- bash -ilc {quoted_command}"
 
     @staticmethod
     def apply_nuke_environment_fixes(command: str, config: "type[Config]") -> str:

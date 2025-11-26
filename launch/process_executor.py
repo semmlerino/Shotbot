@@ -65,7 +65,8 @@ class ProcessExecutor(QObject):
     }
 
     # Zombie process reaping configuration
-    REAP_INTERVAL_MS: Final[int] = 30000  # Reap every 30 seconds
+    # Reduced from 30s to 2s for better cleanup during high-frequency launches
+    REAP_INTERVAL_MS: Final[int] = 2000  # Reap every 2 seconds
 
     def __init__(
         self,
@@ -480,19 +481,21 @@ class ProcessExecutor(QObject):
             self.app_verification_timeout.emit(app_name)
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
 
-            # For GUI apps, treat timeout as a warning (potential failure)
-            # The inner ws/rez/app command may have failed even if terminal succeeded
+            # For GUI apps, treat timeout as an ERROR (not just warning)
+            # The inner ws/rez/app command likely failed even if terminal succeeded
             if self.is_gui_app(app_name):
                 log_hint = "~/.shotbot/logs/dispatcher.out"
-                self.execution_progress.emit(
-                    timestamp,
-                    f"Warning: {app_name} process not detected after verification timeout. "
-                    f"Check terminal window or log file ({log_hint}) for errors "
-                    "(e.g., 'command not found', rez failures, license issues).",
+                error_msg = (
+                    f"{app_name} verification timed out - app may have failed to start. "
+                    f"Check terminal or {log_hint} for errors "
+                    "(e.g., 'command not found', rez failures, license issues)."
                 )
+                # Emit as ERROR, not just progress - enables proper error handling
+                self.execution_error.emit(timestamp, error_msg)
+
                 # Also show notification for GUI apps - user may have missed the error
                 NotificationManager.warning(
-                    "Launch Verification",
+                    "Launch Verification Failed",
                     f"{app_name} may have failed to start. "
                     f"Check terminal or {log_hint} for errors.",
                 )

@@ -170,6 +170,24 @@ def test_refresh_tab_routes_to_previous_for_index_2(
         mock_refresh.assert_called_once()
 
 
+def test_refresh_tab_ignores_invalid_index(
+    orchestrator: RefreshOrchestrator,
+) -> None:
+    """Test refresh_tab ignores invalid tab indices gracefully."""
+    # Invalid indices should emit signal but not call any refresh method
+    with (
+        patch.object(orchestrator, "_refresh_shots") as mock_shots,
+        patch.object(orchestrator, "_refresh_threede") as mock_threede,
+        patch.object(orchestrator, "_refresh_previous") as mock_previous,
+    ):
+        orchestrator.refresh_tab(99)  # Invalid index
+
+        # None of the refresh methods should be called
+        mock_shots.assert_not_called()
+        mock_threede.assert_not_called()
+        mock_previous.assert_not_called()
+
+
 # ============================================================================
 # Shot Refresh Tests
 # ============================================================================

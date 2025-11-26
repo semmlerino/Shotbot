@@ -191,14 +191,14 @@ class TestRezWrapping:
         packages = ["nuke"]
         result = CommandBuilder.wrap_with_rez(command, packages)
         # shlex.quote('nuke') returns 'nuke' (no quotes needed for simple strings)
-        assert result == "rez env nuke -- bash -lc nuke"
+        assert result == "rez env nuke -- bash -ilc nuke"
 
     def test_rez_wrap_multiple_packages(self) -> None:
         """Test wrapping command with multiple Rez packages."""
         command = "nuke"
         packages = ["nuke", "nuke-plugins", "ocio"]
         result = CommandBuilder.wrap_with_rez(command, packages)
-        assert result == "rez env nuke nuke-plugins ocio -- bash -lc nuke"
+        assert result == "rez env nuke nuke-plugins ocio -- bash -ilc nuke"
 
     def test_rez_wrap_preserves_complex_command(self) -> None:
         """Test that Rez wrapping preserves complex commands."""
@@ -206,7 +206,7 @@ class TestRezWrapping:
         packages = ["nuke"]
         result = CommandBuilder.wrap_with_rez(command, packages)
         # shlex.quote() wraps complex commands with special chars in single quotes
-        assert result == "rez env nuke -- bash -lc 'ws /workspace && NUKE_CRASH_REPORTS=0 && nuke'"
+        assert result == "rez env nuke -- bash -ilc 'ws /workspace && NUKE_CRASH_REPORTS=0 && nuke'"
 
     def test_rez_wrap_escapes_double_quotes(self) -> None:
         """Test that Rez wrapping properly escapes commands with double quotes.
@@ -218,7 +218,7 @@ class TestRezWrapping:
         packages = ["nuke"]
         result = CommandBuilder.wrap_with_rez(command, packages)
         # shlex.quote() wraps in single quotes to preserve internal double quotes
-        assert result == "rez env nuke -- bash -lc 'nuke -F \"ShotBot Template\"'"
+        assert result == "rez env nuke -- bash -ilc 'nuke -F \"ShotBot Template\"'"
 
     def test_rez_wrap_escapes_single_quotes(self) -> None:
         """Test that Rez wrapping handles commands with single quotes."""
@@ -235,7 +235,7 @@ class TestRezWrapping:
         packages = ["maya"]
         result = CommandBuilder.wrap_with_rez(command, packages)
         # Verify the command is properly quoted
-        assert "rez env maya -- bash -lc" in result
+        assert "rez env maya -- bash -ilc" in result
         # Verify command is preserved (exact format depends on shlex.quote implementation)
         assert "loadPlugin" in result
         assert "shotbot" in result
@@ -257,7 +257,7 @@ class TestNukeEnvironmentFixes:
         assert "case" in result
         assert "problematic_plugins" in result
 
-        # Should contain OCIO fallback
+        # Should contain OCIO fallback (shlex.quote only adds quotes if needed)
         assert "OCIO=/path/to/config.ocio" in result
 
         # Should disable crash reports
@@ -300,10 +300,22 @@ class TestNukeEnvironmentFixes:
 
         result = CommandBuilder.apply_nuke_environment_fixes(command, mock_config)
 
-        # Should contain OCIO and crash reporting
+        # Should contain OCIO (shlex.quote only adds quotes if needed)
         assert "OCIO=/custom/ocio.ocio" in result
         assert "NUKE_CRASH_REPORTS=0" in result
         assert "NUKE_PATH" not in result
+
+    def test_ocio_path_with_spaces(self, mock_config: MagicMock) -> None:
+        """Test OCIO path with spaces is properly quoted."""
+        command = "nuke"
+        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
+        mock_config.NUKE_OCIO_FALLBACK_CONFIG = "/path/with spaces/my config.ocio"
+
+        result = CommandBuilder.apply_nuke_environment_fixes(command, mock_config)
+
+        # Path with spaces must be properly quoted to prevent shell word splitting
+        # shlex.quote adds single quotes around paths containing spaces
+        assert "OCIO='/path/with spaces/my config.ocio'" in result
 
     def test_fix_summary_all_enabled(self, mock_config: MagicMock) -> None:
         """Test fix summary with all fixes enabled."""
@@ -437,7 +449,7 @@ class TestFullCommandAssembly:
         assert "workspace/path" in result
 
         # 3. Rez wrapping
-        assert "rez env nuke nuke-plugins -- bash -lc" in result
+        assert "rez env nuke nuke-plugins -- bash -ilc" in result
 
         # 4. Logging
         assert "tee -a" in result
@@ -465,7 +477,7 @@ class TestFullCommandAssembly:
             add_logging_redirect=False,
         )
         # shlex.quote() doesn't add quotes for simple strings without special chars
-        assert result == "rez env nuke -- bash -lc nuke"
+        assert result == "rez env nuke -- bash -ilc nuke"
 
     def test_command_with_nuke_fixes_only(self, mock_config: MagicMock) -> None:
         """Test building command with Nuke fixes only."""
@@ -498,7 +510,7 @@ class TestFullCommandAssembly:
 
         # Order should be: fixes -> workspace -> rez
         # shlex.quote() wraps complex commands with special chars in single quotes
-        assert result.startswith("rez env nuke -- bash -lc")
+        assert result.startswith("rez env nuke -- bash -ilc")
         # Then workspace
         assert "ws" in result
         assert "/ws" in result

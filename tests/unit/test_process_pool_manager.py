@@ -55,7 +55,7 @@ def cleanup_process_pool():
 
 
 class BashSessionDouble:
-    """Test double for PersistentBashSession at system boundary.
+    """Test double for bash session at system boundary.
 
     Provides realistic bash session behavior without actual subprocess.
     This is the ONLY place we mock - at the actual system boundary.

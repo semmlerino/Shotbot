@@ -154,14 +154,15 @@ class TestSubprocessExecution:
         assert str(mock_process.pid) in process_key
 
         # Verify Popen was called correctly
-        mock_popen.assert_called_once_with(
-            ["echo", "hello"],
-            shell=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd="/tmp",
-            start_new_session=True
-        )
+        # Note: stderr is now captured to a log file instead of DEVNULL
+        mock_popen.assert_called_once()
+        call_kwargs = mock_popen.call_args.kwargs
+        assert call_kwargs["shell"] is False
+        assert call_kwargs["stdout"] == subprocess.DEVNULL
+        # stderr is now a file handle for log capture (not DEVNULL)
+        assert hasattr(call_kwargs["stderr"], "write")  # File-like object
+        assert call_kwargs["cwd"] == "/tmp"
+        assert call_kwargs["start_new_session"] is True
 
         # Verify signal emitted
         assert spy.count() == 1
