@@ -9,7 +9,9 @@ Fixture modules are loaded via pytest_plugins for better organization.
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -39,6 +41,23 @@ os.environ.setdefault("SHOTBOT_SECURE_EXECUTOR_MODE", "mock")
 cache_dir = base_tmp / f"shotbot_test_cache_{worker}"
 cache_dir.mkdir(parents=True, exist_ok=True)
 os.environ["SHOTBOT_TEST_CACHE_DIR"] = str(cache_dir)
+
+
+def _cleanup_test_dirs() -> None:
+    """Cleanup temporary test directories at session end.
+
+    Best-effort cleanup - failures are silently ignored since the OS
+    will eventually clean /tmp anyway.
+    """
+    for d in (config_dir, cache_dir, xdg_path):
+        if d.exists():
+            try:
+                shutil.rmtree(d, ignore_errors=True)
+            except Exception:
+                pass  # Best-effort cleanup
+
+
+atexit.register(_cleanup_test_dirs)
 
 # ==============================================================================
 # NOW safe to import PySide6
@@ -117,6 +136,16 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
         from tests.test_helpers import process_qt_events
 
         if timeout <= 5:
+            # Optional diagnostic logging for debugging timing issues
+            if os.environ.get("SHOTBOT_TEST_WAIT_DIAG", "0") == "1":
+                import logging
+                import traceback
+
+                logging.getLogger(__name__).debug(
+                    "qtbot.wait(%d) bypassed at:\n%s",
+                    timeout,
+                    "".join(traceback.format_stack()[-4:-1]),
+                )
             process_qt_events()
             return None
         return original_wait(self, timeout)
@@ -150,6 +179,10 @@ pytest_plugins = [
 # ==============================================================================
 
 
+# Fixtures that indicate a test uses Qt and needs grouping/cleanup
+_QT_FIXTURES = frozenset({"qtbot", "cleanup_qt_state", "qt_cleanup", "qapp"})
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Group Qt-using tests and auto-enable fixtures based on markers.
 
@@ -160,9 +193,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     for item in items:
         # Determine if this is a Qt test
         fixtures = set(getattr(item, "fixturenames", ()) or ())
-        is_qt_test = item.get_closest_marker("qt") or fixtures.intersection(
-            {"qtbot", "cleanup_qt_state", "qt_cleanup"}
-        )
+        is_qt_test = item.get_closest_marker("qt") or fixtures.intersection(_QT_FIXTURES)
 
         if is_qt_test:
             # Group Qt tests onto a single xdist worker for stable teardown

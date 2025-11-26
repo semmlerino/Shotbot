@@ -1,11 +1,23 @@
 #!/usr/bin/env python3
-"""Comprehensive test for shot processing pipeline with actual ws -sg data.
+"""Shot processing pipeline - PARSING LOGIC tests.
+
+These tests verify string parsing and data extraction algorithms using
+hardcoded mock data. They do NOT test real subprocess execution or
+filesystem operations.
 
 This test validates:
-1. Shot extraction from directory names
-2. 3DE scene discovery across shows
-3. Thumbnail discovery
-4. Integration with ws -sg output format
+1. Shot extraction from directory names (string parsing)
+2. 3DE scene discovery logic (path construction, not filesystem)
+3. Thumbnail path construction (string manipulation)
+4. ws -sg output parsing (line splitting, regex)
+
+For real subprocess testing, see:
+- tests/integration/test_real_subprocess.py
+
+For integration tests with real components, see:
+- tests/integration/test_shot_workflow_integration.py
+- tests/integration/test_incremental_caching_workflow.py
+- tests/integration/test_threede_scanner_integration.py
 """
 
 # Standard library imports

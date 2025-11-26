@@ -26,7 +26,12 @@ The following fixtures run automatically for **every test** (opt-out patterns av
 **Opt-out**: Add `@pytest.mark.real_subprocess` to run with real subprocess.
 
 ### Qt Safety (`qt_safety.py`)
-- `suppress_qmessagebox`: Prevents modal dialogs from blocking tests
+- `suppress_qmessagebox`: Prevents modal dialogs from blocking tests. Returns a `DialogRecorder` for asserting dialog behavior:
+  ```python
+  def test_error_shows_dialog(suppress_qmessagebox):
+      trigger_error()
+      suppress_qmessagebox.assert_shown("critical", "Error occurred")
+  ```
 - `prevent_qapp_exit`: Prevents `QApplication.quit()` from terminating the test session
 
 ### Singleton Isolation (`singleton_isolation.py`)
@@ -70,6 +75,35 @@ def test_command_parsing(subprocess_mock):
     # ... test code that calls subprocess ...
     assert subprocess_mock.calls  # Verify commands were called
 ```
+
+### Testing Subprocess Error Paths
+
+The `SubprocessMock` class in `subprocess_mocking.py` provides methods for
+testing error conditions. Use the `subprocess_mock` fixture (NOT autouse):
+
+```python
+def test_handles_subprocess_failure(subprocess_mock):
+    """Test error handling when subprocess fails."""
+    subprocess_mock.set_return_code(1)
+    subprocess_mock.set_output("", "Command failed: permission denied")
+    # ... trigger code that uses subprocess ...
+    # ... assert error handling behavior ...
+
+def test_handles_subprocess_exception(subprocess_mock):
+    """Test handling of subprocess exceptions."""
+    subprocess_mock.set_exception(OSError("No such file or directory"))
+    with pytest.raises(SomeExpectedException):
+        # ... test code that calls subprocess ...
+
+def test_handles_subprocess_timeout(subprocess_mock):
+    """Test timeout handling."""
+    subprocess_mock.set_timeout(True)
+    # ... trigger code that should handle timeout ...
+```
+
+The autouse mocks (`mock_process_pool_manager`, `mock_subprocess_popen`)
+return success by default (returncode=0, empty output). For error testing,
+explicitly request the controllable `subprocess_mock` fixture.
 
 ### Opting Out of Subprocess Mocking
 ```python
