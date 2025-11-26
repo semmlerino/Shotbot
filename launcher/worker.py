@@ -130,8 +130,8 @@ class LauncherWorker(ThreadSafeWorker):
                 try:
                     for _ in stream:
                         pass  # Discard output
-                except (OSError, ValueError):
-                    pass  # Stream closed or process terminated
+                except (OSError, ValueError, TypeError):
+                    pass  # Stream closed, terminated, or mocked in tests
 
             # Start threads to drain stdout and stderr (will be joined in cleanup)
             # Type narrowing: _process is guaranteed non-None after successful Popen()
