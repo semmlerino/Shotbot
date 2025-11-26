@@ -6,10 +6,15 @@ in large test suites.
 
 Fixtures:
     qt_cleanup: Clean up Qt state between tests (autouse)
+
+Environment Variables:
+    SHOTBOT_TEST_STRICT_CLEANUP: Set to "1" to fail on cleanup exceptions instead of swallowing them
 """
 
 from __future__ import annotations
 
+import logging
+import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -20,8 +25,13 @@ if TYPE_CHECKING:
 
     from PySide6.QtWidgets import QApplication
 
+_logger = logging.getLogger(__name__)
 
-@pytest.fixture(autouse=True)
+# Strict mode fails on cleanup exceptions (useful for debugging)
+STRICT_CLEANUP = os.environ.get("SHOTBOT_TEST_STRICT_CLEANUP", "0") == "1"
+
+
+@pytest.fixture  # NOTE: No longer autouse - applied conditionally via conftest.py hook
 def qt_cleanup(qapp: QApplication) -> Iterator[None]:
     """Ensure Qt state is clean between tests.
 
@@ -66,9 +76,10 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
 
         # Clear Qt caches to prevent memory accumulation
         QPixmapCache.clear()
-    except (RuntimeError, SystemError):
-        # Ignore errors from deleted C++ objects or system state during cleanup
-        pass
+    except (RuntimeError, SystemError) as e:
+        _logger.debug("Qt cleanup before-test exception (swallowed): %s", e)
+        if STRICT_CLEANUP:
+            raise
 
     yield
 
@@ -94,8 +105,10 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
             try:
                 QCoreApplication.processEvents()
                 QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-            except (RuntimeError, SystemError):
-                # Qt object was deleted - stop trying to process events
+            except (RuntimeError, SystemError) as e:
+                _logger.debug("Qt cleanup thread-wait exception (swallowed): %s", e)
+                if STRICT_CLEANUP:
+                    raise
                 break
 
     # Wrap event processing in try-except to prevent crashes from leaked objects
@@ -113,7 +126,7 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
         # Final event processing after thread cleanup
         QCoreApplication.processEvents()
         QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-    except (RuntimeError, SystemError):
-        # Ignore errors from deleted C++ objects or system state during cleanup
-        # This can happen if a QObject was deleted in C++ but Python still has a reference
-        pass
+    except (RuntimeError, SystemError) as e:
+        _logger.debug("Qt cleanup after-test exception (swallowed): %s", e)
+        if STRICT_CLEANUP:
+            raise

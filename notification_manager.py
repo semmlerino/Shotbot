@@ -58,6 +58,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QColor, QMouseEvent
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
@@ -285,6 +286,54 @@ class NotificationManager(QObject):
     _active_toasts: ClassVar[list[ToastNotification]] = []
     _current_progress: ClassVar[QProgressDialog | None] = None
 
+    @staticmethod
+    def _is_qt_object_valid(obj: QObject | None) -> bool:
+        """Check if a Qt object's C++ counterpart is still valid.
+
+        When a Qt C++ object is deleted but the Python wrapper still exists,
+        accessing any method will raise RuntimeError. This helper detects that
+        condition by attempting a safe operation.
+
+        Args:
+            obj: The Qt object to check
+
+        Returns:
+            True if the object exists and its C++ counterpart is valid
+        """
+        if obj is None:
+            return False
+        try:
+            # Try accessing a property that exists on all QObjects
+            # If the C++ object is deleted, this will raise RuntimeError
+            _ = obj.objectName()
+            return True
+        except RuntimeError:
+            return False
+
+    @staticmethod
+    def _can_show_dialog() -> bool:
+        """Check if it's safe to show a modal dialog.
+
+        Returns False if:
+        - QApplication.instance() is None (app not running or shutting down)
+        - QApplication C++ object is deleted
+        - Application is in teardown (closingDown)
+
+        This prevents crashes during test teardown when Qt is being cleaned up.
+        """
+        try:
+            app = QApplication.instance()
+            if app is None:
+                return False
+            # Check if app is being torn down
+            if app.closingDown():
+                return False
+            # Try to access a property to verify C++ object is valid
+            _ = app.applicationName()
+            return True
+        except (RuntimeError, AttributeError):
+            return False
+
     def __new__(cls) -> NotificationManager:
         """Implement singleton pattern."""
         if cls._instance is None:
@@ -368,20 +417,24 @@ class NotificationManager(QObject):
             message: Detailed error message
             details: Optional technical details
         """
+        # Always log the error first
+        logger.error(f"Error notification: {title} - {message} - {details}")
+
+        # Skip dialog if Qt is shutting down (prevents crashes during test teardown)
+        if not cls._can_show_dialog():
+            return
+
         full_message = message
         if details:
             full_message += f"\n\nDetails: {details}"
 
-        if cls._main_window:
-            _ = QMessageBox.critical(
-                cls._main_window, f"Error - {title}", full_message or title
-            )
-        else:
-            _ = QMessageBox.critical(None, f"Error - {title}", full_message or title)
-
-        # Also log the error
-        if cls._instance:
-            logger.error(f"Error notification: {title} - {message} - {details}")
+        # Use valid main window as parent, or None if not available
+        parent = cls._main_window if cls._is_qt_object_valid(cls._main_window) else None
+        try:
+            _ = QMessageBox.critical(parent, f"Error - {title}", full_message or title)
+        except RuntimeError:
+            # C++ object deleted during dialog creation - just log, don't retry
+            cls._main_window = None
 
     @classmethod
     def warning(cls, title: str, message: str = "", details: str = "") -> None:
@@ -392,19 +445,24 @@ class NotificationManager(QObject):
             message: Detailed warning message
             details: Optional technical details
         """
+        # Always log the warning first
+        logger.warning(f"Warning notification: {title} - {message} - {details}")
+
+        # Skip dialog if Qt is shutting down (prevents crashes during test teardown)
+        if not cls._can_show_dialog():
+            return
+
         full_message = message
         if details:
             full_message += f"\n\nDetails: {details}"
 
-        if cls._main_window:
-            _ = QMessageBox.warning(
-                cls._main_window, f"Warning - {title}", full_message or title
-            )
-        else:
-            _ = QMessageBox.warning(None, f"Warning - {title}", full_message or title)
-
-        if cls._instance:
-            logger.warning(f"Warning notification: {title} - {message} - {details}")
+        # Use valid main window as parent, or None if not available
+        parent = cls._main_window if cls._is_qt_object_valid(cls._main_window) else None
+        try:
+            _ = QMessageBox.warning(parent, f"Warning - {title}", full_message or title)
+        except RuntimeError:
+            # C++ object deleted during dialog creation - just log, don't retry
+            cls._main_window = None
 
     @classmethod
     def info(cls, message: str, timeout: int = 3000) -> None:
@@ -414,8 +472,13 @@ class NotificationManager(QObject):
             message: Information message to display
             timeout: Duration in milliseconds (0 = permanent)
         """
-        if cls._status_bar:
-            cls._status_bar.showMessage(message, timeout)
+        if cls._is_qt_object_valid(cls._status_bar):
+            assert cls._status_bar is not None  # Type narrowing for pyright
+            try:
+                cls._status_bar.showMessage(message, timeout)
+            except RuntimeError:
+                # C++ object deleted between validity check and access
+                cls._status_bar = None
 
         if cls._instance:
             logger.info(f"Info notification: {message}")
@@ -428,29 +491,35 @@ class NotificationManager(QObject):
             message: Success message to display
             timeout: Duration in milliseconds (0 = permanent)
         """
-        if cls._status_bar:
-            # Apply green styling for success messages
-            original_style = cls._status_bar.styleSheet()
-            cls._status_bar.setStyleSheet("""
-                QStatusBar {
-                    color: #2ecc71;
-                    font-weight: bold;
-                }
-            """)
-            cls._status_bar.showMessage(f"✓ {message}", timeout)
+        if cls._is_qt_object_valid(cls._status_bar):
+            assert cls._status_bar is not None  # Type narrowing for pyright
+            try:
+                # Apply green styling for success messages
+                original_style = cls._status_bar.styleSheet()
+                cls._status_bar.setStyleSheet("""
+                    QStatusBar {
+                        color: #2ecc71;
+                        font-weight: bold;
+                    }
+                """)
+                cls._status_bar.showMessage(f"✓ {message}", timeout)
 
-            # Restore original styling after timeout
-            if timeout > 0:
+                # Restore original styling after timeout
+                if timeout > 0:
 
-                def restore_style() -> None:
-                    try:
-                        if cls._status_bar and not cls._status_bar.isHidden():
-                            cls._status_bar.setStyleSheet(original_style)
-                    except RuntimeError:
-                        # Status bar was deleted, ignore
-                        pass
+                    def restore_style() -> None:
+                        try:
+                            if cls._is_qt_object_valid(cls._status_bar):
+                                assert cls._status_bar is not None  # Type narrowing
+                                cls._status_bar.setStyleSheet(original_style)
+                        except RuntimeError:
+                            # Status bar was deleted, ignore
+                            cls._status_bar = None
 
-                QTimer.singleShot(timeout, restore_style)
+                    QTimer.singleShot(timeout, restore_style)
+            except RuntimeError:
+                # C++ object deleted between validity check and access
+                cls._status_bar = None
 
         if cls._instance:
             logger.info(f"Success notification: {message}")
@@ -519,25 +588,33 @@ class NotificationManager(QObject):
             notification_type: Type of notification (affects styling)
             duration: Auto-dismiss time in milliseconds (0 = no auto-dismiss)
         """
-        if not cls._main_window:
+        if not cls._is_qt_object_valid(cls._main_window):
+            # Clear stale reference if C++ object was deleted
+            if cls._main_window is not None:
+                cls._main_window = None
             if cls._instance:
                 logger.warning(
-                    "Cannot show toast notification: no main window reference"
+                    "Cannot show toast notification: no valid main window reference"
                 )
             return
 
-        # Create toast
-        toast = ToastNotification(
-            message, notification_type, duration, cls._main_window
-        )
-        _ = toast.dismissed.connect(lambda: cls._remove_toast(toast))
+        try:
+            # Create toast
+            toast = ToastNotification(
+                message, notification_type, duration, cls._main_window
+            )
+            _ = toast.dismissed.connect(lambda: cls._remove_toast(toast))
 
-        # Position the toast
-        cls._position_toast(toast)
+            # Position the toast
+            cls._position_toast(toast)
 
-        # Add to active toasts and show
-        cls._active_toasts.append(toast)
-        toast.show_animated()
+            # Add to active toasts and show
+            cls._active_toasts.append(toast)
+            toast.show_animated()
+        except RuntimeError:
+            # C++ object deleted during toast creation
+            cls._main_window = None
+            logger.warning("Main window deleted during toast creation")
 
         if cls._instance:
             logger.debug(
@@ -547,24 +624,29 @@ class NotificationManager(QObject):
     @classmethod
     def _position_toast(cls, toast: ToastNotification) -> None:
         """Position a toast notification on screen."""
-        if not cls._main_window:
+        if not cls._is_qt_object_valid(cls._main_window):
             return
 
-        # Get main window geometry
-        main_rect = cls._main_window.geometry()
+        assert cls._main_window is not None  # Type narrowing for pyright
+        try:
+            # Get main window geometry
+            main_rect = cls._main_window.geometry()
 
-        # Calculate position (top-right corner with margin)
-        margin = 20
-        toast_width = 350
-        toast_height = 60
+            # Calculate position (top-right corner with margin)
+            margin = 20
+            toast_width = 350
+            toast_height = 60
 
-        # Stack toasts vertically
-        y_offset = margin + len(cls._active_toasts) * (toast_height + 10)
+            # Stack toasts vertically
+            y_offset = margin + len(cls._active_toasts) * (toast_height + 10)
 
-        x = main_rect.x() + main_rect.width() - toast_width - margin
-        y = main_rect.y() + y_offset
+            x = main_rect.x() + main_rect.width() - toast_width - margin
+            y = main_rect.y() + y_offset
 
-        toast.setGeometry(x, y, toast_width, toast_height)
+            toast.setGeometry(x, y, toast_width, toast_height)
+        except RuntimeError:
+            # C++ object deleted during positioning
+            cls._main_window = None
 
     @classmethod
     def _remove_toast(cls, toast: ToastNotification) -> None:
@@ -579,25 +661,31 @@ class NotificationManager(QObject):
     def _reposition_toasts(cls) -> None:
         """Reposition all active toasts after one is removed."""
         for i, toast in enumerate(cls._active_toasts):
-            if not cls._main_window:
+            if not cls._is_qt_object_valid(cls._main_window):
                 continue
 
-            main_rect = cls._main_window.geometry()
-            margin = 20
-            toast_width = 350
-            toast_height = 60
+            assert cls._main_window is not None  # Type narrowing for pyright
+            try:
+                main_rect = cls._main_window.geometry()
+                margin = 20
+                toast_width = 350
+                toast_height = 60
 
-            y_offset = margin + i * (toast_height + 10)
-            x = main_rect.x() + main_rect.width() - toast_width - margin
-            y = main_rect.y() + y_offset
+                y_offset = margin + i * (toast_height + 10)
+                x = main_rect.x() + main_rect.width() - toast_width - margin
+                y = main_rect.y() + y_offset
 
-            # Animate to new position
-            animation = QPropertyAnimation(toast, b"geometry")
-            animation.setDuration(200)
-            animation.setStartValue(toast.geometry())
-            animation.setEndValue(QRect(x, y, toast_width, toast_height))
-            animation.setEasingCurve(QEasingCurve.Type.OutQuad)
-            animation.start()
+                # Animate to new position
+                animation = QPropertyAnimation(toast, b"geometry")
+                animation.setDuration(200)
+                animation.setStartValue(toast.geometry())
+                animation.setEndValue(QRect(x, y, toast_width, toast_height))
+                animation.setEasingCurve(QEasingCurve.Type.OutQuad)
+                animation.start()
+            except RuntimeError:
+                # C++ object deleted during repositioning
+                cls._main_window = None
+                break
 
     @classmethod
     def clear_all_toasts(cls) -> None:

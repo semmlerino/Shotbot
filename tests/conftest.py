@@ -35,6 +35,11 @@ config_dir = Path(tempfile.mkdtemp(prefix=f"shotbot-config-{run_id}-{worker}-"))
 os.environ.setdefault("SHOTBOT_CONFIG_DIR", str(config_dir))
 os.environ.setdefault("SHOTBOT_SECURE_EXECUTOR_MODE", "mock")
 
+# Per-worker cache isolation (eliminates race conditions on shared ~/.shotbot/cache_test)
+cache_dir = base_tmp / f"shotbot_test_cache_{worker}"
+cache_dir.mkdir(parents=True, exist_ok=True)
+os.environ["SHOTBOT_TEST_CACHE_DIR"] = str(cache_dir)
+
 # ==============================================================================
 # NOW safe to import PySide6
 # ==============================================================================
@@ -96,7 +101,14 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
 
     IMPORTANT: This fixture MUST be in conftest.py (not a pytest_plugins module)
     to ensure it's registered at the same time as qapp and runs at session scope.
+
+    Set SHOTBOT_TEST_NO_WAIT_PATCH=1 to disable this patch for timing diagnostics.
     """
+    # Allow opt-out for timing diagnostics
+    if os.environ.get("SHOTBOT_TEST_NO_WAIT_PATCH", "0") == "1":
+        yield
+        return
+
     from pytestqt.qtbot import QtBot
 
     original_wait = QtBot.wait
@@ -142,15 +154,22 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     """Group Qt-using tests and auto-enable fixtures based on markers.
 
     1. Groups Qt tests onto a single xdist worker for stable teardown
-    2. Auto-enables fixtures based on markers (e.g., enforce_unique_connections)
+    2. Auto-applies heavy cleanup fixtures (qt_cleanup, cleanup_state_heavy) to Qt tests
+    3. Auto-enables fixtures based on markers (e.g., enforce_unique_connections)
     """
     for item in items:
-        # Group Qt tests onto a single xdist worker
+        # Determine if this is a Qt test
         fixtures = set(getattr(item, "fixturenames", ()) or ())
-        if item.get_closest_marker("qt") or fixtures.intersection(
+        is_qt_test = item.get_closest_marker("qt") or fixtures.intersection(
             {"qtbot", "cleanup_qt_state", "qt_cleanup"}
-        ):
+        )
+
+        if is_qt_test:
+            # Group Qt tests onto a single xdist worker for stable teardown
             item.add_marker(pytest.mark.xdist_group(name="qt"))
+            # Auto-apply heavy cleanup fixtures to Qt tests
+            # (qt_cleanup handles Qt state, cleanup_state_heavy handles singletons)
+            item.add_marker(pytest.mark.usefixtures("qt_cleanup", "cleanup_state_heavy"))
 
         # Auto-enable enforce_unique_connections fixture if marker is present
         if item.get_closest_marker("enforce_unique_connections"):

@@ -443,6 +443,58 @@ def test_rate_limiter():
 
 ---
 
+## Subprocess Testing Strategy
+
+### Why Subprocess Mocking is Autouse
+
+**Exception to normal guidance:** Subprocess mocking is `autouse=True` in `tests/fixtures/subprocess_mocking.py`.
+
+**Why?** `ProcessPoolManager` is a singleton used throughout the codebase. Without global mocking:
+- Multiple xdist workers running real `ws -sg` commands crash at the C level
+- Workers contend for the same singleton state
+- Test isolation becomes impossible
+
+This is the pragmatic choice for a singleton dependency that spawns processes.
+
+### Opt-Out: Real Subprocess Testing
+
+Use `@pytest.mark.real_subprocess` when you need actual subprocess execution:
+
+```python
+@pytest.mark.real_subprocess
+def test_echo_command_actually_runs():
+    """Verify real shell commands work."""
+    import subprocess
+    result = subprocess.run(["echo", "hello"], capture_output=True, text=True)
+    assert result.stdout.strip() == "hello"
+```
+
+### Controllable Subprocess Mock
+
+For fine-grained control over subprocess behavior, use the `subprocess_mock` fixture:
+
+```python
+def test_launcher_handles_failure(subprocess_mock):
+    """Test error handling when command fails."""
+    subprocess_mock.set_output("", stderr="command not found")
+    subprocess_mock.set_return_code(127)
+
+    launcher = Launcher()
+    result = launcher.run_command()
+
+    assert result.success is False
+    assert "ws" in subprocess_mock.calls[0]  # Verify command was called
+```
+
+**Available methods:**
+- `set_output(stdout, stderr="")` - Configure command output
+- `set_return_code(code)` - Configure exit code
+- `set_exception(exc)` - Make subprocess raise an exception
+- `calls` - List of commands that were called
+- `reset()` - Clear state between calls
+
+---
+
 ## How to Debug a Flaky Test
 
 When a test fails intermittently, work through this checklist in order:

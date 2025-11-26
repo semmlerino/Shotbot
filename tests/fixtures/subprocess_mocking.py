@@ -101,3 +101,104 @@ def mock_subprocess_popen(
     monkeypatch.setattr("launcher.worker.subprocess.Popen", mock_popen)
     # Also patch in subprocess module for any other direct callers
     monkeypatch.setattr("subprocess.Popen", mock_popen)
+
+
+class SubprocessMock:
+    """Controllable subprocess mock for testing command execution.
+
+    This class provides methods to configure expected subprocess behavior,
+    including stdout, stderr, return codes, and exceptions.
+
+    Usage:
+        def test_command_output(subprocess_mock):
+            subprocess_mock.set_output("hello world")
+            subprocess_mock.set_return_code(0)
+            # ... run code that uses subprocess ...
+            assert subprocess_mock.calls == [["my", "command"]]
+    """
+
+    def __init__(self) -> None:
+        self._mock = MagicMock()
+        self._calls: list[list[str]] = []
+        self._stdout = b""
+        self._stderr = b""
+        self._returncode = 0
+        self._should_raise: Exception | None = None
+        self._setup_mock()
+
+    def _setup_mock(self) -> None:
+        """Configure mock behavior."""
+
+        def popen_side_effect(args: list[str], **kwargs: object) -> MagicMock:
+            if self._should_raise:
+                raise self._should_raise
+            self._calls.append(list(args) if isinstance(args, (list, tuple)) else [str(args)])
+            process = MagicMock()
+            process.pid = 99999
+            process.poll.return_value = self._returncode
+            process.wait.return_value = self._returncode
+            process.returncode = self._returncode
+            process.stdout = io.BytesIO(self._stdout)
+            process.stderr = io.BytesIO(self._stderr)
+            process.communicate.return_value = (self._stdout, self._stderr)
+            return process
+
+        self._mock.side_effect = popen_side_effect
+
+    @property
+    def mock(self) -> MagicMock:
+        """Get the underlying mock object for patching."""
+        return self._mock
+
+    @property
+    def calls(self) -> list[list[str]]:
+        """Get list of command arguments passed to subprocess."""
+        return self._calls
+
+    def set_output(self, stdout: str, stderr: str = "") -> None:
+        """Set stdout and stderr for mock subprocess."""
+        self._stdout = stdout.encode("utf-8")
+        self._stderr = stderr.encode("utf-8")
+
+    def set_return_code(self, code: int) -> None:
+        """Set return code for mock subprocess."""
+        self._returncode = code
+
+    def set_exception(self, exc: Exception) -> None:
+        """Configure subprocess to raise an exception."""
+        self._should_raise = exc
+
+    def reset(self) -> None:
+        """Reset calls and configure defaults."""
+        self._calls.clear()
+        self._stdout = b""
+        self._stderr = b""
+        self._returncode = 0
+        self._should_raise = None
+
+
+@pytest.fixture
+def subprocess_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
+    """Provide controllable subprocess mock for testing.
+
+    This fixture gives tests explicit control over subprocess behavior.
+    Use this when you need to:
+    - Verify specific commands were called
+    - Test different stdout/stderr outputs
+    - Test error handling for non-zero return codes
+    - Test exception handling
+
+    Note: This works alongside the autouse mocks - it provides additional
+    control for tests that need to verify subprocess interactions.
+
+    Example:
+        def test_launcher_output_parsing(subprocess_mock):
+            subprocess_mock.set_output("workspace /shows/test/shots/010/0010")
+            subprocess_mock.set_return_code(0)
+            # ... test code ...
+            assert ["ws", "-sg"] in subprocess_mock.calls
+    """
+    mock = SubprocessMock()
+    monkeypatch.setattr("subprocess.Popen", mock.mock)
+    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
+    return mock

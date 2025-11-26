@@ -33,9 +33,12 @@ class TestLauncherRefactoringSafety:
             yield Path(tmpdir)
 
     @pytest.fixture
-    def launcher_manager(self, temp_config_dir: Path) -> LauncherManager:
+    def launcher_manager(self, temp_config_dir: Path) -> Generator[LauncherManager, None, None]:
         """Create LauncherManager with temporary config."""
-        return LauncherManager(config_dir=temp_config_dir)
+        manager = LauncherManager(config_dir=temp_config_dir)
+        yield manager
+        # Cleanup: stop all workers to prevent QThread destroyed while running
+        manager.shutdown()
 
     @pytest.fixture
     def sample_launcher(self) -> CustomLauncher:
@@ -207,6 +210,11 @@ class TestLauncherRefactoringSafety:
             process_info = launcher_manager.get_active_process_info()
             assert len(process_info) > 0
             assert any(p["launcher_id"] == sample_launcher.id for p in process_info)
+
+            # IMPORTANT: Stop workers BEFORE the patch context exits
+            # Otherwise worker threads may try to use the mock after it's removed
+            mock_process.poll.return_value = 0  # Mark process as finished
+            launcher_manager.stop_all_workers()
 
     def test_signal_emission(self, launcher_manager: LauncherManager, sample_launcher: CustomLauncher, qtbot: QtBot) -> None:
         """Verify Qt signals are emitted correctly."""

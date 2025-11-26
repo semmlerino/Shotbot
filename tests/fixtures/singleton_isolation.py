@@ -6,13 +6,16 @@ and flaky behavior.
 
 Fixtures:
     cleanup_state: Reset singletons and caches between tests (autouse)
+
+Environment Variables:
+    SHOTBOT_TEST_STRICT_CLEANUP: Set to "1" to fail on cleanup exceptions instead of swallowing them
 """
 
 from __future__ import annotations
 
 import gc
-import shutil
-from pathlib import Path
+import logging
+import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -21,160 +24,153 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+_logger = logging.getLogger(__name__)
+
+# Strict mode fails on cleanup exceptions (useful for debugging)
+STRICT_CLEANUP = os.environ.get("SHOTBOT_TEST_STRICT_CLEANUP", "0") == "1"
+
 
 @pytest.fixture(autouse=True)
-def cleanup_state() -> Iterator[None]:
-    """Clean up all module-level caches and singleton state before and after each test.
+def cleanup_state_lite() -> Iterator[None]:
+    """Lightweight cleanup for ALL tests - just caches and config.
 
-    This autouse fixture consolidates cache clearing, singleton resets, and threading cleanup
-    to prevent test contamination. Runs both before and after each test for complete isolation.
+    This autouse fixture provides minimal cleanup that runs for every test,
+    including pure logic tests that don't touch Qt or singletons.
 
     Before test:
-    - Clear all utility caches and disable caching
-    - Clear shared cache directory
-    - Reset NotificationManager and ProgressManager singletons
+    - Clear all utility caches
+    - Disable caching for predictable behavior
+    - Reset Config.SHOWS_ROOT
 
-    After test (defense in depth):
-    - Process pending Qt events
-    - Clean up Qt widgets (NotificationManager, ProgressManager)
-    - Reset all singletons (ProcessPoolManager, QRunnableTracker, ThreadSafeWorker)
+    After test:
     - Clear caches again
     - Force garbage collection
 
-    See UNIFIED_TESTING_V2.MD section "Common Root Causes of Isolation Failures" for details.
+    For heavy cleanup (Qt, singletons, threads), see cleanup_state_heavy fixture.
+    """
+    from utils import clear_all_caches, disable_caching
+
+    # ===== BEFORE TEST: Lightweight setup =====
+    clear_all_caches()
+    disable_caching()
+
+    # Reset Config.SHOWS_ROOT
+    try:
+        from config import Config
+
+        Config.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
+    except (RuntimeError, AttributeError, ImportError) as e:
+        _logger.debug("Config.SHOWS_ROOT reset before-test exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
+
+    # Clear OptimizedShotParser pattern cache
+    try:
+        import optimized_shot_parser
+
+        optimized_shot_parser._PATTERN_CACHE.clear()
+    except (RuntimeError, AttributeError, ImportError) as e:
+        _logger.debug("optimized_shot_parser cache clear exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
+
+    yield
+
+    # ===== AFTER TEST: Lightweight cleanup =====
+    clear_all_caches()
+    disable_caching()
+
+    # Reset Config.SHOWS_ROOT
+    try:
+        from config import Config
+
+        Config.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
+    except (RuntimeError, AttributeError, ImportError) as e:
+        _logger.debug("Config.SHOWS_ROOT reset after-test exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
+
+    gc.collect()
+
+
+@pytest.fixture
+def cleanup_state_heavy() -> Iterator[None]:
+    """Heavy cleanup for Qt tests - singletons, threads, Qt state.
+
+    NOTE: This fixture is NOT autouse. It is applied conditionally via
+    conftest.py's pytest_collection_modifyitems hook to tests that use qtbot
+    or are marked with @pytest.mark.qt.
+
+    Before test:
+    - Reset NotificationManager and ProgressManager singletons
+    - Reset FilesystemCoordinator
+
+    After test:
+    - Process pending Qt events
+    - Reset all singletons (ProcessPoolManager, QRunnableTracker, ThreadSafeWorker)
     """
     from notification_manager import NotificationManager
     from progress_manager import ProgressManager
-    from utils import clear_all_caches, disable_caching
 
-    # ===== BEFORE TEST: Setup clean state =====
-
-    # Clear ALL caches FIRST, before any test operations
-    clear_all_caches()
-
-    # CRITICAL: Clear shared cache directory to prevent contamination
-    # Tests using CacheManager() without cache_dir parameter use ~/.shotbot/cache_test
-    # This shared directory accumulates data across test runs, causing contamination
-    shared_cache_dir = Path.home() / ".shotbot" / "cache_test"
-    if shared_cache_dir.exists():
-        try:
-            shutil.rmtree(shared_cache_dir)
-        except FileNotFoundError:
-            # Race condition in pytest-xdist: another worker may have deleted it
-            pass
-        except OSError:
-            # Race condition in pytest-xdist: another worker may have created
-            # files while we were deleting. This is acceptable during parallel
-            # testing - each test should handle its own cache isolation.
-            pass
-
-    # CRITICAL: Reset _cache_disabled flag to ensure consistent test behavior
-    # Some tests call enable_caching() to test caching behavior.
-    # Always disable caching at the start of each test for predictable behavior.
-    disable_caching()
+    # ===== BEFORE TEST: Reset singletons =====
 
     # Reset all singleton managers using their reset() methods
     # Order matters: NotificationManager FIRST (closes Qt widgets that ProgressManager may reference)
     try:
         NotificationManager.reset()
-    except (RuntimeError, AttributeError):
-        # Qt objects may already be deleted
-        pass
+    except (RuntimeError, AttributeError) as e:
+        _logger.debug("NotificationManager.reset() before-test exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
     # THEN reset ProgressManager (now safe to clear widget references)
     try:
         ProgressManager.reset()
-    except (RuntimeError, AttributeError):
-        # Qt objects may already be deleted
-        pass
-
-    # ProcessPoolManager reset removed - now handled by mock_process_pool_manager autouse fixture
-    # The autouse fixture patches ProcessPoolManager._instance for all tests
-    # Resetting here would interfere with the mock
+    except (RuntimeError, AttributeError) as e:
+        _logger.debug("ProgressManager.reset() before-test exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
     # Reset FilesystemCoordinator
     try:
         from filesystem_coordinator import FilesystemCoordinator
 
         FilesystemCoordinator.reset()
-    except (RuntimeError, AttributeError, ImportError):
-        pass
-
-    # Clear OptimizedShotParser pattern cache to prevent test contamination
-    # The cache is keyed by Config.SHOWS_ROOT; if tests change this config,
-    # the cached patterns become invalid for subsequent tests
-    try:
-        import optimized_shot_parser
-
-        optimized_shot_parser._PATTERN_CACHE.clear()
-    except (RuntimeError, AttributeError, ImportError):
-        pass
-
-    # Reset Config.SHOWS_ROOT in SETUP phase to prevent contamination
-    # This runs BEFORE the test body to ensure clean state
-    try:
-        import os
-
-        from config import Config
-
-        Config.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
-    except (RuntimeError, AttributeError, ImportError):
-        pass
+    except (RuntimeError, AttributeError, ImportError) as e:
+        _logger.debug("FilesystemCoordinator.reset() before-test exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
     yield
 
-    # ===== AFTER TEST: Comprehensive cleanup (defense in depth) =====
-
-    # Reset Config.SHOWS_ROOT in teardown to clean up after tests that don't use monkeypatch
-    # Tests that DO use monkeypatch will have their values restored automatically by pytest
-    try:
-        import os
-
-        from config import Config
-
-        Config.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
-    except (RuntimeError, AttributeError, ImportError):
-        pass
+    # ===== AFTER TEST: Comprehensive cleanup =====
 
     # Qt Event Processing - Process pending events before cleanup
-    # This ensures Qt is in a stable state before we start tearing things down
     try:
         from PySide6.QtWidgets import QApplication
 
         app = QApplication.instance()
         if app:
             app.processEvents()
-    except (RuntimeError, ImportError):
-        # Qt not available or objects already deleted, ignore
-        pass
+    except (RuntimeError, ImportError) as e:
+        _logger.debug("Qt event processing after-test exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
-    # Reset all singleton managers using their reset() methods
-    # NotificationManager first (must happen early to avoid Qt object access after deletion)
+    # Reset all singleton managers
     try:
         NotificationManager.reset()
-    except (RuntimeError, AttributeError):
-        pass
+    except (RuntimeError, AttributeError) as e:
+        _logger.debug("NotificationManager.reset() after-test exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
-    # ProgressManager cleanup
     try:
         ProgressManager.reset()
-    except (RuntimeError, AttributeError):
-        pass
-
-    # Clear utils caches
-    clear_all_caches()
-
-    # CRITICAL: Clear shared cache directory after test
-    if shared_cache_dir.exists():
-        try:
-            shutil.rmtree(shared_cache_dir)
-        except (FileNotFoundError, OSError):
-            # FileNotFoundError: Already deleted by another worker
-            # OSError: Directory not empty (race condition during parallel execution)
-            pass
-
-    # CRITICAL: Reset _cache_disabled flag after test
-    disable_caching()
+    except (RuntimeError, AttributeError) as e:
+        _logger.debug("ProgressManager.reset() after-test exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
     # QRunnableTracker Cleanup
     from runnable_tracker import QRunnableTracker
@@ -182,9 +178,9 @@ def cleanup_state() -> Iterator[None]:
     try:
         QRunnableTracker.reset()
     except Exception as e:
-        import warnings
-
-        warnings.warn(f"QRunnableTracker reset failed: {e}", RuntimeWarning, stacklevel=2)
+        _logger.debug("QRunnableTracker.reset() exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
     # ProcessPoolManager Cleanup
     from process_pool_manager import ProcessPoolManager
@@ -192,9 +188,9 @@ def cleanup_state() -> Iterator[None]:
     try:
         ProcessPoolManager.reset()
     except Exception as e:
-        import warnings
-
-        warnings.warn(f"ProcessPoolManager reset failed: {e}", RuntimeWarning, stacklevel=2)
+        _logger.debug("ProcessPoolManager.reset() exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
     # FilesystemCoordinator Cleanup
     from filesystem_coordinator import FilesystemCoordinator
@@ -202,21 +198,27 @@ def cleanup_state() -> Iterator[None]:
     try:
         FilesystemCoordinator.reset()
     except Exception as e:
-        import warnings
-
-        warnings.warn(f"FilesystemCoordinator reset failed: {e}", RuntimeWarning, stacklevel=2)
+        _logger.debug("FilesystemCoordinator.reset() after-test exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
     # ThreadSafeWorker Zombie Cleanup
-    # Uses reset() which safely stops timer and clears tracking lists under mutex
     from thread_safe_worker import ThreadSafeWorker
 
     try:
         ThreadSafeWorker.reset()
     except Exception as e:
-        import warnings
+        _logger.debug("ThreadSafeWorker.reset() exception: %s", e)
+        if STRICT_CLEANUP:
+            raise
 
-        warnings.warn(f"ThreadSafeWorker reset failed: {e}", RuntimeWarning, stacklevel=2)
 
-    # Force garbage collection to clean up any instances that cached state
-    # (e.g., TargetedShotsFinder instances with cached Config.SHOWS_ROOT regex patterns)
-    gc.collect()
+# Backward compatibility alias - some tests may reference cleanup_state directly
+@pytest.fixture
+def cleanup_state(cleanup_state_lite: None, cleanup_state_heavy: None) -> Iterator[None]:
+    """Combined cleanup fixture for backward compatibility.
+
+    This fixture combines both lite and heavy cleanup. Use this if you explicitly
+    need both, but prefer using cleanup_state_heavy directly for Qt tests.
+    """
+    yield
