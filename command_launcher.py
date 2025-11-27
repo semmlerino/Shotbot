@@ -837,9 +837,6 @@ class CommandLauncher(LoggingMixin, QObject):
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
     # - _verify_spawn() → self.process_executor._verify_spawn(process, app_name)
 
-    # Apps that require write permission to workspace (for scene saves, temp files)
-    WRITE_REQUIRED_APPS: frozenset[str] = frozenset({"nuke", "maya", "3de", "houdini"})
-
     # Minimum disk space required (MB)
     MIN_DISK_SPACE_MB: int = 100
 
@@ -896,14 +893,6 @@ class CommandLauncher(LoggingMixin, QObject):
                 f"Cannot launch {app_name}: No read/execute permission for: {workspace_path}"
             )
             return False
-
-        # Check write permission for apps that need it
-        if app_name.lower() in self.WRITE_REQUIRED_APPS:
-            if not os.access(workspace_path, os.W_OK):
-                self._emit_error(
-                    f"Cannot launch {app_name}: No write permission for: {workspace_path}"
-                )
-                return False
 
         # Check disk space availability with timeout (prevents NFS hang blocking UI)
         try:
