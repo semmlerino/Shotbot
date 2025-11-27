@@ -293,7 +293,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.cache_manager,
         )
 
-        self.command_launcher = CommandLauncher(parent=self)
+        self.command_launcher = CommandLauncher(
+            parent=self, settings_manager=self.settings_manager
+        )
         self.launcher_manager = LauncherManager(
             process_pool=self._process_pool, parent=self
         )

@@ -209,10 +209,21 @@ class LauncherValidation:
 
 @dataclass
 class LauncherTerminal:
-    """Terminal settings for a launcher."""
+    """Terminal settings for a launcher.
+
+    Attributes:
+        required: Whether a terminal is required for this launcher
+        persist: Whether to keep terminal open after command exits
+        background: Whether to background the process and close terminal immediately.
+            When True, the app is launched with `& disown; exit` so the terminal
+            closes immediately while the app continues running. Useful for GUI apps
+            to avoid terminal clutter.
+        title: Optional title for the terminal window
+    """
 
     required: bool = False
     persist: bool = False
+    background: bool = False
     title: str | None = None
 
 
@@ -303,6 +314,7 @@ class CustomLauncher:
                 data_copy["terminal"] = LauncherTerminal(
                     required=bool(term_data.get("required", False)),
                     persist=bool(term_data.get("persist", False)),
+                    background=bool(term_data.get("background", False)),
                     title=str(term_data["title"])
                     if term_data.get("title") is not None
                     else None,

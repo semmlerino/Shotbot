@@ -23,7 +23,7 @@ class TestRealSubprocessExecution:
         """Basic subprocess.run with echo command."""
         result = subprocess.run(
             ["echo", "hello world"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=5,
         )
@@ -34,7 +34,7 @@ class TestRealSubprocessExecution:
         """Subprocess can execute Python."""
         result = subprocess.run(
             [sys.executable, "-c", "print('subprocess works')"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=5,
         )
@@ -45,7 +45,7 @@ class TestRealSubprocessExecution:
         """Subprocess returns error code for failed command."""
         result = subprocess.run(
             [sys.executable, "-c", "import sys; sys.exit(42)"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=5,
         )
@@ -55,7 +55,7 @@ class TestRealSubprocessExecution:
         """Subprocess captures stderr correctly."""
         result = subprocess.run(
             [sys.executable, "-c", "import sys; sys.stderr.write('error output')"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=5,
         )
@@ -70,7 +70,7 @@ class TestRealSubprocessExecution:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate(timeout=5)
+        stdout, _stderr = process.communicate(timeout=5)
         assert process.returncode == 0
         assert "popen test" in stdout
 
@@ -78,7 +78,7 @@ class TestRealSubprocessExecution:
         """Shell mode subprocess execution."""
         result = subprocess.run(
             "echo 'shell mode works'",
-            shell=True,
+            check=False, shell=True,
             capture_output=True,
             text=True,
             timeout=5,
@@ -96,7 +96,7 @@ class TestSubprocessTimeout:
         with pytest.raises(subprocess.TimeoutExpired):
             subprocess.run(
                 [sys.executable, "-c", "import time; time.sleep(10)"],
-                capture_output=True,
+                check=False, capture_output=True,
                 timeout=0.1,
             )
 

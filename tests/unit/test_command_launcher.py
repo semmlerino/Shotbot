@@ -468,6 +468,112 @@ class TestCommandLauncher:
         assert "-ilc" in call_args
         assert "nuke" in " ".join(call_args)
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("launch.process_executor.subprocess.Popen")
+    def test_launch_gui_app_with_background_setting_enabled(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        mock_validate: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
+        """Test that GUI apps are backgrounded when setting is enabled."""
+        # Import modules needed for mocking
+        import sys
+        import types
+
+        # Create mock modules (same as launcher fixture)
+        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
+        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
+        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
+
+        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
+        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
+        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
+
+        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
+        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
+        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
+
+        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
+        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
+        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
+
+        # Mock is_ws_available
+        from launch import EnvironmentManager
+        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
+
+        # Create mock settings manager with background_gui_apps enabled
+        mock_settings = MagicMock()
+        mock_settings.get_background_gui_apps.return_value = True
+
+        # Create launcher with mock settings
+        launcher = CommandLauncher(settings_manager=mock_settings)
+        launcher.set_current_shot(test_shot)
+
+        # Setup mock
+        mock_popen.return_value = MagicMock()
+
+        # Launch 3DE (a GUI app)
+        result = launcher.launch_app("3de")
+
+        # Verify launch was successful
+        assert result is True
+
+        # Wait for QTimer.singleShot(100ms) callback
+        process_qt_events()
+
+        # Verify subprocess was called
+        assert mock_popen.called
+        call_args = mock_popen.call_args[0][0]
+        command_str = " ".join(call_args)
+
+        # Verify the command contains background wrapping
+        assert "disown" in command_str
+        assert "exit" in command_str
+
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("launch.process_executor.subprocess.Popen")
+    def test_launch_gui_app_without_background_setting(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        mock_validate: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
+        """Test that GUI apps are NOT backgrounded when setting is disabled (default)."""
+        launcher.set_current_shot(test_shot)
+
+        # Setup mock
+        mock_popen.return_value = MagicMock()
+
+        # Launch 3DE (a GUI app) - default setting is False
+        result = launcher.launch_app("3de")
+
+        # Verify launch was successful
+        assert result is True
+
+        # Wait for QTimer.singleShot(100ms) callback
+        process_qt_events()
+
+        # Verify subprocess was called
+        assert mock_popen.called
+        call_args = mock_popen.call_args[0][0]
+        command_str = " ".join(call_args)
+
+        # Verify the command does NOT contain background wrapping
+        assert "disown" not in command_str
+
 
 class TestCommandLauncherSignals:
     """Test CommandLauncher signal emissions."""

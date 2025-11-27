@@ -147,6 +147,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Applications tab widgets
         self.default_app_combo: QComboBox
         self.launch_terminal_check: QCheckBox
+        self.background_gui_apps_check: QCheckBox
         self.association_combos: dict[
             str, QComboBox
         ]  # Populated in create_associations_widget
@@ -407,6 +408,17 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.launch_terminal_check = QCheckBox("Launch Applications in Terminal")
         default_layout.addRow(self.launch_terminal_check)
 
+        # Background GUI apps (close terminal immediately)
+        self.background_gui_apps_check = QCheckBox(
+            "Close terminal after launching GUI apps"
+        )
+        self.background_gui_apps_check.setToolTip(
+            "When enabled, launching 3DE, Nuke, Maya etc. will close the terminal\n"
+            "window immediately, reducing desktop clutter.\n\n"
+            "The application continues running in the background."
+        )
+        default_layout.addRow(self.background_gui_apps_check)
+
         scroll_layout.addWidget(default_group)
 
         # File Associations Group
@@ -627,6 +639,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Applications tab
         self.default_app_combo.setCurrentText(self.settings_manager.get_default_app())
+        self.background_gui_apps_check.setChecked(
+            self.settings_manager.get_background_gui_apps()
+        )
 
         # Load file associations
         associations = self.settings_manager.get_file_associations()
@@ -824,6 +839,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Application settings
         self.settings_manager.set_default_app(self.default_app_combo.currentText())
+        self.settings_manager.set_background_gui_apps(
+            self.background_gui_apps_check.isChecked()
+        )
 
         # File associations
         associations: dict[str, str] = {}

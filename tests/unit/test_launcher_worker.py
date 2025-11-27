@@ -892,7 +892,7 @@ class TestResourceCleanup:
         Note: With bash -c wrapping, any command string is valid.
         The worker wraps it with bash -c and lets bash handle the execution.
         """
-        mock_popen, mock_process = mock_subprocess_popen
+        _mock_popen, mock_process = mock_subprocess_popen
         worker = LauncherWorker(worker_id, "some_command")
 
         try:

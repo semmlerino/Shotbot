@@ -574,6 +574,7 @@ class TestLauncherTerminal:
 
         assert terminal.required is False
         assert terminal.persist is False
+        assert terminal.background is False
         assert terminal.title is None
 
     def test_custom_initialization(self) -> None:
@@ -581,11 +582,13 @@ class TestLauncherTerminal:
         terminal = LauncherTerminal(
             required=True,
             persist=True,
+            background=True,
             title="Custom Terminal",
         )
 
         assert terminal.required is True
         assert terminal.persist is True
+        assert terminal.background is True
         assert terminal.title == "Custom Terminal"
 
 

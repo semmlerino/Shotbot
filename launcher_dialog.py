@@ -236,6 +236,13 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.persist_terminal = QCheckBox("Keep terminal open after command exits")
         terminal_layout.addRow(self.persist_terminal)
 
+        self.background_terminal = QCheckBox("Run in background (close terminal immediately)")
+        self.background_terminal.setToolTip(
+            "Launch the app in background and close the terminal window immediately.\n"
+            "Useful for GUI apps to avoid terminal clutter."
+        )
+        terminal_layout.addRow(self.background_terminal)
+
         terminal_group.setLayout(terminal_layout)
         layout.addWidget(terminal_group)
 
@@ -284,6 +291,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         if self.launcher.terminal:
             self.persist_terminal.setChecked(self.launcher.terminal.persist)
+            self.background_terminal.setChecked(self.launcher.terminal.background)
 
     def _connect_signals(self) -> None:
         """Connect signals for validation."""
@@ -385,7 +393,10 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 environment = LauncherEnvironment(type="conda", command_prefix=env_spec)
 
         # Create terminal settings
-        terminal = LauncherTerminal(persist=self.persist_terminal.isChecked())
+        terminal = LauncherTerminal(
+            persist=self.persist_terminal.isChecked(),
+            background=self.background_terminal.isChecked(),
+        )
 
         try:
             if self.is_editing and self.launcher:

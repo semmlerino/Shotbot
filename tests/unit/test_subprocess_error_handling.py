@@ -12,10 +12,10 @@ This file demonstrates the opt-in pattern for testing error paths:
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+
 
 if TYPE_CHECKING:
     from tests.fixtures.subprocess_mocking import SubprocessMock
@@ -44,7 +44,7 @@ class TestSubprocessErrorFixtures:
         import subprocess
 
         proc = subprocess.Popen(["test", "cmd"])
-        stdout, stderr = proc.communicate()
+        _stdout, stderr = proc.communicate()
         assert b"Command failed" in stderr
 
     def test_subprocess_exception_mock_raises(

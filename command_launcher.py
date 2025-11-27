@@ -27,6 +27,7 @@ from launch import CommandBuilder, EnvironmentManager, ProcessExecutor
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from nuke_launch_router import NukeLaunchRouter
+from settings_manager import SettingsManager
 
 
 if TYPE_CHECKING:
@@ -78,14 +79,18 @@ class CommandLauncher(LoggingMixin, QObject):
     def __init__(
         self,
         parent: QObject | None = None,
+        settings_manager: SettingsManager | None = None,
     ) -> None:
         """Initialize CommandLauncher with optional dependencies.
 
         Args:
             parent: Optional parent QObject for proper Qt ownership
+            settings_manager: Optional SettingsManager for configuration.
+                If not provided, creates a new instance.
         """
         super().__init__(parent)
         self.current_shot: Shot | None = None
+        self._settings_manager = settings_manager or SettingsManager()
 
         # Track signal connections for proper cleanup
         self._signal_connections: list[QMetaObject.Connection] = []
@@ -315,6 +320,17 @@ class CommandLauncher(LoggingMixin, QObject):
         Returns:
             True if launch successful, False otherwise
         """
+        # Apply background wrapping for GUI apps if setting is enabled
+        # This closes the terminal immediately after launching, reducing clutter
+        if (
+            self.process_executor.is_gui_app(app_name)
+            and self._settings_manager.get_background_gui_apps()
+        ):
+            full_command = CommandBuilder.wrap_for_background(full_command)
+            self.logger.info(
+                f"Backgrounding {app_name} - terminal will close immediately"
+            )
+
         # Validate command length to prevent silent truncation
         cmd_length = len(full_command)
         if cmd_length > self.MAX_COMMAND_LENGTH:

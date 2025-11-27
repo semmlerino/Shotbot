@@ -702,8 +702,9 @@ class TestLauncherTerminal:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    def __init__(self, persist: bool = False) -> None:
+    def __init__(self, persist: bool = False, background: bool = False) -> None:
         self.persist = persist
+        self.background = background
 
 
 class TestLauncher:

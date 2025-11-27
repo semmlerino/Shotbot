@@ -24,7 +24,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from importlib import import_module
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
+
 
 if TYPE_CHECKING:
     from typing import Protocol, runtime_checkable
@@ -63,7 +64,7 @@ class SingletonRegistry:
     """
 
     # Static registry - populated at import time
-    _entries: list[SingletonEntry] = []
+    _entries: ClassVar[list[SingletonEntry]] = []
 
     @classmethod
     def register(

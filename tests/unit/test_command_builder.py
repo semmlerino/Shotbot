@@ -532,3 +532,27 @@ class TestFullCommandAssembly:
         # Then original command with Nuke fixes
         assert "NUKE_CRASH_REPORTS=0" in result
         assert "nuke" in result
+
+
+class TestBackgroundWrapping:
+    """Tests for background process wrapping."""
+
+    def test_wrap_for_background_simple_command(self) -> None:
+        """Test wrapping a simple command for background execution."""
+        result = CommandBuilder.wrap_for_background("nuke")
+        assert result == "(nuke) & disown; exit"
+
+    def test_wrap_for_background_complex_command(self) -> None:
+        """Test wrapping a complex command with workspace and pipes."""
+        command = "ws '/shows/test/shots/sq010/sh0010' && nuke 2>&1 | tee /tmp/log.txt"
+        result = CommandBuilder.wrap_for_background(command)
+        assert result == f"({command}) & disown; exit"
+
+    def test_wrap_for_background_preserves_inner_command(self) -> None:
+        """Test that the inner command is preserved exactly."""
+        command = "echo 'test with spaces' && python script.py"
+        result = CommandBuilder.wrap_for_background(command)
+        # Should wrap in subshell without modifying the command
+        assert command in result
+        assert result.startswith("(")
+        assert result.endswith(") & disown; exit")

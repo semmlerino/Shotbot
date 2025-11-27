@@ -21,6 +21,7 @@ from __future__ import annotations
 import gc
 import logging
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -30,6 +31,49 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 _logger = logging.getLogger(__name__)
+
+
+def _clear_disk_cache_files() -> None:
+    """Clear disk cache files for pristine test state.
+
+    This ensures each test starts with clean disk cache state while keeping
+    directory creation overhead low (directories persist, only files removed).
+
+    Cache files cleared:
+    - shots.json
+    - previous_shots.json
+    - threede_scenes.json
+    - migrated_shots.json
+
+    Note: Thumbnails are NOT cleared (expensive to regenerate).
+    """
+    cache_dir = os.environ.get("SHOTBOT_TEST_CACHE_DIR")
+    if not cache_dir:
+        return
+
+    cache_path = Path(cache_dir)
+    if not cache_path.exists():
+        return
+
+    # JSON cache files to clear (not thumbnails - expensive to recreate)
+    cache_files = [
+        "shots.json",
+        "previous_shots.json",
+        "threede_scenes.json",
+        "migrated_shots.json",
+    ]
+
+    # Clear from root cache dir and production subdirectory
+    for subdir in [cache_path, cache_path / "production"]:
+        if not subdir.exists():
+            continue
+        for filename in cache_files:
+            cache_file = subdir / filename
+            if cache_file.exists():
+                try:
+                    cache_file.unlink()
+                except OSError:
+                    pass  # Best-effort cleanup
 
 # Strict mode fails on cleanup exceptions (auto-enabled in CI)
 STRICT_CLEANUP = (
@@ -50,7 +94,8 @@ def reset_caches() -> Iterator[None]:
     including pure logic tests that don't touch Qt or singletons.
 
     Before test:
-    - Clear all utility caches
+    - Clear all utility caches (in-memory)
+    - Clear disk cache files (shots.json, etc.)
     - Re-enable caching (in case previous test disabled it)
     - Reset Config.SHOWS_ROOT
     - Clear OptimizedShotParser pattern cache
@@ -68,6 +113,9 @@ def reset_caches() -> Iterator[None]:
     # ===== BEFORE TEST: Lightweight setup =====
     clear_all_caches()
     enable_caching()  # Re-enable in case previous test disabled it
+
+    # Clear disk cache files (shots.json, etc.) for pristine state
+    _clear_disk_cache_files()
 
     # Reset Config.SHOWS_ROOT
     try:
@@ -149,4 +197,4 @@ def cleanup_state(reset_caches: None, reset_singletons: None) -> Iterator[None]:
     This fixture combines both lite and heavy cleanup. Use this if you explicitly
     need both, but prefer using reset_singletons directly for Qt tests.
     """
-    yield
+    return

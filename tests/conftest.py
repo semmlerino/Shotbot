@@ -374,18 +374,23 @@ def pytest_configure(config: pytest.Config) -> None:
         "real_subprocess: execute test with real subprocess (bypasses autouse mocks)",
     )
 
-    # Verify all registered singletons have reset() methods
+    # FAIL-FAST: Verify all registered singletons have reset() methods
     # This catches cases where new singletons are added without proper reset support
-    import warnings
-
+    # Hard failure ensures tests cannot run with improper singleton isolation
     from tests.fixtures.singleton_registry import SingletonRegistry
 
     missing = SingletonRegistry.verify_all_have_reset()
     if missing:
-        warnings.warn(
-            f"Singletons registered in SingletonRegistry but missing reset() method: {missing}. "
-            "Add a reset() classmethod to each singleton for proper test isolation.",
-            stacklevel=1,
+        pytest.fail(
+            f"SINGLETON ISOLATION FAILURE: The following singletons are registered "
+            f"in SingletonRegistry but missing reset() classmethod: {missing}\n\n"
+            f"Every singleton MUST implement reset() for proper test isolation.\n"
+            f"See CLAUDE.md 'Singleton Pattern & Test Isolation' section.\n\n"
+            f"To fix: Add a reset() classmethod to each singleton class that:\n"
+            f"  1. Cleans up any resources (shutdown, cleanup, etc.)\n"
+            f"  2. Resets cls._instance = None\n"
+            f"  3. Resets any class-level mutable state",
+            pytrace=False,
         )
 
 

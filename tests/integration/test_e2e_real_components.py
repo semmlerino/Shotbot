@@ -24,8 +24,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+
 if TYPE_CHECKING:
     from cache_manager import CacheManager
+    from type_definitions import ShotDict
 
 pytestmark = [pytest.mark.integration]
 
@@ -49,17 +51,16 @@ class TestCacheManagerE2E:
     @pytest.fixture
     def real_cache_manager(
         self, real_cache_dir: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> "CacheManager":
+    ) -> CacheManager:
         """Create a CacheManager with real filesystem operations."""
         # Point to our test cache directory
         monkeypatch.setenv("SHOTBOT_TEST_CACHE_DIR", str(real_cache_dir))
 
         from cache_manager import CacheManager
 
-        manager = CacheManager(cache_dir=real_cache_dir)
-        return manager
+        return CacheManager(cache_dir=real_cache_dir)
 
-    def test_shots_cache_persists_to_disk(self, real_cache_manager: "CacheManager") -> None:
+    def test_shots_cache_persists_to_disk(self, real_cache_manager: CacheManager) -> None:
         """Verify shot data is actually written to disk."""
         # Create test shot data
         shots = [
@@ -75,7 +76,7 @@ class TestCacheManagerE2E:
         assert cache_file.exists(), "Cache file should be created on disk"
 
         # Verify file contains correct data
-        with open(cache_file) as f:
+        with cache_file.open() as f:
             cached_data = json.load(f)
 
         # Cache format: {"data": [...], "cached_at": "..."}
@@ -105,7 +106,7 @@ class TestCacheManagerE2E:
         assert cached[0]["show"] == "SURVIVALTEST"
 
     def test_cache_ttl_expiration_real_time(
-        self, real_cache_manager: "CacheManager"
+        self, real_cache_manager: CacheManager
     ) -> None:
         """Verify TTL expiration works with real time passage."""
         shots = [{"show": "TTLTEST", "sequence": "SQ001", "shot": "SH0001"}]
@@ -123,7 +124,7 @@ class TestCacheManagerE2E:
         assert cached is None, "Expired cache should return None"
 
     def test_previous_shots_cache_replacement(
-        self, real_cache_manager: "CacheManager"
+        self, real_cache_manager: CacheManager
     ) -> None:
         """Verify previous shots cache replaces old data on write."""
         # First batch
@@ -440,8 +441,6 @@ class TestJSONSerializationE2E:
 
     def test_shot_data_json_roundtrip(self, tmp_path: Path) -> None:
         """Verify shot data survives JSON serialization."""
-        from type_definitions import ShotDict
-
         shot_data: list[ShotDict] = [
             {
                 "show": "TESTSHOW",
@@ -454,11 +453,11 @@ class TestJSONSerializationE2E:
 
         # Write to file
         json_file = tmp_path / "shots.json"
-        with open(json_file, "w") as f:
+        with json_file.open("w") as f:
             json.dump(shot_data, f)
 
         # Read back
-        with open(json_file) as f:
+        with json_file.open() as f:
             loaded: list[ShotDict] = json.load(f)
 
         assert len(loaded) == 1

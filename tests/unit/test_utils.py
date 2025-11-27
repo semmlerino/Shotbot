@@ -29,13 +29,12 @@ from unittest.mock import patch
 # Third-party imports
 import pytest
 
-# Local application imports
-from config import Config
-
 # Import _path_cache from path_validators directly (canonical source)
 # to avoid issues with module reloads breaking re-exports
 import path_validators
 
+# Local application imports
+from config import Config
 from utils import (
     FileUtils,
     ImageUtils,

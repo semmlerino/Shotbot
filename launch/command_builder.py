@@ -261,6 +261,27 @@ class CommandBuilder:
             return command
 
     @staticmethod
+    def wrap_for_background(command: str) -> str:
+        """Wrap command to run in background and exit terminal immediately.
+
+        Args:
+            command: Command to wrap
+
+        Returns:
+            Command wrapped with backgrounding: "({command}) & disown; exit"
+
+        Notes:
+            - Subshell (...) groups the command for clean backgrounding
+            - `&` runs the subshell in background
+            - `disown` removes it from shell's job table (prevents SIGHUP on exit)
+            - `exit` closes the terminal immediately
+            - Useful for GUI apps where terminal window is unwanted clutter
+            - Output is lost after exit - ensure logging is set up before this
+        """
+        logger.debug("Wrapping command for background execution")
+        return f"({command}) & disown; exit"
+
+    @staticmethod
     def build_full_command(
         app_command: str,
         workspace: str | None,
@@ -268,6 +289,7 @@ class CommandBuilder:
         rez_packages: list[str] | None = None,
         apply_nuke_fixes: bool = False,
         add_logging_redirect: bool = True,
+        run_in_background: bool = False,
     ) -> str:
         """Build complete command with all transformations applied.
 
@@ -276,6 +298,7 @@ class CommandBuilder:
         2. Workspace wrapping (if workspace provided)
         3. Rez environment wrapping (if packages provided)
         4. Logging redirection (if requested)
+        5. Background wrapping (if requested) - must be last
 
         Args:
             app_command: Base application command
@@ -284,6 +307,7 @@ class CommandBuilder:
             rez_packages: Optional Rez packages to load
             apply_nuke_fixes: Whether to apply Nuke environment fixes
             add_logging_redirect: Whether to add logging redirection
+            run_in_background: Whether to background app and exit terminal
 
         Returns:
             Fully assembled command ready for execution
@@ -291,7 +315,8 @@ class CommandBuilder:
         Notes:
             - Transformations are applied in the order listed above
             - Workspace path must be pre-validated with validate_path()
-            - Order matters: workspace -> rez -> logging
+            - Order matters: workspace -> rez -> logging -> background
+            - Background wrapping must be last since it adds `& disown; exit`
         """
         command = app_command
 
@@ -310,5 +335,9 @@ class CommandBuilder:
         # 4. Add logging redirection if requested
         if add_logging_redirect:
             command = CommandBuilder.add_logging(command)
+
+        # 5. Wrap for background if requested (must be last)
+        if run_in_background:
+            command = CommandBuilder.wrap_for_background(command)
 
         return command

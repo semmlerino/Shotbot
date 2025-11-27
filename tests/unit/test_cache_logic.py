@@ -15,10 +15,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pytest
 
 if TYPE_CHECKING:
-    pass
+    from cache_manager import CacheManager
 
 
 def _validate_path(path: Path | str, description: str = "Path") -> bool:
@@ -199,7 +198,7 @@ class TestCacheManagerWithCaching:
     """Test CacheManager behavior with caching enabled."""
 
     def test_shots_cache_survives_clear_all_caches(
-        self, isolated_cache_manager: "CacheManager"
+        self, isolated_cache_manager: CacheManager
     ) -> None:
         """Test that CacheManager shot data survives clear_all_caches.
 

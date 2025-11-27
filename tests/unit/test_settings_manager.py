@@ -500,3 +500,17 @@ class TestSettingsManager:
         assert settings_manager.get_current_tab() == 0
         default_size = settings_manager.get_window_size()
         assert default_size.width() == Config.DEFAULT_WINDOW_WIDTH
+
+    def test_background_gui_apps(self, settings_manager: SettingsManager) -> None:
+        """Test background GUI apps boolean setting."""
+        # Test default is False
+        default = settings_manager.get_background_gui_apps()
+        assert default is False
+
+        # Test setting to True
+        settings_manager.set_background_gui_apps(True)
+        assert settings_manager.get_background_gui_apps() is True
+
+        # Test setting back to False
+        settings_manager.set_background_gui_apps(False)
+        assert settings_manager.get_background_gui_apps() is False

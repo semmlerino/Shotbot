@@ -373,11 +373,17 @@ class TestProcessMetricsBehavior:
 class TestProcessPoolManagerBehavior:
     """Test ProcessPoolManager behavior with injected dependencies."""
 
+    @pytest.mark.real_subprocess  # Test real singleton, not mock
     def test_singleton_ensures_single_instance(self) -> None:
         """Test that singleton pattern creates only one instance.
 
         CORRECT: Testing behavior (single instance), not implementation.
+        Note: Uses real_subprocess marker to bypass autouse mock that replaces
+        the singleton with TestProcessPool.
         """
+        # Reset to ensure fresh singleton state
+        ProcessPoolManager.reset()
+
         # Create multiple "instances"
         manager1 = ProcessPoolManager(max_workers=2)
         manager2 = ProcessPoolManager(max_workers=4)
@@ -389,6 +395,7 @@ class TestProcessPoolManagerBehavior:
 
         # Cleanup
         manager1.shutdown()
+        ProcessPoolManager.reset()
 
     def test_command_execution_with_caching(self, qapp) -> None:
         """Test that commands are cached and reused.

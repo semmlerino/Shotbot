@@ -158,6 +158,7 @@ class SettingsManager(LoggingMixin, QObject):
                 "terminal_command": "gnome-terminal",
                 "environment_variables": {},  # Additional env vars for launches
                 "working_directory": "",  # Default working directory
+                "background_gui_apps": False,  # Close terminal after launching GUI apps
             },
             "ui": {
                 "grid_columns": Config.GRID_COLUMNS,
@@ -465,6 +466,20 @@ class SettingsManager(LoggingMixin, QObject):
         """Set file type associations."""
         self.settings.setValue("applications/file_associations", associations)
         self.settings_changed.emit("applications/file_associations", associations)
+
+    def get_background_gui_apps(self) -> bool:
+        """Get whether to run GUI apps in background (close terminal immediately).
+
+        When True, launching 3DE, Nuke, Maya etc. will background the process
+        and close the terminal window immediately, reducing desktop clutter.
+        """
+        value = self.settings.value("applications/background_gui_apps", False, type=bool)
+        return bool(value)
+
+    def set_background_gui_apps(self, enabled: bool) -> None:
+        """Set whether to run GUI apps in background."""
+        self.settings.setValue("applications/background_gui_apps", enabled)
+        self.settings_changed.emit("applications/background_gui_apps", enabled)
 
     def get_custom_launchers(self) -> list[dict[str, object]]:
         """Get custom launcher definitions."""

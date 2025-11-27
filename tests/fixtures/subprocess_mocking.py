@@ -21,14 +21,53 @@ Fixture Types:
 
 OPT-OUT: Use @pytest.mark.real_subprocess to skip autouse mocks for tests that
 need real subprocess behavior.
+
+DEBUGGING:
+    Set SHOTBOT_TEST_TRACK_POPEN=1 to enable call tracking in the autouse mock.
+    Use get_popen_calls() to retrieve tracked commands for debugging.
 """
 
 from __future__ import annotations
 
 import io
+import os
 from unittest.mock import MagicMock
 
 import pytest
+
+
+# ==============================================================================
+# OPT-IN CALL TRACKING (for debugging)
+# ==============================================================================
+# Module-level call tracking, enabled via SHOTBOT_TEST_TRACK_POPEN=1
+_popen_calls: list[list[str]] = []
+_TRACK_POPEN = os.environ.get("SHOTBOT_TEST_TRACK_POPEN", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
+
+def get_popen_calls() -> list[list[str]]:
+    """Get commands passed to Popen (only populated if SHOTBOT_TEST_TRACK_POPEN=1).
+
+    Returns a copy of the tracked calls list for the current test.
+
+    Example:
+        # Enable tracking: SHOTBOT_TEST_TRACK_POPEN=1 pytest ...
+        from tests.fixtures.subprocess_mocking import get_popen_calls
+        calls = get_popen_calls()
+        assert any("nuke" in " ".join(c) for c in calls)
+    """
+    return _popen_calls.copy()
+
+
+def clear_popen_calls() -> None:
+    """Clear tracked Popen calls.
+
+    Called automatically at the start of each test when tracking is enabled.
+    """
+    _popen_calls.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -83,6 +122,9 @@ def mock_subprocess_popen(
     This mock respects the `text=True` argument: when text mode is requested,
     it returns StringIO objects and strings; otherwise BytesIO and bytes.
 
+    Call tracking: Set SHOTBOT_TEST_TRACK_POPEN=1 to enable command tracking.
+    Use get_popen_calls() to retrieve tracked commands for debugging.
+
     Args:
         request: Pytest request for marker checking
         monkeypatch: Pytest monkeypatch fixture
@@ -93,8 +135,20 @@ def mock_subprocess_popen(
     if "real_subprocess" in [m.name for m in request.node.iter_markers()]:
         return  # Skip mock for this test
 
+    # Clear tracked calls at the start of each test (if tracking enabled)
+    if _TRACK_POPEN:
+        clear_popen_calls()
+
     def _create_mock_popen(*args: object, **kwargs: object) -> MagicMock:
         """Create Popen mock that respects text mode."""
+        # Track the command (only if enabled via SHOTBOT_TEST_TRACK_POPEN=1)
+        if _TRACK_POPEN and args:
+            cmd = args[0]
+            if isinstance(cmd, (list, tuple)):
+                _popen_calls.append([str(c) for c in cmd])
+            else:
+                _popen_calls.append([str(cmd)])
+
         # Check if text mode requested (text=True, encoding=..., or universal_newlines=True)
         text_mode = (
             kwargs.get("text", False)
