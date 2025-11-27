@@ -29,6 +29,8 @@ from PySide6.QtWidgets import (
 from cache_manager import CacheManager
 from qt_widget_mixin import QtWidgetMixin
 from runnable_tracker import get_tracker
+from scene_file import SceneFile
+from shot_files_panel import ShotFilesPanel
 from typing_compat import override
 from utils import ImageUtils
 
@@ -39,7 +41,13 @@ if TYPE_CHECKING:
 
 
 class ShotInfoPanel(QtWidgetMixin, QWidget):
-    """Panel displaying current shot information."""
+    """Panel displaying current shot information and associated files."""
+
+    # Signals
+    file_open_requested: Signal = Signal(SceneFile)
+
+    # Instance attributes
+    _files_panel: ShotFilesPanel
 
     def __init__(
         self,
@@ -93,10 +101,16 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
 
     def _setup_ui(self) -> None:
         """Set up the UI."""
-        # Main layout
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(15)
+        # Main vertical layout
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
+
+        # Top section: thumbnail + info (horizontal)
+        top_widget = QWidget()
+        top_layout = QHBoxLayout(top_widget)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(15)
 
         # Thumbnail preview
         self.thumbnail_label: QLabel = QLabel()
@@ -110,7 +124,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
                 border-radius: 4px;
             }
         """)
-        layout.addWidget(self.thumbnail_label)
+        top_layout.addWidget(self.thumbnail_label)
 
         # Info section
         info_layout = QVBoxLayout()
@@ -143,7 +157,16 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         info_layout.addWidget(self.path_label)
 
         info_layout.addStretch()
-        layout.addLayout(info_layout, 1)
+        top_layout.addLayout(info_layout, 1)
+
+        main_layout.addWidget(top_widget)
+
+        # Files panel (collapsible sections for 3DE, Maya, Nuke)
+        self._files_panel = ShotFilesPanel(parent=self)
+        _ = self._files_panel.file_open_requested.connect(
+            self.file_open_requested.emit
+        )
+        main_layout.addWidget(self._files_panel)
 
         # Style the panel
         self.setStyleSheet("""
@@ -154,13 +177,15 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             }
         """)
 
-        # Set minimum height
-        self.setMinimumHeight(150)
+        # Set minimum height (increased to accommodate files panel)
+        self.setMinimumHeight(200)
 
     def set_shot(self, shot: Shot | None) -> None:
         """Set the current shot to display."""
         self._current_shot = shot
         self._update_display()
+        # Update files panel
+        self._files_panel.set_shot(shot)
 
     def _update_display(self) -> None:
         """Update the display with current shot info."""

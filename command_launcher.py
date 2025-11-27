@@ -707,6 +707,101 @@ class CommandLauncher(LoggingMixin, QObject):
         # Use template method for terminal launch
         return self._execute_launch(full_command, app_name, " with scene")
 
+    def launch_with_file(
+        self,
+        app_name: str,
+        file_path: Path,
+        workspace_path: str,
+    ) -> bool:
+        """Launch an application with a specific file.
+
+        Args:
+            app_name: Name of the application to launch (e.g., '3de', 'maya', 'nuke')
+            file_path: Path to the file to open
+            workspace_path: Shot workspace path for environment setup
+
+        Returns:
+            True if launch was successful, False otherwise
+        """
+        if app_name not in Config.APPS:
+            self._emit_error(f"Unknown application: {app_name}")
+            return False
+
+        # Get the command
+        command = Config.APPS[app_name]
+
+        # Include the file in the command
+        # Validate and escape file path to prevent injection
+        try:
+            safe_file_path = CommandBuilder.validate_path(str(file_path))
+            # Add app-specific command-line flags for file
+            if app_name == "3de":
+                command = f"{command} -open {safe_file_path}"
+            elif app_name == "maya":
+                command = f"{command} -file {safe_file_path}"
+            else:
+                # Nuke and others accept file without flag
+                command = f"{command} {safe_file_path}"
+        except ValueError as e:
+            self._emit_error(f"Invalid file path: {e!s}")
+            return False
+
+        # Validate workspace before attempting launch
+        if not self._validate_workspace_before_launch(workspace_path, app_name):
+            return False
+
+        # Pre-flight: Check if ws command is available
+        if not self.env_manager.is_ws_available():
+            self._emit_error(
+                "Workspace command 'ws' not found. "
+                "Ensure workspace tools are installed and on PATH."
+            )
+            return False
+
+        # Build full command with ws (workspace setup)
+        # Validate and escape workspace path to prevent injection
+        try:
+            safe_workspace_path = CommandBuilder.validate_path(workspace_path)
+
+            # Apply Nuke environment fixes if needed
+            env_fixes = self._apply_nuke_environment_fixes(app_name, "File launch")
+
+            # Build workspace command with environment fixes
+            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
+        except ValueError as e:
+            self._emit_error(f"Invalid workspace path: {e!s}")
+            return False
+
+        # Wrap with rez environment if needed
+        should_wrap_rez = self.env_manager.is_rez_available(Config) and (
+            Config.REZ_FORCE_WRAP or not Config.REZ_ALREADY_AVAILABLE
+        )
+        if should_wrap_rez:
+            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
+            if rez_packages:
+                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
+            else:
+                full_command = ws_command
+        else:
+            full_command = ws_command
+            if Config.REZ_ALREADY_AVAILABLE and not Config.REZ_FORCE_WRAP:
+                self.logger.debug(
+                    f"Rez wrapping skipped for {app_name} file launch (REZ_ALREADY_AVAILABLE=True)"
+                )
+
+        # Add logging redirection for debugging
+        full_command = CommandBuilder.add_logging(full_command, Config)
+
+        # Log the command
+        timestamp = self.timestamp
+        self.command_executed.emit(
+            timestamp,
+            f"{full_command} (File: {file_path.name})",
+        )
+
+        # Use template method for terminal launch
+        return self._execute_launch(full_command, app_name, " with file")
+
     def launch_app_with_scene_context(
         self,
         app_name: str,

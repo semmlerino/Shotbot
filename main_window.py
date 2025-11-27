@@ -112,6 +112,7 @@ from qt_widget_mixin import QtWidgetMixin
 from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
+from scene_file import SceneFile
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
@@ -636,6 +637,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_shot_recover_crashes_requested
         )
 
+        # Shot info panel - file open requests
+        _ = self.shot_info_panel.file_open_requested.connect(
+            self._on_file_open_requested
+        )
+
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
         # Handle app launch with scene context (signal emits app_name, scene)
@@ -1150,6 +1156,27 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Launch the application
         self.launcher_controller.launch_app(app_name)
+
+    def _on_file_open_requested(self, scene_file: SceneFile) -> None:
+        """Handle request to open a file from the shot files panel.
+
+        Args:
+            scene_file: The scene file to open
+        """
+        # Get current shot for workspace context
+        current_shot = self.shot_grid.selected_shot
+        if current_shot is None:
+            self.logger.warning("Cannot open file: no shot selected")
+            return
+
+        self.logger.info(f"Opening file: {scene_file.path}")
+
+        # Launch the appropriate application with the file and workspace
+        _ = self.command_launcher.launch_with_file(
+            scene_file.app_name,
+            scene_file.path,
+            current_shot.workspace_path,
+        )
 
     def _apply_show_filter(
         self, item_model: object, model: object, show: str, tab_name: str
