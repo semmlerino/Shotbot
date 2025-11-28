@@ -130,3 +130,17 @@ class FilesSection(QtWidgetMixin, QWidget):
             Total number of files
         """
         return self._files_tab.get_total_file_count()
+
+    def set_default_file(self, file_type: FileType, file: SceneFile | None) -> None:
+        """Set the default file indicator for a file type.
+
+        Args:
+            file_type: The file type (tab) to update
+            file: The file to mark as default, or None to clear
+        """
+        self._files_tab.set_default_file(file_type, file)
+
+    def clear_default_files(self) -> None:
+        """Clear all default file indicators."""
+        for file_type in FileType:
+            self._files_tab.set_default_file(file_type, None)

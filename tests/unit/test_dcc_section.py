@@ -112,24 +112,25 @@ class TestDCCSectionInit:
 
         assert "3DEqualizer" in section._name_label.text()
 
-    def test_displays_shortcut_badge(
+    def test_no_shortcut_badge_in_header(
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
-        """Section displays the keyboard shortcut."""
+        """Section header no longer displays shortcut badge (removed for cleaner UI)."""
         section = DCCSection(threede_config)
         qtbot.addWidget(section)
         section.show()
         process_qt_events()
 
-        # Find shortcut badge by searching for label with shortcut text
+        # Verify shortcut badge is NOT present in header (only in Quick Launch now)
         from PySide6.QtWidgets import QLabel
 
-        found_shortcut = False
+        found_shortcut_badge = False
         for child in section.findChildren(QLabel):
-            if child.text() == "3":
-                found_shortcut = True
+            # Check for standalone shortcut badge (just "3", not part of longer text)
+            if child.text().strip() == "3":
+                found_shortcut_badge = True
                 break
-        assert found_shortcut
+        assert not found_shortcut_badge, "Shortcut badge should not be in DCC header"
 
     def test_launch_button_disabled_initially(
         self, qtbot: QtBot, threede_config: DCCConfig

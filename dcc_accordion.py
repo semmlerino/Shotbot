@@ -230,3 +230,31 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         if section:
             return section.get_options()
         return None
+
+    def set_launch_description(
+        self, app_name: str, version: str | None, plate: str | None = None
+    ) -> None:
+        """Set launch description for a specific DCC section.
+
+        Args:
+            app_name: App name (e.g., "3de", "nuke")
+            version: Version string (e.g., "v005") or None to hide
+            plate: Plate name (e.g., "FG01") or None
+        """
+        section = self._sections.get(app_name)
+        if section:
+            section.set_launch_description(version, plate)
+
+    def get_selected_plate(self, app_name: str) -> str | None:
+        """Get the selected plate for a specific DCC section.
+
+        Args:
+            app_name: App name (e.g., "3de", "nuke")
+
+        Returns:
+            Selected plate name or None
+        """
+        section = self._sections.get(app_name)
+        if section:
+            return section.get_selected_plate()
+        return None

@@ -53,6 +53,7 @@ class FileTableModel(QAbstractTableModel):
         """
         super().__init__(parent)
         self._files: list[SceneFile] = []
+        self._current_default: SceneFile | None = None
 
     def set_files(self, files: list[SceneFile]) -> None:
         """Set the files to display.
@@ -76,6 +77,34 @@ class FileTableModel(QAbstractTableModel):
         if 0 <= row < len(self._files):
             return self._files[row]
         return None
+
+    def set_current_default(self, file: SceneFile | None) -> None:
+        """Mark a file as the current default (shows arrow indicator).
+
+        Args:
+            file: The file to mark as default, or None to clear
+        """
+        old_default = self._current_default
+        self._current_default = file
+
+        # Refresh affected rows
+        self._refresh_row_for_file(old_default)
+        self._refresh_row_for_file(file)
+
+    def _refresh_row_for_file(self, file: SceneFile | None) -> None:
+        """Emit dataChanged for the row containing this file.
+
+        Args:
+            file: The file whose row needs refresh, or None
+        """
+        if file is None:
+            return
+        try:
+            row = self._files.index(file)
+            idx = self.index(row, 0)
+            self.dataChanged.emit(idx, idx)
+        except ValueError:
+            pass  # File not in list
 
     @override
     def rowCount(
@@ -129,7 +158,11 @@ class FileTableModel(QAbstractTableModel):
 
         if role == Qt.ItemDataRole.DisplayRole:
             if col == 0:  # Version
-                return f"v{file.version:03d}" if file.version else "—"
+                version_str = f"v{file.version:03d}" if file.version else "—"
+                # Show arrow indicator if this is the current default
+                if file == self._current_default:
+                    return f"-> {version_str}"
+                return version_str
             elif col == 1:  # Age
                 return file.relative_age
             elif col == 2:  # User
@@ -393,3 +426,14 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
         idx = self._tab_indices.get(file_type)
         if idx is not None:
             self._tab_widget.setCurrentIndex(idx)
+
+    def set_default_file(self, file_type: FileType, file: SceneFile | None) -> None:
+        """Set the default file indicator for a specific file type.
+
+        Args:
+            file_type: The file type (tab) to update
+            file: The file to mark as default, or None to clear
+        """
+        model = self._models.get(file_type)
+        if model:
+            model.set_current_default(file)

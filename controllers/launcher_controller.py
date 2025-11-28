@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from launcher_manager import LauncherManager
     from log_viewer import LogViewer
     from right_panel import RightPanelWidget
+    from scene_file import SceneFile
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
@@ -105,14 +106,11 @@ class LauncherController(LoggingMixin):
     def _setup_signals(self) -> None:
         """Setup signal connections for launcher functionality."""
         # Connect right panel signals
-        # Note: launch_requested emits (app_name: str, options: dict) but launch_app
-        # expects (app_name: str, captured_shot: Shot | None). We discard options here
-        # because launch_app retrieves them via right_panel.get_dcc_options().
+        # Note: launch_requested emits (app_name: str, options: dict). Options may
+        # contain selected_file from Files panel selection.
         self.logger.info(f"🔌 Connecting launch_requested signal (controller id={id(self)})")
-        _ = self.window.right_panel.launch_requested.connect(
-            lambda app_name, _options: self.launch_app(app_name)
-        )
-        self.logger.info(f"✓ launch_requested connected to {id(self)}.launch_app")
+        _ = self.window.right_panel.launch_requested.connect(self._on_launch_requested)
+        self.logger.info(f"✓ launch_requested connected to {id(self)}._on_launch_requested")
         # Note: Custom launchers not yet implemented in new right panel
 
         # Connect command launcher signals
@@ -140,6 +138,20 @@ class LauncherController(LoggingMixin):
             )
 
         self.logger.debug("Launcher signals connected")
+
+    def _on_launch_requested(
+        self, app_name: str, options: dict[str, Any]
+    ) -> None:
+        """Handle launch request from right panel.
+
+        Extracts selected_file from options if present and passes to launch_app.
+
+        Args:
+            app_name: Application to launch
+            options: Launch options, may include 'selected_file' SceneFile
+        """
+        selected_file = options.get("selected_file")
+        self.launch_app(app_name, selected_file=selected_file)
 
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context for launching.
@@ -310,13 +322,20 @@ class LauncherController(LoggingMixin):
         )
         return self.window.command_launcher.launch_app(app_name, context)
 
-    def launch_app(self, app_name: str, captured_shot: Shot | None = None) -> None:
+    def launch_app(
+        self,
+        app_name: str,
+        captured_shot: Shot | None = None,
+        selected_file: SceneFile | None = None,
+    ) -> None:
         """Launch an application.
 
         Args:
             app_name: Name of the application to launch
             captured_shot: Shot context captured at click time to prevent race conditions.
                           If None, falls back to current shot (for backwards compatibility).
+            selected_file: Optional file selected from Files panel. If provided, launches
+                          this specific file directly.
         """
         # Use captured shot if provided, otherwise fall back to current shot
         # This prevents race conditions where user switches shots during button reset window
@@ -326,8 +345,12 @@ class LauncherController(LoggingMixin):
         if not self._validate_launch_context():
             return
 
-        # Check if we have a current 3DE scene selected
-        if self._current_scene:
+        # Priority 1: User-selected file from Files panel
+        if selected_file is not None:
+            self.logger.info(f"Using selected file: {selected_file.name}")
+            success = self._launch_with_selected_file(app_name, selected_file)
+        # Priority 2: Current 3DE scene from scene grid
+        elif self._current_scene:
             self.logger.info(f"Using scene context: {self._current_scene.full_name}")
             # Launch with scene context
             if app_name == "3de":
@@ -390,6 +413,39 @@ class LauncherController(LoggingMixin):
             self.window.update_status(f"Launched {app_name} with {scene.user}'s scene")
             return True
         self.window.update_status(f"Failed to launch {app_name} with scene")
+        return False
+
+    def _launch_with_selected_file(
+        self, app_name: str, scene_file: SceneFile
+    ) -> bool:
+        """Launch an application with a user-selected file from Files panel.
+
+        Args:
+            app_name: Name of the application to launch
+            scene_file: SceneFile selected by user in Files panel
+
+        Returns:
+            True if launch was successful, False otherwise
+        """
+        from pathlib import Path
+
+        # Get workspace path from current shot
+        if not self._current_shot:
+            self.logger.error("No shot context for selected file launch")
+            return False
+
+        workspace_path = self._current_shot.workspace_path
+
+        # Launch using the file path
+        file_path = Path(scene_file.path)
+        if self.window.command_launcher.launch_with_file(
+            app_name, file_path, workspace_path
+        ):
+            self.window.update_status(
+                f"Launched {app_name} with {scene_file.name}"
+            )
+            return True
+        self.window.update_status(f"Failed to launch {app_name} with file")
         return False
 
     def _launch_app_with_scene_context(

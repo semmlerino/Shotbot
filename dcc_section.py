@@ -250,22 +250,6 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         header_layout.addStretch()
 
-        # Shortcut badge
-        shortcut_badge = QLabel(self.config.shortcut.upper())
-        shortcut_badge.setStyleSheet("""
-            QLabel {
-                background-color: #333;
-                color: #888;
-                font-size: 9px;
-                font-weight: bold;
-                padding: 2px 5px;
-                border-radius: 3px;
-                border: 1px solid #444;
-            }
-        """)
-        shortcut_badge.setToolTip(f"Press '{self.config.shortcut.upper()}' to launch")
-        header_layout.addWidget(shortcut_badge)
-
         container_layout.addWidget(header)
 
         # Make header clickable
@@ -310,6 +294,19 @@ class DCCSection(QtWidgetMixin, QWidget):
         tooltip += f" (Shortcut: {self.config.shortcut.upper()})"
         self._launch_btn.setToolTip(tooltip)
         content_layout.addWidget(self._launch_btn)
+
+        # Launch description label (shows what will be opened)
+        self._launch_description = QLabel()
+        self._launch_description.setStyleSheet("""
+            QLabel {
+                color: #888;
+                font-size: 11px;
+                margin-top: -4px;
+            }
+        """)
+        self._launch_description.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._launch_description.setVisible(False)
+        content_layout.addWidget(self._launch_description)
 
         # Checkboxes
         if self.config.checkboxes:
@@ -518,3 +515,21 @@ class DCCSection(QtWidgetMixin, QWidget):
             self._version_label.setVisible(True)
         else:
             self._version_label.setVisible(False)
+
+    def set_launch_description(
+        self, version: str | None, plate: str | None = None
+    ) -> None:
+        """Update the 'Opens:' description below launch button.
+
+        Args:
+            version: Version string (e.g., "v005") or None to hide
+            plate: Plate name (e.g., "FG01") or None
+        """
+        if version:
+            parts = [version]
+            if plate:
+                parts.append(plate)
+            self._launch_description.setText(f"Opens: {' | '.join(parts)}")
+            self._launch_description.setVisible(True)
+        else:
+            self._launch_description.setVisible(False)

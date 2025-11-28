@@ -12,7 +12,7 @@ interface for the main window to interact with.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, Any, final
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -70,6 +70,13 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         self._settings_manager = settings_manager
         self._current_shot: Shot | None = None
         self._file_finder = ShotFileFinder()
+
+        # Per-DCC selected file state (user clicks file row to set)
+        self._selected_files: dict[str, SceneFile | None] = {
+            "3de": None,
+            "nuke": None,
+            "maya": None,
+        }
 
         self._setup_ui()
         self._connect_signals()
@@ -162,11 +169,12 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         # Quick launch signals - forward with default options
         _ = self._quick_launch.launch_requested.connect(self._on_quick_launch)
 
-        # DCC accordion signals - forward directly
-        _ = self._dcc_accordion.launch_requested.connect(self.launch_requested)
+        # DCC accordion signals - route through handler to inject selected file
+        _ = self._dcc_accordion.launch_requested.connect(self._on_dcc_launch)
 
         # Files section signals
         _ = self._files_section.file_open_requested.connect(self.file_open_requested)
+        _ = self._files_section.file_selected.connect(self._on_file_selected)
 
         # Save Files section expanded state to settings
         if self._settings_manager is not None:
@@ -180,13 +188,98 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
     def _on_quick_launch(self, app_name: str) -> None:
         """Handle quick launch request.
 
-        Gets options from the corresponding DCC section and emits launch signal.
+        Gets options from the corresponding DCC section, injects selected file,
+        and emits launch signal.
 
         Args:
             app_name: Name of the app to launch
         """
-        options = self._dcc_accordion.get_options(app_name) or {}
+        base_options = self._dcc_accordion.get_options(app_name) or {}
+        # Create mutable options dict that can hold SceneFile
+        options: dict[str, Any] = dict(base_options)
+        # Inject selected file if available
+        selected_file = self._selected_files.get(app_name)
+        if selected_file:
+            options["selected_file"] = selected_file
         self.launch_requested.emit(app_name, options)
+
+    def _on_dcc_launch(
+        self, app_name: str, base_options: dict[str, bool | str | None]
+    ) -> None:
+        """Handle launch from DCC accordion section.
+
+        Injects selected file into options before forwarding.
+
+        Args:
+            app_name: Name of the app to launch
+            base_options: Options from the DCC section
+        """
+        # Create mutable options dict that can hold SceneFile
+        options: dict[str, Any] = dict(base_options)
+        # Inject selected file if available
+        selected_file = self._selected_files.get(app_name)
+        if selected_file:
+            options["selected_file"] = selected_file
+        self.launch_requested.emit(app_name, options)
+
+    def _on_file_selected(self, scene_file: SceneFile) -> None:
+        """Handle user clicking a file row - set as default for that DCC.
+
+        Args:
+            scene_file: The selected scene file
+        """
+        app_name = self._file_type_to_app(scene_file.file_type)
+        if app_name:
+            self._selected_files[app_name] = scene_file
+            self._update_default_indicators(app_name, scene_file)
+
+    def _file_type_to_app(self, file_type: FileType) -> str | None:
+        """Map FileType to app name string.
+
+        Args:
+            file_type: The file type to map
+
+        Returns:
+            App name string or None if not mappable
+        """
+        return {
+            FileType.THREEDE: "3de",
+            FileType.MAYA: "maya",
+            FileType.NUKE: "nuke",
+        }.get(file_type)
+
+    def _update_default_indicators(
+        self, app_name: str, file: SceneFile | None
+    ) -> None:
+        """Update all UI components when selected default changes.
+
+        Args:
+            app_name: The app name (e.g., "3de", "nuke", "maya")
+            file: The selected file, or None to clear
+        """
+        if file:
+            version = f"v{file.version:03d}" if file.version else None
+            plate = self._dcc_accordion.get_selected_plate(app_name)
+
+            # Update Files table arrow indicator
+            self._files_section.set_default_file(file.file_type, file)
+
+            # Update DCC launch description ("Opens: v005 | FG01")
+            self._dcc_accordion.set_launch_description(app_name, version, plate)
+
+            # Update Quick Launch tooltip
+            self._quick_launch.set_latest_version(app_name, version)
+        else:
+            # Clear indicators
+            file_type_map = {
+                "3de": FileType.THREEDE,
+                "maya": FileType.MAYA,
+                "nuke": FileType.NUKE,
+            }
+            file_type = file_type_map.get(app_name)
+            if file_type:
+                self._files_section.set_default_file(file_type, None)
+            self._dcc_accordion.set_launch_description(app_name, None)
 
     def set_shot(self, shot: Shot | None) -> None:
         """Set the current shot.
@@ -197,6 +290,15 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         Args:
             shot: The shot to display, or None to clear
         """
+        # Clear file selections when shot changes (files are shot-specific)
+        if shot != self._current_shot:
+            for app_name in self._selected_files:
+                self._selected_files[app_name] = None
+            self._files_section.clear_default_files()
+            # Also clear launch descriptions
+            for app_name in ["3de", "nuke", "maya"]:
+                self._dcc_accordion.set_launch_description(app_name, None)
+
         self._current_shot = shot
 
         # Update all child widgets
