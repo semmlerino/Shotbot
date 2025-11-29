@@ -1,1 +1,1 @@
-feat: Add double-click file opening and context menu to DCC sections
+chore: Update encoded releases and add template assets

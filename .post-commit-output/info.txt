@@ -1,5 +1,5 @@
-Post-commit hook executed at Sat Nov 29 14:13:39 GMT 2025
-Commit: ab8e1024afba2b0e4a408f652159a97696dd9d23
+Post-commit hook executed at Sat Nov 29 14:16:07 GMT 2025
+Commit: 77bee6fa514b111bba366a6feb0e5991bf25fda0
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: feat: Add double-click file opening and context menu to DCC sections
+Message: chore: Update encoded releases and add template assets
