@@ -399,15 +399,22 @@ def vfx_production_environment(
 
 @pytest.fixture
 def launcher_controller_target(qtbot: Any) -> Any:
-    """Create a mock target object for LauncherController testing."""
+    """Create a mock target object for LauncherController testing.
+
+    Uses spec=LauncherTarget to ensure the mock only has attributes defined
+    in the Protocol. This catches bugs where code accesses attributes that
+    don't exist on the real MainWindow.
+    """
     from unittest.mock import Mock
 
     from PySide6.QtWidgets import QMenu, QStatusBar
 
-    target = Mock()
+    from controllers.launcher_controller import LauncherTarget
+
+    # Use spec= to constrain mock to Protocol attributes only
+    target = Mock(spec=LauncherTarget)
     target.command_launcher = Mock()
     target.launcher_manager = None
-    # right_panel replaces launcher_panel in the new UI
     target.right_panel = Mock()
     target.right_panel.get_dcc_options = Mock(return_value={
         "open_latest_scene": True,
@@ -423,19 +430,25 @@ def launcher_controller_target(qtbot: Any) -> Any:
 
 @pytest.fixture
 def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> Any:
-    """Create a mock target object for ThreeDEController testing."""
+    """Create a mock target object for ThreeDEController testing.
+
+    Uses spec=ThreeDETarget to ensure the mock only has attributes defined
+    in the Protocol. This catches bugs where code accesses attributes that
+    don't exist on the real MainWindow.
+    """
     from unittest.mock import Mock
 
     from PySide6.QtWidgets import QStatusBar
 
     from controllers.launcher_controller import LauncherController
+    from controllers.threede_controller import ThreeDETarget
 
-    target = Mock()
+    # Use spec= to constrain mock to Protocol attributes only
+    # This prevents over-mocking and catches missing attribute bugs
+    target = Mock(spec=ThreeDETarget)
 
-    # Widget references
+    # Widget references (must match Protocol)
     target.threede_shot_grid = Mock()
-    target.shot_info_panel = Mock()  # Legacy - some tests may still reference this
-    # right_panel replaces launcher_panel in new UI
     target.right_panel = Mock()
     target.right_panel.get_dcc_options = Mock(return_value={
         "open_latest_scene": True,
@@ -443,7 +456,7 @@ def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> An
     })
     target.status_bar = QStatusBar(parent=None)
 
-    # Model references
+    # Model references (must match Protocol)
     target.shot_model = Mock()
     target.threede_scene_model = Mock()
     target.threede_item_model = Mock()
@@ -453,7 +466,7 @@ def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> An
     # Create a real LauncherController for this target
     target.launcher_controller = LauncherController(launcher_controller_target)
 
-    # Methods
+    # Methods (must match Protocol)
     target.setWindowTitle = Mock()
     target.update_status = Mock()
     target.update_launcher_menu_availability = Mock()

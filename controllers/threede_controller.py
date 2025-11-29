@@ -37,10 +37,9 @@ if TYPE_CHECKING:
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
     from controllers.launcher_controller import LauncherController
-    from launcher_panel import LauncherPanel
 
     # Local type imports
-    from shot_info_panel import ShotInfoPanel
+    from right_panel import RightPanelWidget
     from shot_model import ShotModel
     from threede_grid_view import ThreeDEGridView
     from threede_item_model import ThreeDEItemModel
@@ -67,8 +66,7 @@ class ThreeDETarget(Protocol):
 
     # Widget references needed for 3DE operations
     threede_shot_grid: ThreeDEGridView
-    shot_info_panel: ShotInfoPanel
-    launcher_panel: LauncherPanel
+    right_panel: RightPanelWidget
     status_bar: QStatusBar
 
     # Model references for data access
@@ -523,11 +521,8 @@ class ThreeDEController(LoggingMixin):
             workspace_path=scene.workspace_path,
         )
 
-        # Update shot info panel
-        self.window.shot_info_panel.set_shot(shot)
-
-        # Update launcher panel to enable buttons (showing scene context)
-        self.window.launcher_panel.set_shot(shot)
+        # Update right panel with shot info
+        self.window.right_panel.set_shot(shot)
 
         # Update custom launcher menu availability
         self.window.update_launcher_menu_availability(True)
