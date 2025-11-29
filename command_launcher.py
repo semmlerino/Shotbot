@@ -525,25 +525,32 @@ class CommandLauncher(LoggingMixin, QObject):
                     "Info: No Maya scene files found in workspace",
                 )
 
-        # Handle RV with image sequence path
-        if app_name == "rv" and context.sequence_path:
-            try:
-                safe_sequence_path = CommandBuilder.validate_path(context.sequence_path)
-                command = f"{command} {safe_sequence_path}"
-                timestamp = self.timestamp
-                # Extract just the filename for cleaner logging
-                from pathlib import Path
+        # Handle RV with default settings and optional sequence path
+        if app_name == "rv":
+            # Add default RV settings: 12fps, auto-play, oscillate (ping-pong) mode
+            command = f"{command} -fps 12 -play -eval 'setPlayMode(2)'"
 
-                seq_name = Path(context.sequence_path).name
-                self.command_executed.emit(
-                    timestamp,
-                    f"Opening sequence in RV: {seq_name}",
-                )
-            except ValueError as e:
-                self._emit_error(
-                    f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"
-                )
-                return False
+            # Add sequence path if provided
+            if context.sequence_path:
+                try:
+                    safe_sequence_path = CommandBuilder.validate_path(
+                        context.sequence_path
+                    )
+                    command = f"{command} {safe_sequence_path}"
+                    timestamp = self.timestamp
+                    # Extract just the filename for cleaner logging
+                    from pathlib import Path
+
+                    seq_name = Path(context.sequence_path).name
+                    self.command_executed.emit(
+                        timestamp,
+                        f"Opening sequence in RV: {seq_name}",
+                    )
+                except ValueError as e:
+                    self._emit_error(
+                        f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"
+                    )
+                    return False
 
         # Pre-flight: Check if ws command is available
         if not self.env_manager.is_ws_available():
