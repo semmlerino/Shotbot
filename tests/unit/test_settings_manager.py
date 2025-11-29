@@ -503,17 +503,17 @@ class TestSettingsManager:
 
     def test_background_gui_apps(self, settings_manager: SettingsManager) -> None:
         """Test background GUI apps boolean setting."""
-        # Test default is False
+        # Test default is True (terminals auto-close after launching GUI apps)
         default = settings_manager.get_background_gui_apps()
-        assert default is False
+        assert default is True
 
-        # Test setting to True
-        settings_manager.set_background_gui_apps(True)
-        assert settings_manager.get_background_gui_apps() is True
-
-        # Test setting back to False
+        # Test setting to False
         settings_manager.set_background_gui_apps(False)
         assert settings_manager.get_background_gui_apps() is False
+
+        # Test setting back to True
+        settings_manager.set_background_gui_apps(True)
+        assert settings_manager.get_background_gui_apps() is True
 
 
 class TestSettingsManagerAtomicWrite:

@@ -1,1 +1,1 @@
-refactor: KISS/DRY consolidation - SingletonMixin and cache utilities
+feat: Enable background GUI apps by default + test infrastructure improvements

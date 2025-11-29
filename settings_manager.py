@@ -156,7 +156,6 @@ class SettingsManager(LoggingMixin, QObject):
                 "default_app": Config.DEFAULT_APP,
                 "custom_launchers": [],  # List of custom launcher definitions
                 "file_associations": dict(Config.APPS),  # Copy default apps
-                "launch_in_terminal": False,
                 "terminal_command": "gnome-terminal",
                 "environment_variables": {},  # Additional env vars for launches
                 "working_directory": "",  # Default working directory

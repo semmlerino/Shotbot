@@ -1,5 +1,5 @@
-Post-commit hook executed at Sat Nov 29 19:58:05 GMT 2025
-Commit: b045ee67f056ffb6e13118ae2e32c11b4d826ebd
+Post-commit hook executed at Sat Nov 29 21:02:22 GMT 2025
+Commit: 5da402e9bb719280d1bda30f0033d3ca4631294f
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: refactor: KISS/DRY consolidation - SingletonMixin and cache utilities
+Message: feat: Enable background GUI apps by default + test infrastructure improvements

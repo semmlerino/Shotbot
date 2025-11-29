@@ -151,7 +151,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Applications tab widgets
         self.default_app_combo: QComboBox
-        self.launch_terminal_check: QCheckBox
         self.background_gui_apps_check: QCheckBox
         self.association_combos: dict[
             str, QComboBox
@@ -425,10 +424,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.default_app_combo = QComboBox()
         self.default_app_combo.addItems(list(Config.APPS.keys()))
         default_layout.addRow("Default App:", self.default_app_combo)
-
-        # Launch in terminal
-        self.launch_terminal_check = QCheckBox("Launch Applications in Terminal")
-        default_layout.addRow(self.launch_terminal_check)
 
         # Background GUI apps (close terminal immediately)
         self.background_gui_apps_check = QCheckBox(
