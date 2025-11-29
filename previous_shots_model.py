@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
 
@@ -16,12 +17,12 @@ from previous_shots_finder import ParallelShotsFinder
 from previous_shots_worker import PreviousShotsWorker
 from shot_filter import compose_filters, get_available_shows
 from shot_model import Shot
-from type_definitions import ShotDict
 
 
 if TYPE_CHECKING:
     # Local application imports
     from base_shot_model import BaseShotModel
+    from type_definitions import ShotDict
 
 
 @final
@@ -206,7 +207,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
             approved_shots: List of approved shot dictionaries found by worker.
         """
         try:
-            # Convert dictionaries to Shot objects
+            # Convert dictionaries to Shot objects with current timestamp
+            current_time = time.time()
             newly_found_shots: list[Shot] = (
                 [
                     Shot(
@@ -214,6 +216,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
                         sequence=shot_dict["sequence"],
                         shot=shot_dict["shot"],
                         workspace_path=shot_dict["workspace_path"],
+                        discovered_at=current_time,  # New shots get current timestamp
                     )
                     for shot_dict in approved_shots
                 ]
@@ -389,16 +392,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 key = (shot_dict["show"], shot_dict["sequence"], shot_dict["shot"])
                 shots_by_key[key] = shot_dict  # Overwrites if duplicate (prefer migrated)
 
-            # Convert to Shot objects
-            shots = [
-                Shot(
-                    show=s["show"],
-                    sequence=s["sequence"],
-                    shot=s["shot"],
-                    workspace_path=s.get("workspace_path", ""),
-                )
-                for s in shots_by_key.values()
-            ]
+            # Convert to Shot objects using from_dict() to preserve discovered_at
+            shots = [Shot.from_dict(s) for s in shots_by_key.values()]
 
             self.logger.info(
                 f"Loaded {len(scanned_data)} scanned + {len(migrated_data)} migrated "
@@ -414,15 +409,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
     def _save_to_cache(self) -> None:
         """Save previous shots to cache."""
         try:
-            cache_data: list[ShotDict] = [
-                ShotDict(
-                    show=s.show,
-                    sequence=s.sequence,
-                    shot=s.shot,
-                    workspace_path=s.workspace_path,
-                )
-                for s in self._previous_shots
-            ]
+            # Use to_dict() to include discovered_at timestamp
+            cache_data: list[ShotDict] = [s.to_dict() for s in self._previous_shots]
             # Use the correct method: cache_previous_shots()
             self._cache_manager.cache_previous_shots(cache_data)
             self.logger.debug(

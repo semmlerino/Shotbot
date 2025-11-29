@@ -188,17 +188,17 @@ class NotificationBanner(QFrame):
         self.close_button.setFixedSize(24, 24)
         _ = self.close_button.clicked.connect(self.hide_banner)
         self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.close_button.setStyleSheet("""
-            QPushButton {
+        self.close_button.setStyleSheet(f"""
+            QPushButton {{
                 background: transparent;
                 border: none;
                 color: white;
-                font-size: 20px;
-            }
-            QPushButton:hover {
+                font-size: {design_system.typography.size_h3}px;
+            }}
+            QPushButton:hover {{
                 background-color: rgba(255, 255, 255, 0.1);
                 border-radius: 12px;
-            }
+            }}
         """)
         layout.addWidget(self.close_button)
 
@@ -252,7 +252,7 @@ class NotificationBanner(QFrame):
         """)
 
         self.icon_label.setText(icon)
-        self.icon_label.setStyleSheet("font-size: 20px; color: white;")
+        self.icon_label.setStyleSheet(f"font-size: {design_system.typography.size_h3}px; color: white;")
 
         # Animate in
         parent_widget = self.parent()
@@ -505,7 +505,7 @@ class FloatingActionButton(QPushButton):
                 color: white;
                 border: none;
                 border-radius: 28px;
-                font-size: 26px;
+                font-size: {design_system.typography.size_h1}px;
                 font-weight: {design_system.typography.weight_bold};
             }}
             QPushButton:hover {{

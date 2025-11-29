@@ -98,10 +98,14 @@ class ShotItemModel(BaseItemModel["Shot"]):
     def set_shots(self, shots: list[Shot]) -> None:
         """Set the shots list.
 
+        Always sorts shots by name (full_name) alphabetically.
+
         Args:
             shots: List of Shot objects
         """
-        self.set_items(shots)
+        # Always sort by name for My Shots tab
+        sorted_shots = sorted(shots, key=lambda s: s.full_name.lower())
+        self.set_items(sorted_shots)
 
     def refresh_shots(self, shots: list[Shot]) -> RefreshResult:
         """Refresh with new shots, detecting changes.

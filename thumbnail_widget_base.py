@@ -38,6 +38,7 @@ from PySide6.QtWidgets import QFrame, QLabel, QMenu, QSizePolicy, QVBoxLayout, Q
 # Local application imports
 from cache_manager import CacheManager, ThumbnailCacheLoader
 from config import Config
+from design_system import design_system
 from qt_abc_meta import QABCMeta
 from runnable_tracker import get_tracker
 from thumbnail_loading_indicator import ThumbnailLoadingIndicator
@@ -442,7 +443,9 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         # Draw text on placeholder
         painter = QPainter(placeholder)
         painter.setPen(QColor("#888"))
-        painter.setFont(QFont("Arial", 12))
+        placeholder_font = QFont("Arial")
+        placeholder_font.setPixelSize(design_system.typography.size_extra_tiny)
+        painter.setFont(placeholder_font)
         _ = painter.drawText(placeholder.rect(), Qt.AlignmentFlag.AlignCenter, "No Image")
         _ = painter.end()
 

@@ -204,7 +204,11 @@ class TestShot:
         assert shot_dict["shot"] == "0010"
         assert "testshow" in shot_dict["workspace_path"]
         assert isinstance(shot_dict, dict)
-        assert all(isinstance(v, str) for v in shot_dict.values())
+        # String fields should be strings
+        for key in ("show", "sequence", "shot", "workspace_path"):
+            assert isinstance(shot_dict[key], str), f"{key} should be str"
+        # discovered_at is a float timestamp
+        assert isinstance(shot_dict["discovered_at"], float), "discovered_at should be float"
 
     def test_shot_from_dict_deserialization(self) -> None:
         """Test Shot from_dict deserialization."""

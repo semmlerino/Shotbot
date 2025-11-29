@@ -36,6 +36,7 @@ class ThreeDEScene:
     user: str
     plate: str
     scene_path: Path
+    modified_time: float = 0.0  # Unix timestamp from file mtime (for sorting)
     _cached_thumbnail_path: object | Path | None = field(
         default=_NOT_SEARCHED,
         init=False,
@@ -103,7 +104,7 @@ class ThreeDEScene:
         self._cached_thumbnail_path = thumbnail
         return thumbnail
 
-    def to_dict(self) -> dict[str, str | Path]:
+    def to_dict(self) -> dict[str, str | float | Path]:
         """Convert scene to dictionary for caching."""
         return {
             "show": self.show,
@@ -113,11 +114,15 @@ class ThreeDEScene:
             "user": self.user,
             "plate": self.plate,
             "scene_path": str(self.scene_path),
+            "modified_time": self.modified_time,
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, str | Path]) -> ThreeDEScene:
-        """Create from dictionary."""
+    def from_dict(cls, data: dict[str, str | float | Path]) -> ThreeDEScene:
+        """Create from dictionary.
+
+        Note: modified_time defaults to 0.0 for cache migration of old entries.
+        """
         return cls(
             show=str(data["show"]),
             sequence=str(data["sequence"]),
@@ -125,7 +130,8 @@ class ThreeDEScene:
             workspace_path=str(data["workspace_path"]),
             user=str(data["user"]),
             plate=str(data["plate"]),
-            scene_path=Path(data["scene_path"]),
+            scene_path=Path(str(data["scene_path"])),
+            modified_time=float(data.get("modified_time", 0.0)),  # type: ignore[arg-type]
         )
         # Don't restore cached thumbnail path from dict - let it be re-discovered if needed
         # This ensures we don't cache stale paths across sessions
@@ -260,7 +266,7 @@ class ThreeDESceneModel:
                 return scene
         return None
 
-    def to_dict(self) -> list[dict[str, str | Path]]:
+    def to_dict(self) -> list[dict[str, str | float | Path]]:
         """Convert scenes to dictionary format for caching."""
         return [scene.to_dict() for scene in self.scenes]
 

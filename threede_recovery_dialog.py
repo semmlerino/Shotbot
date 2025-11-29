@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 # Local application imports
+from design_system import design_system
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 from threede_recovery import CrashFileInfo
@@ -107,7 +108,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
         # Header
         header_label = QLabel("The following 3DE crash files were detected. Select a scene to recover the latest crash file to the next version.")
         header_label.setWordWrap(True)
-        header_label.setStyleSheet("font-size: 13pt; padding: 10px;")
+        header_label.setStyleSheet(f"font-size: {design_system.typography.size_tiny}px; padding: 10px;")
         layout.addWidget(header_label)
 
         # Scroll area for crash file groups
@@ -132,7 +133,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
         # Instructions
         instructions = QLabel("Note: The crash file will be copied to the recovery name, and the original crash file will be renamed with a timestamp suffix.")
         instructions.setWordWrap(True)
-        instructions.setStyleSheet("font-size: 13pt; color: #888; font-style: italic; padding: 10px;")
+        instructions.setStyleSheet(f"font-size: {design_system.typography.size_tiny}px; color: #888; font-style: italic; padding: 10px;")
         layout.addWidget(instructions)
 
         # Buttons
@@ -204,7 +205,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
         # Directory path
         dir_path = str(latest_crash.crash_path.parent)
         dir_label = QLabel(dir_path)
-        dir_label.setStyleSheet("font-size: 10pt; color: #888; font-family: monospace;")
+        dir_label.setStyleSheet(f"font-size: {design_system.typography.size_micro}px; color: #888; font-family: monospace;")
         dir_label.setWordWrap(True)
         details_layout.addRow("Location:", dir_label)
 
@@ -214,7 +215,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
         if len(crash_list) > 1:
             additional_label = QLabel(f"Note: {len(crash_list) - 1} older crash file(s) also found. Only the latest will be recovered.")
             additional_label.setStyleSheet(
-                "font-size: 10pt; color: #ff9800; font-style: italic; padding-left: 20px;"
+                f"font-size: {design_system.typography.size_micro}px; color: #ff9800; font-style: italic; padding-left: 20px;"
             )
             additional_label.setWordWrap(True)
             group_layout.addWidget(additional_label)
@@ -309,7 +310,7 @@ class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyri
         if self.success:
             # Success message
             status_label = QLabel("✓ Recovery Successful")
-            status_label.setStyleSheet("font-size: 16pt; font-weight: bold; color: #4caf50;")
+            status_label.setStyleSheet(f"font-size: {design_system.typography.size_body}px; font-weight: bold; color: #4caf50;")
             layout.addWidget(status_label)
 
             info_label = QLabel("The crash file has been successfully recovered.")
@@ -326,7 +327,7 @@ class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyri
                 details_layout.addRow("Recovered File:", recovered_label)
 
                 path_label = QLabel(str(self.recovered_path.parent))
-                path_label.setStyleSheet("font-family: monospace; font-size: 10pt; color: #888;")
+                path_label.setStyleSheet(f"font-family: monospace; font-size: {design_system.typography.size_micro}px; color: #888;")
                 path_label.setWordWrap(True)
                 details_layout.addRow("Location:", path_label)
 
@@ -340,7 +341,7 @@ class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyri
         else:
             # Error message
             status_label = QLabel("✗ Recovery Failed")
-            status_label.setStyleSheet("font-size: 16pt; font-weight: bold; color: #f44336;")
+            status_label.setStyleSheet(f"font-size: {design_system.typography.size_body}px; font-weight: bold; color: #f44336;")
             layout.addWidget(status_label)
 
             error_text = self.error_message or "An unknown error occurred during recovery."

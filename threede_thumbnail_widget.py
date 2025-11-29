@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QLabel, QMenu, QWidget
 
 # Local application imports
 from config import Config
+from design_system import design_system
 from logging_mixin import LoggingMixin
 from threede_scene_model import ThreeDEScene
 from thumbnail_widget_base import ThumbnailWidgetBase
@@ -45,7 +46,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.shot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.shot_label.setWordWrap(True)
         shot_font = self.shot_label.font()
-        shot_font.setPointSize(12)
+        shot_font.setPixelSize(design_system.typography.size_extra_tiny)
         shot_font.setBold(True)
         self.shot_label.setFont(shot_font)
 
@@ -56,7 +57,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.user_label.setObjectName("user")
         self.user_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         user_font = self.user_label.font()
-        user_font.setPointSize(10)
+        user_font.setPixelSize(design_system.typography.size_micro)
         self.user_label.setFont(user_font)
 
         self.content_layout.addWidget(self.user_label)
@@ -66,7 +67,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.plate_label.setObjectName("plate")
         self.plate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         plate_font = self.plate_label.font()
-        plate_font.setPointSize(11)
+        plate_font.setPixelSize(design_system.typography.size_extra_small)
         plate_font.setBold(True)
         self.plate_label.setFont(plate_font)
 

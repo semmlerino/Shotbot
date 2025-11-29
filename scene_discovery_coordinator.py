@@ -654,6 +654,12 @@ class RefactoredThreeDESceneFinder:
                 # Local application imports
                 from threede_scene_model import ThreeDEScene
 
+                # Get file modification time for sorting (0.0 if unavailable)
+                try:
+                    modified_time = scene_path.stat().st_mtime
+                except OSError:
+                    modified_time = 0.0
+
                 scene = ThreeDEScene(
                     show=show_name,
                     sequence=seq,
@@ -662,6 +668,7 @@ class RefactoredThreeDESceneFinder:
                     user=user,
                     plate=plate,
                     scene_path=scene_path,
+                    modified_time=modified_time,
                 )
                 show_scenes.append(scene)
 

@@ -542,7 +542,8 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             List of shot dictionaries or None if not cached/expired
         """
-        return self._read_json_cache(self.shots_cache_file)
+        result = self._read_json_cache(self.shots_cache_file)
+        return cast("list[ShotDict] | None", result)
 
     def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
         """Cache shot list to file.
@@ -575,7 +576,8 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             List of shot dictionaries or None if not cached
         """
-        return self._read_json_cache(self.shots_cache_file, check_ttl=False)
+        result = self._read_json_cache(self.shots_cache_file, check_ttl=False)
+        return cast("list[ShotDict] | None", result)
 
     def get_migrated_shots(self) -> list[ShotDict] | None:
         """Get shots that were migrated from My Shots.
@@ -586,7 +588,8 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             List of shot dictionaries or None if not cached
         """
-        return self._read_json_cache(self.migrated_shots_cache_file, check_ttl=False)
+        result = self._read_json_cache(self.migrated_shots_cache_file, check_ttl=False)
+        return cast("list[ShotDict] | None", result)
 
     def migrate_shots_to_previous(self, shots: list[Shot | ShotDict]) -> bool:
         """Move removed shots to Previous Shots migration cache.
@@ -653,7 +656,8 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             List of shot dictionaries or None if not cached/expired
         """
-        return self._read_json_cache(self.previous_shots_cache_file)
+        result = self._read_json_cache(self.previous_shots_cache_file)
+        return cast("list[ShotDict] | None", result)
 
     def get_persistent_previous_shots(self) -> list[ShotDict] | None:
         """Get cached previous/approved shot list without TTL expiration.
@@ -665,7 +669,8 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             List of shot dictionaries or None if not cached
         """
-        return self._read_json_cache(self.previous_shots_cache_file, check_ttl=False)
+        result = self._read_json_cache(self.previous_shots_cache_file, check_ttl=False)
+        return cast("list[ShotDict] | None", result)
 
     def cache_previous_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
         """Cache previous/approved shot list to file.

@@ -403,6 +403,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._setup_accessibility()  # Add accessibility support
         self._connect_signals()
         self.settings_controller.load_settings()  # Use refactored settings controller
+        self._restore_sort_orders()  # Restore sort order settings for tabs
 
         # Initial shot load - immediately, no delay
         # Skip in test environment if requested
@@ -741,6 +742,34 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.previous_shots_grid.size_slider.valueChanged.connect(
             self._sync_thumbnail_sizes,
         )
+
+        # Sort order changes - connect view signals to model and settings persistence
+        _ = self.threede_shot_grid.sort_order_changed.connect(
+            self._on_threede_sort_order_changed
+        )
+        _ = self.previous_shots_grid.sort_order_changed.connect(
+            self._on_previous_shots_sort_order_changed
+        )
+
+    def _restore_sort_orders(self) -> None:
+        """Restore sort order settings for each tab.
+
+        Called after load_settings() to restore persisted sort orders
+        to both the item models and the view UI buttons.
+        """
+        # Restore 3DE scenes sort order
+        threede_order = self.settings_manager.get_sort_order("threede_scenes")
+        self.threede_item_model.set_sort_order(threede_order)
+        self.threede_shot_grid.set_sort_order(threede_order)
+        self.logger.debug(f"Restored 3DE scenes sort order: {threede_order}")
+
+        # Restore Previous Shots sort order
+        previous_order = self.settings_manager.get_sort_order("previous_shots")
+        self.previous_shots_item_model.set_sort_order(previous_order)
+        self.previous_shots_grid.set_sort_order(previous_order)
+        self.logger.debug(f"Restored Previous Shots sort order: {previous_order}")
+
+        # My Shots tab always sorts by name - no user-configurable sort order
 
     def _initial_load(self) -> None:
         """Initial shot loading - instant from cache or async."""
@@ -1411,6 +1440,30 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Populate show filter with available shows
         self.previous_shots_grid.populate_show_filter(self.previous_shots_model)
         self.logger.debug("Previous shots updated, refreshed show filter")
+
+    def _on_threede_sort_order_changed(self, order: str) -> None:
+        """Handle sort order change from 3DE grid view.
+
+        Args:
+            order: Sort order ("name" or "date")
+        """
+        # Update item model
+        self.threede_item_model.set_sort_order(order)
+        # Persist to settings
+        self.settings_manager.set_sort_order("threede_scenes", order)
+        self.logger.info(f"3DE scenes sort order changed to: {order}")
+
+    def _on_previous_shots_sort_order_changed(self, order: str) -> None:
+        """Handle sort order change from Previous Shots grid view.
+
+        Args:
+            order: Sort order ("name" or "date")
+        """
+        # Update item model
+        self.previous_shots_item_model.set_sort_order(order)
+        # Persist to settings
+        self.settings_manager.set_sort_order("previous_shots", order)
+        self.logger.info(f"Previous shots sort order changed to: {order}")
 
     def _increase_thumbnail_size(self) -> None:
         """Increase thumbnail size."""

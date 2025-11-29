@@ -453,3 +453,169 @@ class TestDataIntegrity:
         # Cache could be cleared or preserved depending on implementation
         # Just verify no corruption
         assert model.rowCount() == len(test_scenes)
+
+
+class TestThreeDESorting:
+    """Test sorting functionality in ThreeDEItemModel."""
+
+    @pytest.fixture
+    def scenes_with_times(self) -> list[ThreeDEScene]:
+        """Create test scenes with different modified_time values for sorting tests."""
+        return [
+            ThreeDEScene(
+                show="proj1",
+                sequence="010",
+                shot="0010",
+                workspace_path=f"{Config.SHOWS_ROOT}/proj1/shots/010/0010",
+                user="user1",
+                plate="proj1_010_0010_plate",
+                scene_path=Path("/tmp/test_alpha.3de"),
+                modified_time=1000.0,  # Oldest
+            ),
+            ThreeDEScene(
+                show="proj2",
+                sequence="020",
+                shot="0020",
+                workspace_path=f"{Config.SHOWS_ROOT}/proj2/shots/020/0020",
+                user="user2",
+                plate="proj2_020_0020_plate",
+                scene_path=Path("/tmp/test_charlie.3de"),
+                modified_time=3000.0,  # Newest
+            ),
+            ThreeDEScene(
+                show="proj3",
+                sequence="030",
+                shot="0030",
+                workspace_path=f"{Config.SHOWS_ROOT}/proj3/shots/030/0030",
+                user="user3",
+                plate="proj3_030_0030_plate",
+                scene_path=Path("/tmp/test_bravo.3de"),
+                modified_time=2000.0,  # Middle
+            ),
+        ]
+
+    def test_default_sort_order_is_date(
+        self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
+    ) -> None:
+        """Test that default sort order is by date (newest first)."""
+        model.set_scenes(scenes_with_times)
+
+        # Default is "date" - newest first
+        # Order should be: charlie (3000), bravo (2000), alpha (1000)
+        assert model.rowCount() == 3
+        assert model.scenes[0].full_name == "020_0020"  # charlie - newest
+        assert model.scenes[1].full_name == "030_0030"  # bravo - middle
+        assert model.scenes[2].full_name == "010_0010"  # alpha - oldest
+
+    def test_sort_by_name(
+        self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
+    ) -> None:
+        """Test sorting by name (alphabetical)."""
+        model.set_scenes(scenes_with_times)
+        model.set_sort_order("name")
+
+        # Alphabetical: 010_0010, 020_0020, 030_0030
+        assert model.scenes[0].full_name == "010_0010"
+        assert model.scenes[1].full_name == "020_0020"
+        assert model.scenes[2].full_name == "030_0030"
+
+    def test_sort_by_date(
+        self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
+    ) -> None:
+        """Test sorting by date (newest first)."""
+        model.set_scenes(scenes_with_times)
+        model.set_sort_order("name")  # First switch to name
+        model.set_sort_order("date")  # Then back to date
+
+        # Newest first: 020_0020 (3000), 030_0030 (2000), 010_0010 (1000)
+        assert model.scenes[0].full_name == "020_0020"
+        assert model.scenes[1].full_name == "030_0030"
+        assert model.scenes[2].full_name == "010_0010"
+
+    def test_sort_order_invalid_value_ignored(
+        self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
+    ) -> None:
+        """Test that invalid sort order is ignored."""
+        model.set_scenes(scenes_with_times)
+        original_order = [s.full_name for s in model.scenes]
+
+        model.set_sort_order("invalid")
+
+        # Order should remain unchanged
+        current_order = [s.full_name for s in model.scenes]
+        assert current_order == original_order
+
+    def test_sort_order_no_change_noop(
+        self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene], qtbot: QtBot
+    ) -> None:
+        """Test that setting same sort order is a no-op."""
+        model.set_scenes(scenes_with_times)
+
+        # Track signal emission
+        with qtbot.assertNotEmitted(model.layoutChanged):
+            model.set_sort_order("date")  # Already date, should be no-op
+
+    def test_sort_order_emits_layout_signals(
+        self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene], qtbot: QtBot
+    ) -> None:
+        """Test that changing sort order emits layout signals."""
+        model.set_scenes(scenes_with_times)
+
+        # Should emit layoutAboutToBeChanged and layoutChanged
+        with qtbot.waitSignals(
+            [model.layoutAboutToBeChanged, model.layoutChanged], timeout=1000
+        ):
+            model.set_sort_order("name")
+
+    def test_sort_on_empty_model(self, model: ThreeDEItemModel) -> None:
+        """Test that sorting empty model doesn't crash."""
+        model.set_sort_order("name")
+        model.set_sort_order("date")
+        assert model.rowCount() == 0
+
+    def test_sort_preserves_data_integrity(
+        self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
+    ) -> None:
+        """Test that sorting preserves all scene data."""
+        model.set_scenes(scenes_with_times)
+
+        # Get all scene paths before sorting
+        paths_before = {str(s.scene_path) for s in model.scenes}
+
+        # Sort by name
+        model.set_sort_order("name")
+        paths_after_name = {str(s.scene_path) for s in model.scenes}
+
+        # Sort by date
+        model.set_sort_order("date")
+        paths_after_date = {str(s.scene_path) for s in model.scenes}
+
+        # All paths should be preserved
+        assert paths_before == paths_after_name == paths_after_date
+
+    def test_sort_case_insensitive(self, model: ThreeDEItemModel) -> None:
+        """Test that name sorting is case-insensitive."""
+        scenes = [
+            ThreeDEScene(
+                show="proj1", sequence="AAA", shot="0010",
+                workspace_path="/tmp", user="user", plate="plate",
+                scene_path=Path("/tmp/aaa.3de"),
+            ),
+            ThreeDEScene(
+                show="proj2", sequence="bbb", shot="0020",
+                workspace_path="/tmp", user="user", plate="plate",
+                scene_path=Path("/tmp/bbb.3de"),
+            ),
+            ThreeDEScene(
+                show="proj3", sequence="CCC", shot="0030",
+                workspace_path="/tmp", user="user", plate="plate",
+                scene_path=Path("/tmp/ccc.3de"),
+            ),
+        ]
+        model.set_scenes(scenes)
+        model.set_sort_order("name")
+
+        # Should be sorted case-insensitively: AAA, bbb, CCC
+        assert model.scenes[0].sequence == "AAA"
+        assert model.scenes[1].sequence == "bbb"
+        assert model.scenes[2].sequence == "CCC"

@@ -584,6 +584,37 @@ class SettingsManager(LoggingMixin, QObject):
         # Default to False for unknown sections
         return sections.get(section_id, False)
 
+    # Sort Order Settings (per-tab)
+    def get_sort_order(self, tab_id: str) -> str:
+        """Get sort order for a tab.
+
+        Args:
+            tab_id: Tab identifier ("my_shots", "threede_scenes", "previous_shots")
+
+        Returns:
+            Sort order string ("name" or "date")
+        """
+        # Default sort orders: name for my_shots, date for others
+        defaults = {"my_shots": "name", "threede_scenes": "date", "previous_shots": "date"}
+        stored = self.settings.value(f"ui/sort_order_{tab_id}", defaults.get(tab_id, "name"))
+        # Validate stored value
+        if stored in ("name", "date"):
+            return str(stored)
+        return defaults.get(tab_id, "name")
+
+    def set_sort_order(self, tab_id: str, order: str) -> None:
+        """Set sort order for a tab.
+
+        Args:
+            tab_id: Tab identifier ("my_shots", "threede_scenes", "previous_shots")
+            order: Sort order ("name" or "date")
+        """
+        if order not in ("name", "date"):
+            self.logger.warning(f"Invalid sort order '{order}', ignoring")
+            return
+        self.settings.setValue(f"ui/sort_order_{tab_id}", order)
+        self.settings_changed.emit(f"ui/sort_order_{tab_id}", order)
+
     # Advanced Settings
     def get_debug_mode(self) -> bool:
         """Get debug mode state."""

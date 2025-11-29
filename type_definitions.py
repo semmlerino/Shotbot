@@ -21,13 +21,23 @@ from PySide6.QtCore import Signal
 # ==============================================================================
 
 
-class ShotDict(TypedDict):
-    """Dictionary representation of a Shot."""
+class _ShotDictRequired(TypedDict):
+    """Required fields for ShotDict."""
 
     show: str
     sequence: str
     shot: str
     workspace_path: str
+
+
+class ShotDict(_ShotDictRequired, total=False):
+    """Dictionary representation of a Shot.
+
+    Uses inheritance pattern to have required fields (show, sequence, shot, workspace_path)
+    and optional fields (discovered_at) for cache migration compatibility.
+    """
+
+    discovered_at: float  # Unix timestamp when shot was added to previous shots
 
 
 # Sentinel value to distinguish between "not searched" and "searched but found nothing"
@@ -47,6 +57,7 @@ class Shot:
     sequence: str
     shot: str
     workspace_path: str
+    discovered_at: float = 0.0  # Unix timestamp when added to previous shots (for sorting)
     _cached_thumbnail_path: Path | None | object = field(
         default=_NOT_SEARCHED,
         init=False,
@@ -125,16 +136,21 @@ class Shot:
             "sequence": self.sequence,
             "shot": self.shot,
             "workspace_path": self.workspace_path,
+            "discovered_at": self.discovered_at,
         }
 
     @classmethod
     def from_dict(cls, data: ShotDict) -> Shot:
-        """Create shot from dictionary data."""
+        """Create shot from dictionary data.
+
+        Note: discovered_at defaults to 0.0 for cache migration of old entries.
+        """
         return cls(
             show=data["show"],
             sequence=data["sequence"],
             shot=data["shot"],
             workspace_path=data["workspace_path"],
+            discovered_at=data.get("discovered_at", 0.0),
         )
         # Don't restore cached thumbnail path from dict - let it be re-discovered if needed
         # This ensures we don't cache stale paths across sessions

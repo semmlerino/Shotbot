@@ -72,6 +72,7 @@ from PySide6.QtWidgets import (
 )
 
 # Local application imports
+from design_system import design_system
 from logging_mixin import get_module_logger
 from typing_compat import override
 
@@ -160,18 +161,18 @@ class ToastNotification(QFrame):
         self.close_button = QPushButton("x")
         self.close_button.setFixedSize(20, 20)
         _ = self.close_button.clicked.connect(self.dismiss)
-        self.close_button.setStyleSheet("""
-            QPushButton {
+        self.close_button.setStyleSheet(f"""
+            QPushButton {{
                 background: transparent;
                 border: none;
                 color: white;
                 font-weight: bold;
-                font-size: 20px;
-            }
-            QPushButton:hover {
+                font-size: {design_system.typography.size_h3}px;
+            }}
+            QPushButton:hover {{
                 background: rgba(255, 255, 255, 0.2);
                 border-radius: 10px;
-            }
+            }}
         """)
         layout.addWidget(self.close_button)
 
@@ -211,9 +212,9 @@ class ToastNotification(QFrame):
 
         # Set icon
         self.icon_label.setText(icon_char)
-        self.icon_label.setStyleSheet("""
+        self.icon_label.setStyleSheet(f"""
             color: white;
-            font-size: 20px;
+            font-size: {design_system.typography.size_h3}px;
             font-weight: bold;
             text-align: center;
         """)

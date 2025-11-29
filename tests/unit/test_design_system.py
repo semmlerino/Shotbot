@@ -28,6 +28,7 @@ from design_system import (
     Borders,
     ColorPalette,
     DesignSystem,
+    ScaledTypography,
     Shadows,
     Spacing,
     Typography,
@@ -145,10 +146,14 @@ class TestTypography:
         assert typo.size_body == 16
         assert typo.size_small == 14
         assert typo.size_tiny == 13
+        assert typo.size_extra_tiny == 12
+        assert typo.size_extra_small == 11
+        assert typo.size_micro == 10
 
         # Verify hierarchy
         assert typo.size_h1 > typo.size_h2 > typo.size_h3 > typo.size_h4
         assert typo.size_h4 > typo.size_body > typo.size_small > typo.size_tiny
+        assert typo.size_tiny > typo.size_extra_tiny > typo.size_extra_small > typo.size_micro
 
     def test_font_weights(self) -> None:
         """Test font weight values."""
@@ -331,7 +336,7 @@ class TestDesignSystem:
         ds = DesignSystem()
 
         assert isinstance(ds.colors, ColorPalette)
-        assert isinstance(ds.typography, Typography)
+        assert isinstance(ds.typography, ScaledTypography)
         assert isinstance(ds.spacing, Spacing)
         assert isinstance(ds.borders, Borders)
         assert isinstance(ds.shadows, Shadows)
@@ -479,7 +484,7 @@ class TestGlobalInstance:
     def test_global_instance_initialized(self) -> None:
         """Test global instance has all components initialized."""
         assert isinstance(design_system.colors, ColorPalette)
-        assert isinstance(design_system.typography, Typography)
+        assert isinstance(design_system.typography, ScaledTypography)
         assert isinstance(design_system.spacing, Spacing)
         assert isinstance(design_system.borders, Borders)
         assert isinstance(design_system.shadows, Shadows)

@@ -583,3 +583,118 @@ class TestSettingsManagerAtomicWrite:
         # No temp files should remain
         temp_files = list(tmp_path.glob(".*settings.json*.tmp"))
         assert len(temp_files) == 0, f"Temp files remain: {temp_files}"
+
+
+class TestSortOrderSettings:
+    """Test sort order settings persistence."""
+
+    @pytest.fixture
+    def settings_manager(
+        self, tmp_path: Path, make_settings_manager: Callable[[Path, str, str], SettingsManager]
+    ) -> SettingsManager:
+        """Create settings manager with temporary storage."""
+        return make_settings_manager(tmp_path)
+
+    def test_get_sort_order_default_my_shots(
+        self, settings_manager: SettingsManager
+    ) -> None:
+        """Test default sort order for my_shots is 'name'."""
+        result = settings_manager.get_sort_order("my_shots")
+        assert result == "name"
+
+    def test_get_sort_order_default_threede_scenes(
+        self, settings_manager: SettingsManager
+    ) -> None:
+        """Test default sort order for threede_scenes is 'date'."""
+        result = settings_manager.get_sort_order("threede_scenes")
+        assert result == "date"
+
+    def test_get_sort_order_default_previous_shots(
+        self, settings_manager: SettingsManager
+    ) -> None:
+        """Test default sort order for previous_shots is 'date'."""
+        result = settings_manager.get_sort_order("previous_shots")
+        assert result == "date"
+
+    def test_get_sort_order_unknown_tab_defaults_to_name(
+        self, settings_manager: SettingsManager
+    ) -> None:
+        """Test that unknown tab IDs default to 'name'."""
+        result = settings_manager.get_sort_order("unknown_tab")
+        assert result == "name"
+
+    def test_set_sort_order_persists(
+        self, settings_manager: SettingsManager
+    ) -> None:
+        """Test that set_sort_order persists the value."""
+        settings_manager.set_sort_order("threede_scenes", "name")
+        result = settings_manager.get_sort_order("threede_scenes")
+        assert result == "name"
+
+    def test_set_sort_order_emits_signal(
+        self, settings_manager: SettingsManager, qtbot: QtBot
+    ) -> None:
+        """Test that set_sort_order emits settings_changed signal."""
+        with qtbot.waitSignal(settings_manager.settings_changed, timeout=1000) as blocker:
+            settings_manager.set_sort_order("previous_shots", "name")
+
+        # Signal should include the key and value
+        assert blocker.args[0] == "ui/sort_order_previous_shots"
+        assert blocker.args[1] == "name"
+
+    def test_set_sort_order_invalid_value_ignored(
+        self, settings_manager: SettingsManager
+    ) -> None:
+        """Test that invalid sort order values are ignored."""
+        # Set a valid value first
+        settings_manager.set_sort_order("my_shots", "date")
+
+        # Try to set invalid value
+        settings_manager.set_sort_order("my_shots", "invalid")
+
+        # Should still be "date"
+        result = settings_manager.get_sort_order("my_shots")
+        assert result == "date"
+
+    def test_set_sort_order_roundtrip(
+        self, settings_manager: SettingsManager
+    ) -> None:
+        """Test roundtrip of set/get for all valid values."""
+        for tab_id in ("my_shots", "threede_scenes", "previous_shots"):
+            for order in ("name", "date"):
+                settings_manager.set_sort_order(tab_id, order)
+                result = settings_manager.get_sort_order(tab_id)
+                assert result == order, f"Failed for {tab_id}={order}"
+
+    def test_get_sort_order_handles_corrupted_value(
+        self, settings_manager: SettingsManager
+    ) -> None:
+        """Test that corrupted stored values fall back to default."""
+        # Directly write invalid value to settings
+        settings_manager.settings.setValue("ui/sort_order_threede_scenes", "corrupted")
+
+        # Should return default for threede_scenes (date)
+        result = settings_manager.get_sort_order("threede_scenes")
+        assert result == "date"
+
+    def test_sort_order_persistence_across_instances(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that sort order persists across SettingsManager instances."""
+        # Use QSettings directly to test persistence without factory clearing
+        QSettings.setPath(
+            QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path)
+        )
+
+        # Create first instance and set values
+        manager1 = SettingsManager(organization="TestOrg", application="PersistTest")
+        manager1.set_sort_order("threede_scenes", "name")
+        manager1.set_sort_order("previous_shots", "name")
+        manager1.settings.sync()
+
+        # Create second instance (same org/app)
+        manager2 = SettingsManager(organization="TestOrg", application="PersistTest")
+
+        # Values should persist
+        assert manager2.get_sort_order("threede_scenes") == "name"
+        assert manager2.get_sort_order("previous_shots") == "name"

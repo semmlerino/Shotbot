@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FILE_TYPE_COLORS, FileType, SceneFile
 from shot_file_finder import ShotFileFinder
@@ -63,17 +64,17 @@ class FileListItem(QFrame):
 
         # File name label
         name_label = QLabel(self._scene_file.name)
-        name_label.setStyleSheet("color: #ddd; font-size: 13px;")
+        name_label.setStyleSheet(f"color: #ddd; font-size: {design_system.typography.size_tiny}px;")
         layout.addWidget(name_label, 1)
 
         # User label
         user_label = QLabel(self._scene_file.user)
-        user_label.setStyleSheet("color: #888; font-size: 14px;")
+        user_label.setStyleSheet(f"color: #888; font-size: {design_system.typography.size_small}px;")
         layout.addWidget(user_label)
 
         # Age label
         age_label = QLabel(self._scene_file.relative_age)
-        age_label.setStyleSheet("color: #666; font-size: 14px;")
+        age_label.setStyleSheet(f"color: #666; font-size: {design_system.typography.size_small}px;")
         layout.addWidget(age_label)
 
         # Tooltip with full path
@@ -181,7 +182,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
                 color: #eee;
                 border-radius: 12px;
                 padding: 4px 12px;
-                font-size: 13px;
+                font-size: {design_system.typography.size_tiny}px;
                 font-weight: bold;
                 border: 2px solid transparent;
             }}
@@ -315,13 +316,13 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
 
         # Section header
         header = QLabel("Files")
-        header.setStyleSheet("""
-            QLabel {
+        header.setStyleSheet(f"""
+            QLabel {{
                 font-weight: bold;
-                font-size: 14px;
+                font-size: {design_system.typography.size_small}px;
                 color: #aaa;
                 padding-bottom: 5px;
-            }
+            }}
         """)
         layout.addWidget(header)
 

@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 # Local application imports
+from design_system import design_system
 from launcher.models import (
     CustomLauncher,
     LauncherEnvironment,
@@ -78,7 +79,7 @@ class LauncherPreviewPanel(QtWidgetMixin, LoggingMixin, QWidget):
         # Name label
         self.name_label = QLabel("Select a launcher")
         self.name_label.setObjectName("launcherName")
-        self.name_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        self.name_label.setStyleSheet(f"font-size: {design_system.typography.size_h4}px; font-weight: bold;")
         layout.addWidget(self.name_label)
 
         # Description label
@@ -565,107 +566,107 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
     def _apply_styles(self) -> None:
         """Apply custom styles."""
-        self.setStyleSheet("""
-            QDialog {
+        self.setStyleSheet(f"""
+            QDialog {{
                 background-color: #2b2b2b;
-            }
+            }}
 
-            QLabel#titleLabel {
+            QLabel#titleLabel {{
                 color: #14ffec;
-                font-size: 18px;
+                font-size: {design_system.typography.size_h4}px;
                 font-weight: bold;
                 padding: 10px;
-            }
+            }}
 
-            QLineEdit#searchField {
+            QLineEdit#searchField {{
                 background-color: #3c3c3c;
                 border: 1px solid #555;
                 border-radius: 4px;
                 padding: 6px;
                 color: #ddd;
-                font-size: 15px;
-            }
+                font-size: {design_system.typography.size_small}px;
+            }}
 
-            QLineEdit#searchField:focus {
+            QLineEdit#searchField:focus {{
                 border-color: #14ffec;
-            }
+            }}
 
-            QListWidget {
+            QListWidget {{
                 background-color: #333;
                 border: 1px solid #444;
                 border-radius: 4px;
                 padding: 5px;
                 outline: none;
-            }
+            }}
 
-            QListWidget::item {
+            QListWidget::item {{
                 background-color: #3c3c3c;
                 border: 1px solid transparent;
                 border-radius: 4px;
                 padding: 8px;
                 margin: 2px 0;
                 color: #ddd;
-            }
+            }}
 
-            QListWidget::item:hover {
+            QListWidget::item:hover {{
                 background-color: #444;
                 border-color: #555;
-            }
+            }}
 
-            QListWidget::item:selected {
+            QListWidget::item:selected {{
                 background-color: #14ffec20;
                 border-color: #14ffec;
                 color: #fff;
-            }
+            }}
 
-            QWidget#previewPanel {
+            QWidget#previewPanel {{
                 background-color: #333;
                 border: 1px solid #444;
                 border-radius: 4px;
                 padding: 15px;
-            }
+            }}
 
-            QTextEdit#commandPreview {
+            QTextEdit#commandPreview {{
                 background-color: #2b2b2b;
                 border: 1px solid #444;
                 border-radius: 4px;
                 padding: 8px;
                 color: #aaa;
                 font-family: monospace;
-                font-size: 14px;
-            }
+                font-size: {design_system.typography.size_small}px;
+            }}
 
-            QPushButton {
+            QPushButton {{
                 background-color: #3c3c3c;
                 border: 1px solid #555;
                 border-radius: 4px;
                 padding: 6px 15px;
                 color: #ddd;
                 font-weight: bold;
-            }
+            }}
 
-            QPushButton:hover {
+            QPushButton:hover {{
                 background-color: #444;
                 border-color: #666;
-            }
+            }}
 
-            QPushButton:pressed {
+            QPushButton:pressed {{
                 background-color: #2b2b2b;
-            }
+            }}
 
-            QPushButton#launchButton {
+            QPushButton#launchButton {{
                 background-color: #14ffec30;
                 border-color: #14ffec;
-            }
+            }}
 
-            QPushButton#launchButton:hover {
+            QPushButton#launchButton:hover {{
                 background-color: #14ffec40;
-            }
+            }}
 
-            QPushButton#deleteButton:hover {
+            QPushButton#deleteButton:hover {{
                 background-color: #ff444440;
                 border-color: #ff6666;
-            }
+            }}
         """)
 
     def _load_launchers(self) -> None:

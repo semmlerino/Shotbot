@@ -51,6 +51,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         super().__init__(cache_manager, parent)
 
         self._underlying_model: PreviousShotsModel = underlying_model
+        self._sort_order: str = "date"  # Default: newest first by discovered_at
 
         # Connect generic items_updated to shot-specific signal
         _ = self.items_updated.connect(self.shots_updated)
@@ -127,7 +128,53 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         Args:
             shots: List of Shot objects
         """
-        self.set_items(shots)
+        # Apply sorting before setting items
+        sorted_shots = self._apply_sort(shots)
+        self.set_items(sorted_shots)
+
+    def _apply_sort(self, shots: list[Shot]) -> list[Shot]:
+        """Apply current sort order to a list of shots.
+
+        Args:
+            shots: List of shots to sort
+
+        Returns:
+            Sorted list of shots
+        """
+        if self._sort_order == "name":
+            return sorted(shots, key=lambda s: s.full_name.lower())
+        # "date" - newest first
+        return sorted(shots, key=lambda s: s.discovered_at, reverse=True)
+
+    def set_sort_order(self, order: str) -> None:
+        """Set the sort order and re-sort the current shots.
+
+        Args:
+            order: Sort order ("name" or "date")
+        """
+        if order not in ("name", "date"):
+            self.logger.warning(f"Invalid sort order '{order}', ignoring")
+            return
+
+        if self._sort_order == order:
+            return  # No change needed
+
+        self._sort_order = order
+
+        # Re-sort existing items
+        if self._items:
+            self.layoutAboutToBeChanged.emit()
+            self._items = self._apply_sort(self._items)
+            self.layoutChanged.emit()
+            self.logger.info(f"Re-sorted {len(self._items)} shots by {order}")
+
+    def get_sort_order(self) -> str:
+        """Get the current sort order.
+
+        Returns:
+            Current sort order ("name" or "date")
+        """
+        return self._sort_order
 
     def get_shot_at_index(self, index: QModelIndex) -> Shot | None:
         """Get shot at the given index.
@@ -192,8 +239,9 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
     def _update_from_underlying_model(self) -> None:
         """Update items from underlying model."""
         new_shots = self._underlying_model.get_shots()
-        self.set_items(new_shots)
-        self.logger.debug(f"Updated with {len(new_shots)} previous shots")
+        # Apply sorting through set_shots()
+        self.set_shots(new_shots)
+        self.logger.debug(f"Updated with {len(new_shots)} previous shots (sorted by {self._sort_order})")
 
     def refresh(self) -> None:
         """Trigger refresh of underlying model."""

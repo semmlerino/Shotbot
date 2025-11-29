@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout, 
 
 # Local application imports
 from config import Config
+from design_system import design_system
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 
@@ -26,7 +27,9 @@ class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
         # Text edit for logs
         self.log_text: QTextEdit = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setFont(QFont("Consolas", 9))
+        log_font = QFont("Consolas")
+        log_font.setPixelSize(design_system.typography.size_micro)
+        self.log_text.setFont(log_font)
 
         # Style the log
         self.log_text.setStyleSheet("""

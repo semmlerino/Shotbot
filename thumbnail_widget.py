@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QLabel, QMenu, QWidget
 
 # Local application imports
 from config import Config
+from design_system import design_system
 from logging_mixin import LoggingMixin
 from shot_model import Shot
 from thumbnail_widget_base import ThumbnailWidgetBase
@@ -51,7 +52,7 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.name_label.setWordWrap(True)
         font = self.name_label.font()
-        font.setPointSize(11)
+        font.setPixelSize(design_system.typography.size_extra_small)
         self.name_label.setFont(font)
 
         # Add to content container instead of main layout
@@ -62,14 +63,14 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         spacer_label1 = QLabel(" ")
         spacer_label1.setObjectName("spacer")
         spacer_font1 = spacer_label1.font()
-        spacer_font1.setPointSize(10)
+        spacer_font1.setPixelSize(design_system.typography.size_micro)
         spacer_label1.setFont(spacer_font1)
         spacer_label1.setMinimumHeight(16)
 
         spacer_label2 = QLabel(" ")
         spacer_label2.setObjectName("spacer")
         spacer_font2 = spacer_label2.font()
-        spacer_font2.setPointSize(11)
+        spacer_font2.setPixelSize(design_system.typography.size_extra_small)
         spacer_label2.setFont(spacer_font2)
         spacer_label2.setMinimumHeight(18)
 

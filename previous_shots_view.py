@@ -21,6 +21,7 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -32,6 +33,7 @@ from PySide6.QtWidgets import (
 # Local application imports
 from base_grid_view import BaseGridView
 from base_item_model import BaseItemRole
+from design_system import design_system
 from progress_manager import ProgressManager
 from shot_grid_delegate import ShotGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
@@ -65,6 +67,7 @@ class PreviousShotsView(BaseGridView):
     # Additional signals specific to PreviousShotsView
     shot_selected: ClassVar[Signal] = Signal(object)  # Shot object
     shot_double_clicked: ClassVar[Signal] = Signal(object)  # Shot object
+    sort_order_changed: ClassVar[Signal] = Signal(str)  # "name" or "date"
 
     # Class-level type annotation for base class _model attribute
     _model: QAbstractItemModel | None
@@ -85,6 +88,9 @@ class PreviousShotsView(BaseGridView):
         self._update_timer: QTimer | None = None
         self._status_label: QLabel | None = None
         self._refresh_button: QPushButton | None = None
+        self._sort_name_btn: QPushButton | None = None
+        self._sort_date_btn: QPushButton | None = None
+        self._sort_button_group: QButtonGroup | None = None
 
         # Initialize base class
         super().__init__(parent)
@@ -128,7 +134,7 @@ class PreviousShotsView(BaseGridView):
         return ShotGridDelegate(self)
 
     def _create_header(self) -> QWidget:
-        """Create header with refresh button and status label.
+        """Create header with sort buttons, refresh button and status label.
 
         Returns:
             Header widget
@@ -139,10 +145,36 @@ class PreviousShotsView(BaseGridView):
 
         # Status label
         self._status_label = QLabel("Approved Shots (Persistent Cache)")
-        self._status_label.setStyleSheet("font-weight: bold; font-size: 16px;")
+        self._status_label.setStyleSheet(f"font-weight: bold; font-size: {design_system.typography.size_body}px;")
         header_layout.addWidget(self._status_label)
 
         header_layout.addStretch()
+
+        # Sort toggle buttons
+        sort_label = QLabel("Sort:")
+        header_layout.addWidget(sort_label)
+
+        self._sort_name_btn = QPushButton("Name")
+        self._sort_name_btn.setCheckable(True)
+        self._sort_name_btn.setToolTip("Sort by shot name alphabetically")
+        self._sort_name_btn.setFixedWidth(50)
+        header_layout.addWidget(self._sort_name_btn)
+
+        self._sort_date_btn = QPushButton("Date")
+        self._sort_date_btn.setCheckable(True)
+        self._sort_date_btn.setChecked(True)  # Default: date (newest first)
+        self._sort_date_btn.setToolTip("Sort by discovery date (newest first)")
+        self._sort_date_btn.setFixedWidth(50)
+        header_layout.addWidget(self._sort_date_btn)
+
+        # Button group for exclusive selection
+        self._sort_button_group = QButtonGroup(self)
+        self._sort_button_group.addButton(self._sort_name_btn, 0)
+        self._sort_button_group.addButton(self._sort_date_btn, 1)
+        _ = self._sort_button_group.idClicked.connect(self._on_sort_button_clicked)
+
+        # Add some spacing
+        header_layout.addSpacing(10)
 
         # Refresh button
         self._refresh_button = QPushButton("Refresh")
@@ -510,3 +542,37 @@ class PreviousShotsView(BaseGridView):
         super().closeEvent(event)
 
         self.logger.debug("PreviousShotsView cleaned up resources on close")
+
+    # ============= Sort order methods =============
+
+    def _on_sort_button_clicked(self, button_id: int) -> None:
+        """Handle sort button click.
+
+        Args:
+            button_id: ID of clicked button (0=name, 1=date)
+        """
+        order = "name" if button_id == 0 else "date"
+        self.sort_order_changed.emit(order)
+        self.logger.info(f"Sort order changed to: {order}")
+
+    def set_sort_order(self, order: str) -> None:
+        """Set the sort order and update button states.
+
+        Called by MainWindow when restoring settings or syncing with model.
+
+        Args:
+            order: Sort order ("name" or "date")
+        """
+        if order not in ("name", "date"):
+            return
+
+        # Update button states without emitting signal
+        assert self._sort_button_group is not None
+        assert self._sort_name_btn is not None
+        assert self._sort_date_btn is not None
+        _ = self._sort_button_group.blockSignals(True)
+        if order == "name":
+            self._sort_name_btn.setChecked(True)
+        else:
+            self._sort_date_btn.setChecked(True)
+        _ = self._sort_button_group.blockSignals(False)

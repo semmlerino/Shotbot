@@ -219,6 +219,12 @@ class SceneParser(LoggingMixin):
         # Local application imports
         from threede_scene_model import ThreeDEScene
 
+        # Get file modification time for sorting (0.0 if unavailable)
+        try:
+            modified_time = file_path.stat().st_mtime
+        except OSError:
+            modified_time = 0.0
+
         scene = ThreeDEScene(
             show=show,
             sequence=sequence,
@@ -227,6 +233,7 @@ class SceneParser(LoggingMixin):
             user=user,
             plate=plate,
             scene_path=file_path,
+            modified_time=modified_time,
         )
 
         self.logger.debug(f"Created scene: {show}/{sequence}/{shot} - {user}/{plate}")

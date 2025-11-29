@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FILE_TYPE_COLORS, FileType, SceneFile
 from typing_compat import override
@@ -295,7 +296,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
                 border: none;
                 border-bottom: 1px solid #333;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: {design_system.typography.size_extra_tiny}px;
             }}
         """)
 
