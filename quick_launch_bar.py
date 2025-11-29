@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 
 
@@ -74,8 +75,12 @@ class QuickLaunchBar(QtWidgetMixin, QWidget):
         self._buttons: dict[str, QPushButton] = {}
         self._current_shot: Shot | None = None
         self._latest_versions: dict[str, str] = {}  # app_name -> version string
+        self._quick_label: QLabel | None = None
 
         self._setup_ui()
+
+        # Connect to scale changes for live updates
+        _ = design_system.scale_changed.connect(self._apply_styles)
 
     def _setup_ui(self) -> None:
         """Set up the quick launch bar UI."""
@@ -84,9 +89,8 @@ class QuickLaunchBar(QtWidgetMixin, QWidget):
         layout.setSpacing(8)
 
         # Label
-        label = QLabel("Quick:")
-        label.setStyleSheet("color: #888; font-size: 13px;")
-        layout.addWidget(label)
+        self._quick_label = QLabel("Quick:")
+        layout.addWidget(self._quick_label)
 
         # Create pill buttons
         for config in self._configs:
@@ -95,6 +99,51 @@ class QuickLaunchBar(QtWidgetMixin, QWidget):
             self._buttons[config.app_name] = btn
 
         layout.addStretch()
+
+        # Apply dynamic styles
+        self._apply_styles()
+
+    def _apply_styles(self) -> None:
+        """Apply/refresh styles using current design system values."""
+        # Quick label
+        if self._quick_label is not None:
+            self._quick_label.setStyleSheet(
+                f"color: #888; font-size: {design_system.typography.size_tiny}px;"
+            )
+
+        # All pill buttons
+        for app_name, btn in self._buttons.items():
+            # Find config for this button
+            config = next(
+                (c for c in self._configs if c.app_name == app_name), None
+            )
+            if config:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: #2a2a2a;
+                        border: 1px solid #444;
+                        border-left: 3px solid {config.color};
+                        border-radius: 4px;
+                        padding: 4px 12px;
+                        font-size: {design_system.typography.size_tiny}px;
+                        font-weight: bold;
+                        color: #ddd;
+                    }}
+                    QPushButton:hover {{
+                        background-color: #3a3a3a;
+                        border-color: #555;
+                        color: #fff;
+                    }}
+                    QPushButton:pressed {{
+                        background-color: #252525;
+                    }}
+                    QPushButton:disabled {{
+                        background-color: #222;
+                        border-color: #333;
+                        border-left-color: #444;
+                        color: #666;
+                    }}
+                """)
 
     def _create_pill_button(self, config: QuickLaunchConfig) -> QPushButton:
         """Create a pill-shaped quick launch button.
@@ -119,7 +168,7 @@ class QuickLaunchBar(QtWidgetMixin, QWidget):
                 border-left: 3px solid {config.color};
                 border-radius: 4px;
                 padding: 4px 12px;
-                font-size: 13px;
+                font-size: {design_system.typography.size_tiny}px;
                 font-weight: bold;
                 color: #ddd;
             }}

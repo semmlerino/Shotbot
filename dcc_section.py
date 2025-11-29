@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FileType, SceneFile
 from thumbnail_widget_base import FolderOpenerWorker
@@ -207,7 +208,13 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._files_count = 0
         self._current_selected_file: SceneFile | None = None
 
+        # Store references for dynamic styling
+        self._plate_label: QLabel | None = None
+
         self._setup_ui()
+
+        # Connect to scale changes for live updates
+        _ = design_system.scale_changed.connect(self._apply_styles)
 
     def _setup_ui(self) -> None:
         """Set up the section UI."""
@@ -260,7 +267,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._name_label.setStyleSheet(f"""
             QLabel {{
                 font-weight: bold;
-                font-size: 14px;
+                font-size: {design_system.typography.size_small}px;
                 color: {self.config.color};
             }}
         """)
@@ -268,11 +275,11 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         # Version info (shown when available)
         self._version_label = QLabel()
-        self._version_label.setStyleSheet("""
-            QLabel {
+        self._version_label.setStyleSheet(f"""
+            QLabel {{
                 color: #888;
-                font-size: 14px;
-            }
+                font-size: {design_system.typography.size_small}px;
+            }}
         """)
         self._version_label.setVisible(False)
         header_layout.addWidget(self._version_label)
@@ -304,7 +311,7 @@ class DCCSection(QtWidgetMixin, QWidget):
                 border-radius: 4px;
                 padding: 6px 12px;
                 font-weight: bold;
-                font-size: 13px;
+                font-size: {design_system.typography.size_tiny}px;
             }}
             QPushButton:hover {{
                 background-color: {self._lighten_color(self.config.color)};
@@ -326,12 +333,12 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         # Launch description label (shows what will be opened)
         self._launch_description = QLabel()
-        self._launch_description.setStyleSheet("""
-            QLabel {
+        self._launch_description.setStyleSheet(f"""
+            QLabel {{
                 color: #888;
-                font-size: 13px;
+                font-size: {design_system.typography.size_tiny}px;
                 margin-top: -4px;
-            }
+            }}
         """)
         self._launch_description.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._launch_description.setVisible(False)
@@ -343,14 +350,14 @@ class DCCSection(QtWidgetMixin, QWidget):
                 checkbox = QCheckBox(cb_config.label)
                 checkbox.setToolTip(cb_config.tooltip)
                 checkbox.setChecked(cb_config.default)
-                checkbox.setStyleSheet("""
-                    QCheckBox {
+                checkbox.setStyleSheet(f"""
+                    QCheckBox {{
                         color: #aaa;
-                        font-size: 14px;
-                    }
-                    QCheckBox:hover {
+                        font-size: {design_system.typography.size_small}px;
+                    }}
+                    QCheckBox:hover {{
                         color: #ccc;
-                    }
+                    }}
                 """)
                 content_layout.addWidget(checkbox)
                 self._checkboxes[cb_config.key] = checkbox
@@ -361,29 +368,28 @@ class DCCSection(QtWidgetMixin, QWidget):
             plate_row.setContentsMargins(0, 2, 0, 0)
             plate_row.setSpacing(4)
 
-            plate_label = QLabel("Plate:")
-            plate_label.setStyleSheet("QLabel { color: #888; font-size: 14px; }")
-            plate_row.addWidget(plate_label)
+            self._plate_label = QLabel("Plate:")
+            plate_row.addWidget(self._plate_label)
 
             self._plate_selector = QComboBox()
             self._plate_selector.setEnabled(False)
             self._plate_selector.setPlaceholderText("Select...")
             self._plate_selector.setMinimumWidth(80)
-            self._plate_selector.setStyleSheet("""
-                QComboBox {
+            self._plate_selector.setStyleSheet(f"""
+                QComboBox {{
                     background-color: #2a2a2a;
                     color: #ecf0f1;
                     border: 1px solid #444;
                     border-radius: 3px;
                     padding: 2px 4px;
-                    font-size: 14px;
-                }
-                QComboBox:disabled {
+                    font-size: {design_system.typography.size_small}px;
+                }}
+                QComboBox:disabled {{
                     background-color: #1e1e1e;
                     color: #666;
-                }
-                QComboBox::drop-down { border: none; }
-                QComboBox::down-arrow { image: none; }
+                }}
+                QComboBox::drop-down {{ border: none; }}
+                QComboBox::down-arrow {{ image: none; }}
             """)
             plate_row.addWidget(self._plate_selector)
             plate_row.addStretch()
@@ -396,6 +402,145 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         container_layout.addWidget(self._content)
         layout.addWidget(self._container)
+
+        # Apply dynamic styles
+        self._apply_styles()
+
+    def _apply_styles(self) -> None:
+        """Apply/refresh styles using current design system values."""
+        # DCC name label
+        self._name_label.setStyleSheet(f"""
+            QLabel {{
+                font-weight: bold;
+                font-size: {design_system.typography.size_small}px;
+                color: {self.config.color};
+            }}
+        """)
+
+        # Version label
+        self._version_label.setStyleSheet(f"""
+            QLabel {{
+                color: #888;
+                font-size: {design_system.typography.size_small}px;
+            }}
+        """)
+
+        # Launch button
+        self._launch_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.config.color};
+                color: #ecf0f1;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-weight: bold;
+                font-size: {design_system.typography.size_tiny}px;
+            }}
+            QPushButton:hover {{
+                background-color: {self._lighten_color(self.config.color)};
+            }}
+            QPushButton:pressed {{
+                background-color: {self._darken_color(self.config.color)};
+            }}
+            QPushButton:disabled {{
+                background-color: #2a2a2a;
+                color: #666;
+                border: 1px dashed #444;
+            }}
+        """)
+
+        # Launch description label
+        self._launch_description.setStyleSheet(f"""
+            QLabel {{
+                color: #888;
+                font-size: {design_system.typography.size_tiny}px;
+                margin-top: -4px;
+            }}
+        """)
+
+        # Checkboxes
+        for checkbox in self._checkboxes.values():
+            checkbox.setStyleSheet(f"""
+                QCheckBox {{
+                    color: #aaa;
+                    font-size: {design_system.typography.size_small}px;
+                }}
+                QCheckBox:hover {{
+                    color: #ccc;
+                }}
+            """)
+
+        # Plate label and selector
+        if self._plate_label is not None:
+            self._plate_label.setStyleSheet(
+                f"QLabel {{ color: #888; font-size: {design_system.typography.size_small}px; }}"
+            )
+
+        if self._plate_selector is not None:
+            self._plate_selector.setStyleSheet(f"""
+                QComboBox {{
+                    background-color: #2a2a2a;
+                    color: #ecf0f1;
+                    border: 1px solid #444;
+                    border-radius: 3px;
+                    padding: 2px 4px;
+                    font-size: {design_system.typography.size_small}px;
+                }}
+                QComboBox:disabled {{
+                    background-color: #1e1e1e;
+                    color: #666;
+                }}
+                QComboBox::drop-down {{ border: none; }}
+                QComboBox::down-arrow {{ image: none; }}
+            """)
+
+        # Files header button
+        if self._files_header_btn is not None:
+            self._files_header_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    border: none;
+                    text-align: left;
+                    padding: 4px 0px;
+                    font-size: {design_system.typography.size_tiny}px;
+                    font-weight: bold;
+                    color: #888;
+                }}
+                QPushButton:hover {{
+                    color: #aaa;
+                }}
+            """)
+
+        # Files table
+        if self._file_table is not None:
+            color = self.config.color
+            self._file_table.setStyleSheet(f"""
+                QTableView {{
+                    background-color: #1e1e1e;
+                    alternate-background-color: #232323;
+                    color: #ecf0f1;
+                    border: 1px solid #333;
+                    border-radius: 3px;
+                    selection-background-color: {color}40;
+                    selection-color: #ecf0f1;
+                }}
+                QTableView::item {{
+                    padding: 2px 6px;
+                    font-size: {design_system.typography.size_small}px;
+                }}
+                QTableView::item:selected {{
+                    background-color: {color}60;
+                }}
+                QHeaderView::section {{
+                    background-color: #252525;
+                    color: #888;
+                    padding: 3px 6px;
+                    border: none;
+                    border-bottom: 1px solid #333;
+                    font-weight: bold;
+                    font-size: {design_system.typography.size_tiny}px;
+                }}
+            """)
 
     def _toggle_expanded(self) -> None:
         """Toggle the expanded state."""
@@ -589,19 +734,19 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._files_header_btn.setFlat(True)
         self._files_header_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         _ = self._files_header_btn.clicked.connect(self._toggle_files_expanded)
-        self._files_header_btn.setStyleSheet("""
-            QPushButton {
+        self._files_header_btn.setStyleSheet(f"""
+            QPushButton {{
                 background-color: transparent;
                 border: none;
                 text-align: left;
                 padding: 4px 0px;
-                font-size: 13px;
+                font-size: {design_system.typography.size_tiny}px;
                 font-weight: bold;
                 color: #888;
-            }
-            QPushButton:hover {
+            }}
+            QPushButton:hover {{
                 color: #aaa;
-            }
+            }}
         """)
         files_layout.addWidget(self._files_header_btn)
 
@@ -647,7 +792,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             }}
             QTableView::item {{
                 padding: 2px 6px;
-                font-size: 14px;
+                font-size: {design_system.typography.size_small}px;
             }}
             QTableView::item:selected {{
                 background-color: {color}60;
@@ -659,7 +804,7 @@ class DCCSection(QtWidgetMixin, QWidget):
                 border: none;
                 border-bottom: 1px solid #333;
                 font-weight: bold;
-                font-size: 13px;
+                font-size: {design_system.typography.size_tiny}px;
             }}
         """)
 

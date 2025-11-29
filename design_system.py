@@ -6,9 +6,13 @@ spacing, and component styles following modern UI/UX best practices.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 # Standard library imports
 from dataclasses import dataclass
 from typing import final
+
+from PySide6.QtCore import QObject, Signal
 
 
 @final
@@ -67,7 +71,7 @@ class Typography:
     font_family: str = '"Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif'
     font_family_mono: str = '"Cascadia Code", "Fira Code", "Consolas", monospace'
 
-    # Font sizes (rem-based scale)
+    # Font sizes (pixel scale) - base values before UI scale
     size_h1: int = 26
     size_h2: int = 22
     size_h3: int = 20
@@ -75,6 +79,9 @@ class Typography:
     size_body: int = 16
     size_small: int = 14
     size_tiny: int = 13
+    size_extra_tiny: int = 12  # File info, secondary metadata
+    size_extra_small: int = 11  # Compact labels, spacers
+    size_micro: int = 10  # Monospace paths, logs, technical text
 
     # Font weights
     weight_light: int = 300
@@ -86,6 +93,107 @@ class Typography:
     line_height_tight: float = 1.2
     line_height_normal: float = 1.5
     line_height_relaxed: float = 1.75
+
+
+@final
+class ScaledTypography:
+    """Typography wrapper that applies UI scale to font sizes.
+
+    This class wraps a Typography instance and returns scaled font sizes
+    while preserving non-size attributes unchanged. The scale is retrieved
+    dynamically from the design system to support runtime changes.
+    """
+
+    _base: Typography
+    _get_scale: Callable[[], float]
+
+    def __init__(self, base: Typography, get_scale: Callable[[], float]) -> None:
+        """Initialize scaled typography.
+
+        Args:
+            base: Base Typography instance with unscaled values
+            get_scale: Callable that returns current UI scale factor
+        """
+        self._base = base
+        self._get_scale = get_scale
+
+    def _scaled(self, value: int) -> int:
+        """Apply scale to a size value."""
+        return round(value * self._get_scale())
+
+    # Scaled size properties - return int for type safety
+    @property
+    def size_h1(self) -> int:
+        return self._scaled(self._base.size_h1)
+
+    @property
+    def size_h2(self) -> int:
+        return self._scaled(self._base.size_h2)
+
+    @property
+    def size_h3(self) -> int:
+        return self._scaled(self._base.size_h3)
+
+    @property
+    def size_h4(self) -> int:
+        return self._scaled(self._base.size_h4)
+
+    @property
+    def size_body(self) -> int:
+        return self._scaled(self._base.size_body)
+
+    @property
+    def size_small(self) -> int:
+        return self._scaled(self._base.size_small)
+
+    @property
+    def size_tiny(self) -> int:
+        return self._scaled(self._base.size_tiny)
+
+    @property
+    def size_extra_tiny(self) -> int:
+        return self._scaled(self._base.size_extra_tiny)
+
+    @property
+    def size_extra_small(self) -> int:
+        return self._scaled(self._base.size_extra_small)
+
+    @property
+    def size_micro(self) -> int:
+        return self._scaled(self._base.size_micro)
+
+    # Pass-through properties for non-scaled values
+    @property
+    def font_family(self) -> str:
+        return self._base.font_family
+
+    @property
+    def weight_light(self) -> int:
+        return self._base.weight_light
+
+    @property
+    def weight_regular(self) -> int:
+        return self._base.weight_regular
+
+    @property
+    def weight_medium(self) -> int:
+        return self._base.weight_medium
+
+    @property
+    def weight_bold(self) -> int:
+        return self._base.weight_bold
+
+    @property
+    def line_height_tight(self) -> float:
+        return self._base.line_height_tight
+
+    @property
+    def line_height_normal(self) -> float:
+        return self._base.line_height_normal
+
+    @property
+    def line_height_relaxed(self) -> float:
+        return self._base.line_height_relaxed
 
 
 @final
@@ -169,13 +277,18 @@ class Animation:
 
 
 @final
-class DesignSystem:
+class DesignSystem(QObject):
     """Central design system with all design tokens."""
+
+    # Emitted when UI scale changes, for live preview updates
+    scale_changed = Signal(float)
 
     def __init__(self) -> None:
         super().__init__()
+        self._ui_scale: float = 1.0  # Default 100% scale
+        self._base_typography = Typography()
         self.colors = ColorPalette()
-        self.typography = Typography()
+        self.typography = ScaledTypography(self._base_typography, lambda: self._ui_scale)
         self.spacing = Spacing()
         self.borders = Borders()
         self.shadows = Shadows()
@@ -520,6 +633,25 @@ class DesignSystem:
         }
 
         return styles.get(component, {}).get(variant, {})
+
+    def set_ui_scale(self, scale: float) -> None:
+        """Set UI scale factor for typography.
+
+        Args:
+            scale: Scale factor (0.8 to 1.5). Values outside range are clamped.
+        """
+        new_scale = max(0.8, min(scale, 1.5))
+        if new_scale != self._ui_scale:
+            self._ui_scale = new_scale
+            self.scale_changed.emit(new_scale)
+
+    def get_ui_scale(self) -> float:
+        """Get current UI scale factor.
+
+        Returns:
+            Current scale factor (0.8 to 1.5)
+        """
+        return self._ui_scale
 
 
 # Global instance

@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 # Local application imports
+from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 
 
@@ -77,7 +78,16 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         self._launch_in_progress = False
         self._original_button_text = ""
         self._should_be_enabled = False  # Track parent's desired enabled state
+
+        # Store widget references for dynamic styling
+        self._name_label: QLabel | None = None
+        self._shortcut_badge: QLabel | None = None
+        self._plate_label: QLabel | None = None
+
         self._setup_ui()
+
+        # Connect to scale changes for live updates
+        _ = design_system.scale_changed.connect(self._apply_styles)
 
     def _setup_ui(self) -> None:
         """Set up the section UI as a card with expandable options."""
@@ -104,33 +114,15 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         header_layout.setSpacing(4)
 
         # App icon and name
-        name_label = QLabel(f"{self.config.icon} {self.config.name.upper()}")
-        name_label.setStyleSheet(f"""
-            QLabel {{
-                font-weight: bold;
-                font-size: 15px;
-                color: {self.config.color};
-            }}
-        """)
-        header_layout.addWidget(name_label)
+        self._name_label = QLabel(f"{self.config.icon} {self.config.name.upper()}")
+        header_layout.addWidget(self._name_label)
         header_layout.addStretch()
 
         # Keyboard shortcut badge (if shortcut configured)
         if self.config.shortcut:
-            shortcut_badge = QLabel(self.config.shortcut.upper())
-            shortcut_badge.setStyleSheet("""
-                QLabel {
-                    background-color: #333;
-                    color: #888;
-                    font-size: 11px;
-                    font-weight: bold;
-                    padding: 2px 5px;
-                    border-radius: 3px;
-                    border: 1px solid #444;
-                }
-            """)
-            shortcut_badge.setToolTip(f"Press '{self.config.shortcut.upper()}' to launch")
-            header_layout.addWidget(shortcut_badge)
+            self._shortcut_badge = QLabel(self.config.shortcut.upper())
+            self._shortcut_badge.setToolTip(f"Press '{self.config.shortcut.upper()}' to launch")
+            header_layout.addWidget(self._shortcut_badge)
 
         # Expand/collapse button for options
         self.expand_button = QToolButton()
@@ -201,14 +193,14 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
                 checkbox = QCheckBox(checkbox_config.label)
                 checkbox.setToolTip(checkbox_config.tooltip)
                 checkbox.setChecked(checkbox_config.default)
-                checkbox.setStyleSheet("""
-                    QCheckBox {
+                checkbox.setStyleSheet(f"""
+                    QCheckBox {{
                         color: #aaa;
-                        font-size: 12px;
-                    }
-                    QCheckBox:hover {
+                        font-size: {design_system.typography.size_extra_tiny}px;
+                    }}
+                    QCheckBox:hover {{
                         color: #ccc;
-                    }
+                    }}
                 """)
                 content_layout.addWidget(checkbox)
                 self.checkboxes[checkbox_config.key] = checkbox
@@ -219,36 +211,84 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
             plate_layout.setContentsMargins(0, 2, 0, 0)
             plate_layout.setSpacing(4)
 
-            plate_label = QLabel("Plate:")
-            plate_label.setStyleSheet("QLabel { color: #888; font-size: 12px; }")
-            plate_layout.addWidget(plate_label)
+            self._plate_label = QLabel("Plate:")
+            plate_layout.addWidget(self._plate_label)
 
             self.plate_selector = QComboBox()
             self.plate_selector.setEnabled(False)
             self.plate_selector.setPlaceholderText("Select...")
             self.plate_selector.setMinimumWidth(80)
-            self.plate_selector.setStyleSheet("""
-                QComboBox {
-                    background-color: #2a2a2a;
-                    color: #ecf0f1;
-                    border: 1px solid #444;
-                    border-radius: 3px;
-                    padding: 2px 4px;
-                    font-size: 12px;
-                }
-                QComboBox:disabled {
-                    background-color: #1e1e1e;
-                    color: #666;
-                }
-                QComboBox::drop-down { border: none; }
-                QComboBox::down-arrow { image: none; }
-            """)
             plate_layout.addWidget(self.plate_selector)
             plate_layout.addStretch()
 
             content_layout.addLayout(plate_layout)
 
         layout.addWidget(self.content_widget)
+
+        # Apply dynamic styles
+        self._apply_styles()
+
+    def _apply_styles(self) -> None:
+        """Apply/refresh styles using current design system values."""
+        # Name label
+        if self._name_label is not None:
+            self._name_label.setStyleSheet(f"""
+                QLabel {{
+                    font-weight: bold;
+                    font-size: {design_system.typography.size_small}px;
+                    color: {self.config.color};
+                }}
+            """)
+
+        # Shortcut badge
+        if self._shortcut_badge is not None:
+            self._shortcut_badge.setStyleSheet(f"""
+                QLabel {{
+                    background-color: #333;
+                    color: #888;
+                    font-size: {design_system.typography.size_extra_small}px;
+                    font-weight: bold;
+                    padding: 2px 5px;
+                    border-radius: 3px;
+                    border: 1px solid #444;
+                }}
+            """)
+
+        # Checkboxes
+        for checkbox in self.checkboxes.values():
+            checkbox.setStyleSheet(f"""
+                QCheckBox {{
+                    color: #aaa;
+                    font-size: {design_system.typography.size_extra_tiny}px;
+                }}
+                QCheckBox:hover {{
+                    color: #ccc;
+                }}
+            """)
+
+        # Plate label and selector
+        if self._plate_label is not None:
+            self._plate_label.setStyleSheet(
+                f"QLabel {{ color: #888; font-size: {design_system.typography.size_extra_tiny}px; }}"
+            )
+
+        if self.plate_selector is not None:
+            self.plate_selector.setStyleSheet(f"""
+                QComboBox {{
+                    background-color: #2a2a2a;
+                    color: #ecf0f1;
+                    border: 1px solid #444;
+                    border-radius: 3px;
+                    padding: 2px 4px;
+                    font-size: {design_system.typography.size_extra_tiny}px;
+                }}
+                QComboBox:disabled {{
+                    background-color: #1e1e1e;
+                    color: #666;
+                }}
+                QComboBox::drop-down {{ border: none; }}
+                QComboBox::down-arrow {{ image: none; }}
+            """)
 
     def _toggle_expanded(self) -> None:
         """Toggle expanded/collapsed state."""
@@ -400,7 +440,16 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         self.custom_launcher_buttons: dict[str, QPushButton] = {}
         self._quick_buttons: dict[str, QPushButton] = {}  # Fast-path launch buttons
         self._current_shot: Shot | None = None
+
+        # Store widget references for dynamic styling
+        self._quick_label: QLabel | None = None
+        self._custom_label: QLabel | None = None
+        self._quick_apps_config: list[tuple[str, str, str]] = []
+
         self._setup_ui()
+
+        # Connect to scale changes for live updates
+        _ = design_system.scale_changed.connect(self._apply_styles)
 
     def _setup_ui(self) -> None:
         """Set up the launcher panel UI with fast-path bar and grid."""
@@ -410,21 +459,21 @@ class LauncherPanel(QtWidgetMixin, QWidget):
 
         # Main group box
         self.group_box = QGroupBox("Launch Applications")
-        self.group_box.setStyleSheet("""
-            QGroupBox {
+        self.group_box.setStyleSheet(f"""
+            QGroupBox {{
                 font-weight: bold;
-                font-size: 15px;
+                font-size: {design_system.typography.size_small}px;
                 border: 2px solid #444;
                 border-radius: 5px;
                 margin-top: 10px;
                 padding-top: 15px;
-            }
-            QGroupBox::title {
+            }}
+            QGroupBox::title {{
                 subcontrol-origin: margin;
                 left: 10px;
                 padding: 0 5px 0 5px;
                 color: #ddd;
-            }
+            }}
         """)
 
         group_layout = QVBoxLayout(self.group_box)
@@ -434,7 +483,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         self.info_label = QLabel("Select a shot to enable app launching")
         self.info_label.setWordWrap(True)
         self.info_label.setStyleSheet(
-            "QLabel { color: #888; font-style: italic; padding: 5px 10px; font-size: 15px; }"
+            f"QLabel {{ color: #888; font-style: italic; padding: 5px 10px; font-size: {design_system.typography.size_small}px; }}"
         )
         group_layout.addWidget(self.info_label)
 
@@ -444,7 +493,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         )
         self.hint_label.setWordWrap(True)
         self.hint_label.setStyleSheet(
-            "QLabel { color: #666; font-size: 12px; padding: 2px 10px; }"
+            f"QLabel {{ color: #666; font-size: {design_system.typography.size_extra_tiny}px; padding: 2px 10px; }}"
         )
         group_layout.addWidget(self.hint_label)
 
@@ -454,18 +503,17 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         quick_layout.setContentsMargins(10, 5, 10, 10)
         quick_layout.setSpacing(8)
 
-        quick_label = QLabel("Quick:")
-        quick_label.setStyleSheet("color: #888; font-size: 15px;")
-        quick_layout.addWidget(quick_label)
+        self._quick_label = QLabel("Quick:")
+        quick_layout.addWidget(self._quick_label)
 
         # Quick launch buttons
-        quick_apps = [
+        self._quick_apps_config = [
             ("3de", "🎬", "#2b4d6f"),
             ("nuke", "🎨", "#5d4d2b"),
             ("maya", "🎭", "#4d2b5d"),
             ("rv", "📽️", "#2b5d4d"),
         ]
-        for app_name, icon, color in quick_apps:
+        for app_name, icon, color in self._quick_apps_config:
             btn = QPushButton(icon)
             btn.setFixedSize(32, 32)
             btn.setToolTip(f"Quick launch {app_name.upper()}")
@@ -473,7 +521,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
                 QPushButton {{
                     background-color: {color};
                     border-radius: 4px;
-                    font-size: 18px;
+                    font-size: {design_system.typography.size_h4}px;
                     border: none;
                 }}
                 QPushButton:hover {{
@@ -611,6 +659,9 @@ class LauncherPanel(QtWidgetMixin, QWidget):
 
         layout.addWidget(self.group_box)
 
+        # Apply dynamic styles
+        self._apply_styles()
+
     def _add_custom_launchers_section(self, parent_layout: QVBoxLayout) -> None:
         """Add custom launchers section."""
         # Add separator
@@ -621,23 +672,89 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         parent_layout.addWidget(separator)
 
         # Add custom launchers label
-        custom_label = QLabel("Custom Launchers")
-        custom_label.setObjectName("customLaunchersLabel")
-        custom_label.setStyleSheet("""
-            QLabel#customLaunchersLabel {
-                color: #aaa;
-                font-size: 15px;
-                font-weight: bold;
-                padding: 5px 0 2px 10px;
-            }
-        """)
-        parent_layout.addWidget(custom_label)
+        self._custom_label = QLabel("Custom Launchers")
+        self._custom_label.setObjectName("customLaunchersLabel")
+        parent_layout.addWidget(self._custom_label)
 
         # Container for custom launcher buttons
         self.custom_launcher_container = QVBoxLayout()
         self.custom_launcher_container.setSpacing(5)
         self.custom_launcher_container.setContentsMargins(25, 5, 10, 0)
         parent_layout.addLayout(self.custom_launcher_container)
+
+    def _apply_styles(self) -> None:
+        """Apply/refresh styles using current design system values."""
+        # Group box
+        self.group_box.setStyleSheet(f"""
+            QGroupBox {{
+                font-weight: bold;
+                font-size: {design_system.typography.size_small}px;
+                border: 2px solid #444;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 15px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+                color: #ddd;
+            }}
+        """)
+
+        # Info label (style depends on shot state)
+        if self._current_shot:
+            self.info_label.setStyleSheet(
+                f"QLabel {{ color: #9c9; font-style: normal; padding: 5px 10px; "
+                f"font-size: {design_system.typography.size_small}px; font-weight: bold; }}"
+            )
+        else:
+            self.info_label.setStyleSheet(
+                f"QLabel {{ color: #888; font-style: italic; padding: 5px 10px; "
+                f"font-size: {design_system.typography.size_small}px; }}"
+            )
+
+        # Hint label
+        self.hint_label.setStyleSheet(
+            f"QLabel {{ color: #666; font-size: {design_system.typography.size_extra_tiny}px; padding: 2px 10px; }}"
+        )
+
+        # Quick label
+        if self._quick_label is not None:
+            self._quick_label.setStyleSheet(
+                f"color: #888; font-size: {design_system.typography.size_small}px;"
+            )
+
+        # Quick buttons
+        for app_name, _icon, color in self._quick_apps_config:
+            btn = self._quick_buttons.get(app_name)
+            if btn is not None:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {color};
+                        border-radius: 4px;
+                        font-size: {design_system.typography.size_h4}px;
+                        border: none;
+                    }}
+                    QPushButton:hover {{
+                        background-color: {self._lighten_color(color)};
+                    }}
+                    QPushButton:disabled {{
+                        background-color: #222;
+                        color: #666;
+                    }}
+                """)
+
+        # Custom launchers label
+        if self._custom_label is not None:
+            self._custom_label.setStyleSheet(f"""
+                QLabel#customLaunchersLabel {{
+                    color: #aaa;
+                    font-size: {design_system.typography.size_small}px;
+                    font-weight: bold;
+                    padding: 5px 0 2px 10px;
+                }}
+            """)
 
     def _on_app_launch(self, app_name: str) -> None:
         """Handle app launch request from section.
@@ -661,12 +778,12 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         if shot:
             self.info_label.setText(f"Shot: {shot.show}/{shot.sequence}/{shot.shot}")
             self.info_label.setStyleSheet(
-                "QLabel { color: #9c9; font-style: normal; padding: 5px 10px; font-size: 15px; font-weight: bold; }"
+                f"QLabel {{ color: #9c9; font-style: normal; padding: 5px 10px; font-size: {design_system.typography.size_small}px; font-weight: bold; }}"
             )
         else:
             self.info_label.setText("Select a shot to enable app launching")
             self.info_label.setStyleSheet(
-                "QLabel { color: #888; font-style: italic; padding: 5px 10px; font-size: 15px; }"
+                f"QLabel {{ color: #888; font-style: italic; padding: 5px 10px; font-size: {design_system.typography.size_small}px; }}"
             )
 
         # Enable/disable quick buttons

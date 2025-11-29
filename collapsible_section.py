@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 
 
@@ -50,7 +51,15 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
         self._count: int | None = None
         self._content_widget: QWidget | None = None
 
+        # Style parameters for live refresh
+        self._header_color = "#aaa"
+        self._header_hover_color = "#ddd"
+        self._header_hover_bg = "#2a2a2a"
+
         self._setup_ui()
+
+        # Connect to scale changes for live updates
+        _ = design_system.scale_changed.connect(self._apply_styles)
         self._update_header_text()
         self._update_content_visibility()
 
@@ -65,21 +74,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
         self._header_button.setFlat(True)
         self._header_button.setCursor(Qt.CursorShape.PointingHandCursor)
         _ = self._header_button.clicked.connect(self._toggle_expanded)
-        self._header_button.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                border: none;
-                text-align: left;
-                padding: 8px 10px;
-                font-size: 14px;
-                font-weight: bold;
-                color: #aaa;
-            }
-            QPushButton:hover {
-                background-color: #2a2a2a;
-                color: #ddd;
-            }
-        """)
+        self._apply_styles()
         layout.addWidget(self._header_button)
 
         # Content container
@@ -88,6 +83,24 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
         self._content_layout.setContentsMargins(0, 0, 0, 0)
         self._content_layout.setSpacing(0)
         layout.addWidget(self._content_container)
+
+    def _apply_styles(self) -> None:
+        """Apply/refresh styles using current design system values."""
+        self._header_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                text-align: left;
+                padding: 8px 10px;
+                font-size: {design_system.typography.size_small}px;
+                font-weight: bold;
+                color: {self._header_color};
+            }}
+            QPushButton:hover {{
+                background-color: {self._header_hover_bg};
+                color: {self._header_hover_color};
+            }}
+        """)
 
     def _update_header_text(self) -> None:
         """Update header button text with indicator, title, and count."""
@@ -174,18 +187,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
             hover_color: Text color on hover
             hover_bg: Background color on hover
         """
-        self._header_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                text-align: left;
-                padding: 8px 10px;
-                font-size: 14px;
-                font-weight: bold;
-                color: {color};
-            }}
-            QPushButton:hover {{
-                background-color: {hover_bg};
-                color: {hover_color};
-            }}
-        """)
+        self._header_color = color
+        self._header_hover_color = hover_color
+        self._header_hover_bg = hover_bg
+        self._apply_styles()

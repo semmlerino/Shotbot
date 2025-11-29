@@ -79,6 +79,7 @@ from PySide6.QtWidgets import (
 
 # Local application imports
 from config import Config
+from design_system import design_system
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 from typing_compat import override
@@ -118,14 +119,18 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Temporary settings copy for preview/cancel functionality
         self.temp_settings: dict[str, object] = {}
 
+        # Store original values for cancel/restore
+        self._original_ui_scale: float = design_system.get_ui_scale()
+
         # Initialize all widget attributes that will be set in setup_ui()
         # General tab widgets
         self.thumbnail_size_slider: QSlider
         self.thumbnail_size_label: QLabel
+        self.ui_scale_slider: QSlider
+        self.ui_scale_label: QLabel
         self.grid_columns_spin: QSpinBox
         self.dark_theme_check: QCheckBox
         self.animations_check: QCheckBox
-        self.tooltips_check: QCheckBox
         self.refresh_interval_spin: QSpinBox
         self.background_refresh_check: QCheckBox
         self.double_click_combo: QComboBox
@@ -250,9 +255,26 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         thumbnail_layout.addWidget(self.thumbnail_size_label)
         ui_layout.addRow("Thumbnail Size:", thumbnail_layout)
 
+        # UI Scale (font sizes)
+        self.ui_scale_slider = QSlider(Qt.Orientation.Horizontal)
+        self.ui_scale_slider.setMinimum(80)  # 80%
+        self.ui_scale_slider.setMaximum(150)  # 150%
+        self.ui_scale_slider.setTickInterval(10)
+        self.ui_scale_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+
+        self.ui_scale_label = QLabel()
+        ui_scale_layout = QHBoxLayout()
+        ui_scale_layout.addWidget(self.ui_scale_slider)
+        ui_scale_layout.addWidget(self.ui_scale_label)
+        ui_layout.addRow("UI Scale:", ui_scale_layout)
+
         # Animations
         self.animations_check = QCheckBox("Enable Animations")
         ui_layout.addRow(self.animations_check)
+
+        # Dark theme
+        self.dark_theme_check = QCheckBox("Enable Dark Theme")
+        ui_layout.addRow(self.dark_theme_check)
 
         scroll_layout.addWidget(ui_group)
 
@@ -549,7 +571,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             f"Settings File: {self.settings_manager.get_settings_file_path()}"
         )
         settings_path_label.setWordWrap(True)
-        settings_path_label.setStyleSheet("font-family: monospace; font-size: 10pt;")
+        settings_path_label.setStyleSheet(f"font-family: monospace; font-size: {design_system.typography.size_micro}px;")
         system_layout.addWidget(settings_path_label)
 
         scroll_layout.addWidget(system_group)
@@ -587,6 +609,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         _ = self.thumbnail_size_slider.valueChanged.connect(
             self.update_thumbnail_preview  # type: ignore[reportAny, return-value]
         )
+        _ = self.ui_scale_slider.valueChanged.connect(
+            self.update_ui_scale_preview  # type: ignore[reportAny, return-value]
+        )
         _ = self.dark_theme_check.toggled.connect(
             self.preview_theme_change  # type: ignore[reportAny, return-value]
         )
@@ -612,7 +637,13 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.thumbnail_size_slider.setValue(self.settings_manager.get_thumbnail_size())
         self.update_thumbnail_preview()  # type: ignore[reportAny, return-value]
 
+        # UI Scale - convert from float (0.8-1.5) to percent (80-150)
+        ui_scale = self.settings_manager.get_ui_scale()
+        self.ui_scale_slider.setValue(int(ui_scale * 100))
+        self.update_ui_scale_preview()  # type: ignore[reportAny, return-value]
+
         self.animations_check.setChecked(self.settings_manager.get_enable_animations())
+        self.dark_theme_check.setChecked(self.settings_manager.get_dark_theme())
 
         self.refresh_interval_spin.setValue(
             self.settings_manager.get_refresh_interval()
@@ -665,6 +696,24 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Emit preview signal
         self.settings_changed.emit("thumbnail_size_preview", size)
+
+    @Slot()
+    def update_ui_scale_preview(self) -> None:  # type: ignore[reportAny]
+        """Update UI scale preview label and apply live preview."""
+        scale_percent = self.ui_scale_slider.value()
+        self.ui_scale_label.setText(f"{scale_percent}%")
+
+        # Apply scale in real-time for live preview
+        ui_scale = scale_percent / 100.0
+        design_system.set_ui_scale(ui_scale)
+
+        # Update the label's own font to demonstrate the scale effect
+        font = self.ui_scale_label.font()
+        font.setPixelSize(design_system.typography.size_body)
+        self.ui_scale_label.setFont(font)
+
+        # Emit preview signal for any listeners
+        self.settings_changed.emit("ui_scale_preview", ui_scale)
 
     @Slot()
     def preview_theme_change(self) -> None:  # type: ignore[reportAny]
@@ -809,14 +858,23 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
     def reject_changes(self) -> None:
         """Reject all changes and close dialog."""
-        # Could emit signal to revert any preview changes
+        # Restore original UI scale (revert live preview)
+        design_system.set_ui_scale(self._original_ui_scale)
         self.reject()
 
     def save_settings(self) -> None:
         """Save all settings from dialog controls."""
         # General settings
         self.settings_manager.set_thumbnail_size(self.thumbnail_size_slider.value())
+
+        # UI Scale - convert from percent (80-150) to float (0.8-1.5)
+        ui_scale = self.ui_scale_slider.value() / 100.0
+        self.settings_manager.set_ui_scale(ui_scale)
+        # Update design system with new scale
+        design_system.set_ui_scale(ui_scale)
+
         self.settings_manager.set_enable_animations(self.animations_check.isChecked())
+        self.settings_manager.set_dark_theme(self.dark_theme_check.isChecked())
 
         self.settings_manager.set_refresh_interval(self.refresh_interval_spin.value())
         self.settings_manager.set_background_refresh(

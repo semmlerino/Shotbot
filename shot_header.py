@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FILE_TYPE_COLORS, FileType
 
@@ -77,26 +78,22 @@ class ShotHeader(QtWidgetMixin, QWidget):
 
         self._setup_ui()
 
+        # Connect to scale changes for live updates
+        _ = design_system.scale_changed.connect(self._apply_styles)
+
     def _setup_ui(self) -> None:
         """Set up the header UI."""
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(4)
 
-        # Row 1: Shot name (20px bold, cyan)
+        # Row 1: Shot name (bold, cyan)
         self._shot_name_label = QLabel(self._empty_message)
-        shot_font = QFont()
-        shot_font.setPointSize(22)
-        shot_font.setWeight(QFont.Weight.Bold)
-        self._shot_name_label.setFont(shot_font)
         self._shot_name_label.setStyleSheet("color: #14ffec;")
         main_layout.addWidget(self._shot_name_label)
 
-        # Row 2: Show | Sequence (12px, muted)
+        # Row 2: Show | Sequence (muted)
         self._show_sequence_label = QLabel("")
-        show_font = QFont()
-        show_font.setPointSize(14)
-        self._show_sequence_label.setFont(show_font)
         self._show_sequence_label.setStyleSheet("color: #aaa;")
         main_layout.addWidget(self._show_sequence_label)
 
@@ -106,9 +103,6 @@ class ShotHeader(QtWidgetMixin, QWidget):
         path_row.setContentsMargins(0, 4, 0, 0)
 
         self._path_label = QLabel("")
-        path_font = QFont()
-        path_font.setPointSize(12)
-        self._path_label.setFont(path_font)
         self._path_label.setStyleSheet("color: #666;")
         self._path_label.setWordWrap(True)
         path_row.addWidget(self._path_label, 1)
@@ -116,18 +110,6 @@ class ShotHeader(QtWidgetMixin, QWidget):
         self._copy_path_btn = QToolButton()
         self._copy_path_btn.setText("📋")
         self._copy_path_btn.setToolTip("Copy path to clipboard")
-        self._copy_path_btn.setStyleSheet("""
-            QToolButton {
-                background-color: transparent;
-                border: none;
-                font-size: 16px;
-                padding: 2px;
-            }
-            QToolButton:hover {
-                background-color: #333;
-                border-radius: 4px;
-            }
-        """)
         _ = self._copy_path_btn.clicked.connect(self._on_copy_path)
         path_row.addWidget(self._copy_path_btn)
 
@@ -144,15 +126,6 @@ class ShotHeader(QtWidgetMixin, QWidget):
         for file_type in FileType:
             label = QLabel()
             label.setVisible(False)
-            label.setStyleSheet(f"""
-                QLabel {{
-                    color: {FILE_TYPE_COLORS[file_type]};
-                    font-size: 12px;
-                    padding: 2px 6px;
-                    background-color: #252525;
-                    border-radius: 3px;
-                }}
-            """)
             status_layout.addWidget(label)
             self._status_labels[file_type] = label
 
@@ -167,6 +140,53 @@ class ShotHeader(QtWidgetMixin, QWidget):
                 border-radius: 6px;
             }
         """)
+
+        # Apply font sizes
+        self._apply_styles()
+
+    def _apply_styles(self) -> None:
+        """Apply/refresh styles using current design system values."""
+        # Shot name font (h2, bold)
+        shot_font = QFont()
+        shot_font.setPixelSize(design_system.typography.size_h2)
+        shot_font.setWeight(QFont.Weight.Bold)
+        self._shot_name_label.setFont(shot_font)
+
+        # Show/sequence font (small)
+        show_font = QFont()
+        show_font.setPixelSize(design_system.typography.size_small)
+        self._show_sequence_label.setFont(show_font)
+
+        # Path font (extra tiny)
+        path_font = QFont()
+        path_font.setPixelSize(design_system.typography.size_extra_tiny)
+        self._path_label.setFont(path_font)
+
+        # Copy button
+        self._copy_path_btn.setStyleSheet(f"""
+            QToolButton {{
+                background-color: transparent;
+                border: none;
+                font-size: {design_system.typography.size_body}px;
+                padding: 2px;
+            }}
+            QToolButton:hover {{
+                background-color: #333;
+                border-radius: 4px;
+            }}
+        """)
+
+        # Status labels
+        for file_type, label in self._status_labels.items():
+            label.setStyleSheet(f"""
+                QLabel {{
+                    color: {FILE_TYPE_COLORS[file_type]};
+                    font-size: {design_system.typography.size_extra_tiny}px;
+                    padding: 2px 6px;
+                    background-color: #252525;
+                    border-radius: 3px;
+                }}
+            """)
 
     def _on_copy_path(self) -> None:
         """Handle copy path button click."""

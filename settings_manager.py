@@ -172,6 +172,7 @@ class SettingsManager(LoggingMixin, QObject):
                 "compact_mode": False,
                 "dark_theme": False,
                 "font_size": 9,
+                "ui_scale": 1.0,  # UI scale factor (0.8 to 1.5, default 1.0 = 100%)
                 "thumbnail_spacing": Config.THUMBNAIL_SPACING,
                 "selection_highlight": True,
                 "hover_effects": True,
@@ -461,7 +462,7 @@ class SettingsManager(LoggingMixin, QObject):
         """Get file type associations."""
         default_associations = dict(Config.APPS)
         stored_value = self.settings.value(
-            "applications/file_associations", default_associations, type=dict
+            "applications/file_associations", default_associations
         )
         # Type guard: QSettings.value can return various types depending on stored data
         if isinstance(stored_value, dict):
@@ -512,8 +513,41 @@ class SettingsManager(LoggingMixin, QObject):
         self.settings_changed.emit("applications/custom_launchers", launchers)
 
     # UI Settings
-    # Dead settings removed: grid_columns, show_tooltips, dark_theme
+    # Dead settings removed: grid_columns, show_tooltips
     # These were never applied by settings_controller.py
+
+    def get_dark_theme(self) -> bool:
+        """Get dark theme setting."""
+        value = self.settings.value("ui/dark_theme", False, type=bool)
+        return bool(value) if isinstance(value, bool) else False
+
+    def set_dark_theme(self, enabled: bool) -> None:
+        """Set dark theme setting."""
+        self.settings.setValue("ui/dark_theme", enabled)
+        self.settings_changed.emit("ui/dark_theme", enabled)
+
+    def get_ui_scale(self) -> float:
+        """Get UI scale factor.
+
+        Returns:
+            Scale factor (0.8 to 1.5, default 1.0 = 100%)
+        """
+        value = self.settings.value("ui/ui_scale", 1.0, type=float)
+        if isinstance(value, (int, float)):
+            # Clamp to valid range
+            return max(0.8, min(float(value), 1.5))
+        return 1.0
+
+    def set_ui_scale(self, scale: float) -> None:
+        """Set UI scale factor.
+
+        Args:
+            scale: Scale factor (0.8 to 1.5)
+        """
+        # Validate and clamp range
+        validated_scale = max(0.8, min(scale, 1.5))
+        self.settings.setValue("ui/ui_scale", validated_scale)
+        self.settings_changed.emit("ui/ui_scale", validated_scale)
 
     def get_expanded_sections(self) -> dict[str, bool]:
         """Get expanded state for all sections."""
