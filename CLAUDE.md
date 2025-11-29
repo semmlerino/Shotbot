@@ -237,10 +237,10 @@ cd ~/projects/shotbot
 
 ```
 shotbot/
-├── controllers/       # Application controllers
-├── core/             # Core business logic
-├── launcher/         # Launch system components
-├── launch/           # Process launching utilities
+├── controllers/       # Application controllers (launcher, settings, 3DE)
+├── core/             # Core type definitions (shot_types.py)
+├── launcher/         # Custom launcher system (models, repository, workers)
+├── launch/           # Process execution (command building, env management)
 ├── tests/            # Test suite
 │   ├── fixtures/     # Modular test fixtures
 │   ├── integration/  # Integration tests
@@ -248,6 +248,10 @@ shotbot/
 ├── docs/             # Documentation
 ├── .git/hooks/       # Git hooks for auto-push
 ├── shotbot.py        # Main entry point
+├── main_window.py    # Main application window
+├── command_launcher.py # Production app launcher
+├── cache_manager.py  # Persistent caching system
+├── singleton_mixin.py # Thread-safe singleton base class
 ├── bundle_app.py     # Bundle encoding script
 ├── decode_app.py     # Bundle decoding script
 ├── transfer_config.json  # Bundle configuration
@@ -265,47 +269,42 @@ Current status: **0 errors, 0 warnings, 0 notes** ✅
 
 ## Singleton Pattern & Test Isolation
 
-**All singleton classes MUST implement a `reset()` classmethod** for test isolation:
+**All singleton classes should inherit from `SingletonMixin`** which provides thread-safe singleton behavior and automatic `reset()` for test isolation:
 
 ```python
-class MySingleton:
-    _instance = None
-    _lock = threading.Lock()
+from singleton_mixin import SingletonMixin
+
+class MySingleton(SingletonMixin):
+    """Example singleton using the mixin."""
+
+    def _initialize(self) -> None:
+        """Called once when singleton is first created."""
+        self._my_state = {}
 
     @classmethod
-    def reset(cls) -> None:
-        """Reset singleton for testing. INTERNAL USE ONLY.
-
-        This method clears all state and resets the singleton instance.
-        It should only be used in test cleanup to ensure test isolation.
-        """
-        # Cleanup resources if instance exists
+    def _cleanup_instance(cls) -> None:
+        """Optional: Custom cleanup before reset. Override if needed."""
         if cls._instance is not None:
-            # Call any cleanup methods (shutdown, cleanup, etc.)
-            pass
-
-        # Reset singleton state
-        with cls._lock:
-            cls._instance = None
-            # Reset any class-level mutable state
+            cls._instance._my_state.clear()
 ```
 
 **Why this matters:**
 - Enables parallel test execution (`pytest -n auto`)
 - Prevents test contamination from singleton state
-- Centralizes cleanup logic in the singleton itself
-- Used automatically by `tests/conftest.py` cleanup fixtures
+- `SingletonMixin.reset()` handles thread-safe cleanup automatically
+- Used by `tests/fixtures/singleton_registry.py` for centralized cleanup
 
-**Existing singletons with `reset()`:**
-- `ProgressManager.reset()` - Clears operation stack, closes dialogs
-- `NotificationManager.reset()` - Calls cleanup(), resets instance
-- `ProcessPoolManager.reset()` - Calls shutdown(), resets instance
-- `FilesystemCoordinator.reset()` - Clears directory cache
+**Existing singletons using SingletonMixin:**
+- `ProgressManager` - Clears operation stack, closes dialogs
+- `NotificationManager` - Calls cleanup(), resets instance
+- `ProcessPoolManager` - Calls shutdown(), resets instance
+- `FilesystemCoordinator` - Clears directory cache
 
 **When creating new singletons:**
-1. Always add a `reset()` classmethod
-2. Add to `tests/fixtures/singleton_isolation.py` cleanup fixtures
-3. Document what state is cleared
+1. Inherit from `SingletonMixin`
+2. Implement `_initialize()` for first-time setup
+3. Optionally override `_cleanup_instance()` for custom cleanup
+4. Register in `tests/fixtures/singleton_registry.py`
 
 ## Qt Widget Guidelines
 
@@ -388,6 +387,8 @@ Test fixtures are organized in modular files under `tests/fixtures/`:
 | `qt_safety.py` | Qt thread safety validation |
 | `qt_cleanup.py` | Qt state cleanup between tests |
 | `singleton_isolation.py` | Singleton reset fixtures |
+| `singleton_registry.py` | Central registry for singleton cleanup |
+| `caching.py` | Cache isolation and behavior testing |
 | `data_factories.py` | Test data generation |
 
 **Session-scoped Qt fixtures** (`qapp`, `_patch_qtbot_short_waits`) remain in `tests/conftest.py` for proper xdist compatibility.
@@ -403,7 +404,7 @@ process_qt_events()  # ✅ Execute deleteLater
 ```
 
 ### Current Test Status
-- **2,600+ tests passing** (`pytest tests/ -n auto --dist=loadgroup`)
+- **3,100+ tests passing** (`pytest tests/ -n auto --dist=loadgroup`)
 - Grouped-parallel runs match serial reliability thanks to the early QApplication
   bootstrap, qtbot wait patch, and xdist grouping
 - Comprehensive coverage across:
@@ -668,18 +669,27 @@ Shell commands in the launcher use `bash -ilc` (interactive login shell) because
 | `WORKSPACE_PATH` | ws command | Full workspace path |
 | `SHOWS_ROOT` | bashrc.env | Root path for all shows (default: `/shows`) |
 
-### Configuration: `REZ_ALREADY_AVAILABLE`
+### Configuration: `REZ_MODE`
 
-In `config.py`, the `REZ_ALREADY_AVAILABLE` flag (formerly `WS_HANDLES_REZ`) controls Rez wrapping:
+In `config.py`, the `REZ_MODE` setting (a `RezMode` enum) controls Rez wrapping behavior:
 
-- **When `True` (default)**: Skip outer Rez wrapping because:
+```python
+class RezMode(Enum):
+    DISABLED = auto()  # Never wrap with rez
+    AUTO = auto()      # Skip if REZ_USED is set (BlueBolt default)
+    FORCE = auto()     # Always wrap with app-specific packages
+```
+
+- **`RezMode.AUTO` (default)**: Skip outer Rez wrapping if `REZ_USED` env var is set because:
   - Shell initialization already set up Rez before `ws` runs
-  - `REZ_USED` environment variable is set
+  - `REZ_USED` environment variable indicates Rez is active
   - Double-wrapping would cause package conflicts
 
-- **When `False`**: Apply Rez wrapping for environments that don't initialize Rez at shell startup
+- **`RezMode.DISABLED`**: Never wrap with Rez (for non-Rez environments)
 
-This setting is correct for BlueBolt's environment. Other VFX facilities may need `False` if they don't initialize Rez at shell startup.
+- **`RezMode.FORCE`**: Always wrap with app-specific Rez packages
+
+`AUTO` is correct for BlueBolt's environment. Other VFX facilities may need `DISABLED` or `FORCE` depending on their shell initialization.
 
 ### Debugging VFX Environment Issues
 
