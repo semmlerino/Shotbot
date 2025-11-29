@@ -54,6 +54,7 @@ class LaunchContext:
         open_latest_scene: Whether to open latest Nuke script (Nuke only)
         create_new_file: Whether to create a new version (Nuke only)
         selected_plate: Selected plate space for Nuke workspace scripts
+        sequence_path: Image sequence path for RV playback (RV only)
     """
 
     include_raw_plate: bool = False
@@ -62,6 +63,7 @@ class LaunchContext:
     open_latest_scene: bool = False
     create_new_file: bool = False
     selected_plate: str | None = None
+    sequence_path: str | None = None  # Image sequence path for RV
 
 
 @final
@@ -524,6 +526,26 @@ class CommandLauncher(LoggingMixin, QObject):
                     timestamp,
                     "Info: No Maya scene files found in workspace",
                 )
+
+        # Handle RV with image sequence path
+        if app_name == "rv" and context.sequence_path:
+            try:
+                safe_sequence_path = CommandBuilder.validate_path(context.sequence_path)
+                command = f"{command} {safe_sequence_path}"
+                timestamp = self.timestamp
+                # Extract just the filename for cleaner logging
+                from pathlib import Path
+
+                seq_name = Path(context.sequence_path).name
+                self.command_executed.emit(
+                    timestamp,
+                    f"Opening sequence in RV: {seq_name}",
+                )
+            except ValueError as e:
+                self._emit_error(
+                    f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"
+                )
+                return False
 
         # Pre-flight: Check if ws command is available
         if not self.env_manager.is_ws_available():

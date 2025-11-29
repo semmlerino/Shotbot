@@ -204,8 +204,13 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             except Exception as e:
                 self.logger.error(f"Error discovering files for {shot.full_name}: {e}")
                 self._clear_files()
+
+            # Discover sequences for RV section
+            self._discover_rv_sequences(shot)
         elif shot is None:
             self._clear_files()
+            # Clear RV sequences when shot is cleared
+            self._clear_rv_sequences()
 
     def set_files(self, files_by_type: dict[FileType, list[SceneFile]]) -> None:
         """Set scene files for display in per-DCC embedded sections.
@@ -248,6 +253,41 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             self._dcc_accordion.set_files_for_dcc(app_name, [])
             self._selected_files[app_name] = None
             self._dcc_accordion.set_version_info(app_name, None)
+
+    def _discover_rv_sequences(self, shot: Shot) -> None:
+        """Discover Maya playblasts and Nuke renders for RV section.
+
+        Args:
+            shot: The current shot
+        """
+        try:
+            from user_sequence_finder import UserSequenceFinder
+
+            rv_section = self._dcc_accordion.get_section("rv")
+            if rv_section is None:
+                return
+
+            # Discover sequences for current user
+            playblasts = UserSequenceFinder.find_maya_playblasts(shot.workspace_path)
+            renders = UserSequenceFinder.find_nuke_renders(shot.workspace_path)
+
+            # Update RV section
+            rv_section.set_playblast_sequences(playblasts)
+            rv_section.set_render_sequences(renders)
+
+            self.logger.debug(
+                f"Found {len(playblasts)} playblasts and {len(renders)} renders for RV"
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error discovering sequences for RV: {e}")
+
+    def _clear_rv_sequences(self) -> None:
+        """Clear sequences from RV section."""
+        rv_section = self._dcc_accordion.get_section("rv")
+        if rv_section is not None:
+            rv_section.set_playblast_sequences([])
+            rv_section.set_render_sequences([])
 
     def set_available_plates(self, plates: list[str]) -> None:
         """Set available plates for plate selectors.

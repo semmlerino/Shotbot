@@ -8,7 +8,7 @@ Shows version info in collapsed header for quick reference.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, Any, final
 
 
 if TYPE_CHECKING:
@@ -23,6 +23,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QMenu,
     QPushButton,
     QTableView,
@@ -33,7 +35,7 @@ from PySide6.QtWidgets import (
 
 from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
-from scene_file import FileType, SceneFile
+from scene_file import FileType, ImageSequence, SceneFile
 from thumbnail_widget_base import FolderOpenerWorker
 
 
@@ -207,6 +209,11 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._files_expanded = False
         self._files_count = 0
         self._current_selected_file: SceneFile | None = None
+
+        # RV sequence sub-section components (only for RV)
+        self._playblasts_section: dict[str, Any] | None = None
+        self._renders_section: dict[str, Any] | None = None
+        self._selected_sequence: ImageSequence | None = None
 
         # Store references for dynamic styling
         self._plate_label: QLabel | None = None
@@ -399,6 +406,10 @@ class DCCSection(QtWidgetMixin, QWidget):
         # Files sub-section (if configured)
         if self.config.has_files_section:
             self._setup_files_subsection(content_layout)
+
+        # RV sequence sub-sections (Maya Playblasts and Nuke Renders)
+        if self.config.name == "rv":
+            self._setup_rv_sequence_subsections(content_layout)
 
         container_layout.addWidget(self._content)
         layout.addWidget(self._container)
@@ -1025,3 +1036,211 @@ class DCCSection(QtWidgetMixin, QWidget):
     def is_files_expanded(self) -> bool:
         """Return files sub-section expanded state."""
         return self._files_expanded
+
+    # =========================================================================
+    # RV Sequence Subsections (Maya Playblasts and Nuke Renders)
+    # =========================================================================
+
+    def _setup_rv_sequence_subsections(self, content_layout: QVBoxLayout) -> None:
+        """Set up Maya Playblasts and Nuke Renders subsections for RV section.
+
+        Args:
+            content_layout: The layout to add the sequence sections to
+        """
+        # Colors matching DCC themes
+        playblast_color = "#6b4d8a"  # Purple (Maya-like)
+        render_color = "#8a6b2b"  # Gold (distinctive)
+
+        # Create Maya Playblasts subsection
+        self._playblasts_section = self._create_sequence_subsection(
+            title="Maya Playblasts",
+            color=playblast_color,
+            content_layout=content_layout,
+        )
+
+        # Create Nuke Renders subsection
+        self._renders_section = self._create_sequence_subsection(
+            title="Nuke Renders",
+            color=render_color,
+            content_layout=content_layout,
+        )
+
+    def _create_sequence_subsection(
+        self,
+        title: str,
+        color: str,
+        content_layout: QVBoxLayout,
+    ) -> dict[str, Any]:
+        """Create a collapsible sequence subsection.
+
+        Args:
+            title: Section title (e.g., "Maya Playblasts")
+            color: Accent color hex
+            content_layout: Parent layout to add section to
+
+        Returns:
+            Dict containing section state and UI elements
+        """
+        section = QWidget()
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(0, 8, 0, 0)
+        layout.setSpacing(0)
+
+        # Header button (collapsible, colored left border)
+        header_btn = QPushButton(f"▶  {title} (0)")
+        header_btn.setFlat(True)
+        header_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        header_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-left: 3px solid {color};
+                text-align: left;
+                padding: 4px 8px;
+                font-size: {design_system.typography.size_tiny}px;
+                font-weight: bold;
+                color: {color};
+            }}
+            QPushButton:hover {{
+                background-color: #2a2a2a;
+            }}
+        """)
+        layout.addWidget(header_btn)
+
+        # Content container (hidden by default)
+        content = QWidget()
+        content.setVisible(False)
+        content_inner_layout = QVBoxLayout(content)
+        content_inner_layout.setContentsMargins(8, 4, 0, 0)
+        content_inner_layout.setSpacing(4)
+
+        # List widget for sequences
+        list_widget = QListWidget()
+        list_widget.setMaximumHeight(120)
+        list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background-color: #1e1e1e;
+                border: 1px solid #333;
+                border-radius: 3px;
+                color: #ecf0f1;
+                font-size: {design_system.typography.size_small}px;
+            }}
+            QListWidget::item {{
+                padding: 4px 8px;
+                border-bottom: 1px solid #2a2a2a;
+            }}
+            QListWidget::item:selected {{
+                background-color: {color}40;
+            }}
+            QListWidget::item:hover {{
+                background-color: #2a2a2a;
+            }}
+        """)
+        content_inner_layout.addWidget(list_widget)
+
+        layout.addWidget(content)
+        content_layout.addWidget(section)
+
+        # Store state in dict
+        result: dict[str, Any] = {
+            "section": section,
+            "header_btn": header_btn,
+            "content": content,
+            "list_widget": list_widget,
+            "expanded": False,
+            "color": color,
+            "title": title,
+        }
+
+        # Connect toggle
+        _ = header_btn.clicked.connect(lambda: self._toggle_sequence_section(result))
+
+        # Connect double-click to launch RV with sequence
+        _ = list_widget.itemDoubleClicked.connect(self._on_sequence_double_clicked)
+
+        return result
+
+    def _toggle_sequence_section(self, section_data: dict[str, Any]) -> None:
+        """Toggle sequence subsection expanded state.
+
+        Args:
+            section_data: Dict containing section state and UI elements
+        """
+        section_data["expanded"] = not section_data["expanded"]
+        section_data["content"].setVisible(section_data["expanded"])
+        indicator = "▼" if section_data["expanded"] else "▶"
+        count = section_data["list_widget"].count()
+        section_data["header_btn"].setText(
+            f"{indicator}  {section_data['title']} ({count})"
+        )
+
+    def _on_sequence_double_clicked(self, item: QListWidgetItem) -> None:
+        """Handle sequence item double-click - launch RV with sequence.
+
+        Args:
+            item: The double-clicked list item
+        """
+        sequence = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(sequence, ImageSequence):
+            self._selected_sequence = sequence
+            # Emit launch signal with sequence_path in options
+            options = self.get_options()
+            options["sequence_path"] = str(sequence.path)
+            self.launch_requested.emit(self.config.name, options)
+
+    def set_playblast_sequences(self, sequences: list[ImageSequence]) -> None:
+        """Set Maya playblast sequences for display.
+
+        Args:
+            sequences: List of ImageSequence objects
+        """
+        if self._playblasts_section:
+            self._update_sequence_list(self._playblasts_section, sequences)
+
+    def set_render_sequences(self, sequences: list[ImageSequence]) -> None:
+        """Set Nuke render sequences for display.
+
+        Args:
+            sequences: List of ImageSequence objects
+        """
+        if self._renders_section:
+            self._update_sequence_list(self._renders_section, sequences)
+
+    def _update_sequence_list(
+        self, section_data: dict[str, Any], sequences: list[ImageSequence]
+    ) -> None:
+        """Update a sequence list widget with new data.
+
+        Args:
+            section_data: Dict containing section state and UI elements
+            sequences: List of ImageSequence objects to display
+        """
+        list_widget: QListWidget = section_data["list_widget"]
+        list_widget.clear()
+
+        for i, seq in enumerate(sequences):
+            # Format: "▶  {render_type}  |  v{version}  |  {frame_range}  |  {age}  |  LATEST"
+            version_str = f"v{seq.version:03d}" if seq.version else "—"
+            latest_badge = "  LATEST" if i == 0 else ""
+            item_text = (
+                f"▶  {seq.render_type}  |  {version_str}  |  "
+                f"{seq.frame_range_str}  |  {seq.relative_age}{latest_badge}"
+            )
+
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.ItemDataRole.UserRole, seq)
+            list_widget.addItem(item)
+
+        # Update header count
+        indicator = "▼" if section_data["expanded"] else "▶"
+        section_data["header_btn"].setText(
+            f"{indicator}  {section_data['title']} ({len(sequences)})"
+        )
+
+    def get_selected_sequence(self) -> ImageSequence | None:
+        """Get currently selected sequence for RV launch.
+
+        Returns:
+            Selected ImageSequence or None
+        """
+        return self._selected_sequence
