@@ -67,6 +67,7 @@ class TestCommandLauncher(QObject):
                     "open_latest_maya": context.open_latest_maya,
                     "open_latest_scene": context.open_latest_scene,
                     "create_new_file": context.create_new_file,
+                    "sequence_path": context.sequence_path,
                     "shot": self.current_shot.full_name if self.current_shot else None,
                 },
             )
@@ -1110,6 +1111,125 @@ class TestErrorHandling:
         # Submenu actions should be enabled
         for sub_action in submenu.actions():
             sub_action.setEnabled.assert_called_once_with(True)
+
+
+class TestSequencePathHandling:
+    """Test RV image sequence path handling through launch flow."""
+
+    def test_on_launch_requested_extracts_sequence_path(
+        self,
+        make_launcher_controller: Callable[
+            [Any, bool], tuple[LauncherController, MockLauncherTarget]
+        ],
+        test_shot: Shot,
+    ) -> None:
+        """Test _on_launch_requested extracts sequence_path from options."""
+        controller, target = make_launcher_controller()
+        controller.set_current_shot(test_shot)
+
+        # Call _on_launch_requested with sequence_path in options
+        test_path = "/shows/test/playblasts/Wireframe.####.png"
+        options = {"sequence_path": test_path}
+        controller._on_launch_requested("rv", options)
+
+        # Verify sequence_path was passed through to command_launcher
+        assert len(target.command_launcher.executed_commands) == 1
+        app_name, cmd_options = target.command_launcher.executed_commands[0]
+        assert app_name == "rv"
+        assert cmd_options["sequence_path"] == test_path
+
+    def test_on_launch_requested_handles_missing_sequence_path(
+        self,
+        make_launcher_controller: Callable[
+            [Any, bool], tuple[LauncherController, MockLauncherTarget]
+        ],
+        test_shot: Shot,
+    ) -> None:
+        """Test _on_launch_requested works when sequence_path is not provided."""
+        controller, target = make_launcher_controller()
+        controller.set_current_shot(test_shot)
+
+        # Call without sequence_path
+        options: dict[str, Any] = {}
+        controller._on_launch_requested("rv", options)
+
+        # Verify launch still works with None sequence_path
+        assert len(target.command_launcher.executed_commands) == 1
+        app_name, cmd_options = target.command_launcher.executed_commands[0]
+        assert app_name == "rv"
+        assert cmd_options["sequence_path"] is None
+
+    def test_launch_app_with_sequence_path(
+        self,
+        make_launcher_controller: Callable[
+            [Any, bool], tuple[LauncherController, MockLauncherTarget]
+        ],
+        test_shot: Shot,
+    ) -> None:
+        """Test launch_app passes sequence_path through correctly."""
+        controller, target = make_launcher_controller()
+        controller.set_current_shot(test_shot)
+
+        # Call launch_app directly with sequence_path
+        test_path = "/shows/test/renders/beauty.####.exr"
+        controller.launch_app("rv", sequence_path=test_path)
+
+        # Verify sequence_path was passed to LaunchContext
+        assert len(target.command_launcher.executed_commands) == 1
+        app_name, cmd_options = target.command_launcher.executed_commands[0]
+        assert app_name == "rv"
+        assert cmd_options["sequence_path"] == test_path
+
+    def test_launch_app_without_sequence_path(
+        self,
+        make_launcher_controller: Callable[
+            [Any, bool], tuple[LauncherController, MockLauncherTarget]
+        ],
+        test_shot: Shot,
+    ) -> None:
+        """Test launch_app works without sequence_path parameter."""
+        controller, target = make_launcher_controller()
+        controller.set_current_shot(test_shot)
+
+        # Call launch_app without sequence_path
+        controller.launch_app("rv")
+
+        # Verify launch works with None sequence_path
+        assert len(target.command_launcher.executed_commands) == 1
+        app_name, cmd_options = target.command_launcher.executed_commands[0]
+        assert app_name == "rv"
+        assert cmd_options["sequence_path"] is None
+
+    def test_sequence_path_with_other_options(
+        self,
+        make_launcher_controller: Callable[
+            [Any, bool], tuple[LauncherController, MockLauncherTarget]
+        ],
+        test_shot: Shot,
+    ) -> None:
+        """Test sequence_path works alongside other launch options."""
+        controller, target = make_launcher_controller()
+        controller.set_current_shot(test_shot)
+
+        # Set up Nuke options in mock right panel
+        target.right_panel.set_dcc_options("nuke", {
+            "open_latest_scene": True,
+            "create_new_file": False,
+            "include_raw_plate": True,
+            "selected_plate": "FG01",
+        })
+
+        # Call with sequence_path for nuke (hypothetically)
+        test_path = "/shows/test/nuke_output.####.exr"
+        controller.launch_app("nuke", sequence_path=test_path)
+
+        # Verify both sequence_path and other options are present
+        assert len(target.command_launcher.executed_commands) == 1
+        app_name, cmd_options = target.command_launcher.executed_commands[0]
+        assert app_name == "nuke"
+        assert cmd_options["sequence_path"] == test_path
+        assert cmd_options["include_raw_plate"] is True
+        assert cmd_options["open_latest_scene"] is True
 
 
 # Simple test to verify everything is working

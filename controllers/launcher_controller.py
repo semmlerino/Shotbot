@@ -144,14 +144,16 @@ class LauncherController(LoggingMixin):
     ) -> None:
         """Handle launch request from right panel.
 
-        Extracts selected_file from options if present and passes to launch_app.
+        Extracts selected_file and sequence_path from options if present.
 
         Args:
             app_name: Application to launch
             options: Launch options, may include 'selected_file' SceneFile
+                     or 'sequence_path' str for RV image sequences
         """
         selected_file = options.get("selected_file")
-        self.launch_app(app_name, selected_file=selected_file)
+        sequence_path = options.get("sequence_path")
+        self.launch_app(app_name, selected_file=selected_file, sequence_path=sequence_path)
 
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context for launching.
@@ -314,6 +316,7 @@ class LauncherController(LoggingMixin):
             open_latest_scene=options["open_latest_scene"],
             create_new_file=options["create_new_file"],
             selected_plate=options.get("selected_plate"),
+            sequence_path=options.get("sequence_path"),
         )
         return self.window.command_launcher.launch_app(app_name, context)
 
@@ -322,6 +325,7 @@ class LauncherController(LoggingMixin):
         app_name: str,
         captured_shot: Shot | None = None,
         selected_file: SceneFile | None = None,
+        sequence_path: str | None = None,
     ) -> None:
         """Launch an application.
 
@@ -331,6 +335,7 @@ class LauncherController(LoggingMixin):
                           If None, falls back to current shot (for backwards compatibility).
             selected_file: Optional file selected from Files panel. If provided, launches
                           this specific file directly.
+            sequence_path: Optional image sequence path for RV playback.
         """
         # Use captured shot if provided, otherwise fall back to current shot
         # This prevents race conditions where user switches shots during button reset window
@@ -376,6 +381,10 @@ class LauncherController(LoggingMixin):
             options = self._build_launch_options(app_name)
             if options is None:
                 return  # Validation failed
+
+            # Add sequence_path if provided (for RV image sequences)
+            if sequence_path:
+                options["sequence_path"] = sequence_path
 
             # Execute launch
             success = self._execute_launch_with_options(app_name, options)

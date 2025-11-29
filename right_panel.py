@@ -206,7 +206,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
                 self._clear_files()
 
             # Discover sequences for RV section
-            self._discover_rv_sequences(shot)
+            self.discover_rv_sequences(shot)
         elif shot is None:
             self._clear_files()
             # Clear RV sequences when shot is cleared
@@ -254,7 +254,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             self._selected_files[app_name] = None
             self._dcc_accordion.set_version_info(app_name, None)
 
-    def _discover_rv_sequences(self, shot: Shot) -> None:
+    def discover_rv_sequences(self, shot: Shot) -> None:
         """Discover Maya playblasts and Nuke renders for RV section.
 
         Args:
