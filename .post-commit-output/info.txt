@@ -1,5 +1,5 @@
-Post-commit hook executed at Wed Nov 26 18:52:54 GMT 2025
-Commit: 4b4963199b62e8aa87a99553b84e7da0a98f73d1
+Post-commit hook executed at Fri Nov 28 11:35:10 GMT 2025
+Commit: e682679c6b4a3fa5c5c414f848bd98963032fa96
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Prevent signal emission after object deletion and update tests
+Message: refactor: Swap Maya and Nuke positions in DCC accordion

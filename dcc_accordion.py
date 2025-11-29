@@ -82,18 +82,18 @@ class DCCAccordion(QtWidgetMixin, QWidget):
                 section.set_expanded(expanded)
 
                 # Save expanded state changes to settings
-                settings = self._settings_manager  # Capture for closure
-                section_name = config.name  # Capture name for closure
-
                 def make_save_handler(
+                    settings_mgr: SettingsManager,
                     name: str,
                 ) -> Callable[[str, bool], None]:
                     def save_expanded(_app_name: str, is_expanded: bool) -> None:
-                        settings.set_section_expanded(name, is_expanded)
+                        settings_mgr.set_section_expanded(name, is_expanded)
 
                     return save_expanded
 
-                _ = section.expanded_changed.connect(make_save_handler(section_name))
+                _ = section.expanded_changed.connect(
+                    make_save_handler(self._settings_manager, config.name)
+                )
 
             layout.addWidget(section)
             self._sections[config.name] = section

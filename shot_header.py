@@ -253,8 +253,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
         age = age.replace(" days", "d").replace(" day", "d")
         age = age.replace(" weeks", "w").replace(" week", "w")
         age = age.replace(" months", "mo").replace(" month", "mo")
-        age = age.replace("yesterday", "1d")
-        return age
+        return age.replace("yesterday", "1d")
 
     def update_from_files(
         self, files_by_type: dict[FileType, list[SceneFile]]

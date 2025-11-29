@@ -163,12 +163,12 @@ class TestQtTimerLifecycle:
 
 
 @pytest.mark.qt
-@pytest.mark.skip_if_parallel
+@pytest.mark.qt_heavy
 class TestQtThreadSafety:
     """Tests for Qt thread safety basics.
 
-    Note: These tests are skipped in parallel execution due to Qt threading
-    interactions that cause flaky failures in xdist workers.
+    Note: These tests use qt_heavy marker to run on a dedicated xdist worker,
+    avoiding interference with other Qt tests while still executing in parallel runs.
     """
 
     def test_qthread_cleanup(self, qtbot: QtBot) -> None:

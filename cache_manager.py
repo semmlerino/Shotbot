@@ -429,9 +429,12 @@ class CacheManager(LoggingMixin, QObject):
             Path to created thumbnail
         """
         try:
+            temp_path = output.with_suffix(".tmp")
             with Image.open(source) as img:
                 img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
-                img.convert("RGB").save(output, "JPEG", quality=THUMBNAIL_QUALITY)
+                img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
+            # Atomic rename to final path
+            _ = temp_path.replace(output)
             self.logger.debug(f"Created thumbnail: {output}")
             return output
         except Exception as e:
@@ -455,9 +458,12 @@ class CacheManager(LoggingMixin, QObject):
 
                     # Process the extracted JPEG frame
                     try:
+                        temp_path = output.with_suffix(".tmp")
                         with Image.open(extracted_frame) as img:
                             img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
-                            img.convert("RGB").save(output, "JPEG", quality=THUMBNAIL_QUALITY)
+                            img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
+                        # Atomic rename to final path
+                        _ = temp_path.replace(output)
                         self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
 
                         # Clean up temp file
@@ -509,10 +515,15 @@ class CacheManager(LoggingMixin, QObject):
                         Qt.TransformationMode.SmoothTransformation,
                     )
 
-                # Save - QImage.save() accepts str or bytes for format parameter
-                if image.save(str(output_path), b"JPEG", THUMBNAIL_QUALITY):
+                # Save to temp file first, then atomic rename
+                temp_path = output_path.with_suffix(".tmp")
+                if image.save(str(temp_path), b"JPEG", THUMBNAIL_QUALITY):
+                    # Atomic rename to final path
+                    _ = temp_path.replace(output_path)
                     self.logger.debug(f"Cached QImage thumbnail: {output_path}")
                     return output_path
+                # Clean up temp file on save failure
+                temp_path.unlink(missing_ok=True)
                 self.logger.error(f"Failed to save QImage to: {output_path}")
                 return None
 
@@ -660,7 +671,11 @@ class CacheManager(LoggingMixin, QObject):
                 # Assume Shot object with to_dict method - TYPE_CHECKING import prevents runtime check
                 shot_dicts.append(shot.to_dict())
 
-        _ = self._write_json_cache(self.previous_shots_cache_file, shot_dicts)
+        success = self._write_json_cache(self.previous_shots_cache_file, shot_dicts)
+        if not success:
+            self.logger.warning(
+                "Failed to write previous shots cache - data may not persist across restarts"
+            )
         self.cache_updated.emit()
 
     def merge_shots_incremental(
@@ -777,7 +792,11 @@ class CacheManager(LoggingMixin, QObject):
             scenes: List of scene dictionaries
             metadata: Optional metadata (ignored in simple implementation)
         """
-        _ = self._write_json_cache(self.threede_cache_file, scenes)
+        success = self._write_json_cache(self.threede_cache_file, scenes)
+        if not success:
+            self.logger.warning(
+                "Failed to write 3DE scenes cache - data may not persist across restarts"
+            )
         self.cache_updated.emit()
 
     def merge_scenes_incremental(

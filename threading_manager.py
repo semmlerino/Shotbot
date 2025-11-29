@@ -88,17 +88,37 @@ class ThreadingManager(QObject):
         Returns:
             True if discovery started, False if already running
         """
+        # Phase 1: Check state and grab old worker reference under lock
+        old_worker: ThreeDESceneWorker | None = None
         with QMutexLocker(self._mutex):
             if self._threede_discovery_active:
                 logger.warning("3DE discovery already in progress")
                 return False
 
+            # Grab reference to old worker for cleanup outside lock
+            old_worker = self._current_threede_worker
+            self._current_threede_worker = None
+            _ = self._workers.pop("threede_discovery", None)
+
+        # Phase 2: Wait for old worker OUTSIDE lock (avoids 5-second UI freeze)
+        if old_worker is not None:
+            if old_worker.isRunning():
+                logger.debug("Stopping existing 3DE worker")
+                old_worker.stop()
+                if not old_worker.wait(5000):  # 5 second timeout
+                    logger.warning("3DE worker did not stop gracefully")
+            old_worker.deleteLater()
+
+        # Phase 3: Create new worker under lock
+        with QMutexLocker(self._mutex):
+            # Re-check in case another thread started discovery while we waited
+            if self._threede_discovery_active:
+                logger.warning("3DE discovery started by another thread")
+                return False
+
             # Import here to avoid circular imports
             # Local application imports
             from threede_scene_worker import ThreeDESceneWorker
-
-            # Clean up any existing worker
-            self._cleanup_threede_worker()
 
             # Create new worker
             worker_name = "threede_discovery"
@@ -236,34 +256,19 @@ class ThreadingManager(QObject):
         with QMutexLocker(self._mutex):
             return self._threede_discovery_active
 
-    def _cleanup_threede_worker(self) -> None:
-        """Clean up current 3DE worker (called with mutex held)."""
-        if self._current_threede_worker:
-            if self._current_threede_worker.isRunning():
-                logger.debug("Stopping existing 3DE worker")
-                self._current_threede_worker.stop()
-                if not self._current_threede_worker.wait(5000):  # 5 second timeout
-                    logger.warning("3DE worker did not stop gracefully")
-
-            # Clean up worker
-            self._current_threede_worker.deleteLater()
-            self._current_threede_worker = None
-
-            # Remove from workers dict
-            _ = self._workers.pop("threede_discovery", None)
-
     def _schedule_worker_cleanup(self, worker_name: str) -> None:
         """Schedule delayed cleanup of worker thread.
 
         Args:
             worker_name: Name of worker to clean up
         """
-        # Use Qt's deleteLater for safe cleanup
-        worker = self._workers.get(worker_name)
+        # Pop from dict under lock to prevent race condition
+        with QMutexLocker(self._mutex):
+            worker = self._workers.pop(worker_name, None)
+
+        # Use Qt's deleteLater for safe cleanup (outside lock - we own the reference)
         if worker:
             worker.deleteLater()
-            with QMutexLocker(self._mutex):
-                _ = self._workers.pop(worker_name, None)
 
     def get_active_thread_count(self) -> int:
         """Get number of currently active threads.
@@ -303,25 +308,35 @@ class ThreadingManager(QObject):
         """
         logger.info("Shutting down all worker threads")
 
+        # Phase 1: Stop all workers and grab references under lock
+        workers_to_wait: list[tuple[str, QThread]] = []
         with QMutexLocker(self._mutex):
             # Stop 3DE discovery if active
             if self._current_threede_worker:
                 self._current_threede_worker.stop()
                 self._threede_discovery_active = False
 
-            # Wait for all threads to finish
+            # Grab references and issue stop commands
             for name, worker in self._workers.items():
-                if worker.isRunning():
-                    logger.debug(f"Waiting for {name} thread to finish")
-                    if not worker.wait(3000):  # 3 second timeout per thread
-                        logger.warning(f"Thread {name} did not finish gracefully")
+                workers_to_wait.append((name, worker))
+                # Issue stop command if worker has stop method
+                if hasattr(worker, "stop"):
+                    worker_with_stop = cast("WorkerWithStopProtocol", cast("object", worker))
+                    worker_with_stop.stop()
 
-                # Schedule for deletion
-                worker.deleteLater()
-
-            # Clear all workers
+            # Clear state under lock
             self._workers.clear()
             self._current_threede_worker = None
+
+        # Phase 2: Wait for all threads OUTSIDE lock (avoids multi-second UI freeze)
+        for name, worker in workers_to_wait:
+            if worker.isRunning():
+                logger.debug(f"Waiting for {name} thread to finish")
+                if not worker.wait(3000):  # 3 second timeout per thread
+                    logger.warning(f"Thread {name} did not finish gracefully")
+
+            # Schedule for deletion
+            worker.deleteLater()
 
         logger.info("All worker threads shutdown complete")
 

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 from PySide6.QtCore import Qt
 
-from files_tab_widget import FileTableModel, FilesTabWidget
+from files_tab_widget import FilesTabWidget, FileTableModel
 from scene_file import FileType, SceneFile
 from tests.test_helpers import process_qt_events
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def sample_files() -> dict[FileType, list[SceneFile]]:
     """Create sample scene files for testing."""
-    now = datetime.now()
+    now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
     return {
         FileType.THREEDE: [
             SceneFile(

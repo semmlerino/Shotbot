@@ -1,26 +1,36 @@
 """Subprocess mocking fixtures for parallel test execution.
 
 This module provides fixtures for mocking subprocess execution. The default
-behavior prevents subprocess crashes in parallel test execution while allowing
-tests to opt into real subprocess execution or controlled error scenarios.
+behavior is STRICT: unexpected subprocess calls FAIL immediately.
 
 DESIGN PHILOSOPHY:
-- Autouse mocks provide SAFETY (prevent C-level crashes in parallel execution)
-- Opt-in mocks provide CONTROL (test error handling, verify commands, etc.)
-- Tests needing real subprocess use @pytest.mark.real_subprocess
+- STRICT MODE (default): Unexpected subprocess calls fail with AssertionError
+- Tests must register expected commands OR use markers to opt-out
+- This prevents silent success that masks bugs in error handling
+
+HANDLING SUBPROCESS CALLS:
+    1. Use subprocess_mock fixture and configure expected commands:
+        def test_foo(subprocess_mock):
+            subprocess_mock.set_output("success")
+            # ... test code that calls subprocess ...
+
+    2. Use @pytest.mark.real_subprocess for real subprocess execution:
+        @pytest.mark.real_subprocess
+        def test_real_command(): ...
+
+    3. Use @pytest.mark.permissive_subprocess for legacy tests (DISCOURAGED):
+        @pytest.mark.permissive_subprocess  # Deprecated - update to use subprocess_mock
+        def test_legacy(): ...
 
 Fixture Types:
-    AUTOUSE (safety):
+    AUTOUSE (strict by default):
         mock_process_pool_manager: Patches ProcessPoolManager singleton
-        mock_subprocess_popen: Patches subprocess.Popen globally
+        mock_subprocess_popen: Patches subprocess.Popen globally (FAILS on unexpected)
 
     OPT-IN (control):
         subprocess_mock: Controllable mock for testing command execution
         subprocess_error_mock: Pre-configured for error scenarios
         subprocess_timeout_mock: Simulates timeout/hanging processes
-
-OPT-OUT: Use @pytest.mark.real_subprocess to skip autouse mocks for tests that
-need real subprocess behavior.
 
 DEBUGGING:
     Set SHOTBOT_TEST_TRACK_POPEN=1 to enable call tracking in the autouse mock.
@@ -34,6 +44,38 @@ import os
 from unittest.mock import MagicMock
 
 import pytest
+
+
+# ==============================================================================
+# STRICT MODE: Fail on unexpected subprocess calls (default behavior)
+# ==============================================================================
+# When strict mode is enabled, unexpected subprocess calls raise AssertionError
+# Tests can use subprocess_mock fixture or @pytest.mark.permissive_subprocess to opt out
+
+# Flag to track if strict mode is disabled for current test
+_PERMISSIVE_MODE = False
+
+# Flag to track if subprocess_mock fixture is active (provides controlled behavior)
+_SUBPROCESS_MOCK_ACTIVE = False
+
+
+def _set_permissive_mode(enabled: bool) -> None:
+    """Set permissive mode for current test."""
+    global _PERMISSIVE_MODE
+    _PERMISSIVE_MODE = enabled
+
+
+def _set_subprocess_mock_active(active: bool) -> None:
+    """Set subprocess_mock fixture state for current test."""
+    global _SUBPROCESS_MOCK_ACTIVE
+    _SUBPROCESS_MOCK_ACTIVE = active
+
+
+def _format_cmd(cmd: object) -> str:
+    """Format command for display in error messages."""
+    if isinstance(cmd, (list, tuple)):
+        return " ".join(str(c) for c in cmd)
+    return str(cmd)
 
 
 # ==============================================================================
@@ -114,40 +156,70 @@ def mock_subprocess_popen(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Mock subprocess.Popen to prevent crashes in launcher/worker.py (AUTOUSE).
+    """Mock subprocess.Popen with STRICT MODE (AUTOUSE).
 
-    launcher/worker.py directly calls subprocess.Popen (not through ProcessPoolManager),
-    which causes parallel test crashes. This fixture mocks Popen globally.
+    STRICT MODE (default): Unexpected subprocess calls FAIL with AssertionError.
+    This prevents silent success that masks bugs in error handling.
 
-    This mock respects the `text=True` argument: when text mode is requested,
-    it returns StringIO objects and strings; otherwise BytesIO and bytes.
-
-    Call tracking: Set SHOTBOT_TEST_TRACK_POPEN=1 to enable command tracking.
-    Use get_popen_calls() to retrieve tracked commands for debugging.
+    HANDLING SUBPROCESS CALLS:
+        1. Use subprocess_mock fixture for controlled behavior
+        2. Use @pytest.mark.real_subprocess for real subprocess
+        3. Use @pytest.mark.permissive_subprocess to opt-out (DISCOURAGED)
 
     Args:
         request: Pytest request for marker checking
         monkeypatch: Pytest monkeypatch fixture
-
-    OPT-OUT: Use @pytest.mark.real_subprocess to skip this mock.
     """
+    import warnings
+
     # Allow opt-out for tests that need real subprocess behavior
     if "real_subprocess" in [m.name for m in request.node.iter_markers()]:
         return  # Skip mock for this test
+
+    # Check for permissive_subprocess marker (legacy opt-out)
+    is_permissive = "permissive_subprocess" in [m.name for m in request.node.iter_markers()]
+    if is_permissive:
+        warnings.warn(
+            f"Test '{request.node.name}' uses @pytest.mark.permissive_subprocess. "
+            f"This is deprecated - update to use subprocess_mock fixture instead.",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+
+    # Reset strict mode flags for this test
+    _set_permissive_mode(is_permissive)
+    _set_subprocess_mock_active(False)
 
     # Clear tracked calls at the start of each test (if tracking enabled)
     if _TRACK_POPEN:
         clear_popen_calls()
 
     def _create_mock_popen(*args: object, **kwargs: object) -> MagicMock:
-        """Create Popen mock that respects text mode."""
+        """Create Popen mock with STRICT MODE."""
         # Track the command (only if enabled via SHOTBOT_TEST_TRACK_POPEN=1)
-        if _TRACK_POPEN and args:
+        cmd_str = ""
+        if args:
             cmd = args[0]
-            if isinstance(cmd, (list, tuple)):
-                _popen_calls.append([str(c) for c in cmd])
-            else:
-                _popen_calls.append([str(cmd)])
+            cmd_str = _format_cmd(cmd)
+            if _TRACK_POPEN:
+                if isinstance(cmd, (list, tuple)):
+                    _popen_calls.append([str(c) for c in cmd])
+                else:
+                    _popen_calls.append([str(cmd)])
+
+        # STRICT MODE: Fail on unexpected subprocess calls
+        # Unless: permissive mode enabled OR subprocess_mock fixture is active
+        if not _PERMISSIVE_MODE and not _SUBPROCESS_MOCK_ACTIVE:
+            raise AssertionError(
+                f"Unexpected subprocess command: {cmd_str}\n\n"
+                f"STRICT MODE is enabled by default. To handle subprocess calls:\n"
+                f"  1. Use subprocess_mock fixture to configure expected behavior:\n"
+                f"       def test_foo(subprocess_mock):\n"
+                f"           subprocess_mock.set_output('expected output')\n"
+                f"           ...\n"
+                f"  2. Use @pytest.mark.real_subprocess for real subprocess execution\n"
+                f"  3. Use @pytest.mark.permissive_subprocess (DISCOURAGED - legacy opt-out)\n"
+            )
 
         # Check if text mode requested (text=True, encoding=..., or universal_newlines=True)
         text_mode = (
@@ -285,8 +357,9 @@ def subprocess_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
     - Test error handling for non-zero return codes
     - Test exception handling
 
-    Note: This works alongside the autouse mocks - it provides additional
-    control for tests that need to verify subprocess interactions.
+    IMPORTANT: Using this fixture disables STRICT MODE for the test.
+    Subprocess calls will succeed with the configured behavior instead
+    of failing with AssertionError.
 
     Example:
         def test_launcher_output_parsing(subprocess_mock):
@@ -295,6 +368,9 @@ def subprocess_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
             # ... test code ...
             assert ["ws", "-sg"] in subprocess_mock.calls
     """
+    # Signal that subprocess_mock is active - disables strict mode
+    _set_subprocess_mock_active(True)
+
     mock = SubprocessMock()
     monkeypatch.setattr("subprocess.Popen", mock.mock)
     monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)

@@ -9,6 +9,7 @@ Fixture modules are loaded via pytest_plugins for better organization.
 
 from __future__ import annotations
 
+
 # ==============================================================================
 # DEPRECATED TEST MODULE EXCLUSION
 # ==============================================================================
@@ -354,6 +355,21 @@ def mock_settings() -> Iterator[Mock]:
 
 def pytest_configure(config: pytest.Config) -> None:
     """Configure pytest with custom markers."""
+    # Validate dist mode compatibility with xdist_group
+    # Qt tests use xdist_group markers which REQUIRE --dist=loadgroup
+    dist_mode = config.getoption("dist", default=None)
+    if dist_mode and dist_mode not in ("loadgroup", "no"):
+        import warnings
+
+        warnings.warn(
+            f"DIST MODE WARNING: Using --dist={dist_mode} but Qt tests use "
+            f"xdist_group markers which REQUIRE --dist=loadgroup.\n"
+            f"Qt tests may run on separate workers and crash.\n"
+            f"Use --dist=loadgroup instead.",
+            UserWarning,
+            stacklevel=1,
+        )
+
     config.addinivalue_line("markers", "unit: mark test as a unit test")
     config.addinivalue_line("markers", "integration: mark test as an integration test")
     config.addinivalue_line("markers", "slow: mark test as slow running")
@@ -381,6 +397,10 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers",
         "real_subprocess: execute test with real subprocess (bypasses autouse mocks)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "permissive_subprocess: allow subprocess calls without subprocess_mock (DEPRECATED)",
     )
 
     # FAIL-FAST: Verify all registered singletons have reset() methods

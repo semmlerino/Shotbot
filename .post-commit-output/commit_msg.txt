@@ -1,1 +1,1 @@
-fix: Prevent signal emission after object deletion and update tests
+refactor: Swap Maya and Nuke positions in DCC accordion

@@ -522,9 +522,7 @@ class SettingsManager(LoggingMixin, QObject):
             "maya": True,
             "rv": True,
         }
-        stored_value = self.settings.value(
-            "ui/expanded_sections", default_sections, type=dict
-        )
+        stored_value = self.settings.value("ui/expanded_sections", default_sections)
         if isinstance(stored_value, dict):
             typed_dict = cast("dict[object, object]", stored_value)
             return {str(k): bool(v) for k, v in typed_dict.items()}

@@ -33,6 +33,50 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)
 
 
+def _clear_config_files() -> None:
+    """Clear config files for pristine test state.
+
+    Config files cleared:
+    - custom_launchers.json
+    - settings.json
+    - window_state.json
+
+    This prevents config state from one test leaking to subsequent tests
+    within the same xdist worker (which shares SHOTBOT_CONFIG_DIR).
+    """
+    config_dir = os.environ.get("SHOTBOT_CONFIG_DIR")
+    if not config_dir:
+        return
+
+    config_path = Path(config_dir)
+    if not config_path.exists():
+        return
+
+    config_files = ["custom_launchers.json", "settings.json", "window_state.json"]
+    for filename in config_files:
+        config_file = config_path / filename
+        if config_file.exists():
+            try:
+                config_file.unlink()
+            except OSError:
+                pass  # Best-effort cleanup
+
+
+def _clear_stat_caches() -> None:
+    """Clear CacheManager stat cache for test isolation.
+
+    The stat cache has a 2-second TTL which can leak between fast tests.
+    Clearing it ensures each test gets fresh filesystem stat results.
+    """
+    try:
+        from cache_manager import CacheManager
+
+        if CacheManager._instance is not None:
+            CacheManager._instance._stat_cache.clear()
+    except (ImportError, AttributeError):
+        pass  # CacheManager not imported or no instance
+
+
 def _clear_disk_cache_files() -> None:
     """Clear disk cache files for pristine test state.
 
@@ -46,6 +90,7 @@ def _clear_disk_cache_files() -> None:
     - migrated_shots.json
 
     Note: Thumbnails are NOT cleared (expensive to regenerate).
+    Use clean_thumbnails fixture from tests.fixtures.caching for thumbnail isolation.
     """
     cache_dir = os.environ.get("SHOTBOT_TEST_CACHE_DIR")
     if not cache_dir:
@@ -116,6 +161,12 @@ def reset_caches() -> Iterator[None]:
 
     # Clear disk cache files (shots.json, etc.) for pristine state
     _clear_disk_cache_files()
+
+    # Clear config files to prevent test contamination within worker
+    _clear_config_files()
+
+    # Clear CacheManager stat cache (has 2s TTL that can leak between tests)
+    _clear_stat_caches()
 
     # Reset Config.SHOWS_ROOT
     try:

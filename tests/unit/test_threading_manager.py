@@ -597,14 +597,15 @@ class TestThreadStatusMonitoring:
 class TestCleanupAndShutdown:
     """Test resource cleanup and shutdown procedures."""
 
-    def test_cleanup_threede_worker_stops_running_worker(
+    def test_start_discovery_cleans_up_existing_worker(
         self,
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
         mock_threede_worker: Mock,
     ) -> None:
-        """Test cleanup stops running 3DE worker."""
+        """Test start_threede_discovery cleans up existing running worker."""
+        # Start first worker
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
         ):
@@ -612,22 +613,55 @@ class TestCleanupAndShutdown:
                 mock_threede_model, mock_shot_model
             )
 
-            threading_manager._cleanup_threede_worker()
+        # Simulate worker running
+        mock_threede_worker.isRunning.return_value = True
+        first_worker = mock_threede_worker
 
-            mock_threede_worker.stop.assert_called_once()
-            mock_threede_worker.wait.assert_called_once()
-            mock_threede_worker.deleteLater.assert_called_once()
+        # Create new mock for second worker
+        second_worker = Mock()
+        second_worker.start = Mock()
+        second_worker.started = Mock()
+        second_worker.started.connect = Mock()
+        second_worker.progress = Mock()
+        second_worker.progress.connect = Mock()
+        second_worker.batch_ready = Mock()
+        second_worker.batch_ready.connect = Mock()
+        second_worker.finished = Mock()
+        second_worker.finished.connect = Mock()
+        second_worker.error = Mock()
+        second_worker.error.connect = Mock()
+        second_worker.paused = Mock()
+        second_worker.paused.connect = Mock()
+        second_worker.resumed = Mock()
+        second_worker.resumed.connect = Mock()
 
-    def test_cleanup_threede_worker_handles_timeout(
+        # Start second worker - should cleanup first worker
+        with patch(
+            "threede_scene_worker.ThreeDESceneWorker", return_value=second_worker
+        ):
+            # Mark first discovery as inactive so second can start
+            threading_manager._threede_discovery_active = False
+            threading_manager.start_threede_discovery(
+                mock_threede_model, mock_shot_model
+            )
+
+        # Verify first worker was cleaned up
+        first_worker.stop.assert_called()
+        first_worker.wait.assert_called()
+        first_worker.deleteLater.assert_called()
+
+    def test_start_discovery_handles_cleanup_timeout(
         self,
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
         mock_threede_worker: Mock,
     ) -> None:
-        """Test cleanup handles worker timeout gracefully."""
+        """Test start_threede_discovery handles worker timeout gracefully."""
         mock_threede_worker.wait.return_value = False  # Timeout
+        mock_threede_worker.isRunning.return_value = True
 
+        # Start first worker
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
         ):
@@ -635,10 +669,38 @@ class TestCleanupAndShutdown:
                 mock_threede_model, mock_shot_model
             )
 
-            # Should not raise exception
-            threading_manager._cleanup_threede_worker()
+        first_worker = mock_threede_worker
 
-            mock_threede_worker.deleteLater.assert_called_once()
+        # Create new mock for second worker
+        second_worker = Mock()
+        second_worker.start = Mock()
+        second_worker.started = Mock()
+        second_worker.started.connect = Mock()
+        second_worker.progress = Mock()
+        second_worker.progress.connect = Mock()
+        second_worker.batch_ready = Mock()
+        second_worker.batch_ready.connect = Mock()
+        second_worker.finished = Mock()
+        second_worker.finished.connect = Mock()
+        second_worker.error = Mock()
+        second_worker.error.connect = Mock()
+        second_worker.paused = Mock()
+        second_worker.paused.connect = Mock()
+        second_worker.resumed = Mock()
+        second_worker.resumed.connect = Mock()
+
+        # Should not raise exception even if first worker times out
+        with patch(
+            "threede_scene_worker.ThreeDESceneWorker", return_value=second_worker
+        ):
+            # Mark first discovery as inactive so second can start
+            threading_manager._threede_discovery_active = False
+            threading_manager.start_threede_discovery(
+                mock_threede_model, mock_shot_model
+            )
+
+        # Verify first worker was cleaned up despite timeout
+        first_worker.deleteLater.assert_called()
 
     def test_shutdown_all_threads_stops_all_workers(
         self, threading_manager: ThreadingManager

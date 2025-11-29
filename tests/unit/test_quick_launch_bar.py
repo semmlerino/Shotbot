@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-import pytest
 from PySide6.QtCore import Qt
 
 from quick_launch_bar import (

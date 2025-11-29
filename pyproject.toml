@@ -48,17 +48,13 @@ exclude = [
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 
-# Type checking strictness: Currently "strict-ish" with reportUnknown* globally disabled.
-# OPTIONAL IMPROVEMENT: For stronger signal on library calls while staying quiet for Qt stubs:
-#   Option A: Keep strict, flip reportUnknown* to "warning" instead of false
-#   Option B: Switch to typeCheckingMode="standard" and selectively upgrade reports to "warning"/"error"
-# Either approach increases signal without turning the firehose back on.
+# Type checking strictness: Strict mode with reportUnknown* as errors
 reportMissingImports = false
 reportMissingTypeStubs = false
-reportUnknownMemberType = "warning"      # Catch library API misuses
-reportUnknownParameterType = "warning"   # Catch library API misuses
-reportUnknownArgumentType = "warning"    # Catch library API misuses
-reportUnknownVariableType = "warning"    # Catch library API misuses
+reportUnknownMemberType = "error"        # Catch library API misuses
+reportUnknownParameterType = "error"     # Catch library API misuses
+reportUnknownArgumentType = "error"      # Catch library API misuses
+reportUnknownVariableType = "error"      # Catch library API misuses
 reportUndefinedVariable = "warning"
 reportImplicitStringConcatenation = false
 reportUnsafeMultipleInheritance = false
@@ -109,8 +105,11 @@ select = [
     "B",      # flake8-bugbear
     "A",      # flake8-builtins
     "C4",     # flake8-comprehensions
+    "C90",    # mccabe complexity
     "DTZ",    # flake8-datetimez
     "T10",    # flake8-debugger
+    "T20",    # flake8-print (catch print statements)
+    "ERA",    # eradicate (commented-out code)
     "ISC",    # flake8-implicit-str-concat
     "ICN",    # flake8-import-conventions
     "PIE",    # flake8-pie
@@ -177,6 +176,9 @@ ignore = [
 
     # Print statements (useful for debugging and CLI output)
     "T201",    # print (we use print intentionally in some places)
+
+    # Commented-out code detection (too many false positives on documentation comments)
+    "ERA001",  # found-commented-out-code (flags doc comments like "# - method_name()" as code)
 
     # Logging (f-strings are readable)
     "G004",    # logging-f-string (f-strings are fine for our use case)

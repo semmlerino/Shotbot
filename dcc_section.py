@@ -8,7 +8,7 @@ Shows version info in collapsed header for quick reference.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, final
+from typing import final
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
@@ -23,10 +23,6 @@ from PySide6.QtWidgets import (
 )
 
 from qt_widget_mixin import QtWidgetMixin
-
-
-if TYPE_CHECKING:
-    pass
 
 
 @final
@@ -254,7 +250,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         # Make header clickable
         header.setCursor(Qt.CursorShape.PointingHandCursor)
-        header.mousePressEvent = lambda e: self._toggle_expanded()  # type: ignore[method-assign, assignment]
+        header.mousePressEvent = lambda _e: self._toggle_expanded()  # type: ignore[method-assign, assignment]
 
         # Content widget (hidden when collapsed)
         self._content = QWidget()

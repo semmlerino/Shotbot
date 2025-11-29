@@ -281,14 +281,16 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
                 self._files_section.set_default_file(file_type, None)
             self._dcc_accordion.set_launch_description(app_name, None)
 
-    def set_shot(self, shot: Shot | None) -> None:
+    def set_shot(self, shot: Shot | None, *, discover_files: bool = True) -> None:
         """Set the current shot.
 
         Updates all child widgets with the new shot information.
-        Also discovers and displays scene files for the shot.
+        Optionally discovers and displays scene files for the shot.
 
         Args:
             shot: The shot to display, or None to clear
+            discover_files: If True, discover files synchronously (default).
+                          If False, skip file discovery (caller will provide files via set_files).
         """
         # Clear file selections when shot changes (files are shot-specific)
         if shot != self._current_shot:
@@ -306,15 +308,15 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         self._quick_launch.set_shot(shot)
         self._dcc_accordion.set_shot(shot)
 
-        # Discover and display files
-        if shot is not None:
+        # Discover and display files (unless caller will provide them)
+        if shot is not None and discover_files:
             try:
                 files_by_type = self._file_finder.find_all_files(shot)
                 self.set_files(files_by_type)
             except Exception as e:
                 self.logger.error(f"Error discovering files for {shot.full_name}: {e}")
                 self._files_section.clear_files()
-        else:
+        elif shot is None:
             self._files_section.clear_files()
 
     def set_files(self, files_by_type: dict[FileType, list[SceneFile]]) -> None:
@@ -344,6 +346,11 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
                 latest = files[0]
                 app_name = latest.app_name
                 version = f"v{latest.version:03d}" if latest.version else None
+
+                # Auto-select first file as default for this DCC
+                self._selected_files[app_name] = latest
+                self._update_default_indicators(app_name, latest)
+
                 self._quick_launch.set_latest_version(app_name, version)
                 self._dcc_accordion.set_version_info(app_name, version, latest.relative_age)
             else:

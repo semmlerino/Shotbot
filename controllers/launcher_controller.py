@@ -216,12 +216,7 @@ class LauncherController(LoggingMixin):
             return {}
 
         # Filter to only include boolean options (exclude selected_plate)
-        options: dict[str, bool] = {}
-        for key, value in dcc_options.items():
-            if isinstance(value, bool):
-                options[key] = value
-
-        return options
+        return {key: value for key, value in dcc_options.items() if isinstance(value, bool)}
 
     def _validate_launch_context(self) -> bool:
         """Validate that we have necessary context for launching.

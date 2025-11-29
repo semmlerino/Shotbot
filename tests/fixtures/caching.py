@@ -5,12 +5,14 @@ This module provides fixtures for tests that need to:
 - Test with caching explicitly disabled (for isolation)
 - Use isolated cache directories
 - Ensure clean (empty) disk cache state
+- Clean thumbnail cache (for thumbnail-specific tests)
 
 Fixtures:
     caching_enabled: Enable caching with isolated temp directory
     caching_disabled: Explicitly disable caching for a test
     isolated_cache_manager: CacheManager with isolated temp directory
     clean_disk_cache: Guaranteed empty disk cache for test
+    clean_thumbnails: Clear and isolate thumbnail directory for test
 """
 
 from __future__ import annotations
@@ -205,3 +207,55 @@ def clean_disk_cache(tmp_path: Path) -> Iterator[Path]:
         os.environ["SHOTBOT_TEST_CACHE_DIR"] = original_cache_dir
     else:
         os.environ.pop("SHOTBOT_TEST_CACHE_DIR", None)
+
+
+@pytest.fixture
+def clean_thumbnails(tmp_path: Path) -> Iterator[Path]:
+    """Clear and isolate thumbnail directory for thumbnail-specific tests.
+
+    This fixture:
+    - Creates a clean, isolated thumbnails directory
+    - Clears any existing thumbnails in the test cache dir
+    - Provides a fresh directory for thumbnail generation tests
+
+    WARNING: Thumbnails are expensive to regenerate. Only use this fixture
+    for tests that specifically need thumbnail isolation:
+    - Testing thumbnail generation
+    - Testing thumbnail cache miss behavior
+    - Testing thumbnail cleanup
+
+    Most tests should NOT use this fixture - thumbnails are intentionally
+    preserved between tests for performance reasons.
+
+    Yields:
+        Path to the clean thumbnails directory
+
+    Example:
+        def test_thumbnail_generation_creates_file(clean_thumbnails):
+            thumbnails_dir = clean_thumbnails
+            assert not list(thumbnails_dir.iterdir())  # Empty!
+            # Generate thumbnail and verify
+    """
+    thumbnails_dir = tmp_path / "thumbnails"
+    thumbnails_dir.mkdir(exist_ok=True)
+
+    # Also clear any thumbnails in the current test cache dir
+    cache_dir = os.environ.get("SHOTBOT_TEST_CACHE_DIR")
+    if cache_dir:
+        existing_thumbnails = Path(cache_dir) / "thumbnails"
+        if existing_thumbnails.exists():
+            try:
+                shutil.rmtree(existing_thumbnails, ignore_errors=True)
+                existing_thumbnails.mkdir(exist_ok=True)
+            except Exception as e:
+                _logger.debug("clean_thumbnails clear exception: %s", e)
+
+    _logger.debug("Clean thumbnails directory created: %s", thumbnails_dir)
+
+    yield thumbnails_dir
+
+    # Cleanup: remove the isolated thumbnails directory
+    try:
+        shutil.rmtree(thumbnails_dir, ignore_errors=True)
+    except Exception as e:
+        _logger.debug("clean_thumbnails cleanup exception: %s", e)

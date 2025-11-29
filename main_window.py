@@ -54,7 +54,7 @@ import time
 from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
-from PySide6.QtCore import Qt, QTimer, Slot
+from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, Signal, Slot
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -80,7 +80,7 @@ if TYPE_CHECKING:
     from launcher_dialog import LauncherManagerDialog
     from launcher_manager import LauncherManager
     from protocols import ProcessPoolInterface
-    from scene_file import SceneFile
+    from scene_file import FileType, SceneFile
     from settings_dialog import SettingsDialog
     from type_definitions import ShotDict
 
@@ -111,6 +111,7 @@ from progress_manager import ProgressManager
 from qt_widget_mixin import QtWidgetMixin
 from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from right_panel import RightPanelWidget  # New redesigned right panel
+from scene_file import FileType, SceneFile  # noqa: TC001 - Need at runtime for cast()
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
@@ -171,6 +172,76 @@ class SessionWarmer(ThreadSafeWorker):
         except Exception as e:
             # Don't fail the app if pre-warming fails
             logger.warning(f"Session pre-warming failed (non-critical): {e}")
+
+
+@final
+class ShotDiscoverySignals(QObject):
+    """Signals for ShotDiscoveryWorker."""
+
+    finished: Signal = Signal(object)  # dict with plates and files
+    error: Signal = Signal(str)
+
+
+@final
+class ShotDiscoveryWorker(QRunnable):
+    """Background worker for discovering shot files and plates.
+
+    This worker runs filesystem operations off the main thread to prevent
+    UI freezes during shot selection.
+    """
+
+    shot: Shot
+    signals: ShotDiscoverySignals
+    _cancelled: bool
+
+    def __init__(self, shot: Shot) -> None:
+        """Initialize discovery worker.
+
+        Args:
+            shot: Shot to discover files for
+        """
+        super().__init__()
+        self.shot = shot
+        self.signals = ShotDiscoverySignals()
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """Cancel the discovery operation."""
+        self._cancelled = True
+
+    @override
+    def run(self) -> None:
+        """Run discovery in background thread."""
+        if self._cancelled:
+            return
+
+        try:
+            # Import here to avoid circular imports
+            from plate_discovery import PlateDiscovery
+            from shot_file_finder import ShotFileFinder
+
+            # Discover plates
+            plates: list[str] = []
+            if not self._cancelled:
+                plates = PlateDiscovery.get_available_plates(self.shot.workspace_path)
+
+            # Discover files (result is dict[FileType, list[SceneFile]])
+            files_by_type = {}
+            if not self._cancelled:
+                file_finder = ShotFileFinder()
+                files_by_type = file_finder.find_all_files(self.shot)
+
+            # Emit results
+            if not self._cancelled:
+                self.signals.finished.emit({
+                    "shot": self.shot,
+                    "plates": plates,
+                    "files": files_by_type,
+                })
+        except Exception as e:
+            if not self._cancelled:
+                logger.error(f"Shot discovery failed: {e}")
+                self.signals.error.emit(str(e))
 
 
 @final
@@ -304,6 +375,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._closing = False  # Track shutdown state
         self._launcher_dialog: LauncherManagerDialog | None = None
         self._session_warmer: SessionWarmer | None = None  # Initialize session warmer
+        self._discovery_worker: ShotDiscoveryWorker | None = None  # Async file discovery
         self._last_selected_shot_name: str | None = (
             None  # Initialize last selected shot
         )
@@ -1063,12 +1135,17 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             shot: Shot object or None to clear selection
         """
+        # Cancel any pending discovery
+        if self._discovery_worker is not None:
+            self._discovery_worker.cancel()
+            self._discovery_worker = None
+
         # Scene context is automatically cleared by launcher_controller.set_current_shot()
 
         if shot is None:
             # Handle deselection
             self.launcher_controller.set_current_shot(None)
-            self.right_panel.set_shot(None)
+            self.right_panel.set_shot(None, discover_files=False)
 
             # Clear plate selectors
             self.right_panel.set_available_plates([])
@@ -1089,15 +1166,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             # Handle selection - use launcher controller
             self.launcher_controller.set_current_shot(shot)
 
-            # Update right panel (also discovers and displays files)
-            self.right_panel.set_shot(shot)
-
-            # Update plate selectors
-            # Local application imports
-            from plate_discovery import PlateDiscovery
-
-            available_plates = PlateDiscovery.get_available_plates(shot.workspace_path)
-            self.right_panel.set_available_plates(available_plates)
+            # Update right panel immediately (without file discovery - that's async)
+            self.right_panel.set_shot(shot, discover_files=False)
 
             # Update custom launcher menu availability
             self.launcher_controller.update_launcher_menu_availability(True)
@@ -1111,6 +1181,48 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             # Save selection
             self._last_selected_shot_name = shot.full_name
             self.settings_controller.save_settings()
+
+            # Start async discovery for plates and files (non-blocking)
+            self._discovery_worker = ShotDiscoveryWorker(shot)
+            _ = self._discovery_worker.signals.finished.connect(self._on_discovery_complete)
+            _ = self._discovery_worker.signals.error.connect(self._on_discovery_error)
+            QThreadPool.globalInstance().start(self._discovery_worker)
+
+    @Slot(object)
+    def _on_discovery_complete(self, result: dict[str, object]) -> None:
+        """Handle completed shot discovery.
+
+        Args:
+            result: Dictionary with 'shot', 'plates', and 'files' keys
+        """
+        shot = result.get("shot")
+        plates = result.get("plates", [])
+        files = result.get("files", {})
+
+        # Verify this result is for the currently selected shot (may have changed)
+        current_shot = self.launcher_controller.current_shot
+        if current_shot is None or not isinstance(shot, Shot):
+            return
+        if current_shot.full_name != shot.full_name:
+            # Shot changed while discovery was running - discard result
+            return
+
+        # Update plates
+        if isinstance(plates, list):
+            self.right_panel.set_available_plates(cast("list[str]", plates))
+
+        # Update files
+        if isinstance(files, dict):
+            self.right_panel.set_files(cast("dict[FileType, list[SceneFile]]", files))
+
+    @Slot(str)
+    def _on_discovery_error(self, error_message: str) -> None:
+        """Handle discovery error.
+
+        Args:
+            error_message: Error description
+        """
+        self.logger.warning(f"Shot discovery failed: {error_message}")
 
     def _on_shot_double_clicked(self, _shot: Shot) -> None:
         """Handle shot double click - launch default app."""

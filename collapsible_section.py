@@ -6,7 +6,7 @@ by clicking. Used for Files section, Custom Launchers, and Command Log.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, final
+from typing import final
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -16,10 +16,6 @@ from PySide6.QtWidgets import (
 )
 
 from qt_widget_mixin import QtWidgetMixin
-
-
-if TYPE_CHECKING:
-    pass
 
 
 @final

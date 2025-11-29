@@ -34,7 +34,7 @@ def mock_shot() -> MagicMock:
 @pytest.fixture
 def sample_files() -> dict[FileType, list[SceneFile]]:
     """Create sample scene files for testing."""
-    now = datetime.now()
+    now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
     return {
         FileType.THREEDE: [
             SceneFile(

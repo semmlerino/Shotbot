@@ -4,10 +4,10 @@
 
 ```bash
 # Development: parallel for speed
-uv run pytest -n 2 --dist=worksteal
+uv run pytest -n 2 --dist=loadgroup
 
 # CI: parallel with fail-fast
-uv run pytest -n auto --dist=worksteal --maxfail=1
+uv run pytest -n auto --dist=loadgroup --maxfail=1
 
 # Re-run last failed
 uv run pytest --lf
@@ -402,7 +402,7 @@ def test_rate_limiter():
 
 | Check | Command | Required |
 |-------|---------|----------|
-| **Tests pass** | `uv run pytest -n auto --dist=worksteal` | Yes |
+| **Tests pass** | `uv run pytest -n auto --dist=loadgroup` | Yes |
 | **Type check clean** | `uv run basedpyright` | Yes |
 | **Lint clean** | `uv run ruff check .` | Yes |
 | **Coverage report** | `uv run pytest --cov --cov-report=term-missing` | Advisory |
@@ -631,7 +631,7 @@ os.environ.setdefault("QT_LOGGING_RULES", "*.warning=true")
 ## Best Practices Summary
 
 ### DO
-- Use `-n auto --dist=worksteal` for parallel execution
+- Use `-n auto --dist=loadgroup` for parallel execution (REQUIRED for Qt test grouping)
 - Set `QT_QPA_PLATFORM` at TOP of conftest.py before Qt imports
 - Use try/finally for Qt resources
 - Use `tmp_path` for cache directories in tests
@@ -644,6 +644,7 @@ os.environ.setdefault("QT_LOGGING_RULES", "*.warning=true")
 ### DON'T
 - Use `time.sleep()` or bare `processEvents()`
 - Create Qt apps at module level
+- Use `--dist=worksteal` (it ignores xdist_group markers - use `--dist=loadgroup`)
 - Use `xdist_group` as a band-aid for isolation issues
 - Use `@pytest.mark.flaky` to mask problems — fix root cause. If you must mark something flaky (external service, OS bug), add a comment linking to the underlying issue (ticket/upstream bug)
 - Mock internals — only mock at system boundaries

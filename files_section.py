@@ -6,7 +6,7 @@ in the header when collapsed. Collapsed by default per user preference.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, final
+from typing import final
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
@@ -15,10 +15,6 @@ from collapsible_section import CollapsibleSection
 from files_tab_widget import FilesTabWidget
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FileType, SceneFile
-
-
-if TYPE_CHECKING:
-    pass
 
 
 @final

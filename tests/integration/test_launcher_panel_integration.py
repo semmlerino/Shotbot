@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import pytest
 
+
 # Skip entire module - MainWindow no longer uses LauncherPanel
 pytestmark = pytest.mark.skip(
     reason="MainWindow now uses RightPanelWidget instead of LauncherPanel"

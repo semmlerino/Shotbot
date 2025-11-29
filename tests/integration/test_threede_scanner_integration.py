@@ -33,7 +33,11 @@ from threede_scene_finder_optimized import (
 from threede_scene_model import ThreeDESceneModel
 
 
-pytestmark = [pytest.mark.integration, pytest.mark.slow]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.slow,
+    pytest.mark.real_subprocess,  # Uses find command for 3DE discovery
+]
 
 
 @pytest.fixture(autouse=True)
@@ -41,24 +45,16 @@ def reset_threede_singletons() -> None:
     """Reset 3DE-related singletons to prevent cross-test contamination.
 
     Resets:
-    - ProcessPoolManager._instance (used for parallel 3DE scanning)
     - NotificationManager._instance (used for progress notifications)
     - ProgressManager._instance (used for operation tracking)
+
+    NOTE: ProcessPoolManager is NOT reset here - it's handled by the autouse
+    mock_process_pool_manager fixture in conftest.py which provides a TestProcessPool.
+    Resetting it here would undo that mock and cause subprocess failures.
     """
     # Import here to avoid circular dependencies
     from notification_manager import NotificationManager
-    from process_pool_manager import ProcessPoolManager
     from progress_manager import ProgressManager
-
-    # Reset ProcessPoolManager
-    if ProcessPoolManager._instance is not None:
-        try:
-            if hasattr(ProcessPoolManager._instance, "shutdown"):
-                ProcessPoolManager._instance.shutdown(timeout=1.0)
-        except Exception:
-            pass
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
 
     # Reset NotificationManager
     if NotificationManager._instance is not None:
@@ -89,8 +85,7 @@ def reset_threede_singletons() -> None:
     yield
 
     # Reset again after test (defense in depth)
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
+    # NOTE: ProcessPoolManager handled by autouse mock
     NotificationManager._instance = None
     ProgressManager._instance = None
 

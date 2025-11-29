@@ -21,6 +21,7 @@ from pathlib import Path
 from tests.helpers.synchronization import wait_for_condition
 
 
+@pytest.mark.real_subprocess
 def test_subprocess_with_large_output_no_deadlock() -> None:
     """Test that subprocess producing large output doesn't deadlock with PIPE + drain threads.
 
@@ -105,6 +106,7 @@ for i in range(1024):
             pytest.fail("PIPE approach also deadlocked - fix failed!")
 
 
+@pytest.mark.real_subprocess
 def test_launcher_worker_no_deadlock() -> None:
     """Test that the actual LauncherWorker doesn't deadlock with verbose apps."""
 

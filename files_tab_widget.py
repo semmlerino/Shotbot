@@ -7,9 +7,7 @@ user information with click and double-click actions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, final
-
-from typing_compat import override
+from typing import Any, ClassVar, final
 
 from PySide6.QtCore import (
     QAbstractTableModel,
@@ -21,18 +19,15 @@ from PySide6.QtCore import (
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
-    QTabWidget,
     QTableView,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FILE_TYPE_COLORS, FileType, SceneFile
-
-
-if TYPE_CHECKING:
-    pass
+from typing_compat import override
 
 
 @final
@@ -43,7 +38,7 @@ class FileTableModel(QAbstractTableModel):
     Stores SceneFile objects for retrieval on selection.
     """
 
-    COLUMNS = ["Version", "Age", "User"]
+    COLUMNS: ClassVar[list[str]] = ["Version", "Age", "User"]
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the model.
@@ -108,19 +103,19 @@ class FileTableModel(QAbstractTableModel):
 
     @override
     def rowCount(
-        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+        self, parent: QModelIndex | QPersistentModelIndex | None = None
     ) -> int:
         """Return number of rows."""
-        if parent.isValid():
+        if parent is not None and parent.isValid():
             return 0
         return len(self._files)
 
     @override
     def columnCount(
-        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+        self, parent: QModelIndex | QPersistentModelIndex | None = None
     ) -> int:
         """Return number of columns."""
-        if parent.isValid():
+        if parent is not None and parent.isValid():
             return 0
         return len(self.COLUMNS)
 
@@ -163,9 +158,9 @@ class FileTableModel(QAbstractTableModel):
                 if file == self._current_default:
                     return f"-> {version_str}"
                 return version_str
-            elif col == 1:  # Age
+            if col == 1:  # Age
                 return file.relative_age
-            elif col == 2:  # User
+            if col == 2:  # User
                 return file.user
 
         elif role == Qt.ItemDataRole.ToolTipRole:

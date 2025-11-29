@@ -210,7 +210,7 @@ class TestShotHeaderUpdateFromFiles:
         threede_file = SceneFile(
             path=Path("/path/to/scene_v005.3de"),
             file_type=FileType.THREEDE,
-            modified_time=datetime.now(),
+            modified_time=datetime.now(),  # noqa: DTZ005
             user="artist1",
             version=5,
         )
@@ -218,7 +218,7 @@ class TestShotHeaderUpdateFromFiles:
         nuke_file = SceneFile(
             path=Path("/path/to/comp_v012.nk"),
             file_type=FileType.NUKE,
-            modified_time=datetime.now(),
+            modified_time=datetime.now(),  # noqa: DTZ005
             user="artist2",
             version=12,
         )
@@ -251,14 +251,14 @@ class TestShotHeaderUpdateFromFiles:
             SceneFile(
                 path=Path("/path/scene_v010.3de"),
                 file_type=FileType.THREEDE,
-                modified_time=datetime.now(),
+                modified_time=datetime.now(),  # noqa: DTZ005
                 user="artist",
                 version=10,
             ),
             SceneFile(
                 path=Path("/path/scene_v005.3de"),
                 file_type=FileType.THREEDE,
-                modified_time=datetime.now(),
+                modified_time=datetime.now(),  # noqa: DTZ005
                 user="artist",
                 version=5,
             ),
