@@ -668,8 +668,8 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._plate_selector.clear()
         if plates:
             self._plate_selector.addItems(plates)
+            self._plate_selector.setCurrentIndex(0)  # Pre-select first plate
             self._plate_selector.setEnabled(True)
-            self._plate_selector.setPlaceholderText("Select plate...")
         else:
             self._plate_selector.setEnabled(False)
             self._plate_selector.setPlaceholderText("No plates available")
