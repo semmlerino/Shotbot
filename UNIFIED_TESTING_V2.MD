@@ -443,6 +443,96 @@ def test_rate_limiter():
 
 ---
 
+## Strict Mode Enforcement
+
+Shotbot tests enforce strict modes to catch issues early. These are automatically enabled in CI.
+
+### Dialog Suppression (Strict)
+
+**QMessageBox dialogs are auto-suppressed but REQUIRE explicit acknowledgment.**
+
+Tests that trigger dialogs without explicit handling will **FAIL** because auto-returning `Yes/Ok` bypasses `Cancel/No` code paths.
+
+```python
+# ✅ GOOD - Explicit dialog expectation
+@pytest.mark.allow_dialogs  # Dialog is expected side-effect
+def test_error_shows_warning():
+    trigger_error()
+
+# ✅ GOOD - Assert dialog was shown
+def test_confirmation_dialog(expect_dialog):
+    confirm_action()
+    expect_dialog.assert_shown("question", "Are you sure?")
+
+# ✅ GOOD - Assert NO dialogs shown
+def test_quiet_operation(expect_no_dialogs):
+    perform_operation()
+    # Auto-checked on teardown
+
+# ❌ BAD - Dialog triggered without acknowledgment
+def test_error_handling():
+    trigger_error()  # FAILS: dialog auto-returned Yes, Cancel path untested
+```
+
+### Subprocess STRICT MODE
+
+**Subprocess calls FAIL by default** to prevent silent success that masks bugs.
+
+```python
+# ✅ GOOD - Use subprocess_mock for controlled behavior
+def test_launcher_output(subprocess_mock):
+    subprocess_mock.set_output("workspace /shows/test")
+    result = launcher.run()
+    assert subprocess_mock.calls[0] == ["ws", "-sg"]
+
+# ✅ GOOD - Opt-out for real subprocess
+@pytest.mark.real_subprocess
+def test_real_echo():
+    import subprocess
+    result = subprocess.run(["echo", "hi"], capture_output=True, text=True)
+    assert result.stdout.strip() == "hi"
+
+# ❌ BAD - Unmocked subprocess
+def test_launcher():
+    launcher.run()  # FAILS: AssertionError with guidance
+```
+
+### Timing Tests (`@pytest.mark.real_timing`)
+
+Tests with actual timing requirements (debounce, QTimer callbacks) bypass the short-wait patch:
+
+```python
+@pytest.mark.real_timing  # Uses qtbot.wait(200) for QTimer callback
+def test_debounce_behavior(qtbot):
+    trigger_rapid_calls()
+    qtbot.wait(200)  # Real delay, not patched
+    assert calls_debounced()
+```
+
+### `--dist=loadgroup` Enforcement
+
+Using wrong dist mode with `-n` now raises `UsageError`:
+
+```bash
+# ✅ GOOD
+pytest -n auto --dist=loadgroup   # Qt-safe parallel
+pytest                             # Serial (no -n flag)
+
+# ❌ FAILS
+pytest -n auto --dist=worksteal   # UsageError: ignores xdist_group markers
+```
+
+### Thread Leak Detection (CI)
+
+In CI environments, thread leaks are detected and logged:
+- QThreadPool runnable leaks
+- Python threading.Thread leaks
+- Surviving thread names included in warning
+
+Set `SHOTBOT_TEST_STRICT_CLEANUP=1` locally to enable.
+
+---
+
 ## Subprocess Testing Strategy
 
 ### Why Subprocess Mocking is Autouse

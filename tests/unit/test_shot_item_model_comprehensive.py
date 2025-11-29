@@ -98,6 +98,7 @@ class TestAsyncCallbackRaceConditions:
         result = model._find_shot_by_full_name("nonexistent_shot")
         assert result is None
 
+    @pytest.mark.real_timing  # Uses qtbot.wait(50) for async thumbnail callbacks
     def test_concurrent_thumbnail_loading(
         self,
         model: ShotItemModel,

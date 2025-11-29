@@ -7,6 +7,18 @@ following UNIFIED_TESTING_GUIDE principles:
 - No Mock() or MagicMock usage
 
 These test doubles complement the existing test_doubles_library.py.
+
+MIGRATION NOTE:
+    TestProcessPoolDouble is deprecated. Use TestProcessPool from
+    tests.fixtures.test_doubles instead:
+
+        # BEFORE (deprecated)
+        from tests.test_doubles_extended import TestProcessPoolDouble
+        pool = TestProcessPoolDouble()
+
+        # AFTER (recommended)
+        from tests.fixtures.test_doubles import TestProcessPool
+        pool = TestProcessPool(track_kwargs=True)
 """
 
 from __future__ import annotations
@@ -14,11 +26,13 @@ from __future__ import annotations
 # Standard library imports
 import threading
 import time
+import warnings
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 # Local application imports
+from tests.fixtures.test_doubles import TestProcessPool as _CanonicalTestProcessPool
 from tests.helpers.synchronization import simulate_work_without_sleep
 
 
@@ -702,171 +716,36 @@ class TestCommand:
         self.fail_after_n_calls = None
 
 
-class TestProcessPoolDouble:
-    """Enhanced subprocess boundary mock for workspace commands.
+class TestProcessPoolDouble(_CanonicalTestProcessPool):
+    """DEPRECATED: Use TestProcessPool from tests.fixtures.test_doubles instead.
 
-    This extends the basic TestProcessPool from test_doubles_library.py
-    with additional tracking capabilities.
+    This class is a compatibility alias that wraps the canonical TestProcessPool
+    with track_kwargs=True mode enabled by default.
 
-    Example usage:
-        def test_workspace_command():
-            pool = TestProcessPool()
-            pool.set_outputs(
-                "workspace /shows/test/shots/seq01/seq01_0010",
-                "workspace /shows/test/shots/seq01/seq01_0020"
-            )
+    Migration:
+        # BEFORE (deprecated)
+        from tests.test_doubles_extended import TestProcessPoolDouble
+        pool = TestProcessPoolDouble()
 
-            result1 = pool.execute_workspace_command("ws -sg")
-            assert "seq01_0010" in result1
-
-            # Check tracking
-            assert pool.commands == ["ws -sg"]
-            assert pool.command_kwargs["ws -sg"]["timeout"] == 30  # default
+        # AFTER (recommended)
+        from tests.fixtures.test_doubles import TestProcessPool
+        pool = TestProcessPool(track_kwargs=True)
     """
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
     def __init__(self) -> None:
-        """Initialize enhanced process pool."""
-        self.commands: list[str] = []
-        self.command_kwargs: dict[str, dict[str, Any]] = {}
-        self.outputs: list[str] = []
-        self.default_output = "workspace /test/path"
-        self._output_index = 0
-        self._cache: dict[str, str] = {}
-        self.should_fail = False
-        self.fail_with_timeout = False
-        self.fail_with_message: str | None = None
-        self.execution_delays: list[float] = []
-        self.simulated_delay = 0.0
-
-    def set_outputs(self, *outputs: str) -> None:
-        """Queue outputs for sequential returns.
-
-        Args:
-            *outputs: Output strings to return in sequence
-        """
-        self.outputs = list(outputs)
-        self._output_index = 0
-
-    def execute_workspace_command(self, command: str, **kwargs: Any) -> str:
-        """Execute workspace command with test output.
-
-        Args:
-            command: Command to execute
-            **kwargs: Additional parameters (tracked)
-
-        Returns:
-            Test output string
-
-        Raises:
-            RuntimeError: If configured to fail
-            TimeoutError: If configured to timeout
-        """
-        # Track execution
-        self.commands.append(command)
-        self.command_kwargs[command] = kwargs
-
-        # Simulate delay if configured
-        if self.simulated_delay > 0:
-            simulate_work_without_sleep(int(self.simulated_delay * 1000))
-            self.execution_delays.append(self.simulated_delay)
-
-        # Check failure conditions
-        if self.should_fail:
-            message = self.fail_with_message or f"Command failed: {command}"
-            raise RuntimeError(message)
-
-        if self.fail_with_timeout:
-            raise TimeoutError(f"Command timed out: {command}")
-
-        # Check cache
-        if command in self._cache:
-            return self._cache[command]
-
-        # Return queued output or default
-        if self.outputs and self._output_index < len(self.outputs):
-            output = self.outputs[self._output_index]
-            self._output_index += 1
-        else:
-            output = self.default_output
-
-        # Cache result
-        self._cache[command] = output
-        return output
-
-    def invalidate_cache(self, command: str | None = None) -> None:
-        """Invalidate cache for command(s).
-
-        Args:
-            command: Specific command to invalidate, or None for all
-        """
-        if command:
-            self._cache.pop(command, None)
-        else:
-            self._cache.clear()
-
-    def get_execution_count(self, command_pattern: str | None = None) -> int:
-        """Get execution count for commands matching pattern.
-
-        Args:
-            command_pattern: Pattern to match, or None for total count
-
-        Returns:
-            Number of matching executions
-        """
-        if command_pattern is None:
-            return len(self.commands)
-        return sum(1 for cmd in self.commands if command_pattern in cmd)
-
-    def get_last_kwargs(self, command: str | None = None) -> dict[str, Any]:
-        """Get kwargs from last execution of command.
-
-        Args:
-            command: Specific command, or None for last command
-
-        Returns:
-            Kwargs dictionary
-        """
-        if command:
-            return self.command_kwargs.get(command, {})
-        if self.commands:
-            last_cmd = self.commands[-1]
-            return self.command_kwargs.get(last_cmd, {})
-        return {}
-
-    def reset(self) -> None:
-        """Reset all state for fresh test."""
-        self.commands.clear()
-        self.command_kwargs.clear()
-        self.outputs.clear()
-        self._output_index = 0
-        self._cache.clear()
-        self.execution_delays.clear()
-        self.should_fail = False
-        self.fail_with_timeout = False
-        self.fail_with_message = None
-        self.simulated_delay = 0.0
-
-    def get_metrics(self) -> dict[str, Any]:
-        """Get execution metrics.
-
-        Returns:
-            Dictionary with execution statistics
-        """
-        total_delay = sum(self.execution_delays)
-        avg_delay = (
-            total_delay / len(self.execution_delays) if self.execution_delays else 0.0
+        """Initialize the deprecated test process pool with deprecation warning."""
+        warnings.warn(
+            "TestProcessPoolDouble is deprecated. "
+            "Use TestProcessPool(track_kwargs=True) from tests.fixtures.test_doubles instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-
-        return {
-            "total_calls": len(self.commands),
-            "unique_commands": len(set(self.commands)),
-            "cache_hits": sum(1 for cmd in self.commands if cmd in self._cache),
-            "cache_size": len(self._cache),
-            "total_delay_ms": total_delay * 1000,
-            "average_delay_ms": avg_delay * 1000,
-        }
+        # Initialize with kwargs tracking to match original behavior
+        super().__init__(track_kwargs=True)
+        # Set default output for backward compatibility
+        self.default_output = "workspace /test/path"
 
 
 # Export all test doubles

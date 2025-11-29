@@ -1,5 +1,5 @@
-Post-commit hook executed at Sat Nov 29 14:16:07 GMT 2025
-Commit: 77bee6fa514b111bba366a6feb0e5991bf25fda0
+Post-commit hook executed at Sat Nov 29 19:58:05 GMT 2025
+Commit: b045ee67f056ffb6e13118ae2e32c11b4d826ebd
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: chore: Update encoded releases and add template assets
+Message: refactor: KISS/DRY consolidation - SingletonMixin and cache utilities

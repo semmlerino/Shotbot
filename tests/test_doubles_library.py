@@ -1115,75 +1115,11 @@ class SignalDouble:
 # PROCESS POOL TEST DOUBLE
 # =============================================================================
 
+# Re-export TestProcessPool from canonical location
+# MIGRATION NOTE: Import directly from tests.fixtures.test_doubles instead
+from tests.fixtures.test_doubles import TestProcessPool
 
-class TestProcessPool:
-    """Test double for process pool with configurable outputs."""
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    def __init__(self) -> None:
-        """Initialize test process pool."""
-        self.commands: list[str] = []
-        self.outputs: list[str] = []
-        self.current_output_index = 0
-        self.default_output = "workspace /test/path"
-        self._cache: dict[str, Any] = {}  # Cache for commands
-        self.should_fail = False  # Flag to simulate failures
-        self.fail_with_timeout = False  # Flag to simulate timeout
-
-    def execute_workspace_command(self, command: str, **kwargs: Any) -> str:
-        """Execute workspace command with test output."""
-        self.commands.append(command)
-
-        # Simulate failures if configured
-        if self.should_fail:
-            raise RuntimeError("Test process pool configured to fail")
-        if self.fail_with_timeout:
-            raise TimeoutError("Test process pool configured to timeout")
-
-        if self.outputs:
-            # Return outputs in sequence for tests that expect changing data
-            output = self.outputs[self.current_output_index % len(self.outputs)]
-            self.current_output_index += 1
-            return output
-
-        return self.default_output
-
-    def set_outputs(self, *outputs: str) -> None:
-        """Set outputs for subsequent calls."""
-        self.outputs = list(outputs)
-        self.current_output_index = 0
-
-    def reset(self) -> None:
-        """Reset for fresh test."""
-        self.commands.clear()
-        self.outputs.clear()
-        self.current_output_index = 0
-        self.should_fail = False
-        self.fail_with_timeout = False
-
-    def shutdown(self, timeout: float = 5.0) -> None:
-        """Shutdown the test double (no-op for test double)."""
-        # Reset state on shutdown for test isolation
-        self.reset()
-
-    def invalidate_cache(self, command: str) -> None:
-        """Invalidate cache for a command (test double behavior)."""
-        # Test double: track invalidation and clear from cache
-        self.commands.append(f"invalidate_cache:{command}")
-        if command in self._cache:
-            del self._cache[command]
-
-    def get_metrics(self) -> dict[str, Any]:
-        """Get performance metrics (test double)."""
-        return {
-            "total_calls": len(self.commands),
-            "cache_hits": 0,
-            "cache_misses": len(self.commands),
-            "average_time_ms": 10.5,
-            "total_time_ms": 10.5 * len(self.commands),
-            "cached_commands": len(self._cache),
-        }
+__all__ = ["TestProcessPool"]  # Explicit re-export for this module
 
 
 # =============================================================================

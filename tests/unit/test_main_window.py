@@ -239,6 +239,7 @@ class TestShotRefresh:
 class TestApplicationLaunching:
     """Test application launching functionality."""
 
+    @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     def test_launch_app_without_selection_shows_error(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
     ) -> None:
@@ -260,6 +261,7 @@ class TestApplicationLaunching:
         # Test behavior: should have shown an error (mocked by autouse fixture)
         # We're verifying that the code path completes without crashing
 
+    @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     def test_launch_app_with_selection(
         self,
         test_process_pool: TestProcessPoolType,
@@ -399,6 +401,7 @@ class TestThumbnailSizeControl:
 class TestMainWindowIntegration:
     """Integration tests for MainWindow end-to-end workflows."""
 
+    @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     def test_complete_shot_workflow(
         self,
         test_process_pool: TestProcessPoolType,

@@ -717,6 +717,7 @@ def test_update_status_handles_missing_method(
 # ============================================================================
 
 
+@pytest.mark.real_timing  # Uses qtbot.wait(700) to test debounce interval
 def test_refresh_shot_display_debounces_rapid_calls(
     qapp: QApplication, qtbot: QtBot, orchestrator: RefreshOrchestrator, mock_main_window: Mock
 ) -> None:

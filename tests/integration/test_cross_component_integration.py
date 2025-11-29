@@ -47,6 +47,7 @@ def setup_qt_imports() -> None:
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,  # CRITICAL: Same group for all Qt tests
+    pytest.mark.allow_dialogs,  # Dialogs expected during MainWindow setup
 ]
 
 

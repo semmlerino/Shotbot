@@ -398,6 +398,7 @@ class TestCommandLauncher:
         # Should return False when no shot is set
         assert result is False
 
+    @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
@@ -430,6 +431,7 @@ class TestCommandLauncher:
         # Verify subprocess was attempted
         assert mock_popen.called
 
+    @pytest.mark.allow_dialogs  # May show warning dialog
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )

@@ -5,15 +5,28 @@ test doubles and helper classes for proper Qt testing without crashes.
 
 Key Components:
     - ThreadSafeTestImage: QPixmap replacement for worker threads
-    - SignalDouble: Signal test double for non-Qt objects
-    - TestProcessPoolManager: Subprocess test double
+    - SignalDouble: Signal test double for non-Qt objects (re-exported from fixtures)
+    - TestProcessPoolManager: DEPRECATED - use TestProcessPool from fixtures
     - Factory fixtures and helpers
+
+MIGRATION NOTE:
+    TestProcessPoolManager is deprecated. Use TestProcessPool from
+    tests.fixtures.test_doubles instead:
+
+        # BEFORE (deprecated)
+        from tests.test_helpers import TestProcessPoolManager
+        pool = TestProcessPoolManager()
+
+        # AFTER (recommended)
+        from tests.fixtures.test_doubles import TestProcessPool
+        pool = TestProcessPool(ttl_aware=True)
 """
 
 from __future__ import annotations
 
 # Standard library imports
 import json
+import warnings
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +34,10 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QEventLoop, QObject, QSize, Signal
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QApplication
+
+# Import canonical doubles - these are the recommended implementations
+from tests.fixtures.test_doubles import SignalDouble  # noqa: F401 (re-export)
+from tests.fixtures.test_doubles import TestProcessPool as _CanonicalTestProcessPool
 
 
 if TYPE_CHECKING:
@@ -87,166 +104,46 @@ def process_qt_events(duration_ms: int = 5, iterations: int = 2) -> None:
         app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, duration_ms)
 
 
-class SignalDouble:
-    """Lightweight signal test double for non-Qt objects.
+# SignalDouble is now imported from tests.fixtures.test_doubles (see imports above)
 
-    Use this instead of trying to use QSignalSpy on Mock objects,
-    which will crash. This provides a simple interface for testing
-    signal emissions and connections.
+
+class TestProcessPoolManager(_CanonicalTestProcessPool):
+    """DEPRECATED: Use TestProcessPool from tests.fixtures.test_doubles instead.
+
+    This class is a compatibility alias that wraps the canonical TestProcessPool
+    with ttl_aware=True mode enabled by default.
+
+    Migration:
+        # BEFORE (deprecated)
+        from tests.test_helpers import TestProcessPoolManager
+        pool = TestProcessPoolManager()
+
+        # AFTER (recommended)
+        from tests.fixtures.test_doubles import TestProcessPool
+        pool = TestProcessPool(ttl_aware=True)
     """
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
     def __init__(self) -> None:
-        """Initialize the test signal."""
-        self.emissions: list[tuple[Any, ...]] = []
-        self.callbacks: list[Callable] = []
-
-    def emit(self, *args) -> None:
-        """Emit the signal with arguments."""
-        self.emissions.append(args)
-        for callback in self.callbacks:
-            try:
-                callback(*args)
-            except Exception as e:
-                print(f"SignalDouble callback error: {e}")
-
-    def connect(self, callback: Callable) -> None:
-        """Connect a callback to the signal."""
-        self.callbacks.append(callback)
-
-    def disconnect(self, callback: Callable | None = None) -> None:
-        """Disconnect a callback or all callbacks."""
-        if callback is None:
-            self.callbacks.clear()
-        elif callback in self.callbacks:
-            self.callbacks.remove(callback)
-
-    @property
-    def was_emitted(self) -> bool:
-        """Check if the signal was emitted at least once."""
-        return len(self.emissions) > 0
-
-    @property
-    def emit_count(self) -> int:
-        """Get the number of times the signal was emitted."""
-        return len(self.emissions)
-
-    def get_last_emission(self) -> tuple[Any, ... | None]:
-        """Get the arguments from the last emission."""
-        if self.emissions:
-            return self.emissions[-1]
-        return None
-
-    def clear(self) -> None:
-        """Clear emission history."""
-        self.emissions.clear()
-
-
-class TestProcessPoolManager:
-    """Test double for ProcessPoolManager - replaces subprocess calls.
-
-    Provides predictable behavior for testing without actual subprocess
-    execution. Tracks commands and provides configurable outputs.
-    """
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    def __init__(self) -> None:
-        """Initialize the test process pool."""
-        self.commands: list[str] = []
-        self.outputs: list[str] = ["workspace /test/path"]
-        self.command_completed = SignalDouble()
-        self.command_failed = SignalDouble()
-        self.should_fail = False
+        """Initialize the deprecated test process pool with deprecation warning."""
+        warnings.warn(
+            "TestProcessPoolManager is deprecated. "
+            "Use TestProcessPool(ttl_aware=True) from tests.fixtures.test_doubles instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Initialize with TTL-aware mode to match original behavior
+        super().__init__(ttl_aware=True)
+        # Set default output for backward compatibility
+        self.default_output = "workspace /test/path"
+        # Alias for backward compatibility
         self.failure_message = "Test failure"
-        # Simple cache implementation for testing
-        self._cache: dict[str, tuple[str, float]] = {}  # command -> (output, timestamp)
-        # Standard library imports
-        import time
-
-        self._time = time
-
-    def execute_workspace_command(self, command: str, **kwargs) -> str:
-        """Execute a workspace command (mocked).
-
-        Returns:
-            str: Command output (matches real ProcessPoolManager interface)
-
-        Raises:
-            Exception: When should_fail is True (matches real ProcessPoolManager behavior)
-        """
-        cache_ttl = kwargs.get("cache_ttl", 0)
-
-        # Check cache if TTL > 0
-        if cache_ttl > 0 and command in self._cache:
-            cached_output, cached_time = self._cache[command]
-            if self._time.time() - cached_time < cache_ttl:
-                # Return cached result without executing command
-                return cached_output
-
-        # Execute command (not cached or cache expired)
-        self.commands.append(command)
-
-        if self.should_fail:
-            self.command_failed.emit(command, self.failure_message)
-            # Match real ProcessPoolManager behavior - raise exception on failure
-            if "timed out" in self.failure_message.lower():
-                raise TimeoutError(self.failure_message)
-            raise RuntimeError(self.failure_message)
-
-        output = self.outputs[0] if self.outputs else ""
-
-        # Cache the result if TTL > 0
-        if cache_ttl > 0:
-            self._cache[command] = (output, self._time.time())
-
-        self.command_completed.emit(command, output)
-        return output
-
-    def execute_command(self, command: str, **kwargs) -> tuple[bool, str]:
-        """Execute a general command (mocked)."""
-        self.commands.append(command)
-
-        if self.should_fail:
-            self.command_failed.emit(command, self.failure_message)
-            return False, self.failure_message
-
-        output = self.outputs[0] if self.outputs else ""
-        self.command_completed.emit(command, output)
-        return True, output
-
-    def set_outputs(self, *outputs: str) -> None:
-        """Set the outputs to return for commands."""
-        self.outputs = list(outputs)
 
     def set_should_fail(self, should_fail: bool, message: str = "Test failure") -> None:
-        """Configure the manager to fail on next command."""
-        self.should_fail = should_fail
+        """Configure the manager to fail on next command (backward compatible)."""
+        super().set_should_fail(should_fail, message)
         self.failure_message = message
-
-    def get_executed_commands(self) -> list[str]:
-        """Get the list of executed commands."""
-        return self.commands.copy()
-
-    def clear(self) -> None:
-        """Clear command history."""
-        self.commands.clear()
-        self.command_completed.clear()
-        self.command_failed.clear()
-        self._cache.clear()
-
-    def invalidate_cache(self, command: str) -> None:
-        """Invalidate cache for a specific command (test double implementation)."""
-        if command in self._cache:
-            del self._cache[command]
-
-    @classmethod
-    def get_instance(cls) -> TestProcessPoolManager:
-        """Get a singleton instance (for compatibility)."""
-        if not hasattr(cls, "_instance"):
-            cls._instance = cls()
-        return cls._instance
 
 
 class MockMainWindow(QObject):

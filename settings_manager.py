@@ -160,7 +160,7 @@ class SettingsManager(LoggingMixin, QObject):
                 "terminal_command": "gnome-terminal",
                 "environment_variables": {},  # Additional env vars for launches
                 "working_directory": "",  # Default working directory
-                "background_gui_apps": False,  # Close terminal after launching GUI apps
+                "background_gui_apps": True,  # Close terminal after launching GUI apps
             },
             "ui": {
                 "grid_columns": Config.GRID_COLUMNS,

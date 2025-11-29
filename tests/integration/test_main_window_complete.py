@@ -70,8 +70,8 @@ def setup_qt_imports() -> None:
 
 
 
-# Mark all tests in this module as qt_heavy and integration_unsafe
-pytestmark = [pytest.mark.qt_heavy, pytest.mark.integration_unsafe]
+# Mark all tests in this module - dialogs expected during MainWindow setup
+pytestmark = [pytest.mark.qt_heavy, pytest.mark.integration_unsafe, pytest.mark.allow_dialogs]
 
 
 def is_testing_environment() -> bool:

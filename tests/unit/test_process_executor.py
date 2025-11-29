@@ -154,6 +154,7 @@ class TestNewTerminalExecution:
         assert result is mock_process
         mock_popen.assert_called_once_with(["xterm", "-e", "/bin/bash", "-ilc", "3de"])
 
+    @pytest.mark.allow_dialogs  # May show warning dialog
     @patch("subprocess.Popen")
     @patch("launch.process_executor.QTimer")
     def test_headless_execution_when_terminal_is_none(

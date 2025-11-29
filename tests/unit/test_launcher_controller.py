@@ -569,6 +569,7 @@ class TestApplicationLaunching:
             True,  # include_raw_plate
         )
 
+    @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     def test_launch_app_failure(
         self,
         make_launcher_controller: Callable[

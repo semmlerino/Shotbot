@@ -283,3 +283,74 @@ class TestRealProcessPoolManagerErrorHandling:
                 cache_ttl=0,
                 timeout=1,  # Short timeout
             )
+
+
+class TestRealProcessPoolManagerBatchExecution:
+    """Tests for batch command execution.
+
+    Note: batch_execute() returns a dict mapping commands to results,
+    where None indicates failure/timeout.
+    """
+
+    def test_batch_execute_multiple_commands(
+        self, real_ppm: ProcessPoolManager
+    ) -> None:
+        """Verify batch execution processes multiple commands."""
+        commands = [
+            "echo 'batch1'",
+            "echo 'batch2'",
+            "echo 'batch3'",
+        ]
+
+        # batch_execute can be called from main thread (uses internal thread pool)
+        results = real_ppm.batch_execute(commands, cache_ttl=0, timeout=10)
+
+        assert len(results) == 3
+        assert all(cmd in results for cmd in commands)
+        assert "batch1" in (results[commands[0]] or "")
+        assert "batch2" in (results[commands[1]] or "")
+        assert "batch3" in (results[commands[2]] or "")
+
+    def test_batch_execute_partial_failure(
+        self, real_ppm: ProcessPoolManager
+    ) -> None:
+        """Verify batch handles partial failures gracefully."""
+        commands = [
+            "echo 'good1'",
+            f"{sys.executable} -c 'import sys; sys.exit(1)'",  # Fails
+            "echo 'good2'",
+        ]
+
+        results = real_ppm.batch_execute(commands, cache_ttl=0, timeout=10)
+
+        # First and last should succeed
+        assert results[commands[0]] is not None
+        assert "good1" in results[commands[0]]
+        # Failed command returns None
+        assert results[commands[1]] is None
+        # Third should succeed
+        assert results[commands[2]] is not None
+        assert "good2" in results[commands[2]]
+
+    def test_batch_execute_uses_cache(
+        self, real_ppm: ProcessPoolManager
+    ) -> None:
+        """Verify batch execution uses cache for repeated commands."""
+        commands = ["echo 'cached_batch'"]
+
+        # First execution - cache miss
+        results1 = real_ppm.batch_execute(commands, cache_ttl=60, timeout=10)
+        assert "cached_batch" in (results1[commands[0]] or "")
+
+        # Get metrics after first call
+        metrics1 = real_ppm.get_metrics()
+        misses_after_first = metrics1["cache_misses"]
+
+        # Second execution - should hit cache
+        results2 = real_ppm.batch_execute(commands, cache_ttl=60, timeout=10)
+        assert "cached_batch" in (results2[commands[0]] or "")
+
+        # Misses should not have increased (cache hit)
+        metrics2 = real_ppm.get_metrics()
+        assert metrics2["cache_hits"] > metrics1["cache_hits"]
+        assert metrics2["cache_misses"] == misses_after_first

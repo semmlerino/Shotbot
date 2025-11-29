@@ -26,6 +26,10 @@ from shot_model import Shot, ShotModel
 from tests.test_doubles_library import TestCacheManager
 
 
+# Integration tests may show error dialogs when mocks are incomplete
+pytestmark = [pytest.mark.integration, pytest.mark.qt, pytest.mark.allow_dialogs]
+
+
 if TYPE_CHECKING:
     from collections.abc import Generator
 

@@ -228,6 +228,7 @@ class TestApplicationLaunchingNoHang:
 
         return main_window, shot
 
+    @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     def test_launch_app_with_selected_shot(
         self, safe_window_with_shot, monkeypatch, tmp_path
     ) -> None:

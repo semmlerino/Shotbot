@@ -33,7 +33,8 @@ from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
 
-pytestmark = [pytest.mark.integration, pytest.mark.qt]
+# Integration tests may show error dialogs when mocks are incomplete
+pytestmark = [pytest.mark.integration, pytest.mark.qt, pytest.mark.allow_dialogs]
 
 
 # Test doubles for integration testing

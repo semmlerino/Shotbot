@@ -1,1 +1,1 @@
-chore: Update encoded releases and add template assets
+refactor: KISS/DRY consolidation - SingletonMixin and cache utilities

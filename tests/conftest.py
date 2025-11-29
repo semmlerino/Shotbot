@@ -225,13 +225,30 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     - Different modules can run in parallel on different workers
     - This balances stability (module isolation) with parallelism (multiple workers)
 
-    AUTO-FIXTURES:
+    AUTO-FIXTURES (automatically applied to Qt tests):
     - qt_cleanup: Handles Qt widget/state cleanup between tests
     - cleanup_state_heavy: Handles singleton reset between tests
 
     MARKERS:
     - @pytest.mark.qt_heavy: Forces test onto single "qt_heavy" worker group
     - @pytest.mark.enforce_unique_connections: Enforces UniqueConnection for signals
+    - @pytest.mark.qt: Marks test as Qt-using (triggers cleanup fixtures)
+
+    Qt TEST DETECTION:
+    Tests are detected as Qt tests if they either:
+    1. Use any of these fixtures: qtbot, cleanup_qt_state, qt_cleanup, qapp
+    2. Have @pytest.mark.qt marker
+
+    IMPORTANT: Tests that import PySide6 directly WITHOUT using the above fixtures
+    should add @pytest.mark.qt to ensure proper cleanup:
+
+        @pytest.mark.qt
+        def test_my_qt_model():
+            from PySide6.QtCore import QObject
+            obj = QObject()
+            # ... test code ...
+
+    Without the marker, such tests may skip Qt cleanup and leak state.
     """
     for item in items:
         # Determine if this is a Qt test
@@ -355,19 +372,17 @@ def mock_settings() -> Iterator[Mock]:
 
 def pytest_configure(config: pytest.Config) -> None:
     """Configure pytest with custom markers."""
-    # Validate dist mode compatibility with xdist_group
-    # Qt tests use xdist_group markers which REQUIRE --dist=loadgroup
+    # FAIL-FAST: Qt tests use xdist_group markers which REQUIRE --dist=loadgroup
+    # Running with wrong dist mode causes Qt crashes that are hard to diagnose
     dist_mode = config.getoption("dist", default=None)
     if dist_mode and dist_mode not in ("loadgroup", "no"):
-        import warnings
-
-        warnings.warn(
-            f"DIST MODE WARNING: Using --dist={dist_mode} but Qt tests use "
-            f"xdist_group markers which REQUIRE --dist=loadgroup.\n"
-            f"Qt tests may run on separate workers and crash.\n"
-            f"Use --dist=loadgroup instead.",
-            UserWarning,
-            stacklevel=1,
+        raise pytest.UsageError(
+            f"Invalid --dist={dist_mode} for Qt tests.\n\n"
+            f"Qt tests use xdist_group markers which REQUIRE --dist=loadgroup.\n"
+            f"Other dist modes (worksteal, loadscope, etc.) ignore grouping and crash Qt.\n\n"
+            f"Fix: Use one of:\n"
+            f"  pytest -n auto --dist=loadgroup   (parallel with Qt safety)\n"
+            f"  pytest                            (serial, no -n flag)\n"
         )
 
     config.addinivalue_line("markers", "unit: mark test as a unit test")
@@ -401,6 +416,15 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers",
         "permissive_subprocess: allow subprocess calls without subprocess_mock (DEPRECATED)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "allow_dialogs: allow dialogs without explicit expect_dialog/expect_no_dialogs fixture",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_timing: documents test requires actual timing delays "
+        "(NOTE: short-wait patch only affects waits ≤5ms; waits >5ms use real timing automatically)",
     )
 
     # FAIL-FAST: Verify all registered singletons have reset() methods

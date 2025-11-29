@@ -86,7 +86,9 @@ class DialogRecorder:
 
 
 @pytest.fixture(autouse=True)
-def suppress_qmessagebox(monkeypatch: pytest.MonkeyPatch) -> DialogRecorder:
+def suppress_qmessagebox(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> DialogRecorder:
     """Auto-dismiss modal dialogs to prevent blocking tests.
 
     This autouse fixture provides default mocks for QMessageBox to prevent
@@ -94,26 +96,47 @@ def suppress_qmessagebox(monkeypatch: pytest.MonkeyPatch) -> DialogRecorder:
     with their own monkeypatch calls - test-specific patches take priority.
 
     Returns a DialogRecorder that can be used to assert dialog behavior.
-    Tests that don't need to assert can ignore the return value.
+
+    STRICT MODE: If a test triggers dialogs without explicit handling, the test
+    will FAIL after completion. This catches untested Cancel/No code paths.
+
+    To acknowledge dialogs, use one of:
+    - @pytest.mark.allow_dialogs - suppress the check (dialog is expected side-effect)
+    - expect_dialog fixture - verify at least one dialog shown
+    - expect_no_dialogs fixture - verify no dialogs shown (will fail if any appear)
 
     Critical for:
     - Preventing real widgets from appearing ("getting real widgets" issue)
     - Avoiding timeouts from modal dialogs waiting for user input
     - Preventing resource exhaustion under high parallel load
+    - Catching untested dialog code paths (Yes/No, Ok/Cancel branches)
 
     Usage:
-        # Just suppress (most tests):
-        def test_something():
-            ...  # dialogs are auto-suppressed
+        # Dialogs explicitly expected:
+        @pytest.mark.allow_dialogs
+        def test_something_with_dialogs():
+            ...  # dialogs allowed, test won't fail
 
         # Assert dialogs were shown:
-        def test_error_shows_dialog(suppress_qmessagebox):
+        def test_error_shows_dialog(expect_dialog):
             trigger_error()
-            suppress_qmessagebox.assert_shown("critical", "Error occurred")
+            expect_dialog.assert_shown("critical", "Error occurred")
+
+        # Assert NO dialogs shown:
+        def test_quiet_operation(expect_no_dialogs):
+            perform_operation()
+            # Auto-checked on teardown
     """
     from PySide6.QtWidgets import QMessageBox
 
     recorder = DialogRecorder()
+
+    # Check if test has explicit dialog handling
+    has_explicit_handling = (
+        "expect_dialog" in request.fixturenames
+        or "expect_no_dialogs" in request.fixturenames
+        or request.node.get_closest_marker("allow_dialogs") is not None
+    )
 
     def _record_and_ok(method_name: str):
         def wrapper(*args, **kwargs):
@@ -140,7 +163,32 @@ def suppress_qmessagebox(monkeypatch: pytest.MonkeyPatch) -> DialogRecorder:
         QMessageBox, "open", lambda *_args, **_kwargs: None, raising=True
     )
 
-    return recorder
+    yield recorder
+
+    # STRICT: Fail if dialogs were shown without explicit handling
+    # This catches untested Cancel/No code paths that auto-return Yes/Ok
+    if recorder.calls and not has_explicit_handling:
+        dialog_summary = []
+        for call in recorder.calls:
+            method = call["method"]
+            args = call.get("args", ())
+            # Extract meaningful info from args (typically parent, title, message)
+            if len(args) >= 3:
+                dialog_summary.append(f"{method}(title={args[1]!r}, msg={args[2]!r})")
+            elif len(args) >= 2:
+                dialog_summary.append(f"{method}(arg={args[1]!r})")
+            else:
+                dialog_summary.append(f"{method}({args})")
+
+        pytest.fail(
+            f"Dialog(s) shown without explicit expectation:\n"
+            f"  {chr(10).join(dialog_summary)}\n\n"
+            f"This test triggers dialogs that auto-return Yes/Ok, potentially\n"
+            f"bypassing Cancel/No code paths. Fix by adding ONE of:\n\n"
+            f"  @pytest.mark.allow_dialogs      # Dialog is expected side-effect\n"
+            f"  def test_...(expect_dialog):    # Verify dialog was shown\n"
+            f"  def test_...(expect_no_dialogs): # Verify NO dialogs shown\n"
+        )
 
 
 @pytest.fixture(autouse=True)

@@ -242,6 +242,7 @@ class TestCommandLauncherThreading:
         assert len(results) == 3
         # Note: Results may vary due to race conditions, but all should complete
 
+    @pytest.mark.real_timing  # Uses qtbot.wait(200) for QTimer callback
     def test_qtimer_callback_thread_safety(
         self, qtbot: "QtBot", launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:

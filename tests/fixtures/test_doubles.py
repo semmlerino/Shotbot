@@ -7,43 +7,169 @@ interfaces as their real counterparts but with controllable behavior.
 Fixtures:
     test_process_pool: TestProcessPool instance for mocking ProcessPoolManager
     make_test_launcher: Factory for creating CustomLauncher instances
+
+Classes:
+    SignalDouble: Lightweight signal test double for non-Qt objects
+    TestProcessPool: Unified test double for ProcessPoolManager
 """
 
 from __future__ import annotations
 
+import time
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
-class TestProcessPool:
-    """Test double for ProcessPoolManager implementing ProcessPoolProtocol.
 
-    Provides a configurable test double that tracks calls and allows
-    setting custom outputs and errors. Use this instead of real subprocess
-    execution to:
-    - Prevent crashes in parallel test execution
-    - Control command outputs deterministically
-    - Track what commands were executed
+class SignalDouble:
+    """Lightweight signal test double for non-Qt objects.
 
-    Usage:
-        def test_something(test_process_pool):
-            test_process_pool.set_outputs("output1", "output2")
-            # ... code that uses ProcessPoolManager ...
-            assert "ws -sg" in test_process_pool.commands
+    Use this instead of trying to use QSignalSpy on Mock objects,
+    which will crash. This provides a simple interface for testing
+    signal emissions and connections.
+
+    Example:
+        signal = SignalDouble()
+        results = []
+        signal.connect(lambda *args: results.append(args))
+        signal.emit("test", 123)
+        assert signal.was_emitted
+        assert results == [("test", 123)]
     """
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
     def __init__(self) -> None:
-        self.should_fail = False
-        self.fail_with_timeout = False
-        self.call_count = 0
+        """Initialize the test signal."""
+        self.emissions: list[tuple[Any, ...]] = []
+        self.callbacks: list[Callable[..., Any]] = []
+
+    def emit(self, *args: Any) -> None:
+        """Emit the signal with arguments."""
+        self.emissions.append(args)
+        for callback in self.callbacks:
+            try:
+                callback(*args)
+            except Exception as e:
+                print(f"SignalDouble callback error: {e}")
+
+    def connect(self, callback: Callable[..., Any]) -> None:
+        """Connect a callback to the signal."""
+        self.callbacks.append(callback)
+
+    def disconnect(self, callback: Callable[..., Any] | None = None) -> None:
+        """Disconnect a callback or all callbacks."""
+        if callback is None:
+            self.callbacks.clear()
+        elif callback in self.callbacks:
+            self.callbacks.remove(callback)
+
+    @property
+    def was_emitted(self) -> bool:
+        """Check if the signal was emitted at least once."""
+        return len(self.emissions) > 0
+
+    @property
+    def emit_count(self) -> int:
+        """Get the number of times the signal was emitted."""
+        return len(self.emissions)
+
+    def get_last_emission(self) -> tuple[Any, ...] | None:
+        """Get the arguments from the last emission."""
+        if self.emissions:
+            return self.emissions[-1]
+        return None
+
+    def clear(self) -> None:
+        """Clear emission history and callbacks."""
+        self.emissions.clear()
+        self.callbacks.clear()
+
+
+class TestProcessPool:
+    """Unified test double for ProcessPoolManager implementing ProcessPoolProtocol.
+
+    This is the canonical test double that consolidates features from:
+    - fixtures/test_doubles.py (original canonical)
+    - test_helpers.py TestProcessPoolManager (TTL-aware cache, signals)
+    - test_doubles_library.py TestProcessPool (metrics)
+    - test_doubles_extended.py TestProcessPoolDouble (kwargs tracking, delays)
+
+    Basic Usage:
+        def test_something(test_process_pool):
+            test_process_pool.set_outputs("output1", "output2")
+            # ... code that uses ProcessPoolManager ...
+            assert "ws -sg" in test_process_pool.commands
+
+    TTL-Aware Mode (replaces TestProcessPoolManager):
+        pool = TestProcessPool(ttl_aware=True)
+        pool.execute_workspace_command("cmd", cache_ttl=60)
+        # Second call returns cached result if within TTL
+
+    Tracking Mode (replaces TestProcessPoolDouble):
+        pool = TestProcessPool(track_kwargs=True)
+        pool.execute_workspace_command("cmd", timeout=30)
+        assert pool.command_kwargs["cmd"]["timeout"] == 30
+
+    Args:
+        ttl_aware: If True, enable TTL-based caching (like TestProcessPoolManager)
+        track_kwargs: If True, track kwargs for each command (like TestProcessPoolDouble)
+    """
+
+    __test__ = False  # Prevent pytest from collecting this as a test class
+    _instance: TestProcessPool | None = None
+
+    def __init__(
+        self,
+        ttl_aware: bool = False,
+        track_kwargs: bool = False,
+    ) -> None:
+        """Initialize the test double.
+
+        Args:
+            ttl_aware: Enable TTL-based caching behavior
+            track_kwargs: Enable command kwargs tracking
+        """
+        # Feature flags
+        self._ttl_aware = ttl_aware
+        self._track_kwargs = track_kwargs
+
+        # Core state
         self.commands: list[str] = []
         self._outputs_queue: list[str] = []
-        self._errors: str = ""
-        self._repeat_output: bool = True  # By default, repeat the same output
+        self._output_index = 0
+        self.default_output = ""
+        self._repeat_output: bool = True
+
+        # Error simulation
+        self.should_fail = False
+        self.fail_with_timeout = False
+        self.fail_with_message: str | None = None
+        self._errors: str = ""  # Legacy compatibility
+
+        # TTL-aware cache: command -> (output, timestamp)
+        self._cache: dict[str, tuple[str, float]] = {}
+
+        # Kwargs tracking
+        self.command_kwargs: dict[str, dict[str, Any]] = {}
+
+        # Metrics
+        self.call_count = 0
+        self._cache_hits = 0
+        self._cache_misses = 0
+
+        # Delay simulation
+        self.simulated_delay = 0.0
+        self.execution_delays: list[float] = []
+
+        # Signals
+        self.command_completed = SignalDouble()
+        self.command_failed = SignalDouble()
 
     def set_outputs(self, *outputs: str, repeat: bool = True) -> None:
         """Set multiple outputs to return from execute_workspace_command.
@@ -51,62 +177,176 @@ class TestProcessPool:
         Args:
             *outputs: Variable number of output strings
             repeat: If True (default), returns the last output repeatedly for all calls.
-                   If False, pops outputs sequentially and returns empty when exhausted.
+                   If False, returns outputs sequentially then returns default_output.
 
         Default behavior (repeat=True) handles race conditions with background threads
         that may call execute_workspace_command() multiple times unpredictably.
         Use repeat=False for tests that need specific sequential outputs.
         """
         self._outputs_queue = list(outputs)
+        self._output_index = 0
         self._repeat_output = repeat
 
     def set_errors(self, error: str) -> None:
-        """Set errors to raise from execute_workspace_command."""
+        """Configure to raise RuntimeError with given message (legacy compatibility)."""
         self._errors = error
+        self.fail_with_message = error
+        self.should_fail = True
+
+    def set_should_fail(self, should_fail: bool, message: str = "Test failure") -> None:
+        """Configure the manager to fail on next command.
+
+        Args:
+            should_fail: Whether to fail
+            message: Error message to use
+        """
+        self.should_fail = should_fail
+        self.fail_with_message = message
 
     def execute_workspace_command(
         self,
         command: str,
         cache_ttl: int | None = None,
         timeout: int | None = None,
+        **kwargs: Any,
     ) -> str:
-        """Execute a workspace command (test double)."""
-        self.call_count += 1
-        self.commands.append(command)
+        """Execute a workspace command (test double).
 
+        Args:
+            command: Command to execute
+            cache_ttl: Cache TTL in seconds (used if ttl_aware=True)
+            timeout: Command timeout (tracked if track_kwargs=True)
+            **kwargs: Additional parameters (tracked if track_kwargs=True)
+
+        Returns:
+            Test output string
+
+        Raises:
+            RuntimeError: If configured to fail
+            TimeoutError: If configured to timeout
+        """
+        self.call_count += 1
+
+        # Track kwargs if enabled
+        if self._track_kwargs:
+            self.command_kwargs[command] = {
+                "cache_ttl": cache_ttl,
+                "timeout": timeout,
+                **kwargs,
+            }
+
+        # Simulate delay if configured
+        if self.simulated_delay > 0:
+            time.sleep(self.simulated_delay)
+            self.execution_delays.append(self.simulated_delay)
+
+        # TTL-aware caching
+        if self._ttl_aware and cache_ttl and cache_ttl > 0 and command in self._cache:
+            cached_output, cached_time = self._cache[command]
+            if time.time() - cached_time < cache_ttl:
+                self._cache_hits += 1
+                return cached_output
+
+        # Record command execution
+        self.commands.append(command)
+        self._cache_misses += 1
+
+        # Check failure conditions
         if self.fail_with_timeout:
-            raise TimeoutError("Simulated timeout")
+            self.command_failed.emit(command, "Timeout")
+            raise TimeoutError(f"Command timed out: {command}")
 
         if self.should_fail or self._errors:
-            raise RuntimeError(self._errors or "Test error")
+            message = self.fail_with_message or self._errors or f"Command failed: {command}"
+            self.command_failed.emit(command, message)
+            raise RuntimeError(message)
 
-        # Return output based on mode
+        # Determine output
+        output = self._get_next_output()
+
+        # Cache result if TTL-aware mode
+        if self._ttl_aware and cache_ttl and cache_ttl > 0:
+            self._cache[command] = (output, time.time())
+
+        self.command_completed.emit(command, output)
+        return output
+
+    def _get_next_output(self) -> str:
+        """Get the next output based on configured mode."""
+        if not self._outputs_queue:
+            return self.default_output
+
+        if self._repeat_output:
+            # Return output at current index, staying at last one
+            idx = min(self._output_index, len(self._outputs_queue) - 1)
+            self._output_index += 1
+            return self._outputs_queue[idx]
+
+        # Sequential mode: pop from front
         if self._outputs_queue:
-            if self._repeat_output:
-                # Return the last output repeatedly (handles background threads)
-                return self._outputs_queue[-1]
-            # Pop sequentially (for tests needing specific order)
             return self._outputs_queue.pop(0)
-        return ""
+        return self.default_output
 
-    def invalidate_cache(self, command: str) -> None:
-        """Invalidate the cache for a specific command (test double)."""
-        # Track that cache invalidation was called
-        self.commands.append(f"invalidate:{command}")
+    def execute_command(self, command: str, **kwargs: Any) -> tuple[bool, str]:
+        """Execute a general command (for compatibility with TestProcessPoolManager).
+
+        Args:
+            command: Command to execute
+            **kwargs: Additional parameters
+
+        Returns:
+            Tuple of (success, output_or_error)
+        """
+        try:
+            output = self.execute_workspace_command(command, **kwargs)
+            return True, output
+        except (RuntimeError, TimeoutError) as e:
+            return False, str(e)
+
+    def invalidate_cache(self, command: str | None = None) -> None:
+        """Invalidate the cache for a specific command or all commands.
+
+        Args:
+            command: Specific command to invalidate, or None for all
+        """
+        if command:
+            self._cache.pop(command, None)
+            self.commands.append(f"invalidate:{command}")
+        else:
+            self._cache.clear()
+            self.commands.append("invalidate:all")
 
     def reset(self) -> None:
         """Reset the test double state."""
+        self.commands.clear()
+        self._outputs_queue.clear()
+        self._output_index = 0
+        self.default_output = ""
+        self._repeat_output = True
         self.should_fail = False
         self.fail_with_timeout = False
-        self.call_count = 0
-        self.commands = []
-        self._outputs_queue = []
+        self.fail_with_message = None
         self._errors = ""
-        self._repeat_output = True
+        self._cache.clear()
+        self.command_kwargs.clear()
+        self.call_count = 0
+        self._cache_hits = 0
+        self._cache_misses = 0
+        self.simulated_delay = 0.0
+        self.execution_delays.clear()
+        self.command_completed.clear()
+        self.command_failed.clear()
+
+    def clear(self) -> None:
+        """Clear command history (alias for partial reset, compatible with TestProcessPoolManager)."""
+        self.commands.clear()
+        self.command_kwargs.clear()
+        self.command_completed.clear()
+        self.command_failed.clear()
+        self._cache.clear()
 
     def shutdown(self, timeout: float = 5.0) -> None:
-        """Shutdown the test double (no-op for test double)."""
-        # Reset state on shutdown for test isolation
+        """Shutdown the test double (resets state for test isolation)."""
         self.reset()
 
     def find_files_python(self, directory: str, pattern: str) -> list[str]:
@@ -114,6 +354,13 @@ class TestProcessPool:
 
         This method uses real filesystem operations since it doesn't involve
         subprocess calls that would cause parallel test issues.
+
+        Args:
+            directory: Directory to search in
+            pattern: Glob pattern to match
+
+        Returns:
+            List of matching file paths
         """
         try:
             path = Path(directory)
@@ -123,6 +370,73 @@ class TestProcessPool:
             return [str(f) for f in files]
         except Exception:
             return []
+
+    def get_executed_commands(self) -> list[str]:
+        """Get the list of executed commands (compatible with TestProcessPoolManager)."""
+        return self.commands.copy()
+
+    def get_execution_count(self, command_pattern: str | None = None) -> int:
+        """Get execution count for commands matching pattern.
+
+        Args:
+            command_pattern: Pattern to match, or None for total count
+
+        Returns:
+            Number of matching executions
+        """
+        if command_pattern is None:
+            return len(self.commands)
+        return sum(1 for cmd in self.commands if command_pattern in cmd)
+
+    def get_last_kwargs(self, command: str | None = None) -> dict[str, Any]:
+        """Get kwargs from last execution of command.
+
+        Args:
+            command: Specific command, or None for last command
+
+        Returns:
+            Kwargs dictionary
+        """
+        if command:
+            return self.command_kwargs.get(command, {})
+        if self.commands:
+            last_cmd = self.commands[-1]
+            return self.command_kwargs.get(last_cmd, {})
+        return {}
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Get execution metrics.
+
+        Returns:
+            Dictionary with execution statistics
+        """
+        total_delay = sum(self.execution_delays)
+        return {
+            "total_calls": self.call_count,
+            "unique_commands": len(set(self.commands)),
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "cache_hit_rate": self._cache_hits / max(1, self.call_count),
+            "cache_size": len(self._cache),
+            "total_delay_ms": total_delay * 1000,
+            "average_delay_ms": (
+                total_delay * 1000 / len(self.execution_delays)
+                if self.execution_delays
+                else 0.0
+            ),
+        }
+
+    @classmethod
+    def get_instance(cls) -> TestProcessPool:
+        """Get a singleton instance (for compatibility with TestProcessPoolManager)."""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    @classmethod
+    def reset_instance(cls) -> None:
+        """Reset the singleton instance."""
+        cls._instance = None
 
 
 @pytest.fixture

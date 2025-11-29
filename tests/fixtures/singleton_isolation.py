@@ -34,15 +34,19 @@ _logger = logging.getLogger(__name__)
 
 
 def _clear_config_files() -> None:
-    """Clear config files for pristine test state.
+    """Clear ALL config files for pristine test state.
 
-    Config files cleared:
+    This clears ALL files in the config directory, not just known ones.
+    This ensures that tests creating new config files don't leak state
+    to subsequent tests within the same xdist worker.
+
+    Known files (for documentation):
     - custom_launchers.json
     - settings.json
     - window_state.json
 
-    This prevents config state from one test leaking to subsequent tests
-    within the same xdist worker (which shares SHOTBOT_CONFIG_DIR).
+    Any other files are also cleared with a warning log to surface
+    potential state leakage issues.
     """
     config_dir = os.environ.get("SHOTBOT_CONFIG_DIR")
     if not config_dir:
@@ -52,14 +56,27 @@ def _clear_config_files() -> None:
     if not config_path.exists():
         return
 
-    config_files = ["custom_launchers.json", "settings.json", "window_state.json"]
-    for filename in config_files:
-        config_file = config_path / filename
-        if config_file.exists():
+    # Known config files (for logging unexpected ones)
+    known_files = {"custom_launchers.json", "settings.json", "window_state.json"}
+
+    # Clear ALL files in config dir
+    for item in config_path.iterdir():
+        if item.is_file():
+            if item.name not in known_files:
+                _logger.warning(
+                    "Clearing unexpected config file (potential state leak): %s",
+                    item.name,
+                )
             try:
-                config_file.unlink()
+                item.unlink()
             except OSError:
                 pass  # Best-effort cleanup
+        elif item.is_dir():
+            # Warn about unexpected directories - don't recursively delete
+            _logger.warning(
+                "Unexpected directory in config dir (not cleared): %s",
+                item.name,
+            )
 
 
 def _clear_stat_caches() -> None:
@@ -83,14 +100,19 @@ def _clear_disk_cache_files() -> None:
     This ensures each test starts with clean disk cache state while keeping
     directory creation overhead low (directories persist, only files removed).
 
-    Cache files cleared:
+    This clears ALL .json files in cache directories and warns about any
+    unexpected files or directories to surface potential state leakage.
+
+    Known cache files:
     - shots.json
     - previous_shots.json
     - threede_scenes.json
     - migrated_shots.json
 
-    Note: Thumbnails are NOT cleared (expensive to regenerate).
-    Use clean_thumbnails fixture from tests.fixtures.caching for thumbnail isolation.
+    Preserved directories (expensive to regenerate):
+    - thumbnails/
+
+    Note: Use clean_thumbnails fixture from tests.fixtures.caching for thumbnail isolation.
     """
     cache_dir = os.environ.get("SHOTBOT_TEST_CACHE_DIR")
     if not cache_dir:
@@ -100,25 +122,47 @@ def _clear_disk_cache_files() -> None:
     if not cache_path.exists():
         return
 
-    # JSON cache files to clear (not thumbnails - expensive to recreate)
-    cache_files = [
+    # Known cache files and preserved directories
+    known_files = {
         "shots.json",
         "previous_shots.json",
         "threede_scenes.json",
         "migrated_shots.json",
-    ]
+    }
+    preserved_dirs = {"thumbnails"}
+    known_dirs = {"production", "thumbnails"}
 
     # Clear from root cache dir and production subdirectory
     for subdir in [cache_path, cache_path / "production"]:
         if not subdir.exists():
             continue
-        for filename in cache_files:
-            cache_file = subdir / filename
-            if cache_file.exists():
-                try:
-                    cache_file.unlink()
-                except OSError:
-                    pass  # Best-effort cleanup
+
+        for item in subdir.iterdir():
+            if item.is_file():
+                # Clear ALL json files (not just known ones)
+                if item.suffix == ".json":
+                    if item.name not in known_files:
+                        _logger.warning(
+                            "Clearing unexpected cache file (potential state leak): %s",
+                            item.name,
+                        )
+                    try:
+                        item.unlink()
+                    except OSError:
+                        pass  # Best-effort cleanup
+                else:
+                    # Non-JSON files are unexpected
+                    _logger.warning(
+                        "Unexpected non-JSON file in cache dir (not cleared): %s",
+                        item,
+                    )
+            elif item.is_dir():
+                # Warn about unexpected directories (except known ones)
+                if item.name not in known_dirs:
+                    _logger.warning(
+                        "Unexpected directory in cache (potential state leak): %s",
+                        item.name,
+                    )
 
 # Strict mode fails on cleanup exceptions (auto-enabled in CI)
 STRICT_CLEANUP = (
