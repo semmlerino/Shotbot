@@ -467,10 +467,17 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         # Build info text based on available data
         info_parts: list[str] = []
-        if show := data.get("show"):
-            info_parts.append(show)
-        if sequence := data.get("sequence"):
-            info_parts.append(sequence)
+
+        # Prefer frame_range over show/sequence for shots (more useful info)
+        if frame_range := data.get("frame_range"):
+            info_parts.append(frame_range)
+        else:
+            # Fall back to show/sequence for items without frame_range
+            if show := data.get("show"):
+                info_parts.append(show)
+            if sequence := data.get("sequence"):
+                info_parts.append(sequence)
+
         if user := data.get("user"):
             # Use user color if available
             if self.theme.user_color:

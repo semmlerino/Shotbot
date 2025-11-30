@@ -134,6 +134,14 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         self.show_sequence_label.setStyleSheet("color: #aaa;")
         header_layout.addWidget(self.show_sequence_label)
 
+        # Frame range (e.g., "1001-1150 (150f)" or "No plate") - 12px
+        self.frame_range_label: QLabel = QLabel("")
+        frame_range_font = QFont()
+        frame_range_font.setPixelSize(design_system.typography.size_extra_small)
+        self.frame_range_label.setFont(frame_range_font)
+        self.frame_range_label.setStyleSheet("color: #888;")
+        header_layout.addWidget(self.frame_range_label)
+
         # Path row with copy button
         path_row = QHBoxLayout()
         path_row.setSpacing(8)
@@ -239,6 +247,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             self.show_sequence_label.setText(
                 f"{self._current_shot.show} • {self._current_shot.sequence}",
             )
+            self.frame_range_label.setText(self._current_shot.frame_range_display)
             self.path_label.setText(f"Workspace: {self._current_shot.workspace_path}")
 
             # Load thumbnail
@@ -247,6 +256,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             # Clear display
             self.shot_name_label.setText(self._empty_message)
             self.show_sequence_label.setText("")
+            self.frame_range_label.setText("")
             self.path_label.setText("")
             self._set_placeholder_thumbnail()
 

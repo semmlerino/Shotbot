@@ -602,8 +602,9 @@ class TestShotDataclassFields:
     def test_shot_has_expected_field_count(self) -> None:
         """Shot has exactly the expected number of fields."""
         shot_fields = fields(Shot)
-        # show, sequence, shot, workspace_path, discovered_at, _cached_thumbnail_path, _thumbnail_lock
-        assert len(shot_fields) == 7
+        # show, sequence, shot, workspace_path, discovered_at, frame_start, frame_end,
+        # _cached_thumbnail_path, _thumbnail_lock
+        assert len(shot_fields) == 9
 
     def test_private_fields_not_in_init(self) -> None:
         """Private fields are excluded from __init__."""

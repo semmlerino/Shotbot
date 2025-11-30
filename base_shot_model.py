@@ -188,9 +188,15 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                         continue
 
                     # Local application imports
+                    from frame_range_extractor import extract_frame_range
                     from type_definitions import (
                         Shot,
                     )
+
+                    # Extract frame range from turnover plate (eager loading)
+                    frame_range = extract_frame_range(workspace_path)
+                    frame_start = frame_range[0] if frame_range else None
+                    frame_end = frame_range[1] if frame_range else None
 
                     shots.append(
                         Shot(
@@ -198,6 +204,8 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                             sequence=sequence,
                             shot=shot,
                             workspace_path=workspace_path,
+                            frame_start=frame_start,
+                            frame_end=frame_end,
                         ),
                     )
                 except (IndexError, AttributeError) as e:

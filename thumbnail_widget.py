@@ -58,24 +58,25 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         # Add to content container instead of main layout
         self.content_layout.addWidget(self.name_label)
 
-        # Add spacers to maintain consistent height with 3DE thumbnails
-        # This ensures uniform grid cell heights
-        spacer_label1 = QLabel(" ")
-        spacer_label1.setObjectName("spacer")
-        spacer_font1 = spacer_label1.font()
-        spacer_font1.setPixelSize(design_system.typography.size_micro)
-        spacer_label1.setFont(spacer_font1)
-        spacer_label1.setMinimumHeight(16)
+        # Frame range label (e.g., "1001-1150 (150f)" or "No plate")
+        self.frame_range_label = QLabel(self.shot.frame_range_display)
+        self.frame_range_label.setObjectName("frame_range")
+        self.frame_range_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        frame_range_font = self.frame_range_label.font()
+        frame_range_font.setPixelSize(design_system.typography.size_micro)
+        self.frame_range_label.setFont(frame_range_font)
+        self.frame_range_label.setStyleSheet("color: #888;")
+        self.frame_range_label.setMinimumHeight(16)
+        self.content_layout.addWidget(self.frame_range_label)
 
-        spacer_label2 = QLabel(" ")
-        spacer_label2.setObjectName("spacer")
-        spacer_font2 = spacer_label2.font()
-        spacer_font2.setPixelSize(design_system.typography.size_extra_small)
-        spacer_label2.setFont(spacer_font2)
-        spacer_label2.setMinimumHeight(18)
-
-        self.content_layout.addWidget(spacer_label1)
-        self.content_layout.addWidget(spacer_label2)
+        # Add spacer to maintain consistent height with 3DE thumbnails
+        spacer_label = QLabel(" ")
+        spacer_label.setObjectName("spacer")
+        spacer_font = spacer_label.font()
+        spacer_font.setPixelSize(design_system.typography.size_extra_small)
+        spacer_label.setFont(spacer_font)
+        spacer_label.setMinimumHeight(18)
+        self.content_layout.addWidget(spacer_label)
 
         # Apply initial style
         self._update_style()

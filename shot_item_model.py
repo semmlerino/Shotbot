@@ -102,6 +102,9 @@ class ShotItemModel(BaseItemModel["Shot"]):
                 return self._pin_manager.is_pinned(item)
             return False
 
+        if role == BaseItemRole.FrameRangeRole:
+            return item.frame_range_display
+
         return None
 
     # ============= Shot-specific methods =============

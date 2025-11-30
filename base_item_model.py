@@ -144,6 +144,7 @@ class BaseItemRole(IntEnum):
     LoadingStateRole = Qt.ItemDataRole.UserRole + 9
     IsSelectedRole = Qt.ItemDataRole.UserRole + 10
     IsPinnedRole = Qt.ItemDataRole.UserRole + 11
+    FrameRangeRole = Qt.ItemDataRole.UserRole + 12  # Frame range display string
 
     # Item-specific roles (for backward compatibility with old tests)
     ItemSpecificRole1 = (

@@ -34,10 +34,12 @@ class ShotDict(_ShotDictRequired, total=False):
     """Dictionary representation of a Shot.
 
     Uses inheritance pattern to have required fields (show, sequence, shot, workspace_path)
-    and optional fields (discovered_at) for cache migration compatibility.
+    and optional fields (discovered_at, frame_start, frame_end) for cache migration compatibility.
     """
 
     discovered_at: float  # Unix timestamp when shot was added to previous shots
+    frame_start: int | None  # First frame of main plate (None = no plate found)
+    frame_end: int | None  # Last frame of main plate (None = no plate found)
 
 
 # Sentinel value to distinguish between "not searched" and "searched but found nothing"
@@ -58,6 +60,8 @@ class Shot:
     shot: str
     workspace_path: str
     discovered_at: float = 0.0  # Unix timestamp when added to previous shots (for sorting)
+    frame_start: int | None = None  # First frame of main plate (None = no plate found)
+    frame_end: int | None = None  # Last frame of main plate (None = no plate found)
     _cached_thumbnail_path: Path | None | object = field(
         default=_NOT_SEARCHED,
         init=False,
@@ -75,6 +79,18 @@ class Shot:
     def full_name(self) -> str:
         """Get full shot name."""
         return f"{self.sequence}_{self.shot}"
+
+    @property
+    def frame_range_display(self) -> str:
+        """Get formatted frame range for display.
+
+        Returns:
+            Formatted string like "1001-1150 (150f)" or "No plate" if no plate found.
+        """
+        if self.frame_start is None or self.frame_end is None:
+            return "No plate"
+        duration = self.frame_end - self.frame_start + 1
+        return f"{self.frame_start}-{self.frame_end} ({duration}f)"
 
     @property
     def thumbnail_dir(self) -> Path:
@@ -137,6 +153,8 @@ class Shot:
             "shot": self.shot,
             "workspace_path": self.workspace_path,
             "discovered_at": self.discovered_at,
+            "frame_start": self.frame_start,
+            "frame_end": self.frame_end,
         }
 
     @classmethod
@@ -144,6 +162,7 @@ class Shot:
         """Create shot from dictionary data.
 
         Note: discovered_at defaults to 0.0 for cache migration of old entries.
+        Frame range fields default to None for cache migration compatibility.
         """
         return cls(
             show=data["show"],
@@ -151,6 +170,8 @@ class Shot:
             shot=data["shot"],
             workspace_path=data["workspace_path"],
             discovered_at=data.get("discovered_at", 0.0),
+            frame_start=data.get("frame_start"),
+            frame_end=data.get("frame_end"),
         )
         # Don't restore cached thumbnail path from dict - let it be re-discovered if needed
         # This ensures we don't cache stale paths across sessions
