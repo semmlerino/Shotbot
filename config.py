@@ -89,7 +89,7 @@ class Config:
     MIN_WINDOW_HEIGHT: int = 600
 
     # Thumbnail settings
-    DEFAULT_THUMBNAIL_SIZE: int = 350
+    DEFAULT_THUMBNAIL_SIZE: int = 420
     MIN_THUMBNAIL_SIZE: int = 250
     MAX_THUMBNAIL_SIZE: int = 600
     THUMBNAIL_SPACING: int = 20  # Increased to accommodate selection highlight
