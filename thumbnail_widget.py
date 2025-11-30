@@ -141,4 +141,8 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         open_folder_action = menu.addAction("Open Shot Folder")
         _ = open_folder_action.triggered.connect(self._open_shot_folder)
 
+        # Add "Open Main Plate in RV" action
+        open_plate_action = menu.addAction("Open Main Plate in RV")
+        _ = open_plate_action.triggered.connect(self._open_main_plate_in_rv)
+
         return menu

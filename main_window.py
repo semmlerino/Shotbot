@@ -1245,7 +1245,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """
         _ = self.command_launcher.launch_app(
             app_name,
-            include_raw_plate=bool(options.get("include_raw_plate", False)),
             open_latest_threede=bool(options.get("open_latest_threede", False)),
             open_latest_maya=bool(options.get("open_latest_maya", False)),
             open_latest_scene=bool(options.get("open_latest_scene", False)),

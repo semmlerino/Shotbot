@@ -107,7 +107,6 @@ def threede_controller_target(qtbot: Any) -> Any:
     target.right_panel = Mock()
     target.right_panel.get_dcc_options = Mock(return_value={
         "open_latest_scene": True,
-        "include_raw_plate": False,
     })
     target.status_bar = QStatusBar(parent=None)
 

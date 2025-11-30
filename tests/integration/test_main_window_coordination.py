@@ -297,18 +297,6 @@ def main_window_with_real_components(
     import types
 
     # Create mock classes for CommandLauncher's internal imports with required methods
-    class MockRawPlateFinder:
-        """Mock for RawPlateFinder."""
-        @staticmethod
-        def find_latest_raw_plate(*_args: Any, **_kwargs: Any) -> None:
-            return None
-        @staticmethod
-        def verify_plate_exists(*_args: Any, **_kwargs: Any) -> bool:
-            return False
-        @staticmethod
-        def get_version_from_path(*_args: Any, **_kwargs: Any) -> str | None:
-            return None
-
     class MockNukeScriptGenerator:
         """Mock for NukeScriptGenerator."""
         @staticmethod
@@ -326,10 +314,6 @@ def main_window_with_real_components(
             return None
 
     # Create mock modules
-    mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
-    mock_raw_plate_finder.RawPlateFinder = MockRawPlateFinder
-    sys.modules["raw_plate_finder"] = mock_raw_plate_finder
-
     mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
     mock_nuke_script_generator.NukeScriptGenerator = MockNukeScriptGenerator
     sys.modules["nuke_script_generator"] = mock_nuke_script_generator

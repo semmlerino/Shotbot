@@ -8,6 +8,7 @@ and proper Model/View integration.
 from __future__ import annotations
 
 # Standard library imports
+import subprocess
 from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
@@ -372,6 +373,12 @@ class ShotGridView(BaseGridView):
         open_folder_action = menu.addAction("Open Shot Folder")
         _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
 
+        # Open Main Plate in RV
+        open_plate_action = menu.addAction("Open Main Plate in RV")
+        _ = open_plate_action.triggered.connect(
+            lambda: self._open_main_plate_in_rv(shot)
+        )
+
         _ = menu.addSeparator()
 
         # Launch Application submenu (with keyboard shortcuts visible)
@@ -443,6 +450,29 @@ class ShotGridView(BaseGridView):
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
         self.logger.debug("Folder opened successfully")
+
+    def _open_main_plate_in_rv(self, shot: Shot) -> None:
+        """Open the main plate in RV.
+
+        Args:
+            shot: Shot object containing workspace path
+        """
+        from publish_plate_finder import find_main_plate
+
+        workspace_path = shot.workspace_path
+        plate_path = find_main_plate(workspace_path)
+
+        if plate_path is None:
+            self.logger.warning(f"No plate found for shot at {workspace_path}")
+            return
+
+        self.logger.info(f"Opening plate in RV: {plate_path}")
+        try:
+            _ = subprocess.Popen(["rv", plate_path])  # noqa: S603, S607
+        except FileNotFoundError:
+            self.logger.error("RV not found. Please ensure RV is installed and in PATH.")
+        except Exception as e:
+            self.logger.error(f"Failed to open RV: {e}")
 
     def _copy_path_to_clipboard(self, path: str) -> None:
         """Copy a path to the system clipboard.

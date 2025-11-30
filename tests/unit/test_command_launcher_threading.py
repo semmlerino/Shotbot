@@ -29,31 +29,6 @@ if TYPE_CHECKING:
     from pytest_qt.qtbot import QtBot
 
 
-# Simple test doubles for CommandLauncher dependencies
-class TestRawPlateFinder:
-    """Minimal test double for RawPlateFinder."""
-
-    __test__ = False
-
-
-class TestNukeScriptGenerator:
-    """Minimal test double for NukeScriptGenerator."""
-
-    __test__ = False
-
-
-class TestThreeDELatestFinder:
-    """Minimal test double for ThreeDELatestFinder."""
-
-    __test__ = False
-
-
-class TestMayaLatestFinder:
-    """Minimal test double for MayaLatestFinder."""
-
-    __test__ = False
-
-
 class WorkerThread(QThread):
     """Worker thread for testing cross-thread signal emissions."""
 
@@ -78,29 +53,6 @@ class WorkerThread(QThread):
 
 class TestCommandLauncherThreading:
     """Test CommandLauncher threading and concurrency behavior."""
-
-    @pytest.fixture(autouse=True)
-    def setup_module_mocks(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Set up module-level mocks for CommandLauncher imports."""
-        import sys
-        import types
-
-        # Create mock modules
-        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
-        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
-        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
-
-        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
-        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
-        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
-
-        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
-        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
-        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
-
-        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
-        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
-        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
 
     @pytest.fixture
     def launcher(self) -> CommandLauncher:

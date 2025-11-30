@@ -46,7 +46,6 @@ class LaunchContext:
     related launch options together, reducing parameter coupling.
 
     Attributes:
-        include_raw_plate: Whether to include raw plate Read node (Nuke only)
         open_latest_threede: Whether to open latest 3DE scene file (3DE only)
         open_latest_maya: Whether to open latest Maya scene file (Maya only)
         open_latest_scene: Whether to open latest Nuke script (Nuke only)
@@ -55,7 +54,6 @@ class LaunchContext:
         sequence_path: Image sequence path for RV playback (RV only)
     """
 
-    include_raw_plate: bool = False
     open_latest_threede: bool = False
     open_latest_maya: bool = False
     open_latest_scene: bool = False
@@ -135,10 +133,8 @@ class CommandLauncher(LoggingMixin, QObject):
         # Local application imports
         from maya_latest_finder import MayaLatestFinder
         from nuke_script_generator import NukeScriptGenerator
-        from raw_plate_finder import RawPlateFinder
         from threede_latest_finder import ThreeDELatestFinder
 
-        self._raw_plate_finder = RawPlateFinder()
         self._nuke_script_generator = NukeScriptGenerator()
         self._threede_latest_finder = ThreeDELatestFinder()
         self._maya_latest_finder = MayaLatestFinder()
@@ -401,7 +397,6 @@ class CommandLauncher(LoggingMixin, QObject):
         app_name: str,
         context: LaunchContext | None = None,
         # Legacy parameters for backward compatibility
-        include_raw_plate: bool = False,
         open_latest_threede: bool = False,
         open_latest_maya: bool = False,
         open_latest_scene: bool = False,
@@ -413,7 +408,6 @@ class CommandLauncher(LoggingMixin, QObject):
         Args:
             app_name: Name of the application to launch
             context: Launch context with options (preferred)
-            include_raw_plate: (Legacy) Whether to include raw plate Read node (Nuke only)
             open_latest_threede: (Legacy) Whether to open the latest 3DE scene file (3DE only)
             open_latest_maya: (Legacy) Whether to open the latest Maya scene file (Maya only)
             open_latest_scene: (Legacy) Whether to open the latest Nuke script (Nuke only)
@@ -430,7 +424,6 @@ class CommandLauncher(LoggingMixin, QObject):
         # Handle backward compatibility: if context not provided, create from legacy params
         if context is None:
             context = LaunchContext(
-                include_raw_plate=include_raw_plate,
                 open_latest_threede=open_latest_threede,
                 open_latest_maya=open_latest_maya,
                 open_latest_scene=open_latest_scene,
@@ -461,7 +454,6 @@ class CommandLauncher(LoggingMixin, QObject):
             options = {
                 "open_latest_scene": context.open_latest_scene,
                 "create_new_file": context.create_new_file,
-                "include_raw_plate": context.include_raw_plate,
             }
 
             command, log_messages = self.nuke_handler.prepare_nuke_command(
@@ -821,14 +813,12 @@ class CommandLauncher(LoggingMixin, QObject):
         self,
         app_name: str,
         scene: ThreeDEScene,
-        include_raw_plate: bool = False,
     ) -> bool:
         """Launch an application in the context of a 3DE scene (shot context only, no scene file).
 
         Args:
             app_name: Name of the application to launch
             scene: The 3DE scene providing shot context
-            include_raw_plate: Whether to include raw plate Read node (Nuke only)
 
         Returns:
             True if launch was successful, False otherwise
@@ -839,60 +829,6 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Get the command
         command = Config.APPS[app_name]
-
-        # Handle raw plate for Nuke
-        if app_name == "nuke" and include_raw_plate:
-            raw_plate_path = self._raw_plate_finder.find_latest_raw_plate(
-                scene.workspace_path,
-                scene.full_name,
-            )
-
-            if raw_plate_path:
-                # Verify at least one frame exists
-                if self._raw_plate_finder.verify_plate_exists(raw_plate_path):
-                    # Create a Nuke script with the plate loaded
-                    script_path = self._nuke_script_generator.create_plate_script(
-                        raw_plate_path,
-                        scene.full_name,
-                    )
-
-                    if script_path:
-                        # Launch Nuke with the generated script
-                        command = f"{command} {script_path}"
-                        timestamp = self.timestamp
-                        version = self._raw_plate_finder.get_version_from_path(
-                            raw_plate_path
-                        )
-                        self.command_executed.emit(
-                            timestamp,
-                            f"Created Nuke script with plate: {version}/{raw_plate_path.split('/')[-1]}",
-                        )
-                    else:
-                        # Fallback to just passing the path (safely escaped)
-                        safe_plate_path = CommandBuilder.validate_path(raw_plate_path)
-                        command = f"{command} {safe_plate_path}"
-                        timestamp = self.timestamp
-                        version = self._raw_plate_finder.get_version_from_path(
-                            raw_plate_path
-                        )
-                        self.command_executed.emit(
-                            timestamp,
-                            f"Found raw plate: {version}/{raw_plate_path.split('/')[-1]}",
-                        )
-                else:
-                    # Log warning if plate path found but no frames exist
-                    timestamp = self.timestamp
-                    self.command_executed.emit(
-                        timestamp,
-                        "Warning: Raw plate path found but no frames exist",
-                    )
-            else:
-                # Log warning if raw plate requested but not found
-                timestamp = self.timestamp
-                self.command_executed.emit(
-                    timestamp,
-                    "Warning: Raw plate not found for this shot",
-                )
 
         # Validate workspace before attempting launch
         if not self._validate_workspace_before_launch(scene.workspace_path, app_name):

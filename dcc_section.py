@@ -121,12 +121,6 @@ DEFAULT_DCC_CONFIGS = [
                 key="create_new_file",
                 default=False,
             ),
-            CheckboxConfig(
-                label="Include raw plate",
-                tooltip="Automatically create a Read node for the raw plate",
-                key="include_raw_plate",
-                default=False,
-            ),
         ],
         has_files_section=True,
         file_type=FileType.NUKE,

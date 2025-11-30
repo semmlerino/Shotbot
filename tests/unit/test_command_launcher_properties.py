@@ -81,7 +81,6 @@ class TestLaunchContextProperties:
     """Property-based tests for LaunchContext value object."""
 
     @given(
-        include_raw_plate=st.booleans(),
         open_latest_threede=st.booleans(),
         open_latest_maya=st.booleans(),
         open_latest_scene=st.booleans(),
@@ -89,7 +88,6 @@ class TestLaunchContextProperties:
     )
     def test_launch_context_creation_always_succeeds(
         self,
-        include_raw_plate: bool,
         open_latest_threede: bool,
         open_latest_maya: bool,
         open_latest_scene: bool,
@@ -97,7 +95,6 @@ class TestLaunchContextProperties:
     ) -> None:
         """Verify LaunchContext can be created with any boolean combination."""
         context = LaunchContext(
-            include_raw_plate=include_raw_plate,
             open_latest_threede=open_latest_threede,
             open_latest_maya=open_latest_maya,
             open_latest_scene=open_latest_scene,
@@ -105,7 +102,6 @@ class TestLaunchContextProperties:
         )
 
         # Verify all fields are set correctly
-        assert context.include_raw_plate == include_raw_plate
         assert context.open_latest_threede == open_latest_threede
         assert context.open_latest_maya == open_latest_maya
         assert context.open_latest_scene == open_latest_scene
@@ -122,14 +118,13 @@ class TestLaunchContextProperties:
 
     def test_launch_context_is_immutable(self) -> None:
         """Verify LaunchContext is frozen (immutable)."""
-        context = LaunchContext(include_raw_plate=True)
+        context = LaunchContext(open_latest_scene=True)
 
         # Attempt to modify should raise FrozenInstanceError
         with pytest.raises(Exception, match=r"cannot assign to field"):  # FrozenInstanceError from dataclass
-            context.include_raw_plate = False  # type: ignore[misc]
+            context.open_latest_scene = False  # type: ignore[misc]
 
     @given(
-        include_raw_plate=st.booleans(),
         open_latest_threede=st.booleans(),
         open_latest_maya=st.booleans(),
         open_latest_scene=st.booleans(),
@@ -138,7 +133,6 @@ class TestLaunchContextProperties:
     )
     def test_launch_context_equality(
         self,
-        include_raw_plate: bool,
         open_latest_threede: bool,
         open_latest_maya: bool,
         open_latest_scene: bool,
@@ -147,7 +141,6 @@ class TestLaunchContextProperties:
     ) -> None:
         """Verify LaunchContext equality works correctly."""
         context1 = LaunchContext(
-            include_raw_plate=include_raw_plate,
             open_latest_threede=open_latest_threede,
             open_latest_maya=open_latest_maya,
             open_latest_scene=open_latest_scene,
@@ -156,7 +149,6 @@ class TestLaunchContextProperties:
         )
 
         context2 = LaunchContext(
-            include_raw_plate=include_raw_plate,
             open_latest_threede=open_latest_threede,
             open_latest_maya=open_latest_maya,
             open_latest_scene=open_latest_scene,
@@ -261,7 +253,6 @@ class TestLaunchContextDefaults:
         """Verify default LaunchContext has all boolean flags False."""
         context = LaunchContext()
 
-        assert context.include_raw_plate is False
         assert context.open_latest_threede is False
         assert context.open_latest_maya is False
         assert context.open_latest_scene is False
@@ -269,25 +260,24 @@ class TestLaunchContextDefaults:
         assert context.selected_plate is None
 
     @given(
-        include_raw_plate=st.booleans(),
         open_latest_threede=st.booleans(),
+        open_latest_scene=st.booleans(),
     )
     def test_partial_context_creation(
-        self, include_raw_plate: bool, open_latest_threede: bool
+        self, open_latest_threede: bool, open_latest_scene: bool
     ) -> None:
         """Verify LaunchContext can be created with partial parameters."""
         context = LaunchContext(
-            include_raw_plate=include_raw_plate,
             open_latest_threede=open_latest_threede,
+            open_latest_scene=open_latest_scene,
         )
 
         # Specified parameters
-        assert context.include_raw_plate == include_raw_plate
         assert context.open_latest_threede == open_latest_threede
+        assert context.open_latest_scene == open_latest_scene
 
         # Unspecified parameters should have defaults
         assert context.open_latest_maya is False
-        assert context.open_latest_scene is False
         assert context.create_new_file is False
         assert context.selected_plate is None
 

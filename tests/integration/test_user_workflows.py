@@ -311,9 +311,7 @@ class TestUserWorkflows:
             ),
         ):
             # Simulate user clicking Nuke launch button
-            success = main_window.command_launcher.launch_app(
-                "nuke", include_raw_plate=False
-            )
+            success = main_window.command_launcher.launch_app("nuke")
 
             # Verify launch was initiated successfully
             assert success is True

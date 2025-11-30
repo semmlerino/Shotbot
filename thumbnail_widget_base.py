@@ -617,6 +617,25 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         """Handle successful folder opening."""
         logger.debug("Folder opened successfully")
 
+    def _open_main_plate_in_rv(self) -> None:
+        """Open the main plate in RV."""
+        from publish_plate_finder import find_main_plate
+
+        workspace_path = self.data.workspace_path
+        plate_path = find_main_plate(workspace_path)
+
+        if plate_path is None:
+            logger.warning(f"No plate found for shot at {workspace_path}")
+            return
+
+        logger.info(f"Opening plate in RV: {plate_path}")
+        try:
+            _ = subprocess.Popen(["rv", plate_path])  # noqa: S603, S607
+        except FileNotFoundError:
+            logger.error("RV not found. Please ensure RV is installed and in PATH.")
+        except Exception as e:
+            logger.error(f"Failed to open RV: {e}")
+
     # Mouse events
     @override
     def mousePressEvent(self, event: QMouseEvent) -> None:

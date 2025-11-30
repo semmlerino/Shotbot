@@ -11,7 +11,6 @@ from logging_mixin import LoggingMixin
 from nuke_script_generator import NukeScriptGenerator
 from nuke_workspace_manager import NukeWorkspaceManager
 from plate_discovery import PlateDiscovery
-from raw_plate_finder import RawPlateFinder
 
 
 if TYPE_CHECKING:
@@ -31,7 +30,6 @@ class NukeLaunchHandler(LoggingMixin):
 
         # These are stored as classes since they use static methods
         self.script_generator: type[NukeScriptGenerator] = NukeScriptGenerator
-        self.raw_plate_finder: type[RawPlateFinder] = RawPlateFinder
 
     def prepare_nuke_command(
         self,
@@ -49,7 +47,6 @@ class NukeLaunchHandler(LoggingMixin):
             options: Dictionary of launch options:
                 - open_latest_scene: Open latest existing script
                 - create_new_file: Create new script version
-                - include_raw_plate: Include raw plate in script
             selected_plate: Selected plate space (e.g., "FG01", "BG01")
 
         Returns:
@@ -63,12 +60,9 @@ class NukeLaunchHandler(LoggingMixin):
             log_messages.append("Error: No plate selected. Please select a plate space to continue.")
             return command, log_messages
 
-        # Handle mutually exclusive paths
+        # Handle workspace script operations
         if options.get("open_latest_scene") or options.get("create_new_file"):
             command, msgs = self._handle_workspace_scripts(shot, command, options, selected_plate)
-            log_messages.extend(msgs)
-        elif options.get("include_raw_plate"):
-            command, msgs = self._handle_media_loading(shot, command, options)
             log_messages.extend(msgs)
 
         # Apply environment fixes
@@ -185,86 +179,13 @@ class NukeLaunchHandler(LoggingMixin):
             self.logger.error("No plate selected for Nuke script creation")
             return None
 
-        # Check if we should include raw plate
-        if options.get("include_raw_plate"):
-            # Find plate for selected space
-            raw_plate_path = self.raw_plate_finder.find_plate_for_space(
-                shot.workspace_path, shot.full_name, selected_plate
-            )
-            if raw_plate_path and self.raw_plate_finder.verify_plate_exists(
-                raw_plate_path
-            ):
-                # Create script with plate directly in plate directory
-                return self.script_generator.create_plate_directory_script(
-                    raw_plate_path,
-                    shot.workspace_path,
-                    shot.full_name,
-                    selected_plate,
-                    version=version,
-                )
-            self.logger.warning(
-                f"Raw plate not found for {selected_plate}, creating empty script"
-            )
-
-        # Create empty script directly in plate directory (no temp files!)
+        # Create empty script directly in plate directory
         return self.script_generator.create_empty_plate_script(
             shot.workspace_path,
             shot.full_name,
             selected_plate,
             version=version,
         )
-
-    def _handle_media_loading(
-        self, shot: Shot, command: str, options: dict[str, bool]
-    ) -> tuple[str, list[str]]:
-        """Handle raw plate loading.
-
-        Args:
-            shot: Current shot context
-            command: Current command string
-            options: Launch options
-
-        Returns:
-            Tuple of (updated_command, log_messages)
-        """
-        log_messages: list[str] = []
-        raw_plate_path = None
-
-        # Get raw plate if requested
-        if options.get("include_raw_plate"):
-            raw_plate_path = self.raw_plate_finder.find_latest_raw_plate(
-                shot.workspace_path,
-                shot.full_name,
-            )
-            # Verify plate exists
-            if raw_plate_path and not self.raw_plate_finder.verify_plate_exists(
-                raw_plate_path,
-            ):
-                raw_plate_path = None
-
-        # Handle raw plate
-        if raw_plate_path:
-            # Plate only
-            script_path = self.script_generator.create_plate_script(
-                raw_plate_path,
-                shot.full_name,
-            )
-            if script_path:
-                safe_script_path = shlex.quote(script_path)
-                command = f"{command} {safe_script_path}"
-                version = self.raw_plate_finder.get_version_from_path(
-                    raw_plate_path
-                )
-                log_messages.append(f"Generated Nuke script with plate: {version}")
-            else:
-                log_messages.append("Error: Failed to generate plate script")
-        # Log warning for missing file
-        elif options.get("include_raw_plate"):
-            log_messages.append(
-                "Warning: Raw plate not found or no frames exist for this shot"
-            )
-
-        return command, log_messages
 
     def get_environment_fixes(self) -> str:
         """Get Nuke-specific environment fixes.

@@ -1,8 +1,8 @@
-"""Router that decides between simple and complex Nuke launch workflows.
+"""Router that routes Nuke launches to the appropriate handler.
 
 This module analyzes launch options and routes to the appropriate launcher:
-- SimpleNukeLauncher: For opening existing scripts (90% of use cases)
-- NukeLaunchHandler: For generating scripts with plates (10% of use cases)
+- SimpleNukeLauncher: For opening/creating workspace scripts
+- NukeLaunchHandler: For environment fixes and script generation
 """
 
 from __future__ import annotations
@@ -38,11 +38,11 @@ class NukeLaunchRouter(LoggingMixin):
         options: dict[str, bool],
         selected_plate: str | None = None,
     ) -> tuple[str, list[str]]:
-        """Route to appropriate launcher based on options complexity.
+        """Route to appropriate launcher based on options.
 
         Decision logic:
-        - Simple launcher: open_latest_scene or create_new_file WITHOUT media options
-        - Complex launcher: Any media options (include_raw_plate)
+        - With workspace options (open_latest_scene or create_new_file): Route to simple launcher
+        - No options: Open empty Nuke
 
         Args:
             shot: Current shot context
@@ -56,14 +56,10 @@ class NukeLaunchRouter(LoggingMixin):
         # Extract options
         open_latest_scene = options.get("open_latest_scene", False)
         create_new_file = options.get("create_new_file", False)
-        include_raw_plate = options.get("include_raw_plate", False)
-
-        # Check if this is a simple workflow (no media generation)
-        has_media_options = include_raw_plate
         has_workspace_options = open_latest_scene or create_new_file
 
-        if has_workspace_options and not has_media_options:
-            # Simple workflow: just open/create script without media
+        if has_workspace_options:
+            # Workspace workflow: open/create script
             return self._route_to_simple(
                 shot=shot,
                 base_command=base_command,
@@ -71,14 +67,7 @@ class NukeLaunchRouter(LoggingMixin):
                 open_latest=open_latest_scene,
                 create_new=create_new_file,
             )
-        if has_media_options or has_workspace_options:
-            # Complex workflow: needs script generation with media
-            return self._route_to_complex(
-                shot=shot,
-                base_command=base_command,
-                options=options,
-                selected_plate=selected_plate,
-            )
+
         # No options selected - just open empty Nuke
         self.simple_launches += 1
         self.logger.info("No options selected, opening empty Nuke")
@@ -127,34 +116,6 @@ class NukeLaunchRouter(LoggingMixin):
             )
         # Shouldn't reach here, but handle gracefully
         return base_command, ["Opening empty Nuke"]
-
-    def _route_to_complex(
-        self,
-        shot: Shot,
-        base_command: str,
-        options: dict[str, bool],
-        selected_plate: str | None,
-    ) -> tuple[str, list[str]]:
-        """Route to complex launcher for script generation with media.
-
-        Args:
-            shot: Current shot context
-            base_command: Base command
-            options: Full options dictionary
-            selected_plate: Selected plate
-
-        Returns:
-            Tuple of (command, log_messages)
-        """
-        self.complex_launches += 1
-        self.logger.info(
-            f"🔧 Using COMPLEX launcher for {shot.full_name} (media options enabled)"
-        )
-        self.logger.info(f"   Options: {options}")
-
-        return self.complex_launcher.prepare_nuke_command(
-            shot, base_command, options, selected_plate
-        )
 
     def get_environment_fixes(self) -> str:
         """Get Nuke-specific environment fixes.

@@ -48,96 +48,12 @@ def ensure_qt_cleanup(qtbot: QtBot):
     process_qt_events()
 
 
-class TestRawPlateFinder:
-    """Test double for RawPlateFinder."""
-
-    __test__ = False  # Prevent pytest collection
-
-    @staticmethod
-    def find_latest_raw_plate(shot_workspace_path: str, _shot_name: str) -> str | None:
-        """Mock finding latest raw plate."""
-        if "TEST" in shot_workspace_path:
-            return "/path/to/plate.####.exr"
-        return None
-
-    @staticmethod
-    def verify_plate_exists(plate_path: str) -> bool:
-        """Mock verifying plate exists."""
-        return "/path/to/plate" in plate_path
-
-    @staticmethod
-    def get_version_from_path(plate_path: str) -> str | None:
-        """Mock getting version from path."""
-        if "plate" in plate_path:
-            return "v001"
-        return None
-
-
-class TestNukeScriptGenerator:
-    """Test double for NukeScriptGenerator."""
-
-    __test__ = False  # Prevent pytest collection
-
-    @staticmethod
-    def create_plate_script(_plate_path: str, shot_name: str) -> str:
-        """Mock creating plate script."""
-        return f"/tmp/{shot_name}_plate.nk"
-
-
-class TestThreeDELatestFinder:
-    """Test double for ThreeDELatestFinder."""
-
-    __test__ = False  # Prevent pytest collection
-
-    @staticmethod
-    def find_latest_3de_scene(shot: Shot) -> str | None:
-        """Mock finding latest 3DE scene."""
-        if shot.show == "TEST":
-            return "/path/to/latest.3de"
-        return None
-
-
-class TestMayaLatestFinder:
-    """Test double for MayaLatestFinder."""
-
-    __test__ = False  # Prevent pytest collection
-
-    @staticmethod
-    def find_latest_maya_scene(shot: Shot) -> str | None:
-        """Mock finding latest Maya scene."""
-        if shot.show == "TEST":
-            return "/path/to/latest.mb"
-        return None
-
-
 class TestCommandLauncher:
     """Test CommandLauncher functionality."""
 
     @pytest.fixture
     def launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
         """Create CommandLauncher with test doubles."""
-        # Mock the modules that will be imported in __init__
-        # These need to be mocked at the module level before CommandLauncher imports them
-        import sys
-        import types
-
-        # Create mock modules
-        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
-        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
-        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
-
-        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
-        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
-        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
-
-        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
-        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
-        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
-
-        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
-        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
-        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
-
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
@@ -217,40 +133,6 @@ class TestCommandLauncher:
             or "x-terminal-emulator" in call_args
             or "/bin/bash" in call_args
         )
-        assert "nuke" in " ".join(call_args)
-
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_nuke_with_raw_plate(
-        self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
-        launcher: CommandLauncher,
-        test_shot: Shot,
-        qtbot: QtBot,
-    ) -> None:
-        """Test launching Nuke with raw plate."""
-        launcher.set_current_shot(test_shot)
-
-        # Setup mock
-        mock_popen.return_value = MagicMock()
-
-        # Launch Nuke with raw plate
-        result = launcher.launch_app("nuke", include_raw_plate=True)
-
-        # Verify launch was successful
-        assert result is True
-
-        # Wait for QTimer.singleShot(100ms) callback to complete
-        process_qt_events()
-
-        # Verify subprocess was called
-        assert mock_popen.called
-        call_args = mock_popen.call_args[0][0]
         assert "nuke" in " ".join(call_args)
 
     @patch.object(
@@ -485,27 +367,6 @@ class TestCommandLauncher:
         qtbot: QtBot,
     ) -> None:
         """Test that GUI apps are backgrounded when setting is enabled."""
-        # Import modules needed for mocking
-        import sys
-        import types
-
-        # Create mock modules (same as launcher fixture)
-        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
-        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
-        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
-
-        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
-        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
-        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
-
-        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
-        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
-        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
-
-        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
-        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
-        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
-
         # Mock is_ws_available
         from launch import EnvironmentManager
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
@@ -583,27 +444,6 @@ class TestCommandLauncherSignals:
     @pytest.fixture
     def launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
         """Create CommandLauncher with test doubles."""
-        # Mock the modules that will be imported in __init__
-        import sys
-        import types
-
-        # Create mock modules
-        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
-        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
-        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
-
-        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
-        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
-        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
-
-        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
-        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
-        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
-
-        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
-        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
-        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
-
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
@@ -647,26 +487,6 @@ class TestVerificationTimeoutCounter:
     @pytest.fixture
     def launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
         """Create CommandLauncher for verification timeout testing."""
-        import sys
-        import types
-
-        # Create mock modules
-        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
-        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
-        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
-
-        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
-        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
-        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
-
-        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
-        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
-        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
-
-        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
-        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
-        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
-
         from launch import EnvironmentManager
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 

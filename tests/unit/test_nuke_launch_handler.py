@@ -33,7 +33,6 @@ class TestNukeLaunchHandler:
         """Test that handler initializes with required modules."""
         assert nuke_handler.workspace_manager is not None
         assert nuke_handler.script_generator is not None
-        assert nuke_handler.raw_plate_finder is not None
 
     def test_prepare_nuke_command_basic(self, nuke_handler, mock_shot) -> None:
         """Test basic command preparation without any options."""
@@ -101,37 +100,6 @@ class TestNukeLaunchHandler:
             assert any("Opening existing Nuke script" in msg for msg in messages)
             assert not any("Creating new" in msg for msg in messages)
 
-    def test_handle_media_loading_plate_only(self, nuke_handler, mock_shot) -> None:
-        """Test media loading with plate only."""
-        with (
-            patch.object(
-                nuke_handler.raw_plate_finder, "find_latest_raw_plate"
-            ) as mock_find_plate,
-            patch.object(
-                nuke_handler.raw_plate_finder, "verify_plate_exists"
-            ) as mock_verify,
-            patch.object(
-                nuke_handler.script_generator, "create_plate_script"
-            ) as mock_create_script,
-            patch.object(
-                nuke_handler.raw_plate_finder, "get_version_from_path"
-            ) as mock_get_version,
-        ):
-            mock_find_plate.return_value = "/test/plates/TEST_0010_v001.exr"
-            mock_verify.return_value = True
-            mock_create_script.return_value = "/tmp/nuke_script.nk"
-            mock_get_version.return_value = "v001"
-
-            options = {"include_raw_plate": True}
-            command, messages = nuke_handler._handle_media_loading(
-                mock_shot, "nuke", options
-            )
-
-            assert "/tmp/nuke_script.nk" in command
-            assert any(
-                "Generated Nuke script with plate: v001" in msg for msg in messages
-            )
-
     def test_get_environment_fixes_disabled(self, nuke_handler) -> None:
         """Test environment fixes when disabled."""
         with patch("nuke_launch_handler.Config.NUKE_FIX_OCIO_CRASH", False):
@@ -167,37 +135,6 @@ class TestNukeLaunchHandler:
 
             assert 'export OCIO="/test/ocio/config.ocio"' in fixes
             assert "NUKE_DISABLE_CRASH_REPORTING=1" in fixes
-
-    def test_create_new_workspace_script_with_plate(
-        self, nuke_handler, mock_shot
-    ) -> None:
-        """Test creating new workspace script with plate."""
-        with (
-            patch.object(
-                nuke_handler.raw_plate_finder, "find_plate_for_space"
-            ) as mock_find,
-            patch.object(
-                nuke_handler.raw_plate_finder, "verify_plate_exists"
-            ) as mock_verify,
-            patch.object(
-                nuke_handler.script_generator, "create_plate_directory_script"
-            ) as mock_create,
-        ):
-            mock_find.return_value = "/test/plates/TEST_0010_v001.exr"
-            mock_verify.return_value = True
-            mock_create.return_value = "/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"
-
-            options = {"include_raw_plate": True}
-            result = nuke_handler._create_new_workspace_script(mock_shot, 1, options, "FG01")
-
-            assert result == "/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"
-            mock_create.assert_called_once_with(
-                "/test/plates/TEST_0010_v001.exr",
-                "/test/workspace",
-                "TEST_0010",
-                "FG01",
-                version=1,
-            )
 
     def test_create_new_workspace_script_empty(self, nuke_handler, mock_shot) -> None:
         """Test creating new empty workspace script."""

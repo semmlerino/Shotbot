@@ -68,22 +68,6 @@ class TestNukeLaunchRouter:
             assert router.complex_launches == 0
             mock_create.assert_called_once_with(mock_shot, "FG01")
 
-    def test_route_to_complex_with_raw_plate(self, router, mock_shot) -> None:
-        """Test routing to complex launcher when raw plate is requested."""
-        with patch.object(
-            router.complex_launcher, "prepare_nuke_command"
-        ) as mock_prepare:
-            mock_prepare.return_value = ("nuke /path/to/script.nk", ["Complex workflow"])
-
-            options = {"open_latest_scene": True, "include_raw_plate": True}
-            _command, _messages = router.prepare_nuke_command(
-                mock_shot, "nuke", options, selected_plate="FG01"
-            )
-
-            assert router.simple_launches == 0
-            assert router.complex_launches == 1
-            mock_prepare.assert_called_once()
-
     def test_no_options_opens_empty_nuke(self, router, mock_shot) -> None:
         """Test that no options results in opening empty Nuke."""
         options = {}
@@ -136,21 +120,7 @@ class TestNukeLaunchRouter:
                     mock_shot, "nuke", {"open_latest_scene": True}, selected_plate="FG01"
                 )
 
-        with patch.object(
-            router.complex_launcher, "prepare_nuke_command"
-        ) as mock_prepare:
-            mock_prepare.return_value = ("nuke /path/to/script.nk", ["Complex workflow"])
-
-            # Perform 1 complex launch
-            router.prepare_nuke_command(
-                mock_shot,
-                "nuke",
-                {"open_latest_scene": True, "include_raw_plate": True},
-                selected_plate="FG01",
-            )
-
         assert router.simple_launches == 3
-        assert router.complex_launches == 1
 
     def test_log_usage_stats(self, router, caplog) -> None:
         """Test that usage statistics are logged correctly."""
@@ -190,22 +160,6 @@ class TestNukeLaunchRouter:
             assert result == "export OCIO=/path/to/config.ocio"
             mock_get_env.assert_called_once()
 
-    def test_media_options_without_workspace_options(self, router, mock_shot) -> None:
-        """Test that media options alone trigger complex workflow."""
-        with patch.object(
-            router.complex_launcher, "prepare_nuke_command"
-        ) as mock_prepare:
-            mock_prepare.return_value = ("nuke /path/to/script.nk", ["Complex workflow"])
-
-            options = {"include_raw_plate": True}
-            _command, _messages = router.prepare_nuke_command(
-                mock_shot, "nuke", options, selected_plate="FG01"
-            )
-
-            assert router.simple_launches == 0
-            assert router.complex_launches == 1
-            mock_prepare.assert_called_once()
-
     def test_routing_decision_logging(self, router, mock_shot, caplog) -> None:
         """Test that routing decisions are logged appropriately."""
         # Configure caplog to capture INFO level logs from the router's logger
@@ -220,17 +174,3 @@ class TestNukeLaunchRouter:
             )
 
             assert "SIMPLE launcher" in caplog.text
-
-        caplog.clear()
-
-        with patch.object(
-            router.complex_launcher, "prepare_nuke_command"
-        ) as mock_prepare:
-            mock_prepare.return_value = ("nuke /path/to/script.nk", ["Complex workflow"])
-
-            options = {"open_latest_scene": True, "include_raw_plate": True}
-            router.prepare_nuke_command(
-                mock_shot, "nuke", options, selected_plate="FG01"
-            )
-
-            assert "COMPLEX launcher" in caplog.text
