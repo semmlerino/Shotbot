@@ -390,6 +390,7 @@ Test fixtures are organized in modular files under `tests/fixtures/`:
 | `singleton_registry.py` | Central registry for singleton cleanup |
 | `caching.py` | Cache isolation and behavior testing |
 | `data_factories.py` | Test data generation |
+| `filesystem_scanner_doubles.py` | Subprocess polling doubles for FilesystemScanner |
 
 **Session-scoped Qt fixtures** (`qapp`, `_patch_qtbot_short_waits`) remain in `tests/conftest.py` for proper xdist compatibility.
 

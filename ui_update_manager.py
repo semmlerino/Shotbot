@@ -88,9 +88,9 @@ class UIUpdateManager(QObject):
         components_to_update: list[str] = []
 
         # Sort components by priority
-        # Copy keys to list to avoid RuntimeError if dict modified during iteration
+        # sorted() creates a new list, so dict modification during iteration is safe
         sorted_components = sorted(
-            list(self.dirty_flags.keys()),
+            self.dirty_flags.keys(),
             key=lambda c: self.component_priorities.get(c, 999),
         )
 

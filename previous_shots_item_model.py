@@ -35,6 +35,9 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         str
     )  # Emitted when show filter changes (show name or "All Shows")
 
+    # Type annotation for inherited attribute (required for non-final classes)
+    _items: list[Shot]
+
     def __init__(
         self,
         underlying_model: PreviousShotsModel,

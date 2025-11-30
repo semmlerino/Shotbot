@@ -8,23 +8,27 @@ Test fixtures are organized into focused modules under `tests/fixtures/`:
 
 ```
 tests/fixtures/
-├── __init__.py              # Module marker
-├── qt_bootstrap.py          # QApplication bootstrap
-├── determinism.py           # Random seed control
-├── temp_directories.py      # Temporary directory fixtures
-├── test_doubles.py          # Test doubles (fakes, stubs)
-├── subprocess_mocking.py    # Subprocess safety (autouse)
-├── qt_safety.py             # Qt safety fixtures (autouse)
-├── qt_cleanup.py            # Qt state cleanup (autouse)
-├── singleton_isolation.py   # Singleton reset (autouse)
-└── data_factories.py        # Data creation factories
+├── __init__.py                    # Module marker
+├── caching.py                     # Cache isolation and behavior testing
+├── data_factories.py              # Data creation factories
+├── determinism.py                 # Random seed control
+├── filesystem_scanner_doubles.py  # Subprocess polling doubles for FilesystemScanner
+├── qt_cleanup.py                  # Qt state cleanup (autouse)
+├── qt_safety.py                   # Qt safety fixtures (autouse)
+├── singleton_isolation.py         # Singleton reset (autouse)
+├── singleton_registry.py          # Central registry for singleton cleanup
+├── subprocess_mocking.py          # Subprocess safety (autouse)
+├── temp_directories.py            # Temporary directory fixtures
+└── test_doubles.py                # Test doubles (fakes, stubs)
 ```
+
+**Note:** Qt bootstrap (`qapp`, `_patch_qtbot_short_waits`) is in `tests/conftest.py` directly, not a separate fixture module.
 
 Fixtures are loaded via `pytest_plugins` in the root `conftest.py`:
 
 ```python
 pytest_plugins = [
-    "tests.fixtures.qt_bootstrap",
+    # NOTE: Qt fixtures (qapp, _patch_qtbot_short_waits) are in conftest.py directly
     "tests.fixtures.determinism",
     "tests.fixtures.temp_directories",
     "tests.fixtures.test_doubles",
@@ -32,13 +36,16 @@ pytest_plugins = [
     "tests.fixtures.qt_safety",
     "tests.fixtures.qt_cleanup",
     "tests.fixtures.singleton_isolation",
+    "tests.fixtures.caching",
     "tests.fixtures.data_factories",
 ]
 ```
 
+**Note:** `singleton_registry.py` and `filesystem_scanner_doubles.py` are helper modules imported by other fixtures, not loaded directly via `pytest_plugins`.
+
 ## Module Reference
 
-### qt_bootstrap.py
+### Qt Bootstrap (in conftest.py)
 
 Creates QApplication at import time before any widget imports.
 
@@ -46,7 +53,15 @@ Creates QApplication at import time before any widget imports.
 - `qapp` (session) - The global QApplication instance
 - `_patch_qtbot_short_waits` (session, autouse) - Patches qtbot.wait() for <5ms calls
 
-**Why it matters:** QApplication must exist before importing any widget classes to prevent crashes.
+**Why it matters:** QApplication must exist before importing any widget classes to prevent crashes. These fixtures are in `tests/conftest.py` (not a separate module) to ensure they have access to the global QApplication instance.
+
+### caching.py
+
+Cache isolation and behavior testing fixtures.
+
+**Fixtures:**
+- `isolated_cache` - Provides isolated cache directory for test
+- `cache_behavior` - Controls cache behavior during tests
 
 ### determinism.py
 
@@ -140,6 +155,37 @@ Factories for creating test data.
 - `mock_subprocess_workspace` - Mock for VFX workspace commands
 - `mock_environment` - Mock environment variables
 - `isolated_test_environment` - Cache-clearing environment
+
+### filesystem_scanner_doubles.py
+
+Specialized test doubles for FilesystemScanner subprocess testing.
+
+**Classes:**
+- `PollingProcessDouble` - Subprocess.Popen double with configurable poll() sequences
+- `TimeControlledPollingProcess` - Extended double with simulated elapsed time
+
+**Fixtures:**
+- `polling_process` - PollingProcessDouble instance
+- `time_controlled_process` - TimeControlledPollingProcess instance
+
+**Usage:**
+```python
+def test_timeout_handling(polling_process, monkeypatch):
+    polling_process.set_poll_sequence([None] * 100)  # Never complete
+    polling_process.stdout_data = "/path/to/file.3de"
+    monkeypatch.setattr("subprocess.Popen", lambda *a, **k: polling_process)
+    # Test timeout logic...
+```
+
+### singleton_registry.py
+
+Central registry for singleton cleanup between tests.
+
+**Purpose:** Provides a single source of truth for all singletons that need to be reset between tests. Used by `singleton_isolation.py` to ensure consistent cleanup.
+
+**Functions:**
+- `get_all_singletons()` - Returns list of all registered singleton classes
+- `reset_all_singletons()` - Resets all registered singletons
 
 ## Fixture Dependencies
 

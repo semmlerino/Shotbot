@@ -36,13 +36,10 @@ exclude = [
     "fix_*.py",
     "run_*.py",
     "verify_*.py",
-    "screenshot_*.py",  # Screenshot utilities
     "bundle_app.py",
     "decode_app.py",
     "recreate_vfx_structure.py",
     "capture_vfx_structure.py",
-    "take_screenshot.py",
-    "main_window_refactored.py"  # Refactored/obsolete version
 ]
 
 pythonVersion = "3.11"
@@ -55,14 +52,14 @@ reportUnknownMemberType = "error"        # Catch library API misuses
 reportUnknownParameterType = "error"     # Catch library API misuses
 reportUnknownArgumentType = "error"      # Catch library API misuses
 reportUnknownVariableType = "error"      # Catch library API misuses
-reportUndefinedVariable = "warning"
+reportUndefinedVariable = "error"
 reportImplicitStringConcatenation = false
 reportUnsafeMultipleInheritance = false
 reportUnusedCallResult = "error"
-reportImplicitOverride = "warning"
+reportImplicitOverride = "error"
 # Qt-specific adjustments (PySide6 type stub limitations)
-reportUnannotatedClassAttribute = "information"  # Signal annotations with ClassVar[Signal] recommended
-reportUnusedFunction = "warning"  # Keep enabled; only false positives with autoconnect patterns
+reportUnannotatedClassAttribute = "error"  # Signal annotations with ClassVar[Signal] recommended
+reportUnusedFunction = "error"  # Keep enabled; only false positives with autoconnect patterns
 reportAny = "information"  # Reduces noise from Qt's broad Any in stubs while keeping visibility
 
 [tool.ruff]
@@ -118,13 +115,15 @@ select = [
     "RSE",    # flake8-raise
     "RET",    # flake8-return
     "SIM",    # flake8-simplify
-    "TCH",    # flake8-type-checking
+    "TC",     # flake8-type-checking (renamed from TCH)
     "ARG",    # flake8-unused-arguments
     "PTH",    # flake8-use-pathlib
     "PL",     # Pylint
     "TRY",    # tryceratops
     "FLY",    # flynt (f-string conversion)
     "PERF",   # perflint
+    "FURB",   # refurb (modernization)
+    "SLOT",   # flake8-slots (__slots__ checks)
     "RUF",    # Ruff-specific rules
 ]
 
@@ -139,7 +138,7 @@ ignore = [
 
     # Import placement
     "E402",    # module-level-import-not-at-top-of-file (sometimes needed for Qt apps)
-    "TCH003",  # typing-only-standard-library-import (prefer consistency)
+    "TC003",   # typing-only-standard-library-import (prefer consistency)
 
     # Qt-specific patterns
     "SLF001",  # private-member-access (common in Qt testing and subclassing)
