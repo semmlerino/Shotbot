@@ -462,6 +462,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.shot_grid = ShotGridView(
             model=self.shot_item_model,
             pin_manager=self.pin_manager,
+            notes_manager=self.notes_manager,
         )
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
 

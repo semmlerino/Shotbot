@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QHBoxLayout,
+    QInputDialog,
     QMenu,
     QPushButton,
     QWidget,
@@ -48,6 +49,7 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
+    from notes_manager import NotesManager
     from pin_manager import PinManager
 
 
@@ -74,6 +76,7 @@ class ShotGridView(BaseGridView):
         self,
         model: ShotItemModel | None = None,
         pin_manager: PinManager | None = None,
+        notes_manager: NotesManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize the grid view.
@@ -81,6 +84,7 @@ class ShotGridView(BaseGridView):
         Args:
             model: Optional shot item model
             pin_manager: Optional pin manager for pinning shots
+            notes_manager: Optional notes manager for shot notes
             parent: Optional parent widget
         """
         # Initialize widgets that will be created in template methods
@@ -93,6 +97,7 @@ class ShotGridView(BaseGridView):
         # ShotGridView-specific attributes
         self._selected_shot: Shot | None = None
         self._pin_manager: PinManager | None = pin_manager
+        self._notes_manager: NotesManager | None = notes_manager
 
         if model:
             self.set_model(model)
@@ -424,6 +429,18 @@ class ShotGridView(BaseGridView):
             lambda: self._copy_path_to_clipboard(shot.workspace_path)
         )
 
+        _ = menu.addSeparator()
+
+        # Edit/Add Note action
+        has_note = (
+            self._notes_manager.has_note(shot) if self._notes_manager else False
+        )
+        note_label = "Edit Note" if has_note else "Add Note"
+        edit_note_action = menu.addAction(note_label)
+        _ = edit_note_action.triggered.connect(
+            lambda checked=False, s=shot: self._edit_shot_note(s)  # noqa: ARG005
+        )
+
         # Show menu at cursor position
         _ = menu.exec(event.globalPos())
 
@@ -512,6 +529,26 @@ class ShotGridView(BaseGridView):
         if clipboard:
             clipboard.setText(path)
             self.logger.debug(f"Copied path to clipboard: {path}")
+
+    def _edit_shot_note(self, shot: Shot) -> None:
+        """Open dialog to edit note for shot.
+
+        Args:
+            shot: Shot to edit note for
+        """
+        if not self._notes_manager:
+            return
+
+        current_note = self._notes_manager.get_note(shot)
+        new_note, ok = QInputDialog.getMultiLineText(
+            self,
+            f"Note for {shot.full_name}",
+            "Note:",
+            current_note,
+        )
+        if ok:
+            self._notes_manager.set_note(shot, new_note)
+            self.logger.debug(f"Note updated for shot: {shot.full_name}")
 
     def _pin_shot(self, shot: Shot) -> None:
         """Pin a shot.
