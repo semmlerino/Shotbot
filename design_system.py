@@ -532,7 +532,7 @@ class DesignSystem(QObject):
         }}
 
         QMenu::item {{
-            padding: 20px 30px;
+            padding: 25px 38px;
             border-radius: {self.borders.radius_sm}px;
         }}
 
