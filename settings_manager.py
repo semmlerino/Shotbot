@@ -97,7 +97,7 @@ class SettingsManager(LoggingMixin, QObject):
         # Migrate old settings if needed
         self._migrate_old_settings()
 
-        self.logger.info(f"Settings manager initialized: {self.settings.fileName()}")
+        self.logger.debug(f"SettingsManager initialized: {self.settings.fileName()}")
 
     def _initialize_defaults(self) -> None:
         """Initialize default values for all settings if they don't exist."""

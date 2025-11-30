@@ -110,7 +110,7 @@ class ThreeDEGridView(BaseGridView):
         if model:
             self.set_model(model)
 
-        self.logger.info("ThreeDEGridView initialized with Model/View architecture")
+        self.logger.debug("ThreeDEGridView initialized")
 
     @override
     def _add_top_widgets(self, layout: QVBoxLayout) -> None:

@@ -86,24 +86,12 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
-        self.logger.info(">>> RefreshOrchestrator._refresh_shots() START")
-        # Start progress operation for shot refresh
-        self.logger.info("Creating ProgressManager.operation context...")
         with ProgressManager.operation(
             "Refreshing shots", cancelable=False
         ) as progress:
-            self.logger.info("ProgressManager.operation created, setting indeterminate...")
             progress.set_indeterminate()
-
-            # Simply call refresh_shots on the model
-            # The model will emit signals that trigger the appropriate handlers
-            self.logger.info("Calling shot_model.refresh_shots()...")
             success, _ = self.main_window.shot_model.refresh_shots()
-            self.logger.info(f"shot_model.refresh_shots() returned: success={success}")
             self.refresh_finished.emit(0, success)
-            self.logger.info("Emitted refresh_finished signal")
-
-        self.logger.info("<<< RefreshOrchestrator._refresh_shots() COMPLETE")
 
     def _refresh_threede(self) -> None:
         """Refresh Other 3DE scenes."""

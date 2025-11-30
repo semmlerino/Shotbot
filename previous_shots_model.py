@@ -69,7 +69,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         # Load from cache on init (persistent cache - no expiration)
         self._previous_shots = self._load_from_cache()  # Now returns list
 
-        self.logger.info("PreviousShotsModel initialized")
+        self.logger.debug("PreviousShotsModel initialized")
 
     def _reset_scanning_flag(self) -> None:
         """Reset the scanning flag with proper locking.
@@ -448,7 +448,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """Clean up resources and stop worker thread."""
         self.logger.debug("PreviousShotsModel cleanup initiated")
         self._cleanup_worker_safely()  # Use centralized cleanup
-        self.logger.info("PreviousShotsModel cleanup completed")
+        self.logger.debug("PreviousShotsModel cleanup completed")
 
     def is_scanning(self) -> bool:
         """Check if currently scanning for shots.

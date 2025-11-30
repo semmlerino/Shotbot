@@ -55,7 +55,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         # Connect generic items_updated to scene-specific signal
         _ = self.items_updated.connect(self.scenes_updated)
 
-        self.logger.info("ThreeDEItemModel initialized")
+        self.logger.debug("ThreeDEItemModel initialized")
 
     # ============= Implement abstract methods =============
 
@@ -345,7 +345,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             except (RuntimeError, TypeError, AttributeError):
                 pass  # Already disconnected, no connections, or object deleted
 
-        self.logger.info("ThreeDEItemModel cleanup complete")
+        self.logger.debug("ThreeDEItemModel cleanup complete")
 
     @override
     def deleteLater(self) -> None:

@@ -79,7 +79,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # Initialize with current shots
         self._update_from_underlying_model()
 
-        self.logger.info("PreviousShotsItemModel initialized")
+        self.logger.debug("PreviousShotsItemModel initialized")
 
     # ============= Implement abstract methods =============
 
@@ -369,7 +369,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             except (RuntimeError, TypeError):
                 pass  # No connections to disconnect
 
-        self.logger.info("PreviousShotsItemModel cleanup complete")
+        self.logger.debug("PreviousShotsItemModel cleanup complete")
 
     @override
     def deleteLater(self) -> None:

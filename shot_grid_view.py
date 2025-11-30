@@ -97,7 +97,7 @@ class ShotGridView(BaseGridView):
         if model:
             self.set_model(model)
 
-        self.logger.info("ShotGridView initialized with Model/View architecture")
+        self.logger.debug("ShotGridView initialized")
 
     @override
     def _create_delegate(self) -> BaseThumbnailDelegate:

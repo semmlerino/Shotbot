@@ -111,7 +111,7 @@ class PreviousShotsView(BaseGridView):
         if model:
             self.set_model(model)
 
-        self.logger.info("PreviousShotsView initialized with Model/View architecture")
+        self.logger.debug("PreviousShotsView initialized")
 
     @override
     def _setup_visibility_tracking(self) -> None:

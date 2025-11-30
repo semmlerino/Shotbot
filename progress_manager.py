@@ -343,7 +343,7 @@ class ProgressManager:
         """
         instance = cls()
         cls._status_bar = status_bar
-        logger.info("ProgressManager initialized with status bar reference")
+        logger.debug("ProgressManager initialized with status bar reference")
         return instance
 
     @classmethod

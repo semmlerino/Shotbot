@@ -762,21 +762,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _initial_load(self) -> None:
         """Initial shot loading - instant from cache or async."""
-        self.logger.info(">>> _initial_load() START")
-        # Async initialization was already called in __init__, just pre-warm sessions
-        self.logger.info("Using async initialization (already started in __init__)")
-        # Pre-warm sessions in background thread to avoid UI freeze
         # Pre-warm bash sessions in background to avoid first-command delay
         # Skip in test environment to avoid threading issues
         if not os.environ.get("PYTEST_CURRENT_TEST"):
-            self.logger.info("Creating SessionWarmer with login shell mode...")
             self._session_warmer = SessionWarmer(self._process_pool)
-            self.logger.info("Starting SessionWarmer thread...")
             self._session_warmer.start()
-            self.logger.info("SessionWarmer thread started in background")
+            self.logger.debug("SessionWarmer started")
         else:
             self._session_warmer = None
-            self.logger.debug("Skipping SessionWarmer in test environment")
 
         has_cached_shots = bool(self.shot_model.shots)
         has_cached_scenes = bool(self.threede_scene_model.scenes)
@@ -859,24 +852,18 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if has_cached_shots:
             # Check if we have a valid cache (including valid empty results)
             if not self.cache_manager.has_valid_threede_cache():
-                self.logger.info("3DE cache invalid/expired - starting discovery")
+                self.logger.debug("3DE cache invalid/expired - starting discovery")
                 if self.threede_controller:
                     QTimer.singleShot(
                         100, self.threede_controller.refresh_threede_scenes
                     )
             else:
-                self.logger.info("3DE cache is valid - skipping initial scan")
-                # Cache is valid but might be empty - that's OK, we cached the "no scenes" state
-
-        self.logger.info("<<< _initial_load() COMPLETE - returning")
+                self.logger.debug("3DE cache valid - skipping initial scan")
 
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
-        self.logger.info(">>> MainWindow._refresh_shots() called (via QTimer)")
-        # Delegate to RefreshOrchestrator
-        self.logger.info("Delegating to RefreshOrchestrator._refresh_shots()...")
+        self.logger.debug("Refreshing shots via RefreshOrchestrator")
         self.refresh_orchestrator._refresh_shots()  # pyright: ignore[reportPrivateUsage]
-        self.logger.info("<<< MainWindow._refresh_shots() complete")
 
     # Note: Background refresh methods removed - now handled by reactive signals
 

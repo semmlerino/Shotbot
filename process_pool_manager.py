@@ -296,7 +296,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # Mark initialization as complete
         self._init_done = True
 
-        self.logger.info(f"ProcessPoolManager initialized with {max_workers} workers")
+        self.logger.debug(f"ProcessPoolManager initialized ({max_workers} workers)")
 
     @classmethod
     def get_instance(cls) -> ProcessPoolManager:

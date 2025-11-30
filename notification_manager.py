@@ -365,7 +365,7 @@ class NotificationManager(QObject):
         instance = cls()
         cls._main_window = main_window
         cls._status_bar = status_bar
-        logger.info("NotificationManager initialized with UI references")
+        logger.debug("NotificationManager initialized with UI references")
         return instance
 
     @classmethod

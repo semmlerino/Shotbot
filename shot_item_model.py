@@ -56,7 +56,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
         # Connect generic items_updated to shot-specific signal
         _ = self.items_updated.connect(self.shots_updated)
 
-        self.logger.info("ShotItemModel initialized")
+        self.logger.debug("ShotItemModel initialized")
 
     # ============= Implement abstract methods =============
 
@@ -273,7 +273,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
             if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                 _ = self.shots_updated.disconnect()
 
-        self.logger.info("ShotItemModel cleanup complete")
+        self.logger.debug("ShotItemModel cleanup complete")
 
     @override
     def deleteLater(self) -> None:

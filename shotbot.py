@@ -163,13 +163,9 @@ def setup_logging() -> None:
         plugin_logger = logging.getLogger(plugin_name)
         plugin_logger.setLevel(logging.INFO)
 
-    # Log startup
+    # Log startup (debug level - logging init is a low-level detail)
     logger = logging.getLogger(__name__)
-    logger.info("ShotBot logging initialized")
-    logger.info(f"Log file: {log_file}")
-    logger.info(f"Console log level: {logging.getLevelName(console_level)}")
-    if console_level == logging.DEBUG:
-        logger.debug("Debug logging is enabled in console")
+    logger.debug(f"Logging initialized: {log_file} (console: {logging.getLevelName(console_level)})")
 
 
 def main() -> None:
@@ -232,7 +228,7 @@ Environment Variables:
     )
 
     if headless_mode:
-        logger.info("Starting ShotBot in HEADLESS MODE - no display required")
+        logger.debug("Headless mode enabled")
         # Local application imports
         from headless_mode import HeadlessMode
 
@@ -240,11 +236,11 @@ Environment Variables:
 
         # Headless mode usually wants mock data too
         if not mock_mode:
-            logger.info("Enabling mock mode for headless operation")
+            logger.debug("Enabling mock mode for headless operation")
             mock_mode = True
 
     if mock_mode:
-        logger.info("Starting ShotBot in MOCK MODE - using test data")
+        logger.debug("Mock mode enabled")
         # Set environment variable so all code knows we're in mock mode
         os.environ["SHOTBOT_MOCK"] = "1"
         # MainWindow will detect SHOTBOT_MOCK and create MockWorkspacePool
@@ -320,16 +316,12 @@ Environment Variables:
     app.setPalette(palette)
 
     # Create main window
-    logger.info("=" * 60)
-    logger.info("Creating MainWindow...")
     window = MainWindow()
-    logger.info("MainWindow created successfully")
 
     # Start periodic zombie thread cleanup (prevents memory leaks)
     from thread_safe_worker import ThreadSafeWorker
 
     ThreadSafeWorker.start_zombie_cleanup_timer()
-    logger.info("Started periodic zombie thread cleanup timer")
 
     # In headless mode, patch the window to prevent display operations
     if headless_mode:
@@ -337,13 +329,10 @@ Environment Variables:
         from headless_mode import HeadlessMode
 
         HeadlessMode.patch_for_headless(window)
-        logger.info("MainWindow patched for headless operation")
 
     # Show window (will be no-op in headless mode due to patching)
-    logger.info("Calling window.show()...")
     window.show()
-    logger.info("window.show() completed - window is visible")
-    logger.info("=" * 60)
+    logger.debug("MainWindow shown")
 
     # Auto-screenshot functionality
     if screenshot_seconds is not None and not headless_mode:
@@ -363,10 +352,9 @@ Environment Variables:
                 success = pixmap.save(str(output_path))
 
                 if success:
-                    logger.info(f"✓ Auto-screenshot saved to: {output_path}")
-                    logger.info("  Windows path: C:\\temp\\shotbot_auto.png")
+                    logger.info(f"Screenshot saved: {output_path}")
                 else:
-                    logger.error("✗ Failed to save auto-screenshot")
+                    logger.error("Failed to save screenshot")
             except Exception as e:
                 logger.error(f"Auto-screenshot failed: {e}")
 
@@ -376,12 +364,8 @@ Environment Variables:
         QTimer.singleShot(delay_ms, take_auto_screenshot)
 
     # Run application
-    logger.info("=" * 60)
-    logger.info("About to start Qt event loop with app.exec()...")
-    logger.info("This should process all pending QTimer.singleShot events")
-    logger.info("=" * 60)
     exit_code = app.exec()
-    logger.info(f"Event loop exited with code: {exit_code}")
+    logger.debug(f"Qt event loop exited (code={exit_code})")
     sys.exit(exit_code)
 
 

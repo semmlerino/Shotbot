@@ -200,8 +200,7 @@ class ShotModel(BaseShotModel):
         Returns:
             RefreshResult with cached data status
         """
-        self.logger.info(">>> ShotModel.initialize_async() START")
-        self.logger.info("Initializing with async loading strategy")
+        self.logger.debug("ShotModel.initialize_async() starting")
 
         # Step 1: Load cached shots immediately (< 1ms)
         cached_shots = self.cache_manager.get_cached_shots()
@@ -249,7 +248,7 @@ class ShotModel(BaseShotModel):
         is created at a time. Uses phased locking to avoid blocking
         while holding the mutex (prevents deadlocks).
         """
-        self.logger.info(">>> _start_background_refresh() START")
+        self.logger.debug("_start_background_refresh() starting")
 
         # Phase 1: Check state and get old loader reference under lock
         old_loader: AsyncShotLoader | None = None
@@ -299,13 +298,11 @@ class ShotModel(BaseShotModel):
             )
 
             # Start background loading
-            self.logger.info("About to call AsyncShotLoader.start()...")
             self._async_loader.start()
-            self.logger.info("AsyncShotLoader.start() called - background thread started")
+            self.logger.debug("AsyncShotLoader started")
 
         # Phase 4: Emit signal OUTSIDE lock (prevents deadlock if slot re-enters)
         self.background_load_started.emit()
-        self.logger.info("<<< _start_background_refresh() COMPLETE")
 
     def _process_shot_merge(
         self,
@@ -500,29 +497,23 @@ class ShotModel(BaseShotModel):
     @override
     def refresh_strategy(self) -> RefreshResult:
         """Override to use async strategy if no shots loaded yet."""
-        self.logger.info(">>> ShotModel.refresh_strategy() START")
         # If we're in a test environment (process pool is a test double),
         # use synchronous refresh for compatibility
-        pool_class_name = self._process_pool.__class__.__name__ if hasattr(self._process_pool, "__class__") else "unknown"
-        self.logger.info(f"Process pool class: {pool_class_name}")
         if hasattr(
             self._process_pool, "__class__"
         ) and self._process_pool.__class__.__name__ in [
             "TestProcessPool",
             "TestProcessPoolManager",
         ]:
-            self.logger.info("Test environment detected, using synchronous refresh")
+            self.logger.debug("Test environment detected, using synchronous refresh")
             return self.refresh_shots_sync()
 
         # Check loading state with lock held
         with QMutexLocker(self._loader_lock):
             loading = self._loading_in_progress
 
-        self.logger.info(f"Current state: shots={len(self.shots)}, loading_in_progress={loading}")
-
         if not self.shots and not loading:
             # First load - use async strategy
-            self.logger.info("No shots loaded and not loading - calling initialize_async()")
             return self.initialize_async()
         if not loading:
             # For subsequent refreshes, start background refresh only if not already loading
