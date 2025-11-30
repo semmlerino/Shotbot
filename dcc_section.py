@@ -298,7 +298,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._content.setVisible(False)
         content_layout = QVBoxLayout(self._content)
         content_layout.setContentsMargins(26, 4, 0, 4)  # Indent under expand arrow
-        content_layout.setSpacing(4)
+        content_layout.setSpacing(8)
 
         # Launch button
         self._launch_btn = QPushButton("Launch")

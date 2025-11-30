@@ -110,7 +110,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         # Content widget
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(10, 24, 10, 10)
+        content_layout.setContentsMargins(10, 32, 10, 10)
         content_layout.setSpacing(12)
 
         # DCC Accordion (only main widget - each section has embedded files)
