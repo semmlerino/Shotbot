@@ -8,6 +8,7 @@ with virtualization and proper Model/View architecture.
 from __future__ import annotations
 
 # Standard library imports
+import shlex
 import subprocess
 from typing import TYPE_CHECKING, ClassVar, cast
 
@@ -69,6 +70,7 @@ class PreviousShotsView(BaseGridView):
     shot_selected: ClassVar[Signal] = Signal(object)  # Shot object
     shot_double_clicked: ClassVar[Signal] = Signal(object)  # Shot object
     sort_order_changed: ClassVar[Signal] = Signal(str)  # "name" or "date"
+    pin_shot_requested: ClassVar[Signal] = Signal(object)  # User wants to pin a shot
 
     # Class-level type annotation for base class _model attribute
     _model: QAbstractItemModel | None
@@ -444,6 +446,14 @@ class PreviousShotsView(BaseGridView):
         # Create context menu
         menu = QMenu(self)
 
+        # Pin shot action (at the top for quick access)
+        pin_action = menu.addAction("Pin Shot")
+        _ = pin_action.triggered.connect(
+            lambda checked=False: self.pin_shot_requested.emit(shot)  # noqa: ARG005
+        )
+
+        _ = menu.addSeparator()
+
         # Add "Open Shot Folder" action
         open_folder_action = menu.addAction("Open Shot Folder")
         _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
@@ -517,6 +527,7 @@ class PreviousShotsView(BaseGridView):
         Args:
             shot: Shot object containing workspace path
         """
+        from notification_manager import error as notify_error
         from publish_plate_finder import find_main_plate
 
         workspace_path = shot.workspace_path
@@ -524,15 +535,20 @@ class PreviousShotsView(BaseGridView):
 
         if plate_path is None:
             self.logger.warning(f"No plate found for shot at {workspace_path}")
+            notify_error("No Plate Found", f"No plate found for shot at {workspace_path}")
             return
 
         self.logger.info(f"Opening plate in RV: {plate_path}")
         try:
-            _ = subprocess.Popen(["rv", plate_path])
+            # Use bash -ilc to inherit shell environment where Rez adds RV to PATH
+            safe_path = shlex.quote(plate_path)
+            _ = subprocess.Popen(["bash", "-ilc", f"rv {safe_path}"])
         except FileNotFoundError:
             self.logger.error("RV not found. Please ensure RV is installed and in PATH.")
+            notify_error("RV Not Found", "Could not launch RV. Check that RV is installed.")
         except Exception as e:
             self.logger.error(f"Failed to open RV: {e}")
+            notify_error("RV Launch Failed", f"Failed to open RV: {e}")
 
     def get_selected_shot(self) -> Shot | None:
         """Get the currently selected shot.

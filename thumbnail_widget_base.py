@@ -5,6 +5,7 @@ from __future__ import annotations
 # Standard library imports
 import contextlib
 import logging
+import shlex
 import subprocess
 import sys
 from abc import ABC, abstractmethod
@@ -619,6 +620,7 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
 
     def _open_main_plate_in_rv(self) -> None:
         """Open the main plate in RV."""
+        from notification_manager import error as notify_error
         from publish_plate_finder import find_main_plate
 
         workspace_path = self.data.workspace_path
@@ -626,15 +628,20 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
 
         if plate_path is None:
             logger.warning(f"No plate found for shot at {workspace_path}")
+            notify_error("No Plate Found", f"No plate found for shot at {workspace_path}")
             return
 
         logger.info(f"Opening plate in RV: {plate_path}")
         try:
-            _ = subprocess.Popen(["rv", plate_path])
+            # Use bash -ilc to inherit shell environment where Rez adds RV to PATH
+            safe_path = shlex.quote(plate_path)
+            _ = subprocess.Popen(["bash", "-ilc", f"rv {safe_path}"])
         except FileNotFoundError:
             logger.error("RV not found. Please ensure RV is installed and in PATH.")
+            notify_error("RV Not Found", "Could not launch RV. Check that RV is installed.")
         except Exception as e:
             logger.error(f"Failed to open RV: {e}")
+            notify_error("RV Launch Failed", f"Failed to open RV: {e}")
 
     # Mouse events
     @override

@@ -8,6 +8,7 @@ and proper Model/View integration.
 from __future__ import annotations
 
 # Standard library imports
+import shlex
 import subprocess
 from typing import TYPE_CHECKING, cast, final
 
@@ -66,6 +67,7 @@ class ShotGridView(BaseGridView):
     shot_selected = Signal(Shot)  # Shot object
     shot_double_clicked = Signal(Shot)  # Shot object
     recover_crashes_requested = Signal()  # User clicked recover crashes button
+    pin_shot_requested = Signal(Shot)  # User wants to pin a shot
 
     def __init__(
         self,
@@ -369,6 +371,14 @@ class ShotGridView(BaseGridView):
         # Create context menu
         menu = QMenu(self)
 
+        # Pin shot action (at the top for quick access)
+        pin_action = menu.addAction("Pin Shot")
+        _ = pin_action.triggered.connect(
+            lambda checked=False: self.pin_shot_requested.emit(shot)  # noqa: ARG005
+        )
+
+        _ = menu.addSeparator()
+
         # Primary action: Open Shot Folder
         open_folder_action = menu.addAction("Open Shot Folder")
         _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
@@ -457,6 +467,7 @@ class ShotGridView(BaseGridView):
         Args:
             shot: Shot object containing workspace path
         """
+        from notification_manager import error as notify_error
         from publish_plate_finder import find_main_plate
 
         workspace_path = shot.workspace_path
@@ -464,15 +475,20 @@ class ShotGridView(BaseGridView):
 
         if plate_path is None:
             self.logger.warning(f"No plate found for shot at {workspace_path}")
+            notify_error("No Plate Found", f"No plate found for shot at {workspace_path}")
             return
 
         self.logger.info(f"Opening plate in RV: {plate_path}")
         try:
-            _ = subprocess.Popen(["rv", plate_path])
+            # Use bash -ilc to inherit shell environment where Rez adds RV to PATH
+            safe_path = shlex.quote(plate_path)
+            _ = subprocess.Popen(["bash", "-ilc", f"rv {safe_path}"])
         except FileNotFoundError:
             self.logger.error("RV not found. Please ensure RV is installed and in PATH.")
+            notify_error("RV Not Found", "Could not launch RV. Check that RV is installed.")
         except Exception as e:
             self.logger.error(f"Failed to open RV: {e}")
+            notify_error("RV Launch Failed", f"Failed to open RV: {e}")
 
     def _copy_path_to_clipboard(self, path: str) -> None:
         """Copy a path to the system clipboard.
