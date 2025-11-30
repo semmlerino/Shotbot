@@ -355,7 +355,7 @@ class ShotGridView(BaseGridView):
         self.list_view.viewport().update()
         self._update_visible_range()
 
-    def _create_icon(self, icon_type: str, color: str, size: int = 22) -> QIcon:
+    def _create_icon(self, icon_type: str, color: str, size: int = 33) -> QIcon:
         """Create a coloured shaped icon for menu items.
 
         Args:
@@ -448,6 +448,31 @@ class ShotGridView(BaseGridView):
             ]
             for stripe in stripe_points:
                 painter.drawPolygon(stripe)
+
+        elif icon_type == "plate":
+            # Film strip frame with sprocket holes (for viewing footage)
+            # Main frame area
+            painter.drawRect(int(s * 0.15), int(s * 0.05), int(s * 0.7), int(s * 0.9))
+            # Left sprocket strip
+            painter.drawRect(int(s * 0.0), int(s * 0.05), int(s * 0.15), int(s * 0.9))
+            # Right sprocket strip
+            painter.drawRect(int(s * 0.85), int(s * 0.05), int(s * 0.15), int(s * 0.9))
+            # Sprocket holes (left side)
+            painter.setBrush(QColor("#FFFFFF"))
+            for i in range(4):
+                y = int(s * (0.12 + i * 0.22))
+                painter.drawRoundedRect(
+                    int(s * 0.03), y, int(s * 0.09), int(s * 0.12), 1, 1
+                )
+            # Sprocket holes (right side)
+            for i in range(4):
+                y = int(s * (0.12 + i * 0.22))
+                painter.drawRoundedRect(
+                    int(s * 0.88), y, int(s * 0.09), int(s * 0.12), 1, 1
+                )
+            # Inner frame (image area) - slightly darker
+            painter.setBrush(QColor(color).darker(120))
+            painter.drawRect(int(s * 0.22), int(s * 0.15), int(s * 0.56), int(s * 0.7))
 
         elif icon_type == "rocket":
             # Rocket with nose cone, body, fins, and flame
@@ -638,8 +663,26 @@ class ShotGridView(BaseGridView):
         if not shot:
             return
 
-        # Create context menu
+        # Create context menu with enlarged styling (50% larger)
         menu = QMenu(self)
+        menu_style = """
+            QMenu {
+                font-size: 18px;
+                padding: 8px;
+            }
+            QMenu::item {
+                padding: 12px 24px 12px 12px;
+                min-width: 200px;
+            }
+            QMenu::item:selected {
+                background-color: #3daee9;
+            }
+            QMenu::separator {
+                height: 2px;
+                margin: 6px 12px;
+            }
+        """
+        menu.setStyleSheet(menu_style)
 
         # Pin/Unpin shot action (at the top for quick access)
         if self._pin_manager and self._pin_manager.is_pinned(shot):
@@ -664,7 +707,7 @@ class ShotGridView(BaseGridView):
 
         # Open Main Plate in RV
         open_plate_action = menu.addAction("Open Main Plate in RV")
-        open_plate_action.setIcon(self._create_icon("film", "#4ECDC4"))
+        open_plate_action.setIcon(self._create_icon("play", "#FF4757"))
         _ = open_plate_action.triggered.connect(
             lambda: self._open_main_plate_in_rv(shot)
         )
@@ -673,6 +716,7 @@ class ShotGridView(BaseGridView):
 
         # Launch Application submenu (with keyboard shortcuts visible)
         launch_menu = menu.addMenu("Launch Application")
+        launch_menu.setStyleSheet(menu_style)
         launch_menu.setIcon(self._create_icon("rocket", "#95D5B2"))
         launch_apps = [
             ("3DEqualizer", "3", "3de", "target", "#00CED1"),
