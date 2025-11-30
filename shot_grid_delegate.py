@@ -74,8 +74,8 @@ class ShotGridDelegate(BaseThumbnailDelegate):
             padding=8,
             border_radius=8,
             # Font sizes
-            name_font_size=11,
-            info_font_size=10,
+            name_font_size=13,
+            info_font_size=11,
         )
 
     @override

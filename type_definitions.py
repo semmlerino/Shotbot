@@ -85,12 +85,11 @@ class Shot:
         """Get formatted frame range for display.
 
         Returns:
-            Formatted string like "1001-1150 (150f)" or "No plate" if no plate found.
+            Formatted string like "1001-1150" or "No plate" if no plate found.
         """
         if self.frame_start is None or self.frame_end is None:
             return "No plate"
-        duration = self.frame_end - self.frame_start + 1
-        return f"{self.frame_start}-{self.frame_end} ({duration}f)"
+        return f"{self.frame_start}-{self.frame_end}"
 
     @property
     def thumbnail_dir(self) -> Path:

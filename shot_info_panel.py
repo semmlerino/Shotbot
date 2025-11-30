@@ -134,12 +134,12 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         self.show_sequence_label.setStyleSheet("color: #aaa;")
         header_layout.addWidget(self.show_sequence_label)
 
-        # Frame range (e.g., "1001-1150 (150f)" or "No plate") - 12px
+        # Frame range (e.g., "1001-1150" or "No plate")
         self.frame_range_label: QLabel = QLabel("")
         frame_range_font = QFont()
-        frame_range_font.setPixelSize(design_system.typography.size_extra_small)
+        frame_range_font.setPixelSize(design_system.typography.size_small)  # Larger
         self.frame_range_label.setFont(frame_range_font)
-        self.frame_range_label.setStyleSheet("color: #888;")
+        self.frame_range_label.setStyleSheet("color: #88aacc;")  # Blue-ish tint
         header_layout.addWidget(self.frame_range_label)
 
         # Path row with copy button

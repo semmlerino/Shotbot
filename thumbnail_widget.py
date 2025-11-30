@@ -52,20 +52,20 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.name_label.setWordWrap(True)
         font = self.name_label.font()
-        font.setPixelSize(design_system.typography.size_extra_small)
+        font.setPixelSize(design_system.typography.size_small)  # Larger font
         self.name_label.setFont(font)
 
         # Add to content container instead of main layout
         self.content_layout.addWidget(self.name_label)
 
-        # Frame range label (e.g., "1001-1150 (150f)" or "No plate")
+        # Frame range label (e.g., "1001-1150" or "No plate")
         self.frame_range_label = QLabel(self.shot.frame_range_display)
         self.frame_range_label.setObjectName("frame_range")
         self.frame_range_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         frame_range_font = self.frame_range_label.font()
-        frame_range_font.setPixelSize(design_system.typography.size_micro)
+        frame_range_font.setPixelSize(design_system.typography.size_extra_small)  # Larger
         self.frame_range_label.setFont(frame_range_font)
-        self.frame_range_label.setStyleSheet("color: #888;")
+        self.frame_range_label.setStyleSheet("color: #88aacc;")  # Blue-ish tint
         self.frame_range_label.setMinimumHeight(16)
         self.content_layout.addWidget(self.frame_range_label)
 

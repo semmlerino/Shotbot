@@ -84,6 +84,7 @@ class DelegateTheme:
 
     # Additional colors (optional)
     user_color: QColor | None = None
+    frame_range_color: QColor = field(default_factory=lambda: QColor("#88aacc"))
     bg_pinned_color: QColor = field(default_factory=lambda: QColor("#2a3a3a"))
 
     # Dimensions
@@ -465,35 +466,35 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         painter.setFont(self._info_font)
         info_rect = QRect(text_rect.x(), text_rect.y() + 25, text_rect.width(), 25)
 
-        # Build info text based on available data
-        info_parts: list[str] = []
-
-        # Prefer frame_range over show/sequence for shots (more useful info)
+        # Draw frame_range with special color, or fall back to show/sequence
         if frame_range := data.get("frame_range"):
-            info_parts.append(frame_range)
+            # Draw frame range with its own color
+            self._draw_text_with_shadow(
+                painter,
+                info_rect,
+                frame_range,
+                is_selected,
+                is_info=True,
+                custom_color=self.theme.frame_range_color,
+            )
         else:
             # Fall back to show/sequence for items without frame_range
+            info_parts: list[str] = []
             if show := data.get("show"):
                 info_parts.append(show)
             if sequence := data.get("sequence"):
                 info_parts.append(sequence)
+            if user := data.get("user"):
+                info_parts.append(user)
 
-        if user := data.get("user"):
-            # Use user color if available
-            if self.theme.user_color:
-                painter.setPen(QPen(self.theme.user_color))
-            info_parts.append(user)
-
-        if info_parts:
-            info_text = " • ".join(info_parts)
-            elided_info = painter.fontMetrics().elidedText(
-                info_text, Qt.TextElideMode.ElideRight, info_rect.width()
-            )
-
-            # Draw info text with shadow for better readability
-            self._draw_text_with_shadow(
-                painter, info_rect, elided_info, is_selected, is_info=True
-            )
+            if info_parts:
+                info_text = " • ".join(info_parts)
+                elided_info = painter.fontMetrics().elidedText(
+                    info_text, Qt.TextElideMode.ElideRight, info_rect.width()
+                )
+                self._draw_text_with_shadow(
+                    painter, info_rect, elided_info, is_selected, is_info=True
+                )
 
     def _draw_text_with_shadow(
         self,
@@ -502,6 +503,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         text: str,
         is_selected: bool,
         is_info: bool = False,
+        custom_color: QColor | None = None,
     ) -> None:
         """Draw text with drop shadow for better readability against thumbnails."""
         # Draw shadow first (offset by 1 pixel down and right)
@@ -516,6 +518,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         # Draw main text on top
         if is_selected:
             text_color = self.theme.text_selected_color
+        elif custom_color is not None:
+            text_color = custom_color
         elif is_info and self.theme.user_color:
             text_color = self.theme.user_color
         else:

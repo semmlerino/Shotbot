@@ -35,8 +35,9 @@ def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
     # Get plate path pattern (returns path with @@@@ for frame numbers)
     plate_pattern = find_main_plate(workspace_path)
     if plate_pattern is None:
-        logger.debug(f"No main plate found for {workspace_path}")
+        logger.info(f"No main plate found for {workspace_path}")
         return None
+    logger.info(f"Found plate pattern: {plate_pattern}")
 
     # Convert @@@@ pattern to regex for file matching
     # find_main_plate returns: /path/to/shot.@@@@.exr
@@ -73,12 +74,12 @@ def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
 
         if frame_numbers:
             result = (min(frame_numbers), max(frame_numbers))
-            logger.debug(
+            logger.info(
                 f"Frame range for {workspace_path}: {result[0]}-{result[1]}"
             )
             return result
 
-        logger.debug(f"No matching frame files found in {plate_dir}")
+        logger.info(f"No matching frame files found in {plate_dir}")
         return None
 
     except (OSError, re.error) as e:
