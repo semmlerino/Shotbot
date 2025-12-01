@@ -270,6 +270,92 @@ class TestCommandLauncher:
         call_args = mock_popen.call_args[0][0]
         assert "rv" in " ".join(call_args)
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("launch.process_executor.subprocess.Popen")
+    def test_launch_rv_with_sequence_path(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        mock_validate: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
+        """Test launching RV with image sequence path (playblast/render).
+
+        When double-clicking a playblast/render in DCC section, sequence_path
+        is passed to launch RV with that specific image sequence loaded.
+        """
+        launcher.set_current_shot(test_shot)
+
+        # Setup mock
+        mock_popen.return_value = MagicMock()
+
+        # Launch RV with sequence path (simulates double-click on playblast)
+        sequence_path = "/shows/TEST/shots/seq01/seq01_0010/playblast/shot.####.exr"
+        result = launcher.launch_app("rv", sequence_path=sequence_path)
+
+        # Verify launch was successful
+        assert result is True
+
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        process_qt_events()
+
+        # Verify subprocess was called
+        assert mock_popen.called
+        call_args = mock_popen.call_args[0][0]
+        command_str = " ".join(call_args)
+
+        # Verify RV command includes the sequence path
+        assert "rv" in command_str
+        assert sequence_path in command_str
+        # Verify default RV settings are present
+        assert "-fps 12" in command_str
+        assert "-play" in command_str
+        assert "setPlayMode(2)" in command_str
+
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("launch.process_executor.subprocess.Popen")
+    def test_launch_rv_without_sequence_path(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        mock_validate: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
+        """Test RV launch without sequence path still includes default settings."""
+        launcher.set_current_shot(test_shot)
+
+        # Setup mock
+        mock_popen.return_value = MagicMock()
+
+        # Launch RV without sequence path
+        result = launcher.launch_app("rv")
+
+        # Verify launch was successful
+        assert result is True
+
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        process_qt_events()
+
+        # Verify subprocess was called with default RV settings
+        assert mock_popen.called
+        call_args = mock_popen.call_args[0][0]
+        command_str = " ".join(call_args)
+
+        assert "rv" in command_str
+        assert "-fps 12" in command_str
+        assert "-play" in command_str
+        assert "setPlayMode(2)" in command_str
+
     def test_no_shot_context_error(
         self, launcher: CommandLauncher, qtbot: QtBot
     ) -> None:

@@ -1279,6 +1279,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             open_latest_scene=bool(options.get("open_latest_scene", False)),
             create_new_file=bool(options.get("create_new_file", False)),
             selected_plate=options.get("selected_plate"),
+            sequence_path=options.get("sequence_path"),
         )
 
     def _apply_show_filter(

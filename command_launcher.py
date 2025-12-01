@@ -402,6 +402,7 @@ class CommandLauncher(LoggingMixin, QObject):
         open_latest_scene: bool = False,
         create_new_file: bool = False,
         selected_plate: str | None = None,
+        sequence_path: str | None = None,
     ) -> bool:
         """Launch an application in the current shot context.
 
@@ -413,6 +414,7 @@ class CommandLauncher(LoggingMixin, QObject):
             open_latest_scene: (Legacy) Whether to open the latest Nuke script (Nuke only)
             create_new_file: (Legacy) Whether to create a new version (Nuke only)
             selected_plate: (Legacy) Selected plate space for Nuke workspace scripts
+            sequence_path: (Legacy) Image sequence path for RV playback
 
         Returns:
             True if launch was successful, False otherwise
@@ -429,6 +431,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 open_latest_scene=open_latest_scene,
                 create_new_file=create_new_file,
                 selected_plate=selected_plate,
+                sequence_path=sequence_path,
             )
 
         if not self.current_shot:
