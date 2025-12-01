@@ -1266,12 +1266,36 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     ) -> None:
         """Handle launch request from right panel DCC section.
 
-        Converts options dict to launch_app parameters.
+        Converts options dict to launch_app parameters. If a specific file
+        is selected in the DCC section, launches with that file instead.
 
         Args:
             app_name: Name of the application to launch
-            options: Dict containing checkbox states and selected plate
+            options: Dict containing checkbox states, selected plate, and
+                optionally a selected_file (SceneFile) to open
         """
+        # Check if a specific file was selected for launch
+        selected_file = options.get("selected_file")
+        if isinstance(selected_file, SceneFile):
+            # Get workspace path from current context (shot or 3DE scene)
+            workspace_path = self._get_current_workspace_path()
+            if workspace_path:
+                _ = self.command_launcher.launch_with_file(
+                    app_name,
+                    selected_file.path,
+                    workspace_path,
+                )
+                return
+            # If no workspace context, show error
+            from notification_manager import error as notify_error
+
+            notify_error(
+                "Cannot Launch File",
+                "No shot or scene context available. Select a shot first.",
+            )
+            return
+
+        # Standard launch without specific file
         _ = self.command_launcher.launch_app(
             app_name,
             open_latest_threede=bool(options.get("open_latest_threede", False)),
@@ -1281,6 +1305,27 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             selected_plate=options.get("selected_plate"),
             sequence_path=options.get("sequence_path"),
         )
+
+    def _get_current_workspace_path(self) -> str | None:
+        """Get workspace path from current shot or selected 3DE scene.
+
+        Used when launching files from the DCC panel - needs workspace
+        context from either "My Shots" or "Other 3DE Scenes" tab.
+
+        Returns:
+            Workspace path string, or None if no context available
+        """
+        # Try current shot first (My Shots or Previous Shots tab)
+        current_shot = self.command_launcher.current_shot
+        if current_shot:
+            return current_shot.workspace_path
+
+        # Fall back to selected 3DE scene (Other 3DE Scenes tab)
+        selected_scene = self.threede_shot_grid.selected_scene
+        if selected_scene:
+            return selected_scene.workspace_path
+
+        return None
 
     def _apply_show_filter(
         self, item_model: object, model: object, show: str, tab_name: str
