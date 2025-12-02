@@ -72,7 +72,11 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         # Create a section for each DCC
         for config in self._configs:
-            section = DCCSection(config, parent=self)
+            section = DCCSection(
+                config,
+                settings_manager=self._settings_manager,
+                parent=self,
+            )
             # Sections start disabled (via set_enabled) until shot is set
 
             # Forward signals

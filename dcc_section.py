@@ -7,12 +7,14 @@ Shows version info in collapsed header for quick reference.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, final
 
 
 if TYPE_CHECKING:
     from files_tab_widget import FileTableModel
+    from settings_manager import SettingsManager
 
 from PySide6.QtCore import QModelIndex, QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
@@ -35,6 +37,7 @@ from PySide6.QtWidgets import (
 
 from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
+from resizable_frame import ResizableFrame
 from scene_file import FileType, ImageSequence, SceneFile
 from thumbnail_widget_base import FolderOpenerWorker
 
@@ -173,16 +176,19 @@ class DCCSection(QtWidgetMixin, QWidget):
     def __init__(
         self,
         config: DCCConfig,
+        settings_manager: SettingsManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize the DCC section.
 
         Args:
             config: Configuration for this DCC
+            settings_manager: Settings manager for height persistence
             parent: Optional parent widget
         """
         super().__init__(parent)
         self.config = config
+        self._settings_manager = settings_manager
         self._expanded = False
         self._version_info: str | None = None
         self._age_info: str | None = None
@@ -199,6 +205,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._files_content: QWidget | None = None
         self._file_table: QTableView | None = None
         self._file_model: FileTableModel | None = None
+        self._file_table_frame: ResizableFrame | None = None
         self._files_header_btn: QPushButton | None = None
         self._files_expanded = False
         self._files_count = 0
@@ -801,7 +808,6 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._file_table.setSortingEnabled(False)
         self._file_table.setShowGrid(False)
         self._file_table.verticalHeader().setVisible(False)
-        self._file_table.setMaximumHeight(120)
 
         # Configure header
         header = self._file_table.horizontalHeader()
@@ -850,7 +856,17 @@ class DCCSection(QtWidgetMixin, QWidget):
         # Connect double-click for quick launch
         _ = self._file_table.doubleClicked.connect(self._on_file_double_clicked)
 
-        files_content_layout.addWidget(self._file_table)
+        # Wrap table in ResizableFrame for user-adjustable height
+        self._file_table_frame = ResizableFrame(
+            child_widget=self._file_table,
+            min_height=60,
+            max_height=400,
+            initial_height=self._get_stored_table_height(),
+            accent_color=self.config.color,
+            parent=self,
+        )
+        _ = self._file_table_frame.height_changed.connect(self._on_table_height_changed)
+        files_content_layout.addWidget(self._file_table_frame)
         files_layout.addWidget(self._files_content)
 
         content_layout.addWidget(self._files_section)
@@ -1135,7 +1151,6 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         # List widget for sequences
         list_widget = QListWidget()
-        list_widget.setMaximumHeight(120)
         list_widget.setStyleSheet(f"""
             QListWidget {{
                 background-color: #1e1e1e;
@@ -1155,7 +1170,26 @@ class DCCSection(QtWidgetMixin, QWidget):
                 background-color: #2a2a2a;
             }}
         """)
-        content_inner_layout.addWidget(list_widget)
+
+        # Wrap list in ResizableFrame for user-adjustable height
+        list_frame = ResizableFrame(
+            child_widget=list_widget,
+            min_height=60,
+            max_height=400,
+            initial_height=self._get_stored_sequence_height(title),
+            accent_color=color,
+            parent=self,
+        )
+        def make_height_handler(
+            section_title: str,
+        ) -> Callable[[int], None]:
+            def on_height_changed(h: int) -> None:
+                self._on_sequence_height_changed(section_title, h)
+
+            return on_height_changed
+
+        _ = list_frame.height_changed.connect(make_height_handler(title))
+        content_inner_layout.addWidget(list_frame)
 
         layout.addWidget(content)
         content_layout.addWidget(section)
@@ -1166,6 +1200,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             "header_btn": header_btn,
             "content": content,
             "list_widget": list_widget,
+            "list_frame": list_frame,
             "expanded": False,
             "color": color,
             "title": title,
@@ -1263,3 +1298,53 @@ class DCCSection(QtWidgetMixin, QWidget):
             Selected ImageSequence or None
         """
         return self._selected_sequence
+
+    # --- Height Persistence Methods ---
+
+    def _get_stored_table_height(self) -> int:
+        """Get stored table height from settings.
+
+        Returns:
+            Stored height or default of 120.
+        """
+        if self._settings_manager is None:
+            return 120
+        key = f"ui/table_height/{self.config.name}"
+        value = self._settings_manager.settings.value(key, 120, type=int)
+        return value if isinstance(value, int) else 120
+
+    def _on_table_height_changed(self, height: int) -> None:
+        """Save new table height to settings.
+
+        Args:
+            height: The new height value.
+        """
+        if self._settings_manager is not None:
+            key = f"ui/table_height/{self.config.name}"
+            self._settings_manager.settings.setValue(key, height)
+
+    def _get_stored_sequence_height(self, title: str) -> int:
+        """Get stored sequence list height from settings.
+
+        Args:
+            title: The sequence subsection title (e.g., "Maya Playblasts").
+
+        Returns:
+            Stored height or default of 120.
+        """
+        if self._settings_manager is None:
+            return 120
+        key = f"ui/table_height/{self.config.name}/{title}"
+        value = self._settings_manager.settings.value(key, 120, type=int)
+        return value if isinstance(value, int) else 120
+
+    def _on_sequence_height_changed(self, title: str, height: int) -> None:
+        """Save new sequence list height to settings.
+
+        Args:
+            title: The sequence subsection title.
+            height: The new height value.
+        """
+        if self._settings_manager is not None:
+            key = f"ui/table_height/{self.config.name}/{title}"
+            self._settings_manager.settings.setValue(key, height)
