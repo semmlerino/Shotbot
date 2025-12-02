@@ -9,8 +9,8 @@ This module provides PinManager which handles:
 from __future__ import annotations
 
 import json
-import os
 import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from logging_mixin import LoggingMixin
@@ -57,7 +57,7 @@ class PinManager(LoggingMixin):
             return
 
         try:
-            with open(cache_file) as f:
+            with cache_file.open() as f:
                 raw_data: Any = json.load(f)  # pyright: ignore[reportAny]
 
             if not isinstance(raw_data, list):
@@ -115,7 +115,7 @@ class PinManager(LoggingMixin):
                 json.dump(pin_dicts, f, indent=2)
                 temp_path = f.name
 
-            os.replace(temp_path, cache_file)
+            _ = Path(temp_path).replace(cache_file)
             self.logger.debug(f"Saved {len(self._pinned_keys)} pinned shots to cache")
         except OSError as e:
             self.logger.error(f"Failed to save pinned shots: {e}")
@@ -175,6 +175,83 @@ class PinManager(LoggingMixin):
             True if shot is pinned
         """
         return self._get_key(shot) in self._pinned_keys
+
+    def is_pinned_by_path(self, workspace_path: str) -> bool:
+        """Check if a shot is pinned by workspace path.
+
+        Extracts show/sequence/shot from path format: .../shots/{seq}/{seq}_{shot}
+
+        Args:
+            workspace_path: Full workspace path
+
+        Returns:
+            True if shot is pinned
+        """
+        key = self._key_from_path(workspace_path)
+        return key in self._pinned_keys if key else False
+
+    def pin_by_path(self, workspace_path: str) -> None:
+        """Pin a shot by workspace path.
+
+        Args:
+            workspace_path: Full workspace path
+        """
+        key = self._key_from_path(workspace_path)
+        if not key:
+            return
+
+        if key in self._pinned_keys:
+            self._pinned_keys.remove(key)
+            self.logger.debug(f"Moving pinned shot to front: {workspace_path}")
+        else:
+            self.logger.info(f"Pinning shot: {workspace_path}")
+
+        self._pinned_keys.insert(0, key)
+        self._save_pins()
+
+    def unpin_by_path(self, workspace_path: str) -> None:
+        """Unpin a shot by workspace path.
+
+        Args:
+            workspace_path: Full workspace path
+        """
+        key = self._key_from_path(workspace_path)
+        if not key:
+            return
+
+        if key in self._pinned_keys:
+            self._pinned_keys.remove(key)
+            self.logger.info(f"Unpinned shot: {workspace_path}")
+            self._save_pins()
+
+    def _key_from_path(self, workspace_path: str) -> tuple[str, str, str] | None:
+        """Extract (show, sequence, shot) key from workspace path.
+
+        Path format: /shows/{show}/shots/{seq}/{seq}_{shot}
+
+        Args:
+            workspace_path: Full workspace path
+
+        Returns:
+            Tuple key or None if path can't be parsed
+        """
+        from pathlib import Path as PathLib
+
+        path = PathLib(workspace_path)
+        parts = path.parts
+
+        # Find 'shots' in path and extract show/seq/shot
+        try:
+            shots_idx = parts.index("shots")
+            show = parts[shots_idx - 1]  # Show is before 'shots'
+            seq = parts[shots_idx + 1]   # Sequence is after 'shots'
+            seq_shot = parts[shots_idx + 2]  # seq_shot folder
+            # Extract shot from seq_shot (format: seq_shot)
+            shot = seq_shot.split("_", 1)[1] if "_" in seq_shot else seq_shot
+            return (show, seq, shot)
+        except (ValueError, IndexError):
+            self.logger.warning(f"Could not parse workspace path: {workspace_path}")
+            return None
 
     def get_pin_order(self, shot: Shot) -> int:
         """Get pin order for a shot.

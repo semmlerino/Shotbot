@@ -8,6 +8,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 """
 
 # Standard library imports
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -738,7 +739,7 @@ class TestRightPanelFileLaunch:
         maya_file = SceneFile(
             path=Path(f"{shows_root}/test/seq01/0010/scenes/test_scene.ma"),
             file_type=FileType.MAYA,
-            modified_time=datetime.now(),
+            modified_time=datetime.now(tz=UTC),
             user="other_user",
         )
 
@@ -787,7 +788,7 @@ class TestRightPanelFileLaunch:
         maya_file = SceneFile(
             path=Path(f"{shows_root}/test/seq01/0010/scenes/finalize.ma"),
             file_type=FileType.MAYA,
-            modified_time=datetime.now(),
+            modified_time=datetime.now(tz=UTC),
             user="another_user",
         )
 
@@ -823,7 +824,7 @@ class TestRightPanelFileLaunch:
         nuke_file = SceneFile(
             path=Path("/shows/test/scenes/comp.nk"),
             file_type=FileType.NUKE,
-            modified_time=datetime.now(),
+            modified_time=datetime.now(tz=UTC),
             user="user",
         )
 
@@ -854,17 +855,16 @@ class TestRightPanelFileLaunch:
         # Mock both launch methods
         with patch.object(
             main_window.command_launcher, "launch_app", return_value=True
-        ) as mock_launch_app:
-            with patch.object(
-                main_window.command_launcher, "launch_with_file", return_value=True
-            ) as mock_launch_with_file:
-                # Launch without selected_file
-                options = {"open_latest_maya": True}
-                main_window._on_right_panel_launch("maya", options)
+        ) as mock_launch_app, patch.object(
+            main_window.command_launcher, "launch_with_file", return_value=True
+        ) as mock_launch_with_file:
+            # Launch without selected_file
+            options = {"open_latest_maya": True}
+            main_window._on_right_panel_launch("maya", options)
 
-                # Verify launch_app was called, not launch_with_file
-                mock_launch_app.assert_called_once()
-                mock_launch_with_file.assert_not_called()
+            # Verify launch_app was called, not launch_with_file
+            mock_launch_app.assert_called_once()
+            mock_launch_with_file.assert_not_called()
 
 
 class TestGetCurrentWorkspacePath:

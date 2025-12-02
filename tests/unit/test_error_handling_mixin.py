@@ -281,9 +281,10 @@ class TestErrorContext:
         handler: ConcreteErrorHandler,
     ) -> None:
         """reraise=True propagates exception."""
-        with pytest.raises(ValueError, match="Reraise me"):
-            with handler.error_context("op", reraise=True):
-                raise ValueError("Reraise me")
+        with pytest.raises(ValueError, match="Reraise me"), handler.error_context(
+            "op", reraise=True
+        ):
+            raise ValueError("Reraise me")
 
     def test_context_logs_at_specified_level(
         self,
@@ -291,9 +292,10 @@ class TestErrorContext:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Errors are logged at specified level."""
-        with caplog.at_level(logging.WARNING):
-            with handler.error_context("op", log_level=logging.WARNING):
-                raise ValueError("Warning level error")
+        with caplog.at_level(logging.WARNING), handler.error_context(
+            "op", log_level=logging.WARNING
+        ):
+            raise ValueError("Warning level error")
 
         assert "warning" in caplog.text.lower()
 
@@ -427,9 +429,10 @@ class TestErrorAggregator:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """collecting_errors() logs summary on context exit."""
-        with caplog.at_level(logging.ERROR):
-            with aggregator.collecting_errors("batch processing") as agg:
-                agg.add_error("item", ValueError("Error"))
+        with caplog.at_level(logging.ERROR), aggregator.collecting_errors(
+            "batch processing"
+        ) as agg:
+            agg.add_error("item", ValueError("Error"))
 
         assert "batch processing" in caplog.text
         assert "1 errors occurred" in caplog.text

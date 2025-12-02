@@ -9,13 +9,14 @@ This module provides NotesManager which handles:
 from __future__ import annotations
 
 import json
-import os
 import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from logging_mixin import LoggingMixin
+
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
@@ -74,7 +75,7 @@ class NotesManager(LoggingMixin, QObject):
             return
 
         try:
-            with open(cache_file) as f:
+            with cache_file.open() as f:
                 raw_data: Any = json.load(f)  # pyright: ignore[reportAny]
 
             if not isinstance(raw_data, dict):
@@ -140,7 +141,7 @@ class NotesManager(LoggingMixin, QObject):
                 json.dump(data, f, indent=2)
                 temp_path = f.name
 
-            os.replace(temp_path, cache_file)
+            _ = Path(temp_path).replace(cache_file)
             self.logger.debug(f"Saved {len(self._notes_by_key)} shot notes to cache")
         except OSError as e:
             self.logger.error(f"Failed to save shot notes: {e}")
@@ -214,6 +215,86 @@ class NotesManager(LoggingMixin, QObject):
         key = self._get_key(shot)
         note = self._notes_by_key.get(key, "")
         return bool(note.strip())
+
+    def has_note_by_path(self, workspace_path: str) -> bool:
+        """Check if a shot has a note by workspace path.
+
+        Args:
+            workspace_path: Full workspace path
+
+        Returns:
+            True if shot has a note
+        """
+        key = self._key_from_path(workspace_path)
+        if not key:
+            return False
+        note = self._notes_by_key.get(key, "")
+        return bool(note.strip())
+
+    def get_note_by_path(self, workspace_path: str) -> str:
+        """Get note for a shot by workspace path.
+
+        Args:
+            workspace_path: Full workspace path
+
+        Returns:
+            Note text, or empty string if no note
+        """
+        key = self._key_from_path(workspace_path)
+        if not key:
+            return ""
+        return self._notes_by_key.get(key, "")
+
+    def set_note_by_path(self, workspace_path: str, note: str) -> None:
+        """Set note for a shot by workspace path.
+
+        Args:
+            workspace_path: Full workspace path
+            note: Note text (empty string removes note)
+        """
+        key = self._key_from_path(workspace_path)
+        if not key:
+            return
+
+        old_note = self._notes_by_key.get(key, "")
+
+        if note.strip():
+            self._notes_by_key[key] = note
+        else:
+            _ = self._notes_by_key.pop(key, None)
+
+        if note != old_note:
+            self._schedule_save()
+            self.notes_changed.emit()
+
+    def _key_from_path(self, workspace_path: str) -> tuple[str, str, str] | None:
+        """Extract (show, sequence, shot) key from workspace path.
+
+        Path format: /shows/{show}/shots/{seq}/{seq}_{shot}
+
+        Args:
+            workspace_path: Full workspace path
+
+        Returns:
+            Tuple key or None if path can't be parsed
+        """
+        from pathlib import Path as PathLib
+
+        path = PathLib(workspace_path)
+        parts = path.parts
+
+        # Find 'shots' in path and extract show/seq/shot
+        try:
+            shots_idx = parts.index("shots")
+            show = parts[shots_idx - 1]  # Show is before 'shots'
+            seq = parts[shots_idx + 1]   # Sequence is after 'shots'
+            seq_shot = parts[shots_idx + 2]  # seq_shot folder
+            # Extract shot from seq_shot (format: seq_shot)
+            shot = seq_shot.split("_", 1)[1] if "_" in seq_shot else seq_shot
+            return (show, seq, shot)
+        except (ValueError, IndexError):
+            _ = self.logger.warning(f"Could not parse workspace path: {workspace_path}")
+            return None
 
     def get_notes_count(self) -> int:
         """Get the number of shots with notes.

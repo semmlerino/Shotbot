@@ -59,7 +59,7 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.content_layout.addWidget(self.name_label)
 
         # Frame range label (e.g., "1001-1150" or "No plate")
-        self.frame_range_label = QLabel(self.shot.frame_range_display)
+        self.frame_range_label: QLabel = QLabel(self.shot.frame_range_display)
         self.frame_range_label.setObjectName("frame_range")
         self.frame_range_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         frame_range_font = self.frame_range_label.font()

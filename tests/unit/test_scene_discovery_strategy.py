@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -78,7 +78,7 @@ class TestCreateDiscoveryStrategy:
 
     def test_error_message_lists_available_strategies(self) -> None:
         """Error message includes available strategy types."""
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match="Unknown strategy type") as exc_info:
             create_discovery_strategy("bad_strategy")
 
         error_msg = str(exc_info.value)
@@ -457,7 +457,7 @@ class TestVFXDirectoryIntegration:
         strategy.scanner.find_3de_files_progressive = MagicMock(return_value=[])
 
         excluded = {"excluded_artist"}
-        result = strategy.find_scenes_for_shot(
+        _ = strategy.find_scenes_for_shot(
             shot_workspace_path=str(shot_workspace),
             show="testshow",
             sequence="seq01",

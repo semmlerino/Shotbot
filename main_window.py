@@ -105,7 +105,7 @@ from progress_manager import ProgressManager
 from qt_widget_mixin import QtWidgetMixin
 from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from right_panel import RightPanelWidget  # New redesigned right panel
-from scene_file import FileType, SceneFile  # noqa: TC001 - Need at runtime for cast()
+from scene_file import FileType, SceneFile
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
@@ -467,7 +467,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
 
         # Tab 2: Other 3DE scenes (using Model/View architecture)
-        self.threede_shot_grid = ThreeDEGridView(model=self.threede_item_model)
+        self.threede_shot_grid = ThreeDEGridView(
+            model=self.threede_item_model,
+            pin_manager=self.pin_manager,
+            notes_manager=self.notes_manager,
+        )
         _ = self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
 
         # Tab 3: Previous Shots (approved/completed) - using Model/View architecture
@@ -480,6 +484,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.previous_shots_grid = PreviousShotsView(
             model=self.previous_shots_item_model,
             pin_manager=self.pin_manager,
+            notes_manager=self.notes_manager,
         )
         _ = self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
 

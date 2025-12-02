@@ -37,7 +37,7 @@ class TestParseWorkspaceLineStandardNaming:
     """Tests for standard VFX naming: sequence_{shot}."""
 
     @pytest.mark.parametrize(
-        "sequence,shot_dir,expected_shot",
+        ("sequence", "shot_dir", "expected_shot"),
         [
             ("seq01", "seq01_0010", "0010"),
             ("seq01", "seq01_0020", "0020"),
@@ -242,14 +242,14 @@ class TestPatternCacheIsolation:
         """Different SHOWS_ROOT values create separate cached patterns."""
         # First SHOWS_ROOT
         monkeypatch.setattr("config.Config.SHOWS_ROOT", "/test/shows1")
-        parser1 = OptimizedShotParser()
+        _ = OptimizedShotParser()
 
         assert "/test/shows1" in _PATTERN_CACHE
         assert "/test/shows2" not in _PATTERN_CACHE
 
         # Second SHOWS_ROOT
         monkeypatch.setattr("config.Config.SHOWS_ROOT", "/test/shows2")
-        parser2 = OptimizedShotParser()
+        _ = OptimizedShotParser()
 
         assert "/test/shows2" in _PATTERN_CACHE
 
@@ -363,7 +363,7 @@ class TestRealWorldScenarios:
     """Integration-style tests with realistic VFX naming patterns."""
 
     @pytest.mark.parametrize(
-        "line,expected",
+        ("line", "expected"),
         [
             # Standard naming
             (

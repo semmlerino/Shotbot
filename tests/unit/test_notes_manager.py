@@ -13,9 +13,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+# Standard library imports
+from typing import TYPE_CHECKING
+
 # Third-party imports
 import pytest
-from pytestqt.qtbot import QtBot
+
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
 
 # Local application imports
 from cache_manager import CacheManager
@@ -246,7 +252,7 @@ class TestPersistence:
         cache_file = cache_manager.cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
         assert cache_file.exists()
 
-        with open(cache_file) as f:
+        with cache_file.open() as f:
             data = json.load(f)
 
         # Should be a dict with "show|sequence|shot" key format
@@ -286,7 +292,7 @@ class TestCacheRecovery:
         # Write valid JSON but wrong format (list instead of dict)
         cache_file = cache_manager.cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text('[1, 2, 3]')
+        cache_file.write_text("[1, 2, 3]")
 
         # Should not raise, should start with empty dict
         nm = NotesManager(cache_manager)
@@ -321,8 +327,8 @@ class TestEdgeCases:
         notes_manager.flush()
 
         # Reload and verify
-        from notes_manager import NotesManager as NM
-        nm2 = NM(notes_manager._cache_manager)
+        from notes_manager import NotesManager as NotesManagerReload
+        nm2 = NotesManagerReload(notes_manager._cache_manager)
         assert nm2.get_note(shot) == multiline_note
 
     def test_unicode_notes(
@@ -336,8 +342,8 @@ class TestEdgeCases:
         notes_manager.flush()
 
         # Reload and verify
-        from notes_manager import NotesManager as NM
-        nm2 = NM(notes_manager._cache_manager)
+        from notes_manager import NotesManager as NotesManagerReload
+        nm2 = NotesManagerReload(notes_manager._cache_manager)
         assert nm2.get_note(shot) == unicode_note
 
 

@@ -305,7 +305,7 @@ class TestPersistence:
         cache_file = cache_manager.cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
         assert cache_file.exists()
 
-        with open(cache_file) as f:
+        with cache_file.open() as f:
             data = json.load(f)
 
         # Should be a list of dicts with show, sequence, shot keys
