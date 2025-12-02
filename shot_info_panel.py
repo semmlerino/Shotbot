@@ -41,6 +41,7 @@ from utils import ImageUtils
 
 if TYPE_CHECKING:
     # Local application imports
+    from file_pin_manager import FilePinManager
     from notes_manager import NotesManager
     from shot_model import Shot
 
@@ -55,12 +56,14 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
     _files_panel: ShotFilesPanel
     _copy_path_btn: QToolButton
     _notes_manager: NotesManager | None
+    _file_pin_manager: FilePinManager | None
     _notes_edit: QTextEdit
 
     def __init__(
         self,
         cache_manager: CacheManager | None = None,
         notes_manager: NotesManager | None = None,
+        file_pin_manager: FilePinManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         # Ensure we're in the main thread for Qt widget creation
@@ -108,6 +111,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         self._empty_message: str = "No Shot Selected"
         self.cache_manager: CacheManager = cache_manager or CacheManager()  # Make public
         self._notes_manager = notes_manager
+        self._file_pin_manager = file_pin_manager
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -203,7 +207,10 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         main_layout.addLayout(thumb_row)
 
         # === FILES PANEL ===
-        self._files_panel = ShotFilesPanel(parent=self)
+        self._files_panel = ShotFilesPanel(
+            file_pin_manager=self._file_pin_manager,
+            parent=self,
+        )
         _ = self._files_panel.file_open_requested.connect(
             self.file_open_requested.emit
         )

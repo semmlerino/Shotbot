@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QFrame,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMenu,
     QPushButton,
@@ -27,6 +28,7 @@ from shot_file_finder import ShotFileFinder
 if TYPE_CHECKING:
     from PySide6.QtCore import QPoint
 
+    from file_pin_manager import FilePinManager
     from type_definitions import Shot
 
 
@@ -44,16 +46,19 @@ class FileListItem(QFrame):
     def __init__(
         self,
         scene_file: SceneFile,
+        file_pin_manager: FilePinManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize file list item.
 
         Args:
             scene_file: The scene file to display
+            file_pin_manager: Optional pin manager for pin operations
             parent: Optional parent widget
         """
         super().__init__(parent)
         self._scene_file = scene_file
+        self._file_pin_manager = file_pin_manager
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -77,23 +82,50 @@ class FileListItem(QFrame):
         age_label.setStyleSheet(f"color: #666; font-size: {design_system.typography.size_small}px;")
         layout.addWidget(age_label)
 
-        # Tooltip with full path
-        self.setToolTip(str(self._scene_file.path))
-
-        # Style
-        self.setStyleSheet("""
-            FileListItem {
-                background-color: transparent;
-                border-radius: 3px;
-            }
-            FileListItem:hover {
-                background-color: #2a2a2a;
-            }
-        """)
+        # Apply pin-aware styling (sets tooltip and stylesheet)
+        self._apply_pin_styling()
 
         # Enable context menu
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         _ = self.customContextMenuRequested.connect(self._show_context_menu)
+
+    def _apply_pin_styling(self) -> None:
+        """Apply visual styling based on pin state."""
+        is_pinned = (
+            self._file_pin_manager is not None
+            and self._file_pin_manager.is_pinned(self._scene_file.path)
+        )
+
+        if is_pinned and self._file_pin_manager is not None:
+            # Pinned: gold/amber highlight with left border
+            self.setStyleSheet("""
+                FileListItem {
+                    background-color: rgba(255, 193, 7, 0.15);
+                    border-radius: 3px;
+                    border-left: 3px solid #ffc107;
+                }
+                FileListItem:hover {
+                    background-color: rgba(255, 193, 7, 0.25);
+                }
+            """)
+            # Add comment to tooltip if present
+            comment = self._file_pin_manager.get_comment(self._scene_file.path)
+            if comment:
+                self.setToolTip(f"{self._scene_file.path}\n\nPin Note: {comment}")
+            else:
+                self.setToolTip(f"{self._scene_file.path}\n(Pinned)")
+        else:
+            # Standard styling
+            self.setStyleSheet("""
+                FileListItem {
+                    background-color: transparent;
+                    border-radius: 3px;
+                }
+                FileListItem:hover {
+                    background-color: #2a2a2a;
+                }
+            """)
+            self.setToolTip(str(self._scene_file.path))
 
     def _show_context_menu(self, pos: QPoint) -> None:
         """Show context menu at position.
@@ -117,6 +149,28 @@ class FileListItem(QFrame):
 
         _ = menu.addSeparator()
 
+        # Pin actions (if pin manager available)
+        if self._file_pin_manager:
+            is_pinned = self._file_pin_manager.is_pinned(self._scene_file.path)
+
+            if is_pinned:
+                # Edit comment action
+                edit_comment_action = QAction("Edit Pin Comment...", self)
+                _ = edit_comment_action.triggered.connect(self._edit_pin_comment)
+                menu.addAction(edit_comment_action)
+
+                # Unpin action
+                unpin_action = QAction("Unpin Version", self)
+                _ = unpin_action.triggered.connect(self._unpin_file)
+                menu.addAction(unpin_action)
+            else:
+                # Pin action
+                pin_action = QAction("Pin Version...", self)
+                _ = pin_action.triggered.connect(self._pin_file)
+                menu.addAction(pin_action)
+
+            _ = menu.addSeparator()
+
         # Copy path action
         copy_path_action = QAction("Copy Path", self)
         _ = copy_path_action.triggered.connect(self._copy_path)
@@ -135,6 +189,45 @@ class FileListItem(QFrame):
         if clipboard:
             clipboard.setText(str(self._scene_file.path))
 
+    def _pin_file(self) -> None:
+        """Pin file with optional comment dialog."""
+        if not self._file_pin_manager:
+            return
+
+        comment, ok = QInputDialog.getMultiLineText(
+            self,
+            f"Pin {self._scene_file.name}",
+            "Comment (optional):",
+            "",
+        )
+        if ok:
+            self._file_pin_manager.pin_file(self._scene_file.path, comment)
+            self._apply_pin_styling()
+
+    def _unpin_file(self) -> None:
+        """Remove pin from file."""
+        if not self._file_pin_manager:
+            return
+
+        self._file_pin_manager.unpin_file(self._scene_file.path)
+        self._apply_pin_styling()
+
+    def _edit_pin_comment(self) -> None:
+        """Edit comment on pinned file."""
+        if not self._file_pin_manager:
+            return
+
+        current_comment = self._file_pin_manager.get_comment(self._scene_file.path)
+        new_comment, ok = QInputDialog.getMultiLineText(
+            self,
+            f"Edit Pin Comment - {self._scene_file.name}",
+            "Comment:",
+            current_comment,
+        )
+        if ok:
+            self._file_pin_manager.set_comment(self._scene_file.path, new_comment)
+            self._apply_pin_styling()
+
 
 @final
 class FileTypeSection(QtWidgetMixin, QWidget):
@@ -149,16 +242,19 @@ class FileTypeSection(QtWidgetMixin, QWidget):
     def __init__(
         self,
         file_type: FileType,
+        file_pin_manager: FilePinManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize file type section.
 
         Args:
             file_type: The type of files this section displays
+            file_pin_manager: Optional pin manager for pin operations
             parent: Optional parent widget
         """
         super().__init__(parent)
         self._file_type = file_type
+        self._file_pin_manager = file_pin_manager
         self._is_expanded = False  # Collapsed by default (chip style)
         self._files: list[SceneFile] = []
         self._chip_button: QPushButton  # Chip button for expand/collapse
@@ -253,7 +349,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
         self._content_widget.setVisible(self._is_expanded)
 
     def set_files(self, files: list[SceneFile]) -> None:
-        """Set the files to display.
+        """Set the files to display with pinned files sorted first.
 
         Args:
             files: List of scene files to display
@@ -270,14 +366,44 @@ class FileTypeSection(QtWidgetMixin, QWidget):
         # Update chip text
         self._chip_button.setText(self._get_header_text(len(files)))
 
+        # Sort files with pinned first
+        sorted_files = self._sort_with_pinned_first(files)
+
         # Add file items
-        for scene_file in files:
-            item = FileListItem(scene_file, parent=self)
+        for scene_file in sorted_files:
+            item = FileListItem(
+                scene_file,
+                file_pin_manager=self._file_pin_manager,
+                parent=self,
+            )
             _ = item.open_requested.connect(self.file_open_requested.emit)
             self._file_list_layout.addWidget(item)
 
         # Show/hide based on file count
         self.setVisible(len(files) > 0)
+
+    def _sort_with_pinned_first(self, files: list[SceneFile]) -> list[SceneFile]:
+        """Sort files with pinned files first, preserving relative order.
+
+        Args:
+            files: Original file list (typically sorted by mtime)
+
+        Returns:
+            Sorted list with pinned files first
+        """
+        if not self._file_pin_manager:
+            return files
+
+        pinned: list[SceneFile] = []
+        unpinned: list[SceneFile] = []
+
+        for f in files:
+            if self._file_pin_manager.is_pinned(f.path):
+                pinned.append(f)
+            else:
+                unpinned.append(f)
+
+        return pinned + unpinned
 
     def clear(self) -> None:
         """Clear all files."""
@@ -296,14 +422,17 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
 
     def __init__(
         self,
+        file_pin_manager: FilePinManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize shot files panel.
 
         Args:
+            file_pin_manager: Optional pin manager for pin operations
             parent: Optional parent widget
         """
         super().__init__(parent)
+        self._file_pin_manager = file_pin_manager
         self._finder = ShotFileFinder()
         self._current_shot: Shot | None = None
         self._setup_ui()
@@ -334,7 +463,11 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
         # Create sections for each file type
         self._sections: dict[FileType, FileTypeSection] = {}
         for file_type in FileType:
-            section = FileTypeSection(file_type, parent=self)
+            section = FileTypeSection(
+                file_type,
+                file_pin_manager=self._file_pin_manager,
+                parent=self,
+            )
             _ = section.file_open_requested.connect(self.file_open_requested.emit)
             chip_row.addWidget(section)
             self._sections[file_type] = section

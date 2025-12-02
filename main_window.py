@@ -66,6 +66,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from file_pin_manager import FilePinManager
 from notes_manager import NotesManager
 from pin_manager import PinManager
 from typing_compat import override
@@ -311,6 +312,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Create notes manager for per-shot notes
         self.notes_manager = NotesManager(self.cache_manager, parent=self)
+
+        # Create file pin manager for pinning specific file versions
+        self.file_pin_manager = FilePinManager(self.cache_manager, parent=self)
 
         # Initialize cleanup and refresh managers (extracted from MainWindow)
         # MainWindow implements protocol interfaces functionally at runtime
