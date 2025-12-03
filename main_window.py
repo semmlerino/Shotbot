@@ -1379,8 +1379,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Update item model with filtered shots
         filtered_shots = base_model.get_filtered_shots()
-        # get_filtered_shots returns list[Shot], set_items needs list[ItemType]
-        self.shot_item_model.set_items(filtered_shots)
+        # Use set_shots() to apply pin-aware sorting
+        self.shot_item_model.set_shots(filtered_shots)
 
         # Show brief status with filter result
         total_shots = len(self.shot_model.shots)
@@ -1515,8 +1515,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Update item model with filtered shots
         filtered_shots = self.previous_shots_model.get_filtered_shots()
-        # get_filtered_shots returns list[Shot], set_items needs list[ItemType]
-        self.previous_shots_item_model.set_items(filtered_shots)
+        # Use set_shots() to apply pin-aware sorting
+        self.previous_shots_item_model.set_shots(filtered_shots)
 
         # Show brief status with filter result
         total_shots = len(self.previous_shots_model.get_shots())
