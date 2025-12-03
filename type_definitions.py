@@ -40,6 +40,7 @@ class ShotDict(_ShotDictRequired, total=False):
     discovered_at: float  # Unix timestamp when shot was added to previous shots
     frame_start: int | None  # First frame of main plate (None = no plate found)
     frame_end: int | None  # Last frame of main plate (None = no plate found)
+    thumbnail_path: str  # Persisted thumbnail path (validated on restore)
 
 
 # Sentinel value to distinguish between "not searched" and "searched but found nothing"
@@ -90,6 +91,15 @@ class Shot:
         if self.frame_start is None or self.frame_end is None:
             return "No plate"
         return f"{self.frame_start}-{self.frame_end}"
+
+    @property
+    def scrub_key(self) -> str:
+        """Get unique key for scrub preview cache.
+
+        Returns:
+            Key string in format "show/sequence/shot".
+        """
+        return f"{self.show}/{self.sequence}/{self.shot}"
 
     @property
     def thumbnail_dir(self) -> Path:
@@ -145,8 +155,12 @@ class Shot:
             return thumbnail
 
     def to_dict(self) -> ShotDict:
-        """Convert shot to dictionary for serialization."""
-        return {
+        """Convert shot to dictionary for serialization.
+
+        Includes thumbnail_path if it has been discovered (not sentinel).
+        This reduces filesystem I/O on subsequent loads.
+        """
+        data: ShotDict = {
             "show": self.show,
             "sequence": self.sequence,
             "shot": self.shot,
@@ -155,6 +169,10 @@ class Shot:
             "frame_start": self.frame_start,
             "frame_end": self.frame_end,
         }
+        # Persist thumbnail path if discovered (not sentinel)
+        if self._cached_thumbnail_path is not _NOT_SEARCHED and self._cached_thumbnail_path:
+            data["thumbnail_path"] = str(self._cached_thumbnail_path)
+        return data
 
     @classmethod
     def from_dict(cls, data: ShotDict) -> Shot:
@@ -162,8 +180,9 @@ class Shot:
 
         Note: discovered_at defaults to 0.0 for cache migration of old entries.
         Frame range fields default to None for cache migration compatibility.
+        Restores thumbnail_path if present AND file still exists (validated).
         """
-        return cls(
+        instance = cls(
             show=data["show"],
             sequence=data["sequence"],
             shot=data["shot"],
@@ -172,8 +191,13 @@ class Shot:
             frame_start=data.get("frame_start"),
             frame_end=data.get("frame_end"),
         )
-        # Don't restore cached thumbnail path from dict - let it be re-discovered if needed
-        # This ensures we don't cache stale paths across sessions
+        # Restore thumbnail path if present AND file still exists
+        if "thumbnail_path" in data:
+            cached_path = Path(data["thumbnail_path"])
+            if cached_path.exists():
+                instance._cached_thumbnail_path = cached_path
+            # else: leave as _NOT_SEARCHED for re-discovery
+        return instance
 
 
 class ThreeDESceneDict(TypedDict):
@@ -188,6 +212,7 @@ class ThreeDESceneDict(TypedDict):
     modified_time: float
     workspace_path: str
     last_seen: NotRequired[float]  # Timestamp when scene was last discovered (for pruning)
+    thumbnail_path: NotRequired[str]  # Persisted thumbnail path (validated on restore)
 
 
 class LauncherDict(TypedDict, total=False):

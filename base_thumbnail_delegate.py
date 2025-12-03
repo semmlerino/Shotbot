@@ -11,7 +11,7 @@ from __future__ import annotations
 # Standard library imports
 # Note: Can't use ABC with Qt classes due to metaclass conflict
 from dataclasses import dataclass, field
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -47,6 +47,10 @@ from base_item_model import BaseItemRole
 from config import Config
 from logging_mixin import get_module_logger
 from typing_compat import override
+
+
+if TYPE_CHECKING:
+    from scrub_preview_manager import ScrubPreviewManager
 
 
 # Module-level logger
@@ -147,6 +151,9 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         self._loading_angle: int = 0
         self._loading_timer: QTimer | None = None
 
+        # Scrub preview support
+        self._scrub_manager: ScrubPreviewManager | None = None
+
         logger.debug(f"{self.__class__.__name__} initialized with optimized painting")
 
     def get_theme(self) -> DelegateTheme:
@@ -231,7 +238,26 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
             loading_state = data.get("loading_state", "idle")
 
-            if loading_state == "loading":
+            # Check if scrubbing this item
+            is_scrubbing = self._is_scrubbing(index)
+
+            if is_scrubbing:
+                # Draw scrub frame overlay
+                scrub_pixmap = self._get_scrub_pixmap(index)
+                if scrub_pixmap is not None:
+                    self._draw_thumbnail(painter, thumbnail_rect, scrub_pixmap)
+                    # Draw frame number indicator
+                    frame_num = self._get_scrub_frame_number(index)
+                    if frame_num is not None:
+                        self._draw_frame_indicator(painter, thumbnail_rect, frame_num)
+                else:
+                    # Scrubbing but frame not ready - show loading
+                    if thumbnail := data.get("thumbnail"):
+                        self._draw_thumbnail(painter, thumbnail_rect, thumbnail)
+                    else:
+                        self._draw_placeholder(painter, thumbnail_rect)
+                    self._draw_scrub_loading_indicator(painter, thumbnail_rect)
+            elif loading_state == "loading":
                 self._draw_loading_indicator(painter, thumbnail_rect)
             elif thumbnail := data.get("thumbnail"):
                 self._draw_thumbnail(painter, thumbnail_rect, thumbnail)
@@ -669,3 +695,154 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             self._loading_timer.deleteLater()
             self._loading_timer = None
         self._metrics_cache.clear()
+        self._scrub_manager = None
+
+    # --- Scrub Preview Support ---
+
+    def set_scrub_manager(self, manager: ScrubPreviewManager | None) -> None:
+        """Set the scrub preview manager.
+
+        Args:
+            manager: ScrubPreviewManager instance or None to disable
+        """
+        self._scrub_manager = manager
+
+    def _is_scrubbing(self, index: QModelIndex | QPersistentModelIndex) -> bool:
+        """Check if an index is currently being scrubbed.
+
+        Args:
+            index: Model index to check
+
+        Returns:
+            True if actively scrubbing this item
+        """
+        if self._scrub_manager is None:
+            return False
+
+        # Convert to QModelIndex if needed (QPersistentModelIndex constructor accepts this)
+        if isinstance(index, QPersistentModelIndex):
+            index = QModelIndex(index)  # type: ignore[reportArgumentType]
+
+        return self._scrub_manager.is_scrubbing(index)
+
+    def _get_scrub_pixmap(self, index: QModelIndex | QPersistentModelIndex) -> QPixmap | None:
+        """Get the current scrub frame pixmap for an index.
+
+        Args:
+            index: Model index
+
+        Returns:
+            QPixmap for current scrub frame, or None
+        """
+        if self._scrub_manager is None:
+            return None
+
+        if isinstance(index, QPersistentModelIndex):
+            index = QModelIndex(index)  # type: ignore[reportArgumentType]
+
+        return self._scrub_manager.get_current_pixmap(index)
+
+    def _get_scrub_frame_number(self, index: QModelIndex | QPersistentModelIndex) -> int | None:
+        """Get the current scrub frame number for an index.
+
+        Args:
+            index: Model index
+
+        Returns:
+            Current frame number, or None
+        """
+        if self._scrub_manager is None:
+            return None
+
+        if isinstance(index, QPersistentModelIndex):
+            index = QModelIndex(index)  # type: ignore[reportArgumentType]
+
+        return self._scrub_manager.get_current_frame(index)
+
+    def _draw_frame_indicator(
+        self, painter: QPainter, rect: QRect, frame_num: int
+    ) -> None:
+        """Draw frame number indicator in bottom-right corner.
+
+        Args:
+            painter: QPainter instance
+            rect: Thumbnail rectangle
+            frame_num: Frame number to display
+        """
+        # Frame indicator style
+        text = str(frame_num)
+        padding_h = 6
+        padding_v = 3
+        margin = 4
+
+        # Setup font
+        painter.save()
+        font = painter.font()
+        font.setPointSize(10)
+        font.setBold(True)
+        painter.setFont(font)
+
+        # Calculate text size
+        metrics = painter.fontMetrics()
+        text_width = metrics.horizontalAdvance(text)
+        text_height = metrics.height()
+
+        # Calculate indicator rect (bottom-right)
+        indicator_width = text_width + 2 * padding_h
+        indicator_height = text_height + 2 * padding_v
+        x = rect.right() - indicator_width - margin
+        y = rect.bottom() - indicator_height - margin
+
+        indicator_rect = QRect(x, y, indicator_width, indicator_height)
+
+        # Draw semi-transparent background
+        bg_color = QColor(0, 0, 0, 170)  # #000000AA
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(indicator_rect), 3, 3)
+        painter.fillPath(path, QBrush(bg_color))
+
+        # Draw text
+        painter.setPen(QPen(QColor("#ffffff")))
+        _ = painter.drawText(
+            indicator_rect,
+            Qt.AlignmentFlag.AlignCenter,
+            text,
+        )
+
+        painter.restore()
+
+    def _draw_scrub_loading_indicator(
+        self, painter: QPainter, rect: QRect
+    ) -> None:
+        """Draw a small loading indicator for scrub frame loading.
+
+        Args:
+            painter: QPainter instance
+            rect: Thumbnail rectangle
+        """
+        # Draw a small spinner in the center
+        center_x = rect.center().x()
+        center_y = rect.center().y()
+        radius = 12
+
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Draw semi-transparent background circle
+        bg_color = QColor(0, 0, 0, 128)
+        painter.setBrush(QBrush(bg_color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(center_x - radius - 4, center_y - radius - 4, (radius + 4) * 2, (radius + 4) * 2)
+
+        # Draw spinning arc
+        pen = QPen(QColor("#14ffec"), 2)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        arc_rect = QRect(center_x - radius, center_y - radius, radius * 2, radius * 2)
+        start_angle = self._loading_angle * 16  # Qt uses 1/16th of a degree
+        span_angle = 270 * 16  # 270 degree arc
+
+        painter.drawArc(arc_rect, start_angle, span_angle)
+
+        painter.restore()

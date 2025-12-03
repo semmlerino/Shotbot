@@ -35,6 +35,8 @@ from PySide6.QtWidgets import (
 from config import Config
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
+from scrub_event_filter import ScrubEventFilter
+from scrub_preview_manager import ScrubPreviewManager
 
 # Local imports
 from typing_compat import override
@@ -95,6 +97,10 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         # Common properties
         self._thumbnail_size: int = Config.DEFAULT_THUMBNAIL_SIZE
         self._model: QAbstractItemModel | None = None
+
+        # Scrub preview components
+        self._scrub_manager: ScrubPreviewManager | None = None
+        self._scrub_event_filter: ScrubEventFilter | None = None
 
         # Create the UI
         self._setup_base_ui()
@@ -182,6 +188,9 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         # Set focus on list view too
         self.list_view.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+        # Setup scrub preview system
+        self._setup_scrub_preview()
+
     def _configure_list_view(self) -> None:
         """Configure the QListView with common settings."""
         self.list_view.setViewMode(QListView.ViewMode.IconMode)
@@ -214,6 +223,65 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         _ = self._visibility_timer.timeout.connect(self._update_visible_range)
         self._visibility_timer.setInterval(100)
         self._visibility_timer.start()
+
+    def _setup_scrub_preview(self) -> None:
+        """Initialize the scrub preview system.
+
+        Sets up event filter on viewport and connects signals for
+        Netflix-style hover scrubbing through plate frames.
+        """
+        # Create scrub preview manager
+        self._scrub_manager = ScrubPreviewManager(self)
+
+        # Create event filter and install on viewport
+        self._scrub_event_filter = ScrubEventFilter(self.list_view, self)
+        self.list_view.viewport().installEventFilter(self._scrub_event_filter)
+
+        # Connect event filter signals to manager
+        _ = self._scrub_event_filter.scrub_started.connect(self._scrub_manager.start_scrub)
+        _ = self._scrub_event_filter.scrub_position_changed.connect(
+            self._scrub_manager.update_scrub_position
+        )
+        _ = self._scrub_event_filter.scrub_ended.connect(self._scrub_manager.end_scrub)
+
+        # Connect manager signals for view updates
+        _ = self._scrub_manager.request_repaint.connect(self._on_scrub_repaint_requested)
+        _ = self._scrub_manager.scrub_started.connect(self._on_scrub_started)
+        _ = self._scrub_manager.scrub_ended.connect(self._on_scrub_ended)
+
+        # Pass manager to delegate for rendering
+        self._delegate.set_scrub_manager(self._scrub_manager)
+
+        self.logger.debug("Scrub preview system initialized")
+
+    def _on_scrub_repaint_requested(self, index: QModelIndex) -> None:
+        """Handle request to repaint an item during scrub.
+
+        Args:
+            index: Model index to repaint
+        """
+        if index.isValid():
+            # Request repaint of this specific item
+            self.list_view.update(index)
+
+    def _on_scrub_started(self, index: QModelIndex) -> None:
+        """Handle scrub preview started.
+
+        Args:
+            index: Model index where scrub started
+        """
+        self.logger.debug(f"Scrub started on row {index.row()}")
+
+    def _on_scrub_ended(self, index: QModelIndex) -> None:
+        """Handle scrub preview ended.
+
+        Args:
+            index: Model index where scrub ended
+        """
+        self.logger.debug(f"Scrub ended on row {index.row()}")
+        # Ensure item is repainted to show normal thumbnail
+        if index.isValid():
+            self.list_view.update(index)
 
     # Template methods for subclasses to override
 

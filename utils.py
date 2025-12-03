@@ -737,6 +737,196 @@ class ImageUtils:
             logger.exception(f"Error extracting frame from MOV {mov_path.name}")
             return None
 
+    @staticmethod
+    def extract_frame_at_time(
+        mov_path: Path,
+        time_seconds: float,
+        output_path: Path | None = None,
+        width: int = 200,
+    ) -> Path | None:
+        """Extract a frame at a specific timestamp from a MOV file.
+
+        Uses -ss before -i for fast seeking (crucial for performance).
+
+        Args:
+            mov_path: Path to the MOV file
+            time_seconds: Timestamp in seconds to extract
+            output_path: Optional output path for the extracted frame.
+                        If None, creates a temporary file.
+            width: Width to scale the output frame to (height auto-calculated)
+
+        Returns:
+            Path to the extracted JPEG frame, or None if extraction failed
+        """
+        import subprocess
+        import tempfile
+
+        if not mov_path.exists() or not mov_path.is_file():
+            logger.debug(f"MOV file does not exist: {mov_path}")
+            return None
+
+        # Create output path if not provided
+        if output_path is None:
+            temp_fd, temp_path = tempfile.mkstemp(suffix=".jpg", prefix="shotbot_scrub_")
+            import os
+            os.close(temp_fd)
+            output_path = Path(temp_path)
+
+        try:
+            # -ss BEFORE -i for fast seeking (critical for performance)
+            # -an: disable audio
+            # -vf "scale=width:-1": scale to width, auto-calculate height
+            # -vframes 1: extract only 1 frame
+            # -q:v 2: high quality JPEG
+            cmd = [
+                "ffmpeg",
+                "-ss", str(time_seconds),  # Seek BEFORE input for fast seeking
+                "-i", str(mov_path),
+                "-an",
+                "-vf", f"scale={width}:-1",
+                "-vframes", "1",
+                "-q:v", "2",
+                "-y",
+                str(output_path),
+            ]
+
+            result = subprocess.run(
+                cmd,
+                check=False,
+                capture_output=True,
+                timeout=10,  # Shorter timeout for single frame
+                text=True,
+            )
+
+            if result.returncode == 0 and output_path.exists():
+                return output_path
+
+            logger.debug(
+                f"FFmpeg failed at {time_seconds}s from {mov_path.name}: {result.stderr}"
+            )
+            return None
+
+        except subprocess.TimeoutExpired:
+            logger.warning(f"FFmpeg timeout at {time_seconds}s from {mov_path.name}")
+            return None
+        except FileNotFoundError:
+            logger.warning("FFmpeg not found in PATH")
+            return None
+        except Exception:
+            logger.exception(f"Error extracting frame at {time_seconds}s from {mov_path.name}")
+            return None
+
+    @staticmethod
+    def extract_frame_from_exr(
+        exr_path: Path,
+        output_path: Path | None = None,
+        width: int = 200,
+    ) -> Path | None:
+        """Extract and convert an EXR frame to JPEG using oiiotool.
+
+        Args:
+            exr_path: Path to the EXR file
+            output_path: Optional output path for the converted frame.
+                        If None, creates a temporary file.
+            width: Width to scale the output frame to (height auto-calculated)
+
+        Returns:
+            Path to the converted JPEG frame, or None if conversion failed
+        """
+        import subprocess
+        import tempfile
+
+        if not exr_path.exists() or not exr_path.is_file():
+            logger.debug(f"EXR file does not exist: {exr_path}")
+            return None
+
+        # Create output path if not provided
+        if output_path is None:
+            temp_fd, temp_path = tempfile.mkstemp(suffix=".jpg", prefix="shotbot_scrub_")
+            import os
+            os.close(temp_fd)
+            output_path = Path(temp_path)
+
+        try:
+            # oiiotool command:
+            # --resize widthx0 : resize to width, auto-calculate height (0 = preserve aspect)
+            # -o : output file
+            cmd = [
+                "oiiotool",
+                str(exr_path),
+                "--resize", f"{width}x0",
+                "-o", str(output_path),
+            ]
+
+            result = subprocess.run(
+                cmd,
+                check=False,
+                capture_output=True,
+                timeout=30,  # EXR processing can be slower
+                text=True,
+            )
+
+            if result.returncode == 0 and output_path.exists():
+                return output_path
+
+            logger.debug(
+                f"oiiotool failed for {exr_path.name}: {result.stderr}"
+            )
+            return None
+
+        except subprocess.TimeoutExpired:
+            logger.warning(f"oiiotool timeout for {exr_path.name}")
+            return None
+        except FileNotFoundError:
+            logger.warning("oiiotool not found in PATH")
+            return None
+        except Exception:
+            logger.exception(f"Error converting EXR {exr_path.name}")
+            return None
+
+    @staticmethod
+    def get_mov_duration(mov_path: Path) -> float | None:
+        """Get the duration of a MOV file in seconds using ffprobe.
+
+        Args:
+            mov_path: Path to the MOV file
+
+        Returns:
+            Duration in seconds, or None if unable to determine
+        """
+        import subprocess
+
+        if not mov_path.exists():
+            return None
+
+        try:
+            cmd = [
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(mov_path),
+            ]
+
+            result = subprocess.run(
+                cmd,
+                check=False,
+                capture_output=True,
+                timeout=10,
+                text=True,
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                return float(result.stdout.strip())
+
+            return None
+
+        except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+            return None
+        except Exception:
+            logger.exception(f"Error getting duration for {mov_path.name}")
+            return None
+
 
 class ValidationUtils:
     """Common validation utilities."""
