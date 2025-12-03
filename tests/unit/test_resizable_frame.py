@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QLabel, QWidget
 from resizable_frame import ResizableFrame
 from tests.test_helpers import process_qt_events
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

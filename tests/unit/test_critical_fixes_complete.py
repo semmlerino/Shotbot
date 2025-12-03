@@ -25,8 +25,26 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 
 def test_shows_root_dynamic_configuration():
-    """Test that regex patterns adapt to SHOWS_ROOT configuration."""
+    """Test that regex patterns adapt to SHOWS_ROOT configuration.
+
+    IMPORTANT: This test reloads modules to test dynamic configuration.
+    It must restore module state after completion to avoid contaminating
+    other tests (see cleanup in finally block).
+    """
     print("\n=== Testing Dynamic SHOWS_ROOT Configuration ===")
+
+    # Standard library imports
+    import importlib
+
+    # Store original module references to restore later
+    # This is critical because reloading creates new class objects,
+    # which breaks isinstance() checks in other tests that already
+    # imported the old class.
+    modules_to_track = ["config", "targeted_shot_finder", "optimized_shot_parser"]
+    original_modules = {}
+    for mod_name in modules_to_track:
+        if mod_name in sys.modules:
+            original_modules[mod_name] = sys.modules[mod_name]
 
     test_cases = [
         ("/shows", r"\/shows\/([^/]+)/shots/([^/]+)/\2_([^/]+)/"),
@@ -36,96 +54,101 @@ def test_shows_root_dynamic_configuration():
 
     success_count = 0
 
-    for shows_root, _expected_pattern_start in test_cases:
-        print(f"\nTesting with SHOWS_ROOT={shows_root}")
+    try:
+        for shows_root, _expected_pattern_start in test_cases:
+            print(f"\nTesting with SHOWS_ROOT={shows_root}")
 
-        # Set environment variable
-        with mock.patch.dict(os.environ, {"SHOWS_ROOT": shows_root}):
-            # Force reload of config to pick up new environment
-            # Standard library imports
-            import importlib
-
-            # Local application imports
-            import config
-
-            importlib.reload(config)
-
-            # Test targeted_shot_finder.py
-            try:
+            # Set environment variable
+            with mock.patch.dict(os.environ, {"SHOWS_ROOT": shows_root}):
+                # Force reload of config to pick up new environment
                 # Local application imports
-                import targeted_shot_finder
+                import config
 
-                # Reload the module to pick up new SHOWS_ROOT
-                importlib.reload(targeted_shot_finder)
+                importlib.reload(config)
 
-                from targeted_shot_finder import (
-                    TargetedShotsFinder,
-                )
+                # Test targeted_shot_finder.py
+                try:
+                    # Local application imports
+                    import targeted_shot_finder
 
-                finder = TargetedShotsFinder()
-                pattern = finder._shot_pattern.pattern
+                    # Reload the module to pick up new SHOWS_ROOT
+                    importlib.reload(targeted_shot_finder)
 
-                # Check pattern contains escaped SHOWS_ROOT
-                shows_root_escaped = re.escape(shows_root)
-                assert shows_root_escaped in pattern, (
-                    f"targeted_shot_finder.py: Pattern missing {shows_root_escaped}. Got: {pattern}"
-                )
-                print(
-                    f"  ✓ targeted_shot_finder.py: Pattern contains {shows_root_escaped}"
-                )
-                success_count += 1
+                    from targeted_shot_finder import (
+                        TargetedShotsFinder,
+                    )
 
-                # Test pattern matching
-                test_path = f"{shows_root}/show1/shots/seq1/seq1_0010/user/test"
-                match = finder._shot_pattern.search(test_path)
-                assert match is not None, "targeted_shot_finder.py: Pattern match failed"
-                assert match.groups() == ("show1", "seq1", "seq1_0010"), (
-                    "targeted_shot_finder.py: Pattern groups do not match"
-                )
-                print("  ✓ targeted_shot_finder.py: Pattern matches correctly")
-                success_count += 1
+                    finder = TargetedShotsFinder()
+                    pattern = finder._shot_pattern.pattern
 
-            except Exception as e:
-                print(f"  ✗ Error testing targeted_shot_finder.py: {e}")
-                raise
+                    # Check pattern contains escaped SHOWS_ROOT
+                    shows_root_escaped = re.escape(shows_root)
+                    assert shows_root_escaped in pattern, (
+                        f"targeted_shot_finder.py: Pattern missing {shows_root_escaped}. Got: {pattern}"
+                    )
+                    print(
+                        f"  ✓ targeted_shot_finder.py: Pattern contains {shows_root_escaped}"
+                    )
+                    success_count += 1
 
-            # Test optimized_shot_parser.py
-            try:
-                # Local application imports
-                import optimized_shot_parser
+                    # Test pattern matching
+                    test_path = f"{shows_root}/show1/shots/seq1/seq1_0010/user/test"
+                    match = finder._shot_pattern.search(test_path)
+                    assert match is not None, "targeted_shot_finder.py: Pattern match failed"
+                    assert match.groups() == ("show1", "seq1", "seq1_0010"), (
+                        "targeted_shot_finder.py: Pattern groups do not match"
+                    )
+                    print("  ✓ targeted_shot_finder.py: Pattern matches correctly")
+                    success_count += 1
 
-                # Reload the module to pick up new SHOWS_ROOT
-                importlib.reload(optimized_shot_parser)
+                except Exception as e:
+                    print(f"  ✗ Error testing targeted_shot_finder.py: {e}")
+                    raise
 
-                from optimized_shot_parser import (
-                    OptimizedShotParser,
-                )
+                # Test optimized_shot_parser.py
+                try:
+                    # Local application imports
+                    import optimized_shot_parser
 
-                parser = OptimizedShotParser()
-                pattern = parser._ws_pattern.pattern
+                    # Reload the module to pick up new SHOWS_ROOT
+                    importlib.reload(optimized_shot_parser)
 
-                # Check pattern contains escaped SHOWS_ROOT
-                assert shows_root_escaped in pattern, (
-                    f"optimized_shot_parser.py: Pattern missing {shows_root_escaped}. Got: {pattern}"
-                )
-                print(
-                    f"  ✓ optimized_shot_parser.py: Pattern contains {shows_root_escaped}"
-                )
-                success_count += 1
+                    from optimized_shot_parser import (
+                        OptimizedShotParser,
+                    )
 
-                # Test pattern matching
-                test_line = f"workspace {shows_root}/show1/shots/seq1/seq1_0010"
-                match = parser._ws_pattern.search(test_line)
-                assert match, "optimized_shot_parser.py: Workspace pattern failed"
-                print("  ✓ optimized_shot_parser.py: Workspace pattern matches")
-                success_count += 1
+                    parser = OptimizedShotParser()
+                    pattern = parser._ws_pattern.pattern
 
-            except Exception as e:
-                print(f"  ✗ Error testing optimized_shot_parser.py: {e}")
-                raise
+                    # Check pattern contains escaped SHOWS_ROOT
+                    assert shows_root_escaped in pattern, (
+                        f"optimized_shot_parser.py: Pattern missing {shows_root_escaped}. Got: {pattern}"
+                    )
+                    print(
+                        f"  ✓ optimized_shot_parser.py: Pattern contains {shows_root_escaped}"
+                    )
+                    success_count += 1
 
-    print(f"\n✅ Dynamic SHOWS_ROOT tests: {success_count}/12 passed")
-    assert success_count == 12, f"Expected 12 tests to pass, got {success_count}"
+                    # Test pattern matching
+                    test_line = f"workspace {shows_root}/show1/shots/seq1/seq1_0010"
+                    match = parser._ws_pattern.search(test_line)
+                    assert match, "optimized_shot_parser.py: Workspace pattern failed"
+                    print("  ✓ optimized_shot_parser.py: Workspace pattern matches")
+                    success_count += 1
+
+                except Exception as e:
+                    print(f"  ✗ Error testing optimized_shot_parser.py: {e}")
+                    raise
+
+        print(f"\n✅ Dynamic SHOWS_ROOT tests: {success_count}/12 passed")
+        assert success_count == 12, f"Expected 12 tests to pass, got {success_count}"
+
+    finally:
+        # CRITICAL: Restore original modules to prevent contaminating other tests.
+        # After reloading, classes like ParseResult have different identities,
+        # which breaks isinstance() checks in tests that imported the old class.
+        for mod_name, original_mod in original_modules.items():
+            sys.modules[mod_name] = original_mod
 
 
 def test_previous_shots_model_cleanup():

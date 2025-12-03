@@ -9,6 +9,7 @@ import time
 from config import Config
 from optimized_shot_parser import ParseResult
 
+
 # Global pre-compiled pattern (fastest approach)
 _GLOBAL_WS_PATTERN = re.compile(
     rf"workspace\s+({re.escape(Config.SHOWS_ROOT)}/([^/]+)/shots/([^/]+)/([^/]+))"

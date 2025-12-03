@@ -16,6 +16,7 @@ from PySide6.QtCore import QObject, Signal
 
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     from cache_manager import CacheManager
 
@@ -38,11 +39,11 @@ class FilePinManager(LoggingMixin, QObject):
     pin_changed: Signal = Signal(str)  # Emits file path when pin state changes
 
     # Instance variables (for type checking)
-    _cache_manager: "CacheManager"
+    _cache_manager: CacheManager
 
     def __init__(
         self,
-        cache_manager: "CacheManager",
+        cache_manager: CacheManager,
         parent: QObject | None = None,
     ) -> None:
         """Initialize file pin manager.

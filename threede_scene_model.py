@@ -106,8 +106,12 @@ class ThreeDEScene:
         return thumbnail
 
     def to_dict(self) -> dict[str, str | float | Path]:
-        """Convert scene to dictionary for caching."""
-        return {
+        """Convert scene to dictionary for caching.
+
+        Includes thumbnail_path if it has been discovered (not sentinel).
+        This reduces filesystem I/O on subsequent loads.
+        """
+        data: dict[str, str | float | Path] = {
             "show": self.show,
             "sequence": self.sequence,
             "shot": self.shot,
@@ -117,14 +121,19 @@ class ThreeDEScene:
             "scene_path": str(self.scene_path),
             "modified_time": self.modified_time,
         }
+        # Persist thumbnail path if discovered (not sentinel)
+        if self._cached_thumbnail_path is not _NOT_SEARCHED and self._cached_thumbnail_path:
+            data["thumbnail_path"] = str(self._cached_thumbnail_path)
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, str | float | Path]) -> ThreeDEScene:
         """Create from dictionary.
 
         Note: modified_time defaults to 0.0 for cache migration of old entries.
+        Restores thumbnail_path if present AND file still exists (validated).
         """
-        return cls(
+        instance = cls(
             show=str(data["show"]),
             sequence=str(data["sequence"]),
             shot=str(data["shot"]),
@@ -134,8 +143,13 @@ class ThreeDEScene:
             scene_path=Path(str(data["scene_path"])),
             modified_time=float(data.get("modified_time", 0.0)),  # type: ignore[arg-type]
         )
-        # Don't restore cached thumbnail path from dict - let it be re-discovered if needed
-        # This ensures we don't cache stale paths across sessions
+        # Restore thumbnail path if present AND file still exists
+        if "thumbnail_path" in data:
+            cached_path = Path(str(data["thumbnail_path"]))
+            if cached_path.exists():
+                instance._cached_thumbnail_path = cached_path
+            # else: leave as _NOT_SEARCHED for re-discovery
+        return instance
 
 
 class ThreeDESceneModel:

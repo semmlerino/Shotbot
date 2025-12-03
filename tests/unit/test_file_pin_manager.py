@@ -22,6 +22,7 @@ from pytestqt.qtbot import QtBot
 from cache_manager import CacheManager
 from file_pin_manager import PINNED_FILES_CACHE_KEY, FilePinManager
 
+
 if TYPE_CHECKING:
     from collections.abc import Generator
 

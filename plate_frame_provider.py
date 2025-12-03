@@ -15,9 +15,9 @@ from typing import ClassVar
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 from PySide6.QtGui import QImage
 
+import utils as utils_module
 from scrub_frame_cache import ScrubFrameCache
 from typing_compat import override
-import utils as utils_module
 
 
 logger = logging.getLogger(__name__)
@@ -163,8 +163,7 @@ class FrameExtractionRunnable(QRunnable):
                     except OSError:
                         pass
                     return
-                else:
-                    logger.debug(f"Frame {self.frame} image is null from: {extracted_path}")
+                logger.debug(f"Frame {self.frame} image is null from: {extracted_path}")
 
             logger.debug(f"Frame {self.frame} extraction failed - no path or path doesn't exist")
             self.signals.failed.emit(

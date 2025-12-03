@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, final
 
-from typing_extensions import override
-
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtWidgets import QVBoxLayout, QWidget
+from typing_extensions import override
+
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QObject

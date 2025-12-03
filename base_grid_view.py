@@ -12,7 +12,9 @@ from typing import TYPE_CHECKING, Protocol
 # Third-party imports
 from PySide6.QtCore import (
     QAbstractItemModel,
+    QEvent,
     QModelIndex,
+    QObject,
     QSize,
     Qt,
     QTimer,
@@ -59,9 +61,13 @@ class HasAvailableShows(Protocol):
         ...
 
 
+# Runtime import for event filter (not just type checking)
+from PySide6.QtGui import QKeyEvent
+
+
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtGui import QKeyEvent, QWheelEvent
+    from PySide6.QtGui import QWheelEvent
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
@@ -187,6 +193,10 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         # Set focus on list view too
         self.list_view.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+        # Install event filter to intercept key events from list_view
+        # This fixes keyboard shortcuts (3, N, M, R, P) when list_view has focus
+        self.list_view.installEventFilter(self)
 
         # Setup scrub preview system
         self._setup_scrub_preview()
@@ -497,11 +507,44 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             super().wheelEvent(event)
 
     @override
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        """Filter events from list_view to handle keyboard shortcuts.
+
+        When list_view has focus, key events go to QListView.keyPressEvent
+        instead of BaseGridView.keyPressEvent. This event filter intercepts
+        key events to handle app launch shortcuts (3, N, M, R, P).
+
+        Args:
+            obj: The object that received the event
+            event: The event to filter
+
+        Returns:
+            True if event was handled, False to pass it on
+        """
+        if obj is self.list_view and event.type() == QEvent.Type.KeyPress:
+            key_event = QKeyEvent(event)  # type: ignore[arg-type]
+            key_map = {
+                Qt.Key.Key_3: "3de",
+                Qt.Key.Key_N: "nuke",
+                Qt.Key.Key_M: "maya",
+                Qt.Key.Key_R: "rv",
+                Qt.Key.Key_P: "publish",
+            }
+            key = Qt.Key(key_event.key())
+            if key in key_map:
+                self.app_launch_requested.emit(key_map[key])
+                return True  # Event handled, don't propagate
+        return super().eventFilter(obj, event)
+
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle keyboard shortcuts.
 
         This base implementation provides common app launch shortcuts.
         Subclasses can override and extend.
+
+        Note: When list_view has focus, key events are intercepted by
+        eventFilter() instead of reaching this method.
 
         Args:
             event: Key event

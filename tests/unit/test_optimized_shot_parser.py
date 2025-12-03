@@ -14,7 +14,6 @@ import pytest
 
 from config import Config
 from optimized_shot_parser import (
-    _PATTERN_CACHE,
     OptimizedShotParser,
     ParseResult,
     benchmark_parser_performance,

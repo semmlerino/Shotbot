@@ -21,7 +21,7 @@ Incremental Merging:
   robust merge/dedup algorithms in cache operations
 
 Simplifications:
-- No platform-specific file locking (basic QMutex only)
+- Opt-in file locking via SHOTBOT_FILE_LOCKING=enabled (basic QMutex by default)
 - No memory manager/LRU eviction
 - No failure tracker with exponential backoff
 - No storage backend abstraction
@@ -81,6 +81,22 @@ THUMBNAIL_SIZE = 256
 THUMBNAIL_QUALITY = 85
 STAT_CACHE_TTL = 2.0  # Cache stat results for 2 seconds to reduce filesystem I/O
 STAT_CACHE_MAX_SIZE = 1000  # Maximum entries in stat cache (LRU eviction)
+
+# File locking configuration (opt-in via environment variable)
+# Enable with: SHOTBOT_FILE_LOCKING=enabled
+FILE_LOCKING_ENABLED = os.getenv("SHOTBOT_FILE_LOCKING", "").lower() == "enabled"
+
+# Check if fcntl is available (not on Windows)
+# Import as optional module to avoid type errors
+import types as _types
+
+
+_fcntl: _types.ModuleType | None
+try:
+    import fcntl as _fcntl_module
+    _fcntl = _fcntl_module
+except ImportError:
+    _fcntl = None
 
 
 # Incremental merging support
@@ -273,6 +289,59 @@ class CacheManager(LoggingMixin, QObject):
             return True
         except OSError:
             return False
+
+    # ========================================================================
+    # File Locking Methods (opt-in via SHOTBOT_FILE_LOCKING=enabled)
+    # ========================================================================
+
+    @contextlib.contextmanager
+    def _file_lock(self, cache_file: Path):
+        """Context manager for advisory file lock on cache operations.
+
+        Only acquires lock if FILE_LOCKING_ENABLED is True and fcntl is available.
+        Uses a separate .lock file to avoid conflicts with the actual cache file.
+
+        Args:
+            cache_file: The cache file being protected (lock file will be {cache_file}.lock)
+
+        Yields:
+            None - lock is held for the duration of the context
+        """
+        if not FILE_LOCKING_ENABLED or _fcntl is None:
+            # File locking disabled or unavailable - just yield
+            yield
+            return
+
+        lock_file = cache_file.with_suffix(cache_file.suffix + ".lock")
+        lock_fd = None
+        try:
+            # Ensure parent directory exists
+            lock_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Open/create lock file
+            lock_fd = open(lock_file, "w")  # noqa: SIM115
+
+            # Acquire exclusive lock (blocks until available)
+            _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_EX)
+            self.logger.debug(f"Acquired file lock: {lock_file}")
+
+            yield
+
+        except OSError as e:
+            # Log but don't fail - fall back to no locking
+            self.logger.warning(f"Failed to acquire file lock {lock_file}: {e}")
+            yield
+
+        finally:
+            if lock_fd is not None:
+                try:
+                    # Release lock and close file
+                    # Note: _fcntl is guaranteed non-None here (early return if None)
+                    _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_UN)
+                    lock_fd.close()
+                    self.logger.debug(f"Released file lock: {lock_file}")
+                except OSError as e:
+                    self.logger.warning(f"Failed to release file lock: {e}")
 
     # ========================================================================
     # Thumbnail Caching Methods
@@ -643,30 +712,33 @@ class CacheManager(LoggingMixin, QObject):
         # Phase 1: Convert input to dicts (outside lock - pure memory, no shared state)
         to_migrate = [_shot_to_dict(s) for s in shots]
 
-        # Phase 2-4: Read, merge, write under lock for thread safety
-        with QMutexLocker(self._lock):
-            # Read existing shots
-            existing = self.get_migrated_shots() or []
+        # Phase 2-4: Read, merge, write under lock for thread and process safety
+        # File lock protects against concurrent processes (opt-in via SHOTBOT_FILE_LOCKING=enabled)
+        # QMutex protects against concurrent threads within this process
+        with self._file_lock(self.migrated_shots_cache_file):
+            with QMutexLocker(self._lock):
+                # Read existing shots
+                existing = self.get_migrated_shots() or []
 
-            # Merge and deduplicate
-            shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
+                # Merge and deduplicate
+                shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
 
-            # Add existing first
-            for shot in existing:
-                key = _get_shot_key(shot)
-                shots_by_key[key] = shot
+                # Add existing first
+                for shot in existing:
+                    key = _get_shot_key(shot)
+                    shots_by_key[key] = shot
 
-            # Add/update with new migrations (overwrites if duplicate)
-            for shot in to_migrate:
-                key = _get_shot_key(shot)
-                shots_by_key[key] = shot
+                # Add/update with new migrations (overwrites if duplicate)
+                for shot in to_migrate:
+                    key = _get_shot_key(shot)
+                    shots_by_key[key] = shot
 
-            merged = list(shots_by_key.values())
+                merged = list(shots_by_key.values())
 
-            # Write atomically (inside lock to prevent concurrent write races)
-            write_success = self._write_json_cache(
-                self.migrated_shots_cache_file, merged
-            )
+                # Write atomically (inside lock to prevent concurrent write races)
+                write_success = self._write_json_cache(
+                    self.migrated_shots_cache_file, merged
+                )
 
         # Phase 5: Log and emit signals (outside lock - no shared state mutation)
         if write_success:
@@ -825,10 +897,13 @@ class CacheManager(LoggingMixin, QObject):
     def has_valid_threede_cache(self) -> bool:
         """Check if we have a valid 3DE cache.
 
+        Uses persistent cache (no TTL check) since 3DE scenes use
+        incremental caching where scene history is preserved.
+
         Returns:
-            True if cache exists and is valid
+            True if cache file exists with data
         """
-        cached = self.get_cached_threede_scenes()
+        cached = self.get_persistent_threede_scenes()
         return cached is not None
 
     def cache_threede_scenes(
