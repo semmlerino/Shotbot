@@ -12,7 +12,7 @@ Tests focus on:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import QEvent, QModelIndex, QPoint, QRect, Qt
@@ -24,7 +24,6 @@ from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
-    from pytestqt.qtbot import QtBot
     from PySide6.QtWidgets import QApplication
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
@@ -436,7 +435,7 @@ class TestEdgeCases:
         rect = QRect(0, 0, 200, 100)
 
         # Rapidly switch between items
-        for i in range(5):
+        for _ in range(5):
             index = QModelIndex()
             scrub_filter._start_hover_delay(index, rect)
 

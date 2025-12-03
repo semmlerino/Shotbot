@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QImage
 
 from plate_frame_provider import (
@@ -332,7 +331,6 @@ class TestPlateFrameProvider:
 
         # Mock extract_frame to track calls
         extracted_frames: list[int] = []
-        original_extract = provider.extract_frame
 
         def mock_extract(key: str, src: PlateSource, frame: int) -> None:
             extracted_frames.append(frame)

@@ -11,10 +11,10 @@ Tests focus on:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from PySide6.QtCore import QModelIndex, QRect
+from PySide6.QtCore import QModelIndex
 from PySide6.QtGui import QImage, QPixmap
 
 from plate_frame_provider import PlateSource
@@ -23,7 +23,6 @@ from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
-    from pathlib import Path
 
     from PySide6.QtWidgets import QApplication
 
@@ -680,7 +679,6 @@ class TestUpdateScrubPosition:
 
         # Track extraction calls
         extract_calls: list[int] = []
-        original_extract = manager._frame_provider.extract_frame
 
         def mock_extract(key: str, source: PlateSource, frame: int) -> None:
             extract_calls.append(frame)
