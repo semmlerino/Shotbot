@@ -6,8 +6,12 @@ settings for frame ranges, colorspaces, and resolutions.
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
+
+
+logger = logging.getLogger(__name__)
 
 
 class NukeMediaDetector:
@@ -46,9 +50,17 @@ class NukeMediaDetector:
             if frame_numbers:
                 return min(frame_numbers), max(frame_numbers)
 
-        except Exception:
-            # Don't log here to avoid coupling with logging system
-            pass
+            # No frames found - log and return defaults
+            logger.debug(
+                f"No frame files found matching pattern in {plate_dir}, using default range"
+            )
+
+        except Exception as e:
+            # Log the error so users know frame range may be incorrect
+            logger.warning(
+                f"Error detecting frame range for {plate_path}: {e}. "
+                "Using default range (1001-1100)"
+            )
 
         return 1001, 1100
 

@@ -728,7 +728,8 @@ class RefactoredThreeDESceneFinder:
                             shows_completed += 1
                     except Exception as e:
                         print(f"Error processing show {show}: {e}")
-                        shows_completed += 1
+                        with results_lock:
+                            shows_completed += 1
             except Exception:
                 # On any exception, make sure to cancel pending futures
                 for f in future_to_show:

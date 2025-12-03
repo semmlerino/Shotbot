@@ -344,13 +344,15 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             if thumb_path and thumb_path.exists():
                 self._load_pixmap_async(thumb_path)
 
-                # Cache it synchronously (simplified cache handles this efficiently)
-                _ = self.cache_manager.cache_thumbnail(
+                # Cache in background thread to avoid UI freeze (50-500ms for PIL operations)
+                cache_runnable = ThumbnailCacheRunnable(
                     thumb_path,
                     self._current_shot.show,
                     self._current_shot.sequence,
                     self._current_shot.shot,
+                    self.cache_manager,
                 )
+                QThreadPool.globalInstance().start(cache_runnable)
             else:
                 # Fall back to placeholder
                 self._set_placeholder_thumbnail()
@@ -569,3 +571,60 @@ class InfoPanelPixmapLoader(QRunnable):
         finally:
             # Always unregister from tracker when done
             tracker.unregister(self)
+
+
+class ThumbnailCacheRunnable(QRunnable):
+    """Background runnable for caching thumbnails without blocking the UI.
+
+    This runnable performs the potentially slow thumbnail caching operation
+    (PIL image decode, resize, and JPEG encode) in a background thread,
+    preventing UI freezes of 50-500ms that occurred with synchronous caching.
+    """
+
+    # Instance attributes
+    thumbnail_path: Path
+    show: str
+    sequence: str
+    shot: str
+    cache_manager: CacheManager
+
+    def __init__(
+        self,
+        thumbnail_path: Path,
+        show: str,
+        sequence: str,
+        shot: str,
+        cache_manager: CacheManager,
+    ) -> None:
+        """Initialize the thumbnail cache runnable.
+
+        Args:
+            thumbnail_path: Path to the source thumbnail image
+            show: Show name for cache organization
+            sequence: Sequence name for cache organization
+            shot: Shot name for cache organization
+            cache_manager: CacheManager instance for thumbnail caching
+        """
+        super().__init__()
+        self.thumbnail_path = thumbnail_path
+        self.show = show
+        self.sequence = sequence
+        self.shot = shot
+        self.cache_manager = cache_manager
+        # Auto-delete when done since we don't need callbacks
+        self.setAutoDelete(True)
+
+    @override
+    def run(self) -> None:
+        """Execute thumbnail caching in background thread."""
+        logger = logging.getLogger(__name__)
+        try:
+            _ = self.cache_manager.cache_thumbnail(
+                self.thumbnail_path,
+                self.show,
+                self.sequence,
+                self.shot,
+            )
+        except Exception as e:
+            # Log but don't propagate - caching failure is non-critical
+            logger.debug(f"Background thumbnail caching failed: {e}")
