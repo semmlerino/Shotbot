@@ -1,1 +1,1 @@
-feat: Add comprehensive status bar feedback for operations
+feat: Add keyboard shortcut event filter and improve cache file locking

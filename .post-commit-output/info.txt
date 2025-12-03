@@ -1,5 +1,5 @@
-Post-commit hook executed at Sun Nov 30 13:28:29 GMT 2025
-Commit: da56f7fcc1c4f427057ac673ecf67551690a1052
+Post-commit hook executed at Wed Dec  3 12:26:22 GMT 2025
+Commit: 423ca2b789c9300ca7c1d5523fb530d003273f49
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: feat: Add comprehensive status bar feedback for operations
+Message: feat: Add keyboard shortcut event filter and improve cache file locking
