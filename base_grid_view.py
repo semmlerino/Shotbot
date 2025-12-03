@@ -243,6 +243,10 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         # Create scrub preview manager
         self._scrub_manager = ScrubPreviewManager(self)
 
+        # Enable mouse tracking so viewport receives MouseMove events during hover
+        # (Without this, MouseMove only fires when a mouse button is pressed)
+        self.list_view.viewport().setMouseTracking(True)
+
         # Create event filter and install on viewport
         self._scrub_event_filter = ScrubEventFilter(self.list_view, self)
         self.list_view.viewport().installEventFilter(self._scrub_event_filter)
