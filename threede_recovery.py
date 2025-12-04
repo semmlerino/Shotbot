@@ -14,6 +14,7 @@ Example:
 from __future__ import annotations
 
 # Standard library imports
+import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -312,6 +313,10 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
             f"Recovering crash file: {crash_path.name} → {recovery_path.name}"
         )
         _ = shutil.copy2(crash_path, recovery_path)
+
+        # Update mtime to current time so recovered file is detected as "latest"
+        # (copy2 preserves old mtime from crash file, which may be days/weeks old)
+        os.utime(recovery_path, None)
 
         # Step 2: Archive the original crash file
         archived_path = self.archive_crash_file(crash_info)
