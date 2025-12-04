@@ -739,6 +739,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Right panel DCC launch buttons
         _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
 
+        # Async file search state - update launch button during search
+        _ = self.command_launcher.launch_pending.connect(
+            lambda: self.right_panel.set_search_pending(True)
+        )
+        _ = self.command_launcher.launch_ready.connect(
+            lambda: self.right_panel.set_search_pending(False)
+        )
+
         # Synchronize thumbnail sizes between tabs
         _ = self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
         _ = self.threede_shot_grid.size_slider.valueChanged.connect(

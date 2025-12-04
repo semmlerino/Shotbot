@@ -170,6 +170,17 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         for section in self._sections.values():
             section.set_enabled(enabled)
 
+    def set_search_pending(self, pending: bool) -> None:
+        """Set whether an async file search is in progress.
+
+        Propagates to all sections.
+
+        Args:
+            pending: True if async search is in progress
+        """
+        for section in self._sections.values():
+            section.set_search_pending(pending)
+
     def set_available_plates(self, plates: list[str]) -> None:
         """Update plate selector in all sections.
 

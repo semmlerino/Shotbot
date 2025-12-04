@@ -300,6 +300,16 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         """
         self._dcc_accordion.set_available_plates(plates)
 
+    def set_search_pending(self, pending: bool) -> None:
+        """Set whether an async file search is in progress.
+
+        Updates launch button state to show "Scanning..." during async search.
+
+        Args:
+            pending: True if async search is in progress
+        """
+        self._dcc_accordion.set_search_pending(pending)
+
     def expand_dcc_section(self, app_name: str) -> None:
         """Expand a specific DCC section.
 

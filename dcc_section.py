@@ -195,6 +195,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._launch_in_progress = False
         self._should_be_enabled = False
         self._original_button_text = ""
+        self._search_pending = False  # True while async file search is in progress
 
         # UI components
         self._checkboxes: dict[str, QCheckBox] = {}
@@ -651,7 +652,14 @@ class DCCSection(QtWidgetMixin, QWidget):
             pass
 
     def _reset_button_state(self) -> None:
-        """Reset button to original state."""
+        """Reset button to original state.
+
+        Note: Will not reset if _search_pending is True (async file search in progress).
+        """
+        # Don't reset while async search is pending - wait for search to complete
+        if self._search_pending:
+            return
+
         self._launch_in_progress = False
         self._launch_btn.setText(self._original_button_text)
         self._launch_btn.setEnabled(self._should_be_enabled)
@@ -665,6 +673,24 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._should_be_enabled = enabled
         if not self._launch_in_progress:
             self._launch_btn.setEnabled(enabled)
+
+    def set_search_pending(self, pending: bool) -> None:
+        """Set whether an async file search is in progress.
+
+        When pending is True, the launch button will show "Scanning..." text
+        and remain disabled until the search completes.
+
+        Args:
+            pending: True if async search is in progress
+        """
+        self._search_pending = pending
+        if pending:
+            # Update button text to show search is in progress
+            if self._launch_in_progress:
+                self._launch_btn.setText("Scanning...")
+        elif self._launch_in_progress:
+            # Search complete - reset to normal state
+            self._reset_button_state()
 
     def get_options(self) -> dict[str, bool | str | None]:
         """Get current launch options.

@@ -20,7 +20,9 @@ from typing import TYPE_CHECKING, final
 from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 
 # Local application imports
+from cache_manager import CacheManager
 from config import Config
+from latest_file_finder_worker import LatestFileFinderWorker
 from launch import CommandBuilder, EnvironmentManager, ProcessExecutor
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
@@ -73,6 +75,8 @@ class CommandLauncher(LoggingMixin, QObject):
     # Signals
     command_executed = Signal(str, str)  # timestamp, command
     command_error = Signal(str, str)  # timestamp, error
+    launch_pending = Signal()  # Emitted when async file search starts
+    launch_ready = Signal()  # Emitted when async search completes (ready to launch)
 
     def __init__(
         self,
@@ -92,6 +96,15 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Track signal connections for proper cleanup
         self._signal_connections: list[QMetaObject.Connection] = []
+
+        # Cache manager for latest files
+        self._cache_manager: CacheManager = CacheManager()
+
+        # Async file search state
+        self._pending_worker: LatestFileFinderWorker | None = None
+        self._pending_app_name: str | None = None
+        self._pending_context: LaunchContext | None = None
+        self._pending_command: str | None = None
 
         # Initialize launch components
         self.env_manager = EnvironmentManager()
@@ -207,6 +220,15 @@ class CommandLauncher(LoggingMixin, QObject):
                     pass
             self._signal_connections.clear()
 
+        # Cancel any pending async file search
+        if hasattr(self, "_pending_worker") and self._pending_worker is not None:
+            try:
+                _ = self._pending_worker.request_stop()
+                _ = self._pending_worker.safe_stop(timeout_ms=500)
+            except (RuntimeError, TypeError):
+                pass
+            self._pending_worker = None
+
         # Cleanup ProcessExecutor's signal connections
         try:
             if hasattr(self, "process_executor"):
@@ -293,6 +315,264 @@ class CommandLauncher(LoggingMixin, QObject):
         # Reset timeout counter on success - terminal is working
         self._consecutive_timeout_count = 0
         self.logger.debug(f"App {app_name} verified with PID {pid}")
+
+    # ========================================================================
+    # Async Latest File Search Methods
+    # ========================================================================
+
+    def _start_async_file_search(
+        self,
+        app_name: str,
+        context: LaunchContext,
+        command: str,
+    ) -> None:
+        """Start async file search for latest Maya/3DE scenes.
+
+        Args:
+            app_name: Application being launched ("3de" or "maya")
+            context: Launch context with search flags
+            command: Base command built so far (before scene path added)
+        """
+        if self.current_shot is None:
+            self._emit_error("Cannot search for files - no shot selected")
+            return
+
+        # Store pending state
+        self._pending_app_name = app_name
+        self._pending_context = context
+        self._pending_command = command
+
+        # Determine what to search for
+        find_threede = app_name == "3de" and context.open_latest_threede
+        find_maya = app_name == "maya" and context.open_latest_maya
+
+        # Create and start worker
+        self._pending_worker = LatestFileFinderWorker(
+            workspace_path=self.current_shot.workspace_path,
+            shot_name=self.current_shot.full_name,
+            find_maya=find_maya,
+            find_threede=find_threede,
+            parent=self,
+        )
+
+        # Connect signals
+        _ = self._pending_worker.search_complete.connect(
+            self._on_async_search_complete,
+            Qt.ConnectionType.QueuedConnection,
+        )
+
+        # Emit pending signal to update UI (show spinner)
+        self.launch_pending.emit()
+
+        # Start search
+        self._pending_worker.start()
+        self.logger.debug(f"Started async file search for {app_name}")
+
+    def _on_async_search_complete(self, success: bool) -> None:
+        """Handle async file search completion.
+
+        Args:
+            success: Whether the search completed successfully
+        """
+        if self._pending_worker is None:
+            self.logger.warning("Async search complete but no pending worker")
+            return
+
+        # Get results from worker
+        maya_result = self._pending_worker.maya_result
+        threede_result = self._pending_worker.threede_result
+
+        # Cache results (even None results to avoid re-searching)
+        if self.current_shot is not None:
+            workspace = self.current_shot.workspace_path
+            if self._pending_context and self._pending_context.open_latest_maya:
+                self._cache_manager.cache_latest_file(workspace, "maya", maya_result)
+            if self._pending_context and self._pending_context.open_latest_threede:
+                self._cache_manager.cache_latest_file(workspace, "threede", threede_result)
+
+        # Clean up worker
+        self._pending_worker.deleteLater()
+        self._pending_worker = None
+
+        # Emit ready signal (hide spinner)
+        self.launch_ready.emit()
+
+        # Continue with launch using cached results
+        if success:
+            self._continue_launch_after_search(maya_result, threede_result)
+        else:
+            self.logger.warning("Async file search failed or was cancelled")
+            # Clear pending state
+            self._pending_app_name = None
+            self._pending_context = None
+            self._pending_command = None
+
+    def _continue_launch_after_search(
+        self,
+        maya_result: Path | None,
+        threede_result: Path | None,
+    ) -> None:
+        """Continue launch flow after async file search completes.
+
+        Args:
+            maya_result: Found Maya scene path (or None)
+            threede_result: Found 3DE scene path (or None)
+        """
+        app_name = self._pending_app_name
+        context = self._pending_context
+        command = self._pending_command
+
+        # Clear pending state
+        self._pending_app_name = None
+        self._pending_context = None
+        self._pending_command = None
+
+        if app_name is None or context is None or command is None:
+            self.logger.error("Missing pending state after async search")
+            return
+
+        # Add scene path to command based on results
+        if app_name == "3de" and threede_result:
+            try:
+                safe_scene_path = CommandBuilder.validate_path(str(threede_result))
+                command = f"{command} -open {safe_scene_path}"
+                self.command_executed.emit(
+                    self.timestamp,
+                    f"Opening latest 3DE scene: {threede_result.name}",
+                )
+            except ValueError as e:
+                self._emit_error(
+                    f"Cannot launch 3DE: Invalid scene path '{threede_result}': {e!s}"
+                )
+                return
+        elif app_name == "3de" and context.open_latest_threede:
+            self.command_executed.emit(
+                self.timestamp,
+                "Info: No 3DE scene files found in workspace",
+            )
+
+        if app_name == "maya" and maya_result:
+            try:
+                safe_scene_path = CommandBuilder.validate_path(str(maya_result))
+                command = f"{command} -file {safe_scene_path}"
+                self.command_executed.emit(
+                    self.timestamp,
+                    f"Opening latest Maya scene: {maya_result.name}",
+                )
+            except ValueError as e:
+                self._emit_error(
+                    f"Cannot launch Maya: Invalid scene path '{maya_result}': {e!s}"
+                )
+                return
+        elif app_name == "maya" and context.open_latest_maya:
+            self.command_executed.emit(
+                self.timestamp,
+                "Info: No Maya scene files found in workspace",
+            )
+
+        # Continue with the rest of launch_app flow (from ws command onwards)
+        _ = self._finish_launch(app_name, command)
+
+    def _finish_launch(self, app_name: str, command: str) -> bool:
+        """Complete the launch after file search is done.
+
+        This contains the common launch completion logic shared between
+        synchronous (cache hit) and async (cache miss) paths.
+
+        Args:
+            app_name: Application name
+            command: Command with scene path (if any) already added
+
+        Returns:
+            True if launch succeeded, False otherwise
+        """
+        if self.current_shot is None:
+            self._emit_error("Cannot launch - no shot selected")
+            return False
+
+        # Pre-flight: Check if ws command is available
+        if not self.env_manager.is_ws_available():
+            self._emit_error(
+                "Workspace command 'ws' not found. "
+                "Ensure workspace tools are installed and on PATH."
+            )
+            return False
+
+        # Build full command with ws (workspace setup)
+        try:
+            safe_workspace_path = CommandBuilder.validate_path(
+                self.current_shot.workspace_path
+            )
+            env_fixes = self._apply_nuke_environment_fixes(app_name)
+            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
+        except ValueError as e:
+            self._emit_error(f"Invalid workspace path: {e!s}")
+            return False
+
+        # Determine if rez wrapping should be applied
+        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
+        if should_wrap_rez:
+            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
+            if rez_packages:
+                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
+                packages_str = " ".join(rez_packages)
+                self.command_executed.emit(
+                    self.timestamp,
+                    f"Using rez environment with packages: {packages_str}",
+                )
+            else:
+                full_command = ws_command
+                should_wrap_rez = False  # No packages means no actual rez wrapper
+        else:
+            full_command = ws_command
+            # Emit message explaining why Rez wrapping is skipped
+            if os.environ.get("REZ_USED"):
+                self.command_executed.emit(
+                    self.timestamp,
+                    f"Note: Already in rez environment - skipping rez wrap for {app_name}",
+                )
+            else:
+                self.command_executed.emit(
+                    self.timestamp,
+                    f"Note: Using system PATH version of {app_name}",
+                )
+
+        # Add logging redirection for debugging
+        full_command = CommandBuilder.add_logging(full_command, Config)
+
+        # Log the command to UI
+        self.command_executed.emit(self.timestamp, full_command)
+
+        # Enhanced debug logging for command integrity verification
+        workspace = self.current_shot.workspace_path
+        shot_name = self.current_shot.full_name
+        self.logger.debug(
+            f"Constructed command for {app_name}:\n"
+            f"  Command: {full_command!r}\n"
+            f"  Length: {len(full_command)} chars\n"
+            f"  Workspace: {workspace}\n"
+            f"  Shot: {shot_name}"
+        )
+
+        # Execute launch
+        return self._execute_launch(full_command, app_name, has_rez_wrapper=should_wrap_rez)
+
+    def cancel_pending_search(self) -> None:
+        """Cancel any pending async file search."""
+        if self._pending_worker is not None:
+            _ = self._pending_worker.request_stop()
+            _ = self._pending_worker.safe_stop(timeout_ms=1000)
+            self._pending_worker = None
+            self._pending_app_name = None
+            self._pending_context = None
+            self._pending_command = None
+            self.launch_ready.emit()  # Clear spinner
+            self.logger.debug("Cancelled pending file search")
+
+    @property
+    def is_search_pending(self) -> bool:
+        """Check if an async file search is in progress."""
+        return self._pending_worker is not None
 
     # Methods removed - now using launch components:
     # - _is_rez_available() → self.env_manager.is_rez_available(Config)
@@ -475,63 +755,91 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Old Nuke handling code has been removed - see NukeLaunchHandler
 
-        # Handle 3DE with latest scene file
-        if app_name == "3de" and context.open_latest_threede:
-            latest_scene = self._threede_latest_finder.find_latest_threede_scene(
-                self.current_shot.workspace_path,
-                self.current_shot.full_name,
-            )
-            if latest_scene:
-                # Add the scene file to the command
-                try:
-                    safe_scene_path = CommandBuilder.validate_path(str(latest_scene))
-                    command = f"{command} -open {safe_scene_path}"
-                    timestamp = self.timestamp
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Opening latest 3DE scene: {latest_scene.name}",
-                    )
-                except ValueError as e:
-                    # Abort launch on invalid scene path to prevent data loss
-                    self._emit_error(
-                        f"Cannot launch 3DE: Invalid scene path '{latest_scene}': {e!s}"
-                    )
-                    return False
-            else:
-                timestamp = self.timestamp
-                self.command_executed.emit(
-                    timestamp,
-                    "Info: No 3DE scene files found in workspace",
-                )
+        # Handle 3DE/Maya with latest scene file (async-aware)
+        needs_file_search = (
+            (app_name == "3de" and context.open_latest_threede)
+            or (app_name == "maya" and context.open_latest_maya)
+        )
 
-        # Handle Maya with latest scene file
-        if app_name == "maya" and context.open_latest_maya:
-            latest_scene = self._maya_latest_finder.find_latest_maya_scene(
-                self.current_shot.workspace_path,
-                self.current_shot.full_name,
-            )
-            if latest_scene:
-                # Add the scene file to the command
-                try:
-                    safe_scene_path = CommandBuilder.validate_path(str(latest_scene))
-                    command = f"{command} -file {safe_scene_path}"
-                    timestamp = self.timestamp
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Opening latest Maya scene: {latest_scene.name}",
-                    )
-                except ValueError as e:
-                    # Abort launch on invalid scene path to prevent data loss
-                    self._emit_error(
-                        f"Cannot launch Maya: Invalid scene path '{latest_scene}': {e!s}"
-                    )
-                    return False
-            else:
-                timestamp = self.timestamp
-                self.command_executed.emit(
-                    timestamp,
-                    "Info: No Maya scene files found in workspace",
+        if needs_file_search:
+            workspace = self.current_shot.workspace_path
+
+            # Check cache first
+            threede_cached: Path | None = None
+            maya_cached: Path | None = None
+            cache_hit = True
+
+            if app_name == "3de" and context.open_latest_threede:
+                threede_cached = self._cache_manager.get_cached_latest_file(
+                    workspace, "threede"
                 )
+                if threede_cached is None:
+                    # Check if we have a "not found" cache entry (path is None in cache)
+                    # vs no cache entry at all (need to search)
+                    cache_data = self._cache_manager._read_latest_files_cache()
+                    key = f"{workspace}:threede"
+                    if cache_data is None or key not in cache_data:
+                        cache_hit = False
+                    # else: cache says "not found", use None as result
+
+            if app_name == "maya" and context.open_latest_maya:
+                maya_cached = self._cache_manager.get_cached_latest_file(
+                    workspace, "maya"
+                )
+                if maya_cached is None:
+                    cache_data = self._cache_manager._read_latest_files_cache()
+                    key = f"{workspace}:maya"
+                    if cache_data is None or key not in cache_data:
+                        cache_hit = False
+
+            if cache_hit:
+                # Use cached result - add scene path to command
+                if app_name == "3de" and threede_cached:
+                    try:
+                        safe_scene_path = CommandBuilder.validate_path(
+                            str(threede_cached)
+                        )
+                        command = f"{command} -open {safe_scene_path}"
+                        self.command_executed.emit(
+                            self.timestamp,
+                            f"Opening latest 3DE scene: {threede_cached.name}",
+                        )
+                    except ValueError as e:
+                        self._emit_error(
+                            f"Cannot launch 3DE: Invalid scene path '{threede_cached}': {e!s}"
+                        )
+                        return False
+                elif app_name == "3de" and context.open_latest_threede:
+                    self.command_executed.emit(
+                        self.timestamp,
+                        "Info: No 3DE scene files found in workspace",
+                    )
+
+                if app_name == "maya" and maya_cached:
+                    try:
+                        safe_scene_path = CommandBuilder.validate_path(
+                            str(maya_cached)
+                        )
+                        command = f"{command} -file {safe_scene_path}"
+                        self.command_executed.emit(
+                            self.timestamp,
+                            f"Opening latest Maya scene: {maya_cached.name}",
+                        )
+                    except ValueError as e:
+                        self._emit_error(
+                            f"Cannot launch Maya: Invalid scene path '{maya_cached}': {e!s}"
+                        )
+                        return False
+                elif app_name == "maya" and context.open_latest_maya:
+                    self.command_executed.emit(
+                        self.timestamp,
+                        "Info: No Maya scene files found in workspace",
+                    )
+            else:
+                # Cache miss - start async search and return
+                # Launch will continue when search completes
+                self._start_async_file_search(app_name, context, command)
+                return True  # Async launch in progress
 
         # Handle RV with default settings and optional sequence path
         if app_name == "rv":

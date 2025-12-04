@@ -214,15 +214,16 @@ class TestThreeDECommandBuilding:
         launcher: CommandLauncher,
         sample_shot: Shot,
     ) -> None:
-        """Test 3DE launch with open_latest_threede option."""
+        """Test 3DE launch with open_latest_threede option.
+
+        Uses cache hit path (sync) to verify command building.
+        Async file search is tested separately.
+        """
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
 
-        # Mock finding latest scene
-        mock_finder = MagicMock()
-        mock_finder.find_latest_threede_scene.return_value = Path(
-            "/shows/testshow/shots/sq010/sh0010/3de/latest_scene.3de"
-        )
-        launcher._threede_latest_finder = mock_finder
+        # Mock cache to return a cache hit (triggers sync path)
+        cached_scene = Path("/shows/testshow/shots/sq010/sh0010/3de/latest_scene.3de")
+        launcher._cache_manager.get_cached_latest_file = MagicMock(return_value=cached_scene)
         launcher.set_current_shot(sample_shot)
 
         context = LaunchContext(open_latest_threede=True)
@@ -247,13 +248,19 @@ class TestThreeDECommandBuilding:
         launcher: CommandLauncher,
         sample_shot: Shot,
     ) -> None:
-        """Test 3DE launch continues when no latest scene found."""
+        """Test 3DE launch continues when no latest scene found.
+
+        Uses cache hit path (sync) with None result to verify command building.
+        Async file search is tested separately.
+        """
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
 
-        # Mock finder returns None (no scene found)
-        mock_finder = MagicMock()
-        mock_finder.find_latest_threede_scene.return_value = None
-        launcher._threede_latest_finder = mock_finder
+        # Mock cache to return None (cached "not found" result)
+        # Also mock _read_latest_files_cache to indicate we have a cache entry
+        launcher._cache_manager.get_cached_latest_file = MagicMock(return_value=None)
+        launcher._cache_manager._read_latest_files_cache = MagicMock(
+            return_value={f"{sample_shot.workspace_path}:threede": {"path": None, "cached_at": 0}}
+        )
         launcher.set_current_shot(sample_shot)
 
         context = LaunchContext(open_latest_threede=True)

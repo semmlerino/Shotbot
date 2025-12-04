@@ -66,9 +66,10 @@ class EnvironmentManager:
     # Brief wait for cache warming to complete (avoids 2s subprocess block on fast launch)
     _CACHE_WARM_WAIT_SEC: float = 0.15
 
-    # Timeout for ws availability check
+    # Timeout for ws availability check (reduced from 5.0s to improve UI responsiveness)
     # VFX facility shells may take longer due to NFS mounts, AD/LDAP auth, rez init
-    WS_AVAILABILITY_TIMEOUT_SEC: float = 5.0
+    # 2s is sufficient for most environments; if it times out, we use optimistic fallback
+    WS_AVAILABILITY_TIMEOUT_SEC: float = 2.0
 
     def __init__(self) -> None:
         """Initialize EnvironmentManager with empty cache."""
@@ -149,7 +150,20 @@ class EnvironmentManager:
         Detection uses bash -lc because ws is a shell function defined
         in the interactive shell profile (.bashrc), not a binary on PATH.
         shutil.which() only finds binaries, so we need bash to detect the function.
+
+        Performance optimization:
+            If REZ_USED is set, the shell environment is already properly initialized
+            (Rez sets this during shell startup at BlueBolt). Skip the check to avoid
+            the subprocess overhead - we can assume ws is available.
         """
+        # Fast path: if we're in a rez environment, ws is definitely available
+        # (BlueBolt's shell init chain sets up both rez and ws together)
+        if os.environ.get("REZ_USED"):
+            if self._ws_available_cache is None:
+                logger.debug("REZ_USED is set - assuming ws is available")
+                self._ws_available_cache = True
+            return self._ws_available_cache
+
         if self._ws_available_cache is not None:
             return self._ws_available_cache
 

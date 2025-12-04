@@ -61,6 +61,7 @@ class CacheManager(QObject):
     previous_shots_cache_file: Path
     threede_scenes_cache_file: Path
     migrated_shots_cache_file: Path
+    latest_files_cache_file: Path
 
     # Track cached thumbnails
     _cached_thumbnails: dict[str, int]
@@ -123,6 +124,23 @@ class CacheManager(QObject):
     def clear_failed_attempts(self, cache_key: str | None = ...) -> None: ...
     def get_failed_attempts_status(self) -> dict[str, dict[str, object]]: ...
     def shutdown(self) -> None: ...
+    # Latest file cache methods
+    def get_cached_latest_file(
+        self,
+        workspace_path: str,
+        file_type: str,
+    ) -> Path | None: ...
+    def cache_latest_file(
+        self,
+        workspace_path: str,
+        file_type: str,
+        file_path: Path | None,
+    ) -> None: ...
+    def clear_latest_files_cache(
+        self,
+        workspace_path: str | None = ...,
+    ) -> None: ...
+    def _read_latest_files_cache(self) -> dict[str, dict[str, object]] | None: ...
 
 class ThumbnailCacheLoaderSignals(QObject):
     """Signals for ThumbnailCacheLoader."""

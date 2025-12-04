@@ -8,6 +8,7 @@ Caching Strategies:
 - Shot data (shots.json): 30-minute TTL
 - Previous shots (previous_shots.json): Persistent (no expiration, incremental accumulation)
 - 3DE scenes (threede_scenes.json): Persistent with 60-day age-based pruning
+- Latest files (latest_files.json): 5-minute TTL for Maya/3DE file paths per workspace
 
 Rationale: Thumbnails are derived from static source images, so they should
 persist indefinitely. Data caches reflect dynamic VFX workspace state and need
@@ -77,6 +78,7 @@ JSONValue: TypeAlias = (
 
 # Constants
 DEFAULT_TTL_MINUTES = 30
+LATEST_FILES_TTL_MINUTES = 5  # TTL for latest Maya/3DE file cache
 THUMBNAIL_SIZE = 256
 THUMBNAIL_QUALITY = 85
 STAT_CACHE_TTL = 2.0  # Cache stat results for 2 seconds to reduce filesystem I/O
@@ -256,9 +258,11 @@ class CacheManager(LoggingMixin, QObject):
         self.previous_shots_cache_file = self.cache_dir / "previous_shots.json"
         self.threede_cache_file = self.cache_dir / "threede_scenes.json"
         self.migrated_shots_cache_file = self.cache_dir / "migrated_shots.json"
+        self.latest_files_cache_file = self.cache_dir / "latest_files.json"
 
         # TTL configuration
         self._cache_ttl = timedelta(minutes=DEFAULT_TTL_MINUTES)
+        self._latest_files_ttl = timedelta(minutes=LATEST_FILES_TTL_MINUTES)
 
         # Ensure directories exist
         self._ensure_cache_dirs()
@@ -1016,6 +1020,163 @@ class CacheManager(LoggingMixin, QObject):
                 has_changes=has_changes,
                 pruned_count=pruned_count,
             )
+
+    # ========================================================================
+    # Latest File Cache Methods (Maya/3DE scene paths per workspace)
+    # ========================================================================
+
+    def get_cached_latest_file(
+        self,
+        workspace_path: str,
+        file_type: str,
+    ) -> Path | None:
+        """Get cached latest file path for a workspace.
+
+        Args:
+            workspace_path: Full path to the shot workspace
+            file_type: Type of file ("maya" or "threede")
+
+        Returns:
+            Cached file path or None if not cached/expired
+        """
+        cache_data = self._read_latest_files_cache()
+        if cache_data is None:
+            return None
+
+        # Create composite key
+        key = f"{workspace_path}:{file_type}"
+        entry = cache_data.get(key)
+        if entry is None:
+            return None
+
+        # Check TTL
+        cached_at_raw = entry.get("cached_at", 0.0)
+        if isinstance(cached_at_raw, (int, float)):
+            cached_at = float(cached_at_raw)
+        else:
+            cached_at = 0.0
+        age = datetime.now(tz=UTC).timestamp() - cached_at
+        if age > self._latest_files_ttl.total_seconds():
+            self.logger.debug(f"Latest file cache expired for {key}")
+            return None
+
+        # Return cached path
+        path_str = entry.get("path")
+        if path_str and isinstance(path_str, str):
+            cached_path = Path(path_str)
+            # Verify file still exists
+            if cached_path.exists():
+                self.logger.debug(f"Latest file cache hit: {cached_path.name}")
+                return cached_path
+            self.logger.debug(f"Cached file no longer exists: {path_str}")
+        return None
+
+    def cache_latest_file(
+        self,
+        workspace_path: str,
+        file_type: str,
+        file_path: Path | None,
+    ) -> None:
+        """Cache the latest file path for a workspace.
+
+        Args:
+            workspace_path: Full path to the shot workspace
+            file_type: Type of file ("maya" or "threede")
+            file_path: Path to cache (or None to cache "not found" result)
+        """
+        cache_data = self._read_latest_files_cache() or {}
+
+        # Create composite key
+        key = f"{workspace_path}:{file_type}"
+
+        # Store entry with timestamp
+        cache_data[key] = {
+            "path": str(file_path) if file_path else None,
+            "cached_at": datetime.now(tz=UTC).timestamp(),
+        }
+
+        _ = self._write_latest_files_cache(cache_data)
+        if file_path:
+            self.logger.debug(f"Cached latest {file_type} file: {file_path.name}")
+        else:
+            self.logger.debug(f"Cached 'not found' for {file_type} in {workspace_path}")
+
+    def clear_latest_files_cache(self, workspace_path: str | None = None) -> None:
+        """Clear the latest files cache.
+
+        Args:
+            workspace_path: If provided, only clear cache for this workspace.
+                          If None, clear entire cache.
+        """
+        if workspace_path is None:
+            # Clear entire cache
+            if self.latest_files_cache_file.exists():
+                self.latest_files_cache_file.unlink()
+                self.logger.debug("Cleared all latest files cache")
+        else:
+            # Clear only entries for this workspace
+            cache_data = self._read_latest_files_cache()
+            if cache_data:
+                keys_to_remove = [
+                    k for k in cache_data if k.startswith(f"{workspace_path}:")
+                ]
+                for key in keys_to_remove:
+                    del cache_data[key]
+                _ = self._write_latest_files_cache(cache_data)
+                self.logger.debug(
+                    f"Cleared latest files cache for workspace: {workspace_path}"
+                )
+
+    def _read_latest_files_cache(self) -> dict[str, dict[str, object]] | None:
+        """Read the latest files cache from disk.
+
+        Returns:
+            Cache data as dict or None if not found
+        """
+        if not self.latest_files_cache_file.exists():
+            return None
+
+        try:
+            with self.latest_files_cache_file.open(encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return cast("dict[str, dict[str, object]]", data)
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to read latest files cache: {e}")
+            return None
+
+    def _write_latest_files_cache(
+        self,
+        data: dict[str, dict[str, object]],
+    ) -> bool:
+        """Write the latest files cache to disk.
+
+        Args:
+            data: Cache data to write
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Atomic write using temp file
+            tmp_fd, tmp_path = tempfile.mkstemp(
+                dir=self.cache_dir,
+                suffix=".tmp",
+            )
+            try:
+                with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2)
+                _ = Path(tmp_path).replace(self.latest_files_cache_file)
+                return True
+            except Exception:
+                # Clean up temp file on error
+                with contextlib.suppress(OSError):
+                    Path(tmp_path).unlink()
+                raise
+        except Exception as e:
+            self.logger.error(f"Failed to write latest files cache: {e}")
+            return False
 
     # ========================================================================
     # Generic Data Caching Methods (backward compatibility)

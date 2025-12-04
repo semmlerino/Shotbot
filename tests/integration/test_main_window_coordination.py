@@ -554,6 +554,12 @@ workspace /shows/test/shots/seq01/shot02""")
         assert section_3de is not None
         assert section_3de._launch_btn.isEnabled()
 
+        # Disable "open latest" to avoid async file search path
+        # (async search is tested separately - this test verifies basic launch)
+        open_latest_checkbox = section_3de._checkboxes.get("open_latest_threede")
+        if open_latest_checkbox:
+            open_latest_checkbox.setChecked(False)
+
         # Simulate button click
         section_3de._launch_btn.click()
         qtbot.wait(1)  # Minimal event processing
