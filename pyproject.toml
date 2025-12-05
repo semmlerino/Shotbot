@@ -287,6 +287,9 @@ markers = [
     "performance: Performance benchmarks and comparisons (may be skipped in CI/WSL)",
     "enforce_unique_connections: Tests with UniqueConnection enforcement for signal safety",
     "real_subprocess: Skip autouse subprocess mocks for tests needing real process behavior",
+    "permissive_subprocess: Disable strict mode for subprocess mocking (deprecated - use subprocess_mock)",
+    "permissive_process_pool: Disable strict mode for ProcessPoolManager mocking",
+    "enforce_thread_guard: Enable main-thread rejection in TestProcessPool for contract testing",
 ]
 
 # Coverage configuration

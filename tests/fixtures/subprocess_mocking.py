@@ -140,6 +140,7 @@ def mock_process_pool_manager(
     MARKERS:
         @pytest.mark.real_subprocess: Skip this mock entirely (use real subprocess)
         @pytest.mark.permissive_process_pool: Disable strict mode (allow unconfigured calls)
+        @pytest.mark.enforce_thread_guard: Enable main-thread rejection (contract testing)
     """
     # Allow opt-out for tests that need real subprocess behavior
     if "real_subprocess" in [m.name for m in request.node.iter_markers()]:
@@ -150,11 +151,16 @@ def mock_process_pool_manager(
         m.name for m in request.node.iter_markers()
     ]
 
+    # Check for thread guard marker (for contract testing)
+    enforce_guard = "enforce_thread_guard" in [
+        m.name for m in request.node.iter_markers()
+    ]
+
     # Import and create TestProcessPool directly (not via fixture) to avoid
     # interfering with test-local test_process_pool fixtures
     from tests.fixtures.test_doubles import TestProcessPool
 
-    internal_pool = TestProcessPool(strict=not is_permissive)
+    internal_pool = TestProcessPool(strict=not is_permissive, enforce_thread_guard=enforce_guard)
 
     # Patch the singleton instance directly - get_instance() checks this first
     monkeypatch.setattr(

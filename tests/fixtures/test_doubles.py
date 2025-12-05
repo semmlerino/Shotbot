@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from PySide6.QtCore import QCoreApplication, QThread
 
 
 if TYPE_CHECKING:
@@ -239,6 +240,8 @@ class TestProcessPool:
         ttl_aware: bool = False,
         track_kwargs: bool = False,
         strict: bool = True,
+        allow_main_thread: bool = True,
+        enforce_thread_guard: bool = False,
     ) -> None:
         """Initialize the test double.
 
@@ -249,11 +252,19 @@ class TestProcessPool:
                    is called without first calling set_outputs(). This prevents tests from
                    silently passing with empty output. Use @pytest.mark.permissive_process_pool
                    to opt out for tests that intentionally don't need specific output.
+            allow_main_thread: If True (default), allow calls from main/UI thread.
+                   Default True for backward compatibility with existing tests.
+            enforce_thread_guard: If True, reject main-thread calls like the real ProcessPoolManager.
+                   Use this in contract tests to verify proper threading behavior.
+                   Takes precedence over allow_main_thread.
         """
         # Feature flags
         self._ttl_aware = ttl_aware
         self._track_kwargs = track_kwargs
         self._strict = strict
+        # For backward compatibility: allow_main_thread=True by default
+        # For contract testing: enforce_thread_guard=True to enable the guard
+        self._allow_main_thread = allow_main_thread and not enforce_thread_guard
 
         # Core state
         self.commands: list[str] = []
@@ -344,6 +355,21 @@ class TestProcessPool:
             TimeoutError: If configured to timeout
         """
         self.call_count += 1
+
+        # Mirror real ProcessPoolManager's UI-thread guard (process_pool_manager.py:360-371)
+        # This prevents tests from silently calling from the UI thread, which would
+        # freeze the real application but go undetected with the test double.
+        if not self._allow_main_thread:
+            current_thread = QThread.currentThread()
+            app_instance = QCoreApplication.instance()
+            if app_instance and current_thread == app_instance.thread():
+                raise RuntimeError(
+                    "execute_workspace_command() cannot be called on the main (UI) thread!\n"
+                    "This method blocks and will freeze the UI.\n"
+                    "Use AsyncShotLoader or background workers instead.\n"
+                    "If this test intentionally tests synchronous UI behavior, use:\n"
+                    "  TestProcessPool(allow_main_thread=True)"
+                )
 
         # Track kwargs if enabled
         if self._track_kwargs:
@@ -567,8 +593,11 @@ class TestProcessPool:
 
 
 @pytest.fixture
-def test_process_pool() -> TestProcessPool:
+def test_process_pool(request: pytest.FixtureRequest) -> TestProcessPool:
     """Provide a TestProcessPool instance for mocking ProcessPoolManager.
+
+    Args:
+        request: Pytest request for marker checking
 
     Returns:
         TestProcessPool instance that can be configured to return
@@ -576,8 +605,19 @@ def test_process_pool() -> TestProcessPool:
 
     NOTE: Tests that define their own local `test_process_pool` fixture
     will shadow this global one - the local fixture takes precedence.
+
+    MARKERS:
+        @pytest.mark.permissive_process_pool: Disable strict mode
+        @pytest.mark.enforce_thread_guard: Enable main-thread rejection (contract testing)
     """
-    return TestProcessPool()
+    # Check for markers
+    is_permissive = "permissive_process_pool" in [
+        m.name for m in request.node.iter_markers()
+    ]
+    enforce_guard = "enforce_thread_guard" in [
+        m.name for m in request.node.iter_markers()
+    ]
+    return TestProcessPool(strict=not is_permissive, enforce_thread_guard=enforce_guard)
 
 
 @pytest.fixture
