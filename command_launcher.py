@@ -201,6 +201,39 @@ class CommandLauncher(LoggingMixin, QObject):
 
         return env_fixes
 
+    def _build_maya_context_command(
+        self,
+        base_command: str,
+        file_path: str,
+        context_script: str,
+    ) -> str:
+        """Build Maya launch command with SGTK context update.
+
+        Uses environment variable approach to avoid complex quote escaping.
+        The base64-encoded script is passed via SHOTBOT_MAYA_SCRIPT env var,
+        and a static bootstrap command reads and executes it.
+
+        Args:
+            base_command: Base maya command (e.g., "maya")
+            file_path: Path to Maya file to open
+            context_script: Python script to execute after file loads
+
+        Returns:
+            Full command string with env var export and maya invocation
+        """
+        encoded = base64.b64encode(context_script.encode()).decode()
+        # Static bootstrap - reads from env var, no dynamic content in -c argument
+        # This avoids the quote escaping nightmare when passing through bash -ilc
+        mel_bootstrap = (
+            'python("import os,base64;'
+            "s=os.environ.get('SHOTBOT_MAYA_SCRIPT','');"
+            'exec(base64.b64decode(s).decode()) if s else None")'
+        )
+        return (
+            f"export SHOTBOT_MAYA_SCRIPT={encoded} && "
+            f"{base_command} -file {file_path} -c {shlex.quote(mel_bootstrap)}"
+        )
+
     def cleanup(self) -> None:
         """Disconnect signals and cleanup resources.
 
@@ -1069,9 +1102,9 @@ class CommandLauncher(LoggingMixin, QObject):
                 )
                 command = f"{tde_scripts_export}{command} -open {safe_file_path}"
             elif app_name == "maya":
-                # Maya: Add deferred command to update SGTK context after file loads
-                # This triggers full app loading (publish, loader, etc.)
-                # Use base64 encoding to avoid complex quote escaping for shell/MEL/Python
+                # Maya: Use env var approach to avoid quote escaping issues
+                # The script is base64-encoded and passed via SHOTBOT_MAYA_SCRIPT env var
+                # A static bootstrap command reads and executes it after file loads
                 context_script = """
 import maya.cmds
 import sgtk
@@ -1086,10 +1119,9 @@ def _shotbot_update_context():
             e.change_context(c)
 maya.cmds.evalDeferred(_shotbot_update_context)
 """
-                encoded = base64.b64encode(context_script.encode()).decode()
-                # MEL command with base64-encoded Python - avoids all quote nesting
-                mel_cmd = f'python "import base64; exec(base64.b64decode(\\"{encoded}\\").decode())"'
-                command = f"{command} -file {safe_file_path} -c {shlex.quote(mel_cmd)}"
+                command = self._build_maya_context_command(
+                    command, safe_file_path, context_script
+                )
             elif app_name == "nuke":
                 # Nuke: Set NUKE_PATH to include our scripts dir for init.py
                 # The init.py registers an onScriptLoad callback that updates context
