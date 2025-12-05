@@ -1095,8 +1095,18 @@ class CommandLauncher(LoggingMixin, QObject):
             # Apply Nuke environment fixes if needed
             env_fixes = self._apply_nuke_environment_fixes(app_name, "File launch")
 
+            # Set SGTK_FILE_TO_OPEN for SGTK-enabled apps (Maya, Nuke)
+            # This tells ShotGrid Toolkit to bootstrap context from the file path,
+            # ensuring the full environment is loaded when opening via command line
+            sgtk_apps = ("maya", "nuke")
+            if app_name.lower() in sgtk_apps:
+                sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_file_path} && "
+                self.logger.debug(f"Setting SGTK_FILE_TO_OPEN={safe_file_path}")
+            else:
+                sgtk_export = ""
+
             # Build workspace command with environment fixes
-            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
+            ws_command = f"ws {safe_workspace_path} && {sgtk_export}{env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
