@@ -16,7 +16,10 @@ from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
-from pytestqt.qtbot import QtBot
+
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
 
 # Local application imports
 from cache_manager import CacheManager

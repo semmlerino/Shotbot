@@ -323,7 +323,7 @@ class CacheManager(LoggingMixin, QObject):
             lock_file.parent.mkdir(parents=True, exist_ok=True)
 
             # Open/create lock file
-            lock_fd = open(lock_file, "w")  # noqa: SIM115
+            lock_fd = lock_file.open("w")
 
             # Acquire exclusive lock (blocks until available)
             _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_EX)
@@ -719,30 +719,29 @@ class CacheManager(LoggingMixin, QObject):
         # Phase 2-4: Read, merge, write under lock for thread and process safety
         # File lock protects against concurrent processes (opt-in via SHOTBOT_FILE_LOCKING=enabled)
         # QMutex protects against concurrent threads within this process
-        with self._file_lock(self.migrated_shots_cache_file):
-            with QMutexLocker(self._lock):
-                # Read existing shots
-                existing = self.get_migrated_shots() or []
+        with self._file_lock(self.migrated_shots_cache_file), QMutexLocker(self._lock):
+            # Read existing shots
+            existing = self.get_migrated_shots() or []
 
-                # Merge and deduplicate
-                shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
+            # Merge and deduplicate
+            shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
 
-                # Add existing first
-                for shot in existing:
-                    key = _get_shot_key(shot)
-                    shots_by_key[key] = shot
+            # Add existing first
+            for shot in existing:
+                key = _get_shot_key(shot)
+                shots_by_key[key] = shot
 
-                # Add/update with new migrations (overwrites if duplicate)
-                for shot in to_migrate:
-                    key = _get_shot_key(shot)
-                    shots_by_key[key] = shot
+            # Add/update with new migrations (overwrites if duplicate)
+            for shot in to_migrate:
+                key = _get_shot_key(shot)
+                shots_by_key[key] = shot
 
-                merged = list(shots_by_key.values())
+            merged = list(shots_by_key.values())
 
-                # Write atomically (inside lock to prevent concurrent write races)
-                write_success = self._write_json_cache(
-                    self.migrated_shots_cache_file, merged
-                )
+            # Write atomically (inside lock to prevent concurrent write races)
+            write_success = self._write_json_cache(
+                self.migrated_shots_cache_file, merged
+            )
 
         # Phase 5: Log and emit signals (outside lock - no shared state mutation)
         if write_success:
@@ -833,45 +832,46 @@ class CacheManager(LoggingMixin, QObject):
             (which excludes 'show' field and could theoretically collide across shows).
 
         Thread Safety:
-            Protected by internal mutex to prevent concurrent merge operations
-            that could produce inconsistent results.
+            Lock scope minimized to data copy only. Dict operations happen
+            outside the lock since they operate on local copies.
         """
+        # Phase 1: Copy data under lock (minimal critical section)
         with QMutexLocker(self._lock):
-            # Convert to dicts using helper (from Phase 1 Task 2)
             cached_dicts = [_shot_to_dict(s) for s in (cached or [])]
             fresh_dicts = [_shot_to_dict(s) for s in fresh]
 
-            # Build lookups using composite key (O(1) operations)
-            cached_by_key: dict[tuple[str, str, str], ShotDict] = {
-                _get_shot_key(shot): shot for shot in cached_dicts
-            }
-            fresh_keys = {_get_shot_key(shot) for shot in fresh_dicts}
+        # Phase 2: All dict operations outside lock (CPU-bound, no shared state)
+        # Build lookups using composite key (O(1) operations)
+        cached_by_key: dict[tuple[str, str, str], ShotDict] = {
+            _get_shot_key(shot): shot for shot in cached_dicts
+        }
+        fresh_keys = {_get_shot_key(shot) for shot in fresh_dicts}
 
-            # Merge: Single O(n) pass using fresh data as source of truth
-            updated_shots: list[ShotDict] = []
-            new_shots: list[ShotDict] = []
+        # Merge: Single O(n) pass using fresh data as source of truth
+        updated_shots: list[ShotDict] = []
+        new_shots: list[ShotDict] = []
 
-            for fresh_shot in fresh_dicts:
-                fresh_key = _get_shot_key(fresh_shot)
-                updated_shots.append(fresh_shot)  # Always use fresh data
+        for fresh_shot in fresh_dicts:
+            fresh_key = _get_shot_key(fresh_shot)
+            updated_shots.append(fresh_shot)  # Always use fresh data
 
-                if fresh_key not in cached_by_key:
-                    # This is a new shot (not in cache)
-                    new_shots.append(fresh_shot)
+            if fresh_key not in cached_by_key:
+                # This is a new shot (not in cache)
+                new_shots.append(fresh_shot)
 
-            # Identify removed (cached keys not in fresh)
-            removed_shots = [
-                shot for shot in cached_dicts if _get_shot_key(shot) not in fresh_keys
-            ]
+        # Identify removed (cached keys not in fresh)
+        removed_shots = [
+            shot for shot in cached_dicts if _get_shot_key(shot) not in fresh_keys
+        ]
 
-            has_changes = bool(new_shots or removed_shots)
+        has_changes = bool(new_shots or removed_shots)
 
-            return ShotMergeResult(
-                updated_shots=updated_shots,
-                new_shots=new_shots,
-                removed_shots=removed_shots,
-                has_changes=has_changes,
-            )
+        return ShotMergeResult(
+            updated_shots=updated_shots,
+            new_shots=new_shots,
+            removed_shots=removed_shots,
+            has_changes=has_changes,
+        )
 
     def get_cached_threede_scenes(self) -> list[ThreeDESceneDict] | None:
         """Get cached 3DE scene list if valid.

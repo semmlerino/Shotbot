@@ -34,7 +34,7 @@ def _shotbot_update_sgtk_context():
             return
 
         # Get the project path
-        project_path = tde4.getProjectPath()
+        project_path = tde4.getProjectPath()  # noqa: F821 (3DE builtin)
         if not project_path:
             return
 
@@ -54,7 +54,7 @@ def _register_callback():
     """Register the project open callback."""
     # Only register if launched via Shotbot (SGTK_FILE_TO_OPEN is set)
     if os.environ.get("SGTK_FILE_TO_OPEN"):
-        tde4.setOpenProjectCallbackFunction("_shotbot_update_sgtk_context")
+        tde4.setOpenProjectCallbackFunction("_shotbot_update_sgtk_context")  # noqa: F821 (3DE builtin)
         print("[Shotbot] Registered SGTK context callback for project open")
 
 

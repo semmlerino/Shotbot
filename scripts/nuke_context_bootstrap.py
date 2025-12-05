@@ -11,6 +11,7 @@ The script path to open should be passed via SGTK_FILE_TO_OPEN env var.
 
 import os
 import sys
+from pathlib import Path
 
 
 def register_context_callback():
@@ -40,7 +41,7 @@ def register_context_callback():
             if new_context and new_context.task:
                 print(f"[Shotbot] Updating SGTK context to: {new_context}")
                 engine.change_context(new_context)
-                print(f"[Shotbot] Context updated - full apps should now be available")
+                print("[Shotbot] Context updated - full apps should now be available")
 
         except Exception as e:
             print(f"[Shotbot] Error updating context: {e}")
@@ -66,7 +67,7 @@ def main():
         if not script_path.endswith((".nk", ".nknc")):
             script_path = None
 
-    if script_path and os.path.exists(script_path):
+    if script_path and Path(script_path).exists():
         print(f"[Shotbot] Opening script: {script_path}")
         nuke.scriptOpen(script_path)
     else:

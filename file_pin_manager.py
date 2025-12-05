@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -69,7 +69,7 @@ class FilePinManager(LoggingMixin, QObject):
         path_str = str(file_path)
         self._pins[path_str] = {
             "comment": comment.strip(),
-            "pinned_at": datetime.now().isoformat(),
+            "pinned_at": datetime.now(UTC).isoformat(),
         }
         self._save_pins()
         self.logger.info(f"Pinned file: {Path(path_str).name}")

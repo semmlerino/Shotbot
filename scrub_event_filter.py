@@ -7,14 +7,17 @@ thumbnail items in a QListView, enabling scrubbing through plate frames.
 from __future__ import annotations
 
 import logging
-from typing import ClassVar, Final
+from typing import TYPE_CHECKING, ClassVar, Final
 
 from PySide6.QtCore import QEvent, QModelIndex, QObject, QRect, QTimer, Signal
-from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QListView
 from shiboken6 import isValid
 
 from typing_compat import override
+
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QMouseEvent
+    from PySide6.QtWidgets import QListView
 
 
 logger = logging.getLogger(__name__)

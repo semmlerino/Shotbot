@@ -7,6 +7,8 @@ In Maya Script Editor (Python tab), run:
 
 import os
 import sys
+from pathlib import Path
+
 
 print("=" * 60)
 print(" SGTK Configuration - Running Inside Maya")
@@ -101,13 +103,13 @@ for p in sys.path:
 
 # 10. Check Maya's userSetup locations
 print("\n[10] Maya Startup Scripts:")
-import maya.cmds as cmds
 try:
     script_paths = os.environ.get("MAYA_SCRIPT_PATH", "").split(":")
     for sp in script_paths:
-        if sp and os.path.exists(sp):
-            user_setup = os.path.join(sp, "userSetup.py")
-            if os.path.exists(user_setup):
+        sp_path = Path(sp)
+        if sp and sp_path.exists():
+            user_setup = sp_path / "userSetup.py"
+            if user_setup.exists():
                 print(f"    Found: {user_setup}")
 except Exception as e:
     print(f"    Error: {e}")

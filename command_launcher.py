@@ -9,6 +9,7 @@ This module provides the production launcher system for Shotbot, handling:
 from __future__ import annotations
 
 # Standard library imports
+import base64
 import os
 import shlex
 import time
@@ -1070,15 +1071,25 @@ class CommandLauncher(LoggingMixin, QObject):
             elif app_name == "maya":
                 # Maya: Add deferred command to update SGTK context after file loads
                 # This triggers full app loading (publish, loader, etc.)
-                context_script = (
-                    "import sgtk; "
-                    "e=sgtk.platform.current_engine(); "
-                    "p=__import__('maya.cmds',fromlist=['']).file(q=1,sn=1); "
-                    "c=e.sgtk.context_from_path(p) if p else None; "
-                    "e.change_context(c) if c and c.task and not e.context.task else None"
-                )
-                deferred_cmd = f'python("import maya.cmds; maya.cmds.evalDeferred(\\"{context_script}\\")")'
-                command = f"{command} -file {safe_file_path} -c {shlex.quote(deferred_cmd)}"
+                # Use base64 encoding to avoid complex quote escaping for shell/MEL/Python
+                context_script = """
+import maya.cmds
+import sgtk
+def _shotbot_update_context():
+    e = sgtk.platform.current_engine()
+    if not e:
+        return
+    p = maya.cmds.file(q=True, sn=True)
+    if p:
+        c = e.sgtk.context_from_path(p)
+        if c and c.task and not e.context.task:
+            e.change_context(c)
+maya.cmds.evalDeferred(_shotbot_update_context)
+"""
+                encoded = base64.b64encode(context_script.encode()).decode()
+                # MEL command with base64-encoded Python - avoids all quote nesting
+                mel_cmd = f'python "import base64; exec(base64.b64decode(\\"{encoded}\\").decode())"'
+                command = f"{command} -file {safe_file_path} -c {shlex.quote(mel_cmd)}"
             elif app_name == "nuke":
                 # Nuke: Set NUKE_PATH to include our scripts dir for init.py
                 # The init.py registers an onScriptLoad callback that updates context

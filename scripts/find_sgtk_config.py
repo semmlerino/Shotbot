@@ -17,7 +17,7 @@ from pathlib import Path
 def print_header(title: str) -> None:
     print(f"\n{'=' * 60}")
     print(f" {title}")
-    print('=' * 60)
+    print("=" * 60)
 
 
 def print_env_vars() -> None:
@@ -82,9 +82,9 @@ def search_paths() -> list[Path]:
         "/software/toolkit",
         "/software/rez/packages",
         "/nethome",
-        os.path.expanduser("~/.shotgun"),
-        os.path.expanduser("~/.shotgrid"),
-        os.path.expanduser("~/Library/Caches/Shotgun"),  # macOS
+        str(Path("~/.shotgun").expanduser()),
+        str(Path("~/.shotgrid").expanduser()),
+        str(Path("~/Library/Caches/Shotgun").expanduser()),  # macOS
         "/shows",  # Show-level config
     ]
 
@@ -95,9 +95,7 @@ def search_paths() -> list[Path]:
         os.environ.get("TK_CORE_PATH"),
     ]
 
-    for p in common_paths + env_paths:
-        if p and os.path.exists(p):
-            paths.append(Path(p))
+    paths.extend(Path(p) for p in common_paths + env_paths if p and Path(p).exists())
 
     return paths
 
@@ -126,7 +124,7 @@ def find_files(base_paths: list[Path], patterns: list[str], max_depth: int = 5) 
     return found
 
 
-def find_sgtk_configs(verbose: bool = False) -> None:
+def find_sgtk_configs(verbose: bool = False) -> None:  # noqa: ARG001
     """Find SGTK configuration files."""
     print_header("Searching for SGTK Configuration Files")
 
@@ -216,9 +214,9 @@ def find_engine_startup() -> None:
                     try:
                         content = m.read_text()
                         if "SGTK_FILE_TO_OPEN" in content:
-                            print(f"    -> Contains SGTK_FILE_TO_OPEN reference!")
+                            print("    -> Contains SGTK_FILE_TO_OPEN reference!")
                         if "file_to_open" in content.lower():
-                            print(f"    -> Contains 'file_to_open' reference")
+                            print("    -> Contains 'file_to_open' reference")
                     except Exception:
                         pass
             except Exception:
@@ -238,7 +236,7 @@ def list_rez_packages() -> None:
     sgtk_keywords = ["shotgun", "shotgrid", "sgtk", "toolkit", "tank", "maya", "nuke"]
 
     for rez_path in rez_paths:
-        if not rez_path or not os.path.exists(rez_path):
+        if not rez_path or not Path(rez_path).exists():
             continue
 
         print(f"\n  {rez_path}:")
@@ -257,7 +255,7 @@ def list_rez_packages() -> None:
                         except Exception:
                             pass
         except PermissionError:
-            print(f"    Permission denied")
+            print("    Permission denied")
         except Exception as e:
             print(f"    Error: {e}")
 

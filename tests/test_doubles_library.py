@@ -386,7 +386,7 @@ class TestShotModel(QObject):
                 return shot
         return None
 
-    def refresh_shots(self) -> tuple[bool, bool]:
+    def refresh_shots(self, force_fresh: bool = False) -> tuple[bool, bool]:
         """Simulate shot refresh with configurable behavior."""
         self.refresh_count += 1
         self.refresh_started.emit()
