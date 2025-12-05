@@ -1057,9 +1057,19 @@ class CommandLauncher(LoggingMixin, QObject):
             safe_file_path = CommandBuilder.validate_path(str(file_path))
             # Add app-specific command-line flags for file
             if app_name == "3de":
-                command = f"{command} -open {safe_file_path}"
+                # 3DE: Add deferred context update via tde4 module
+                # Uses tde4.postCustomRequester with a timer callback
+                context_script = (
+                    "import tde4,sgtk,os; "
+                    "e=sgtk.platform.current_engine(); "
+                    "p=tde4.getProjectPath(); "
+                    "c=e.sgtk.context_from_path(p) if e and p else None; "
+                    "e.change_context(c) if c and c.task and e and not e.context.task else None"
+                )
+                # 3DE executes -startupaliases after project load
+                command = f'{command} -open {safe_file_path} -startupaliases "{context_script}"'
             elif app_name == "maya":
-                # Add deferred command to update SGTK context after file loads
+                # Maya: Add deferred command to update SGTK context after file loads
                 # This triggers full app loading (publish, loader, etc.)
                 context_script = (
                     "import sgtk; "
@@ -1070,8 +1080,15 @@ class CommandLauncher(LoggingMixin, QObject):
                 )
                 deferred_cmd = f'python("import maya.cmds; maya.cmds.evalDeferred(\\"{context_script}\\")")'
                 command = f'{command} -file {safe_file_path} -c "{deferred_cmd}"'
+            elif app_name == "nuke":
+                # Nuke: Set NUKE_PATH to include our scripts dir for init.py
+                # The init.py registers an onScriptLoad callback that updates context
+                # SGTK_FILE_TO_OPEN is already set, init.py will check for it
+                scripts_dir = "/nethome/gabriel-h/Python/Shotbot/scripts"
+                nuke_path_export = f"export NUKE_PATH={scripts_dir}:$NUKE_PATH && "
+                command = f"{nuke_path_export}{command} {safe_file_path}"
             else:
-                # Nuke and others accept file without flag
+                # Other apps: just pass file path
                 command = f"{command} {safe_file_path}"
 
             # Log file launch details for debugging file dialog issues
