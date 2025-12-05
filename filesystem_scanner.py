@@ -15,12 +15,13 @@ from __future__ import annotations
 
 # Standard library imports
 import os
+import selectors
 import subprocess
 import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, final
+from typing import TYPE_CHECKING, ClassVar, cast, final
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -632,6 +633,99 @@ class FileSystemScanner(LoggingMixin):
         if current_batch:
             yield current_batch, total_shots, total_shots, "Scan complete"
 
+    def _run_subprocess_with_streaming_read(
+        self,
+        cmd: list[str],
+        cancel_flag: Callable[[], bool] | None,
+        max_wait_time: float,
+        poll_interval: float = 0.1,
+    ) -> tuple[int | None, str, str, str]:
+        """Run subprocess with streaming reads to avoid pipe buffer deadlock.
+
+        This method uses selectors to read from stdout/stderr while the process runs,
+        preventing deadlock when subprocess output exceeds the OS pipe buffer (~64KB).
+
+        Args:
+            cmd: Command to execute as list of arguments
+            cancel_flag: Optional callback that returns True if execution should be cancelled
+            max_wait_time: Maximum time to wait for command (seconds)
+            poll_interval: How often to check for cancellation/timeout (seconds)
+
+        Returns:
+            Tuple of (return_code, stdout, stderr, status)
+            status is "ok", "cancelled", or "timeout"
+            return_code is None if cancelled or timed out
+        """
+        stdout_chunks: list[str] = []
+        stderr_chunks: list[str] = []
+
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        # Register stdout and stderr for non-blocking reads
+        sel = selectors.DefaultSelector()
+        try:
+            if process.stdout:
+                _ = sel.register(process.stdout, selectors.EVENT_READ, "stdout")
+            if process.stderr:
+                _ = sel.register(process.stderr, selectors.EVENT_READ, "stderr")
+
+            elapsed_time = 0.0
+
+            while process.poll() is None:
+                # Check cancellation
+                if cancel_flag and cancel_flag():
+                    self.logger.info("Subprocess cancelled by cancel_flag")
+                    process.kill()
+                    _ = process.wait()
+                    return (None, "", "", "cancelled")
+
+                # Check timeout
+                if elapsed_time >= max_wait_time:
+                    self.logger.error(
+                        f"Subprocess timed out after {max_wait_time} seconds"
+                    )
+                    process.kill()
+                    _ = process.wait()
+                    return (None, "", "", "timeout")
+
+                # Read available data (selector handles timeout for responsiveness)
+                ready = sel.select(timeout=poll_interval)
+                for key, _ in ready:
+                    # Read available data in chunks to avoid blocking
+                    # fileobj is IO[str] in text mode, read() returns str
+                    data = cast(str, key.fileobj.read(8192))  # type: ignore[union-attr]
+                    if data:
+                        if key.data == "stdout":
+                            stdout_chunks.append(data)
+                        else:
+                            stderr_chunks.append(data)
+
+                elapsed_time += poll_interval
+
+            # Process exited - drain any remaining buffered data
+            for key, _ in sel.select(timeout=0):
+                remaining = cast(str, key.fileobj.read())  # type: ignore[union-attr]
+                if remaining:
+                    if key.data == "stdout":
+                        stdout_chunks.append(remaining)
+                    else:
+                        stderr_chunks.append(remaining)
+
+            return (
+                process.returncode,
+                "".join(stdout_chunks),
+                "".join(stderr_chunks),
+                "ok",
+            )
+
+        finally:
+            sel.close()
+
     def _run_find_with_polling(
         self,
         find_cmd: list[str],
@@ -653,57 +747,27 @@ class FileSystemScanner(LoggingMixin):
 
         Returns:
             List of tuples: (file_path, show, sequence, shot, user, plate)
+            Returns None on timeout, empty list on cancellation.
         """
         # Validate parameters
         if max_wait_time <= 0:
             raise ValueError(f"max_wait_time must be positive, got {max_wait_time}")
 
-        # Standard library imports
-        import subprocess
-        import time
-
         results: list[tuple[Path, str, str, str, str, str]] = []
 
         try:
-            # Run find command with interruptible polling for responsive cancellation
-            process = subprocess.Popen(
-                find_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
+            # Use streaming read to avoid pipe buffer deadlock on large outputs
+            returncode, stdout, stderr, status = self._run_subprocess_with_streaming_read(
+                find_cmd, cancel_flag, max_wait_time
             )
 
-            # Poll process while checking for cancellation
-            poll_interval = 0.1  # Check every 100ms
-            elapsed_time = 0.0
+            # Handle cancellation and timeout
+            if status == "cancelled":
+                return []  # Return empty list on cancellation
+            if status == "timeout":
+                return None  # Explicit timeout signal
 
-            while process.poll() is None:  # While process is still running
-                # Check for cancellation
-                if cancel_flag and cancel_flag():
-                    self.logger.info(
-                        "Find command cancelled by cancel_flag, killing process"
-                    )
-                    process.kill()
-                    _ = process.wait()  # Clean up zombie process
-                    return []  # Return empty list on cancellation
-
-                # Check for timeout
-                if elapsed_time >= max_wait_time:
-                    self.logger.error(
-                        f"Find command timed out after {max_wait_time} seconds"
-                    )
-                    process.kill()
-                    _ = process.wait()
-                    return None  # Explicit timeout signal
-
-                # Sleep briefly and update elapsed time
-                time.sleep(poll_interval)
-                elapsed_time += poll_interval
-
-            # Process finished, get output
-            stdout, stderr = process.communicate()
-
-            if process.returncode == 0 and stdout:
+            if returncode == 0 and stdout:
                 # Parse each found file
                 for line in stdout.strip().split("\n"):
                     if not line:
@@ -720,9 +784,9 @@ class FileSystemScanner(LoggingMixin):
                         if parsed:
                             results.append(parsed)
 
-            elif process.returncode != 0:
+            elif returncode != 0:
                 self.logger.warning(
-                    f"Find command failed with return code {process.returncode}"
+                    f"Find command failed with return code {returncode}"
                 )
                 if stderr:
                     self.logger.warning(f"stderr: {stderr}")
@@ -867,44 +931,22 @@ class FileSystemScanner(LoggingMixin):
             self.logger.debug(f"Search 2 (publish/mm dirs): {' '.join(find_cmd_publish_dirs)}")
 
             # Run find command to get publish/mm directories with cancellation support
-            # Note: subprocess and time are already imported at module level
+            # Uses streaming read to avoid pipe buffer deadlock on large outputs
             shots_with_published_mm: set[tuple[str, str]] = set()
+            max_wait_time_dirs = 30.0  # 30 second timeout for directory check
             try:
-                process = subprocess.Popen(
-                    find_cmd_publish_dirs,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
+                returncode, stdout, _stderr, status = self._run_subprocess_with_streaming_read(
+                    find_cmd_publish_dirs, cancel_flag, max_wait_time_dirs
                 )
 
-                # Poll process with cancellation checks (similar to _run_find_with_polling)
-                poll_interval = 0.1  # Check every 100ms
-                elapsed_time = 0.0
-                max_wait_time = 30.0  # 30 second timeout for directory check
+                # Handle cancellation - early exit
+                if status == "cancelled":
+                    return []
 
-                while process.poll() is None:  # While process is still running
-                    # Check for cancellation
-                    if cancel_flag and cancel_flag():
-                        self.logger.info("Publish/mm directory search cancelled by user")
-                        process.kill()
-                        _ = process.wait()
-                        return []  # Early exit on cancellation
+                # Handle timeout - continue with empty set (non-critical search)
+                # status == "timeout" just means we proceed with partial/no results
 
-                    # Check for timeout
-                    if elapsed_time >= max_wait_time:
-                        self.logger.warning(f"Publish/mm directory search timed out after {max_wait_time}s")
-                        process.kill()
-                        _ = process.wait()
-                        break  # Continue with empty set
-
-                    # Sleep briefly and update elapsed time
-                    time.sleep(poll_interval)
-                    elapsed_time += poll_interval
-
-                # Process finished, get output
-                stdout, _stderr = process.communicate()
-
-                if process.returncode == 0 and stdout:
+                if returncode == 0 and stdout:
                     # Parse directory paths to extract sequence/shot
                     for line in stdout.strip().split("\n"):
                         if not line:

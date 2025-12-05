@@ -113,8 +113,8 @@ class TestWorkerStopResponsiveness:
     def test_cancel_flag_checked_during_subprocess(self) -> None:
         """Test that cancel_flag is checked during subprocess execution.
 
-        This verifies the core fix: subprocess.Popen() with polling loop
-        that checks cancel_flag every 100ms.
+        This verifies the core fix: the streaming read helper checks
+        cancel_flag during subprocess execution.
         """
         scanner = FileSystemScanner()
 
@@ -127,32 +127,23 @@ class TestWorkerStopResponsiveness:
             cancel_check_count += 1
             return cancel_check_count >= cancel_after_checks
 
-        # Mock subprocess.Popen to simulate long-running find command
-        mock_process = Mock()
-        mock_process.poll.return_value = (
-            None  # Process still running (will be checked repeatedly)
-        )
-        mock_process.returncode = -9  # Killed by signal
-
-        # Track how many times poll() was called
-        poll_count = 0
-
-        def mock_poll_side_effect() -> int | None:
-            nonlocal poll_count
-            poll_count += 1
-            # After several polls, simulate process completion
-            if poll_count >= 10:
-                return 0  # Process finished
-            return None  # Still running
-
-        mock_process.poll.side_effect = mock_poll_side_effect
-        mock_process.communicate.return_value = ("", "")
+        # Mock the streaming read helper to simulate cancellation handling
+        def mock_streaming_read(
+            cmd: list[str],
+            cf: object,
+            max_wait_time: float,
+            poll_interval: float = 0.1,
+        ) -> tuple[int | None, str, str, str]:
+            # Simulate the helper checking cancel_flag multiple times
+            nonlocal cancel_check_count
+            for _ in range(cancel_after_checks + 2):
+                if cf and cf():
+                    return (None, "", "", "cancelled")
+            return (0, "", "", "ok")
 
         with (
-            patch("filesystem_scanner.subprocess.Popen", return_value=mock_process),
+            patch.object(scanner, "_run_subprocess_with_streaming_read", mock_streaming_read),
             patch("pathlib.Path.exists", return_value=True),
-            # Mock time.sleep to make test deterministic (avoid flakiness under load)
-            patch("filesystem_scanner.time.sleep"),
         ):
             result = scanner.find_all_3de_files_in_show_targeted(
                 show_root="/shows",
@@ -170,25 +161,37 @@ class TestWorkerStopResponsiveness:
             assert result == [], "Should return empty list when cancelled"
 
     def test_subprocess_killed_on_cancellation(self) -> None:
-        """Test that subprocess is actually killed when cancel_flag returns True.
+        """Test that cancellation returns empty list and signals cancellation.
 
-        This verifies the fix properly kills the subprocess instead of
-        letting it continue running in the background.
+        This verifies the streaming read helper properly handles cancellation
+        by returning status='cancelled' which results in an empty list.
         """
         scanner = FileSystemScanner()
 
-        # Create mock process
-        mock_process = Mock()
-        mock_process.poll.return_value = None  # Process running
-        mock_process.kill = Mock()
-        mock_process.wait = Mock()
+        # Track whether helper was called with cancel_flag
+        helper_called = False
+        received_cancel_flag = None
+
+        def mock_streaming_read(
+            cmd: list[str],
+            cf: object,
+            max_wait_time: float,
+            poll_interval: float = 0.1,
+        ) -> tuple[int | None, str, str, str]:
+            nonlocal helper_called, received_cancel_flag
+            helper_called = True
+            received_cancel_flag = cf
+            # Simulate cancellation - helper checks cancel_flag and returns cancelled status
+            if cf and cf():
+                return (None, "", "", "cancelled")
+            return (0, "", "", "ok")
 
         # cancel_flag that returns True immediately
         def cancel_flag() -> bool:
             return True
 
         with (
-            patch("filesystem_scanner.subprocess.Popen", return_value=mock_process),
+            patch.object(scanner, "_run_subprocess_with_streaming_read", mock_streaming_read),
             patch("pathlib.Path.exists", return_value=True),
         ):
             result = scanner.find_all_3de_files_in_show_targeted(
@@ -198,10 +201,10 @@ class TestWorkerStopResponsiveness:
                 cancel_flag=cancel_flag,
             )
 
-            # Verify process was killed
-            mock_process.kill.assert_called_once()
-            # Verify zombie cleanup happened
-            mock_process.wait.assert_called_once()
+            # Verify helper was called
+            assert helper_called, "Streaming read helper should be called"
+            # Verify cancel_flag was passed to helper
+            assert received_cancel_flag is not None, "cancel_flag should be passed to helper"
 
             # Result should be empty on cancellation
             assert result == []
@@ -315,29 +318,19 @@ class TestFileSystemScannerInterruptibility:
         """Test that timeout is still enforced when cancel_flag is None."""
         scanner = FileSystemScanner()
 
-        # Mock a process that runs forever
-        mock_process = Mock()
-
-        call_count = 0
-
-        def mock_poll() -> None:
-            nonlocal call_count
-            call_count += 1
-            # Simulate long-running process
-            # After enough calls to exceed timeout, return finished
-            if call_count > 1600:  # More than 150s worth of 0.1s intervals
-                return 0
-            return None
-
-        mock_process.poll.side_effect = mock_poll
-        mock_process.kill = Mock()
-        mock_process.wait = Mock()
-        mock_process.returncode = -9
+        # Mock the streaming read helper to simulate timeout
+        def mock_streaming_read(
+            cmd: list[str],
+            cf: object,
+            max_wait_time: float,
+            poll_interval: float = 0.1,
+        ) -> tuple[int | None, str, str, str]:
+            # Simulate timeout occurring
+            return (None, "", "", "timeout")
 
         with (
-            patch("filesystem_scanner.subprocess.Popen", return_value=mock_process),
+            patch.object(scanner, "_run_subprocess_with_streaming_read", mock_streaming_read),
             patch("pathlib.Path.exists", return_value=True),
-            patch("time.sleep"),  # Speed up test
         ):
             # Call the low-level method directly to test timeout behavior
             result = scanner._run_find_with_polling(
@@ -348,9 +341,6 @@ class TestFileSystemScannerInterruptibility:
                 cancel_flag=None,  # No cancel flag
                 max_wait_time=150,  # Same timeout as used in find_all_3de_files_in_show_targeted
             )
-
-            # Should timeout and kill process
-            assert mock_process.kill.called, "Process should be killed on timeout"
 
             # Should return None on timeout (changed in Phase 2)
             assert result is None, "Timeout should return None (not [])"
@@ -366,33 +356,31 @@ class TestFileSystemScannerInterruptibility:
         """
         scanner = FileSystemScanner()
 
-        # Mock a process that times out immediately
-        mock_process = Mock()
-        mock_process.poll.return_value = None  # Never finishes
-        mock_process.kill = Mock()
-        mock_process.wait = Mock()
+        # Mock the streaming read helper to simulate timeout
+        def mock_streaming_read(
+            cmd: list[str],
+            cf: object,
+            max_wait_time: float,
+            poll_interval: float = 0.1,
+        ) -> tuple[int | None, str, str, str]:
+            return (None, "", "", "timeout")
 
         with (
-            patch("filesystem_scanner.subprocess.Popen", return_value=mock_process),
+            patch.object(scanner, "_run_subprocess_with_streaming_read", mock_streaming_read),
             patch("pathlib.Path.exists", return_value=True),
-            patch("time.sleep"),  # Speed up test
         ):
-            # Use very short timeout to trigger immediately
             result = scanner._run_find_with_polling(
                 find_cmd=["find", "/fake/path", "-name", "*.3de"],
                 show_path=Path("/shows/test"),
                 show="test",
                 excluded_users=set(),
                 cancel_flag=None,
-                max_wait_time=0.001,  # Immediate timeout
+                max_wait_time=0.001,  # Would trigger timeout immediately
             )
 
             # Critical: timeout must return None (not [])
             assert result is None, "Timeout should return None"
             assert result != [], "Timeout should NOT return empty list"
-
-            # Verify process was killed
-            assert mock_process.kill.called, "Process should be killed on timeout"
 
     def test_successful_empty_search_returns_empty_list(self) -> None:
         """Test that successful search with no results returns [] (not None).
@@ -402,14 +390,17 @@ class TestFileSystemScannerInterruptibility:
         """
         scanner = FileSystemScanner()
 
-        # Mock a process that completes successfully with no output
-        mock_process = Mock()
-        mock_process.poll.return_value = 0  # Finished successfully
-        mock_process.communicate.return_value = ("", "")  # No stdout, no stderr
-        mock_process.returncode = 0
+        # Mock the streaming read helper to return success with no output
+        def mock_streaming_read(
+            cmd: list[str],
+            cf: object,
+            max_wait_time: float,
+            poll_interval: float = 0.1,
+        ) -> tuple[int | None, str, str, str]:
+            return (0, "", "", "ok")  # Successful completion with empty stdout
 
         with (
-            patch("filesystem_scanner.subprocess.Popen", return_value=mock_process),
+            patch.object(scanner, "_run_subprocess_with_streaming_read", mock_streaming_read),
             patch("pathlib.Path.exists", return_value=True),
         ):
             result = scanner._run_find_with_polling(

@@ -307,17 +307,18 @@ class TestSubprocessTimeoutCancellation:
     def test_cancel_flag_kills_process(
         self,
         scanner_with_parser: FileSystemScanner,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Cancel flag triggers process.kill() and returns empty list."""
-        process = PollingProcessDouble()
-        process.set_poll_sequence([None] * 100)  # Never complete naturally
-        process.stdout_data = "/test/scene.3de"
+        """Cancel flag triggers process termination and returns empty list."""
+        # Mock the streaming read helper to simulate cancellation
+        def mock_streaming_read(
+            cmd: list[str],
+            cancel_flag: object,
+            max_wait_time: float,
+            poll_interval: float = 0.1,
+        ) -> tuple[int | None, str, str, str]:
+            return (None, "", "", "cancelled")
 
-        monkeypatch.setattr(
-            "filesystem_scanner.subprocess.Popen",
-            lambda *_a, **_k: process,
-        )
+        scanner_with_parser._run_subprocess_with_streaming_read = mock_streaming_read  # type: ignore[method-assign]
 
         # Cancel immediately
         def cancel_flag() -> bool:
@@ -333,36 +334,22 @@ class TestSubprocessTimeoutCancellation:
         )
 
         assert result == []  # Cancelled returns empty list
-        assert process.killed, "Process should be killed on cancellation"
-        assert process.wait_called, "Should wait after killing"
 
     def test_timeout_kills_process_returns_none(
         self,
         scanner_with_parser: FileSystemScanner,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Timeout triggers process.kill() and returns None (not empty list)."""
-        process = PollingProcessDouble()
-        process.set_poll_sequence([None] * 1000)  # Never complete
+        """Timeout triggers process termination and returns None (not empty list)."""
+        # Mock the streaming read helper to simulate timeout
+        def mock_streaming_read(
+            cmd: list[str],
+            cancel_flag: object,
+            max_wait_time: float,
+            poll_interval: float = 0.1,
+        ) -> tuple[int | None, str, str, str]:
+            return (None, "", "", "timeout")
 
-        # Track time calls to simulate elapsed time
-        call_count = [0]
-        start_time = time.time()
-
-        def mock_time() -> float:
-            # First few calls return start_time, then jump past timeout
-            call_count[0] += 1
-            if call_count[0] < 3:
-                return start_time
-            return start_time + 200.0  # Jump past max_wait_time
-
-        monkeypatch.setattr(
-            "filesystem_scanner.subprocess.Popen",
-            lambda *_a, **_k: process,
-        )
-        monkeypatch.setattr("filesystem_scanner.time.time", mock_time)
-        # Don't actually sleep during the poll loop
-        monkeypatch.setattr("filesystem_scanner.time.sleep", lambda _x: None)
+        scanner_with_parser._run_subprocess_with_streaming_read = mock_streaming_read  # type: ignore[method-assign]
 
         result = scanner_with_parser._run_find_with_polling(
             find_cmd=["find", "/test"],
@@ -374,24 +361,22 @@ class TestSubprocessTimeoutCancellation:
         )
 
         assert result is None, "Timeout should return None (distinct from empty list)"
-        assert process.killed, "Process should be killed on timeout"
 
     def test_process_completes_before_timeout(
         self,
         scanner_with_parser: FileSystemScanner,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Process completing normally returns parsed results."""
-        process = PollingProcessDouble()
-        process.set_poll_sequence([None, None, 0])  # Complete after 2 polls
-        process.stdout_data = "/test/scene.3de\n/test/scene2.3de"
+        # Mock the streaming read helper to return successful output
+        def mock_streaming_read(
+            cmd: list[str],
+            cancel_flag: object,
+            max_wait_time: float,
+            poll_interval: float = 0.1,
+        ) -> tuple[int | None, str, str, str]:
+            return (0, "/test/scene.3de\n/test/scene2.3de", "", "ok")
 
-        monkeypatch.setattr(
-            "filesystem_scanner.subprocess.Popen",
-            lambda *_a, **_k: process,
-        )
-        # Speed up polling
-        monkeypatch.setattr("filesystem_scanner.time.sleep", lambda _x: None)
+        scanner_with_parser._run_subprocess_with_streaming_read = mock_streaming_read  # type: ignore[method-assign]
 
         result = scanner_with_parser._run_find_with_polling(
             find_cmd=["find", "/test"],
@@ -404,24 +389,22 @@ class TestSubprocessTimeoutCancellation:
 
         assert result is not None
         assert len(result) == 2, "Should parse 2 files from stdout"
-        assert not process.killed, "Process should not be killed on normal completion"
 
     def test_stderr_on_nonzero_exit(
         self,
         scanner_with_parser: FileSystemScanner,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Non-zero exit code logs stderr but doesn't crash."""
-        process = PollingProcessDouble()
-        process.set_poll_sequence([1])  # Exit with error immediately
-        process.stderr_data = "find: permission denied"
-        process.stdout_data = ""
-        process.returncode = 1
+        # Mock the streaming read helper to return error
+        def mock_streaming_read(
+            cmd: list[str],
+            cancel_flag: object,
+            max_wait_time: float,
+            poll_interval: float = 0.1,
+        ) -> tuple[int | None, str, str, str]:
+            return (1, "", "find: permission denied", "ok")
 
-        monkeypatch.setattr(
-            "filesystem_scanner.subprocess.Popen",
-            lambda *_a, **_k: process,
-        )
+        scanner_with_parser._run_subprocess_with_streaming_read = mock_streaming_read  # type: ignore[method-assign]
 
         # Should not raise, just return empty results
         result = scanner_with_parser._run_find_with_polling(
@@ -505,6 +488,144 @@ class TestSubprocessTimeoutCancellation:
                 cancel_flag=None,
                 max_wait_time=-10,
             )
+
+
+# =============================================================================
+# Streaming Read Tests (Pipe Buffer Deadlock Prevention)
+# =============================================================================
+
+
+@pytest.mark.real_subprocess
+class TestStreamingReadLargeOutput:
+    """Test the streaming read helper handles large outputs without deadlock.
+
+    The _run_subprocess_with_streaming_read() method was introduced to fix a
+    deadlock bug where subprocess output exceeding the OS pipe buffer (~64KB)
+    would cause the polling loop to hang.
+
+    These tests verify:
+    - Large outputs (>64KB) are captured correctly
+    - The streaming read doesn't block
+    - Cancellation and timeout work with streaming
+    """
+
+    def test_large_output_captured_completely(self) -> None:
+        """Subprocess output exceeding 64KB is captured without deadlock.
+
+        This is an integration test using a real subprocess to verify the fix.
+        The old implementation would deadlock when output exceeded ~64KB because
+        the parent only read from pipes after process.poll() returned non-None,
+        but the process couldn't exit while blocked writing to full pipes.
+        """
+        scanner = FileSystemScanner()
+
+        # Generate output > 64KB (pipe buffer size)
+        # 80KB of data = ~80,000 characters
+        output_size = 80_000
+        cmd = ["python3", "-c", f"print('x' * {output_size})"]
+
+        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
+            cmd=cmd,
+            cancel_flag=None,
+            max_wait_time=10.0,  # 10 seconds should be plenty
+        )
+
+        assert status == "ok", f"Expected status 'ok', got '{status}'"
+        assert returncode == 0, f"Expected return code 0, got {returncode}"
+        # Output should have all the x's plus newline
+        assert len(stdout.strip()) == output_size, (
+            f"Expected {output_size} chars, got {len(stdout.strip())}"
+        )
+        assert stderr == "", f"Expected empty stderr, got: {stderr}"
+
+    def test_very_large_output_multiple_reads(self) -> None:
+        """Very large output (multiple pipe buffer fills) is captured correctly.
+
+        Tests output that requires multiple read cycles, simulating real
+        scenarios where find commands return thousands of file paths.
+        """
+        scanner = FileSystemScanner()
+
+        # Generate 200KB of output (well over pipe buffer)
+        output_size = 200_000
+        cmd = ["python3", "-c", f"print('y' * {output_size})"]
+
+        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
+            cmd=cmd,
+            cancel_flag=None,
+            max_wait_time=30.0,
+        )
+
+        assert status == "ok"
+        assert returncode == 0
+        assert len(stdout.strip()) == output_size
+
+    def test_multiline_large_output(self) -> None:
+        """Large output with many lines (like find command output) is captured.
+
+        Simulates the actual use case: find command returning many file paths.
+        """
+        scanner = FileSystemScanner()
+
+        # Generate 1000 lines of output (typical for a large show scan)
+        num_lines = 1000
+        cmd = [
+            "python3",
+            "-c",
+            f"for i in range({num_lines}): print(f'/shows/TEST/shots/sq{{i:03d}}/sh{{i:04d}}/user/mm/3de/scene_{{i}}.3de')",
+        ]
+
+        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
+            cmd=cmd,
+            cancel_flag=None,
+            max_wait_time=30.0,
+        )
+
+        assert status == "ok"
+        assert returncode == 0
+        lines = stdout.strip().split("\n")
+        assert len(lines) == num_lines, f"Expected {num_lines} lines, got {len(lines)}"
+
+    def test_cancellation_during_large_output(self) -> None:
+        """Cancellation works correctly during large output streaming."""
+        scanner = FileSystemScanner()
+
+        # Start a slow command that outputs data continuously
+        cmd = ["python3", "-c", "import time; [print(f'line {i}') or time.sleep(0.01) for i in range(1000)]"]
+
+        # Cancel after a brief delay
+        cancel_triggered = [False]
+
+        def cancel_flag() -> bool:
+            if not cancel_triggered[0]:
+                cancel_triggered[0] = True
+                return False  # Don't cancel on first check
+            return True  # Cancel on subsequent checks
+
+        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
+            cmd=cmd,
+            cancel_flag=cancel_flag,
+            max_wait_time=30.0,
+        )
+
+        assert status == "cancelled"
+        assert returncode is None
+
+    def test_timeout_during_large_output(self) -> None:
+        """Timeout works correctly during large output streaming."""
+        scanner = FileSystemScanner()
+
+        # Command that runs indefinitely
+        cmd = ["python3", "-c", "import time; [print(f'line {i}') or time.sleep(0.1) for i in range(10000)]"]
+
+        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
+            cmd=cmd,
+            cancel_flag=None,
+            max_wait_time=0.5,  # Very short timeout
+        )
+
+        assert status == "timeout"
+        assert returncode is None
 
 
 # =============================================================================

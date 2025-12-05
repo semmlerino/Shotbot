@@ -7,22 +7,137 @@ more control than the standard subprocess_mock fixture provides.
 
 from __future__ import annotations
 
+import io
 import time
+from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
+
+
+class MockFileObject:
+    """Mock file object that works with selectors testing.
+
+    Provides a file-like interface for stdout/stderr that can be read
+    in chunks or all at once.
+    """
+
+    __test__ = False
+
+    def __init__(self, data: str = "") -> None:
+        """Initialize with optional data."""
+        self._data = data
+        self._position = 0
+        self._closed = False
+
+    def read(self, size: int = -1) -> str:
+        """Read data from the mock file.
+
+        Args:
+            size: Number of characters to read, or -1 for all remaining.
+
+        Returns:
+            String data read from the mock file.
+        """
+        if self._closed:
+            return ""
+        if size < 0:
+            result = self._data[self._position :]
+            self._position = len(self._data)
+            return result
+        result = self._data[self._position : self._position + size]
+        self._position += len(result)
+        return result
+
+    def fileno(self) -> int:
+        """Return a fake file descriptor.
+
+        Note: This won't work with real selectors, but allows tests
+        to verify registration attempts.
+        """
+        return -1  # Invalid fd, but allows testing
+
+    def close(self) -> None:
+        """Mark the file as closed."""
+        self._closed = True
+
+    @property
+    def remaining(self) -> int:
+        """Return how much data remains to be read."""
+        return len(self._data) - self._position
+
+
+class MockSelector:
+    """Mock selector for testing streaming read behavior.
+
+    Simulates selectors.DefaultSelector behavior for unit testing
+    without requiring real file descriptors.
+    """
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        """Initialize the mock selector."""
+        self._registered: dict[Any, tuple[Any, str]] = {}  # fileobj -> (events, data)
+        self._select_returns: list[list[tuple[Any, int]]] = []
+        self._select_index = 0
+
+    def register(
+        self, fileobj: Any, events: int, data: str | None = None
+    ) -> MagicMock:
+        """Register a file object."""
+        self._registered[fileobj] = (events, data)
+        key = MagicMock()
+        key.fileobj = fileobj
+        key.data = data
+        return key
+
+    def unregister(self, fileobj: Any) -> None:
+        """Unregister a file object."""
+        self._registered.pop(fileobj, None)
+
+    def set_select_returns(self, returns: list[list[tuple[Any, int]]]) -> None:
+        """Configure what select() returns on each call.
+
+        Args:
+            returns: List of return values for successive select() calls.
+                    Each return value is a list of (key, events) tuples.
+        """
+        self._select_returns = returns
+        self._select_index = 0
+
+    def select(self, timeout: float | None = None) -> list[tuple[Any, int]]:
+        """Return configured ready file objects."""
+        if self._select_index < len(self._select_returns):
+            result = self._select_returns[self._select_index]
+            self._select_index += 1
+            return result
+        # Default: return all registered as ready
+        keys = []
+        for fileobj, (events, data) in self._registered.items():
+            key = MagicMock()
+            key.fileobj = fileobj
+            key.data = data
+            keys.append((key, events))
+        return keys
+
+    def close(self) -> None:
+        """Close the selector."""
+        self._registered.clear()
 
 
 class PollingProcessDouble:
     """Test double for subprocess.Popen that simulates polling behavior.
 
     This double is specifically designed for testing `_run_find_with_polling()`
-    which uses poll() in a loop with sleep intervals.
+    which uses selectors to read stdout/stderr while polling.
 
     Features:
     - Configurable poll sequence (None = running, int = exit code)
     - Tracks kill() and wait() calls
-    - Configurable stdout/stderr output
+    - Configurable stdout/stderr output via MockFileObject
     - Supports cancel_flag testing
+    - Compatible with selectors-based streaming read
 
     Usage:
         process = PollingProcessDouble()
@@ -42,8 +157,8 @@ class PollingProcessDouble:
 
     def __init__(self) -> None:
         """Initialize the polling process double."""
-        self.stdout_data: str = ""
-        self.stderr_data: str = ""
+        self._stdout_data: str = ""
+        self._stderr_data: str = ""
         self._poll_sequence: list[int | None] = [0]  # Default: complete immediately
         self._poll_index: int = 0
         self.returncode: int | None = None
@@ -52,9 +167,35 @@ class PollingProcessDouble:
         self.poll_count: int = 0
         self.pid: int = 12345
 
-        # Track communicate() calls
+        # File-like stdout/stderr for selectors-based reading
+        self.stdout: MockFileObject = MockFileObject()
+        self.stderr: MockFileObject = MockFileObject()
+
+        # Track communicate() calls (legacy, still supported)
         self.communicate_called: bool = False
         self.communicate_timeout: float | None = None
+
+    @property
+    def stdout_data(self) -> str:
+        """Get stdout data."""
+        return self._stdout_data
+
+    @stdout_data.setter
+    def stdout_data(self, value: str) -> None:
+        """Set stdout data and update the MockFileObject."""
+        self._stdout_data = value
+        self.stdout = MockFileObject(value)
+
+    @property
+    def stderr_data(self) -> str:
+        """Get stderr data."""
+        return self._stderr_data
+
+    @stderr_data.setter
+    def stderr_data(self, value: str) -> None:
+        """Set stderr data and update the MockFileObject."""
+        self._stderr_data = value
+        self.stderr = MockFileObject(value)
 
     def set_poll_sequence(self, sequence: list[int | None]) -> None:
         """Set the sequence of poll() return values.
