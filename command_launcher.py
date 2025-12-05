@@ -1057,17 +1057,15 @@ class CommandLauncher(LoggingMixin, QObject):
             safe_file_path = CommandBuilder.validate_path(str(file_path))
             # Add app-specific command-line flags for file
             if app_name == "3de":
-                # 3DE: Add deferred context update via tde4 module
-                # Uses tde4.postCustomRequester with a timer callback
-                context_script = (
-                    "import tde4,sgtk,os; "
-                    "e=sgtk.platform.current_engine(); "
-                    "p=tde4.getProjectPath(); "
-                    "c=e.sgtk.context_from_path(p) if e and p else None; "
-                    "e.change_context(c) if c and c.task and e and not e.context.task else None"
+                # 3DE: Set PYTHON_CUSTOM_SCRIPTS_3DE4 to include our startup script
+                # The 3de_sgtk_context_callback.py registers a project open callback
+                # that updates SGTK context with Task/Step, triggering full app loading
+                scripts_dir = "/nethome/gabriel-h/Python/Shotbot/scripts"
+                tde_scripts_export = (
+                    f"export PYTHON_CUSTOM_SCRIPTS_3DE4={scripts_dir}:"
+                    "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
                 )
-                # 3DE executes -startupaliases after project load
-                command = f'{command} -open {safe_file_path} -startupaliases "{context_script}"'
+                command = f"{tde_scripts_export}{command} -open {safe_file_path}"
             elif app_name == "maya":
                 # Maya: Add deferred command to update SGTK context after file loads
                 # This triggers full app loading (publish, loader, etc.)
@@ -1122,10 +1120,10 @@ class CommandLauncher(LoggingMixin, QObject):
             # Apply Nuke environment fixes if needed
             env_fixes = self._apply_nuke_environment_fixes(app_name, "File launch")
 
-            # Set SGTK_FILE_TO_OPEN for SGTK-enabled apps (Maya, Nuke)
+            # Set SGTK_FILE_TO_OPEN for SGTK-enabled apps (Maya, Nuke, 3DE)
             # This tells ShotGrid Toolkit to bootstrap context from the file path,
             # ensuring the full environment is loaded when opening via command line
-            sgtk_apps = ("maya", "nuke")
+            sgtk_apps = ("maya", "nuke", "3de")
             if app_name.lower() in sgtk_apps:
                 sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_file_path} && "
                 self.logger.debug(f"Setting SGTK_FILE_TO_OPEN={safe_file_path}")
