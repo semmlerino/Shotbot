@@ -652,6 +652,7 @@ class RefactoredThreeDESceneFinder:
                 # Create scene for ALL found files from other users
                 # This is the "Other 3DE scenes" tab - it should show everything
                 # Local application imports
+                from frame_range_extractor import extract_frame_range
                 from threede_scene_model import ThreeDEScene
 
                 # Get file modification time for sorting (0.0 if unavailable)
@@ -659,6 +660,11 @@ class RefactoredThreeDESceneFinder:
                     modified_time = scene_path.stat().st_mtime
                 except OSError:
                     modified_time = 0.0
+
+                # Extract frame range for scrub preview
+                frame_range = extract_frame_range(workspace_path)
+                frame_start = frame_range[0] if frame_range else None
+                frame_end = frame_range[1] if frame_range else None
 
                 scene = ThreeDEScene(
                     show=show_name,
@@ -669,6 +675,8 @@ class RefactoredThreeDESceneFinder:
                     plate=plate,
                     scene_path=scene_path,
                     modified_time=modified_time,
+                    frame_start=frame_start,
+                    frame_end=frame_end,
                 )
                 show_scenes.append(scene)
 

@@ -217,6 +217,7 @@ class SceneParser(LoggingMixin):
             ThreeDEScene instance
         """
         # Local application imports
+        from frame_range_extractor import extract_frame_range
         from threede_scene_model import ThreeDEScene
 
         # Get file modification time for sorting (0.0 if unavailable)
@@ -224,6 +225,11 @@ class SceneParser(LoggingMixin):
             modified_time = file_path.stat().st_mtime
         except OSError:
             modified_time = 0.0
+
+        # Extract frame range for scrub preview
+        frame_range = extract_frame_range(workspace_path)
+        frame_start = frame_range[0] if frame_range else None
+        frame_end = frame_range[1] if frame_range else None
 
         scene = ThreeDEScene(
             show=show,
@@ -234,6 +240,8 @@ class SceneParser(LoggingMixin):
             plate=plate,
             scene_path=file_path,
             modified_time=modified_time,
+            frame_start=frame_start,
+            frame_end=frame_end,
         )
 
         self.logger.debug(f"Created scene: {show}/{sequence}/{shot} - {user}/{plate}")

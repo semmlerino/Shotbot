@@ -214,22 +214,31 @@ class PreviousShotsModel(LoggingMixin, QObject):
             approved_shots: List of approved shot dictionaries found by worker.
         """
         try:
+            # Local application imports
+            from frame_range_extractor import extract_frame_range
+
             # Convert dictionaries to Shot objects with current timestamp
             current_time = time.time()
-            newly_found_shots: list[Shot] = (
-                [
-                    Shot(
-                        show=shot_dict["show"],
-                        sequence=shot_dict["sequence"],
-                        shot=shot_dict["shot"],
-                        workspace_path=shot_dict["workspace_path"],
-                        discovered_at=current_time,  # New shots get current timestamp
+            newly_found_shots: list[Shot] = []
+
+            if approved_shots:
+                for shot_dict in approved_shots:
+                    # Extract frame range for scrub preview
+                    frame_range = extract_frame_range(shot_dict["workspace_path"])
+                    frame_start = frame_range[0] if frame_range else None
+                    frame_end = frame_range[1] if frame_range else None
+
+                    newly_found_shots.append(
+                        Shot(
+                            show=shot_dict["show"],
+                            sequence=shot_dict["sequence"],
+                            shot=shot_dict["shot"],
+                            workspace_path=shot_dict["workspace_path"],
+                            discovered_at=current_time,
+                            frame_start=frame_start,
+                            frame_end=frame_end,
+                        )
                     )
-                    for shot_dict in approved_shots
-                ]
-                if approved_shots
-                else []
-            )
 
             # Incremental merge: combine existing cache with new findings
             # Create set of existing shot IDs for fast lookup

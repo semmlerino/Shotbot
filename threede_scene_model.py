@@ -38,6 +38,8 @@ class ThreeDEScene:
     plate: str
     scene_path: Path
     modified_time: float = 0.0  # Unix timestamp from file mtime (for sorting)
+    frame_start: int | None = None  # First frame of main plate (for scrub preview)
+    frame_end: int | None = None  # Last frame of main plate (for scrub preview)
     _cached_thumbnail_path: object | Path | None = field(
         default=_NOT_SEARCHED,
         init=False,
@@ -105,13 +107,13 @@ class ThreeDEScene:
         self._cached_thumbnail_path = thumbnail
         return thumbnail
 
-    def to_dict(self) -> dict[str, str | float | Path]:
+    def to_dict(self) -> dict[str, str | float | Path | int | None]:
         """Convert scene to dictionary for caching.
 
         Includes thumbnail_path if it has been discovered (not sentinel).
         This reduces filesystem I/O on subsequent loads.
         """
-        data: dict[str, str | float | Path] = {
+        data: dict[str, str | float | Path | int | None] = {
             "show": self.show,
             "sequence": self.sequence,
             "shot": self.shot,
@@ -120,6 +122,8 @@ class ThreeDEScene:
             "plate": self.plate,
             "scene_path": str(self.scene_path),
             "modified_time": self.modified_time,
+            "frame_start": self.frame_start,
+            "frame_end": self.frame_end,
         }
         # Persist thumbnail path if discovered (not sentinel)
         if self._cached_thumbnail_path is not _NOT_SEARCHED and self._cached_thumbnail_path:
@@ -127,12 +131,24 @@ class ThreeDEScene:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, str | float | Path]) -> ThreeDEScene:
+    def from_dict(cls, data: dict[str, str | float | Path | int | None]) -> ThreeDEScene:
         """Create from dictionary.
 
         Note: modified_time defaults to 0.0 for cache migration of old entries.
+        Frame range fields default to None for cache migration compatibility.
         Restores thumbnail_path if present AND file still exists (validated).
         """
+        # Extract frame range with proper type handling
+        frame_start_raw = data.get("frame_start")
+        frame_end_raw = data.get("frame_end")
+        # Handle numeric types only (int/float from cache)
+        frame_start: int | None = None
+        frame_end: int | None = None
+        if isinstance(frame_start_raw, (int, float)):
+            frame_start = int(frame_start_raw)
+        if isinstance(frame_end_raw, (int, float)):
+            frame_end = int(frame_end_raw)
+
         instance = cls(
             show=str(data["show"]),
             sequence=str(data["sequence"]),
@@ -142,6 +158,8 @@ class ThreeDEScene:
             plate=str(data["plate"]),
             scene_path=Path(str(data["scene_path"])),
             modified_time=float(data.get("modified_time", 0.0)),  # type: ignore[arg-type]
+            frame_start=frame_start,
+            frame_end=frame_end,
         )
         # Restore thumbnail path if present AND file still exists
         if "thumbnail_path" in data:
@@ -288,7 +306,7 @@ class ThreeDESceneModel:
                 return scene
         return None
 
-    def to_dict(self) -> list[dict[str, str | float | Path]]:
+    def to_dict(self) -> list[dict[str, str | float | Path | int | None]]:
         """Convert scenes to dictionary format for caching."""
         return [scene.to_dict() for scene in self.scenes]
 
