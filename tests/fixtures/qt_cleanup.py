@@ -48,7 +48,8 @@ FAIL_ON_THREAD_LEAK = os.environ.get("SHOTBOT_TEST_FAIL_ON_THREAD_LEAK", "0") ==
 _THREAD_TOLERANCE = 1
 
 # Thread wait timeout in ms - configurable via env var for slow CI runners
-_THREAD_WAIT_TIMEOUT_MS = int(os.environ.get("SHOTBOT_TEST_THREAD_WAIT_MS", "100"))
+# Increased from 100ms to 500ms to handle real QThreadPool workloads
+_THREAD_WAIT_TIMEOUT_MS = int(os.environ.get("SHOTBOT_TEST_THREAD_WAIT_MS", "500"))
 
 # Session-level leak tracking (populated in CI/strict mode)
 # Collects leak info for summary at session end instead of per-test spam
@@ -174,6 +175,13 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         if hasattr(pool, "clear"):
             pool.clear()
         pool.waitForDone(_THREAD_WAIT_TIMEOUT_MS)  # Configurable via SHOTBOT_TEST_THREAD_WAIT_MS
+
+        # Backoff loop if still active - handles slow thread shutdowns
+        if pool.activeThreadCount() > 0:
+            for backoff_ms in [100, 200, 500]:
+                pool.waitForDone(backoff_ms)
+                if pool.activeThreadCount() == 0:
+                    break
 
     # Also wait for any Python threading.Thread instances to complete
     # Some tests use threading.Thread in addition to QThreadPool

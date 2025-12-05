@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
+import time_machine
 
 from filesystem_scanner import DirectoryCache, FileSystemScanner
 from tests.fixtures.filesystem_scanner_doubles import PollingProcessDouble
@@ -29,6 +30,23 @@ if TYPE_CHECKING:
 
 
 pytestmark = [pytest.mark.unit]
+
+
+@pytest.fixture
+def fast_time():
+    """Fixture for fast, deterministic time manipulation.
+
+    Use this instead of time.sleep() when testing TTL-based logic.
+    The traveller.shift() method instantly advances time.
+
+    Example:
+        def test_ttl(fast_time):
+            cache.set(key, value, ttl=60)
+            fast_time.shift(61)  # Instantly advance 61 seconds
+            assert cache.is_expired(key)
+    """
+    with time_machine.travel(0, tick=False) as traveller:
+        yield traveller
 
 
 # =============================================================================
@@ -227,11 +245,13 @@ class TestDirectoryCacheThreadSafety:
 
         assert completed.is_set(), "Nested lock acquisition caused deadlock"
 
-    def test_large_cache_cleanup_threshold(self) -> None:
+    def test_large_cache_cleanup_threshold(self, fast_time) -> None:
         """Cache cleanup at 1000 entries threshold works correctly.
 
         When enable_auto_expiry=True, cache should clean up expired entries
         when size exceeds 1000.
+
+        Uses fast_time fixture for instant TTL expiration instead of real sleep.
         """
         cache = DirectoryCache(ttl_seconds=1, enable_auto_expiry=True)
 
@@ -239,8 +259,8 @@ class TestDirectoryCacheThreadSafety:
         for i in range(500):
             cache.set_listing(Path(f"/old/{i}"), [("file", True, False)])
 
-        # Wait for entries to expire
-        time.sleep(1.1)
+        # Instantly advance time past TTL (replaces time.sleep(1.1))
+        fast_time.shift(1.1)
 
         # Add 600 more entries (total > 1000, triggers cleanup)
         for i in range(600):

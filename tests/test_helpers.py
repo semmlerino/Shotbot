@@ -81,12 +81,56 @@ class ThreadSafeTestImage:
 
 
 def process_qt_events(duration_ms: int = 5, iterations: int = 2) -> None:
-    """Process pending Qt events without relying on qtbot.wait()."""
+    """Process pending Qt events.
+
+    This helper processes Qt events in multiple iterations to ensure
+    all pending events are handled. Use this instead of qtbot.wait(1)
+    for event processing.
+
+    NOTE: This does NOT flush DeferredDelete events. For end-of-test cleanup
+    that includes DeferredDelete flushing, use the qt_cleanup fixture or
+    call flush_deferred_deletes() explicitly after all widgets are destroyed.
+
+    Args:
+        duration_ms: Maximum time to spend processing events per iteration.
+        iterations: Number of event processing rounds.
+    """
     app = QApplication.instance()
     if app is None:
         return
     for _ in range(iterations):
         app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, duration_ms)
+
+
+def flush_deferred_deletes() -> None:
+    """Flush pending DeferredDelete events (deleteLater() calls).
+
+    This explicitly processes all pending deleteLater() calls. Use this in
+    test cleanup AFTER all widgets have been destroyed and you want to ensure
+    their deletions are complete.
+
+    WARNING: Only call this after widgets are fully disconnected from signals
+    and their callbacks won't access deleted objects. Using this during mid-test
+    event processing can cause segfaults.
+
+    Example:
+        widget.deleteLater()
+        process_qt_events()
+        flush_deferred_deletes()  # Now the widget is truly deleted
+    """
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    app = QApplication.instance()
+    if app is None:
+        return
+    # Process events first to ensure all pending operations complete
+    app.processEvents()
+    # Then flush deferred deletes
+    try:
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    except (RuntimeError, SystemError):
+        # Object may have been deleted already
+        pass
 
 
 # SignalDouble is now imported from tests.fixtures.test_doubles (see imports above)

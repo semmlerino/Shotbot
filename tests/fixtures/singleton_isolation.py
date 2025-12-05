@@ -45,8 +45,10 @@ def _clear_config_files() -> None:
     - settings.json
     - window_state.json
 
-    Any other files are also cleared with a warning log to surface
-    potential state leakage issues.
+    FAILS on unexpected artifacts to catch test isolation issues early.
+
+    Raises:
+        RuntimeError: If unexpected config files or directories are found.
     """
     config_dir = os.environ.get("SHOTBOT_CONFIG_DIR")
     if not config_dir:
@@ -56,17 +58,18 @@ def _clear_config_files() -> None:
     if not config_path.exists():
         return
 
-    # Known config files (for logging unexpected ones)
+    # Known config files
     known_files = {"custom_launchers.json", "settings.json", "window_state.json"}
+
+    # Track unexpected artifacts for error reporting
+    unexpected_files: list[str] = []
+    unexpected_dirs: list[str] = []
 
     # Clear ALL files in config dir
     for item in config_path.iterdir():
         if item.is_file():
             if item.name not in known_files:
-                _logger.warning(
-                    "Clearing unexpected config file (potential state leak): %s",
-                    item.name,
-                )
+                unexpected_files.append(item.name)
             try:
                 item.unlink()
             except OSError:
@@ -75,11 +78,17 @@ def _clear_config_files() -> None:
             # Clear unexpected directories recursively for complete isolation
             import shutil
 
-            _logger.warning(
-                "Clearing unexpected config directory (potential state leak): %s",
-                item.name,
-            )
+            unexpected_dirs.append(item.name)
             shutil.rmtree(item, ignore_errors=True)
+
+    # Fail on unexpected artifacts to catch test isolation issues
+    if unexpected_files or unexpected_dirs:
+        msg_parts = ["Test leaked unexpected config artifacts (isolation failure):"]
+        if unexpected_files:
+            msg_parts.append(f"  Files: {unexpected_files}")
+        if unexpected_dirs:
+            msg_parts.append(f"  Directories: {unexpected_dirs}")
+        raise RuntimeError("\n".join(msg_parts))
 
 
 def _clear_stat_caches() -> None:
@@ -103,9 +112,6 @@ def _clear_disk_cache_files() -> None:
     This ensures each test starts with clean disk cache state while keeping
     directory creation overhead low (directories persist, only files removed).
 
-    This clears ALL .json files in cache directories and warns about any
-    unexpected files or directories to surface potential state leakage.
-
     Known cache files:
     - shots.json
     - previous_shots.json
@@ -115,7 +121,12 @@ def _clear_disk_cache_files() -> None:
     Preserved directories (expensive to regenerate):
     - thumbnails/
 
+    FAILS on unexpected artifacts to catch test isolation issues early.
+
     Note: Use clean_thumbnails fixture from tests.fixtures.caching for thumbnail isolation.
+
+    Raises:
+        RuntimeError: If unexpected cache files or directories are found.
     """
     cache_dir = os.environ.get("SHOTBOT_TEST_CACHE_DIR")
     if not cache_dir:
@@ -134,6 +145,10 @@ def _clear_disk_cache_files() -> None:
     }
     known_dirs = {"production", "thumbnails"}
 
+    # Track unexpected artifacts for error reporting
+    unexpected_files: list[str] = []
+    unexpected_dirs: list[str] = []
+
     # Clear from root cache dir and production subdirectory
     for subdir in [cache_path, cache_path / "production"]:
         if not subdir.exists():
@@ -143,10 +158,7 @@ def _clear_disk_cache_files() -> None:
             if item.is_file():
                 # Clear ALL files (not just .json) for complete test isolation
                 if item.name not in known_files:
-                    _logger.warning(
-                        "Clearing unexpected cache file (potential state leak): %s",
-                        item.name,
-                    )
+                    unexpected_files.append(f"{subdir.name}/{item.name}")
                 try:
                     item.unlink()
                 except OSError:
@@ -156,11 +168,17 @@ def _clear_disk_cache_files() -> None:
                 if item.name not in known_dirs:
                     import shutil
 
-                    _logger.warning(
-                        "Clearing unexpected directory (potential state leak): %s",
-                        item.name,
-                    )
+                    unexpected_dirs.append(f"{subdir.name}/{item.name}")
                     shutil.rmtree(item, ignore_errors=True)
+
+    # Fail on unexpected artifacts to catch test isolation issues
+    if unexpected_files or unexpected_dirs:
+        msg_parts = ["Test leaked unexpected cache artifacts (isolation failure):"]
+        if unexpected_files:
+            msg_parts.append(f"  Files: {unexpected_files}")
+        if unexpected_dirs:
+            msg_parts.append(f"  Directories: {unexpected_dirs}")
+        raise RuntimeError("\n".join(msg_parts))
 
 # Strict mode fails on cleanup exceptions (auto-enabled in CI)
 STRICT_CLEANUP = (
@@ -243,12 +261,16 @@ cleanup_state_lite = reset_caches
 
 
 @pytest.fixture
-def reset_singletons() -> Iterator[None]:
+def reset_singletons(reset_caches: None) -> Iterator[None]:
     """Heavy cleanup for Qt tests - singletons, threads, Qt state.
 
     NOTE: This fixture is NOT autouse. It is applied conditionally via
     conftest.py's pytest_collection_modifyitems hook to tests that use qtbot
     or are marked with @pytest.mark.qt.
+
+    IMPORTANT: Depends on reset_caches fixture to ensure caches are cleared
+    before singletons are reset. This prevents singletons from loading stale
+    cached data during initialization.
 
     Before test:
     - Reset all registered singletons via SingletonRegistry

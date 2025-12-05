@@ -11,6 +11,7 @@ pytest-cov~=7.0.0
 pytest-xdist~=3.8.0
 pytest-timeout~=2.4.0
 hypothesis~=6.100.0
+time-machine~=2.18.0  # Fast deterministic time testing
 
 # Development dependencies
 ruff~=0.14.0

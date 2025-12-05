@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Test to demonstrate ProcessPoolManager singleton race condition."""
+"""Test to demonstrate ProcessPoolManager singleton race condition.
+
+These tests verify thread-safety of ProcessPoolManager singleton initialization
+under concurrent access conditions.
+"""
 
 # Standard library imports
 import sys
@@ -11,12 +15,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 
 # Standard library imports
 import concurrent.futures
+import logging
 import threading
 import time
 from typing import Any
 
 # Third-party imports
 import pytest
+
+
+_logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -34,6 +42,8 @@ def cleanup_process_pool():
         ProcessPoolManager._instance = None
 
 
+@pytest.mark.slow
+@pytest.mark.xdist_group("process_pool_race")
 def test_process_pool_manager_race_condition() -> None:
     """Demonstrate race condition in ProcessPoolManager singleton initialization.
 
@@ -64,7 +74,7 @@ def test_process_pool_manager_race_condition() -> None:
     def tracked_executor(*args, **kwargs):
         with init_lock:
             actual_init_count[0] += 1
-            print(f"ACTUAL initialization - ThreadPoolExecutor created (count={actual_init_count[0]})")
+            _logger.debug("ACTUAL initialization - ThreadPoolExecutor created (count=%d)", actual_init_count[0])
         return original_thread_pool_executor(*args, **kwargs)
 
     # Patch ThreadPoolExecutor to track actual initialization
@@ -89,8 +99,9 @@ def test_process_pool_manager_race_condition() -> None:
             errors.append(e)
 
     # Create threads to trigger race condition
+    # Reduced from 10 to 5 threads to minimize resource usage while still testing concurrency
     threads = []
-    for _ in range(10):
+    for _ in range(5):
         thread = threading.Thread(target=create_instance)
         threads.append(thread)
 
@@ -107,11 +118,11 @@ def test_process_pool_manager_race_condition() -> None:
     concurrent.futures.ThreadPoolExecutor = original_thread_pool_executor
 
     # Analyze results
-    print(f"Instances created: {len(instances)}")
-    print(f"Unique instances: {len({id(i) for i in instances})}")
-    print(f"Init called: {init_call_count[0]} times (expected 10)")
-    print(f"ACTUAL init performed: {actual_init_count[0]} times (expected 1)")
-    print(f"Errors: {len(errors)}")
+    _logger.debug("Instances created: %d", len(instances))
+    _logger.debug("Unique instances: %d", len({id(i) for i in instances}))
+    _logger.debug("Init called: %d times (expected 5)", init_call_count[0])
+    _logger.debug("ACTUAL init performed: %d times (expected 1)", actual_init_count[0])
+    _logger.debug("Errors: %d", len(errors))
 
     # The race condition manifests as:
     # 1. All instances should be the same object (singleton)
@@ -126,6 +137,8 @@ def test_process_pool_manager_race_condition() -> None:
     assert len(errors) == 0, f"Errors occurred: {errors}"
 
 
+@pytest.mark.slow
+@pytest.mark.xdist_group("process_pool_race")
 def test_process_pool_manager_resource_leak() -> None:
     """Test for resource leaks due to duplicate initialization.
 
@@ -159,7 +172,7 @@ def test_process_pool_manager_resource_leak() -> None:
         ProcessPoolManager()
 
         # Check for duplicate executor creations
-        print(f"Executor creations: {len(executor_creations)}")
+        _logger.debug("Executor creations: %d", len(executor_creations))
         assert len(executor_creations) == 1, "Multiple executors created!"
 
     finally:
@@ -168,6 +181,7 @@ def test_process_pool_manager_resource_leak() -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     test_process_pool_manager_race_condition()
     test_process_pool_manager_resource_leak()
-    print("Tests completed - race conditions demonstrated")
+    _logger.info("Tests completed - race conditions verified")

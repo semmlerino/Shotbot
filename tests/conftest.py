@@ -232,6 +232,59 @@ import logging
 _conftest_logger = logging.getLogger(__name__)
 
 
+def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
+    """Check if a fixture or its dependencies use PySide6.
+
+    This function inspects the fixture dependency graph to detect indirect
+    Qt usage through fixtures. This catches cases where a test doesn't import
+    PySide6 directly but uses fixtures that do.
+
+    Args:
+        item: The pytest item (test function)
+        fixture_name: Name of the fixture to check
+
+    Returns:
+        True if the fixture imports PySide6, False otherwise
+    """
+    try:
+        # Get fixture manager from session
+        fm = item.session._fixturemanager
+        fixture_defs = fm.getfixturedefs(fixture_name, item.nodeid)
+
+        if not fixture_defs:
+            return False
+
+        for fixture_def in fixture_defs:
+            # Check fixture function's module
+            func = fixture_def.func
+            func_module = getattr(func, "__module__", "")
+            if isinstance(func_module, str) and func_module.startswith("PySide6"):
+                return True
+
+            # Check fixture function's source for PySide6 imports
+            try:
+                import ast
+                import inspect
+
+                source = inspect.getsource(func)
+                tree = ast.parse(source)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            if alias.name.startswith("PySide6"):
+                                return True
+                    elif isinstance(node, ast.ImportFrom):
+                        if node.module and node.module.startswith("PySide6"):
+                            return True
+            except (TypeError, OSError, SyntaxError):
+                pass
+
+    except (AttributeError, KeyError):
+        pass
+
+    return False
+
+
 def _module_imports_pyside6(module) -> bool:
     """Check if a test module imports PySide6 at any level.
 
@@ -273,6 +326,10 @@ def _module_imports_pyside6(module) -> bool:
 
     # Method 2: AST-based detection for function-level imports
     # This catches imports inside test functions that runtime check misses
+    # Note: ast.walk() recursively visits ALL nodes including those inside
+    # FunctionDef/AsyncFunctionDef bodies, so this correctly catches:
+    #   def test_foo():
+    #       from PySide6.QtCore import QObject  # <- detected
     try:
         import ast
         import inspect
@@ -338,8 +395,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         is_qt_test = item.get_closest_marker("qt") or fixtures.intersection(_QT_FIXTURES)
 
         # Auto-detect PySide6 imports if not already detected as Qt test
-        if not is_qt_test and item.module:
-            if _module_imports_pyside6(item.module):
+        if not is_qt_test:
+            # Method 1: Check module-level and function-level imports
+            if item.module and _module_imports_pyside6(item.module):
                 is_qt_test = True
                 # Log once per module (not per test)
                 module_name = item.module.__name__ if item.module else "unknown"
@@ -351,6 +409,21 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                         "Applying Qt cleanup automatically.",
                         module_name,
                     )
+
+            # Method 2: Check fixture dependency graph for indirect Qt usage
+            if not is_qt_test:
+                for fixture_name in fixtures - _QT_FIXTURES:  # Skip known Qt fixtures
+                    if _fixture_uses_pyside6(item, fixture_name):
+                        is_qt_test = True
+                        module_name = item.module.__name__ if item.module else "unknown"
+                        if module_name not in auto_detected_modules:
+                            auto_detected_modules.add(module_name)
+                            _conftest_logger.debug(
+                                "Auto-detected PySide6 in fixture dependency for %s. "
+                                "Applying Qt cleanup automatically.",
+                                module_name,
+                            )
+                        break
 
         if is_qt_test:
             # Check for qt_heavy marker - these tests need extra isolation
