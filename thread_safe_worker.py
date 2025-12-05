@@ -158,12 +158,12 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             self._state_condition.wakeAll()
 
             # Determine which signal to emit (but don't emit inside mutex!)
+            # NOTE: ERROR state does NOT emit here - error signals are emitted
+            # from exception handlers with actual context (see run() method)
             try:
                 if new_state == WorkerState.STOPPED:
                     signal_to_emit = self.worker_stopped
-                elif new_state == WorkerState.ERROR:
-                    # Store error message for emission outside mutex
-                    signal_to_emit = (self.worker_error, "State error")
+                # No emission for ERROR - exception handler emits with real details
             except (SystemError, RuntimeError):
                 # Can occur during Python shutdown when enum module is being unloaded
                 pass
@@ -552,9 +552,8 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         # Disconnect signals before any termination attempt
         self.disconnect_all()  # type: ignore[reportAny, no-untyped-call]
 
-        # Force state transition
+        # Set stop flags but NOT state yet - state only changes after confirmed stop
         with QMutexLocker(self._state_mutex):
-            self._state = WorkerState.STOPPED
             self._stop_requested = True
             self._force_stop = True
 
@@ -584,6 +583,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     )
                     # DO NOT call terminate() - it's unsafe!
                     # Instead, mark as zombie and add to class collection to prevent GC
+                    # NOTE: State stays at previous value - thread is still running!
                     with QMutexLocker(self._state_mutex):
                         self._zombie = True
 
@@ -605,9 +605,19 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
                     )
                 else:
+                    # Thread actually stopped - NOW set state to STOPPED
+                    with QMutexLocker(self._state_mutex):
+                        self._state = WorkerState.STOPPED
                     self.logger.info(f"Worker {id(self)}: Stopped after extended wait")
             else:
+                # Thread actually stopped - NOW set state to STOPPED
+                with QMutexLocker(self._state_mutex):
+                    self._state = WorkerState.STOPPED
                 self.logger.info(f"Worker {id(self)}: Stopped gracefully")
+        else:
+            # Thread was already stopped - set state to STOPPED
+            with QMutexLocker(self._state_mutex):
+                self._state = WorkerState.STOPPED
 
     @classmethod
     def cleanup_old_zombies(cls) -> int:

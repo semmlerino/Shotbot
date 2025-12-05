@@ -72,6 +72,9 @@ class ThreadingManager(QObject):
         # Zombie worker tracking - workers that failed to stop gracefully
         self._zombie_workers: list[QThread] = []
 
+        # Cleanup timer storage - prevents GC of timers before they fire
+        self._cleanup_timers: dict[int, QTimer] = {}
+
         # Current 3DE worker tracking
         self._current_threede_worker: ThreeDESceneWorker | None = None
         self._threede_discovery_active = False
@@ -192,10 +195,15 @@ class ThreadingManager(QObject):
             return
 
         # Set up timeout fallback - if worker doesn't finish in time, track as zombie
-        cleanup_timer = QTimer()
+        # Use self as parent and store reference to prevent GC before timeout fires
+        cleanup_timer = QTimer(self)
         cleanup_timer.setSingleShot(True)
+        worker_id = id(worker)
+        self._cleanup_timers[worker_id] = cleanup_timer
 
         def on_timeout() -> None:
+            # Remove stored reference
+            self._cleanup_timers.pop(worker_id, None)
             cleanup_timer.deleteLater()
             if worker.isRunning():
                 logger.warning("3DE worker did not stop gracefully within timeout")
@@ -204,7 +212,8 @@ class ThreadingManager(QObject):
             # Note: deleteLater already connected to finished signal
 
         def on_finished() -> None:
-            # Worker finished before timeout - stop the timer
+            # Worker finished before timeout - stop the timer and remove reference
+            self._cleanup_timers.pop(worker_id, None)
             cleanup_timer.stop()
             cleanup_timer.deleteLater()
 
@@ -480,8 +489,12 @@ class ThreadingManager(QObject):
                 # Protect zombie list access with mutex
                 with QMutexLocker(self._mutex):
                     self._zombie_workers.append(worker)
+                # DON'T call deleteLater on zombies - they're still running
+                # Zombie cleanup happens in shutdown_all_threads()
+                logger.debug(f"Worker {name} tracked as zombie - skipping deleteLater")
+                return True
 
-        # Schedule for deletion (safe even if still running - Qt handles it)
+        # Only schedule for deletion if worker actually stopped
         worker.deleteLater()
         logger.debug(f"Removed worker: {name}")
         return True

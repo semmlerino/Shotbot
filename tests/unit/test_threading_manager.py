@@ -481,7 +481,11 @@ class TestCustomWorkerManagement:
     def test_remove_worker_handles_timeout(
         self, threading_manager: ThreadingManager
     ) -> None:
-        """Test removing worker handles wait timeout gracefully."""
+        """Test removing worker handles wait timeout gracefully.
+
+        When a worker times out (doesn't stop gracefully), it should be tracked
+        as a zombie and deleteLater should NOT be called (it's unsafe on running threads).
+        """
         worker = Mock(spec=QThread)
         worker.start = Mock()
         worker.isRunning = Mock(return_value=True)
@@ -495,7 +499,10 @@ class TestCustomWorkerManagement:
 
         # Should still complete despite timeout
         assert result is True
-        worker.deleteLater.assert_called_once()
+        # deleteLater should NOT be called on zombie workers (they're still running!)
+        worker.deleteLater.assert_not_called()
+        # Worker should be tracked as zombie instead
+        assert worker in threading_manager._zombie_workers
 
 
 # =============================================================================

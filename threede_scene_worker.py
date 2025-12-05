@@ -542,7 +542,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 shot_tuples,
                 self.excluded_users,
                 self.batch_size,
-                cancel_flag=lambda: self.isInterruptionRequested(),
+                cancel_flag=self.should_stop,
             ):
                 # Check for pause/cancel between batches
                 if not self._check_pause_and_cancel():
