@@ -8,6 +8,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel
 
+
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 

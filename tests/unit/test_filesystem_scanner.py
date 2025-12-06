@@ -22,7 +22,6 @@ import pytest
 import time_machine
 
 from filesystem_scanner import DirectoryCache, FileSystemScanner
-from tests.fixtures.filesystem_scanner_doubles import PollingProcessDouble
 
 
 if TYPE_CHECKING:
@@ -550,7 +549,7 @@ class TestStreamingReadLargeOutput:
         output_size = 200_000
         cmd = ["python3", "-c", f"print('y' * {output_size})"]
 
-        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
+        returncode, stdout, _stderr, status = scanner._run_subprocess_with_streaming_read(
             cmd=cmd,
             cancel_flag=None,
             max_wait_time=30.0,
@@ -575,7 +574,7 @@ class TestStreamingReadLargeOutput:
             f"for i in range({num_lines}): print(f'/shows/TEST/shots/sq{{i:03d}}/sh{{i:04d}}/user/mm/3de/scene_{{i}}.3de')",
         ]
 
-        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
+        returncode, stdout, _stderr, status = scanner._run_subprocess_with_streaming_read(
             cmd=cmd,
             cancel_flag=None,
             max_wait_time=30.0,
@@ -602,7 +601,7 @@ class TestStreamingReadLargeOutput:
                 return False  # Don't cancel on first check
             return True  # Cancel on subsequent checks
 
-        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
+        returncode, _stdout, _stderr, status = scanner._run_subprocess_with_streaming_read(
             cmd=cmd,
             cancel_flag=cancel_flag,
             max_wait_time=30.0,
@@ -618,7 +617,7 @@ class TestStreamingReadLargeOutput:
         # Command that runs indefinitely
         cmd = ["python3", "-c", "import time; [print(f'line {i}') or time.sleep(0.1) for i in range(10000)]"]
 
-        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
+        returncode, _stdout, _stderr, status = scanner._run_subprocess_with_streaming_read(
             cmd=cmd,
             cancel_flag=None,
             max_wait_time=0.5,  # Very short timeout

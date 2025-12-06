@@ -12,17 +12,11 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
 from base_shot_model import BaseShotModel
-
-
-if TYPE_CHECKING:
-    pass
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.real_subprocess]
@@ -188,7 +182,7 @@ class TestWsRealShellExecution:
         """Create a fake ws script for testing."""
         script = tmp_path / "ws"
         script.write_text(
-            '''#!/bin/bash
+            """#!/bin/bash
 # Simulate MOTD noise
 echo "Welcome to BlueBolt" >&2
 echo "Last login: $(date)"
@@ -199,7 +193,7 @@ echo "workspace /shows/testshow/shots/sq010/sq010_0020"
 
 # Simulate warning
 echo "Warning: /nethome is slow today" >&2
-'''
+"""
         )
         script.chmod(0o755)
         return script
@@ -214,13 +208,10 @@ echo "Warning: /nethome is slow today" >&2
 
         result = subprocess.run(
             ["bash", "-c", f"{fake_ws_script}"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=5,
         )
-
-        # Combined output (stdout + stderr for realism)
-        combined = result.stdout + result.stderr
 
         # Parse it
         class TestModel(BaseShotModel):

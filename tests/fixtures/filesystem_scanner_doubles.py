@@ -7,7 +7,6 @@ more control than the standard subprocess_mock fixture provides.
 
 from __future__ import annotations
 
-import io
 import time
 from typing import Any
 from unittest.mock import MagicMock

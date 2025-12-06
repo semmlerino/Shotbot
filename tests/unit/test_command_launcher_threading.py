@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, Mock
 import pytest
 from PySide6.QtCore import QObject, QThread, Signal
 
+
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 

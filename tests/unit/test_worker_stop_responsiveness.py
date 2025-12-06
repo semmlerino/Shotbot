@@ -21,6 +21,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 

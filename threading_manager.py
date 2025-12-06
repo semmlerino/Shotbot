@@ -203,7 +203,7 @@ class ThreadingManager(QObject):
 
         def on_timeout() -> None:
             # Remove stored reference
-            self._cleanup_timers.pop(worker_id, None)
+            _ = self._cleanup_timers.pop(worker_id, None)
             cleanup_timer.deleteLater()
             if worker.isRunning():
                 logger.warning("3DE worker did not stop gracefully within timeout")
@@ -213,7 +213,7 @@ class ThreadingManager(QObject):
 
         def on_finished() -> None:
             # Worker finished before timeout - stop the timer and remove reference
-            self._cleanup_timers.pop(worker_id, None)
+            _ = self._cleanup_timers.pop(worker_id, None)
             cleanup_timer.stop()
             cleanup_timer.deleteLater()
 

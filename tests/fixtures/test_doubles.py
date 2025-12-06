@@ -27,7 +27,7 @@ from PySide6.QtCore import QCoreApplication, QThread
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from PySide6.QtCore import Qt
+
 
 
 class SignalDouble:

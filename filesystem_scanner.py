@@ -698,7 +698,7 @@ class FileSystemScanner(LoggingMixin):
                 for key, _ in ready:
                     # Read available data in chunks to avoid blocking
                     # fileobj is IO[str] in text mode, read() returns str
-                    data = cast(str, key.fileobj.read(8192))  # type: ignore[union-attr]
+                    data = cast("str", key.fileobj.read(8192))  # type: ignore[union-attr]
                     if data:
                         if key.data == "stdout":
                             stdout_chunks.append(data)
@@ -709,7 +709,7 @@ class FileSystemScanner(LoggingMixin):
 
             # Process exited - drain any remaining buffered data
             for key, _ in sel.select(timeout=0):
-                remaining = cast(str, key.fileobj.read())  # type: ignore[union-attr]
+                remaining = cast("str", key.fileobj.read())  # type: ignore[union-attr]
                 if remaining:
                     if key.data == "stdout":
                         stdout_chunks.append(remaining)

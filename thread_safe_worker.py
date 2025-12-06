@@ -127,7 +127,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         Returns:
             True if transition was valid and executed, False otherwise
         """
-        signal_to_emit = None
+        signal_to_emit: SignalInstance | None = None
 
         with QMutexLocker(self._state_mutex):
             current = self._state
@@ -172,13 +172,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         # This prevents any possibility of deadlock if a slot tries to acquire the same mutex
         if signal_to_emit:
             try:
-                if isinstance(signal_to_emit, tuple):
-                    # Signal with arguments
-                    signal, *args = signal_to_emit
-                    signal.emit(*args)
-                else:
-                    # Signal without arguments
-                    signal_to_emit.emit()
+                signal_to_emit.emit()
             except (RuntimeError, SystemError):
                 # Signal source may be deleted during shutdown
                 pass
@@ -191,7 +185,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         Returns:
             True if stop was requested successfully, False if already stopping/stopped
         """
-        signal_to_emit = None
+        signal_to_emit: SignalInstance | None = None
 
         with QMutexLocker(self._state_mutex):
             current = self._state

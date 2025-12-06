@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytestqt.qtbot import QtBot
 
+
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
