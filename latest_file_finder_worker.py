@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from typing_extensions import override
-
 from PySide6.QtCore import Signal
+from typing_extensions import override
 
 from maya_latest_finder import MayaLatestFinder
 from thread_safe_worker import ThreadSafeWorker
@@ -93,7 +92,7 @@ class LatestFileFinderWorker(ThreadSafeWorker):
         """Execute the file search in background thread.
 
         Searches for Maya and/or 3DE scene files based on configuration.
-        Checks should_stop() between operations to support cancellation.
+        Passes should_stop to finders for cancellation during filesystem operations.
         """
         success = True
 
@@ -104,9 +103,11 @@ class LatestFileFinderWorker(ThreadSafeWorker):
                     f"Searching for latest 3DE scene in {self._workspace_path}"
                 )
                 self._threede_finder = ThreeDELatestFinder()
+                # Pass should_stop as cancel_flag for responsive cancellation
                 self._threede_result = self._threede_finder.find_latest_threede_scene(
                     self._workspace_path,
                     self._shot_name,
+                    cancel_flag=self.should_stop,
                 )
                 self.threede_found.emit(self._threede_result)
 
@@ -128,9 +129,11 @@ class LatestFileFinderWorker(ThreadSafeWorker):
                     f"Searching for latest Maya scene in {self._workspace_path}"
                 )
                 self._maya_finder = MayaLatestFinder()
+                # Pass should_stop as cancel_flag for responsive cancellation
                 self._maya_result = self._maya_finder.find_latest_maya_scene(
                     self._workspace_path,
                     self._shot_name,
+                    cancel_flag=self.should_stop,
                 )
                 self.maya_found.emit(self._maya_result)
 

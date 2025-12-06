@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 # Local application imports
@@ -27,6 +28,7 @@ class ThreeDELatestFinder(VersionHandlingMixin):
         self,
         workspace_path: str,
         shot_name: str | None = None,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> Path | None:
         """Find the latest 3DE scene file in a workspace.
 
@@ -36,9 +38,10 @@ class ThreeDELatestFinder(VersionHandlingMixin):
         Args:
             workspace_path: Full path to the shot workspace
             shot_name: Optional shot name for better logging
+            cancel_flag: Optional callable returning True if operation should cancel
 
         Returns:
-            Path to the latest 3DE scene file, or None if not found
+            Path to the latest 3DE scene file, or None if not found or cancelled
         """
         if not workspace_path:
             self.logger.debug("No workspace path provided")
@@ -60,6 +63,11 @@ class ThreeDELatestFinder(VersionHandlingMixin):
 
         # Find all 3DE files
         for user_dir in user_base.iterdir():
+            # Check for cancellation between user directories
+            if cancel_flag and cancel_flag():
+                self.logger.debug("3DE scene search cancelled")
+                return None
+
             if not user_dir.is_dir():
                 continue
 
@@ -70,6 +78,11 @@ class ThreeDELatestFinder(VersionHandlingMixin):
 
             # Search for .3de files in subdirectories (plates)
             for plate_dir in threede_base.iterdir():
+                # Check for cancellation between plate directories
+                if cancel_flag and cancel_flag():
+                    self.logger.debug("3DE scene search cancelled")
+                    return None
+
                 if not plate_dir.is_dir():
                     continue
 
@@ -103,14 +116,16 @@ class ThreeDELatestFinder(VersionHandlingMixin):
     @staticmethod
     def find_all_threede_scenes(
         workspace_path: str,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> list[Path]:
         """Find all 3DE scene files in a workspace.
 
         Args:
             workspace_path: Full path to the shot workspace
+            cancel_flag: Optional callable returning True if operation should cancel
 
         Returns:
-            List of all 3DE scene file paths, sorted by version
+            List of all 3DE scene file paths, sorted by version (empty if cancelled)
         """
         if not workspace_path:
             return []
@@ -130,6 +145,10 @@ class ThreeDELatestFinder(VersionHandlingMixin):
 
         # Find all 3DE files
         for user_dir in user_base.iterdir():
+            # Check for cancellation between user directories
+            if cancel_flag and cancel_flag():
+                return []
+
             if not user_dir.is_dir():
                 continue
 
@@ -140,6 +159,10 @@ class ThreeDELatestFinder(VersionHandlingMixin):
 
             # Search for .3de files in subdirectories
             for plate_dir in threede_base.iterdir():
+                # Check for cancellation between plate directories
+                if cancel_flag and cancel_flag():
+                    return []
+
                 if not plate_dir.is_dir():
                     continue
 

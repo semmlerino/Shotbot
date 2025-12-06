@@ -20,7 +20,7 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     # Standard library imports
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
 
 
 class PreviousShotsFinder(ShotFinderBase):
@@ -430,16 +430,23 @@ class ParallelShotsFinder(PreviousShotsFinder):
         return shots
 
     def find_user_shots_parallel(
-        self, shows_root: Path | None = None
+        self,
+        shows_root: Path | None = None,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> Generator[Shot, None, None]:
         """Find user shots using parallel search with incremental yielding.
 
         Args:
             shows_root: Root directory to search for shots
+            cancel_flag: Optional callable returning True if operation should cancel
 
         Yields:
             Shot objects as they are discovered
         """
+        # Helper to check both internal and external cancellation
+        def should_cancel() -> bool:
+            return self._stop_requested or (cancel_flag is not None and cancel_flag())
+
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
 
@@ -453,6 +460,11 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         if not shows:
             self.logger.warning("No shows found to scan")
+            return
+
+        # Check for cancellation after show discovery
+        if should_cancel():
+            self.logger.debug("Shot search cancelled after show discovery")
             return
 
         total_shows = len(shows)
@@ -471,8 +483,9 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
             # Process results as they complete
             for future in concurrent.futures.as_completed(future_to_show):
-                if self._stop_requested:
+                if should_cancel():
                     # Cancel remaining futures
+                    self.logger.debug("Cancelling remaining shot search futures")
                     for f in future_to_show:
                         _ = f.cancel()
                     break

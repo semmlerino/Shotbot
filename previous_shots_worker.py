@@ -132,7 +132,11 @@ class PreviousShotsWorker(ThreadSafeWorker):
                 # Collect shots incrementally from the generator
                 if hasattr(self._finder, "find_user_shots_parallel"):
                     # Use generator for incremental results
-                    for shot in self._finder.find_user_shots_parallel(self._shows_root):
+                    # Pass should_stop as cancel_flag for responsive cancellation
+                    for shot in self._finder.find_user_shots_parallel(
+                        self._shows_root,
+                        cancel_flag=self.should_stop,
+                    ):
                         if self.should_stop():
                             break
                         all_user_shots.append(shot)

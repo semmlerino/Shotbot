@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 # Local application imports
@@ -27,6 +28,7 @@ class MayaLatestFinder(VersionHandlingMixin):
         self,
         workspace_path: str,
         shot_name: str | None = None,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> Path | None:
         """Find the latest Maya scene file in a workspace.
 
@@ -37,9 +39,10 @@ class MayaLatestFinder(VersionHandlingMixin):
         Args:
             workspace_path: Full path to the shot workspace
             shot_name: Optional shot name for better logging
+            cancel_flag: Optional callable returning True if operation should cancel
 
         Returns:
-            Path to the latest Maya scene file, or None if not found
+            Path to the latest Maya scene file, or None if not found or cancelled
         """
         if not workspace_path:
             self.logger.debug("No workspace path provided")
@@ -62,6 +65,11 @@ class MayaLatestFinder(VersionHandlingMixin):
         # Search pattern: user/*/mm/maya/scenes/**/*.ma or *.mb
         # The mm/ prefix is the matchmove department directory
         for user_dir in user_base.iterdir():
+            # Check for cancellation between user directories
+            if cancel_flag and cancel_flag():
+                self.logger.debug("Maya scene search cancelled")
+                return None
+
             if not user_dir.is_dir():
                 continue
 
@@ -72,6 +80,11 @@ class MayaLatestFinder(VersionHandlingMixin):
 
             # Search recursively for .ma and .mb files (scenes are in subdirs)
             for maya_file in maya_scenes.glob("**/*.ma"):
+                # Check for cancellation between files
+                if cancel_flag and cancel_flag():
+                    self.logger.debug("Maya scene search cancelled")
+                    return None
+
                 version = self._extract_version(maya_file)
                 if version is not None:
                     maya_files.append((maya_file, version))
@@ -79,7 +92,17 @@ class MayaLatestFinder(VersionHandlingMixin):
                         f"Found Maya ASCII file: {maya_file.name} (v{version:03d})"
                     )
 
+            # Check for cancellation between glob operations
+            if cancel_flag and cancel_flag():
+                self.logger.debug("Maya scene search cancelled")
+                return None
+
             for maya_file in maya_scenes.glob("**/*.mb"):
+                # Check for cancellation between files
+                if cancel_flag and cancel_flag():
+                    self.logger.debug("Maya scene search cancelled")
+                    return None
+
                 version = self._extract_version(maya_file)
                 if version is not None:
                     maya_files.append((maya_file, version))
@@ -109,15 +132,17 @@ class MayaLatestFinder(VersionHandlingMixin):
     def find_all_maya_scenes(
         workspace_path: str,
         include_autosave: bool = False,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> list[Path]:
         """Find all Maya scene files in a workspace.
 
         Args:
             workspace_path: Full path to the shot workspace
             include_autosave: Whether to include autosave files
+            cancel_flag: Optional callable returning True if operation should cancel
 
         Returns:
-            List of all Maya scene files found
+            List of all Maya scene files found (empty if cancelled)
         """
         if not workspace_path:
             return []
@@ -133,6 +158,10 @@ class MayaLatestFinder(VersionHandlingMixin):
             return []
 
         for user_dir in user_base.iterdir():
+            # Check for cancellation between user directories
+            if cancel_flag and cancel_flag():
+                return []
+
             if not user_dir.is_dir():
                 continue
 
@@ -143,12 +172,24 @@ class MayaLatestFinder(VersionHandlingMixin):
 
             # Get all .ma and .mb files recursively
             for maya_file in maya_scenes.glob("**/*.ma"):
+                # Check for cancellation between files
+                if cancel_flag and cancel_flag():
+                    return []
+
                 # Skip autosave files unless requested
                 if not include_autosave and ".autosave" in maya_file.name:
                     continue
                 maya_files.append(maya_file)
 
+            # Check for cancellation between glob operations
+            if cancel_flag and cancel_flag():
+                return []
+
             for maya_file in maya_scenes.glob("**/*.mb"):
+                # Check for cancellation between files
+                if cancel_flag and cancel_flag():
+                    return []
+
                 # Skip autosave files unless requested
                 if not include_autosave and ".autosave" in maya_file.name:
                     continue

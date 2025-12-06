@@ -88,6 +88,11 @@ class ThreadSafeWorker(LoggingMixin, QThread):
     _ZOMBIE_TERMINATE_AGE_SECONDS: ClassVar[int] = 300  # Force terminate after 5 min
     _ZOMBIE_CLEANUP_INTERVAL_MS: ClassVar[int] = 60000  # Cleanup every 60s
 
+    # Zombie metrics for monitoring effectiveness of timeout fixes
+    _zombie_created_count: ClassVar[int] = 0  # Total zombies created this session
+    _zombie_recovered_count: ClassVar[int] = 0  # Zombies that finished naturally
+    _zombie_terminated_count: ClassVar[int] = 0  # Zombies force-terminated
+
     def __init__(self, parent: QObject | None = None) -> None:
         """Initialize thread-safe worker.
 
@@ -525,6 +530,26 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         with QMutexLocker(self._state_mutex):
             return self._zombie
 
+    @classmethod
+    def get_zombie_metrics(cls) -> dict[str, int]:
+        """Return zombie metrics for monitoring timeout fix effectiveness.
+
+        Use this to track whether the timeout improvements are working:
+        - If created stays at 0, the fixes are working
+        - If recovered > 0, zombies are finishing naturally (good)
+        - If terminated > 0, we're still seeing stuck threads (needs investigation)
+
+        Returns:
+            Dictionary with zombie counts for this session
+        """
+        with QMutexLocker(cls._zombie_mutex):
+            return {
+                "created": cls._zombie_created_count,
+                "recovered": cls._zombie_recovered_count,
+                "terminated": cls._zombie_terminated_count,
+                "current": len(cls._zombie_threads),
+            }
+
     def safe_terminate(self) -> None:
         """Safely terminate the worker thread.
 
@@ -589,6 +614,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     with QMutexLocker(ThreadSafeWorker._zombie_mutex):
                         ThreadSafeWorker._zombie_threads.append(self)
                         ThreadSafeWorker._zombie_timestamps[id(self)] = time.time()
+                        ThreadSafeWorker._zombie_created_count += 1  # Track for metrics
                         zombie_count = len(ThreadSafeWorker._zombie_threads)
 
                     self.logger.warning(
@@ -648,6 +674,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 if not zombie.isRunning():
                     # Thread finished naturally, safe to remove
                     _ = cls._zombie_timestamps.pop(zombie_id, None)
+                    cls._zombie_recovered_count += 1  # Track natural recovery
                     cleaned += 1
                     logger.info(f"Zombie {zombie_id} finished naturally after {age:.0f}s")
                 elif age > cls._ZOMBIE_TERMINATE_AGE_SECONDS:
@@ -658,6 +685,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     zombie.terminate()
                     _ = zombie.wait(1000)  # Brief wait after terminate
                     _ = cls._zombie_timestamps.pop(zombie_id, None)
+                    cls._zombie_terminated_count += 1  # Track force terminations
                     cleaned += 1
                 else:
                     # Keep tracking
@@ -743,4 +771,8 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         with QMutexLocker(cls._zombie_mutex):
             cls._zombie_threads.clear()
             cls._zombie_timestamps.clear()
+            # Reset metrics counters for test isolation
+            cls._zombie_created_count = 0
+            cls._zombie_recovered_count = 0
+            cls._zombie_terminated_count = 0
         logging.getLogger(__name__).debug("ThreadSafeWorker reset for testing")
