@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import io
 import os
+from collections.abc import Iterator
 from unittest.mock import MagicMock
 
 import pytest
@@ -173,7 +174,7 @@ def mock_process_pool_manager(
 def mock_subprocess_popen(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
-) -> None:
+) -> Iterator[None]:
     """Mock subprocess.Popen with STRICT MODE (AUTOUSE).
 
     STRICT MODE (default): Unexpected subprocess calls FAIL with AssertionError.
@@ -187,12 +188,16 @@ def mock_subprocess_popen(
     Args:
         request: Pytest request for marker checking
         monkeypatch: Pytest monkeypatch fixture
+
+    Yields:
+        None - fixture provides teardown cleanup
     """
     import warnings
 
     # Allow opt-out for tests that need real subprocess behavior
     if "real_subprocess" in [m.name for m in request.node.iter_markers()]:
-        return  # Skip mock for this test
+        yield  # Still need to yield for generator fixture
+        return
 
     # Check for permissive_subprocess marker (legacy opt-out)
     is_permissive = "permissive_subprocess" in [m.name for m in request.node.iter_markers()]
@@ -312,6 +317,15 @@ def mock_subprocess_popen(
 
     mock_run = MagicMock(side_effect=_create_mock_run)
     monkeypatch.setattr("subprocess.run", mock_run)
+
+    # Yield to run the test
+    try:
+        yield
+    finally:
+        # CLEANUP: Always reset state flags (even if test fails mid-execution)
+        # This prevents state leakage between tests if fixture setup fails for next test
+        _set_permissive_mode(False)
+        _set_subprocess_mock_active(False)
 
 
 class SubprocessMock:

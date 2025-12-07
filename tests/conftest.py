@@ -130,13 +130,19 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
 
     DESIGN PHILOSOPHY:
     This is a SAFETY mechanism that prevents pytest-qt from entering nested
-    event loops when qtbot.wait() is called with very short timeouts (≤5ms).
-    These short waits typically indicate the intent to process pending events,
+    event loops when qtbot.wait() is called with very short timeouts (≤1ms).
+    These minimal waits typically indicate the intent to process pending events,
     not to actually wait for time to pass.
 
     BEHAVIOR:
-    - qtbot.wait(0) through qtbot.wait(5): Replaced with process_qt_events()
-    - qtbot.wait(6+): Original wait behavior preserved
+    - qtbot.wait(0) through qtbot.wait(1): Replaced with process_qt_events()
+    - qtbot.wait(2+): Original wait behavior preserved (real timing)
+
+    This conservative threshold (1ms vs previous 5ms) ensures that legitimate
+    short delays (2-5ms) use real timing, which is important for:
+    - Debounce/timeout testing
+    - Event ordering verification
+    - Real-world timing simulation
 
     RECOMMENDED PATTERN:
     Use process_qt_events() directly instead of qtbot.wait(1) for clarity:
@@ -144,10 +150,8 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
         process_qt_events()  # Clear and explicit intent
 
     OPT-OUT:
-    Set SHOTBOT_TEST_NO_WAIT_PATCH=1 to disable this patch entirely.
-    This is useful for:
-    - Timing diagnostics where real millisecond delays matter
-    - Debugging tests that behave differently with/without the patch
+    - Set SHOTBOT_TEST_NO_WAIT_PATCH=1 to disable this patch entirely
+    - Use @pytest.mark.real_timing to bypass the patch for specific tests
 
     DIAGNOSTICS:
     Set SHOTBOT_TEST_WAIT_DIAG=1 to log when short waits are intercepted.
@@ -179,7 +183,8 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
             if _current_test_item.get_closest_marker("real_timing"):
                 return original_wait(self, timeout)
 
-        if timeout <= 5:
+        if timeout <= 1:
+            # Intercept wait(0) and wait(1) - these indicate "process events" intent
             # Diagnostic logging - auto-enabled in CI, opt-in locally
             if log_intercepted:
                 import logging
@@ -285,6 +290,11 @@ def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
     return False
 
 
+# Cache for Qt detection results (module name -> bool)
+# This avoids redundant AST parsing for tests in the same module
+_qt_detection_cache: dict[str, bool] = {}
+
+
 def _module_imports_pyside6(module) -> bool:
     """Check if a test module imports PySide6 at any level.
 
@@ -296,6 +306,9 @@ def _module_imports_pyside6(module) -> bool:
     1. Runtime check: Module-level PySide6 objects in vars(module)
     2. AST check: Import statements anywhere in source (catches function-local imports)
 
+    NOTE: TYPE_CHECKING blocks are intentionally skipped in AST detection to avoid
+    false positives from type-hint-only imports that never execute at runtime.
+
     Args:
         module: The test module to check
 
@@ -304,6 +317,13 @@ def _module_imports_pyside6(module) -> bool:
     """
     if module is None:
         return False
+
+    # Check cache first
+    module_name = getattr(module, "__name__", None)
+    if module_name and module_name in _qt_detection_cache:
+        return _qt_detection_cache[module_name]
+
+    result = False
 
     # Method 1: Runtime module-level object check
     try:
@@ -315,41 +335,82 @@ def _module_imports_pyside6(module) -> bool:
         # Check object's module
         obj_module = getattr(obj, "__module__", "")
         if isinstance(obj_module, str) and obj_module.startswith("PySide6"):
-            return True
+            result = True
+            break
 
         # Check base classes for types (catches Qt widget subclasses)
         if isinstance(obj, type):
             for base in getattr(obj, "__mro__", ()):
                 base_module = getattr(base, "__module__", "")
                 if isinstance(base_module, str) and base_module.startswith("PySide6"):
-                    return True
+                    result = True
+                    break
+            if result:
+                break
 
-    # Method 2: AST-based detection for function-level imports
+    # Method 2: AST-based detection for function-level imports (if not already found)
     # This catches imports inside test functions that runtime check misses
-    # Note: ast.walk() recursively visits ALL nodes including those inside
-    # FunctionDef/AsyncFunctionDef bodies, so this correctly catches:
-    #   def test_foo():
-    #       from PySide6.QtCore import QObject  # <- detected
-    try:
-        import ast
-        import inspect
+    # Note: TYPE_CHECKING blocks are skipped to avoid false positives from type hints
+    if not result:
+        try:
+            import ast
+            import inspect
 
-        source = inspect.getsource(module)
-        tree = ast.parse(source)
+            source = inspect.getsource(module)
+            tree = ast.parse(source)
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    if alias.name.startswith("PySide6"):
-                        return True
-            elif isinstance(node, ast.ImportFrom):
-                if node.module and node.module.startswith("PySide6"):
-                    return True
-    except (TypeError, OSError, SyntaxError):
-        # Can't get source or parse it - fall back to runtime check only
-        pass
+            # Build line ranges to skip (TYPE_CHECKING blocks)
+            # These are type-hint-only imports that don't execute at runtime
+            skip_ranges: list[tuple[int, int]] = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.If):
+                    test = node.test
+                    # Match both `if TYPE_CHECKING:` and `if typing.TYPE_CHECKING:`
+                    is_type_checking = (
+                        isinstance(test, ast.Name) and test.id == "TYPE_CHECKING"
+                    ) or (
+                        isinstance(test, ast.Attribute)
+                        and test.attr == "TYPE_CHECKING"
+                    )
+                    if is_type_checking and node.body:
+                        # Get line range of this if-block's body
+                        start_line = node.body[0].lineno
+                        end_line = (
+                            node.body[-1].end_lineno
+                            if hasattr(node.body[-1], "end_lineno")
+                            and node.body[-1].end_lineno
+                            else node.body[-1].lineno
+                        )
+                        skip_ranges.append((start_line, end_line))
 
-    return False
+            # Check imports, skipping those in TYPE_CHECKING blocks
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    # Skip if inside TYPE_CHECKING block
+                    if any(start <= node.lineno <= end for start, end in skip_ranges):
+                        continue
+                    for alias in node.names:
+                        if alias.name.startswith("PySide6"):
+                            result = True
+                            break
+                elif isinstance(node, ast.ImportFrom):
+                    # Skip if inside TYPE_CHECKING block
+                    if any(start <= node.lineno <= end for start, end in skip_ranges):
+                        continue
+                    if node.module and node.module.startswith("PySide6"):
+                        result = True
+                        break
+                if result:
+                    break
+        except (TypeError, OSError, SyntaxError):
+            # Can't get source or parse it - fall back to runtime check only
+            pass
+
+    # Cache result
+    if module_name:
+        _qt_detection_cache[module_name] = result
+
+    return result
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -597,8 +658,8 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line(
         "markers",
-        "real_timing: documents test requires actual timing delays "
-        "(NOTE: short-wait patch only affects waits ≤5ms; waits >5ms use real timing automatically)",
+        "real_timing: bypass short-wait patch for timing-sensitive tests "
+        "(NOTE: patch only intercepts waits ≤1ms; waits ≥2ms always use real timing)",
     )
     config.addinivalue_line(
         "markers",
@@ -625,9 +686,52 @@ def pytest_configure(config: pytest.Config) -> None:
             pytrace=False,
         )
 
+    # FAIL-FAST: Verify all SingletonMixin subclasses are registered
+    # This catches cases where a developer creates a new singleton but forgets to register it
+    unregistered = SingletonRegistry.verify_all_singletons_registered()
+    if unregistered:
+        pytest.fail(
+            f"SINGLETON REGISTRATION FAILURE: The following SingletonMixin subclasses "
+            f"are NOT registered in SingletonRegistry: {unregistered}\n\n"
+            f"Every SingletonMixin subclass MUST be registered for proper test isolation.\n"
+            f"See CLAUDE.md 'Singleton Pattern & Test Isolation' section.\n\n"
+            f"To fix: Add a registration in tests/fixtures/singleton_registry.py:\n"
+            f"    SingletonRegistry.register(\n"
+            f'        "module_name.ClassName",\n'
+            f"        cleanup_order=XX,  # Lower = earlier cleanup (10-19: UI, 20-29: Workers, 30-39: Pools)\n"
+            f'        description="Description of the singleton",\n'
+            f"    )",
+            pytrace=False,
+        )
+
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
-    """Skip tests marked with skip_if_parallel when running with xdist."""
+    """Setup hook: track current test item and handle skip conditions.
+
+    Sets _current_test_item EARLY so that fixture setup/teardown can access
+    markers like @pytest.mark.real_timing. This is important because the
+    qtbot.wait() patch needs to check this marker during fixture cleanup.
+    """
+    import logging
+
+    global _current_test_item  # noqa: PLW0603
+
+    # SAFETY CHECK: Previous test item should have been cleared in teardown
+    # If not, it indicates a hook failure - log prominently but recover
+    if _current_test_item is not None:
+        logging.getLogger(__name__).warning(
+            "INFRASTRUCTURE BUG: _current_test_item not cleared from previous test!\n"
+            "  Previous: %s\n"
+            "  Current: %s\n"
+            "This indicates pytest_runtest_teardown failed to run. Check fixture cleanup.",
+            _current_test_item.nodeid if _current_test_item else "unknown",
+            item.nodeid,
+        )
+        # Recover by clearing it - don't cascade failures
+        _current_test_item = None
+
+    _current_test_item = item
+
     # Check if test has skip_if_parallel marker
     if item.get_closest_marker("skip_if_parallel"):
         # Check if running with xdist (parallel execution)
@@ -657,17 +761,12 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
             print(summary)
 
 
-def pytest_runtest_call(item: pytest.Item) -> None:
-    """Track current test item for runtime marker checks.
-
-    This hook sets _current_test_item so that fixtures and patches can
-    check for markers like @pytest.mark.real_timing at runtime.
-    """
-    global _current_test_item  # noqa: PLW0603
-    _current_test_item = item
-
-
+@pytest.hookimpl(trylast=True)
 def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None) -> None:
-    """Clear current test item tracking after test completion."""
+    """Clear current test item tracking AFTER fixture teardown.
+
+    Uses trylast=True to ensure this runs after all fixture teardown is complete.
+    This allows fixture cleanup code to still access markers like @pytest.mark.real_timing.
+    """
     global _current_test_item  # noqa: PLW0603
     _current_test_item = None

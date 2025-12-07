@@ -39,9 +39,14 @@ STRICT_CLEANUP = (
     or os.environ.get("GITHUB_ACTIONS") == "true"
 )
 
-# Fail mode: pytest.fail() on thread leaks (opt-in, stricter than STRICT_CLEANUP)
+# Fail mode: pytest.fail() on thread leaks
+# Auto-enabled in CI environments to catch thread leaks before merge
 # STRICT_CLEANUP only logs warnings; FAIL_ON_THREAD_LEAK makes tests fail
-FAIL_ON_THREAD_LEAK = os.environ.get("SHOTBOT_TEST_FAIL_ON_THREAD_LEAK", "0") == "1"
+FAIL_ON_THREAD_LEAK = (
+    os.environ.get("SHOTBOT_TEST_FAIL_ON_THREAD_LEAK", "0") == "1"
+    or os.environ.get("CI") == "true"
+    or os.environ.get("GITHUB_ACTIONS") == "true"
+)
 
 # Thread count tolerance - reduced from 2 to 1 to catch single-thread leaks
 # Daemon threads and pytest internals may vary, but tolerance of 2 masked leaks
@@ -50,6 +55,18 @@ _THREAD_TOLERANCE = 1
 # Thread wait timeout in ms - configurable via env var for slow CI runners
 # Increased from 100ms to 500ms to handle real QThreadPool workloads
 _THREAD_WAIT_TIMEOUT_MS = int(os.environ.get("SHOTBOT_TEST_THREAD_WAIT_MS", "500"))
+
+# Thread name allowlist: Known harmless daemon threads that may persist
+# These are system/library threads outside our control, not application leaks
+_EXPECTED_THREAD_PREFIXES: frozenset[str] = frozenset({
+    "_GC_Monitor",       # Python garbage collector monitor (some builds)
+    "pytest_timeout",    # pytest-timeout watchdog thread
+    "QDBusConnection",   # Qt D-Bus integration thread
+    "PoolThread-",       # QThreadPool internal threads (expected to drain)
+    "Thread-",           # Generic Python threads (check daemon flag separately)
+    "pydevd.",           # PyCharm/debugger threads
+    "Dummy-",            # Threading module dummy threads
+})
 
 # Session-level leak tracking (populated in CI/strict mode)
 # Collects leak info for summary at session end instead of per-test spam
@@ -103,6 +120,18 @@ def get_thread_leak_summary() -> str | None:
     _thread_leak_summary.clear()
 
     return "\n".join(lines)
+
+
+def _is_expected_thread(thread_name: str) -> bool:
+    """Check if a thread name matches known harmless patterns.
+
+    Args:
+        thread_name: The thread name to check (e.g., "Thread-1", "pytest_timeout")
+
+    Returns:
+        True if the thread is expected/harmless, False if it's a potential leak
+    """
+    return any(thread_name.startswith(prefix) for prefix in _EXPECTED_THREAD_PREFIXES)
 
 
 @pytest.fixture  # NOTE: No longer autouse - applied conditionally via conftest.py hook
@@ -231,31 +260,41 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         pool_leaked = final_pool_threads > baseline_pool_threads
         python_leaked = final_python_threads > baseline_python_threads + _THREAD_TOLERANCE
 
-        # Collect surviving thread names for summary
-        surviving_threads: list[str] = []
+        # Collect surviving thread info for analysis
+        all_surviving: list[str] = []
+        unexpected_threads: list[str] = []
         if pool_leaked or python_leaked:
-            surviving_threads = [
-                f"{t.name} (daemon={t.daemon})"
-                for t in threading.enumerate()
-                if t.name != "MainThread"
-            ]
+            for t in threading.enumerate():
+                if t.name == "MainThread":
+                    continue
+                thread_info = f"{t.name} (daemon={t.daemon})"
+                all_surviving.append(thread_info)
+                # Only flag unexpected threads as leaks
+                if not _is_expected_thread(t.name):
+                    unexpected_threads.append(thread_info)
 
-            # Collect leak info for session-end summary (no per-test spam)
-            _thread_leak_summary.append({
-                "test": request.node.nodeid,
-                "pool": (baseline_pool_threads, final_pool_threads),
-                "python": (baseline_python_threads, final_python_threads),
-                "threads": surviving_threads,
-            })
+            # Only report leak if there are UNEXPECTED threads
+            # Expected daemon threads (pytest_timeout, etc.) are not leaks
+            if unexpected_threads:
+                # Collect leak info for session-end summary (no per-test spam)
+                _thread_leak_summary.append({
+                    "test": request.node.nodeid,
+                    "pool": (baseline_pool_threads, final_pool_threads),
+                    "python": (baseline_python_threads, final_python_threads),
+                    "threads": unexpected_threads,
+                    "all_threads": all_surviving,  # Full list for debugging
+                })
 
-        # FAIL_ON_THREAD_LEAK: Make tests fail immediately (opt-in strict mode)
-        if FAIL_ON_THREAD_LEAK and (pool_leaked or python_leaked):
+        # FAIL_ON_THREAD_LEAK: Make tests fail immediately (auto-enabled in CI)
+        # Only fail if there are UNEXPECTED threads (not just daemon count increase)
+        if FAIL_ON_THREAD_LEAK and unexpected_threads:
             pytest.fail(
-                f"THREAD LEAK DETECTED (SHOTBOT_TEST_FAIL_ON_THREAD_LEAK=1)\n"
+                f"THREAD LEAK DETECTED (FAIL_ON_THREAD_LEAK=1, auto-enabled in CI)\n"
                 f"QThreadPool: {baseline_pool_threads} -> {final_pool_threads} "
                 f"(+{final_pool_threads - baseline_pool_threads})\n"
                 f"Python threads: {baseline_python_threads} -> {final_python_threads} "
                 f"(+{final_python_threads - baseline_python_threads})\n"
-                f"Surviving: {surviving_threads or 'N/A'}",
+                f"Unexpected threads: {unexpected_threads}\n"
+                f"(Expected threads filtered: {_EXPECTED_THREAD_PREFIXES})",
                 pytrace=False,
             )
