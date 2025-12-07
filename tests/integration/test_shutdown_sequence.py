@@ -67,7 +67,7 @@ class TestProcessPoolManagerShutdown:
             time.sleep(10.0)  # Much longer than timeout
             return "done"
 
-        future = pool._executor.submit(slow_task)
+        _future = pool._executor.submit(slow_task)
 
         # Shutdown with short timeout
         start = time.time()
@@ -313,7 +313,7 @@ class TestExecutorShutdownTimeout:
             time.sleep(60.0)  # Very long
             return "done"
 
-        future = executor.submit(blocking_task)
+        _future = executor.submit(blocking_task)
 
         # Use timeout wrapper pattern (same as ProcessPoolManager)
         shutdown_complete = threading.Event()
@@ -354,7 +354,7 @@ class TestExecutorShutdownTimeout:
             return "done"
 
         # Submit multiple tasks - first will run, rest will queue
-        future1 = executor.submit(slow_task)
+        _future1 = executor.submit(slow_task)
         future2 = executor.submit(slow_task)
         future3 = executor.submit(slow_task)
 

@@ -223,7 +223,7 @@ class TestCallbackRegistrationRaces:
         def add_callbacks() -> None:
             """Repeatedly add callbacks."""
             try:
-                for i in range(50):
+                for _ in range(50):
                     event.add_cleanup_callback(lambda: None)
                     time.sleep(0.001)
             except Exception as e:
