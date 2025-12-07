@@ -56,6 +56,7 @@ class LaunchContext:
         create_new_file: Whether to create a new version (Nuke only)
         selected_plate: Selected plate space for Nuke workspace scripts
         sequence_path: Image sequence path for RV playback (RV only)
+
     """
 
     open_latest_threede: bool = False
@@ -80,6 +81,31 @@ class CommandLauncher(LoggingMixin, QObject):
     launch_pending = Signal()  # Emitted when async file search starts
     launch_ready = Signal()  # Emitted when async search completes (ready to launch)
 
+    # Maya bootstrap script with error handling
+    # Used to ensure SGTK context is updated when opening a file
+    _MAYA_BOOTSTRAP_SCRIPT = """
+import maya.cmds
+import traceback
+
+def _shotbot_update_context():
+    try:
+        import sgtk
+        e = sgtk.platform.current_engine()
+        if not e:
+            return
+        p = maya.cmds.file(q=True, sn=True)
+        if p:
+            c = e.sgtk.context_from_path(p)
+            if c and c.task and not e.context.task:
+                e.change_context(c)
+    except Exception:
+        # Use simple print since Maya's script editor captures stdout/stderr
+        print("Shotbot Bootstrap Error: Failed to update context from path")
+        traceback.print_exc()
+
+maya.cmds.evalDeferred(_shotbot_update_context)
+"""
+
     def __init__(
         self,
         parent: QObject | None = None,
@@ -91,6 +117,7 @@ class CommandLauncher(LoggingMixin, QObject):
             parent: Optional parent QObject for proper Qt ownership
             settings_manager: Optional SettingsManager for configuration.
                 If not provided, creates a new instance.
+
         """
         super().__init__(parent)
         self.current_shot: Shot | None = None
@@ -160,6 +187,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Returns:
             Formatted timestamp string suitable for log messages and UI display
+
         """
         return datetime.now(tz=UTC).strftime("%H:%M:%S")
 
@@ -175,6 +203,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Returns:
             Environment fix prefix string (empty if not Nuke or no fixes needed)
+
         """
         if app_name != "nuke":
             return ""
@@ -205,7 +234,7 @@ class CommandLauncher(LoggingMixin, QObject):
         self,
         base_command: str,
         file_path: str,
-        context_script: str,
+        context_script: str | None = None,
     ) -> str:
         """Build Maya launch command with SGTK context update.
 
@@ -216,12 +245,15 @@ class CommandLauncher(LoggingMixin, QObject):
         Args:
             base_command: Base maya command (e.g., "maya")
             file_path: Path to Maya file to open
-            context_script: Python script to execute after file loads
+            context_script: Python script to execute after file loads.
+                            If None, uses self._MAYA_BOOTSTRAP_SCRIPT.
 
         Returns:
             Full command string with env var export and maya invocation
+
         """
-        encoded = base64.b64encode(context_script.encode()).decode()
+        script_to_run = context_script if context_script is not None else self._MAYA_BOOTSTRAP_SCRIPT
+        encoded = base64.b64encode(script_to_run.encode()).decode()
         # Static bootstrap - reads from env var, no dynamic content in -c argument
         # This avoids the quote escaping nightmare when passing through bash -ilc
         mel_bootstrap = (
@@ -243,6 +275,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Notes:
             Safe to call multiple times. Silently handles already-disconnected signals.
             Safe to call even if __init__ failed partway through.
+
         """
         # Disconnect all tracked signal connections
         # Using QObject.disconnect() with connection handle works even if sender is destroyed
@@ -285,6 +318,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Args:
             operation: Name of the operation
             message: Progress status message
+
         """
         timestamp = self.timestamp
         self.command_executed.emit(timestamp, f"[{operation}] {message}")
@@ -295,6 +329,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Args:
             success: Whether execution completed successfully
             message: Completion message (empty if success, error if failed)
+
         """
         if not success and message:
             self._emit_error(f"Execution failed: {message}")
@@ -305,6 +340,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Args:
             operation: Name of the operation that failed
             error_message: Error message
+
         """
         self._emit_error(f"[{operation}] {error_message}")
 
@@ -321,6 +357,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Args:
             app_name: Name of the application that failed verification
+
         """
         self._consecutive_timeout_count += 1
 
@@ -346,6 +383,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Args:
             app_name: Name of the application that was verified
             pid: Process ID of the verified application
+
         """
         # Reset timeout counter on success - terminal is working
         self._consecutive_timeout_count = 0
@@ -367,6 +405,7 @@ class CommandLauncher(LoggingMixin, QObject):
             app_name: Application being launched ("3de" or "maya")
             context: Launch context with search flags
             command: Base command built so far (before scene path added)
+
         """
         if self.current_shot is None:
             self._emit_error("Cannot search for files - no shot selected")
@@ -408,6 +447,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Args:
             success: Whether the search completed successfully
+
         """
         if self._pending_worker is None:
             self.logger.warning("Async search complete but no pending worker")
@@ -452,6 +492,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Args:
             maya_result: Found Maya scene path (or None)
             threede_result: Found 3DE scene path (or None)
+
         """
         app_name = self._pending_app_name
         context = self._pending_context
@@ -489,7 +530,9 @@ class CommandLauncher(LoggingMixin, QObject):
         if app_name == "maya" and maya_result:
             try:
                 safe_scene_path = CommandBuilder.validate_path(str(maya_result))
-                command = f"{command} -file {safe_scene_path}"
+                # Apply bootstrap script and SGTK context
+                command = self._build_maya_context_command(command, safe_scene_path)
+                command = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {command}"
                 self.command_executed.emit(
                     self.timestamp,
                     f"Opening latest Maya scene: {maya_result.name}",
@@ -520,6 +563,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Returns:
             True if launch succeeded, False otherwise
+
         """
         if self.current_shot is None:
             self._emit_error("Cannot launch - no shot selected")
@@ -636,6 +680,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Returns:
             True if launch successful, False otherwise
+
         """
         # Apply background wrapping for GUI apps if setting is enabled
         # This closes the terminal immediately after launching, reducing clutter
@@ -702,6 +747,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Returns:
             True if launch successful, False otherwise
+
         """
         return self._launch_in_new_terminal(
             full_command, app_name, error_context, has_rez_wrapper
@@ -737,6 +783,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Note:
             The context parameter is preferred. Legacy parameters are kept for
             backward compatibility but will be removed in a future version.
+
         """
         # Handle backward compatibility: if context not provided, create from legacy params
         if context is None:
@@ -855,7 +902,9 @@ class CommandLauncher(LoggingMixin, QObject):
                         safe_scene_path = CommandBuilder.validate_path(
                             str(maya_cached)
                         )
-                        command = f"{command} -file {safe_scene_path}"
+                        # Apply bootstrap script and SGTK context
+                        command = self._build_maya_context_command(command, safe_scene_path)
+                        command = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {command}"
                         self.command_executed.emit(
                             self.timestamp,
                             f"Opening latest Maya scene: {maya_cached.name}",
@@ -985,6 +1034,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Returns:
             True if launch was successful, False otherwise
+
         """
         if app_name not in Config.APPS:
             self._emit_error(f"Unknown application: {app_name}")
@@ -1078,6 +1128,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Returns:
             True if launch was successful, False otherwise
+
         """
         if app_name not in Config.APPS:
             self._emit_error(f"Unknown application: {app_name}")
@@ -1105,22 +1156,8 @@ class CommandLauncher(LoggingMixin, QObject):
                 # Maya: Use env var approach to avoid quote escaping issues
                 # The script is base64-encoded and passed via SHOTBOT_MAYA_SCRIPT env var
                 # A static bootstrap command reads and executes it after file loads
-                context_script = """
-import maya.cmds
-import sgtk
-def _shotbot_update_context():
-    e = sgtk.platform.current_engine()
-    if not e:
-        return
-    p = maya.cmds.file(q=True, sn=True)
-    if p:
-        c = e.sgtk.context_from_path(p)
-        if c and c.task and not e.context.task:
-            e.change_context(c)
-maya.cmds.evalDeferred(_shotbot_update_context)
-"""
                 command = self._build_maya_context_command(
-                    command, safe_file_path, context_script
+                    command, safe_file_path
                 )
             elif app_name == "nuke":
                 # Nuke: Set NUKE_PATH to include our scripts dir for init.py
@@ -1228,6 +1265,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
         Returns:
             True if launch was successful, False otherwise
+
         """
         if app_name not in Config.APPS:
             self._emit_error(f"Unknown application: {app_name}")
@@ -1329,6 +1367,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
         Returns:
             True if validation passes, False otherwise
+
         """
         # Check directory exists
         ws_path = Path(workspace_path)
