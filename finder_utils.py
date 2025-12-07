@@ -40,17 +40,20 @@ class FinderUtils:
 
         Raises:
             ValueError: If username is invalid after sanitization
+
         """
         # Remove any path traversal characters (., /, \) but keep hyphens
         username = PATH_TRAVERSAL_PATTERN.sub("", raw_username)
 
         # Validate that username is not empty after sanitization
         if not username:
-            raise ValueError(f"Invalid username after sanitization: '{raw_username}'")
+            msg = f"Invalid username after sanitization: '{raw_username}'"
+            raise ValueError(msg)
 
         # Additional validation: username should only contain alphanumeric, dash, and underscore
         if not USERNAME_VALIDATION_PATTERN.match(username):
-            raise ValueError(f"Username contains invalid characters: '{username}'")
+            msg = f"Username contains invalid characters: '{username}'"
+            raise ValueError(msg)
 
         return username
 
@@ -69,6 +72,7 @@ class FinderUtils:
 
         Returns:
             Version number as integer, or None if not found
+
         """
         # Convert Path to string if necessary
         path_str = str(path)
@@ -99,6 +103,7 @@ class FinderUtils:
 
         Returns:
             Complete user path
+
         """
         if app == "3de":
             # 3DE has special structure: user/{username}/mm/3de/mm-default/scenes/scene
@@ -129,6 +134,7 @@ class FinderUtils:
 
         Returns:
             Path to latest version or None if no versioned files found
+
         """
         if not files:
             return None
@@ -164,6 +170,7 @@ class FinderUtils:
 
         Returns:
             Sorted list of files
+
         """
         versioned: list[tuple[Path, int]] = []
         unversioned: list[Path] = []
@@ -199,6 +206,7 @@ class FinderUtils:
 
         Returns:
             Sorted list with highest priority first
+
         """
 
         def get_priority(item: tuple[str, Path]) -> int:
@@ -221,6 +229,7 @@ class FinderUtils:
 
         Returns:
             Tuple of (show, sequence, shot) or None if invalid
+
         """
         # Pattern for standard VFX structure: /shows/{show}/shots/{sequence}/{shot}/
         shows_root = re.escape(Config.SHOWS_ROOT)
@@ -240,6 +249,7 @@ class FinderUtils:
 
         Returns:
             Workspace path or None if not found
+
         """
         # Extract up to and including the shot directory
         shot_info = FinderUtils.parse_shot_path(path)
@@ -257,6 +267,7 @@ class FinderUtils:
 
         Returns:
             True if path follows VFX conventions
+
         """
         path_str = str(path)
         return FinderUtils.parse_shot_path(path_str) is not None
@@ -274,6 +285,7 @@ class FinderUtils:
 
         Returns:
             Filtered list of files
+
         """
         if not case_sensitive:
             # Convert extensions to lowercase for comparison
@@ -291,6 +303,7 @@ class FinderUtils:
 
         Returns:
             Relative path
+
         """
         try:
             return path.relative_to(base)
@@ -313,6 +326,7 @@ class FinderUtils:
 
         Returns:
             List of matching file paths
+
         """
         if not root.exists():
             return []

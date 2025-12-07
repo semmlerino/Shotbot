@@ -41,6 +41,7 @@ class ScrubFrameCache:
         Args:
             max_frames_per_shot: Maximum frames to cache per shot (LRU eviction)
             max_shots: Maximum shots to keep in cache (LRU eviction)
+
         """
         self._max_frames_per_shot: int = max_frames_per_shot
         self._max_shots: int = max_shots
@@ -63,6 +64,7 @@ class ScrubFrameCache:
 
         Raises:
             RuntimeError: If called from a worker thread
+
         """
         app = QApplication.instance()
         if app is None:
@@ -73,9 +75,12 @@ class ScrubFrameCache:
 
         if current != main_thread:
             thread_name = getattr(current, "objectName", lambda: str(current))()
-            raise RuntimeError(
+            msg = (
                 f"QPixmap {operation} attempted from worker thread '{thread_name}'. "
                 "QPixmap operations must only happen on the main Qt thread."
+            )
+            raise RuntimeError(
+                msg
             )
 
     def _evict_oldest_shot(self) -> None:
@@ -97,6 +102,7 @@ class ScrubFrameCache:
 
         Args:
             shot_key: Key identifying the shot
+
         """
         if shot_key in self._image_cache:
             frame_cache = self._image_cache[shot_key]
@@ -114,6 +120,7 @@ class ScrubFrameCache:
             shot_key: Unique key for the shot (e.g., "show/sequence/shot")
             frame: Frame number
             image: QImage to cache
+
         """
         with QMutexLocker(self._lock):
             # Create shot entry if needed
@@ -151,6 +158,7 @@ class ScrubFrameCache:
 
         Returns:
             QImage if cached, None otherwise
+
         """
         with QMutexLocker(self._lock):
             if shot_key not in self._image_cache:
@@ -180,6 +188,7 @@ class ScrubFrameCache:
 
         Raises:
             RuntimeError: If called from a worker thread
+
         """
         self._assert_main_thread("get_pixmap")
 
@@ -219,6 +228,7 @@ class ScrubFrameCache:
 
         Returns:
             True if frame is in cache
+
         """
         with QMutexLocker(self._lock):
             if shot_key not in self._image_cache:
@@ -233,6 +243,7 @@ class ScrubFrameCache:
 
         Returns:
             List of frame numbers currently cached for this shot
+
         """
         with QMutexLocker(self._lock):
             if shot_key not in self._image_cache:
@@ -244,6 +255,7 @@ class ScrubFrameCache:
 
         Args:
             shot_key: Unique key for the shot to clear
+
         """
         with QMutexLocker(self._lock):
             _ = self._image_cache.pop(shot_key, None)
@@ -260,6 +272,7 @@ class ScrubFrameCache:
 
         Returns:
             Dictionary with cache size information
+
         """
         with QMutexLocker(self._lock):
             total_frames = sum(len(frames) for frames in self._image_cache.values())

@@ -41,6 +41,7 @@ Type Safety:
     This module uses comprehensive type annotations with Optional types for
     nullable Qt widgets and proper signal type declarations. All public methods
     include full type hints for parameters and return values.
+
 """
 
 from __future__ import annotations
@@ -136,14 +137,17 @@ class SessionWarmer(ThreadSafeWorker):
 
         Args:
             process_pool: ProcessPoolInterface instance to warm up
+
         """
         super().__init__()
         self._process_pool: ProcessPoolInterface = process_pool
 
-    @Slot()
     @override
-    def run(self) -> None:
-        """Pre-warm bash sessions in background thread."""
+    def do_work(self) -> None:
+        """Pre-warm bash sessions in background thread.
+
+        Called by ThreadSafeWorker.run() to perform actual work.
+        """
         try:
             # Check if we should stop before starting
             if self.should_stop():
@@ -194,6 +198,7 @@ class ShotDiscoveryWorker(QRunnable):
 
         Args:
             shot: Shot to discover files for
+
         """
         super().__init__()
         self.shot = shot
@@ -256,16 +261,20 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Check if QApplication exists
         app_instance = QCoreApplication.instance()
         if app_instance is None:
-            raise RuntimeError("MainWindow: No QApplication instance found")
+            msg = "MainWindow: No QApplication instance found"
+            raise RuntimeError(msg)
 
         # Check if we're in the main thread
         current_thread = QThread.currentThread()
         main_thread = app_instance.thread()
         if current_thread != main_thread:
-            raise RuntimeError(
+            msg = (
                 "MainWindow must be created in the main thread. "
                  f"Current thread: {current_thread}, "
                  f"Main thread: {main_thread}"
+            )
+            raise RuntimeError(
+                msg
             )
 
         # Additional safety check for QApplication type (relaxed for tests)
@@ -276,9 +285,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
 
         if not isinstance(app_instance, QApplication) and not is_test_environment:
-            raise RuntimeError(
+            msg = (
                 "MainWindow: QCoreApplication instance is not a QApplication. "
                  f"Type: {type(app_instance)}"
+            )
+            raise RuntimeError(
+                msg
             )
 
         super().__init__(parent)
@@ -901,6 +913,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             shots: List of loaded Shot objects
+
         """
         # Delegate to RefreshOrchestrator
         self.refresh_orchestrator.handle_shots_loaded(shots)
@@ -910,6 +923,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             shots: List of updated Shot objects
+
         """
         # Delegate to RefreshOrchestrator
         self.refresh_orchestrator.handle_shots_changed(shots)
@@ -925,6 +939,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             success: Whether the refresh was successful
             has_changes: Whether the shot list changed
+
         """
         # Delegate to RefreshOrchestrator
         self.refresh_orchestrator.handle_refresh_finished(success, has_changes)
@@ -934,6 +949,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             error_msg: The error message
+
         """
         self.logger.error(f"Shot model error: {error_msg}")
         self._update_status(f"Error: {error_msg}")
@@ -946,6 +962,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             title: The dialog title
             details: Detailed message about the recovery
+
         """
         self.logger.warning(f"Data recovery: {title} - {details}")
         NotificationManager.warning(title, details)
@@ -973,6 +990,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             shots: The loaded shots (from signal)
+
         """
         # Delegate to RefreshOrchestrator
         self.refresh_orchestrator.trigger_previous_shots_refresh(shots)
@@ -991,6 +1009,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             migrated_shots: List of ShotDict objects that were migrated
+
         """
         self.logger.info(f"{len(migrated_shots)} shots migrated to Previous Shots")
         # Trigger Previous Shots tab refresh to show newly migrated shots
@@ -1005,6 +1024,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             index: Index of the newly selected tab
+
         """
         if index == 0:  # My Shots tab
             # Get the current selection from My Shots
@@ -1046,6 +1066,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             index: Index of the currently selected tab (0=My Shots, 1=Other 3DE, 2=Previous)
+
         """
         # Define distinct colors for each tab (main and darker variant)
         # Note: Colors are defined for future dynamic styling but currently unused
@@ -1175,6 +1196,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             shot: Shot object or None to clear selection
+
         """
         # Cancel any pending discovery
         if self._discovery_worker is not None:
@@ -1227,6 +1249,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             result: Dictionary with 'shot', 'plates', and 'files' keys
+
         """
         shot = result.get("shot")
         plates = result.get("plates", [])
@@ -1257,6 +1280,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             error_message: Error description
+
         """
         self.logger.warning(f"Shot discovery failed: {error_message}")
 
@@ -1275,6 +1299,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             app_name: Name of the application to launch
             scene: 3DE scene providing the launch context
+
         """
         _ = self.command_launcher.launch_app_with_scene(app_name, scene)
 
@@ -1290,6 +1315,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             app_name: Name of the application to launch
             options: Dict containing checkbox states, selected plate, and
                 optionally a selected_file (SceneFile) to open
+
         """
         # Check if a specific file was selected for launch
         selected_file = options.get("selected_file")
@@ -1331,6 +1357,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Returns:
             Workspace path string, or None if no context available
+
         """
         # Try current shot first (My Shots or Previous Shots tab)
         current_shot = self.command_launcher.current_shot
@@ -1354,6 +1381,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             model: The data model to pass to the item model (ShotModel, ThreeDESceneModel, or PreviousShotsModel)
             show: Show name to filter by, or empty string for all shows
             tab_name: Human-readable tab name for logging
+
         """
         # Convert empty string back to None for the model
         show_filter = show if show else None
@@ -1552,6 +1580,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             order: Sort order ("name" or "date")
+
         """
         # Update item model
         self.threede_item_model.set_sort_order(order)
@@ -1564,6 +1593,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         Args:
             order: Sort order ("name" or "date")
+
         """
         # Update item model
         self.previous_shots_item_model.set_sort_order(order)

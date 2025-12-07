@@ -127,6 +127,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Args:
             parent: Optional parent widget
+
         """
         super().__init__(parent)
 
@@ -164,8 +165,10 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Note:
             Subclasses must override this method.
+
         """
-        raise NotImplementedError("Subclasses must implement get_theme()")
+        msg = "Subclasses must implement get_theme()"
+        raise NotImplementedError(msg)
 
     def get_item_data(
         self, _index: QModelIndex | QPersistentModelIndex
@@ -188,8 +191,10 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Note:
             Subclasses must override this method.
+
         """
-        raise NotImplementedError("Subclasses must implement get_item_data()")
+        msg = "Subclasses must implement get_item_data()"
+        raise NotImplementedError(msg)
 
     @override
     def paint(
@@ -204,6 +209,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             painter: QPainter instance
             option: Style options
             index: Model index to paint
+
         """
         if not index.isValid():
             return
@@ -385,6 +391,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             painter: QPainter instance
             rect: Rectangle to draw in (thumbnail area)
             is_pinned: Whether item is pinned
+
         """
         if not is_pinned:
             return
@@ -415,6 +422,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             painter: QPainter instance
             rect: Rectangle to draw in (thumbnail area)
             has_note: Whether item has a note
+
         """
         if not has_note:
             return
@@ -622,6 +630,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Returns:
             List of row indices that are currently loading thumbnails
+
         """
         loading_rows: list[int] = []
 
@@ -661,6 +670,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Returns:
             Recommended size for the item
+
         """
         # Calculate height based on 16:9 aspect ratio for plate images
         thumbnail_height = int(self._thumbnail_size / Config.THUMBNAIL_ASPECT_RATIO)
@@ -674,6 +684,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Args:
             size: New thumbnail size in pixels
+
         """
         self._thumbnail_size = size
         # Clear metrics cache as sizes have changed
@@ -704,6 +715,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Args:
             manager: ScrubPreviewManager instance or None to disable
+
         """
         self._scrub_manager = manager
 
@@ -715,6 +727,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Returns:
             True if actively scrubbing this item
+
         """
         if self._scrub_manager is None:
             return False
@@ -733,6 +746,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Returns:
             QPixmap for current scrub frame, or None
+
         """
         if self._scrub_manager is None:
             return None
@@ -750,6 +764,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         Returns:
             Current frame number, or None
+
         """
         if self._scrub_manager is None:
             return None
@@ -768,6 +783,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             painter: QPainter instance
             rect: Thumbnail rectangle
             frame_num: Frame number to display
+
         """
         # Frame indicator style
         text = str(frame_num)
@@ -819,6 +835,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         Args:
             painter: QPainter instance
             rect: Thumbnail rectangle
+
         """
         # Draw a small spinner in the center
         center_x = rect.center().x()

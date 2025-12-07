@@ -6,13 +6,13 @@ from __future__ import annotations
 import concurrent.futures
 import os
 import re
-import subprocess
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
 
 # Local application imports
 from config import Config, ThreadingConfig
+from process_pool_manager import CancellableSubprocess
 from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
 from shot_model import Shot
 from typing_compat import override
@@ -35,6 +35,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         Args:
             username: Username to search for. If None, uses current user.
+
         """
         # Initialize parent class (ShotFinderBase) which handles username sanitization
         super().__init__(username=username)
@@ -61,6 +62,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         Returns:
             List of Shot objects where user has work directories.
+
         """
         shots: list[Shot] = []
 
@@ -117,6 +119,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         Returns:
             Shot object if path is valid, None otherwise.
+
         """
         # Try optimized pattern first (69% faster)
         match = self._shot_pattern.search(path)
@@ -175,6 +178,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         Returns:
             List of approved shots (user shots minus active shots).
+
         """
         # Create a set of active shot identifiers for efficient lookup
         active_ids = {(shot.show, shot.sequence, shot.shot) for shot in active_shots}
@@ -207,6 +211,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         Returns:
             List of approved/completed shots.
+
         """
         # Ensure shows_root is always a Path object
         if shows_root is None:
@@ -226,6 +231,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         Returns:
             Dictionary with shot details including paths and metadata.
+
         """
         details: ShotDetailsDict = {
             "show": shot.show,
@@ -257,6 +263,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         Returns:
             Status string (e.g., "approved", "active")
+
         """
         # Check for approved status
         approved_path = Path(shot.workspace_path) / "publish" / "matchmove" / "approved"
@@ -279,6 +286,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         Returns:
             List of Shot objects found
+
         """
         # Extract parameters with type casting for type safety
         # TypedDict.get() returns union of all value types, so we need explicit casting
@@ -305,6 +313,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         Args:
             username: Username to search for. If None, uses current user.
             max_workers: Maximum number of parallel workers (default: from config)
+
         """
         super().__init__(username)
         self.max_workers = (
@@ -333,6 +342,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         Returns:
             List of show directory paths
+
         """
         shows: list[Path] = []
 
@@ -382,6 +392,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         Returns:
             List of Shot objects found in this show
+
         """
         shots: list[Shot] = []
 
@@ -401,16 +412,25 @@ class ParallelShotsFinder(PreviousShotsFinder):
                 "6",  # Reduced depth since we're starting from shots/
             ]
 
-            # Run with shorter timeout per show
-            result = subprocess.run(
-                cmd,
-                check=False, stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                timeout=ThreadingConfig.PREVIOUS_SHOTS_SCAN_TIMEOUT,  # Configurable timeout per show
-                shell=False,
+            # Run with cancellation support using CancellableSubprocess
+            proc = CancellableSubprocess(cmd, shell=False, text=True)
+            result = proc.run(
+                timeout=ThreadingConfig.PREVIOUS_SHOTS_SCAN_TIMEOUT,
+                poll_interval=0.1,
+                cancel_flag=lambda: self._stop_requested,
             )
 
+            # Handle cancellation
+            if result.status == "cancelled":
+                self.logger.debug(f"Scan cancelled for show: {show_path.name}")
+                return shots
+
+            # Handle timeout
+            if result.status == "timeout":
+                self.logger.warning(f"Timeout scanning show: {show_path.name}")
+                return shots
+
+            # Process successful result
             if result.returncode == 0:
                 for line in result.stdout.strip().split("\n"):
                     if not line or self._stop_requested:
@@ -422,8 +442,6 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
             self.logger.debug(f"Found {len(shots)} shots in {show_path.name}")
 
-        except subprocess.TimeoutExpired:
-            self.logger.warning(f"Timeout scanning show: {show_path.name}")
         except Exception as e:
             self.logger.error(f"Error scanning show {show_path.name}: {e}")
 
@@ -442,6 +460,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         Yields:
             Shot objects as they are discovered
+
         """
         # Helper to check both internal and external cancellation
         def should_cancel() -> bool:
@@ -525,6 +544,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         Returns:
             List of Shot objects where user has work directories
+
         """
         # Ensure shows_root is always a Path object
         if shows_root is None:
@@ -566,6 +586,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         Returns:
             List of approved/completed shots
+
         """
         # Local application imports
         from targeted_shot_finder import TargetedShotsFinder

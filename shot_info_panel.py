@@ -79,7 +79,8 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         # Check if QApplication exists
         app_instance = QCoreApplication.instance()
         if app_instance is None:
-            raise RuntimeError("ShotInfoPanel: No QApplication instance found")
+            msg = "ShotInfoPanel: No QApplication instance found"
+            raise RuntimeError(msg)
 
         # Check if we're in the main thread
         current_thread = QThread.currentThread()
@@ -269,6 +270,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
 
         Args:
             message: The empty state message (e.g., "No Shot Selected" or "No Scene Selected")
+
         """
         self._empty_message = message
         if self._current_shot is None:
@@ -604,6 +606,7 @@ class ThumbnailCacheRunnable(QRunnable):
             sequence: Sequence name for cache organization
             shot: Shot name for cache organization
             cache_manager: CacheManager instance for thumbnail caching
+
         """
         super().__init__()
         self.thumbnail_path = thumbnail_path

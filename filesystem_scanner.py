@@ -51,6 +51,7 @@ class DirectoryCache(LoggingMixin):
         Args:
             ttl_seconds: TTL for automatic expiration (only used if enable_auto_expiry=True)
             enable_auto_expiry: If True, entries expire automatically. If False, manual refresh only.
+
         """
         super().__init__()
         self.ttl = ttl_seconds
@@ -124,6 +125,7 @@ class DirectoryCache(LoggingMixin):
 
         Returns:
             Number of entries cleared
+
         """
         with self.lock:
             count = len(self.cache)
@@ -139,6 +141,7 @@ class DirectoryCache(LoggingMixin):
 
         Returns:
             Number of entries cleared
+
         """
         return self.clear_cache()
 
@@ -205,6 +208,7 @@ class FileSystemScanner(LoggingMixin):
 
         Returns:
             Number of cache entries cleared
+
         """
         return cls._dir_cache.refresh_cache()
 
@@ -375,6 +379,7 @@ class FileSystemScanner(LoggingMixin):
 
         Returns:
             List of (username, file_path) tuples
+
         """
         files: list[tuple[str, Path]] = []
 
@@ -407,7 +412,6 @@ class FileSystemScanner(LoggingMixin):
         self, base_paths: list[str], _timeout_seconds: int = 15
     ) -> bool:
         """Optimized quick check for .3de file existence."""
-
         for base_path in base_paths:
             if not Path(base_path).exists():
                 continue
@@ -476,6 +480,7 @@ class FileSystemScanner(LoggingMixin):
 
         Returns:
             List of tuples (workspace_path, show, sequence, shot)
+
         """
         shots: list[tuple[str, str, str, str]] = []
         show_path = Path(show_root) / show
@@ -530,6 +535,7 @@ class FileSystemScanner(LoggingMixin):
 
         Returns:
             Tuple of (estimated_users, estimated_files)
+
         """
         if not shot_tuples:
             return 0, 0
@@ -582,6 +588,7 @@ class FileSystemScanner(LoggingMixin):
         Yields:
             Tuple of (file_batch, current_shot, total_shots, status_message)
             Where file_batch is list of (username, file_path) tuples
+
         """
         if not shot_tuples:
             return
@@ -655,6 +662,7 @@ class FileSystemScanner(LoggingMixin):
             Tuple of (return_code, stdout, stderr, status)
             status is "ok", "cancelled", or "timeout"
             return_code is None if cancelled or timed out
+
         """
         stdout_chunks: list[str] = []
         stderr_chunks: list[str] = []
@@ -748,10 +756,12 @@ class FileSystemScanner(LoggingMixin):
         Returns:
             List of tuples: (file_path, show, sequence, shot, user, plate)
             Returns None on timeout, empty list on cancellation.
+
         """
         # Validate parameters
         if max_wait_time <= 0:
-            raise ValueError(f"max_wait_time must be positive, got {max_wait_time}")
+            msg = f"max_wait_time must be positive, got {max_wait_time}"
+            raise ValueError(msg)
 
         results: list[tuple[Path, str, str, str, str, str]] = []
 
@@ -816,6 +826,7 @@ class FileSystemScanner(LoggingMixin):
 
         Returns:
             List of tuples: (file_path, show, sequence, shot, user, plate)
+
         """
         # Standard library imports
         import traceback

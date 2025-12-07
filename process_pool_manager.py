@@ -22,9 +22,10 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Final, cast, final
+from typing import TYPE_CHECKING, Final, cast, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -90,6 +91,7 @@ class CancellableResult:
         stdout: Captured standard output
         stderr: Captured standard error
         status: "ok", "cancelled", or "timeout"
+
     """
 
     returncode: int | None
@@ -121,6 +123,7 @@ class CancellableSubprocess:
             cmd: Command to execute as list of arguments
             shell: If True, run through shell (not recommended)
             text: If True, use text mode for stdout/stderr
+
         """
         self._cmd = cmd
         self._shell = shell
@@ -143,6 +146,7 @@ class CancellableSubprocess:
 
         Returns:
             CancellableResult with returncode, stdout, stderr, and status
+
         """
         stdout_chunks: list[str] = []
         stderr_chunks: list[str] = []
@@ -233,6 +237,7 @@ class CommandCache:
 
         Args:
             default_ttl: Default time-to-live in seconds
+
         """
         super().__init__()
         self._cache: dict[
@@ -252,6 +257,7 @@ class CommandCache:
 
         Returns:
             Cached result or None if not found/expired
+
         """
         key = self._make_key(command)
 
@@ -274,6 +280,7 @@ class CommandCache:
             command: Command string
             result: Result to cache
             ttl: Time-to-live in seconds (uses default if None)
+
         """
         if ttl is None:
             ttl = self._default_ttl
@@ -289,6 +296,7 @@ class CommandCache:
 
         Args:
             pattern: pattern to match (invalidates all if None)
+
         """
         with QMutexLocker(self._lock):
             if pattern is None:
@@ -311,6 +319,7 @@ class CommandCache:
 
         Returns:
             Dictionary with cache stats
+
         """
         with QMutexLocker(self._lock):
             total = self._hits + self._misses
@@ -332,6 +341,7 @@ class CommandCache:
 
         Returns:
             SHA256 hash of command
+
         """
         return hashlib.sha256(command.encode()).hexdigest()
 
@@ -434,6 +444,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Note: __new__ calls this manually under lock, so we don't need lock here.
         If called directly (e.g., by Python after __new__), check if already initialized.
+
         """
         # Check if already initialized (called by __new__ or Python)
         if hasattr(self, "_init_done") and self._init_done:
@@ -463,6 +474,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Returns:
             ProcessPoolManager singleton
+
         """
         # Standard singleton pattern
         if cls._instance is None:
@@ -495,14 +507,18 @@ class ProcessPoolManager(LoggingMixin, QObject):
             RuntimeError: If called from the main thread (UI thread), after shutdown, or if cancelled
             subprocess.CalledProcessError: If command returns non-zero exit code
             subprocess.TimeoutExpired: If command exceeds timeout
+
         """
         # CRITICAL BUG FIX #29: Check shutdown flag before executing
         # Without this check, commands submitted after shutdown() cause RuntimeError
         with QMutexLocker(self._mutex):
             if self._shutdown_requested:
-                raise RuntimeError(
+                msg = (
                     "ProcessPoolManager has been shut down. "
                     "Cannot execute new workspace commands."
+                )
+                raise RuntimeError(
+                    msg
                 )
 
         # CRITICAL: Prevent UI freezes - this method blocks for up to 120 seconds
@@ -510,12 +526,15 @@ class ProcessPoolManager(LoggingMixin, QObject):
         current_thread = QThread.currentThread()
         app_instance = QCoreApplication.instance()
         if app_instance and current_thread == app_instance.thread():
-            raise RuntimeError(
+            msg = (
                 "execute_workspace_command() cannot be called on the main (UI) thread!\n"
                 f"This method blocks for up to {ThreadingConfig.SUBPROCESS_TIMEOUT}s "
                 "and will freeze the UI.\n"
                 "Use AsyncShotLoader or background workers instead.\n"
                 f"Command attempted: {command[:100]}..."
+            )
+            raise RuntimeError(
+                msg
             )
 
         if timeout is None:
@@ -568,7 +587,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
             # Handle cancellation
             if proc_result.status == "cancelled":
-                raise RuntimeError(f"Command cancelled: {command[:50]}...")
+                msg = f"Command cancelled: {command[:50]}..."
+                raise RuntimeError(msg)
 
             # Handle timeout
             if proc_result.status == "timeout":
@@ -622,13 +642,17 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Returns:
             Dictionary mapping commands to results (None for failed/timed-out commands)
+
         """
         # CRITICAL BUG FIX #32: Check shutdown flag before executing batch commands
         with QMutexLocker(self._mutex):
             if self._shutdown_requested:
-                raise RuntimeError(
+                msg = (
                     "ProcessPoolManager has been shut down. "
                     "Cannot execute batch commands."
+                )
+                raise RuntimeError(
+                    msg
                 )
 
         # Use default timeout if not specified
@@ -699,6 +723,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Returns:
             Command output
+
         """
         # Execute shell command using subprocess
         start_time = time.time()
@@ -734,6 +759,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Returns:
             List of matching file paths
+
         """
         # Use Python pathlib instead of subprocess find
         self._metrics.python_operations += 1
@@ -756,6 +782,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Args:
             pattern: pattern to match
+
         """
         self._cache.invalidate(pattern)
 
@@ -764,6 +791,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Returns:
             Performance metrics dictionary
+
         """
         metrics = self._metrics.get_report()
 
@@ -795,6 +823,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             Uses a timeout wrapper around executor.shutdown() to prevent
             indefinite blocking if tasks are stuck. If the graceful shutdown
             takes longer than timeout, a forced shutdown is triggered.
+
         """
         with QMutexLocker(self._mutex):
             if self._shutdown_requested:
@@ -969,6 +998,7 @@ class ProcessMetrics:
 
         Args:
             time_ms: Response time in milliseconds
+
         """
         self.total_response_time += time_ms
         self.response_count += 1
@@ -978,6 +1008,7 @@ class ProcessMetrics:
 
         Returns:
             Dictionary with performance metrics
+
         """
         avg_response = (
             self.total_response_time / self.response_count

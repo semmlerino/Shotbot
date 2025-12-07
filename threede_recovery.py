@@ -9,6 +9,7 @@ Example:
     Crash file: scene_v010_crashsave3750186.3de
     Recovery: scene_v011.3de (promoted to next version)
     Archive: scene_v010_crashsave_recovered_20250102_143022.3de
+
 """
 
 from __future__ import annotations
@@ -34,7 +35,9 @@ class CrashFileInfo(NamedTuple):
         recovery_name: Suggested name for recovered file (next version)
         modification_time: File modification timestamp
         file_size: File size in bytes
+
     """
+
     crash_path: Path
     base_name: str
     current_version: int
@@ -91,6 +94,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         Returns:
             List of CrashFileInfo objects for detected crash files,
             sorted by modification time (newest first)
+
         """
         workspace = Path(workspace_path)
         if not workspace.exists():
@@ -169,6 +173,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
         Returns:
             The most recent crash file info, or None if list is empty
+
         """
         if not crash_files:
             return None
@@ -204,17 +209,20 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         Raises:
             FileNotFoundError: If crash file doesn't exist
             FileExistsError: If target recovery file already exists
+
         """
         crash_path = crash_info.crash_path
 
         if not crash_path.exists():
-            raise FileNotFoundError(f"Crash file not found: {crash_path}")
+            msg = f"Crash file not found: {crash_path}"
+            raise FileNotFoundError(msg)
 
         # Target recovery path
         recovery_path = crash_path.parent / crash_info.recovery_name
 
         if recovery_path.exists():
-            raise FileExistsError(f"Recovery target already exists: {recovery_path}\nPlease remove or rename the existing file first.")
+            msg = f"Recovery target already exists: {recovery_path}\nPlease remove or rename the existing file first."
+            raise FileExistsError(msg)
 
         # Rename crash file to recovery version
         self.logger.info(
@@ -245,11 +253,13 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
         Raises:
             FileNotFoundError: If crash file doesn't exist
+
         """
         crash_path = crash_info.crash_path
 
         if not crash_path.exists():
-            raise FileNotFoundError(f"Crash file not found: {crash_path}")
+            msg = f"Crash file not found: {crash_path}"
+            raise FileNotFoundError(msg)
 
         # Generate timestamp suffix
         timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
@@ -295,18 +305,21 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         Raises:
             FileNotFoundError: If crash file doesn't exist
             FileExistsError: If target recovery file already exists
+
         """
         import shutil
 
         crash_path = crash_info.crash_path
 
         if not crash_path.exists():
-            raise FileNotFoundError(f"Crash file not found: {crash_path}")
+            msg = f"Crash file not found: {crash_path}"
+            raise FileNotFoundError(msg)
 
         recovery_path = crash_path.parent / crash_info.recovery_name
 
         if recovery_path.exists():
-            raise FileExistsError(f"Recovery target already exists: {recovery_path}\nPlease remove or rename the existing file first.")
+            msg = f"Recovery target already exists: {recovery_path}\nPlease remove or rename the existing file first."
+            raise FileExistsError(msg)
 
         # Step 1: Copy crash file to recovery version
         self.logger.info(

@@ -148,6 +148,7 @@ def normalize_plate_id(plate_id: str | None) -> str | None:
         None
         >>> normalize_plate_id(None)
         None
+
     """
     if plate_id is None:
         return None
@@ -173,6 +174,7 @@ def find_path_case_insensitive(base_path: Path, plate_id: str) -> Path | None:
 
     Returns:
         Path to existing plate directory, or None if not found
+
     """
     # Validate base path exists
     if not base_path.exists():
@@ -236,6 +238,7 @@ class VersionUtils:
 
         Returns:
             List of (version_number, version_string) tuples sorted by version
+
         """
         if not PathUtils.validate_path_exists(base_path, "Version search path"):
             return []
@@ -320,6 +323,7 @@ class VersionUtils:
 
         Returns:
             Latest version string (e.g., "v003") or None if none found
+
         """
         version_dirs = VersionUtils.find_version_directories(base_path)
         if not version_dirs:
@@ -344,6 +348,7 @@ class VersionUtils:
 
         Returns:
             Version string if found, None otherwise
+
         """
         path_str = str(path)
         match = re.search(r"(v\d{3})", path_str)
@@ -361,6 +366,7 @@ class VersionUtils:
 
         Returns:
             Next available version number (1 if no files exist)
+
         """
         if not PathUtils.validate_path_exists(directory, "Version search directory"):
             return 1
@@ -459,6 +465,7 @@ class FileUtils:
             - Early termination when limit is reached reduces actual runtime
             - Set-based extension lookup provides O(1) extension matching
             - Path validation uses TTL caching to avoid repeated stat calls
+
         """
         if not PathUtils.validate_path_exists(directory, "Search directory"):
             return []
@@ -505,6 +512,7 @@ class FileUtils:
 
         Returns:
             Path to first image file or None if none found
+
         """
         # First try lightweight preferred extensions
         for ext in Config.THUMBNAIL_EXTENSIONS:
@@ -546,6 +554,7 @@ class FileUtils:
 
         Returns:
             True if file is within size limit, False otherwise
+
         """
         if max_size_mb is None:
             max_size_mb = Config.MAX_FILE_SIZE_MB
@@ -590,6 +599,7 @@ class ImageUtils:
 
         Returns:
             True if dimensions are acceptable, False otherwise
+
         """
         if max_dimension is None:
             max_dimension = Config.MAX_THUMBNAIL_DIMENSION_PX
@@ -626,6 +636,7 @@ class ImageUtils:
 
         Returns:
             (width, height) tuple for safe thumbnail dimensions
+
         """
         if max_size is None:
             max_size = Config.CACHE_THUMBNAIL_SIZE
@@ -644,6 +655,7 @@ class ImageUtils:
 
         Returns:
             True if image is too large, False if it's acceptable
+
         """
         width = size.width()
         height = size.height()
@@ -670,6 +682,7 @@ class ImageUtils:
 
         Returns:
             Path to the extracted JPEG frame, or None if extraction failed
+
         """
         import subprocess
         import tempfile
@@ -757,6 +770,7 @@ class ImageUtils:
 
         Returns:
             Path to the extracted JPEG frame, or None if extraction failed
+
         """
         import subprocess
         import tempfile
@@ -832,6 +846,7 @@ class ImageUtils:
 
         Returns:
             Path to the converted JPEG frame, or None if conversion failed
+
         """
         import subprocess
         import tempfile
@@ -893,6 +908,7 @@ class ImageUtils:
 
         Returns:
             Duration in seconds, or None if unable to determine
+
         """
         import subprocess
 
@@ -944,9 +960,11 @@ class ValidationUtils:
 
         Returns:
             True if all values are non-empty, False otherwise
+
         """
         if names and len(names) != len(values):
-            raise ValueError("Names list must match values length")
+            msg = "Names list must match values length"
+            raise ValueError(msg)
 
         for i, value in enumerate(values):
             if not value:
@@ -967,6 +985,7 @@ class ValidationUtils:
 
         Returns:
             True if all components are valid, False otherwise
+
         """
         return ValidationUtils.validate_not_empty(
             show,
@@ -981,6 +1000,7 @@ class ValidationUtils:
 
         Returns:
             Current username, falling back to Config.DEFAULT_USERNAME if not found
+
         """
         # In mock mode, always use gabriel-h to match the production data
         if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
@@ -1011,6 +1031,7 @@ class ValidationUtils:
 
         Returns:
             Set of usernames to exclude
+
         """
         excluded = {ValidationUtils.get_current_username()}
 

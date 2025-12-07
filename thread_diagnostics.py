@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QThread
 
+
 if TYPE_CHECKING:
     from types import FrameType
 
@@ -39,6 +40,7 @@ class ThreadDiagnosticReport:
         time_running_seconds: How long the thread has been running
         abandon_reason: Why the thread is being abandoned
         timestamp: When this report was created
+
     """
 
     thread_id: int
@@ -97,6 +99,7 @@ class ThreadDiagnostics:
 
         Returns:
             ThreadDiagnosticReport with captured state
+
         """
         cls._total_captured += 1
 
@@ -169,16 +172,17 @@ class ThreadDiagnostics:
     @classmethod
     def log_abandonment(
         cls,
-        thread: QThread | threading.Thread,
+        _thread: QThread | threading.Thread,
         reason: str,
         report: ThreadDiagnosticReport,
     ) -> None:
         """Log structured abandonment event for analysis.
 
         Args:
-            thread: The thread being abandoned
+            _thread: The thread being abandoned (unused, info is in report)
             reason: Human-readable reason for abandonment
             report: Pre-captured diagnostic report
+
         """
         report.abandon_reason = reason
 
@@ -211,6 +215,7 @@ class ThreadDiagnostics:
             - total_abandoned: How many threads have been abandoned
             - recent_reasons: List of recent abandonment reasons (last 5)
             - avg_runtime_before_abandon: Average runtime before abandonment
+
         """
         with cls._lock:
             reports = cls._abandonment_reports.copy()
@@ -240,6 +245,7 @@ class ThreadDiagnostics:
 
         Returns:
             List of most recent ThreadDiagnosticReport instances
+
         """
         with cls._lock:
             return cls._abandonment_reports[-count:]

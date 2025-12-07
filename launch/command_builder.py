@@ -69,9 +69,11 @@ class CommandBuilder:
             - Checks normalized path for command injection characters
             - Uses shlex.quote() for safe shell escaping
             - Path traversal patterns (..) are safe after normalization
+
         """
         if not path:
-            raise ValueError("Path cannot be empty")
+            msg = "Path cannot be empty"
+            raise ValueError(msg)
 
         # Normalize path FIRST (resolves .., ., symlinks, makes absolute)
         # Use strict=False to avoid hanging on stale NFS mounts or inaccessible paths.
@@ -80,15 +82,17 @@ class CommandBuilder:
         try:
             normalized = str(Path(path).resolve(strict=False))
         except (OSError, RuntimeError) as e:
-            raise ValueError(f"Invalid path: {e}") from e
+            msg = f"Invalid path: {e}"
+            raise ValueError(msg) from e
 
         # Check for command injection attempts in NORMALIZED path
         # (After normalization, .. and . are resolved, so we only check
         # for actual command injection characters, not path traversal)
         for char in CommandBuilder.DANGEROUS_CHARS:
             if char in normalized:
+                msg = f"Path contains dangerous character '{char}' that could allow command injection: {normalized[:100]}"
                 raise ValueError(
-                    f"Path contains dangerous character '{char}' that could allow command injection: {normalized[:100]}"
+                    msg
                 )
 
         # Use shlex.quote for safe shell escaping
@@ -108,6 +112,7 @@ class CommandBuilder:
         Notes:
             - Workspace path must be pre-validated with validate_path()
             - Command assumes 'ws' function is available in shell
+
         """
         return f"ws {workspace} && {app_command}"
 
@@ -129,6 +134,7 @@ class CommandBuilder:
             - The minor startup overhead (~50ms) is worth the reliability gain
             - Uses shlex.quote() to safely escape the command for shell
             - Handles commands containing quotes, spaces, and special characters
+
         """
         packages_str = " ".join(packages)
         logger.debug(f"Wrapping command with rez packages: {packages_str}")
@@ -153,6 +159,7 @@ class CommandBuilder:
             - NUKE_SKIP_PROBLEMATIC_PLUGINS: Filter NUKE_PATH at runtime
             - NUKE_OCIO_FALLBACK_CONFIG: Set OCIO fallback config
             - Always disables crash reporting (NUKE_CRASH_REPORTS=0)
+
         """
         env_fixes: list[str] = []
 
@@ -192,6 +199,7 @@ class CommandBuilder:
 
         Notes:
             Used for UI notifications about applied environment fixes
+
         """
         fix_details: list[str] = []
 
@@ -226,6 +234,7 @@ class CommandBuilder:
             - Quotes log file path to handle spaces/special chars
             - Rotates log file if it exceeds configured size
             - Gracefully degrades if logging setup fails
+
         """
         # Check if logging is enabled (default to True for backward compatibility)
         if config is not None and not config.ENABLE_LAUNCH_LOGGING:
@@ -281,6 +290,7 @@ class CommandBuilder:
             - `exit` closes the terminal immediately
             - Useful for GUI apps where terminal window is unwanted clutter
             - Output is lost after exit - ensure logging is set up before this
+
         """
         logger.debug("Wrapping command for background execution")
         return f"({command}) & disown; exit"
@@ -321,6 +331,7 @@ class CommandBuilder:
             - Workspace path must be pre-validated with validate_path()
             - Order matters: workspace -> rez -> logging -> background
             - Background wrapping must be last since it adds `& disown; exit`
+
         """
         command = app_command
 

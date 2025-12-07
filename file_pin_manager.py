@@ -51,6 +51,7 @@ class FilePinManager(LoggingMixin, QObject):
         Args:
             cache_manager: Cache manager for persistence
             parent: Optional parent QObject
+
         """
         super().__init__(parent)
         self._cache_manager = cache_manager
@@ -65,6 +66,7 @@ class FilePinManager(LoggingMixin, QObject):
         Args:
             file_path: Absolute path to the file
             comment: Optional comment for this pin
+
         """
         path_str = str(file_path)
         self._pins[path_str] = {
@@ -80,6 +82,7 @@ class FilePinManager(LoggingMixin, QObject):
 
         Args:
             file_path: Absolute path to the file
+
         """
         path_str = str(file_path)
         if path_str in self._pins:
@@ -96,6 +99,7 @@ class FilePinManager(LoggingMixin, QObject):
 
         Returns:
             True if file is pinned
+
         """
         return str(file_path) in self._pins
 
@@ -107,6 +111,7 @@ class FilePinManager(LoggingMixin, QObject):
 
         Returns:
             Comment string, or empty string if not pinned or no comment
+
         """
         pin_data = self._pins.get(str(file_path))
         if pin_data:
@@ -122,10 +127,12 @@ class FilePinManager(LoggingMixin, QObject):
 
         Raises:
             ValueError: If file is not pinned
+
         """
         path_str = str(file_path)
         if path_str not in self._pins:
-            raise ValueError(f"File not pinned: {path_str}")
+            msg = f"File not pinned: {path_str}"
+            raise ValueError(msg)
 
         self._pins[path_str]["comment"] = comment.strip()
         self._save_pins()
@@ -137,6 +144,7 @@ class FilePinManager(LoggingMixin, QObject):
 
         Returns:
             Number of pinned files
+
         """
         return len(self._pins)
 

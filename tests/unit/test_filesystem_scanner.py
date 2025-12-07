@@ -43,6 +43,7 @@ def fast_time():
             cache.set(key, value, ttl=60)
             fast_time.shift(61)  # Instantly advance 61 seconds
             assert cache.is_expired(key)
+
     """
     with time_machine.travel(0, tick=False) as traveller:
         yield traveller
@@ -740,7 +741,7 @@ class TestLazyImportThreadSafety:
             if scanner.parser is None:
                 try:
                     # Simulate an error during initialization
-                    raise ImportError("Test import failure")  # noqa: TRY301
+                    raise ImportError("Test import failure")
                 except ImportError:
                     pass  # Expected - don't set parser
 

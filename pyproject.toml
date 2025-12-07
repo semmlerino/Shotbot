@@ -130,6 +130,9 @@ select = [
     "FURB",   # refurb (modernization)
     "SLOT",   # flake8-slots (__slots__ checks)
     "RUF",    # Ruff-specific rules
+    "EM",     # flake8-errmsg (exception message best practices)
+    "LOG",    # flake8-logging (logging best practices)
+    "BLE",    # flake8-blind-except (catch blind except:)
 ]
 
 # Ignore these specific rules
@@ -162,6 +165,7 @@ ignore = [
     "TRY003",  # raise-vanilla-args (vanilla exceptions are often fine)
     "TRY004",  # prefer-type-error (ValueError/Exception acceptable for type issues)
     "TRY300",  # try-consider-else (not always clearer)
+    "TRY301",  # abstract-raise (raising in try blocks is fine)
     "TRY400",  # error-instead-of-exception (Error is fine in Python 3)
 
     # Simplification preferences (explicit code is often clearer)
@@ -179,6 +183,9 @@ ignore = [
 
     # Performance (micro-optimizations not worth it)
     "PERF203", # try-except-in-loop (rarely a real issue)
+
+    # Blind except (TODO: fix incrementally in critical paths, then remove this ignore)
+    "BLE001",  # blind-except (316 violations - tackle incrementally)
 ]
 
 # Allow these specific patterns
@@ -190,6 +197,9 @@ ignore = [
     "PLR0913", # too-many-arguments (pytest fixtures often need many params)
     "DTZ001",  # call-datetime-without-tzinfo (tests don't need tz)
     "B018",    # useless-expression (testing expressions)
+    "EM101",   # raw-string-in-exception (test exceptions can be simple)
+    "EM102",   # f-string-in-exception (test exceptions can be simple)
+    "LOG015",  # root-logger-call (tests can use root logger)
 ]
 
 # Config files can have magic values
@@ -233,6 +243,7 @@ required_plugins = [
 # Run with coverage manually: pytest tests/ --cov=. --cov-report=term-missing --cov-report=html:coverage_html
 addopts = [
     "--strict-markers",     # Fail on unknown markers
+    "--strict-config",      # Fail on unknown config options
     "-ra",                  # Show all test summary info
     "--durations=20",       # Show slowest 20 tests
     "--tb=short",

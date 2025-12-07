@@ -48,6 +48,7 @@ class HeadlessMode:
 
         Returns:
             True if running in headless environment
+
         """
         # Check explicit headless flag
         if os.environ.get("SHOTBOT_HEADLESS", "").lower() in ("1", "true", "yes"):
@@ -126,6 +127,7 @@ class HeadlessMode:
 
         Returns:
             QApplication configured for headless mode
+
         """
         # Third-party imports
         from PySide6.QtCore import QCoreApplication, Qt
@@ -159,6 +161,7 @@ class HeadlessMode:
 
         Args:
             obj: Object to patch (typically MainWindow or similar)
+
         """
         # Common patches for headless operation
         patches = {
@@ -183,6 +186,7 @@ class HeadlessMode:
 
         Returns:
             True if display is available and working
+
         """
         if HeadlessMode.is_headless_environment():
             return False
@@ -215,6 +219,7 @@ class HeadlessMode:
 
         Returns:
             Wrapped function that skips in headless mode
+
         """
 
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
@@ -238,13 +243,17 @@ class HeadlessMode:
 
         Returns:
             Wrapped function that checks for display
+
         """
 
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             if not HeadlessMode.is_display_available():
-                raise RuntimeError(
+                msg = (
                     f"{func.__name__} requires a display but none is available. "
                      "Run with SHOTBOT_HEADLESS=1 to use headless mode."
+                )
+                raise RuntimeError(
+                    msg
                 )
             return func(*args, **kwargs)
 
@@ -288,6 +297,7 @@ class HeadlessMainWindow:
 
         Returns:
             True if successful
+
         """
         success, _ = self.shot_model.refresh_shots()
         return success
@@ -297,6 +307,7 @@ class HeadlessMainWindow:
 
         Returns:
             List of shots
+
         """
         # Local application imports
 

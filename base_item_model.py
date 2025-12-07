@@ -92,6 +92,7 @@ class ThumbnailLoaderRunnable(QRunnable):
             sequence: Sequence name for cache organization
             shot: Shot name for cache organization
             cache_manager: CacheManager instance for thumbnail caching
+
         """
         super().__init__()
         self.full_name: str = full_name
@@ -192,12 +193,14 @@ class BaseItemModel(
         Args:
             cache_manager: Optional cache manager for thumbnails
             parent: Optional parent QObject
+
         """
         # Ensure we're in the main thread for Qt model creation
         app = QCoreApplication.instance()
-        if app and not QThread.currentThread() == app.thread():
+        if app and QThread.currentThread() != app.thread():
+            msg = f"{self.__class__.__name__} must be created in the main thread. Current thread: {QThread.currentThread()}, Main thread: {app.thread()}"
             raise RuntimeError(
-                f"{self.__class__.__name__} must be created in the main thread. Current thread: {QThread.currentThread()}, Main thread: {app.thread()}"
+                msg
             )
         super().__init__(parent)
 
@@ -263,6 +266,7 @@ class BaseItemModel(
 
         Returns:
             Number of items
+
         """
         if parent is None:
             parent = QModelIndex()
@@ -284,6 +288,7 @@ class BaseItemModel(
 
         Returns:
             Data for the role, or None if invalid
+
         """
         if not index.isValid() or not (0 <= index.row() < len(self._items)):
             return None
@@ -347,6 +352,7 @@ class BaseItemModel(
 
         Returns:
             Item flags
+
         """
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
@@ -369,6 +375,7 @@ class BaseItemModel(
 
         Returns:
             True if successful, False otherwise
+
         """
         if not index.isValid() or not (0 <= index.row() < len(self._items)):
             return False
@@ -408,6 +415,7 @@ class BaseItemModel(
         Args:
             start: Start index
             end: End index
+
         """
         self._visible_start = max(0, start)
         self._visible_end = min(len(self._items) - 1, end) if self._items else 0
@@ -497,6 +505,7 @@ class BaseItemModel(
         Args:
             row: Row index
             item: Item object (must be pre-marked as "loading")
+
         """
         # Item is already marked as "loading" by caller - schedule batched notification
         self._schedule_data_changed(row, [BaseItemRole.LoadingStateRole])
@@ -604,6 +613,7 @@ class BaseItemModel(
             full_name: Unique identifier for the item
             cached_path: Path to the cached thumbnail file
             row: Original row index (may be stale if items changed)
+
         """
         # Clean up runnable reference and pending loads (prevents memory leak)
         with QMutexLocker(self._pending_loads_mutex):
@@ -638,6 +648,7 @@ class BaseItemModel(
         Args:
             full_name: Unique identifier for the item
             row: Original row index (may be stale if items changed)
+
         """
         # Clean up runnable reference and pending loads (prevents memory leak)
         with QMutexLocker(self._pending_loads_mutex):
@@ -699,6 +710,7 @@ class BaseItemModel(
         Args:
             row: Row index to update
             roles: List of role integers that changed
+
         """
         if row not in self._pending_updates:
             self._pending_updates[row] = set()
@@ -758,7 +770,22 @@ class BaseItemModel(
 
         Returns:
             QPixmap converted from cached QImage or None
+
+        Raises:
+            QtThreadError: If called from non-main thread
+
         """
+        # QPixmap operations must be on main thread - enforce this contract
+        app = QCoreApplication.instance()
+        if app and QThread.currentThread() != app.thread():
+            msg = (
+                f"_get_thumbnail_pixmap() must be called from main thread. "
+                f"Current: {QThread.currentThread()}, Main: {app.thread()}"
+            )
+            raise QtThreadError(
+                msg
+            )
+
         with QMutexLocker(self._cache_mutex):
             # Check pixmap cache first (avoids repeated conversions)
             pixmap = self._pixmap_cache.get(item.full_name)
@@ -784,6 +811,7 @@ class BaseItemModel(
 
         Returns:
             Item object or None if invalid
+
         """
         if index.isValid() and 0 <= index.row() < len(self._items):
             return self._items[index.row()]
@@ -798,6 +826,7 @@ class BaseItemModel(
 
         Returns:
             Selected item or None
+
         """
         with QMutexLocker(self._cache_mutex):
             return self._selected_item
@@ -850,12 +879,14 @@ class BaseItemModel(
 
         Raises:
             QtThreadError: If called outside Qt main thread
+
         """
         # CRITICAL: Verify main thread (Qt requirement)
         app = QCoreApplication.instance()
         if app and QThread.currentThread() != app.thread():
+            msg = f"set_items() must be called from main thread. Current: {QThread.currentThread()}, Main: {app.thread()}"
             raise QtThreadError(
-                f"set_items() must be called from main thread. Current: {QThread.currentThread()}, Main: {app.thread()}"
+                msg
             )
 
         # CRITICAL: Stop timers FIRST (prevents callback races)
@@ -952,6 +983,7 @@ class BaseItemModel(
 
         Returns:
             Display text string
+
         """
 
     @abstractmethod
@@ -963,6 +995,7 @@ class BaseItemModel(
 
         Returns:
             Tooltip text string
+
         """
 
     def get_size_hint(self) -> QSize:
@@ -972,6 +1005,7 @@ class BaseItemModel(
             QSize object or None
 
         Can be overridden by subclasses for custom sizing.
+
         """
         return QSize(
             Config.DEFAULT_THUMBNAIL_SIZE,
@@ -989,6 +1023,7 @@ class BaseItemModel(
             Data for the role or None
 
         Override in subclasses to handle model-specific roles.
+
         """
         return None
 
@@ -1004,5 +1039,6 @@ class BaseItemModel(
             True if handled, False otherwise
 
         Override in subclasses to handle model-specific data setting.
+
         """
         return False

@@ -31,6 +31,7 @@ class FolderEncoder:
         Args:
             chunk_size_kb: Size of each chunk in KB (0 for no chunking)
             verbose: Enable verbose output
+
         """
         super().__init__()
         self.chunk_size_kb: int = chunk_size_kb
@@ -44,6 +45,7 @@ class FolderEncoder:
 
         Returns:
             Total size in bytes
+
         """
         total_size = 0
         try:
@@ -71,22 +73,28 @@ class FolderEncoder:
         Raises:
             FileNotFoundError: If folder doesn't exist
             ValueError: If path is not a directory or folder exceeds size limit
+
         """
         folder_path_obj = Path(folder_path)
         if not folder_path_obj.exists():
-            raise FileNotFoundError(f"Folder not found: {folder_path}")
+            msg = f"Folder not found: {folder_path}"
+            raise FileNotFoundError(msg)
 
         if not folder_path_obj.is_dir():
-            raise ValueError(f"Path is not a directory: {folder_path}")
+            msg = f"Path is not a directory: {folder_path}"
+            raise ValueError(msg)
 
         # Check folder size before loading into memory
         folder_size_bytes = self._get_folder_size(folder_path_obj)
         folder_size_mb = folder_size_bytes / (1024 * 1024)
         if folder_size_mb > self.MAX_FOLDER_SIZE_MB:
-            raise ValueError(
+            msg = (
                 f"Folder too large to encode: {folder_size_mb:.1f}MB "
                 f"(max: {self.MAX_FOLDER_SIZE_MB}MB). "
                 f"Consider excluding large files or using a different transfer method."
+            )
+            raise ValueError(
+                msg
             )
 
         if self.verbose:
@@ -121,6 +129,7 @@ class FolderEncoder:
 
         Returns:
             List of chunk strings with headers
+
         """
         chunk_size_chars = self.chunk_size_kb * 1024
         total_chunks = (len(encoded) + chunk_size_chars - 1) // chunk_size_chars
@@ -156,6 +165,7 @@ def get_folder_size(folder_path: str) -> int:
 
     Returns:
         Total size in bytes
+
     """
     total_size = 0
     for dirpath, _, filenames in os.walk(folder_path):

@@ -27,6 +27,7 @@ class MockWorkspacePool(LoggingMixin):
 
         Args:
             demo_shots_path: Optional path to demo_shots.json for testing (default: ./demo_shots.json)
+
         """
         super().__init__()
         self.shots: list[str] = []
@@ -50,6 +51,7 @@ class MockWorkspacePool(LoggingMixin):
 
         Args:
             mock_root: Root of mock VFX filesystem (default: /tmp/mock_vfx)
+
         """
         if mock_root is not None:
             self.mock_root = mock_root
@@ -110,6 +112,7 @@ class MockWorkspacePool(LoggingMixin):
 
         Args:
             demo_shots: List of shot dictionaries with show/seq/shot keys
+
         """
         self.shots = []
         for shot in demo_shots:
@@ -142,6 +145,7 @@ class MockWorkspacePool(LoggingMixin):
 
         Returns:
             Command output
+
         """
         self.commands_executed.append(command)
 
@@ -182,6 +186,7 @@ class MockWorkspacePool(LoggingMixin):
 
         Returns:
             Command results
+
         """
         results: dict[str, str | None] = {}
         for cmd in commands:
@@ -197,6 +202,7 @@ class MockWorkspacePool(LoggingMixin):
 
         Args:
             pattern: Pattern to match (clears all if None)
+
         """
         if pattern is None:
             self._cache.clear()
@@ -213,6 +219,7 @@ class MockWorkspacePool(LoggingMixin):
 
         Returns:
             Metrics dictionary conforming to PerformanceMetricsDict
+
         """
         from type_definitions import PerformanceMetricsDict
 
@@ -245,6 +252,7 @@ def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> Moc
 
     Returns:
         MockWorkspacePool configured with user's assigned shots only
+
     """
     # Standard library imports
     import json
@@ -263,20 +271,23 @@ def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> Moc
 
             # Runtime validation before casting
             if not isinstance(raw_data, dict):
-                raise ValueError(  # noqa: TRY301
-                    f"Expected dict, got {type(raw_data).__name__}"
+                msg = f"Expected dict, got {type(raw_data).__name__}"
+                raise ValueError(
+                    msg
                 )
 
             # After isinstance check, cast to expected structure
             demo_data = cast("dict[str, object]", raw_data)
 
             if "shots" not in demo_data:
-                raise ValueError("Missing 'shots' key in demo data")  # noqa: TRY301
+                msg = "Missing 'shots' key in demo data"
+                raise ValueError(msg)
 
             raw_shots = demo_data["shots"]
             if not isinstance(raw_shots, list):
-                raise ValueError(  # noqa: TRY301
-                    f"'shots' must be a list, got {type(raw_shots).__name__}"
+                msg = f"'shots' must be a list, got {type(raw_shots).__name__}"
+                raise ValueError(
+                    msg
                 )
 
             # After isinstance check, cast to list of objects
@@ -286,13 +297,15 @@ def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> Moc
             validated_shots: list[dict[str, str]] = []
             for i, shot_item in enumerate(shots_data):
                 if not isinstance(shot_item, dict):
-                    raise ValueError(f"Shot {i} is not a dict")  # noqa: TRY301
+                    msg = f"Shot {i} is not a dict"
+                    raise ValueError(msg)
                 # Cast after runtime validation
                 shot_dict = cast("dict[str, object]", shot_item)
                 required_fields = ["show", "seq", "shot"]
                 missing = [f for f in required_fields if f not in shot_dict]
                 if missing:
-                    raise ValueError(f"Shot {i} missing fields: {missing}")  # noqa: TRY301
+                    msg = f"Shot {i} missing fields: {missing}"
+                    raise ValueError(msg)
                 # After validation, cast to typed dict
                 validated_shots.append(cast("dict[str, str]", shot_dict))
 

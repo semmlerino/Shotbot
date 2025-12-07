@@ -83,6 +83,7 @@ class SceneDiscoveryStrategy(ABC, LoggingMixin):
 
         Returns:
             List of ThreeDEScene objects
+
         """
 
     @abstractmethod
@@ -101,6 +102,7 @@ class SceneDiscoveryStrategy(ABC, LoggingMixin):
 
         Returns:
             List of all ThreeDEScene objects in the show
+
         """
 
     def get_strategy_name(self) -> str:
@@ -126,7 +128,6 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Find scenes for a shot using local filesystem scanning."""
-
         # Check cache first
         cached_scenes = self.cache.get_scenes_for_shot(show, sequence, shot)
         if cached_scenes is not None:
@@ -225,7 +226,6 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Find all scenes in a show using local filesystem scanning."""
-
         # Check cache first
         cached_scenes = self.cache.get_scenes_for_show(show)
         if cached_scenes is not None:
@@ -348,6 +348,7 @@ class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
 
         Args:
             num_workers: Number of parallel workers (uses config default if None)
+
         """
         super().__init__()
         self.num_workers = num_workers
@@ -377,7 +378,6 @@ class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Find all scenes in a show using parallel scanning."""
-
         # Check cache first
         cached_scenes = self.cache.get_scenes_for_show(show)
         if cached_scenes is not None:
@@ -500,6 +500,7 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
 
         Yields:
             Tuple of (scene_batch, current_shot, total_shots, status_message)
+
         """
         try:
             # First discover all shots in the show
@@ -584,6 +585,7 @@ class NetworkAwareStrategy(SceneDiscoveryStrategy):
 
         Args:
             network_timeout: Timeout for network operations in seconds
+
         """
         super().__init__()
         self.network_timeout = network_timeout
@@ -625,6 +627,7 @@ class StrategyKwargs(TypedDict, total=False):
     Attributes:
         num_workers: Number of parallel workers (for ParallelFileSystemStrategy)
         network_timeout: Timeout for network operations in seconds (for NetworkAwareStrategy)
+
     """
 
     num_workers: int | None
@@ -648,6 +651,7 @@ def create_discovery_strategy(
 
     Raises:
         ValueError: If strategy_type is not recognized
+
     """
     # Create strategy based on type with appropriate kwargs
     if strategy_type == "local":
@@ -660,7 +664,10 @@ def create_discovery_strategy(
     if strategy_type == "network":
         network_timeout = kwargs.get("network_timeout", 30)
         return NetworkAwareStrategy(network_timeout=network_timeout)
-    raise ValueError(
+    msg = (
         f"Unknown strategy type: {strategy_type}. "
          f"Available: local, parallel, progressive, network"
+    )
+    raise ValueError(
+        msg
     )

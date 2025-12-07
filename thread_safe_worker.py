@@ -102,6 +102,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Args:
             parent: Optional parent QObject for proper Qt cleanup
+
         """
         super().__init__(parent)
         self._state_mutex: QMutex = QMutex()
@@ -122,6 +123,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             Current WorkerState
+
         """
         with QMutexLocker(self._state_mutex):
             return self._state
@@ -135,6 +137,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             True if transition was valid and executed, False otherwise
+
         """
         signal_to_emit: SignalInstance | None = None
 
@@ -193,6 +196,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             True if stop was requested successfully, False if already stopping/stopped
+
         """
         signal_to_emit: SignalInstance | None = None
 
@@ -237,6 +241,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             True if stop was requested
+
         """
         with QMutexLocker(self._state_mutex):
             return self._stop_requested
@@ -248,6 +253,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             True if the worker should stop, False otherwise
+
         """
         # Check for stop request
         if self.is_stop_requested():
@@ -275,6 +281,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             signal: Signal to connect (runtime SignalInstance)
             slot: Slot to connect to
             connection_type: Qt connection type (default: QueuedConnection for thread safety)
+
         """
         # Store direct references - Qt signals don't support weak references
         # The connections will be cleaned up in disconnect_all()
@@ -420,7 +427,8 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         - Exit gracefully when stop is requested
         - Handle its own exceptions
         """
-        raise NotImplementedError("Subclasses must implement do_work()")
+        msg = "Subclasses must implement do_work()"
+        raise NotImplementedError(msg)
 
     @Slot()  # type: ignore[reportAny]
     def _on_finished(self) -> None:
@@ -486,6 +494,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             True if worker finished, False if timeout
+
         """
         if self.get_state() in [WorkerState.STOPPED, WorkerState.DELETED]:
             return True
@@ -503,6 +512,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             True if stopped successfully, False if timeout
+
         """
         # Use request_stop() to properly set stop flags
         if not self.request_stop():
@@ -537,6 +547,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             True if thread is a zombie, False otherwise
+
         """
         with QMutexLocker(self._state_mutex):
             return self._zombie
@@ -552,6 +563,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             Dictionary with zombie counts for this session
+
         """
         with QMutexLocker(cls._zombie_mutex):
             return {
@@ -672,6 +684,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Returns:
             Number of zombies cleaned up
+
         """
         # Import logging here to avoid issues during shutdown
         import logging

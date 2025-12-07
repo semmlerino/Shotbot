@@ -1,5 +1,4 @@
-"""
-QRunnable resource tracking system to prevent memory leaks.
+"""QRunnable resource tracking system to prevent memory leaks.
 
 This module provides a singleton tracker for QRunnable instances to ensure
 proper cleanup and prevent memory leaks from untracked thread pool tasks.
@@ -23,8 +22,7 @@ logger = logging.getLogger(__name__)
 
 @final
 class QRunnableTracker(SingletonMixin):
-    """
-    Singleton tracker for QRunnable instances.
+    """Singleton tracker for QRunnable instances.
 
     Uses weak references to track running QRunnables without preventing
     garbage collection. Provides methods for registration, monitoring,
@@ -57,14 +55,14 @@ class QRunnableTracker(SingletonMixin):
     def register(
         self, runnable: QRunnable, metadata: Mapping[str, object] | None = None
     ) -> None:
-        """
-        Register a QRunnable for tracking.
+        """Register a QRunnable for tracking.
 
         Thread-safe: Protected by internal lock.
 
         Args:
             runnable: The QRunnable instance to track
             metadata: Optional metadata about the runnable (e.g., type, source, timestamp)
+
         """
         with self._data_lock:
             self._active_runnables.add(runnable)
@@ -84,13 +82,13 @@ class QRunnableTracker(SingletonMixin):
         )
 
     def unregister(self, runnable: QRunnable) -> None:
-        """
-        Unregister a completed QRunnable.
+        """Unregister a completed QRunnable.
 
         Thread-safe: Protected by internal lock.
 
         Args:
             runnable: The QRunnable instance to unregister
+
         """
         try:
             with self._data_lock:
@@ -126,8 +124,7 @@ class QRunnableTracker(SingletonMixin):
             }
 
     def wait_for_all(self, timeout_ms: int = 30000) -> bool:
-        """
-        Wait for all active runnables to complete.
+        """Wait for all active runnables to complete.
 
         Thread-safe: Uses lock only for checking active count, not during sleep.
 
@@ -136,6 +133,7 @@ class QRunnableTracker(SingletonMixin):
 
         Returns:
             True if all completed, False if timeout
+
         """
         # Standard library imports
         import time
@@ -161,8 +159,7 @@ class QRunnableTracker(SingletonMixin):
             time.sleep(0.1)
 
     def cleanup_all(self) -> None:
-        """
-        Clean up all tracked resources.
+        """Clean up all tracked resources.
 
         Thread-safe: Uses lock for state access, waits for thread pool outside lock.
 
@@ -205,19 +202,18 @@ class QRunnableTracker(SingletonMixin):
 
 @final
 class TrackedQRunnable(QRunnable):
-    """
-    Base class for tracked QRunnables.
+    """Base class for tracked QRunnables.
 
     Automatically registers/unregisters with the tracker.
     Subclasses should override the run() method.
     """
 
     def __init__(self, auto_delete: bool = True) -> None:
-        """
-        Initialize the tracked runnable.
+        """Initialize the tracked runnable.
 
         Args:
             auto_delete: Whether to auto-delete after running
+
         """
         super().__init__()
         self.setAutoDelete(auto_delete)
@@ -229,8 +225,7 @@ class TrackedQRunnable(QRunnable):
 
     @override
     def run(self) -> None:
-        """
-        Execute the runnable with automatic tracking.
+        """Execute the runnable with automatic tracking.
 
         Subclasses should override _do_work() instead of this method.
         """
@@ -241,12 +236,12 @@ class TrackedQRunnable(QRunnable):
             self._tracker.unregister(self)
 
     def _do_work(self) -> None:
-        """
-        Override this method to implement the actual work.
+        """Override this method to implement the actual work.
 
         This method is called by run() with automatic tracking.
         """
-        raise NotImplementedError("Subclasses must implement _do_work()")
+        msg = "Subclasses must implement _do_work()"
+        raise NotImplementedError(msg)
 
 
 # Global singleton instance for convenience

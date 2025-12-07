@@ -88,6 +88,7 @@ class ShotGridView(BaseGridView):
             pin_manager: Optional pin manager for pinning shots
             notes_manager: Optional notes manager for shot notes
             parent: Optional parent widget
+
         """
         # Initialize widgets that will be created in template methods
         # These are set to None initially but will be assigned during super().__init__()
@@ -112,6 +113,7 @@ class ShotGridView(BaseGridView):
 
         Returns:
             ShotGridDelegate instance
+
         """
         return ShotGridDelegate(self)
 
@@ -121,6 +123,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             layout: The toolbar horizontal layout
+
         """
         # Recovery button for 3DE crash files
         self.recover_button = QPushButton("Recover Crashes...")
@@ -141,6 +144,7 @@ class ShotGridView(BaseGridView):
 
         Returns:
             The shot item model or None
+
         """
         # Cast base class _model to more specific type
         return cast("ShotItemModel | None", self._model)
@@ -151,6 +155,7 @@ class ShotGridView(BaseGridView):
 
         Returns:
             The selected Shot object or None
+
         """
         return self._selected_shot
 
@@ -161,6 +166,7 @@ class ShotGridView(BaseGridView):
 
         Returns:
             Current thumbnail size in pixels
+
         """
         return self._thumbnail_size
 
@@ -185,6 +191,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             model: Shot item model
+
         """
         # Store in base class attribute (base type is QAbstractItemModel)
         self._model = model
@@ -210,6 +217,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             shows: Either a list of show names or an object with get_available_shows() method
+
         """
         # Handle list case (delegate to base with type narrowing)
         if isinstance(shows, list):
@@ -219,8 +227,9 @@ class ShotGridView(BaseGridView):
             # Handle protocol case (extract shows using duck typing)
             # Use duck typing instead of isinstance for test compatibility
             if not hasattr(shows, "get_available_shows"):
+                msg = f"Expected list[str] or HasAvailableShows protocol, got {type(shows).__name__}"
                 raise TypeError(
-                    f"Expected list[str] or HasAvailableShows protocol, got {type(shows).__name__}"
+                    msg
                 )
             show_list: list[str] = list(shows.get_available_shows())
             super().populate_show_filter(show_list)
@@ -247,6 +256,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             index: Clicked model index
+
         """
         # Qt's selection model automatically handles the click
         # _on_selection_changed will be triggered with the full selection logic
@@ -257,6 +267,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             index: Double-clicked model index
+
         """
         model = cast("ShotItemModel | None", self._model)
         if not index.isValid() or not model:
@@ -280,6 +291,7 @@ class ShotGridView(BaseGridView):
         Args:
             current: Current selection index
             previous: Previous selection index
+
         """
         model = cast("ShotItemModel | None", self._model)
         if not model:
@@ -307,6 +319,7 @@ class ShotGridView(BaseGridView):
         Args:
             start: Start row index
             end: End row index (exclusive)
+
         """
         model = cast("ShotItemModel | None", self._model)
         if model:
@@ -317,6 +330,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             shot_name: Full shot name to select
+
         """
         model = cast("ShotItemModel | None", self._model)
         if not model:
@@ -366,6 +380,7 @@ class ShotGridView(BaseGridView):
 
         Returns:
             QIcon with the specified shape and colour
+
         """
         from PySide6.QtGui import QPen
 
@@ -645,6 +660,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             event: Context menu event
+
         """
         # Convert global position to list view coordinates
         list_view_pos = self.list_view.mapFromGlobal(event.globalPos())
@@ -764,6 +780,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             shot: Shot object containing workspace path
+
         """
         folder_path = shot.workspace_path
 
@@ -792,6 +809,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             error_msg: Error message from worker
+
         """
         self.logger.error(f"Failed to open folder: {error_msg}")
         # Could show a QMessageBox here if desired
@@ -806,6 +824,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             shot: Shot object containing workspace path
+
         """
         from notification_manager import error as notify_error
         from publish_plate_finder import find_main_plate
@@ -837,6 +856,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             path: The path string to copy
+
         """
         clipboard = QApplication.clipboard()
         if clipboard:
@@ -848,6 +868,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             shot: Shot to edit note for
+
         """
         if not self._notes_manager:
             return
@@ -868,6 +889,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             shot: Shot to pin
+
         """
         if self._pin_manager:
             self._pin_manager.pin_shot(shot)
@@ -881,6 +903,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             shot: Shot to unpin
+
         """
         if self._pin_manager:
             self._pin_manager.unpin_shot(shot)
@@ -899,6 +922,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             pin_manager: Pin manager for pinning shots
+
         """
         self._pin_manager = pin_manager
 

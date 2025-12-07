@@ -69,6 +69,7 @@ if TYPE_CHECKING:
 
     class _HasToDict(Protocol):
         """Protocol for objects with to_dict() method."""
+
         def to_dict(self) -> ThreeDESceneDict: ...
 
 # Type alias for JSON data (used for runtime validation) - Python 3.11 compatible
@@ -132,6 +133,7 @@ def _get_shot_key(shot: ShotDict) -> tuple[str, str, str]:
 
     Returns:
         Tuple of (show, sequence, shot) for use as dict key
+
     """
     return (shot["show"], shot["sequence"], shot["shot"])
 
@@ -144,6 +146,7 @@ def _shot_to_dict(shot: Shot | ShotDict) -> ShotDict:
 
     Returns:
         ShotDict with all required fields
+
     """
     if isinstance(shot, dict):
         return shot
@@ -162,6 +165,7 @@ def _get_scene_key(scene: ThreeDESceneDict) -> tuple[str, str, str]:
 
     Returns:
         Tuple of (show, sequence, shot) for use as dict key
+
     """
     return (scene["show"], scene["sequence"], scene["shot"])
 
@@ -174,6 +178,7 @@ def _scene_to_dict(scene: object) -> ThreeDESceneDict:
 
     Returns:
         ThreeDESceneDict with all required fields
+
     """
     if isinstance(scene, dict):
         # Type narrowing: convert through object to satisfy type checker
@@ -206,6 +211,19 @@ class CacheManager(LoggingMixin, QObject):
     """Simplified cache manager for local VFX tool.
 
     Provides same public API as CacheManager but with simpler implementation.
+
+    Thread Safety:
+    This class uses two synchronization mechanisms:
+    1. QMutex (self._lock) - For in-process thread safety
+    2. File locks (_file_lock) - For cross-process safety (opt-in)
+
+    Lock Ordering Contract:
+    When both locks are needed, ALWAYS acquire file lock BEFORE QMutex:
+        with self._file_lock(file), QMutexLocker(self._lock):
+            ...
+    This prevents deadlocks between threads/processes. Violating this order
+    can cause deadlock if one thread holds QMutex waiting for file lock while
+    another process holds file lock waiting for QMutex.
     """
 
     # Signals - maintain backward compatibility
@@ -226,6 +244,7 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             cache_dir: Cache directory path. If None, uses mode-appropriate default
             settings_manager: Ignored in simplified implementation
+
         """
         super().__init__()
 
@@ -287,6 +306,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             True if successful
+
         """
         try:
             self._ensure_cache_dirs()
@@ -310,6 +330,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Yields:
             None - lock is held for the duration of the context
+
         """
         if not FILE_LOCKING_ENABLED or _fcntl is None:
             # File locking disabled or unavailable - just yield
@@ -362,6 +383,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Tuple of (size, mtime) or None if file doesn't exist or is inaccessible
+
         """
         import time
 
@@ -415,6 +437,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Path to thumbnail or None if not cached
+
         """
         # Compute path (no lock needed for this)
         cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
@@ -453,6 +476,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Path to cached thumbnail or None on error
+
         """
         source_path_obj = (
             Path(source_path) if isinstance(source_path, str) else source_path
@@ -513,6 +537,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Path to created thumbnail
+
         """
         temp_path = output.with_suffix(".tmp")
         try:
@@ -570,7 +595,8 @@ class CacheManager(LoggingMixin, QObject):
 
             # If MOV fallback didn't work, raise original error
             self.logger.error(f"PIL thumbnail processing failed and MOV fallback unavailable: {e}")
-            raise ThumbnailError(f"Failed to process thumbnail: {e}") from e
+            msg = f"Failed to process thumbnail: {e}"
+            raise ThumbnailError(msg) from e
 
     def cache_thumbnail_direct(
         self,
@@ -592,6 +618,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Path to cached thumbnail or None on error
+
         """
         # Compute paths (no lock needed - deterministic)
         output_dir = self.thumbnails_dir / show / sequence
@@ -643,6 +670,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             List of shot dictionaries or None if not cached/expired
+
         """
         result = self._read_json_cache(self.shots_cache_file)
         return cast("list[ShotDict] | None", result)
@@ -652,6 +680,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Args:
             shots: Sequence of Shot objects or shot dictionaries
+
         """
         # Convert Shot objects to dicts
         shot_dicts: list[ShotDict] = []
@@ -677,6 +706,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             List of shot dictionaries or None if not cached
+
         """
         result = self._read_json_cache(self.shots_cache_file, check_ttl=False)
         return cast("list[ShotDict] | None", result)
@@ -689,6 +719,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             List of shot dictionaries or None if not cached
+
         """
         result = self._read_json_cache(self.migrated_shots_cache_file, check_ttl=False)
         return cast("list[ShotDict] | None", result)
@@ -709,6 +740,7 @@ class CacheManager(LoggingMixin, QObject):
         Design:
             Uses (show, sequence, shot) composite key for consistent deduplication.
             Lock protects read-merge-write cycle; input conversion is outside lock.
+
         """
         if not shots:
             return True  # No-op is success
@@ -763,6 +795,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             List of shot dictionaries or None if not cached/expired
+
         """
         result = self._read_json_cache(self.previous_shots_cache_file)
         return cast("list[ShotDict] | None", result)
@@ -776,6 +809,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             List of shot dictionaries or None if not cached
+
         """
         result = self._read_json_cache(self.previous_shots_cache_file, check_ttl=False)
         return cast("list[ShotDict] | None", result)
@@ -785,6 +819,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Args:
             shots: Sequence of Shot objects or shot dictionaries
+
         """
         shot_dicts: list[ShotDict] = []
         for shot in shots:
@@ -834,6 +869,7 @@ class CacheManager(LoggingMixin, QObject):
         Thread Safety:
             Lock scope minimized to data copy only. Dict operations happen
             outside the lock since they operate on local copies.
+
         """
         # Phase 1: Copy data under lock (minimal critical section)
         with QMutexLocker(self._lock):
@@ -878,6 +914,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             List of scene dictionaries or None if not cached/expired
+
         """
         result = self._read_json_cache(self.threede_cache_file)
         # Type narrowing: the cache file contains ThreeDESceneDict when written by cache_threede_scenes
@@ -892,6 +929,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             List of scene dictionaries or None if not cached
+
         """
         result = self._read_json_cache(self.threede_cache_file, check_ttl=False)
         # Type narrowing: the cache file contains ThreeDESceneDict when written by cache_threede_scenes
@@ -906,6 +944,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             True if cache file exists with data
+
         """
         cached = self.get_persistent_threede_scenes()
         return cached is not None
@@ -920,6 +959,7 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             scenes: List of scene dictionaries
             metadata: Optional metadata (ignored in simple implementation)
+
         """
         success = self._write_json_cache(self.threede_cache_file, scenes)
         if success:
@@ -963,6 +1003,7 @@ class CacheManager(LoggingMixin, QObject):
         Thread Safety:
             Protected by internal mutex to prevent concurrent merge operations
             that could produce inconsistent results.
+
         """
         with QMutexLocker(self._lock):
             now = datetime.now(UTC).timestamp()
@@ -1038,6 +1079,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Cached file path or None if not cached/expired
+
         """
         cache_data = self._read_latest_files_cache()
         if cache_data is None:
@@ -1083,6 +1125,7 @@ class CacheManager(LoggingMixin, QObject):
             workspace_path: Full path to the shot workspace
             file_type: Type of file ("maya" or "threede")
             file_path: Path to cache (or None to cache "not found" result)
+
         """
         cache_data = self._read_latest_files_cache() or {}
 
@@ -1107,6 +1150,7 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             workspace_path: If provided, only clear cache for this workspace.
                           If None, clear entire cache.
+
         """
         if workspace_path is None:
             # Clear entire cache
@@ -1132,6 +1176,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Cache data as dict or None if not found
+
         """
         if not self.latest_files_cache_file.exists():
             return None
@@ -1157,6 +1202,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             True if successful, False otherwise
+
         """
         try:
             # Atomic write using temp file
@@ -1188,6 +1234,7 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             key: Cache key identifier
             data: Data to cache
+
         """
         if key == "previous_shots":
             # Runtime validation: data must be a sequence of shots or dicts
@@ -1209,6 +1256,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Cached data or None if not found/expired
+
         """
         if key == "previous_shots":
             return self.get_cached_previous_shots()
@@ -1220,6 +1268,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Args:
             key: Cache key identifier
+
         """
         if key == "previous_shots":
             if self.previous_shots_cache_file.exists():
@@ -1265,6 +1314,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Dictionary with cache size information
+
         """
         try:
             total_size = 0
@@ -1319,6 +1369,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Args:
             expiry_minutes: Cache TTL in minutes
+
         """
         self._cache_ttl = timedelta(minutes=expiry_minutes)
         self.logger.debug(f"Cache TTL set to {expiry_minutes} minutes")
@@ -1332,6 +1383,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Args:
             cache_key: Ignored
+
         """
         # No failure tracking in simple implementation
 
@@ -1340,6 +1392,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Empty dictionary
+
         """
         return {}
 
@@ -1348,6 +1401,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Args:
             max_memory_mb: Ignored
+
         """
         # No memory management in simple implementation
 
@@ -1356,6 +1410,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Empty dictionary
+
         """
         return {}
 
@@ -1374,6 +1429,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Cached data or None if not found/expired/invalid
+
         """
         if not cache_file.exists():
             return None
@@ -1440,6 +1496,7 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             True if write succeeded, False on error
+
         """
         try:
             # Ensure directory exists

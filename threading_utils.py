@@ -89,6 +89,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
 
         # In worker thread:
         tracker.update_worker_progress(worker_id, files_processed_by_worker)
+
     """
 
     def __init__(
@@ -101,6 +102,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
         Args:
             progress_callback: Optional callback function(total_files: int, status: str)
             update_interval: Report progress every N files processed
+
         """
         super().__init__()
         self._lock = threading.Lock()
@@ -128,6 +130,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
             worker_id: Unique identifier for the worker thread
             new_count: New total count of items processed by this worker
             status: Optional status message for this update
+
         """
         should_report = False
         total_progress = 0
@@ -172,6 +175,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
             worker_id: Unique identifier for the worker thread
             new_count: New total count of items processed by this worker
             status: Optional status message for this update
+
         """
         self.update_worker_progress(worker_id, new_count, status)
 
@@ -183,6 +187,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
 
         Args:
             worker_id: Unique identifier for the completed worker
+
         """
         with self._lock:
             self._completed_workers.add(worker_id)
@@ -196,6 +201,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
 
         Returns:
             Total number of items processed across all workers
+
         """
         with self._lock:
             return self._total_progress
@@ -205,6 +211,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
 
         Returns:
             Dictionary containing worker statistics
+
         """
         with self._lock:
             active_workers = len(self._worker_progress)
@@ -227,6 +234,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
 
         Args:
             status: Status message to include in the report
+
         """
         if not self._progress_callback:
             return
@@ -299,6 +307,7 @@ class CancellationEvent(LoggingMixin):
 
         # Cancel and cleanup
         cancel_event.cancel()  # All cleanup callbacks executed
+
     """
 
     def __init__(self) -> None:
@@ -344,6 +353,7 @@ class CancellationEvent(LoggingMixin):
 
         Returns:
             True if cancelled, False otherwise.
+
         """
         return self._cancelled
 
@@ -357,6 +367,7 @@ class CancellationEvent(LoggingMixin):
         Args:
             callback: Function to call during cleanup. Should take no arguments
                      and return None.
+
         """
         with self._callbacks_lock:
             self._callbacks.append(callback)
@@ -375,6 +386,7 @@ class CancellationEvent(LoggingMixin):
 
         Returns:
             True if cancelled, False if timeout occurred.
+
         """
         if timeout is None:
             timeout = ThreadingConfig.WORKER_STOP_TIMEOUT_MS / 1000.0
@@ -444,6 +456,7 @@ class CancellationEvent(LoggingMixin):
             - cancelled: Whether the event is cancelled
             - cancel_time: When cancellation occurred (if cancelled)
             - callback_count: Number of registered callbacks
+
         """
         with self._callbacks_lock:
             callback_count = len(self._callbacks)
@@ -486,6 +499,7 @@ class ThreadPoolManager(LoggingMixin):
                 # Process result...
 
         # All resources cleaned up automatically
+
     """
 
     def __init__(
@@ -500,6 +514,7 @@ class ThreadPoolManager(LoggingMixin):
             max_workers: Maximum number of worker threads. None for default.
             cancel_event: Optional cancellation event for cleanup integration.
             shutdown_timeout: Timeout for executor shutdown. None for default.
+
         """
         super().__init__()
         self.max_workers = max_workers or ThreadingConfig.MAX_WORKER_THREADS
@@ -516,7 +531,8 @@ class ThreadPoolManager(LoggingMixin):
     def __enter__(self) -> concurrent.futures.ThreadPoolExecutor:
         """Enter context manager and create executor."""
         if self._entered:
-            raise RuntimeError("ThreadPoolManager already entered")
+            msg = "ThreadPoolManager already entered"
+            raise RuntimeError(msg)
 
         self._entered = True
         self.executor = concurrent.futures.ThreadPoolExecutor(
@@ -593,6 +609,7 @@ def create_cancellation_context(
             # Handle cancellation
             if should_cancel:
                 cancel_event.cancel()  # Triggers cleanup
+
     """
     cancel_event = CancellationEvent()
     pool_manager = ThreadPoolManager(

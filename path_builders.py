@@ -30,9 +30,11 @@ class PathBuilders:
 
         Returns:
             Constructed Path object
+
         """
         if not base_path:
-            raise ValueError("Base path cannot be empty")
+            msg = "Base path cannot be empty"
+            raise ValueError(msg)
 
         path = Path(base_path)
         for segment in segments:
@@ -59,6 +61,7 @@ class PathBuilders:
 
         Returns:
             Path to thumbnail directory
+
         """
         # VFX convention: shot directory is named {sequence}_{shot}
         shot_dir = f"{sequence}_{shot}"
@@ -80,6 +83,7 @@ class PathBuilders:
 
         Returns:
             Path to raw plate directory
+
         """
         return PathBuilders.build_path(workspace_path, *Config.RAW_PLATE_SEGMENTS)
 
@@ -93,6 +97,7 @@ class PathBuilders:
 
         Returns:
             Path to 3DE scene directory
+
         """
         segments = ["user", username, *Config.THREEDE_SCENE_SEGMENTS]
         return PathBuilders.build_path(workspace_path, *segments)

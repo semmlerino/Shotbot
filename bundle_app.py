@@ -82,6 +82,7 @@ class GitIgnoreParser:
 
         Returns:
             True if the path should be excluded
+
         """
         path_parts = Path(path).parts
         path_name = Path(path).name
@@ -124,6 +125,7 @@ class ApplicationBundler:
         Args:
             config_path: Path to configuration file
             verbose: Enable verbose output
+
         """
         super().__init__()
         self.verbose: bool = verbose
@@ -138,6 +140,7 @@ class ApplicationBundler:
 
         Returns:
             Configuration dictionary
+
         """
         default_config: BundleConfig = {
             "include_patterns": [
@@ -224,6 +227,7 @@ class ApplicationBundler:
 
         Returns:
             True if file should be included
+
         """
         # Check gitignore patterns first
         if self.gitignore_parser.should_exclude(file_path):
@@ -295,6 +299,7 @@ class ApplicationBundler:
 
         Returns:
             List of (source_path, relative_path) tuples
+
         """
         files_to_bundle: list[tuple[str, str]] = []
         source_dir = str(Path(source_dir).resolve())
@@ -340,12 +345,14 @@ class ApplicationBundler:
 
         Returns:
             Path to the bundle directory
+
         """
         # Collect files
         files_to_bundle = self.collect_files()
 
         if not files_to_bundle:
-            raise ValueError("No files found to bundle")
+            msg = "No files found to bundle"
+            raise ValueError(msg)
 
         if self.verbose:
             print(f"Found {len(files_to_bundle)} files to bundle", file=sys.stderr)
@@ -398,6 +405,7 @@ class ApplicationBundler:
 
         Returns:
             Path to the encoded file
+
         """
         if not output_file:
             timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
@@ -407,7 +415,8 @@ class ApplicationBundler:
         transfer_cli_path = Path(__file__).parent / "transfer_cli.py"
 
         if not transfer_cli_path.exists():
-            raise FileNotFoundError(f"transfer_cli.py not found at {transfer_cli_path}")
+            msg = f"transfer_cli.py not found at {transfer_cli_path}"
+            raise FileNotFoundError(msg)
 
         cmd = [
             sys.executable,
@@ -429,7 +438,8 @@ class ApplicationBundler:
         result = subprocess.run(cmd, check=False, capture_output=True, text=True)
 
         if result.returncode != 0:
-            raise RuntimeError(f"transfer_cli.py failed: {result.stderr}")
+            msg = f"transfer_cli.py failed: {result.stderr}"
+            raise RuntimeError(msg)
 
         if self.verbose and result.stderr:
             print(result.stderr, file=sys.stderr)

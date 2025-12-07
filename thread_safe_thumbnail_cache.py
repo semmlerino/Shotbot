@@ -48,6 +48,7 @@ class ThreadSafeThumbnailCache:
 
         Raises:
             RuntimeError: If called from a worker thread
+
         """
         app = QApplication.instance()
         if app is None:
@@ -59,11 +60,14 @@ class ThreadSafeThumbnailCache:
 
         if current != main_thread:
             thread_name = getattr(current, "objectName", lambda: str(current))()
-            raise RuntimeError(
-
-                    f"QPixmap {operation} attempted from worker thread '{thread_name}'. "
+            msg = (
+                f"QPixmap {operation} attempted from worker thread '{thread_name}'. "
                     "QPixmap operations must only happen on the main Qt thread. "
                     "Use QImage for thread-safe image processing."
+            )
+            raise RuntimeError(
+
+                    msg
 
             )
 
@@ -73,6 +77,7 @@ class ThreadSafeThumbnailCache:
         Args:
             key: Cache key for the image
             image: QImage object to cache
+
         """
         with QMutexLocker(self._cache_lock):
             self._image_cache[key] = image
@@ -89,6 +94,7 @@ class ThreadSafeThumbnailCache:
 
         Returns:
             True if image was loaded and cached successfully, False otherwise
+
         """
         try:
             # Use QImage which is thread-safe for loading
@@ -117,6 +123,7 @@ class ThreadSafeThumbnailCache:
 
         Raises:
             RuntimeError: If called from a worker thread
+
         """
         self._assert_main_thread("get_pixmap")
 
@@ -146,6 +153,7 @@ class ThreadSafeThumbnailCache:
 
         Returns:
             QImage copy if available, None if not found
+
         """
         with QMutexLocker(self._cache_lock):
             image = self._image_cache.get(key)
@@ -163,6 +171,7 @@ class ThreadSafeThumbnailCache:
 
         Returns:
             True if image exists in cache, False otherwise
+
         """
         with QMutexLocker(self._cache_lock):
             return key in self._image_cache
@@ -172,6 +181,7 @@ class ThreadSafeThumbnailCache:
 
         Args:
             key: Cache key to remove
+
         """
         with QMutexLocker(self._cache_lock):
             _ = self._image_cache.pop(key, None)
@@ -188,6 +198,7 @@ class ThreadSafeThumbnailCache:
 
         Returns:
             Dictionary with cache size information
+
         """
         with QMutexLocker(self._cache_lock):
             return {
@@ -211,6 +222,7 @@ def create_thread_safe_pixmap(
 
     Returns:
         QPixmap if successful, None if failed or called from worker thread
+
     """
     try:
         # Assert main thread before any QPixmap operations
