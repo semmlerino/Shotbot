@@ -81,26 +81,70 @@ class CommandLauncher(LoggingMixin, QObject):
     launch_pending = Signal()  # Emitted when async file search starts
     launch_ready = Signal()  # Emitted when async search completes (ready to launch)
 
-    # Maya bootstrap script with error handling
-    # Used to ensure SGTK context is updated when opening a file
+    # Maya bootstrap script with retry logic and detailed error handling.
+    # Used to ensure SGTK context is updated when opening a file.
+    # Runs via evalDeferred() after file loads to upgrade Shot → Shot+Task context.
     _MAYA_BOOTSTRAP_SCRIPT = """
 import maya.cmds
 import traceback
+import time
 
 def _shotbot_update_context():
+    # Import SGTK - fail gracefully in non-SGTK environments
     try:
         import sgtk
-        e = sgtk.platform.current_engine()
-        if not e:
-            return
-        p = maya.cmds.file(q=True, sn=True)
-        if p:
-            c = e.sgtk.context_from_path(p)
-            if c and c.task and not e.context.task:
-                e.change_context(c)
-    except Exception:
-        # Use simple print since Maya's script editor captures stdout/stderr
-        print("Shotbot Bootstrap Error: Failed to update context from path")
+    except ImportError:
+        return  # Not a SGTK environment - expected, don't log
+
+    # Wait for SGTK engine with retry (handles late initialization)
+    engine = None
+    for _ in range(10):
+        engine = sgtk.platform.current_engine()
+        if engine:
+            break
+        time.sleep(0.3)
+
+    if not engine:
+        print("[Shotbot] No SGTK engine available after retries")
+        return
+
+    # Wait for file to load with retry (handles evalDeferred timing)
+    scene_path = None
+    for _ in range(10):
+        scene_path = maya.cmds.file(query=True, sceneName=True)
+        if scene_path:
+            break
+        time.sleep(0.3)
+
+    if not scene_path:
+        print("[Shotbot] No scene file loaded after retries")
+        return
+
+    # Skip if context already has task (don't overwrite existing task context)
+    if engine.context.task:
+        return
+
+    # Get context from file path
+    try:
+        new_context = engine.sgtk.context_from_path(scene_path)
+    except Exception as e:
+        print(f"[Shotbot] Error deriving context from path: {e}")
+        return
+
+    if not new_context:
+        print(f"[Shotbot] Could not derive context from: {scene_path}")
+        return
+
+    if not new_context.task:
+        print(f"[Shotbot] File path doesn't match task template: {scene_path}")
+        return
+
+    # Update context - triggers full SGTK app loading
+    try:
+        engine.change_context(new_context)
+        print(f"[Shotbot] Context updated to: {new_context}")
+    except Exception as e:
+        print(f"[Shotbot] Error changing context: {e}")
         traceback.print_exc()
 
 maya.cmds.evalDeferred(_shotbot_update_context)
