@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
 from PySide6.QtCore import (
+    QCoreApplication,
     QMutex,
     QMutexLocker,
     QObject,
@@ -495,9 +496,16 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         Returns:
             True if worker finished, False if timeout
 
+        Thread-Safe:
+            Prevents self-join deadlock by detecting if called from worker's own thread.
         """
         if self.get_state() in [WorkerState.STOPPED, WorkerState.DELETED]:
             return True
+
+        # Prevent self-join deadlock: cannot wait on self from worker thread
+        if QThread.currentThread() is self:
+            self.logger.warning("Cannot wait on self from worker thread - returning False")
+            return False
 
         return self.wait(timeout_ms)
 
@@ -513,7 +521,19 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         Returns:
             True if stopped successfully, False if timeout
 
+        Thread-Safe:
+            Prevents self-join deadlock by detecting if called from worker's own thread.
+            If called from worker thread, sets stop flags but does not wait.
         """
+        # Prevent self-join deadlock: cannot stop self from worker thread
+        if QThread.currentThread() is self:
+            self.logger.warning(
+                "Cannot stop self from worker thread - use request_stop() instead"
+            )
+            # Still set stop flags, just don't wait
+            _ = self.request_stop()
+            return False
+
         # Use request_stop() to properly set stop flags
         if not self.request_stop():
             # If request_stop failed, try to force stop
@@ -766,33 +786,57 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         and calls cleanup_old_zombies() every 60 seconds.
 
         Thread-Safe:
-            Safe to call from any thread. Timer callback runs in main thread.
+            Safe to call from any thread. If called from a non-main thread,
+            timer creation is deferred to the main thread via QTimer.singleShot.
+            Uses mutex to prevent race conditions in timer creation.
+        """
+        app = QCoreApplication.instance()
+        if app is None:
+            # No QApplication yet, can't create timer
+            return
+
+        # If not on main thread, defer to main thread via queued timer
+        if QThread.currentThread() is not app.thread():
+            # Use QTimer.singleShot with 0ms to defer to main thread's event loop
+            QTimer.singleShot(0, cls._create_zombie_timer_impl)
+            return
+
+        # Already on main thread, create directly
+        cls._create_zombie_timer_impl()
+
+    @classmethod
+    def _create_zombie_timer_impl(cls) -> None:
+        """Internal: Create the zombie cleanup timer (must be called on main thread).
+
+        Uses mutex to prevent race conditions when multiple threads attempt
+        to start the timer simultaneously.
         """
         import logging
 
-        if cls._zombie_cleanup_timer is not None:
-            # Timer already started
-            return
+        with QMutexLocker(cls._zombie_mutex):
+            if cls._zombie_cleanup_timer is not None:
+                # Timer already started (check inside lock to prevent race)
+                return
 
-        logger = logging.getLogger("ThreadSafeWorker")
+            logger = logging.getLogger("ThreadSafeWorker")
 
-        # Create timer in main thread context (no parent = main thread)
-        cls._zombie_cleanup_timer = QTimer()
-        cls._zombie_cleanup_timer.setInterval(cls._ZOMBIE_CLEANUP_INTERVAL_MS)
+            # Create timer in main thread context
+            cls._zombie_cleanup_timer = QTimer()
+            cls._zombie_cleanup_timer.setInterval(cls._ZOMBIE_CLEANUP_INTERVAL_MS)
 
-        def cleanup_callback() -> None:
-            """Periodic cleanup callback."""
-            cleaned = cls.cleanup_old_zombies()
-            if cleaned > 0:
-                logger.info(f"Periodic zombie cleanup: removed {cleaned} finished threads")
+            def cleanup_callback() -> None:
+                """Periodic cleanup callback."""
+                cleaned = cls.cleanup_old_zombies()
+                if cleaned > 0:
+                    logger.info(f"Periodic zombie cleanup: removed {cleaned} finished threads")
 
-        _ = cls._zombie_cleanup_timer.timeout.connect(cleanup_callback)
-        cls._zombie_cleanup_timer.start()
+            _ = cls._zombie_cleanup_timer.timeout.connect(cleanup_callback)
+            cls._zombie_cleanup_timer.start()
 
-        logger.info(
-            f"Started periodic zombie cleanup timer "
-            f"(interval: {cls._ZOMBIE_CLEANUP_INTERVAL_MS}ms)"
-        )
+            logger.info(
+                f"Started periodic zombie cleanup timer "
+                f"(interval: {cls._ZOMBIE_CLEANUP_INTERVAL_MS}ms)"
+            )
 
     @classmethod
     def stop_zombie_cleanup_timer(cls) -> None:
@@ -802,11 +846,12 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         the cleanup timer.
 
         Thread-Safe:
-            Safe to call from any thread.
+            Safe to call from any thread. Uses mutex to prevent race conditions.
         """
-        if cls._zombie_cleanup_timer is not None:
-            cls._zombie_cleanup_timer.stop()
-            cls._zombie_cleanup_timer = None
+        with QMutexLocker(cls._zombie_mutex):
+            if cls._zombie_cleanup_timer is not None:
+                cls._zombie_cleanup_timer.stop()
+                cls._zombie_cleanup_timer = None
 
     @classmethod
     def reset(cls) -> None:

@@ -197,10 +197,16 @@ class FileSystemScanner(LoggingMixin):
         return cls._dir_cache.get_stats()
 
     @classmethod
-    def clear_cache(cls) -> None:
-        """Clear directory cache."""
-        cls._dir_cache.cache.clear()
-        cls._dir_cache.timestamps.clear()
+    def clear_cache(cls) -> int:
+        """Clear directory cache.
+
+        Delegates to DirectoryCache.clear_cache() which uses internal locking
+        to prevent race conditions with concurrent cache access.
+
+        Returns:
+            Number of entries cleared.
+        """
+        return cls._dir_cache.clear_cache()
 
     @classmethod
     def refresh_cache(cls) -> int:
