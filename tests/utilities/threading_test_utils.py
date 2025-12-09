@@ -238,6 +238,7 @@ class ThreadingTestHelpers:
             )
             assert result.success
             assert result.final_state == WorkerState.RUNNING
+
         """
         start_time = time.perf_counter()
         timeout_sec = timeout_ms / 1000.0
@@ -295,6 +296,7 @@ class ThreadingTestHelpers:
                 [operation1, operation2], timeout_ms=1000
             )
             assert result.race_occurred
+
         """
         setup_start = time.perf_counter()
         num_participants = len(participants)
@@ -386,37 +388,34 @@ class ThreadingTestHelpers:
     ) -> tuple[T, list[ThreadSafetyViolation]]:
         """Monitor operation for thread safety violations.
 
+        WARNING: This is a STUB - it does NOT detect thread safety violations.
+        The function executes the operation but always returns empty violations.
+        Do NOT rely on this for actual thread safety verification.
+
         Args:
             operation: Operation to monitor
-            monitored_resources: Names of resources to monitor
-            duration_ms: How long to monitor
+            monitored_resources: Names of resources to monitor (IGNORED)
+            duration_ms: How long to monitor (IGNORED)
 
         Returns:
-            Tuple of (operation_result, violations_list)
+            Tuple of (operation_result, empty_violations_list)
 
-        Example:
-            result, violations = ThreadingTestHelpers.monitor_thread_safety(
-                lambda: manager.get_active_process_count(),
-                monitored_resources=["_active_processes", "_process_lock"],
-                duration_ms=500
-            )
-            assert len(violations) == 0  # No thread safety violations
+        Note:
+            Real implementation would require instrumentation of monitored
+            resources to detect race conditions and improper synchronization.
+
         """
+        import warnings
+
+        warnings.warn(
+            "monitor_thread_safety() is a stub that does NOT detect violations. "
+            "Do not rely on empty violations list as proof of thread safety.",
+            UserWarning,
+            stacklevel=2,
+        )
+
         violations: list[ThreadSafetyViolation] = []
-        time.perf_counter()
-
-        # TODO: Implement resource access monitoring
-        # This would require instrumentation of the monitored resources
-        # For now, just execute the operation and return empty violations
-
         result = operation()
-
-        # Placeholder for actual monitoring implementation
-        # In a real implementation, this would:
-        # 1. Hook into resource access patterns
-        # 2. Track concurrent access attempts
-        # 3. Detect race conditions and improper synchronization
-
         return result, violations
 
     @staticmethod
@@ -444,6 +443,7 @@ class ThreadingTestHelpers:
                 start_delay_ms=50
             )
             # All workers will be started with 50ms delays
+
         """
         workers: list[WorkerT] = []
         start_delay_ms / 1000.0
@@ -512,6 +512,7 @@ class DeadlockDetector:
             )
             if analysis.deadlock_detected:
                 logger.error(f"Deadlock between: {analysis.involved_threads}")
+
         """
         analysis_start = time.perf_counter()
 
@@ -554,25 +555,32 @@ class DeadlockDetector:
     def get_lock_graph(_threads: list[threading.Thread]) -> dict[str, list[str]]:
         """Build wait-for graph of lock dependencies.
 
+        WARNING: This is a STUB - it does NOT track actual lock dependencies.
+        The function always returns an empty graph regardless of actual
+        thread state. Do NOT rely on this for deadlock detection.
+
         Args:
-            threads: Threads to analyze
+            threads: Threads to analyze (IGNORED)
 
         Returns:
-            Dictionary mapping thread names to list of threads they're waiting for
+            Empty dictionary (stub - no actual analysis performed)
 
         Note:
-            This is a simplified implementation. Real deadlock detection would
-            require instrumentation of lock acquisition and waiting.
+            Real implementation would require instrumentation of lock
+            acquisition, tracking of lock ownership, and detection of
+            wait-for relationships.
+
         """
+        import warnings
+
+        warnings.warn(
+            "get_lock_graph() is a stub that does NOT track lock dependencies. "
+            "Do not rely on empty graph as proof of no deadlock potential.",
+            UserWarning,
+            stacklevel=2,
+        )
+
         graph: dict[str, list[str]] = defaultdict(list)
-
-        # TODO: Implement actual lock dependency tracking
-        # This would require:
-        # 1. Instrumentation of lock acquisition
-        # 2. Tracking of lock ownership
-        # 3. Detection of wait-for relationships
-
-        # For now, return empty graph as placeholder
         return dict(graph)
 
     @staticmethod
@@ -584,6 +592,7 @@ class DeadlockDetector:
 
         Returns:
             List of cycles found (each cycle is a list of node names)
+
         """
         cycles: list[list[str]] = []
         visited = set()
@@ -630,6 +639,7 @@ class DeadlockDetector:
 
         Returns:
             Dictionary mapping thread ID to stack trace lines
+
         """
         stack_traces = {}
 
@@ -671,6 +681,7 @@ class RaceConditionFactory:
                 target_state=WorkerState.STOPPED
             )
             assert result.race_occurred
+
         """
         operations = []
 
@@ -703,6 +714,7 @@ class RaceConditionFactory:
 
         Returns:
             RaceConditionResult with race outcome
+
         """
         received_signals = []
 
@@ -760,6 +772,7 @@ class RaceConditionFactory:
             result = RaceConditionFactory.create_resource_race(
                 operations, "process_manager"
             )
+
         """
         return ThreadingTestHelpers.trigger_race_condition(
             resource_operations,
@@ -782,6 +795,7 @@ class RaceConditionFactory:
 
         Returns:
             RaceConditionResult with race outcome
+
         """
         all_operations = cleanup_operations + active_operations
 
@@ -810,6 +824,7 @@ class PerformanceMetrics:
 
         Returns:
             PerformanceResult with timing statistics
+
         """
         # Warmup
         for _ in range(warmup_iterations):
@@ -864,6 +879,7 @@ class PerformanceMetrics:
 
         Returns:
             PerformanceResult with contention statistics
+
         """
         durations = []
         barrier = threading.Barrier(contention_threads)
@@ -924,6 +940,7 @@ class PerformanceMetrics:
 
         Returns:
             PerformanceResult with latency statistics
+
         """
         durations = []
         received_times = []
@@ -984,6 +1001,7 @@ class PerformanceMetrics:
                 improvement_threshold=10.0
             )
             assert comparison["improvement_percent"] > 10
+
         """
         before_result = before_operation()
         after_result = after_operation()
@@ -1059,6 +1077,7 @@ def isolated_launcher_manager(tmp_path: Path) -> Iterator[LauncherManager]:
 
     Yields:
         LauncherManager: Isolated manager instance
+
     """
     # Create temporary config directory using pytest tmp_path for isolation
     temp_config_dir = tmp_path / ".shotbot_test"
@@ -1090,6 +1109,7 @@ def monitored_worker(qtbot) -> Iterator[LauncherWorker]:
 
     Yields:
         LauncherWorker: Monitored worker instance
+
     """
     worker = LauncherWorker("test_launcher", "echo 'test'")
     # Note: LauncherWorker is QThread, not QWidget - no qtbot.addWidget needed
@@ -1127,6 +1147,7 @@ def deadlock_timeout() -> Iterator[None]:
 
     Yields:
         None
+
     """
     monitor_thread = None
     stop_monitoring = threading.Event()
@@ -1168,6 +1189,7 @@ def thread_pool() -> Iterator[list[threading.Thread]]:
 
     Yields:
         list[threading.Thread]: Empty list to populate with test threads
+
     """
     threads: list[threading.Thread] = []
 
@@ -1202,6 +1224,7 @@ def temporary_worker(worker_class: type, *args, **kwargs) -> Iterator[WorkerT]:
         with temporary_worker(LauncherWorker, "test", "echo hello") as worker:
             worker.start()
             # Worker will be automatically cleaned up
+
     """
     worker = worker_class(*args, **kwargs)
 
@@ -1239,6 +1262,7 @@ def thread_safety_monitor(
             manager.execute_launcher("test")
 
         assert len(violations) == 0  # No violations detected
+
     """
     violations: list[ThreadSafetyViolation] = []
 
@@ -1275,6 +1299,7 @@ def assert_worker_state_transition(
             worker,
             [WorkerState.CREATED, WorkerState.RUNNING, WorkerState.STOPPED]
         )
+
     """
     if not expected_transitions:
         return
@@ -1326,6 +1351,7 @@ def create_test_deadlock(
         # Verify deadlock detection
         analysis = DeadlockDetector.detect_deadlock([thread1, thread2])
         assert analysis.deadlock_detected
+
     """
     barrier = threading.Barrier(2)
 

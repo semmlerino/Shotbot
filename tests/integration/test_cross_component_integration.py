@@ -25,6 +25,7 @@ from PySide6.QtWidgets import QApplication
 from cache_manager import CacheManager
 from shot_model import Shot
 from tests.test_doubles_library import TestProcessPool
+from tests.test_helpers import process_qt_events
 from threede_scene_model import ThreeDEScene
 
 
@@ -51,6 +52,7 @@ pytestmark = [
 ]
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestCrossTabSynchronization:
     """Test data synchronization across all three tabs."""
 
@@ -95,7 +97,7 @@ class TestCrossTabSynchronization:
 
                 # Delete the window instance explicitly
                 window.deleteLater()
-                qtbot.wait(1)
+                process_qt_events()
 
         # Clear the list immediately after closing
         self.test_windows.clear()
@@ -107,13 +109,7 @@ class TestCrossTabSynchronization:
             for _ in range(3):
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
-                # Use proper Qt event processing instead of sleep
-                # (avoiding QTest.qWait which might crash in some environments)
-                from tests.helpers.synchronization import (
-                    process_qt_events,
-                )
-
-                process_qt_events(app, 10)
+                process_qt_events()
 
     def test_shot_selection_syncs_info_panel_across_tabs(
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
@@ -128,7 +124,10 @@ class TestCrossTabSynchronization:
         # Force legacy model to avoid async issues in tests
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
-        # Temporarily disable QTimer to prevent background refreshes
+        # HACK: Temporarily disable QTimer to prevent background refreshes during init
+        # TODO: Refactor to use proper async initialization or mock at subprocess boundary
+        # instead of disabling core Qt mechanisms. This hack means integration tests
+        # aren't fully testing background task integration.
         # Third-party imports
         from PySide6.QtCore import (
             QTimer,
@@ -165,14 +164,14 @@ class TestCrossTabSynchronization:
 
         # Process Qt events AFTER releasing lock to avoid deadlock with _on_loader_finished
         # (deleteLater objects are processed here)
-        qtbot.wait(1)
+        process_qt_events()
 
         # Clear cache to ensure clean test state
         window.cache_manager.clear_cache()
 
         # Mock only the subprocess boundary
         # Note: ws -sg returns all shots in a single multi-line output
-        test_pool = TestProcessPool()
+        test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.set_outputs(
             "workspace /shows/TEST/shots/seq01/seq01_0010\nworkspace /shows/TEST/shots/seq01/seq01_0020"
         )
@@ -182,51 +181,33 @@ class TestCrossTabSynchronization:
         success, _has_changes = window.shot_model.refresh_shots()
         assert success, "refresh_shots should succeed"
 
-        # Debug: Print what we got
-        print(f"Debug: After refresh, got {len(window.shot_model.shots)} shots")
-        for i, shot in enumerate(window.shot_model.shots):
-            print(f"Debug: Shot {i}: {shot}")
-
         # Verify shots were loaded (may be affected by async operations)
         assert len(window.shot_model.shots) >= 1, (
             f"Expected at least 1 shot, got {len(window.shot_model.shots)}: {window.shot_model.shots}"
         )
-        # Note: has_changes might be False if cache was loaded on init
-        # assert has_changes  # Removed - not reliable with cache
 
         # Process events to ensure UI updates
-        print(f"Debug: Before processing, shots: {len(window.shot_model.shots)}")
-        qtbot.wait(1)  # Minimal event processing
-        print(f"Debug: After processing, shots: {len(window.shot_model.shots)}")
+        process_qt_events()
 
         # If shots were cleared by background process, reload them
         if len(window.shot_model.shots) == 0:
-            print("Debug: Shots were cleared, reloading...")
             window.shot_model._process_pool = test_pool  # Ensure mock is still in place
             success, _ = window.shot_model.refresh_shots()
             assert success, "Second refresh should succeed"
-            print(f"Debug: After second refresh: {len(window.shot_model.shots)} shots")
 
         # Ensure we start on the My Shots tab
         window.tab_widget.setCurrentIndex(0)
-        print(f"Debug: After setCurrentIndex(0), shots: {len(window.shot_model.shots)}")
-        qtbot.wait(1)  # Minimal event processing for tab switch
-        print(f"Debug: After event processing, shots: {len(window.shot_model.shots)}")
+        process_qt_events()
 
         # If shots were cleared again, reload one more time
         if len(window.shot_model.shots) == 0:
-            print("Debug: Shots cleared again, reloading...")
             window.shot_model._process_pool = test_pool
             success, _ = window.shot_model.refresh_shots()
             assert success, "Third refresh should succeed"
-            print(f"Debug: After third refresh: {len(window.shot_model.shots)} shots")
 
         # Tab 1: Select a shot in My Shots tab
         assert window.tab_widget.currentIndex() == 0  # My Shots tab
         shots = window.shot_model.get_shots()
-        print(f"Debug: get_shots() returned {len(shots)} shots")
-        for i, shot in enumerate(shots):
-            print(f"Debug: get_shots() Shot {i}: {shot}")
 
         # Accept that background loading may have updated the shots
         # At least one shot should be present for the test to proceed
@@ -234,7 +215,7 @@ class TestCrossTabSynchronization:
 
         # Simulate selecting first shot
         first_shot = shots[0]
-        window._on_shot_selected(first_shot)
+        window.shot_selection_controller.on_shot_selected(first_shot)
 
         # Verify info panel shows the selected shot
         assert window.right_panel._current_shot == first_shot
@@ -244,7 +225,7 @@ class TestCrossTabSynchronization:
 
         # Tab 2: Switch to 3DE tab
         window.tab_widget.setCurrentIndex(1)  # Other 3DE scenes tab
-        qtbot.wait(1)  # Minimal event processing for tab switch
+        process_qt_events()
 
         # Create and select a 3DE scene
         scene = ThreeDEScene(
@@ -278,16 +259,16 @@ class TestCrossTabSynchronization:
 
         # Tab 3: Switch to Previous Shots tab
         window.tab_widget.setCurrentIndex(2)  # Previous shots tab
-        qtbot.wait(1)  # Minimal event processing for tab switch
+        process_qt_events()
 
         # The info panel should be cleared since Previous Shots tab has no selection
-        # (Tab switching calls _on_shot_selected(None) when new tab has no selection)
+        # (Tab switching calls on_shot_selected(None) when new tab has no selection)
         assert window.right_panel._current_shot is None
 
         # Go back to My Shots and verify it also clears since no selection
         # (Each tab maintains its own selection state independently)
         window.tab_widget.setCurrentIndex(0)
-        qtbot.wait(1)  # Minimal event processing for tab switch
+        process_qt_events()
 
         # Info panel should be cleared because My Shots tab has no current selection
         assert window.right_panel._current_shot is None
@@ -295,13 +276,13 @@ class TestCrossTabSynchronization:
         # Select a different shot if available, or deselect/reselect the first
         if len(shots) > 1:
             second_shot = shots[1]
-            window._on_shot_selected(second_shot)
+            window.shot_selection_controller.on_shot_selected(second_shot)
             assert window.right_panel._current_shot == second_shot
         else:
             # Only one shot available, test deselect/reselect
-            window._on_shot_selected(None)
+            window.shot_selection_controller.on_shot_selected(None)
             assert window.right_panel._current_shot is None
-            window._on_shot_selected(first_shot)
+            window.shot_selection_controller.on_shot_selected(first_shot)
             assert window.right_panel._current_shot == first_shot
 
     def test_show_filter_affects_all_tabs(
@@ -328,7 +309,9 @@ class TestCrossTabSynchronization:
 
         AsyncShotLoader.__init__ = no_op_init
 
-        # Disable background refresh from QTimer
+        # HACK: Disable background refresh from QTimer during init
+        # TODO: Refactor to use proper async initialization or mock at subprocess boundary
+        # instead of disabling core Qt mechanisms
         # Third-party imports
         from PySide6.QtCore import (
             QTimer,
@@ -382,11 +365,11 @@ class TestCrossTabSynchronization:
 
         # Process Qt events AFTER releasing lock to avoid deadlock with _on_loader_finished
         # (deleteLater objects are processed here)
-        qtbot.wait(1)
+        process_qt_events()
 
         # Set up test data with multiple shows
         # Note: ws -sg returns all shots in a single multi-line output
-        test_pool = TestProcessPool()
+        test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.set_outputs(
             "workspace /shows/SHOW1/shots/seq01/seq01_0010\nworkspace /shows/SHOW1/shots/seq01/seq01_0020\nworkspace /shows/SHOW2/shots/seq02/seq02_0030"
         )
@@ -418,6 +401,7 @@ class TestCrossTabSynchronization:
         assert shot_item_model.rowCount() == 3  # All shots visible again
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestCacheUICoordination:
     """Test cache manager and UI synchronization."""
 
@@ -428,6 +412,7 @@ class TestCacheUICoordination:
         Args:
             qtbot: Qt test bot for Qt event handling
             tmp_path: Pytest tmp_path fixture for isolated filesystem
+
         """
         # Track windows for cleanup
         self.test_windows: list[MainWindow] = []
@@ -454,7 +439,7 @@ class TestCacheUICoordination:
 
                 # Delete the window instance explicitly
                 window.deleteLater()
-                qtbot.wait(1)
+                process_qt_events()
 
         self.test_windows.clear()
 
@@ -465,13 +450,7 @@ class TestCacheUICoordination:
             for _ in range(3):
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
-                # Use proper Qt event processing instead of sleep
-                # (avoiding QTest.qWait which might crash in some environments)
-                from tests.helpers.synchronization import (
-                    process_qt_events,
-                )
-
-                process_qt_events(app, 10)
+                process_qt_events()
 
     def test_thumbnail_cache_updates_ui(
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
@@ -499,7 +478,7 @@ class TestCacheUICoordination:
         self.test_windows.append(window)  # Track for cleanup
 
         # Set up test shot
-        test_pool = TestProcessPool()
+        test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.set_outputs("workspace /shows/TEST/shots/seq01/seq01_0010")
         window.shot_model._process_pool = test_pool
         window.shot_model.refresh_shots()
@@ -563,7 +542,7 @@ class TestCacheUICoordination:
         self.test_windows.append(window)  # Track for cleanup
 
         # Set up initial data
-        test_pool = TestProcessPool()
+        test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.set_outputs(
             "workspace /shows/TEST/shots/seq01/seq01_0010\nworkspace /shows/TEST/shots/seq01/seq01_0020"
         )
@@ -587,6 +566,7 @@ class TestCacheUICoordination:
         assert len(window.shot_model.shots) == 3  # New shot added
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestErrorPropagationChains:
     """Test error handling across component boundaries."""
 
@@ -620,7 +600,7 @@ class TestErrorPropagationChains:
 
                 # Delete the window instance explicitly
                 window.deleteLater()
-                qtbot.wait(1)
+                process_qt_events()
 
         self.test_windows.clear()
 
@@ -631,13 +611,7 @@ class TestErrorPropagationChains:
             for _ in range(3):
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
-                # Use proper Qt event processing instead of sleep
-                # (avoiding QTest.qWait which might crash in some environments)
-                from tests.helpers.synchronization import (
-                    process_qt_events,
-                )
-
-                process_qt_events(app, 10)
+                process_qt_events()
 
     def test_subprocess_failure_handled_gracefully(
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
@@ -657,7 +631,7 @@ class TestErrorPropagationChains:
         window.show()  # Make window visible for test
 
         # Set up test pool to fail
-        test_pool = TestProcessPool()
+        test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.should_fail = True
         window.shot_model._process_pool = test_pool
 
@@ -703,8 +677,8 @@ class TestErrorPropagationChains:
         self.test_windows.append(window)  # Track for cleanup
         window.show()  # Make window visible for test
 
-        # Set up test pool to timeout
-        test_pool = TestProcessPool()
+        # Set up test pool to timeout (allow_main_thread=True for sync testing)
+        test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.fail_with_timeout = True
         window.shot_model._process_pool = test_pool
 

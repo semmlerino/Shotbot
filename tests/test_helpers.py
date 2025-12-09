@@ -4,9 +4,11 @@ Based on UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md - provides thread-safe
 test doubles and helper classes for proper Qt testing without crashes.
 
 Key Components:
-    - ThreadSafeTestImage: QPixmap replacement for worker threads
     - SignalDouble: Signal test double for non-Qt objects (re-exported from fixtures)
+    - process_qt_events: Process pending Qt events (preferred over qtbot.wait)
     - Factory fixtures and helpers
+
+Note: ThreadSafeTestImage is available from tests.test_doubles_library.
 """
 
 from __future__ import annotations
@@ -17,67 +19,19 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 # Third-party imports
-from PySide6.QtCore import QEventLoop, QObject, QSize, Signal
+from PySide6.QtCore import QEventLoop, QObject, Signal
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QApplication
 
 # Import canonical doubles - these are the recommended implementations
 from tests.fixtures.test_doubles import SignalDouble  # noqa: F401 (re-export)
+from tests.test_doubles_library import ThreadSafeTestImage
 
 
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable
     from pathlib import Path
-
-
-class ThreadSafeTestImage:
-    """Thread-safe test double for QPixmap using QImage internally.
-
-    QPixmap is not thread-safe and can only be used in the main GUI thread.
-    QImage is thread-safe and can be used in any thread. This class provides
-    a QPixmap-like interface while using QImage internally for thread safety.
-
-    Based on Qt's canonical threading pattern for image operations.
-    """
-
-    def __init__(self, width: int = 100, height: int = 100) -> None:
-        """Create a thread-safe test image."""
-        # Use QImage which is thread-safe, unlike QPixmap
-        self._image = QImage(width, height, QImage.Format.Format_RGB32)
-        self._width = width
-        self._height = height
-        self._image.fill(QColor(255, 255, 255))  # Fill with white by default
-
-    def fill(self, color: QColor | None = None) -> None:
-        """Fill the image with a color."""
-        if color is None:
-            color = QColor(255, 255, 255)
-        self._image.fill(color)
-
-    def isNull(self) -> bool:
-        """Check if the image is null."""
-        return self._image.isNull()
-
-    def sizeInBytes(self) -> int:
-        """Return the size of the image in bytes."""
-        return self._image.sizeInBytes()
-
-    def size(self) -> QSize:
-        """Return the size of the image."""
-        return QSize(self._width, self._height)
-
-    def width(self) -> int:
-        """Return the width of the image."""
-        return self._width
-
-    def height(self) -> int:
-        """Return the height of the image."""
-        return self._height
-
-    def to_qimage(self) -> QImage:
-        """Get the underlying QImage for conversion to QPixmap in main thread."""
-        return self._image
 
 
 def process_qt_events(duration_ms: int = 5, iterations: int = 2) -> None:
@@ -94,6 +48,7 @@ def process_qt_events(duration_ms: int = 5, iterations: int = 2) -> None:
     Args:
         duration_ms: Maximum time to spend processing events per iteration.
         iterations: Number of event processing rounds.
+
     """
     app = QApplication.instance()
     if app is None:
@@ -117,6 +72,7 @@ def flush_deferred_deletes() -> None:
         widget.deleteLater()
         process_qt_events()
         flush_deferred_deletes()  # Now the widget is truly deleted
+
     """
     from PySide6.QtCore import QCoreApplication, QEvent
 

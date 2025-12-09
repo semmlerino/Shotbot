@@ -53,25 +53,58 @@ import pytest
 # When strict mode is enabled, unexpected subprocess calls raise AssertionError
 # Tests can use subprocess_mock fixture or @pytest.mark.permissive_subprocess to opt out
 
-# Module-level state container (avoids global statement)
+# Stash key for per-test state (avoids module-level state race conditions)
+_SUBPROCESS_STATE_KEY = pytest.StashKey["_SubprocessMockState"]()
+
+
 class _SubprocessMockState:
-    """Container for subprocess mock state flags."""
+    """Container for subprocess mock state flags.
 
-    permissive_mode: bool = False
-    subprocess_mock_active: bool = False
+    Each test gets its own instance via pytest's stash mechanism,
+    preventing state leakage between parallel tests in xdist workers.
+    """
+
+    def __init__(self) -> None:
+        self.permissive_mode: bool = False
+        self.subprocess_mock_active: bool = False
 
 
-_state = _SubprocessMockState()
+# Thread-local fallback for state access from inside mock callbacks
+# (where we don't have direct access to the request object)
+import threading
+
+
+_thread_local = threading.local()
+
+
+def _get_current_state() -> _SubprocessMockState:
+    """Get the current test's subprocess state.
+
+    Returns the thread-local state set by the fixture, or a default
+    strict state if called outside of a test context.
+    """
+    state = getattr(_thread_local, "state", None)
+    if state is None:
+        # Fallback: return strict state (fail on unexpected calls)
+        state = _SubprocessMockState()
+    return state
+
+
+def _set_current_state(state: _SubprocessMockState | None) -> None:
+    """Set the current test's subprocess state in thread-local storage."""
+    _thread_local.state = state
 
 
 def _set_permissive_mode(enabled: bool) -> None:
     """Set permissive mode for current test."""
-    _state.permissive_mode = enabled
+    state = _get_current_state()
+    state.permissive_mode = enabled
 
 
 def _set_subprocess_mock_active(active: bool) -> None:
     """Set subprocess_mock fixture state for current test."""
-    _state.subprocess_mock_active = active
+    state = _get_current_state()
+    state.subprocess_mock_active = active
 
 
 def _format_cmd(cmd: object) -> str:
@@ -103,6 +136,7 @@ def get_popen_calls() -> list[list[str]]:
         from tests.fixtures.subprocess_mocking import get_popen_calls
         calls = get_popen_calls()
         assert any("nuke" in " ".join(c) for c in calls)
+
     """
     return _popen_calls.copy()
 
@@ -142,6 +176,8 @@ def mock_process_pool_manager(
         @pytest.mark.real_subprocess: Skip this mock entirely (use real subprocess)
         @pytest.mark.permissive_process_pool: Disable strict mode (allow unconfigured calls)
         @pytest.mark.enforce_thread_guard: Enable main-thread rejection (contract testing)
+        @pytest.mark.allow_main_thread: Allow calls from main/UI thread (opt-out from guard)
+
     """
     # Allow opt-out for tests that need real subprocess behavior
     if "real_subprocess" in [m.name for m in request.node.iter_markers()]:
@@ -157,11 +193,20 @@ def mock_process_pool_manager(
         m.name for m in request.node.iter_markers()
     ]
 
+    # Check for allow_main_thread marker (opt-out from default UI thread guard)
+    allow_main = "allow_main_thread" in [
+        m.name for m in request.node.iter_markers()
+    ]
+
     # Import and create TestProcessPool directly (not via fixture) to avoid
     # interfering with test-local test_process_pool fixtures
     from tests.fixtures.test_doubles import TestProcessPool
 
-    internal_pool = TestProcessPool(strict=not is_permissive, enforce_thread_guard=enforce_guard)
+    internal_pool = TestProcessPool(
+        strict=not is_permissive,
+        enforce_thread_guard=enforce_guard,
+        allow_main_thread=allow_main,
+    )
 
     # Patch the singleton instance directly - get_instance() checks this first
     monkeypatch.setattr(
@@ -191,6 +236,7 @@ def mock_subprocess_popen(
 
     Yields:
         None - fixture provides teardown cleanup
+
     """
     import warnings
 
@@ -209,9 +255,16 @@ def mock_subprocess_popen(
             stacklevel=1,
         )
 
-    # Reset strict mode flags for this test
-    _set_permissive_mode(is_permissive)
-    _set_subprocess_mock_active(False)
+    # Create per-test state instance (prevents race conditions in parallel tests)
+    state = _SubprocessMockState()
+    state.permissive_mode = is_permissive
+    state.subprocess_mock_active = False
+
+    # Store in thread-local for access from mock callbacks
+    _set_current_state(state)
+
+    # Also store in pytest stash for fixture-to-fixture communication
+    request.node.stash[_SUBPROCESS_STATE_KEY] = state
 
     # Clear tracked calls at the start of each test (if tracking enabled)
     if _TRACK_POPEN:
@@ -232,7 +285,8 @@ def mock_subprocess_popen(
 
         # STRICT MODE: Fail on unexpected subprocess calls
         # Unless: permissive mode enabled OR subprocess_mock fixture is active
-        if not _state.permissive_mode and not _state.subprocess_mock_active:
+        current_state = _get_current_state()
+        if not current_state.permissive_mode and not current_state.subprocess_mock_active:
             raise AssertionError(
                 f"Unexpected subprocess command: {cmd_str}\n\n"
                 f"STRICT MODE is enabled by default. To handle subprocess calls:\n"
@@ -289,7 +343,8 @@ def mock_subprocess_popen(
                     _popen_calls.append([str(cmd)])
 
         # STRICT MODE: Fail on unexpected subprocess.run calls
-        if not _state.permissive_mode and not _state.subprocess_mock_active:
+        current_state = _get_current_state()
+        if not current_state.permissive_mode and not current_state.subprocess_mock_active:
             raise AssertionError(
                 f"Unexpected subprocess.run command: {cmd_str}\n\n"
                 f"STRICT MODE is enabled by default. To handle subprocess.run calls:\n"
@@ -322,10 +377,9 @@ def mock_subprocess_popen(
     try:
         yield
     finally:
-        # CLEANUP: Always reset state flags (even if test fails mid-execution)
-        # This prevents state leakage between tests if fixture setup fails for next test
-        _set_permissive_mode(False)
-        _set_subprocess_mock_active(False)
+        # CLEANUP: Clear thread-local state (even if test fails mid-execution)
+        # This prevents state leakage between tests in the same thread
+        _set_current_state(None)
 
 
 class SubprocessMock:
@@ -479,6 +533,7 @@ def subprocess_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
             subprocess_mock.set_return_code(0)
             # ... test code ...
             assert ["ws", "-sg"] in subprocess_mock.calls
+
     """
     # Signal that subprocess_mock is active - disables strict mode
     _set_subprocess_mock_active(True)
@@ -509,7 +564,11 @@ def subprocess_error_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
             subprocess_error_mock.set_output("", stderr="Command not found")
             result = my_launcher.run_command()
             assert result.success is False
+
     """
+    # Signal that subprocess_mock is active - disables strict mode
+    _set_subprocess_mock_active(True)
+
     mock = SubprocessMock()
     mock.set_return_code(1)  # Default to failure
     mock.set_output("", stderr="Command failed")
@@ -529,7 +588,11 @@ def subprocess_timeout_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
         def test_launcher_timeout(subprocess_timeout_mock):
             with pytest.raises(TimeoutError):
                 my_launcher.run_command(timeout=1)
+
     """
+    # Signal that subprocess_mock is active - disables strict mode
+    _set_subprocess_mock_active(True)
+
     mock = SubprocessMock()
     # Configure to never complete (poll returns None)
     mock._mock.return_value.poll.return_value = None
@@ -553,7 +616,11 @@ def subprocess_exception_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock
             )
             result = my_launcher.run_command("missing_cmd")
             assert result.error_type == "FileNotFoundError"
+
     """
+    # Signal that subprocess_mock is active - disables strict mode
+    _set_subprocess_mock_active(True)
+
     mock = SubprocessMock()
     mock.set_exception(FileNotFoundError("[Errno 2] No such file or directory"))
     monkeypatch.setattr("subprocess.Popen", mock.mock)

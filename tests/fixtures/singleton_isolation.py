@@ -49,6 +49,7 @@ def _clear_config_files() -> None:
 
     Raises:
         RuntimeError: If unexpected config files or directories are found.
+
     """
     config_dir = os.environ.get("SHOTBOT_CONFIG_DIR")
     if not config_dir:
@@ -127,6 +128,7 @@ def _clear_disk_cache_files() -> None:
 
     Raises:
         RuntimeError: If unexpected cache files or directories are found.
+
     """
     cache_dir = os.environ.get("SHOTBOT_TEST_CACHE_DIR")
     if not cache_dir:
@@ -192,7 +194,7 @@ AGGRESSIVE_GC = os.environ.get("SHOTBOT_TEST_AGGRESSIVE_GC", "0") == "1"
 
 
 @pytest.fixture(autouse=True)
-def reset_caches() -> Iterator[None]:
+def reset_caches(request: pytest.FixtureRequest) -> Iterator[None]:
     """Lightweight cleanup for ALL tests - caches and config reset before each test.
 
     This autouse fixture provides minimal cleanup that runs for every test,
@@ -200,7 +202,7 @@ def reset_caches() -> Iterator[None]:
 
     Before test:
     - Clear all utility caches (in-memory)
-    - Clear disk cache files (shots.json, etc.)
+    - Clear disk cache files (shots.json, etc.) - unless @persistent_cache marker
     - Re-enable caching (in case previous test disabled it)
     - Reset Config.SHOWS_ROOT
     - Clear OptimizedShotParser pattern cache
@@ -212,15 +214,26 @@ def reset_caches() -> Iterator[None]:
     cleanup, eliminating redundant work in the hot path.
 
     For heavy cleanup (Qt, singletons, threads), see reset_singletons fixture.
+
+    MARKERS:
+        @pytest.mark.persistent_cache: Skip disk cache clearing for this test.
+            Use this when testing cache loading, migration, or corruption handling.
     """
     from utils import clear_all_caches, enable_caching
+
+    # Check for persistent_cache marker (skip disk cache clearing)
+    skip_cache_clear = "persistent_cache" in [
+        m.name for m in request.node.iter_markers()
+    ]
 
     # ===== BEFORE TEST: Lightweight setup =====
     clear_all_caches()
     enable_caching()  # Re-enable in case previous test disabled it
 
     # Clear disk cache files (shots.json, etc.) for pristine state
-    _clear_disk_cache_files()
+    # Skip if test has @pytest.mark.persistent_cache marker
+    if not skip_cache_clear:
+        _clear_disk_cache_files()
 
     # Clear config files to prevent test contamination within worker
     _clear_config_files()
@@ -285,12 +298,20 @@ def reset_singletons(reset_caches: None) -> Iterator[None]:
     - Process pools (ProcessPoolManager)
     - Infrastructure (FilesystemCoordinator)
     """
+    import warnings
+
     from tests.fixtures.singleton_registry import SingletonRegistry
 
     # ===== BEFORE TEST: Reset all singletons =====
     errors = SingletonRegistry.reset_all(strict=STRICT_CLEANUP)
     for path, exc in errors:
         _logger.debug("Singleton reset before-test failed: %s: %s", path, exc)
+        # Emit warning so it's visible in test output
+        warnings.warn(
+            f"Singleton reset failed (before-test): {path}: {exc}",
+            UserWarning,
+            stacklevel=2,
+        )
 
     yield
 
@@ -299,6 +320,12 @@ def reset_singletons(reset_caches: None) -> Iterator[None]:
     errors = SingletonRegistry.reset_all(strict=STRICT_CLEANUP)
     for path, exc in errors:
         _logger.debug("Singleton reset after-test failed: %s: %s", path, exc)
+        # Emit warning so it's visible in test output
+        warnings.warn(
+            f"Singleton reset failed (after-test): {path}: {exc}",
+            UserWarning,
+            stacklevel=2,
+        )
 
 
 # Backward compatibility alias
