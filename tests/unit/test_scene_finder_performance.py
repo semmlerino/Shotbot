@@ -43,7 +43,7 @@ import pytest
 
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from threede_scene_finder_optimized import (
+from threede_scene_finder import (
     OptimizedThreeDESceneFinder as ThreeDESceneFinder,
 )
 
@@ -624,7 +624,6 @@ class TestScalingPerformance:
 
     def test_performance_scaling(self, profiler) -> None:
         """Test performance across different project sizes."""
-
         # Create projects of different sizes in temp dirs
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
@@ -691,7 +690,6 @@ class TestScalingPerformance:
 
 def test_generate_performance_report(profiler) -> None:
     """Generate and save performance report."""
-
     # This will be called after other tests to generate final report
     report = profiler.create_performance_report()
 

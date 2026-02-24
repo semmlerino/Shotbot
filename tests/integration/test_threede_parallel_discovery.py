@@ -22,7 +22,7 @@ import pytest
 
 # Local application imports
 from shot_model import Shot
-from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
+from threede_scene_finder import OptimizedThreeDESceneFinder
 
 
 pytestmark = [
@@ -109,6 +109,7 @@ class TestParallelDiscoveryIntegration:
 
         Returns:
             Tuple of (shows_root_path, list_of_shots)
+
         """
         shows_root = self.temp_dir / "shows"
 

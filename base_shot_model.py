@@ -18,10 +18,10 @@ if TYPE_CHECKING:
 
 # Local application imports
 from logging_mixin import LoggingMixin
-from optimized_shot_parser import OptimizedShotParser
 from process_pool_manager import ProcessPoolManager
 from qt_abc_meta import QABCMeta
 from shot_filter import compose_filters, get_available_shows
+from shot_parser import OptimizedShotParser
 from utils import ValidationUtils
 
 

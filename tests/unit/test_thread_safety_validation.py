@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Thread Safety Validation Tests for 3DE Parallel Scanning Fixes
+"""Thread Safety Validation Tests for 3DE Parallel Scanning Fixes
 
 This test suite validates that the critical threading issues have been resolved:
 1. Race conditions in progress updates
@@ -324,7 +323,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         try:
             # Test that the updated parallel scanner can be imported
             # Local application imports
-            from threede_scene_finder_optimized import (
+            from threede_scene_finder import (
                 OptimizedThreeDESceneFinder,
             )
 

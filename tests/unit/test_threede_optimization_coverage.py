@@ -34,7 +34,7 @@ from unittest.mock import patch
 import pytest
 
 # Local application imports
-from threede_scene_finder_optimized import DirectoryCache, OptimizedThreeDESceneFinder
+from threede_scene_finder import DirectoryCache, OptimizedThreeDESceneFinder
 
 
 # Add the project root to path for imports
@@ -348,7 +348,6 @@ class TestOptimizedSceneFinding:
 
     def test_find_scenes_strategy_selection(self, tmp_path) -> None:
         """Test that correct strategy is selected based on workload size."""
-
         # Create small workload (should use Python method)
         small_shot = tmp_path / "small_shot"
         small_user_dir = small_shot / "user"
@@ -427,7 +426,6 @@ class TestOptimizedSceneFinding:
 
     def test_find_scenes_error_handling(self, tmp_path) -> None:
         """Test error handling in scene finding."""
-
         # Test with invalid shot components
         scenes = OptimizedThreeDESceneFinder.find_scenes_for_shot(
             shot_workspace_path=str(tmp_path / "nonexistent"),
@@ -492,7 +490,6 @@ class TestOptimizedUtilityMethods:
 
     def test_quick_3de_exists_check(self, tmp_path) -> None:
         """Test optimized quick existence check."""
-
         # Create structure with .3de files
         test_dir = tmp_path / "with_3de"
         nested_dir = test_dir / "nested" / "path"
@@ -550,7 +547,6 @@ class TestOptimizedUtilityMethods:
 
     def test_verify_scene_exists(self, tmp_path) -> None:
         """Test optimized scene existence verification."""
-
         # Create valid .3de file
         valid_file = tmp_path / "valid.3de"
         valid_file.write_text("# Valid scene")
@@ -583,7 +579,6 @@ class TestCacheIntegration:
 
     def test_cache_effectiveness_with_repeated_scans(self, tmp_path) -> None:
         """Test that cache improves performance on repeated scans."""
-
         # Create test structure
         shot_path = tmp_path / "cached_shot"
         user_dir = shot_path / "user"
@@ -646,7 +641,6 @@ class TestPerformanceRegression:
 
     def test_performance_baseline(self, tmp_path) -> None:
         """Test that optimized version meets performance baselines."""
-
         # Create medium-sized test structure
         shot_path = tmp_path / "performance_test"
         user_dir = shot_path / "user"

@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Local application imports
 from shot_model import Shot
 from targeted_shot_finder import TargetedShotsFinder
-from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
+from threede_scene_finder import OptimizedThreeDESceneFinder
 from threede_scene_model import ThreeDESceneModel
 from utils import PathUtils
 

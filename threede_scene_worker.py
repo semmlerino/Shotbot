@@ -23,7 +23,7 @@ from PySide6.QtCore import (
 from config import Config
 from logging_mixin import LoggingMixin
 from thread_safe_worker import ThreadSafeWorker
-from threede_scene_finder_optimized import (
+from threede_scene_finder import (
     OptimizedThreeDESceneFinder as ThreeDESceneFinder,
 )
 from typing_compat import override
@@ -69,6 +69,7 @@ class QtProgressReporter(LoggingMixin, QObject):
         Args:
             files_found: Number of files found so far
             status: Current status message
+
         """
         # Simply emit the signal - Qt handles thread-safe delivery via queued connection
         self.progress_update.emit(files_found, status)
@@ -83,6 +84,7 @@ class ProgressCalculator(LoggingMixin):
 
         Args:
             smoothing_window: Number of samples for ETA smoothing
+
         """
         super().__init__()
         self.smoothing_window = smoothing_window or Config.PROGRESS_ETA_SMOOTHING_WINDOW
@@ -105,6 +107,7 @@ class ProgressCalculator(LoggingMixin):
 
         Returns:
             Tuple of (progress_percentage, eta_string)
+
         """
         current_time = time.time()
 
@@ -141,6 +144,7 @@ class ProgressCalculator(LoggingMixin):
 
         Returns:
             Human-readable ETA string
+
         """
         if not Config.PROGRESS_ENABLE_ETA:
             return ""
@@ -221,6 +225,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             batch_size: Number of scenes per batch for progressive scanning
             enable_progressive: Enable progressive scanning (vs. traditional all-at-once)
             scan_all_shots: If True, scan ALL shots in shows (not just provided shots)
+
         """
         super().__init__()
         self.shots = shots
@@ -344,6 +349,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         Returns:
             bool: True if signal was emitted, False if already emitted
+
         """
         with QMutexLocker(self._finished_mutex):
             if self._finished_emitted:
@@ -378,6 +384,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         Args:
             files_found: Number of files found so far
             status: Current status message
+
         """
         # Check if worker is still active
         if not self.should_stop():
@@ -398,6 +405,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         Returns:
             True if should continue, False if should exit
+
         """
         # Check for cancellation using base class method
         if self.should_stop():
@@ -488,6 +496,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         Returns:
             List of all discovered ThreeDEScene objects
+
         """
         self.logger.info("Starting progressive 3DE scene discovery")
 
@@ -599,6 +608,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         Returns:
             List of all discovered ThreeDEScene objects
+
         """
         self.logger.info(
             "Discovering ALL 3DE scenes in shows using parallel file-first strategy"
@@ -697,6 +707,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         Returns:
             List of discovered ThreeDEScene objects
+
         """
         self.logger.info("Using traditional 3DE scene discovery method")
 

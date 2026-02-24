@@ -7,7 +7,7 @@ import time
 
 # Local application imports
 from config import Config
-from optimized_shot_parser import ParseResult
+from shot_parser import ParseResult
 
 
 # Global pre-compiled pattern (fastest approach)
@@ -109,7 +109,7 @@ def benchmark_all_approaches(iterations: int = 100000) -> None:
 
     # Import and test the current OptimizedShotParser
     # Local application imports
-    from optimized_shot_parser import (
+    from shot_parser import (
         OptimizedShotParser,
     )
 

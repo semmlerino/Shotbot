@@ -28,34 +28,23 @@ if TYPE_CHECKING:
 # Set up logger for this module
 logger = get_module_logger(__name__)
 
-# Import path validation cache management from path_validators
-# Re-export these for backward compatibility with tests and other modules
-from path_validators import (
-    _PATH_CACHE_TTL,  # type: ignore[reportPrivateUsage]  # Re-exported for compatibility
-    _cache_disabled,  # type: ignore[reportPrivateUsage]  # Re-exported for compatibility
-    _path_cache,  # type: ignore[reportPrivateUsage]  # Re-exported for compatibility
-    _path_cache_lock,  # type: ignore[reportPrivateUsage]  # Re-exported for compatibility
+# Import path validation internals needed by this module (not re-exported)
+from path_validators import (  # type: ignore[reportPrivateUsage]
+    _PATH_CACHE_TTL,
     clear_path_cache,
     disable_path_caching,
     enable_path_caching,
 )
-from path_validators import (
-    get_cache_stats as get_path_cache_stats,
-)
+from path_validators import get_cache_stats as get_path_cache_stats
 
 
-# Make these available at module level for backward compatibility
 __all__ = [
-    "_PATH_CACHE_TTL",
     "CacheIsolation",
     "FileUtils",
     "ImageUtils",
     "PathUtils",
     "ValidationUtils",
     "VersionUtils",
-    "_cache_disabled",
-    "_path_cache",
-    "_path_cache_lock",
     "clear_all_caches",
     "disable_caching",
     "enable_caching",

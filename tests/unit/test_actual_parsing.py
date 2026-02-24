@@ -14,8 +14,8 @@ import pytest
 
 # Local application imports
 from config import Config
-from optimized_shot_parser import OptimizedShotParser
 from shot_model import Shot
+from shot_parser import OptimizedShotParser
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)

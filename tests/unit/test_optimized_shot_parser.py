@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 from config import Config
-from optimized_shot_parser import (
+from shot_parser import (
     OptimizedShotParser,
     ParseResult,
     benchmark_parser_performance,
@@ -29,10 +29,9 @@ def shows_root() -> str:
 @pytest.fixture
 def clear_pattern_cache() -> None:
     """Clear pattern cache before test for isolation."""
-    import optimized_shot_parser
 
     # Use module reference to avoid stale imports after module reloads
-    optimized_shot_parser._PATTERN_CACHE.clear()
+    shot_parser._PATTERN_CACHE.clear()
 
 
 class TestParseWorkspaceLineStandardNaming:
@@ -68,7 +67,6 @@ class TestParseWorkspaceLineStandardNaming:
 
     def test_parse_complete_result_structure(self, shows_root: str) -> None:
         """ParseResult contains all required fields."""
-        import optimized_shot_parser
 
         parser = OptimizedShotParser()
         line = f"workspace {shows_root}/demo/shots/seq01/seq01_0010"
@@ -78,7 +76,7 @@ class TestParseWorkspaceLineStandardNaming:
         assert result is not None
         # Use the module's ParseResult to avoid issues with module reloads
         # in other tests (e.g., test_critical_fixes_complete.py)
-        assert isinstance(result, optimized_shot_parser.ParseResult)
+        assert isinstance(result, shot_parser.ParseResult)
         assert result.show == "demo"
         assert result.sequence == "seq01"
         assert result.shot == "0010"
@@ -248,21 +246,20 @@ class TestPatternCacheIsolation:
         """Different SHOWS_ROOT values create separate cached patterns."""
         import importlib
 
-        import optimized_shot_parser
 
         # Use module reference to avoid stale imports after module reloads
-        cache = optimized_shot_parser._PATTERN_CACHE
+        cache = shot_parser._PATTERN_CACHE
 
         # Reload the module to ensure it uses the current Config reference
         # This is needed because test_critical_fixes_complete.py may have
         # left the module with a stale Config reference
-        importlib.reload(optimized_shot_parser)
-        cache = optimized_shot_parser._PATTERN_CACHE
+        importlib.reload(shot_parser)
+        cache = shot_parser._PATTERN_CACHE
         cache.clear()
 
         # First SHOWS_ROOT
         monkeypatch.setattr("config.Config.SHOWS_ROOT", "/test/shows1")
-        parser_cls = optimized_shot_parser.OptimizedShotParser
+        parser_cls = shot_parser.OptimizedShotParser
         _ = parser_cls()
 
         assert "/test/shows1" in cache
@@ -283,10 +280,17 @@ class TestPatternCacheIsolation:
         clear_pattern_cache: None,
     ) -> None:
         """Multiple parser instances reuse cached patterns."""
+        import importlib
+
+
         monkeypatch.setattr("config.Config.SHOWS_ROOT", "/test/reuse")
 
-        parser1 = OptimizedShotParser()
-        parser2 = OptimizedShotParser()
+        # Reload to ensure module uses current Config reference
+        importlib.reload(shot_parser)
+        shot_parser._PATTERN_CACHE.clear()
+
+        parser1 = shot_parser.OptimizedShotParser()
+        parser2 = shot_parser.OptimizedShotParser()
 
         # Same pattern objects (identity check)
         assert parser1._ws_pattern is parser2._ws_pattern
@@ -298,10 +302,18 @@ class TestPatternCacheIsolation:
         clear_pattern_cache: None,
     ) -> None:
         """Parser correctly uses custom SHOWS_ROOT."""
+        import importlib
+
+
         custom_root = "/custom/shows"
         monkeypatch.setattr("config.Config.SHOWS_ROOT", custom_root)
 
-        parser = OptimizedShotParser()
+        # Reload to ensure module uses current Config reference
+        # (needed after test_pattern_cache_keyed_by_shows_root reloads the module)
+        importlib.reload(shot_parser)
+        shot_parser._PATTERN_CACHE.clear()
+
+        parser = shot_parser.OptimizedShotParser()
         line = f"workspace {custom_root}/demo/shots/seq01/seq01_0010"
 
         result = parser.parse_workspace_line(line)

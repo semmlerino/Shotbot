@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Comprehensive test suite for critical fixes in ShotBot.
+"""Comprehensive test suite for critical fixes in ShotBot.
 
 This test suite validates:
 1. Dynamic SHOWS_ROOT configuration in regex patterns
@@ -36,11 +35,41 @@ def test_shows_root_dynamic_configuration():
     # Standard library imports
     import importlib
 
-    # Store original module references to restore later
+    # Store original module references to restore later.
     # This is critical because reloading creates new class objects,
-    # which breaks isinstance() checks in other tests that already
+    # which breaks isinstance() checks and monkeypatch in tests that already
     # imported the old class.
-    modules_to_track = ["config", "targeted_shot_finder", "optimized_shot_parser"]
+    #
+    # IMPORTANT: We must track ALL modules that import from config, because:
+    # 1. When we reload config, a new Config class is created
+    # 2. Other modules (like command_launcher) that did `from config import Config`
+    #    still hold references to the OLD Config class
+    # 3. Monkeypatch on the new config.Config doesn't affect the old references
+    # 4. Restoring sys.modules["config"] doesn't update those old references
+    #
+    # The safest approach is to track all potentially affected modules and
+    # restore them in the finally block.
+    modules_to_track = [
+        "config",
+        "targeted_shot_finder",
+        "shot_parser",
+        # Also track modules that import from config to prevent stale class references
+        "command_launcher",
+        "base_grid_view",
+        "base_item_model",
+        "base_thumbnail_delegate",
+        "file_discovery",
+        "finder_utils",
+        "nuke_launch_handler",
+        "path_builders",
+        "previous_shots_finder",
+        "previous_shots_model",
+        "process_pool_manager",
+        "scene_discovery_coordinator",
+        "settings_dialog",
+        "settings_manager",
+        "shot_finder_base",
+    ]
     original_modules = {}
     for mod_name in modules_to_track:
         if mod_name in sys.modules:
@@ -105,15 +134,14 @@ def test_shows_root_dynamic_configuration():
                     print(f"  ✗ Error testing targeted_shot_finder.py: {e}")
                     raise
 
-                # Test optimized_shot_parser.py
+                # Test shot_parser.py
                 try:
                     # Local application imports
-                    import optimized_shot_parser
 
                     # Reload the module to pick up new SHOWS_ROOT
-                    importlib.reload(optimized_shot_parser)
+                    importlib.reload(shot_parser)
 
-                    from optimized_shot_parser import (
+                    from shot_parser import (
                         OptimizedShotParser,
                     )
 
@@ -122,22 +150,22 @@ def test_shows_root_dynamic_configuration():
 
                     # Check pattern contains escaped SHOWS_ROOT
                     assert shows_root_escaped in pattern, (
-                        f"optimized_shot_parser.py: Pattern missing {shows_root_escaped}. Got: {pattern}"
+                        f"shot_parser.py: Pattern missing {shows_root_escaped}. Got: {pattern}"
                     )
                     print(
-                        f"  ✓ optimized_shot_parser.py: Pattern contains {shows_root_escaped}"
+                        f"  ✓ shot_parser.py: Pattern contains {shows_root_escaped}"
                     )
                     success_count += 1
 
                     # Test pattern matching
                     test_line = f"workspace {shows_root}/show1/shots/seq1/seq1_0010"
                     match = parser._ws_pattern.search(test_line)
-                    assert match, "optimized_shot_parser.py: Workspace pattern failed"
-                    print("  ✓ optimized_shot_parser.py: Workspace pattern matches")
+                    assert match, "shot_parser.py: Workspace pattern failed"
+                    print("  ✓ shot_parser.py: Workspace pattern matches")
                     success_count += 1
 
                 except Exception as e:
-                    print(f"  ✗ Error testing optimized_shot_parser.py: {e}")
+                    print(f"  ✗ Error testing shot_parser.py: {e}")
                     raise
 
         print(f"\n✅ Dynamic SHOWS_ROOT tests: {success_count}/12 passed")

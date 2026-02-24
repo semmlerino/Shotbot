@@ -225,6 +225,7 @@ class ThreeDESceneModel:
 
         Returns:
             (success, has_changes) - whether refresh succeeded and if scenes changed
+
         """
         # Lock entire refresh to prevent concurrent calls from losing discoveries
         with self._refresh_lock:
@@ -232,7 +233,7 @@ class ThreeDESceneModel:
                 # Local application imports
                 # Lazy import to break circular dependency:
                 # scene_cache → threede_scene_model → threede_scene_finder → ... → scene_cache
-                from threede_scene_finder_optimized import (
+                from threede_scene_finder import (
                     OptimizedThreeDESceneFinder as ThreeDESceneFinder,
                 )
 
@@ -322,6 +323,7 @@ class ThreeDESceneModel:
 
         Args:
             show: Show name to filter by, or None for no filtering
+
         """
         self._filter_show = show
 
@@ -334,6 +336,7 @@ class ThreeDESceneModel:
 
         Args:
             text: Text to filter by (case-insensitive substring match) or None for no filter
+
         """
         self._filter_text = text
         logger.info(f"Text filter set to: '{text if text else ''}'")
@@ -349,6 +352,7 @@ class ThreeDESceneModel:
 
         Returns:
             List of scenes matching the filters, or all scenes if no filters
+
         """
         scenes = self.scenes
 
@@ -384,6 +388,7 @@ class ThreeDESceneModel:
 
         Returns:
             Deduplicated list with one scene per shot
+
         """
         # Group scenes by shot
         scenes_by_shot: dict[str, list[ThreeDEScene]] = defaultdict(list)
@@ -413,6 +418,7 @@ class ThreeDESceneModel:
 
         Returns:
             Best scene based on priority criteria
+
         """
 
         # Priority 1: Latest modification time

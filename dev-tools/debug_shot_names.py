@@ -16,8 +16,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 # Local application imports
 from config import Config
-from optimized_shot_parser import OptimizedShotParser
 from process_pool_manager import ProcessPoolManager
+from shot_parser import OptimizedShotParser
 
 
 def debug_environment() -> None:

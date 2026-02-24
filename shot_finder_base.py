@@ -15,9 +15,9 @@ from typing import TypedDict
 # Local application imports
 from config import Config
 from finder_utils import FinderUtils
-from optimized_shot_parser import OptimizedShotParser
 from progress_mixin import ProgressReportingMixin
 from shot_model import Shot
+from shot_parser import OptimizedShotParser
 
 
 class FindShotsKwargs(TypedDict, total=False):
@@ -66,6 +66,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         Args:
             username: Username to search for. If None, uses current user.
+
         """
         # Initialize parent class (ProgressReportingMixin -> LoggingMixin)
         super().__init__()
@@ -104,6 +105,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         Returns:
             Shot object if path is valid, None otherwise
+
         """
         # Use OptimizedShotParser for better performance
         result = self._parser.parse_shot_path(path)
@@ -134,6 +136,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         Returns:
             Dictionary with shot details including paths and metadata
+
         """
         details: ShotDetailsDict = {
             "show": shot.show,
@@ -169,6 +172,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         Returns:
             Path to thumbnail or None if not found
+
         """
         # Local application imports
         from utils import FileUtils, PathUtils
@@ -212,6 +216,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         Returns:
             Status string (e.g., "approved", "active")
+
         """
 
     @abstractmethod
@@ -228,4 +233,5 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         Returns:
             List of found shots
+
         """

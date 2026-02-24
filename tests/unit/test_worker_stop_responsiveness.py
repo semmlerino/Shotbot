@@ -64,7 +64,7 @@ class TestWorkerStopResponsiveness:
 
         # Mock the filesystem scanner to simulate a long-running operation
         with patch(
-            "threede_scene_finder_optimized.OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel"
+            "threede_scene_finder.OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel"
         ) as mock_find:
             # Event for coordinating test timing
             scan_started_event = threading.Event()
@@ -228,7 +228,7 @@ class TestWorkerStopResponsiveness:
 
         # Mock the finder to return immediately
         with patch(
-            "threede_scene_finder_optimized.OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel",
+            "threede_scene_finder.OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel",
             return_value=[],
         ):
             active_threads_before = threading.active_count()
@@ -496,7 +496,7 @@ class TestThreadSafeWorkerStopMechanism:
             return []
 
         with patch(
-            "threede_scene_finder_optimized.OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel",
+            "threede_scene_finder.OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel",
             side_effect=mock_find,
         ):
             thread = threading.Thread(target=worker.run, daemon=True)

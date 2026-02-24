@@ -348,7 +348,7 @@ class TestSceneFinderProperties:
         import tempfile
 
         # Local application imports
-        from threede_scene_finder_optimized import (
+        from threede_scene_finder import (
             OptimizedThreeDESceneFinder as ThreeDESceneFinder,
         )
 
