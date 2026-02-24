@@ -288,11 +288,16 @@ class TestLauncherStackSmoke:
 
         result_container: dict = {"output": None, "error": None}
 
+        # Reset and initialize on main thread to ensure QObject lives in main thread
+        ProcessPoolManager.reset()
+        # Initialize singleton on main thread
+        pool = ProcessPoolManager.get_instance()
+
         def run_command() -> None:
-            # Reset to ensure clean state
-            ProcessPoolManager.reset()
-            pool = ProcessPoolManager.get_instance()
+            # Worker thread only executes the command
             try:
+                # We can access pool here because it's already initialized
+                # and get_instance() is thread-safe(ish) or we use the captured variable
                 result_container["output"] = pool.execute_workspace_command(
                     'echo "LAUNCHER_STACK_OK"',
                     cache_ttl=0,  # No caching for test
@@ -300,14 +305,17 @@ class TestLauncherStackSmoke:
                 )
             except Exception as e:
                 result_container["error"] = str(e)
-            finally:
-                pool.shutdown(timeout=2.0)
-                ProcessPoolManager.reset()
 
         # Run in thread because ProcessPoolManager checks for main thread
         thread = threading.Thread(target=run_command)
         thread.start()
         thread.join(timeout=15)
+
+        # Cleanup on main thread
+        try:
+            pool.shutdown(timeout=2.0)
+        finally:
+            ProcessPoolManager.reset()
 
         assert result_container["error"] is None, f"Error: {result_container['error']}"
         assert result_container["output"] is not None
@@ -383,3 +391,45 @@ class TestLauncherStackSmoke:
         assert isinstance(nuke_packages, list)
         assert isinstance(maya_packages, list)
         assert isinstance(threede_packages, list)
+
+
+@pytest.mark.real_subprocess
+@pytest.mark.xdist_group(name="real_subprocess")
+class TestShellChaining:
+    """Tests for shell command chaining patterns used by launcher."""
+
+    def test_and_chain_stops_on_failure(self) -> None:
+        """Verify && chaining stops execution on first failure."""
+        result = subprocess.run(
+            ["bash", "-c", "echo first; false && echo second"],
+            check=False, capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        assert "first" in result.stdout
+        assert "second" not in result.stdout
+        assert result.returncode == 1
+
+    def test_and_chain_continues_on_success(self) -> None:
+        """Verify && chaining continues when commands succeed."""
+        result = subprocess.run(
+            ["bash", "-c", "echo first && echo second && echo third"],
+            check=False, capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        assert result.returncode == 0
+        assert "first" in result.stdout
+        assert "second" in result.stdout
+        assert "third" in result.stdout
+
+    def test_semicolon_chain_continues_regardless(self) -> None:
+        """Verify ; chaining continues even after failure."""
+        result = subprocess.run(
+            ["bash", "-c", "echo first; false; echo second"],
+            check=False, capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        assert "first" in result.stdout
+        assert "second" in result.stdout
