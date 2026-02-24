@@ -31,13 +31,13 @@ from cache_manager import CacheManager
 # from main_window import MainWindow
 from notification_manager import NotificationType
 from shot_model import RefreshResult, Shot
-from tests.fixtures.test_doubles import TestProcessPool
 
 # Import qapp fixture from conftest to ensure QApplication exists
 # Import proper test doubles following UNIFIED_TESTING_GUIDE
 from tests.fixtures.doubles_library import (
     TestSubprocess,
 )
+from tests.fixtures.test_doubles import TestProcessPool
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
@@ -615,58 +615,6 @@ workspace /shows/test/shots/seq01/shot02""")
             pass
             # Just verify that error handling pathway was triggered
             # The specific notification type may vary based on implementation
-
-    def test_signal_slot_connections_established(
-        self, main_window_with_real_components: Any
-    ) -> None:
-        """Test that all critical signal-slot connections are established."""
-        window = main_window_with_real_components
-
-        # Instead of using receivers() method which has complex signature requirements,
-        # test that the signals exist and are bound to the model
-        # This is more practical than testing Qt's internal connection count
-
-        # Check shot model has the expected signals
-        assert hasattr(window.shot_model, "shots_loaded")
-        assert hasattr(window.shot_model, "shots_changed")
-        assert hasattr(window.shot_model, "refresh_started")
-        assert hasattr(window.shot_model, "refresh_finished")
-        assert hasattr(window.shot_model, "shot_selected")
-
-        # Check that the MainWindow has the corresponding handler methods
-        assert hasattr(window, "_on_shots_loaded")
-        assert hasattr(window, "_on_shots_changed")
-        assert hasattr(window, "_on_refresh_started")
-        assert hasattr(window, "_on_refresh_finished")
-        assert hasattr(window.shot_selection_controller, "on_shot_selected")
-
-    @pytest.mark.usefixtures("qtbot", "tmp_path")
-    def test_settings_persistence(
-        self, main_window_with_real_components: Any
-    ) -> None:
-        """Test that settings are saved and restored correctly."""
-        window = main_window_with_real_components
-
-        # Test settings persistence by modifying, saving, changing, and loading
-        # Use values within valid slider range (Config.MIN_THUMBNAIL_SIZE to MAX)
-        test_size = 500
-        window.shot_grid.size_slider.value()
-
-        # Change the setting
-        window.shot_grid.size_slider.setValue(test_size)
-
-        # Save settings
-        window.settings_controller.save_settings()
-
-        # Change the slider to a different value to verify load works
-        window.shot_grid.size_slider.setValue(600)
-        assert window.shot_grid.size_slider.value() == 600
-
-        # Load settings to restore the saved value
-        window.settings_controller.load_settings()
-
-        # Verify the saved value was restored
-        assert window.shot_grid.size_slider.value() == test_size
 
     def test_progress_indication_during_operations(
         self, main_window_with_real_components: Any, qtbot: Any

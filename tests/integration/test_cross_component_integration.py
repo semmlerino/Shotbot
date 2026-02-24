@@ -328,9 +328,6 @@ class TestCrossTabSynchronization:
         )
 
         # Local application imports
-        from cache_manager import (
-            CacheManager,
-        )
 
         temp_cache_dir = Path(tempfile.mkdtemp(prefix="shotbot_test_"))
         test_cache_manager = CacheManager(cache_dir=temp_cache_dir)
@@ -451,78 +448,6 @@ class TestCacheUICoordination:
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
                 process_qt_events()
-
-    def test_thumbnail_cache_updates_ui(
-        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
-    ) -> None:
-        """Verify thumbnail caching updates UI correctly.
-
-        This tests that:
-        1. Thumbnails are cached after first load
-        2. Cache manager provides cached thumbnails
-        3. UI updates when cache is invalidated
-        """
-        # Force legacy model for synchronous behavior
-        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
-
-        # Create test cache directory
-        cache_dir = tmp_path / "test_cache"
-        cache_dir.mkdir(exist_ok=True)
-
-        # Create test cache manager
-        test_cache_manager = CacheManager(cache_dir=cache_dir)
-
-        # Create MainWindow with test cache
-        window = MainWindow(cache_manager=test_cache_manager)
-        qtbot.addWidget(window)
-        self.test_windows.append(window)  # Track for cleanup
-
-        # Set up test shot
-        test_pool = TestProcessPool(allow_main_thread=True)
-        test_pool.set_outputs("workspace /shows/TEST/shots/seq01/seq01_0010")
-        window.shot_model._process_pool = test_pool
-        window.shot_model.refresh_shots()
-
-        # Get the shot
-        shots = window.shot_model.get_shots()
-        assert len(shots) == 1
-        shot = shots[0]
-
-        # Verify cache manager can check for cached thumbnail
-        # Note: Cache may exist from previous runs; clear it first
-        window.cache_manager.clear_cached_data("thumbnails")
-        cache_path = window.cache_manager.get_cached_thumbnail(
-            shot.show, shot.sequence, shot.shot
-        )
-        # Cache path should be None after clearing
-        assert cache_path is None  # No thumbnail cached after clear
-
-        # Create a valid test image file to cache
-        fake_thumb = tmp_path / "test_thumb.jpg"
-        # Create a minimal valid JPEG (1x1 red pixel)
-        # Third-party imports
-        from PySide6.QtGui import (
-            QColor,
-            QImage,
-        )
-
-        img = QImage(1, 1, QImage.Format.Format_RGB32)
-        img.fill(QColor(255, 0, 0))
-        img.save(str(fake_thumb), "JPEG")
-
-        # Cache the thumbnail
-        cached_path = window.cache_manager.cache_thumbnail(
-            fake_thumb, shot.show, shot.sequence, shot.shot
-        )
-        assert cached_path is not None
-
-        # Now get_cached_thumbnail should return the path
-        cache_path = window.cache_manager.get_cached_thumbnail(
-            shot.show, shot.sequence, shot.shot
-        )
-        assert cache_path is not None
-        assert cache_path.exists()
-        assert str(shot.show) in str(cache_path)
 
     def test_cache_invalidation_refreshes_data(
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path

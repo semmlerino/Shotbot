@@ -12,6 +12,7 @@ focusing on behavior rather than implementation details.
 
 # Standard library imports
 # Add parent directory to path for imports
+import json
 import sys
 from pathlib import Path
 
@@ -371,6 +372,96 @@ class TestShotModelSignalIntegration:
         assert result.success is False
         assert error_spy.count() == 1
         assert "Test error" in error_spy.at(0)[0]
+
+
+@pytest.mark.allow_main_thread
+class TestShotWorkflowPortedTests:
+    """Ported tests from test_shot_workflow_integration.py covering cache structure and persistence."""
+
+    def test_shot_model_cache_invalidation_workflow(
+        self, real_cache_manager, shot_model_with_test_pool
+    ) -> None:
+        """Test cache invalidation when shots are updated.
+
+        Reads raw on-disk shots.json and asserts JSON structure.
+        """
+        model, test_pool = shot_model_with_test_pool
+        cache_dir = real_cache_manager.cache_dir
+
+        # Configure process pool with initial shot
+        test_pool.set_outputs("workspace /shows/show1/shots/seq01/seq01_0010")
+
+        # Refresh shots to populate cache
+        model.refresh_shots()
+
+        # Verify cache file was created
+        cache_file = cache_dir / "shots.json"
+        assert cache_file.exists()
+
+        # Read cache data and assert JSON structure
+        with cache_file.open() as f:
+            cache_data = json.load(f)
+
+        assert "data" in cache_data
+        assert len(cache_data["data"]) == 1
+        assert cache_data["data"][0]["show"] == "show1"
+
+        # Update shots and verify cache is updated
+        test_pool.set_outputs("workspace /shows/show2/shots/seq01/seq01_0010")
+        model.refresh_shots()
+
+        # Verify cache was updated with new show
+        with cache_file.open() as f:
+            updated_cache_data = json.load(f)
+
+        assert updated_cache_data["data"][0]["show"] == "show2"
+
+    def test_shot_data_persistence_through_cache(
+        self, real_cache_manager
+    ) -> None:
+        """Test shot data persists correctly through cache storage.
+
+        Pre-seeds cache, then tests load-from-cache-at-init path.
+        """
+        from tests.fixtures.doubles_library import TestProcessPool
+
+        # Create test shot data
+        test_shots_data = [
+            {
+                "show": "test_show",
+                "sequence": "seq01",
+                "shot": "seq01_0010",
+                "workspace_path": "/shows/test_show/shots/seq01/seq01_0010",
+                "name": "seq01_0010",
+            },
+            {
+                "show": "test_show",
+                "sequence": "seq01",
+                "shot": "seq01_0020",
+                "workspace_path": "/shows/test_show/shots/seq01/seq01_0020",
+                "name": "seq01_0020",
+            },
+        ]
+
+        # Store shots in cache using public API
+        real_cache_manager.cache_shots(test_shots_data)
+
+        # Create shot model WITH cache loading (tests load-from-cache-at-init path)
+        test_process_pool = TestProcessPool(allow_main_thread=True)
+        model = ShotModel(
+            cache_manager=real_cache_manager,
+            process_pool=test_process_pool,
+        )
+
+        # Shots should have been loaded from cache at init
+        shots = model.get_shots()
+
+        # Verify shots loaded from cache
+        assert len(shots) == 2
+        assert shots[0].show == "test_show"
+        assert shots[0].sequence == "seq01"
+        assert shots[0].shot == "seq01_0010"
+        assert shots[1].shot == "seq01_0020"
 
 
 if __name__ == "__main__":
