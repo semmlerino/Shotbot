@@ -227,6 +227,7 @@ line-ending = "auto"
 [tool.pytest.ini_options]
 # Test discovery
 testpaths = ["tests"]
+norecursedirs = ["tests/manual", "tests/performance", ".git", ".venv", "archive"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -236,6 +237,7 @@ required_plugins = [
     "pytest-xdist",
     "pytest-timeout",
     "pytest-qt",
+    "pytest-randomly",
 ]
 
 # Test execution options
@@ -246,6 +248,7 @@ addopts = [
     "--strict-config",      # Fail on unknown config options
     "-ra",                  # Show all test summary info
     "--durations=20",       # Show slowest 20 tests
+    "--randomly-seed=last", # Reproduce last run's order (use --randomly-seed=<N> for specific seed)
     "--tb=short",
     "-p", "no:rerunfailures",
     "-p", "no:xvfb",
@@ -294,6 +297,9 @@ markers = [
     "permissive_subprocess: Disable strict mode for subprocess mocking (deprecated - use subprocess_mock)",
     "permissive_process_pool: Disable strict mode for ProcessPoolManager mocking",
     "enforce_thread_guard: Enable main-thread rejection in TestProcessPool for contract testing",
+    "allow_main_thread: Allow calls from main/UI thread in TestProcessPool (opt-out from default guard)",
+    "thread_leak_ok: Allow thread leaks in this test (opt-out from FAIL_ON_THREAD_LEAK)",
+    "persistent_cache: Skip disk cache clearing for tests that need pre-seeded cache files",
 ]
 
 # Coverage configuration

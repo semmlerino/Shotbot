@@ -23,20 +23,13 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from pytestqt.qtbot import QtBot
 
 # Local application imports
 from cache_manager import CacheManager
 from file_pin_manager import PINNED_FILES_CACHE_KEY, FilePinManager
-
-
-if TYPE_CHECKING:
-    from collections.abc import Generator
-
-
-pytestmark = [
-    pytest.mark.unit,
-]
 
 
 # Test fixtures following UNIFIED_TESTING_GUIDE patterns

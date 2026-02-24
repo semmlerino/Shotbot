@@ -35,17 +35,12 @@ from shot_model import RefreshResult, Shot, ShotModel
 
 # Test doubles following UNIFIED_TESTING_GUIDE patterns
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
+from tests.fixtures.doubles_library import (
     TestProcessPool,
 )
 
 
-pytestmark = [
-    pytest.mark.integration,  # CRITICAL: Qt state must be serialized
-]
-
-
-# Using TestProcessPool from test_doubles_library (UNIFIED_TESTING_GUIDE)
+# Using TestProcessPool from tests.fixtures.doubles_library (UNIFIED_TESTING_GUIDE)
 # No need to duplicate - existing TestProcessPool has all needed functionality
 
 
@@ -61,7 +56,8 @@ def real_cache_manager(tmp_path):
 def shot_model_with_test_pool(real_cache_manager):
     """ShotModel with real cache but TestProcessPool (UNIFIED_TESTING_GUIDE)."""
     # Use TestProcessPool from library with default workspace data
-    test_pool = TestProcessPool()
+    # allow_main_thread=True because tests call refresh_shots() synchronously from main thread
+    test_pool = TestProcessPool(allow_main_thread=True)
     test_pool.set_outputs(
         "workspace /shows/testshow/shots/seq01/seq01_shot01",
         "workspace /shows/testshow/shots/seq01/seq01_shot02",
@@ -76,6 +72,7 @@ def shot_model_with_test_pool(real_cache_manager):
     return model, test_pool
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestShotModelRefreshCriticalPaths:
     """Test critical paths in ShotModel.refresh_shots() with real components."""
 
@@ -310,6 +307,7 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
         assert model.get_shots()[0].shot == "shot02"
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestShotModelSignalIntegration:
     """Test signal emission and connection patterns."""
 
