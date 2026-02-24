@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 # Local application imports
 from base_shot_model import BaseShotModel
 from cache_manager import ShotMergeResult
-from core.shot_types import RefreshResult
+from type_definitions import RefreshResult
 from exceptions import WorkspaceError
 from thread_safe_worker import ThreadSafeWorker
 from type_definitions import Shot
@@ -77,19 +77,23 @@ class AsyncShotLoader(ThreadSafeWorker):
     def __init__(
         self,
         process_pool: ProcessPoolInterface,
-        parse_function: Callable[[str], list[Shot]] | None = None,
+        parse_function: Callable[
+            [str, dict[str, tuple[int, int]] | None], list[Shot]
+        ] | None = None,
+        model: BaseShotModel | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self.process_pool = process_pool
         self.parse_function = parse_function  # Use base class's parse method
+        self.model = model  # Reference to model for frame range lookup
 
-    @Slot()  # type: ignore[reportAny]
-    def run(self) -> None:
+    @override
+    def do_work(self) -> None:
         """Load shots in background thread.
 
-        This method runs in a separate thread and uses thread-safe
-        mechanisms to check for stop requests.
+        Called by ThreadSafeWorker.run() to perform actual work.
+        Uses thread-safe mechanisms to check for stop requests.
         """
         try:
             # Check for stop request before starting
@@ -109,8 +113,12 @@ class AsyncShotLoader(ThreadSafeWorker):
 
             # Parse output using provided parse function or fallback
             if self.parse_function:
+                # Build frame range lookup from cached shots to skip disk scans
+                cached_frame_ranges: dict[str, tuple[int, int]] | None = None
+                if self.model:
+                    cached_frame_ranges = self.model.build_frame_range_lookup()
                 # Use the base class's proper parsing method
-                shots = self.parse_function(output)
+                shots = self.parse_function(output, cached_frame_ranges)
             else:
                 # Fallback to simple parsing (should not be used in practice)
                 self.logger.warning(
@@ -152,6 +160,7 @@ class AsyncShotLoader(ThreadSafeWorker):
 
         Returns:
             True if stop was requested successfully
+
         """
         return self.request_stop()
 
@@ -199,6 +208,7 @@ class ShotModel(BaseShotModel):
 
         Returns:
             RefreshResult with cached data status
+
         """
         self.logger.debug("ShotModel.initialize_async() starting")
 
@@ -281,6 +291,7 @@ class ShotModel(BaseShotModel):
             self._async_loader = AsyncShotLoader(
                 self._process_pool,
                 parse_function=self._parse_ws_output,  # Use base class's correct parsing
+                model=self,  # Pass model for frame range lookup
             )
             # Signal.connect() cannot infer specific callable type from Signal(list)
             # Qt signals use generic signatures, so slot methods appear as Any
@@ -317,6 +328,7 @@ class ShotModel(BaseShotModel):
 
         Returns:
             ShotMergeResult with merged data
+
         """
         # Load cache
         cached_dicts = self.cache_manager.get_persistent_shots() or []
@@ -491,6 +503,7 @@ class ShotModel(BaseShotModel):
 
         Returns:
             RefreshResult with success and change status
+
         """
         return self.initialize_async()
 
@@ -621,6 +634,7 @@ class ShotModel(BaseShotModel):
 
         Returns:
             Shot at index or None if index is out of bounds
+
         """
         if 0 <= index < len(self.shots):
             return self.shots[index]
@@ -634,9 +648,11 @@ class ShotModel(BaseShotModel):
 
         Returns:
             Shot if found, None otherwise
+
         """
         return self.find_shot_by_name(full_name)
 
+    @override
     def invalidate_workspace_cache(self) -> None:
         """Manually invalidate the workspace command cache.
 
@@ -655,6 +671,7 @@ class ShotModel(BaseShotModel):
 
         Returns:
             RefreshResult with success status and change indicator
+
         """
         self.refresh_started.emit()
         old_count = len(self.shots)
@@ -667,8 +684,11 @@ class ShotModel(BaseShotModel):
                 timeout=30,
             )
 
+            # Build frame range lookup to skip expensive disk scans for cached shots
+            cached_frame_ranges = self.build_frame_range_lookup()
+
             # Parse output
-            fresh_shots = self._parse_ws_output(output)
+            fresh_shots = self._parse_ws_output(output, cached_frame_ranges)
 
             # Process shot merge with error handling and migration
             try:
@@ -752,6 +772,7 @@ class ShotModel(BaseShotModel):
 
         Returns:
             True if shot was found and selected, False otherwise
+
         """
         shot = self.find_shot_by_name(full_name)
         if shot:
@@ -779,9 +800,13 @@ class ShotModel(BaseShotModel):
         """Test-only access to _load_from_cache method."""
         return self._load_from_cache()
 
-    def test_parse_ws_output(self, output: str) -> list[Shot]:
+    def test_parse_ws_output(
+        self,
+        output: str,
+        cached_frame_ranges: dict[str, tuple[int, int]] | None = None,
+    ) -> list[Shot]:
         """Test-only access to _parse_ws_output method."""
-        return self._parse_ws_output(output)
+        return self._parse_ws_output(output, cached_frame_ranges)
 
     def wait_for_async_load(self, timeout_ms: int = 5000) -> bool:
         """Wait for async loading to complete.
@@ -790,11 +815,20 @@ class ShotModel(BaseShotModel):
             timeout_ms: Maximum time to wait in milliseconds
 
         Returns:
-            True if loading completed, False if timed out
+            True if loading completed (or not loading), False if timed out
+
         """
-        if self._async_loader and self._async_loader.isRunning():
-            return self._async_loader.wait(timeout_ms)
-        return True  # Not loading, so already complete
+        # Check both the loading flag AND loader state under lock
+        with QMutexLocker(self._loader_lock):
+            loading = self._loading_in_progress
+            loader = self._async_loader if loading else None
+
+        if loader and loader.isRunning():
+            return loader.wait(timeout_ms)
+
+        # If flag says loading but no loader, that's a desync - return False
+        # If not loading, return True (already complete)
+        return not loading
 
 
 # Example usage for immediate UI display

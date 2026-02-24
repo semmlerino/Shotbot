@@ -310,3 +310,8 @@ SingletonRegistry.register(
     cleanup_order=41,
     description="Filesystem caching and coordination",
 )
+SingletonRegistry.register(
+    "timeout_config.TimeoutConfig",
+    cleanup_order=42,
+    description="Timeout configuration constants",
+)

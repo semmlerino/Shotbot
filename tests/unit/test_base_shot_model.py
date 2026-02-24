@@ -16,7 +16,7 @@ from PySide6.QtTest import QSignalSpy
 
 from base_shot_model import BaseShotModel
 from config import Config
-from core.shot_types import RefreshResult
+from type_definitions import RefreshResult
 from shot_model import Shot
 
 

@@ -13,9 +13,8 @@ from PySide6.QtCore import QObject, Signal
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
-    from core.shot_types import RefreshResult
     from protocols import ProcessPoolInterface
-    from type_definitions import PerformanceMetricsDict, Shot
+    from type_definitions import PerformanceMetricsDict, RefreshResult, Shot
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -55,6 +54,10 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
     refresh_started: Signal = Signal()
     refresh_finished: Signal = Signal(bool, bool)  # success, has_changes
     error_occurred: Signal = Signal(str)  # Error message
+    # NOTE: This signal is emitted by select_shot() but is NOT part of the
+    # main click→selection flow. The actual selection chain uses the VIEW's
+    # shot_selected signal (in shot_grid_view.py / ShotSelectionController).
+    # This model-level signal exists for programmatic selection only.
     shot_selected: Signal = Signal(object)  # Shot object
     cache_updated: Signal = Signal()
 
@@ -70,6 +73,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
             cache_manager: cache manager instance
             load_cache: Whether to load from cache on init
             process_pool: Optional process pool instance (defaults to singleton)
+
         """
         super().__init__()
         # Local application imports
@@ -103,6 +107,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             True if cache was loaded, False otherwise
+
         """
         # Local application imports
         from type_definitions import (
@@ -127,14 +132,46 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         self._cache_misses += 1
         return False
 
-    def _parse_ws_output(self, output: str) -> list[Shot]:
+    def build_frame_range_lookup(self) -> dict[str, tuple[int, int]]:
+        """Build lookup of cached frame ranges by workspace path.
+
+        Used to skip expensive frame range extraction for shots that already
+        have frame ranges cached. Frame ranges are cached permanently since
+        turnover plates don't change after initial delivery.
+
+        This method is intentionally public as it's called by AsyncShotLoader
+        which holds a reference to the model.
+
+        Returns:
+            Dict mapping workspace_path → (frame_start, frame_end)
+
+        """
+        cached_shots = self.cache_manager.get_cached_shots()
+        lookup: dict[str, tuple[int, int]] = {}
+        if cached_shots:
+            for shot in cached_shots:
+                ws_path = shot.get("workspace_path", "")
+                frame_start = shot.get("frame_start")
+                frame_end = shot.get("frame_end")
+                if ws_path and frame_start is not None and frame_end is not None:
+                    lookup[ws_path] = (frame_start, frame_end)
+        return lookup
+
+    def _parse_ws_output(
+        self,
+        output: str,
+        cached_frame_ranges: dict[str, tuple[int, int]] | None = None,
+    ) -> list[Shot]:
         """Parse ws -sg output to extract shots.
 
         Args:
             output: Raw output from ws -sg command
+            cached_frame_ranges: Optional lookup of workspace_path → (frame_start, frame_end)
+                to skip expensive frame range extraction for already-cached shots
 
         Returns:
             List of Shot objects parsed from the output
+
         """
         # Input is guaranteed to be str by type annotation
         # Removed unnecessary isinstance check per basedpyright reportUnnecessaryIsInstance
@@ -188,15 +225,23 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                         continue
 
                     # Local application imports
-                    from frame_range_extractor import extract_frame_range
                     from type_definitions import (
                         Shot,
                     )
 
-                    # Extract frame range from turnover plate (eager loading)
-                    frame_range = extract_frame_range(workspace_path)
-                    frame_start = frame_range[0] if frame_range else None
-                    frame_end = frame_range[1] if frame_range else None
+                    # Check cache first (permanent cache - frame ranges don't change)
+                    if (
+                        cached_frame_ranges
+                        and workspace_path in cached_frame_ranges
+                    ):
+                        frame_start, frame_end = cached_frame_ranges[workspace_path]
+                    else:
+                        # Extract frame range from turnover plate (only for new shots)
+                        from frame_range_extractor import extract_frame_range
+
+                        frame_range = extract_frame_range(workspace_path)
+                        frame_start = frame_range[0] if frame_range else None
+                        frame_end = frame_range[1] if frame_range else None
 
                     shots.append(
                         Shot(
@@ -230,6 +275,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             True if shots changed, False otherwise
+
         """
         # Compare shot data including workspace paths
         old_shot_data = {(shot.full_name, shot.workspace_path) for shot in self.shots}
@@ -241,6 +287,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             List of Shot objects
+
         """
         return self.shots
 
@@ -249,6 +296,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             Number of shots
+
         """
         return len(self.shots)
 
@@ -257,6 +305,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Args:
             shot: Shot to select or None to clear selection
+
         """
         self._selected_shot = shot
         self.shot_selected.emit(shot)
@@ -266,6 +315,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             Selected shot or None
+
         """
         return self._selected_shot
 
@@ -277,6 +327,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             Shot object if found, None otherwise
+
         """
         for shot in self.shots:
             if shot.full_name == full_name:
@@ -288,6 +339,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             Performance metrics dictionary
+
         """
         cache_total = self._cache_hits + self._cache_misses
         return {
@@ -309,6 +361,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Args:
             show: Show name to filter by or None for all shows
+
         """
         self._filter_show = show
         self.logger.info(f"Show filter set to: {show if show else 'All Shows'}")
@@ -322,6 +375,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Args:
             text: Text to filter by (case-insensitive substring match) or None for no filter
+
         """
         self._filter_text = text
         self.logger.info(f"Text filter set to: '{text if text else ''}'")
@@ -337,6 +391,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             Filtered list of shots
+
         """
         filtered = compose_filters(
             self.shots, show=self._filter_show, text=self._filter_text
@@ -352,6 +407,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             Set of unique show names
+
         """
         return get_available_shows(self.shots)
 
@@ -364,6 +420,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             RefreshResult with success and change status
+
         """
 
     @abstractmethod
@@ -375,15 +432,31 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         Returns:
             RefreshResult with success and change status
+
         """
 
-    def refresh_shots(self) -> RefreshResult:
+    def invalidate_workspace_cache(self) -> None:
+        """Invalidate the workspace command cache.
+
+        Override in subclasses that have caching capability.
+        Forces the next workspace command to fetch fresh data.
+        """
+        # Base implementation is a no-op
+        # ShotModel overrides this to invalidate ProcessPoolManager cache
+
+    def refresh_shots(self, force_fresh: bool = False) -> RefreshResult:
         """Public API to refresh shots.
 
         Delegates to implementation-specific refresh_strategy.
 
+        Args:
+            force_fresh: If True, bypass ws command cache (for user-initiated refresh)
+
         Returns:
             RefreshResult with success and change status
+
         """
+        if force_fresh:
+            self.invalidate_workspace_cache()
         self._total_refreshes += 1
         return self.refresh_strategy()

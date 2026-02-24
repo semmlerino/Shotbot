@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Verification script for Qt threading violation fix in ShotBot.
+"""Verification script for Qt threading violation fix in ShotBot.
 
 This script demonstrates that the fatal Python error "Aborted" has been resolved
 by ensuring all worker thread signals use QueuedConnection to force execution
@@ -24,7 +23,7 @@ from PySide6.QtWidgets import QApplication
 
 
 if TYPE_CHECKING:
-    from core.shot_types import RefreshResult
+    from type_definitions import RefreshResult
 
 # Set up logging to see what's happening
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 def test_threading_fix() -> bool:
     """Test that the ShotModel can be created and used without threading violations."""
-
     # Initialize Qt application
     app = QApplication.instance() or QApplication(sys.argv)
 

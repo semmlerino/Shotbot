@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, NotRequired, Protocol, TypedDict, TypeVar, cast
+from typing import Literal, NamedTuple, NotRequired, Protocol, TypedDict, TypeVar, cast
 
 # Third-party imports
 from PySide6.QtCore import Signal
@@ -87,6 +87,7 @@ class Shot:
 
         Returns:
             Formatted string like "1001-1150" or "No plate" if no plate found.
+
         """
         if self.frame_start is None or self.frame_end is None:
             return "No plate"
@@ -98,6 +99,7 @@ class Shot:
 
         Returns:
             Key string in format "show/sequence/shot".
+
         """
         return f"{self.show}/{self.sequence}/{self.shot}"
 
@@ -578,3 +580,55 @@ class CacheEfficiencyDict(TypedDict):
     newest_file: str | None
     access_patterns: dict[str, int]
     recommended_actions: list[str]
+
+
+# ==============================================================================
+# Types consolidated from shotbot_types.py
+# ==============================================================================
+
+
+class ThreeDESceneData(TypedDict):
+    """Type definition for 3DE scene data dictionary.
+
+    Note: This differs from ThreeDESceneDict by having different fields
+    (plate, scene_path instead of filepath, etc.)
+    """
+
+    show: str
+    sequence: str
+    shot: str
+    workspace_path: str
+    user: str
+    plate: str
+    scene_path: str
+
+
+class CacheEntry(TypedDict):
+    """Type definition for cache entry data."""
+
+    value: object  # Generic cached value (use object instead of Any)
+    timestamp: float
+    access_count: int
+    size_bytes: int | None
+
+
+# ==============================================================================
+# Types consolidated from core/shot_types.py
+# ==============================================================================
+
+
+class RefreshResult(NamedTuple):
+    """Result of a shot refresh operation.
+
+    This NamedTuple provides type-safe results from ShotModel.refresh_shots()
+    operations, allowing callers to determine both operation success and whether
+    the shot list actually changed.
+
+    Attributes:
+        success: Whether the refresh operation completed successfully.
+        has_changes: Whether the shot list changed compared to the previous refresh.
+
+    """
+
+    success: bool
+    has_changes: bool

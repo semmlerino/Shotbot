@@ -18,7 +18,7 @@ from typing_compat import override
 if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
-    from core.shot_types import RefreshResult
+    from type_definitions import RefreshResult
     from notes_manager import NotesManager
     from pin_manager import PinManager
     from shot_model import Shot
@@ -51,6 +51,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
             pin_manager: Optional pin manager for tracking pinned shots
             notes_manager: Optional notes manager for tracking shot notes
             parent: Optional parent QObject
+
         """
         super().__init__(cache_manager, parent)
 
@@ -73,6 +74,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Shot's full name (show/sequence/shot)
+
         """
         return item.full_name
 
@@ -85,6 +87,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Formatted tooltip with shot details
+
         """
         return f"{item.show} / {item.sequence} / {item.shot}\n{item.workspace_path}"
 
@@ -98,6 +101,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Data for the role or None
+
         """
         from base_item_model import BaseItemRole
 
@@ -126,6 +130,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Args:
             shots: List of Shot objects
+
         """
         if self._pin_manager:
             # Sort: pinned first (by pin order), then unpinned (alphabetically)
@@ -153,6 +158,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Returns:
             RefreshResult indicating success and whether changes occurred
+
         """
         # Compare with existing items
         old_names = {item.full_name for item in self._items}
@@ -164,7 +170,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
             self.set_shots(shots)
 
         # Import here to avoid circular imports
-        from core.shot_types import RefreshResult
+        from type_definitions import RefreshResult
 
         return RefreshResult(success=True, has_changes=has_changes)
 
@@ -176,6 +182,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Shot object or None if invalid
+
         """
         return self.get_item_at_index(index)
 
@@ -184,6 +191,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Selected Shot or None
+
         """
         return self.get_selected_item()
 
@@ -193,6 +201,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
         Args:
             shot_model: Shot model to get filtered shots from
             show: Show name to filter by or None for all shows
+
         """
         # Set filter on the shot model
         shot_model.set_show_filter(show)
@@ -216,6 +225,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Tuple of (Shot, row_index) if found, None otherwise
+
         """
         for row, item in enumerate(self._items):
             if item.full_name == full_name:
@@ -227,6 +237,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Args:
             pin_manager: Pin manager for tracking pinned shots
+
         """
         self._pin_manager = pin_manager
 
@@ -247,6 +258,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         Returns:
             List of Shot objects
+
         """
         return self._items
 

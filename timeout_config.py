@@ -12,6 +12,9 @@ from typing import cast
 class TimeoutConfig:
     """Timeout configuration for various operations in seconds."""
 
+    # Store original values for reset (populated after class definition)
+    _DEFAULTS: dict[str, int | float] = {}
+
     # Command execution timeouts
     WORKSPACE_COMMAND_DEFAULT: int = 120  # 2 minutes for workspace commands
     WORKSPACE_COMMAND_HEAVY: int = 300  # 5 minutes for heavy operations
@@ -54,6 +57,7 @@ class TimeoutConfig:
 
         Returns:
             Timeout in seconds
+
         """
         timeout_map = {
             "workspace": cls.WORKSPACE_COMMAND_DEFAULT,
@@ -75,6 +79,7 @@ class TimeoutConfig:
 
         Args:
             factor: Scaling factor (e.g., 2.0 for double timeouts, 0.5 for half)
+
         """
         # Scale all class attributes that are timeout values
         for attr_name in dir(cls):
@@ -98,6 +103,7 @@ class TimeoutConfig:
 
         Args:
             latency_ms: Network latency in milliseconds
+
         """
         if latency_ms > 100:  # High latency network
             # Increase file and network operation timeouts
@@ -109,11 +115,18 @@ class TimeoutConfig:
             cls.WORKSPACE_COMMAND_DEFAULT = int(cls.WORKSPACE_COMMAND_DEFAULT * factor)
 
     @classmethod
+    def reset(cls) -> None:
+        """Reset all timeout values to defaults. Used in test isolation."""
+        for attr_name, default_value in cls._DEFAULTS.items():
+            setattr(cls, attr_name, default_value)
+
+    @classmethod
     def get_config_summary(cls) -> str:
         """Get a summary of current timeout configuration.
 
         Returns:
             String summary of timeout settings
+
         """
         summary = "Timeout Configuration:\n"
         summary += "-" * 40 + "\n"
@@ -124,6 +137,15 @@ class TimeoutConfig:
         summary += f"Session Recovery: {cls.SESSION_RECOVERY_MAX_WAIT}s\n"
         return summary
 
+
+# Capture defaults after class definition
+TimeoutConfig._DEFAULTS = {
+    attr: getattr(TimeoutConfig, attr)
+    for attr in dir(TimeoutConfig)
+    if not attr.startswith("_")
+    and attr.isupper()
+    and isinstance(getattr(TimeoutConfig, attr), (int, float))
+}
 
 # Environment-based configuration
 # Allow environment override for critical timeouts
