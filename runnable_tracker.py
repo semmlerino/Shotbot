@@ -244,27 +244,23 @@ class TrackedQRunnable(QRunnable):
         raise NotImplementedError(msg)
 
 
-# Global singleton instance for convenience
-_tracker_instance = QRunnableTracker()
-
-
 def get_tracker() -> QRunnableTracker:
     """Get the global QRunnableTracker instance."""
-    return _tracker_instance
+    return QRunnableTracker()
 
 
 def register_runnable(
     runnable: QRunnable, metadata: Mapping[str, object] | None = None
 ) -> None:
     """Convenience function to register a runnable with the global tracker."""
-    _tracker_instance.register(runnable, metadata)
+    QRunnableTracker().register(runnable, metadata)
 
 
 def unregister_runnable(runnable: QRunnable) -> None:
     """Convenience function to unregister a runnable from the global tracker."""
-    _tracker_instance.unregister(runnable)
+    QRunnableTracker().unregister(runnable)
 
 
 def cleanup_all_runnables() -> None:
     """Convenience function to cleanup all runnables via the global tracker."""
-    _tracker_instance.cleanup_all()
+    QRunnableTracker().cleanup_all()

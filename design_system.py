@@ -113,6 +113,7 @@ class ScaledTypography:
         Args:
             base: Base Typography instance with unscaled values
             get_scale: Callable that returns current UI scale factor
+
         """
         self._base = base
         self._get_scale = get_scale
@@ -639,6 +640,7 @@ class DesignSystem(QObject):
 
         Args:
             scale: Scale factor (0.8 to 1.5). Values outside range are clamped.
+
         """
         new_scale = max(0.8, min(scale, 1.5))
         if new_scale != self._ui_scale:
@@ -650,9 +652,20 @@ class DesignSystem(QObject):
 
         Returns:
             Current scale factor (0.8 to 1.5)
+
         """
         return self._ui_scale
 
 
 # Global instance
 design_system = DesignSystem()
+
+
+def _reset_design_system() -> None:
+    """Reset the global design system instance to defaults. Used in tests."""
+    global design_system
+    design_system = DesignSystem()
+
+
+# Attach reset as a classmethod to DesignSystem class for test isolation
+DesignSystem.reset = classmethod(lambda cls: _reset_design_system())

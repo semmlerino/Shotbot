@@ -48,6 +48,7 @@ Examples:
 Type Safety:
     This module uses comprehensive type annotations with proper enum types and
     optional parameters for flexible progress operation management.
+
 """
 
 from __future__ import annotations
@@ -119,6 +120,7 @@ class ProgressOperation:
 
         Args:
             config: Configuration for this progress operation
+
         """
         super().__init__()
         self.config = config
@@ -145,6 +147,7 @@ class ProgressOperation:
 
         Args:
             total: Total number of steps in the operation
+
         """
         self.total_value = total
         self.is_indeterminate = False
@@ -162,6 +165,7 @@ class ProgressOperation:
         Args:
             value: Current progress value
             message: Optional status message
+
         """
         # Throttle updates to prevent UI blocking
         current_time = time.time()
@@ -194,6 +198,7 @@ class ProgressOperation:
 
         Returns:
             bool: True if operation was cancelled
+
         """
         return self.is_cancelled_flag
 
@@ -215,6 +220,7 @@ class ProgressOperation:
 
         Returns:
             str: Human-readable ETA string or empty if not available
+
         """
         if (
             not self.config.show_eta
@@ -312,7 +318,7 @@ class ProgressManager:
 
         self._initialized = True
         ProgressManager._operation_stack = []
-        ProgressManager._status_bar = NotificationManager.get_status_bar()
+        ProgressManager._status_bar = None
         logger.debug("ProgressManager initialized")
 
     @classmethod
@@ -328,6 +334,7 @@ class ProgressManager:
         Examples:
             >>> manager = ProgressManager.get_instance()
             >>> # Equivalent to: manager = ProgressManager()
+
         """
         return cls()  # Calls __new__() which returns the singleton
 
@@ -340,11 +347,23 @@ class ProgressManager:
 
         Returns:
             ProgressManager: The initialized singleton instance
+
         """
         instance = cls()
         cls._status_bar = status_bar
         logger.debug("ProgressManager initialized with status bar reference")
         return instance
+
+    @staticmethod
+    def _get_status_bar() -> QStatusBar | None:
+        """Lazily get status bar from NotificationManager.
+
+        If initialize() was called with an explicit status bar, that takes
+        precedence. Otherwise, falls through to NotificationManager.
+        """
+        if ProgressManager._status_bar is not None:
+            return ProgressManager._status_bar
+        return NotificationManager.get_status_bar()
 
     @classmethod
     @contextmanager
@@ -379,6 +398,7 @@ class ProgressManager:
             ...         if progress.is_cancelled():
             ...             break
             ...         progress.update(i, f"Loading file {i}")
+
         """
         config = ProgressConfig(
             title=title,
@@ -408,6 +428,7 @@ class ProgressManager:
 
         Returns:
             ProgressOperation: The started operation
+
         """
         instance = cls()
 
@@ -439,14 +460,13 @@ class ProgressManager:
                 callback=operation.cancel if config.cancelable else None,
             )
         elif progress_type == ProgressType.STATUS_BAR:
-            operation.status_bar = cls._status_bar
+            operation.status_bar = cls._get_status_bar()
             if operation.status_bar is not None:
                 try:
                     operation.status_bar.showMessage(config.title)
                 except RuntimeError:
                     # Status bar was deleted - clear reference
                     operation.status_bar = None
-                    cls._status_bar = None
 
         logger.debug(
             f"Started progress operation: {config.title} (type: {progress_type.name})"
@@ -460,6 +480,7 @@ class ProgressManager:
         Args:
             success: Whether the operation completed successfully
             error_message: Optional error message if operation failed
+
         """
         instance = cls()
 
@@ -500,6 +521,7 @@ class ProgressManager:
 
         Returns:
             ProgressOperation | None: Current operation or None if stack is empty
+
         """
         instance = cls()
         with QMutexLocker(cls._stack_lock):
@@ -511,6 +533,7 @@ class ProgressManager:
 
         Returns:
             bool: True if an operation was cancelled, False if no operation active
+
         """
         operation = cls.get_current_operation()
         if operation and operation.config.cancelable:
@@ -524,6 +547,7 @@ class ProgressManager:
 
         Returns:
             bool: True if operations are active, False otherwise
+
         """
         instance = cls()
         with QMutexLocker(cls._stack_lock):

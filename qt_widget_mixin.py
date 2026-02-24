@@ -73,6 +73,7 @@ class QtWidgetMixin(LoggingMixin):
             settings_key: Settings key for storing geometry
             default_size: Default window size if no settings
             default_pos: Default window position if no settings
+
         """
         self._geometry_key: str = settings_key
         self._default_size: QSize = default_size or QSize(1200, 800)
@@ -104,6 +105,7 @@ class QtWidgetMixin(LoggingMixin):
 
         Args:
             interval: Save interval in milliseconds (default 60 seconds)
+
         """
         if not hasattr(self, "_auto_save_timer"):
             self._auto_save_timer: QTimer = QTimer()
@@ -132,6 +134,7 @@ class QtWidgetMixin(LoggingMixin):
 
         Returns:
             Configured QMenu
+
         """
         menu = QMenu(parent)
 
@@ -199,6 +202,7 @@ class QtWidgetMixin(LoggingMixin):
 
         Returns:
             True if close should proceed
+
         """
         # Check if there are unsaved changes
         if hasattr(self, "has_unsaved_changes"):
@@ -230,19 +234,10 @@ class QtWidgetMixin(LoggingMixin):
 
     def cleanup_timers(self) -> None:
         """Cleanup all timers safely."""
-        timer_attrs = [
-            "_auto_save_timer",
-            "_refresh_timer",
-            "_update_timer",
-            "_progress_timer",
-        ]
-
-        for attr in timer_attrs:
-            if hasattr(self, attr):
-                timer: QTimer | None = getattr(self, attr, None)
-                if timer is not None and hasattr(timer, "stop"):
-                    timer.stop()
-                    self.logger.debug(f"Stopped timer: {attr}")
+        for attr_name, attr_value in vars(self).items():
+            if isinstance(attr_value, QTimer):
+                attr_value.stop()
+                self.logger.debug(f"Stopped timer: {attr_name}")
 
     def show_error(self, title: str, message: str, details: str | None = None) -> None:
         """Show error message dialog.
@@ -251,6 +246,7 @@ class QtWidgetMixin(LoggingMixin):
             title: Dialog title
             message: Main error message
             details: Optional detailed error information
+
         """
         msg = QMessageBox(cast("QWidget", self))
         msg.setIcon(QMessageBox.Icon.Critical)
@@ -269,6 +265,7 @@ class QtWidgetMixin(LoggingMixin):
         Args:
             title: Dialog title
             message: Information message
+
         """
         _ = QMessageBox.information(cast("QWidget", self), title, message)
         self.logger.info(f"{title}: {message}")
@@ -282,6 +279,7 @@ class QtWidgetMixin(LoggingMixin):
 
         Returns:
             True if user confirmed
+
         """
         # QMessageBox.question returns int (StandardButton enum value)
         reply_int: int = cast(

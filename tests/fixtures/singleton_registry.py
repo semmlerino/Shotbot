@@ -301,7 +301,12 @@ SingletonRegistry.register(
 
 # 40-49: Infrastructure
 SingletonRegistry.register(
-    "filesystem_coordinator.FilesystemCoordinator",
+    "design_system.DesignSystem",
     cleanup_order=40,
+    description="Design system with colors, typography, spacing, borders, shadows, and animation",
+)
+SingletonRegistry.register(
+    "filesystem_coordinator.FilesystemCoordinator",
+    cleanup_order=41,
     description="Filesystem caching and coordination",
 )

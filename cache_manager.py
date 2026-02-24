@@ -1310,6 +1310,15 @@ class CacheManager(LoggingMixin, QObject):
                 self.logger.info("Cache cleared successfully")
                 self.cache_updated.emit()
 
+                # Also invalidate ProcessPoolManager's in-memory command cache
+                # to prevent stale workspace command output after cache clear
+                try:
+                    from process_pool_manager import ProcessPoolManager
+                    pool = ProcessPoolManager.get_instance()
+                    pool.invalidate_cache()
+                except Exception:
+                    pass  # ProcessPoolManager may not be initialized yet
+
             except Exception as e:
                 self.logger.error(f"Failed to clear cache: {e}")
 
