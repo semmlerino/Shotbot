@@ -16,6 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.allow_main_thread  # Intentionally tests sync mock injection from main thread
 def test_mock_pool_injection(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that mock process pool can be injected and used."""
     logger.info("=" * 50)
@@ -27,10 +28,10 @@ def test_mock_pool_injection(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Local application imports
     # Import test doubles first
-    from tests.test_doubles_library import TestProcessPool
+    from tests.fixtures.doubles_library import TestProcessPool
 
-    # Create mock pool
-    mock_pool = TestProcessPool()
+    # Create mock pool with main-thread allowed (test runs from main thread)
+    mock_pool = TestProcessPool(allow_main_thread=True)
     mock_pool.set_outputs(
         "workspace /shows/demo/shots/seq01/seq01_0010",
         "workspace /shows/demo/shots/seq01/seq01_0020",

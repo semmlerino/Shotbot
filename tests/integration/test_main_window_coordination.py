@@ -35,7 +35,7 @@ from tests.fixtures.test_doubles import TestProcessPool
 
 # Import qapp fixture from conftest to ensure QApplication exists
 # Import proper test doubles following UNIFIED_TESTING_GUIDE
-from tests.test_doubles_library import (
+from tests.fixtures.doubles_library import (
     TestSubprocess,
 )
 

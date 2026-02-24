@@ -34,7 +34,6 @@ import contextlib
 import getpass
 import logging
 import shutil
-import subprocess
 import sys
 import tempfile
 import time
@@ -56,7 +55,7 @@ from cache_manager import CacheManager
 from previous_shots_finder import PreviousShotsFinder
 from previous_shots_model import PreviousShotsModel
 from shot_model import Shot, ShotModel
-from tests.test_doubles_library import (
+from tests.fixtures.doubles_library import (
     PopenDouble,
     TestCompletedProcess,
     TestSubprocess,
@@ -344,7 +343,6 @@ class TestUserWorkflows:
         3. Launch Maya with the scene context
         4. Track the Maya process properly
         """
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         # Create real components
@@ -432,8 +430,10 @@ class TestUserWorkflows:
         4. Loading indicator disappears
         5. Status message confirms success
         """
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+        # Import TestProcessPool for proper main thread handling
+        from tests.fixtures.doubles_library import TestProcessPool
 
         # Create real components
         cache_manager = CacheManager(cache_dir=self.cache_dir)
@@ -441,6 +441,14 @@ class TestUserWorkflows:
         main_window = MainWindow(cache_manager=cache_manager)
 
         qtbot.addWidget(main_window)
+
+        # Configure test process pool with workspace output
+        workspace_output = "\n".join(
+            [f"workspace {shot['workspace_path']}" for shot in self.test_shots]
+        )
+        test_pool = TestProcessPool(allow_main_thread=True)
+        test_pool.set_outputs(workspace_output)
+        main_window.shot_model._process_pool = test_pool
 
         # Track refresh signals
         refresh_started_events = []
@@ -458,46 +466,27 @@ class TestUserWorkflows:
             main_window.refresh_completed.connect(on_refresh_completed)
 
         try:
-            # Configure test subprocess to return test shot data
-            workspace_output = "\n".join(
-                [f"workspace {shot['workspace_path']}" for shot in self.test_shots]
-            )
+            # Initial shot count from model
+            initial_shot_count = len(main_window.shot_model.shots)
 
-            # Create test result with real behavior
-            test_result = TestCompletedProcess(
-                args=["bash", "-i", "-c", "ws -sg"],
-                returncode=0,
-                stdout=workspace_output,
-                stderr="",
-            )
+            # Trigger manual refresh through the shot model directly
+            # This avoids UI dependencies that cause issues in test teardown
+            refresh_result = main_window.shot_model.refresh_shots()
 
-            with patch("subprocess.run", return_value=test_result) as mock_run:
-                # Initial shot count from model
-                initial_shot_count = len(main_window.shot_model.shots)
+            # Verify refresh completed successfully
+            assert refresh_result is not None
+            assert refresh_result.success
 
-                # Trigger manual refresh through the shot model directly
-                # This avoids UI dependencies that cause issues in test teardown
-                refresh_result = main_window.shot_model.refresh_shots()
+            # Verify TestProcessPool was called
+            assert len(test_pool.commands) > 0, "Expected workspace command to be called"
+            assert "ws -sg" in test_pool.commands[0]
 
-                # Verify refresh completed successfully
-                assert refresh_result is not None
-                assert refresh_result.success
+            # Verify UI reflects updated shot data
+            final_shot_count = len(main_window.shot_model.shots)
 
-                # Verify workspace command was called or data was updated
-                # Note: call_args might be None if cached data is used
-                call_args = mock_run.call_args
-                command_called = call_args is not None and (
-                    "ws -sg" in str(call_args) or "workspace" in str(call_args)
-                )
-                # Either command was called OR we got a successful refresh result
-                assert command_called or refresh_result.success
-
-                # Verify UI reflects updated shot data
-                final_shot_count = len(main_window.shot_model.shots)
-
-                if refresh_result.has_changes:
-                    # Shot count should change if there were actual changes
-                    assert final_shot_count != initial_shot_count or final_shot_count > 0
+            if refresh_result.has_changes:
+                # Shot count should change if there were actual changes
+                assert final_shot_count != initial_shot_count or final_shot_count > 0
         finally:
             if hasattr(main_window, "refresh_started"):
                 try:
@@ -521,7 +510,6 @@ class TestUserWorkflows:
         3. Thumbnail loading is triggered
         4. Status bar shows selection info
         """
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         # Create real components
@@ -594,7 +582,6 @@ class TestUserWorkflows:
         4. Cache is populated appropriately
         5. Failed thumbnail loads are handled gracefully
         """
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         # Use legacy model to avoid async loading interference in tests
@@ -611,11 +598,11 @@ class TestUserWorkflows:
         )
 
         # Local application imports
-        from tests.test_doubles_library import (
+        from tests.fixtures.doubles_library import (
             TestProcessPool,
         )
 
-        test_pool = TestProcessPool()
+        test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.set_outputs("")  # Empty output, no shots
 
         # Disable initial load to prevent cache interference
@@ -775,6 +762,7 @@ class TestUserWorkflows:
         4. Maintains stable state after errors
         5. Logs errors appropriately
         """
+        from tests.fixtures.doubles_library import TestProcessPool
         from tests.test_helpers import process_qt_events
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -785,6 +773,10 @@ class TestUserWorkflows:
         main_window = MainWindow(cache_manager=cache_manager)
 
         qtbot.addWidget(main_window)
+
+        # Configure test process pool for failure then recovery
+        test_pool = TestProcessPool(allow_main_thread=True)
+        main_window.shot_model._process_pool = test_pool
 
         # Track error events
         error_events: list[tuple[str, str]] = []
@@ -802,43 +794,33 @@ class TestUserWorkflows:
             main_window.recovery_attempted.connect(on_recovery_attempted)
 
         try:
-            # Test 1: Workspace command failure
-            with patch("subprocess.run") as mock_run:
-                # Configure mock to simulate command failure
-                mock_run.side_effect = subprocess.CalledProcessError(
-                    1, ["bash", "-i", "-c", "ws -sg"], stderr="workspace command not found"
-                )
+            # Test 1: Workspace command failure (empty output simulates failure)
+            test_pool.set_outputs("")  # Empty output triggers error
 
-                # Attempt refresh that should fail through model
-                result = main_window.shot_model.refresh_shots()
+            # Attempt refresh that should fail through model
+            result = main_window.shot_model.refresh_shots()
 
-                # Should handle error gracefully
-                assert result is not None  # Method should return rather than crash
+            # Should handle error gracefully
+            assert result is not None  # Method should return rather than crash
 
-                # Process events
-                process_qt_events()
+            # Process events
+            process_qt_events()
 
-            # Test 2: Recovery after error
-            recovery_result = TestCompletedProcess(
-                args=["bash", "-i", "-c", "ws -sg"],
-                returncode=0,
-                stdout=f"workspace {self.test_shots[0]['workspace_path']}",
-                stderr="",
-            )
+            # Test 2: Recovery after error - set valid output
+            test_pool.set_outputs(f"workspace {self.test_shots[0]['workspace_path']}")
 
-            with patch("subprocess.run", return_value=recovery_result):
-                # Clear previous error events
-                error_events.clear()
+            # Clear previous error events
+            error_events.clear()
 
-                # Retry refresh through model
-                result = main_window.shot_model.refresh_shots()
+            # Retry refresh through model
+            result = main_window.shot_model.refresh_shots()
 
-                # Process events
-                process_qt_events()
+            # Process events
+            process_qt_events()
 
-                # Verify refresh succeeded
-                assert result is not None
-                assert result.success  # Refresh should succeed
+            # Verify refresh succeeded
+            assert result is not None
+            assert result.success  # Refresh should succeed
 
         finally:
             # Clean up signal connections
@@ -864,7 +846,6 @@ class TestUserWorkflows:
         3. Clear filters to show all shots
         4. Search results update UI appropriately
         """
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         # Create real components
@@ -918,7 +899,6 @@ class TestUserWorkflows:
         4. Results are displayed in the previous shots grid
         5. Caching works for subsequent access
         """
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         # Create real components

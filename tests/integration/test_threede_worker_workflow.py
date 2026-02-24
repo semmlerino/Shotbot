@@ -38,6 +38,7 @@ References:
 - https://pytest-qt.readthedocs.io/en/latest/note_dialogs.html
 - https://doc.qt.io/qt-6/objecttrees.html
 - https://doc.qt.io/qt-6/qthread.html#details
+
 """
 
 from __future__ import annotations

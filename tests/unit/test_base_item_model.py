@@ -611,7 +611,6 @@ class TestSetItems:
         Integration test: Verifies the complete thumbnail loading flow
         when a CacheManager is provided.
         """
-
         from cache_manager import (
             CacheManager,
         )

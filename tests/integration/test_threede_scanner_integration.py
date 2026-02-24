@@ -26,7 +26,7 @@ from cache_manager import CacheManager
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestSubprocess
+from tests.fixtures.doubles_library import TestSubprocess
 from threede_scene_finder import (
     OptimizedThreeDESceneFinder as ThreeDESceneFinder,
 )

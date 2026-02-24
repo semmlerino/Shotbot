@@ -75,6 +75,7 @@ def make_test_shot(tmp_path: Path):
     Example:
         def test_something(make_test_shot):
             shot = make_test_shot(show="TestShow", with_thumbnail=True)
+
     """
     from shot_model import Shot
 
@@ -122,7 +123,7 @@ def make_test_filesystem(tmp_path: Path):
             shot_path = fs.create_vfx_structure("show1", "seq01", "0010")
             fs.create_file(shot_path / "user/artist/scene.3de", "content")
     """
-    from tests.test_doubles_extended import TestFileSystem
+    from tests.fixtures.doubles_extended import TestFileSystem
 
     def _make_filesystem() -> TestFileSystem:
         """Create a TestFileSystem instance with tmp_path as base."""
@@ -165,6 +166,7 @@ def make_real_3de_file(tmp_path: Path):
 
         Returns:
             Path to the created 3DE file
+
         """
         # Create VFX directory structure
         # Structure: shows/{show}/shots/{seq}/{seq}_{shot}/user/{user}/3de/
@@ -194,6 +196,7 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
         tmp_path: Pytest tmp_path fixture
         test_process_pool: TestProcessPool fixture from test_doubles
         cache_manager: CacheManager fixture from temp_directories
+
     """
     from shot_model import ShotModel
 
@@ -284,6 +287,7 @@ def isolated_test_environment(qapp: QApplication) -> Iterator[None]:
 
     Args:
         qapp: QApplication fixture from qt_bootstrap
+
     """
     from PySide6.QtCore import QCoreApplication, QEvent
 

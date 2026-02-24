@@ -44,6 +44,7 @@ class TestFileSystem:
         fs = TestFileSystem()
         fs.write_file("/test/file.txt", "content")
         assert fs.exists("/test/file.txt")
+
     """
 
     __test__ = False
@@ -62,6 +63,7 @@ class TestFileSystem:
         Args:
             path: File path to write to
             content: Content to write (str or bytes)
+
         """
         path = str(Path(path))
 
@@ -94,6 +96,7 @@ class TestFileSystem:
 
         Raises:
             FileNotFoundError: If file doesn't exist
+
         """
         path = str(Path(path))
 
@@ -115,6 +118,7 @@ class TestFileSystem:
 
         Returns:
             bool: True if path exists
+
         """
         path = str(Path(path))
         return path in self.files or path in self.directories
@@ -127,6 +131,7 @@ class TestFileSystem:
 
         Returns:
             bool: True if path is a file
+
         """
         return str(Path(path)) in self.files
 
@@ -138,6 +143,7 @@ class TestFileSystem:
 
         Returns:
             bool: True if path is a directory
+
         """
         return str(Path(path)) in self.directories
 
@@ -147,6 +153,7 @@ class TestFileSystem:
         Args:
             path: Directory path to create
             parents: Create parent directories if needed
+
         """
         path = str(Path(path))
 
@@ -171,6 +178,7 @@ class TestFileSystem:
 
         Returns:
             list[str]: Names of files and directories in path
+
         """
         path = str(Path(path))
         if path not in self.directories:
@@ -198,6 +206,7 @@ class TestFileSystem:
 
         Args:
             path: File path to remove
+
         """
         path = str(Path(path))
         if path in self.files:
@@ -214,6 +223,7 @@ class TestFileSystem:
 
         Returns:
             int: Size in bytes
+
         """
         path = str(Path(path))
         if path in self.files:
@@ -228,6 +238,7 @@ class TestFileSystem:
 
         Returns:
             float: Modification time as timestamp
+
         """
         path = str(Path(path))
         if path in self.modification_times:
@@ -253,6 +264,7 @@ class TestCache:
         cache = TestCache()
         cache.set("key", "value", ttl_seconds=60)
         assert cache.get("key") == "value"
+
     """
 
     __test__ = False
@@ -274,6 +286,7 @@ class TestCache:
 
         Returns:
             Cached value or default
+
         """
         self.access_counts[key] += 1
 
@@ -296,6 +309,7 @@ class TestCache:
             key: Cache key
             value: Value to cache
             ttl_seconds: Time to live in seconds
+
         """
         self.data[key] = value
 
@@ -310,6 +324,7 @@ class TestCache:
 
         Returns:
             bool: True if key existed
+
         """
         existed = key in self.data
         self.data.pop(key, None)
@@ -338,6 +353,7 @@ class TestCache:
 
         Returns:
             bool: True if key exists and is valid
+
         """
         if key in self.expiry_times and datetime.now(tz=UTC) > self.expiry_times[key]:
             return False

@@ -41,7 +41,7 @@ from config import Config
 # Local application imports
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
-from tests.test_doubles_library import TestCompletedProcess
+from tests.fixtures.doubles_library import TestCompletedProcess
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
@@ -86,15 +86,15 @@ class TestPreviousShotsWorkerBasics:
         self, mock_active_shots: list[Shot], shows_root: Path
     ) -> Generator[PreviousShotsWorker, None, None]:
         """Create PreviousShotsWorker instance with proper thread cleanup."""
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
         worker = PreviousShotsWorker(
             active_shots=mock_active_shots, username="testuser", shows_root=shows_root
         )
         yield worker
 
-        # Proper cleanup for QThread (not QWidget)
-        if worker.isRunning():
-            worker.stop()
-            worker.wait(5000)  # Wait up to 5 seconds for thread to finish
+        # Proper QThread cleanup to prevent segfaults from Qt C++ object accumulation
+        cleanup_qthread_properly(worker)
 
     def test_worker_initialization(
         self,
@@ -166,6 +166,8 @@ class TestPreviousShotsWorkerWorkflow:
         self, shows_root_with_shots: Path
     ) -> Generator[PreviousShotsWorker, None, None]:
         """Create worker with cleanup and pre-populated shot directories."""
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
         active_shots = [
             Shot("active_show", "seq1", "shot1", f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1"),
         ]
@@ -175,10 +177,8 @@ class TestPreviousShotsWorkerWorkflow:
         )
         yield worker
 
-        # Thread cleanup
-        if worker.isRunning():
-            worker.stop()
-            worker.wait(5000)
+        # Proper QThread cleanup to prevent segfaults from Qt C++ object accumulation
+        cleanup_qthread_properly(worker)
 
     def test_complete_workflow_with_results(
         self,
@@ -198,31 +198,39 @@ class TestPreviousShotsWorkerWorkflow:
 
         worker._finder = PreviousShotsFinder(username="testuser")
 
-        # Collect shot_found signals to verify count
-        shot_found_signals: list[dict[str, Any]] = []
+        # Use QSignalSpy for ALL signal verification to avoid entering Qt event loop
+        # The Qt event loop in waitSignal crashes after ~2100 tests due to state accumulation
+        # NOTE: QSignalSpy uses direct C++ connections, so it doesn't need event loop
+        # Python callbacks DO need event loop - avoid them in this test
+        error_spy = QSignalSpy(worker.error_occurred)
+        finished_spy = QSignalSpy(worker.scan_finished)
+        shot_found_spy = QSignalSpy(worker.shot_found)
 
-        def collect_shot_found(shot_dict: dict[str, Any]) -> None:
-            shot_found_signals.append(shot_dict)
+        # Start worker
+        worker.start()
 
-        worker.shot_found.connect(collect_shot_found)
+        # Wait for thread to finish using pure thread wait (no Qt event loop)
+        finished = worker.wait(5000)
+        assert finished, "Worker did not finish within timeout"
 
-        # Set up expectation for scan_finished with result validation
-        # 3 shots created in shows_root_with_shots fixture
-        def check_scan_result(final_result: list[dict[str, Any]]) -> bool:
-            return isinstance(final_result, list) and len(final_result) == 3
+        # Verify scan_finished was emitted
+        assert finished_spy.count() == 1, f"Expected scan_finished signal, got {finished_spy.count()}"
 
-        with qtbot.waitSignal(
-            worker.scan_finished, check_params_cb=check_scan_result, timeout=5000
-        ), qtbot.assertNotEmitted(worker.error_occurred, wait=100):
-            # Start worker after signal waiter is ready
-            worker.start()
+        # Verify the result contains 3 shots
+        if finished_spy.count() > 0:
+            result = finished_spy.at(0)
+            # QSignalSpy returns list of arguments, first arg is the list of shots
+            assert len(result) > 0, "scan_finished signal had no arguments"
+            shot_list = result[0]
+            assert isinstance(shot_list, list), f"Expected list, got {type(shot_list)}"
+            assert len(shot_list) == 3, f"Expected 3 shots, got {len(shot_list)}"
 
-        # Ensure thread has finished
-        worker.wait(2000)
+        # Verify no error was emitted
+        assert error_spy.count() == 0, f"Unexpected error: {error_spy.at(0) if error_spy.count() > 0 else 'N/A'}"
 
         # Verify shot_found was called for each shot (excluding active ones)
         # 3 found shots - 0 matching active shots = 3 approved shots
-        assert len(shot_found_signals) == 3
+        assert shot_found_spy.count() == 3, f"Expected 3 shot_found signals, got {shot_found_spy.count()}"
 
     @pytest.fixture
     def empty_shows_root(self, tmp_path: Path) -> Path:
@@ -257,10 +265,11 @@ class TestPreviousShotsWorkerWorkflow:
         worker._finder = PreviousShotsFinder(username="testuser")
 
         try:
-            with qtbot.waitSignal(worker.scan_finished, timeout=5000):
-                worker.start()
-
-            worker.wait(2000)
+            # Use pure thread wait instead of waitSignal to avoid Qt event loop
+            # The Qt event loop crashes after ~2100 tests due to state accumulation
+            worker.start()
+            finished = worker.wait(5000)
+            assert finished, "Worker did not finish within timeout"
 
             # Should complete successfully with no results
             assert scan_finished_spy.count() == 1
@@ -270,10 +279,10 @@ class TestPreviousShotsWorkerWorkflow:
             assert len(final_result) == 0
 
         finally:
-            # Cleanup worker
-            if worker.isRunning():
-                worker.stop()
-                worker.wait(5000)
+            # Proper QThread cleanup to prevent segfaults from Qt C++ object accumulation
+            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
+            cleanup_qthread_properly(worker)
 
     def test_workflow_with_stop_request(
         self,
@@ -362,12 +371,11 @@ class TestPreviousShotsWorkerWorkflow:
         # Use monkeypatch for safer patching
         monkeypatch.setattr(worker._finder, "find_user_shots", failing_find_user_shots)
 
-        # FIX: Use waitSignal to properly wait for error signal
-        with qtbot.waitSignal(worker.error_occurred, timeout=5000):
-            worker.start()
-
-        # Ensure thread has finished
-        worker.wait(2000)
+        # Use pure thread wait instead of waitSignal to avoid Qt event loop
+        # The Qt event loop crashes after ~2100 tests due to state accumulation
+        worker.start()
+        finished = worker.wait(5000)
+        assert finished, "Worker did not finish within timeout"
 
         # Process any pending events
         QCoreApplication.processEvents()
@@ -423,10 +431,11 @@ class TestPreviousShotsWorkerWorkflow:
         worker._finder = PreviousShotsFinder(username="testuser")
 
         try:
-            with qtbot.waitSignal(worker.scan_finished, timeout=5000):
-                worker.start()
-
-            worker.wait(2000)
+            # Use pure thread wait instead of waitSignal to avoid Qt event loop
+            # The Qt event loop crashes after ~2100 tests due to state accumulation
+            worker.start()
+            finished = worker.wait(5000)
+            assert finished, "Worker did not finish within timeout"
 
             # Verify shot_found signal data structure
             assert shot_found_spy.count() == 1
@@ -450,10 +459,10 @@ class TestPreviousShotsWorkerWorkflow:
             assert final_shots[0] == shot_dict
 
         finally:
-            # Cleanup worker
-            if worker.isRunning():
-                worker.stop()
-                worker.wait(5000)
+            # Proper QThread cleanup to prevent segfaults from Qt C++ object accumulation
+            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
+            cleanup_qthread_properly(worker)
 
 
 class TestPreviousShotsWorkerIntegration:
@@ -498,7 +507,6 @@ class TestPreviousShotsWorkerIntegration:
         self, real_shows_structure: Path, qtbot: Any, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test integration using real PreviousShotsFinder with mocked subprocess."""
-
         # Create active shots (some overlap with user work)
         # Note: shot name must match what finder extracts from "010_opening_000" directory
         # The finder will extract "000" from "010_opening_000" (takes part after last underscore)
@@ -566,14 +574,16 @@ class TestPreviousShotsWorkerIntegration:
         # FIX: Use monkeypatch for cleaner subprocess mocking
         monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: test_result)
 
-        try:
-            with qtbot.waitSignal(worker.scan_finished, timeout=10000):
-                worker.start()
-        finally:
-            pass  # monkeypatch automatically restores
+        # Use pure thread wait instead of waitSignal to avoid Qt event loop
+        # The Qt event loop crashes after ~2100 tests due to state accumulation
+        worker.start()
+        finished = worker.wait(10000)
+        assert finished, "Worker did not finish within timeout"
 
-        # Cleanup
-        worker.wait(2000)
+        # Proper QThread cleanup to prevent segfaults from Qt C++ object accumulation
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+
+        cleanup_qthread_properly(worker)
 
         # Verify results
         assert scan_finished_spy.count() == 1

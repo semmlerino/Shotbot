@@ -26,13 +26,13 @@ from cache_manager import CacheManager
 from shot_model import RefreshResult, ShotModel
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
+from tests.fixtures.doubles_library import (
     TestProcessPool,
     TestSubprocess,
 )
 
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.allow_main_thread]
 
 
 class TestShotWorkflowIntegration:
@@ -70,7 +70,8 @@ workspace /shows/show1/shots/seq02/seq02_0010
 """.strip()
 
         # Create test double for ProcessPoolManager
-        test_process_pool = TestProcessPool()
+        # allow_main_thread=True because this test calls refresh_shots() from the main thread
+        test_process_pool = TestProcessPool(allow_main_thread=True)
         test_process_pool.set_outputs(mock_ws_output)
 
         # Create real cache manager with temp directory
@@ -107,7 +108,6 @@ workspace /shows/show1/shots/seq02/seq02_0010
 
     def test_shot_data_persistence_through_cache(self) -> None:
         """Test shot data persists correctly through cache storage."""
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         # Create cache manager
@@ -136,7 +136,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
 
         # Create shot model and replace ProcessPoolManager with failing test double
         shot_model = ShotModel(cache_manager=cache_manager)
-        test_process_pool = TestProcessPool()
+        test_process_pool = TestProcessPool(allow_main_thread=True)
         # Don't set outputs to simulate command failure
         shot_model._process_pool = test_process_pool
 
@@ -152,7 +152,6 @@ workspace /shows/show1/shots/seq02/seq02_0010
 
     def test_shot_model_change_detection(self) -> None:
         """Test shot model correctly detects changes between refreshes."""
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         cache_manager = CacheManager(cache_dir=self.cache_dir)
@@ -162,7 +161,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         initial_output = "workspace /shows/show1/shots/seq01/seq01_0010"
 
         # Create test double and replace ProcessPoolManager
-        test_process_pool = TestProcessPool()
+        test_process_pool = TestProcessPool(allow_main_thread=True)
         test_process_pool.set_outputs(initial_output)
         shot_model._process_pool = test_process_pool
 
@@ -193,14 +192,13 @@ workspace /shows/show1/shots/seq02/seq02_0010
 
     def test_shot_model_cache_invalidation_workflow(self) -> None:
         """Test cache invalidation when shots are updated."""
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         cache_manager = CacheManager(cache_dir=self.cache_dir)
         shot_model = ShotModel(cache_manager=cache_manager)
 
         # Create test double and replace ProcessPoolManager
-        test_process_pool = TestProcessPool()
+        test_process_pool = TestProcessPool(allow_main_thread=True)
         test_process_pool.set_outputs("workspace /shows/show1/shots/seq01/seq01_0010")
         shot_model._process_pool = test_process_pool
 
@@ -232,7 +230,6 @@ workspace /shows/show1/shots/seq02/seq02_0010
 
     def test_shot_model_error_handling_with_cache_fallback(self) -> None:
         """Test shot model error handling with cache fallback."""
-
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         cache_manager = CacheManager(cache_dir=self.cache_dir)

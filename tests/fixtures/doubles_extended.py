@@ -6,7 +6,7 @@ following UNIFIED_TESTING_GUIDE principles:
 - Use real components with test doubles ONLY at system boundaries
 - No Mock() or MagicMock usage
 
-These test doubles complement the existing test_doubles_library.py.
+These test doubles complement the existing fixtures/doubles_library.py.
 """
 
 from __future__ import annotations
@@ -49,6 +49,7 @@ class TestFileSystem:
 
         Args:
             base_path: Base directory for operations (e.g., tmp_path from pytest)
+
         """
         self.base_path = base_path or Path("/tmp/test_fs")
         self.created_files: list[Path] = []
@@ -65,6 +66,7 @@ class TestFileSystem:
 
         Returns:
             Path to the shot directory
+
         """
         shot_path = self.base_path / "shows" / show / "shots" / seq / f"{seq}_{shot}"
 
@@ -98,6 +100,7 @@ class TestFileSystem:
 
         Returns:
             Path object for the created file
+
         """
         path = Path(path) if isinstance(path, str) else path
 
@@ -190,6 +193,7 @@ class TestQtWidget:
         Args:
             signal_name: Name of the signal
             *args: Signal arguments
+
         """
         self.signals.append((signal_name, args))
 
@@ -311,6 +315,7 @@ class TestCache:
 
         Returns:
             Cached value or default
+
         """
         # Check TTL if configured
         if self.ttl_seconds and key in self.creation_times:
@@ -335,6 +340,7 @@ class TestCache:
         Args:
             key: Cache key
             value: Value to cache
+
         """
         # Check size limit and evict if needed
         if (
@@ -371,6 +377,7 @@ class TestCache:
 
         Returns:
             True if key was deleted, False if not found
+
         """
         if key in self.data:
             del self.data[key]
@@ -387,6 +394,7 @@ class TestCache:
 
         Returns:
             Dictionary with cache statistics
+
         """
         total_requests = self.hits + self.misses
         hit_rate = self.hits / total_requests if total_requests > 0 else 0.0
@@ -561,6 +569,7 @@ class TestWorker:
 
         Returns:
             True if worker finished, False if timeout
+
         """
         start = time.time()
         while (time.time() - start) * 1000 < timeout_ms:
@@ -612,6 +621,7 @@ class TestCommand:
             output: Standard output to return
             error: Standard error to return
             return_code: Return code for the command
+
         """
         self.outputs[command] = output
         self.errors[command] = error
@@ -629,6 +639,7 @@ class TestCommand:
 
         Raises:
             RuntimeError: If command fails or should_fail is set
+
         """
         start_time = time.time()
         self.executed_commands.append(command)
@@ -685,6 +696,7 @@ class TestCommand:
 
         Returns:
             Execution time in seconds
+
         """
         if self.execution_times and abs(index) <= len(self.execution_times):
             return self.execution_times[index]

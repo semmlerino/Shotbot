@@ -22,13 +22,13 @@ The project uses `concurrent.futures.ThreadPoolExecutor` in two distinct context
     -   **Optimization:** Includes `CommandCache` to deduplicate expensive shell calls.
 
 2.  **Local Filesystem Scanning:**
-    -   **Manager:** `RefactoredThreeDESceneFinder` (via `SceneDiscoveryCoordinator`).
+    -   **Manager:** `ThreeDESceneFinder` (via `SceneDiscoveryCoordinator`).
     -   **Purpose:** Scans multiple show directories in parallel during scene discovery.
     -   **Configuration:** Local instance with `max_workers=min(len(shows), 3)`.
     -   **Constraint:** Intentionally limited to 3 workers to prevent network filesystem saturation.
 
 ### C. Hybrid Model
--   **Pattern:** `ThreeDESceneWorker` (`QThread`) orchestrates the discovery process but delegates the heavy lifting to `RefactoredThreeDESceneFinder`, which spawns its own `ThreadPoolExecutor`.
+-   **Pattern:** `ThreeDESceneWorker` (`QThread`) orchestrates the discovery process but delegates the heavy lifting to `ThreeDESceneFinder`, which spawns its own `ThreadPoolExecutor`.
 -   **Bridge:** `QtProgressReporter` bridges the gap between the thread pool and the `QThread`, using `Qt.QueuedConnection` to safely funnel progress events back to the worker's event loop.
 
 ---
@@ -38,7 +38,7 @@ The project uses `concurrent.futures.ThreadPoolExecutor` in two distinct context
 ### Dispatching
 -   **QThreads:** Dispatched via `ThreadingManager.start_threede_discovery()`. This method handles strict ownership, ensuring only one discovery thread runs at a time and cleaning up previous instances.
 -   **Shell Commands:** Dispatched via `ProcessPoolManager.get_instance().execute_workspace_command()`.
--   **Filesystem Tasks:** Dispatched internally by `RefactoredThreeDESceneFinder` within the context of a parent `QThread`.
+-   **Filesystem Tasks:** Dispatched internally by `ThreeDESceneFinder` within the context of a parent `QThread`.
 
 ### Management & Cleanup
 -   **Zombie Protection:** `ThreadSafeWorker` implements a "Zombie Thread" mechanism. If a thread fails to stop gracefully within a timeout (300s), it is abandoned (not terminated unsafe-ly) and added to a static `_zombie_threads` list to prevent garbage collection crashes. A periodic timer cleans up finished zombies.
@@ -56,7 +56,7 @@ The project uses `concurrent.futures.ThreadPoolExecutor` in two distinct context
     -   `ThreadSafeWorker._state_mutex`: Protects state transitions and signal connection lists.
     -   `ThreeDESceneWorker._pause_mutex`: Protects pause/resume state.
     -   `ProcessPoolManager._mutex`: Protects the singleton instance state.
--   **`threading.Lock`:** Used in `RefactoredThreeDESceneFinder` (`results_lock`) to safely aggregate results from parallel filesystem scans.
+-   **`threading.Lock`:** Used in `ThreeDESceneFinder` (`results_lock`) to safely aggregate results from parallel filesystem scans.
 
 ### Signals & Slots
 -   **`Qt.QueuedConnection`:** The primary mechanism for inter-thread communication.
@@ -144,5 +144,40 @@ SHOTBOT_TEST_THREAD_WAIT_MS=1000 ~/.local/bin/uv run pytest tests/ -v
 ## Recommendations
 
 1.  **Configurable Scanner Limits:** The `max_workers=3` limit in `scene_discovery_coordinator.py` works well for network drives but might be conservative for local SSDs. Consider moving this to `Config`.
-2.  **Unified Executor (Consideration):** Currently, there are two separate thread pools (`ProcessPoolManager` and the local one in `RefactoredThreeDESceneFinder`). While their purposes differ, high load on both simultaneously could create `4 + 3 = 7` active threads + the `QThread`. This is likely fine, but if more parallel components are added, a centralized `ThreadPoolManager` that vends executors or manages a global pool might be cleaner.
+2.  **Unified Executor (Consideration):** Currently, there are two separate thread pools (`ProcessPoolManager` and the local one in `ThreeDESceneFinder`). While their purposes differ, high load on both simultaneously could create `4 + 3 = 7` active threads + the `QThread`. This is likely fine, but if more parallel components are added, a centralized `ThreadPoolManager` that vends executors or manages a global pool might be cleaner.
 3.  **Monitor Zombie Metrics in Production:** Consider periodically logging `ThreadSafeWorker.get_zombie_metrics()` to detect threads that consistently fail to stop gracefully.
+
+---
+
+## 7. When to Use Which Threading Mechanism
+
+### Decision Tree
+
+```
+Need to run background work?
+├── Is it a long-lived, cancellable task with lifecycle management?
+│   └── YES → Use QThread (via ThreadSafeWorker)
+│       Examples: ThreeDESceneWorker, shot refresh workers
+│       Key features: start/stop/pause, state machine, Qt signal integration
+│
+├── Is it a short, fire-and-forget task that needs Qt signal emission?
+│   └── YES → Use QRunnable with QThreadPool
+│       Examples: TrackedQRunnable subclasses
+│       Key features: auto-cleanup, lightweight, no lifecycle management
+│
+├── Is it pure-Python parallel work with NO Qt API calls?
+│   └── YES → Use ThreadPoolExecutor (via ProcessPoolManager)
+│       Examples: subprocess execution, filesystem scanning
+│       Key features: Future-based, command caching, pool management
+│
+└── Is it a one-off blocking call that needs a result?
+    └── YES → Use ProcessPoolManager.execute_command()
+        Wraps subprocess.run in ThreadPoolExecutor automatically
+```
+
+### Important Constraints
+
+- **Never call Qt API from ThreadPoolExecutor threads** — Qt objects have thread affinity
+- **ThreadingManager** manages ONLY the ThreeDESceneWorker lifecycle (not a general-purpose threading hub)
+- **ProcessPoolManager** has a built-in 30-second CommandCache — call `invalidate_cache()` when data staleness matters
+- **QRunnable tasks** should register with QRunnableTracker for proper cleanup tracking

@@ -44,6 +44,7 @@ class WorkerThread(QThread):
         Args:
             launcher: CommandLauncher instance to test
             shot: Mock shot object
+
         """
         super().__init__()
         self.launcher = launcher
@@ -173,7 +174,10 @@ class TestCommandLauncherThreading:
         launcher.set_current_shot(mock_shot)
 
         # Mock dependencies
-        monkeypatch.setattr("config.Config.APPS", {"test_app": "test_command"})
+        # IMPORTANT: Patch command_launcher.Config.APPS, not config.Config.APPS
+        # This is because module reloading in other tests can cause command_launcher
+        # to hold a reference to a different Config class than config.Config
+        monkeypatch.setattr("command_launcher.Config.APPS", {"test_app": "test_command"})
         monkeypatch.setattr("launch.process_executor.subprocess.Popen", Mock(return_value=Mock(pid=12345)))
         monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
         monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
@@ -225,7 +229,10 @@ class TestCommandLauncherThreading:
         launcher.set_current_shot(mock_shot)
 
         # Mock dependencies
-        monkeypatch.setattr("config.Config.APPS", {"test_app": "test_command"})
+        # IMPORTANT: Patch command_launcher.Config.APPS, not config.Config.APPS
+        # This is because module reloading in other tests can cause command_launcher
+        # to hold a reference to a different Config class than config.Config
+        monkeypatch.setattr("command_launcher.Config.APPS", {"test_app": "test_command"})
 
         mock_process = Mock(pid=12345, poll=Mock(return_value=None))
         monkeypatch.setattr("launch.process_executor.subprocess.Popen", Mock(return_value=mock_process))

@@ -21,7 +21,7 @@ from PySide6.QtGui import QColor
 
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
+from tests.fixtures.doubles_library import (
     SignalDouble,
     ThreadSafeTestImage,
 )
@@ -43,6 +43,7 @@ class LauncherWorkerDouble:
         Args:
             launcher_id: ID of the launcher
             command: Command to execute
+
         """
         self.launcher_id = launcher_id
         self.command = command
@@ -78,6 +79,7 @@ class LauncherWorkerDouble:
 
         Args:
             timeout: Maximum wait time in milliseconds
+
         """
 
 
@@ -93,6 +95,7 @@ class MockCacheManager:
 
         Args:
             cache_dir: Optional cache directory path
+
         """
         self.cache_dir = cache_dir or Path("/tmp/test_cache")
         self._cache: dict[str, ThreadSafeTestImage] = {}
@@ -104,6 +107,7 @@ class MockCacheManager:
 
         Returns:
             Path to cache directory
+
         """
         return self.cache_dir
 
@@ -124,6 +128,7 @@ class MockCacheManager:
 
         Returns:
             Mock ThreadSafeTestImage if successful, None otherwise
+
         """
         self._call_count += 1
         self._last_cached_path = Path(source_path)
@@ -150,6 +155,7 @@ class MockCacheManager:
 
         Returns:
             Cached ThreadSafeTestImage if exists, None otherwise
+
         """
         cache_key = f"{show}_{sequence}_{shot}"
         return self._cache.get(cache_key)
@@ -169,6 +175,7 @@ class ImagePoolDouble:
 
         Args:
             pool_size: Maximum pool size
+
         """
         self.pool_size = pool_size
         self._pool: list[ThreadSafeTestImage] = []
@@ -182,6 +189,7 @@ class ImagePoolDouble:
 
         Returns:
             ThreadSafeTestImage instance
+
         """
         if self._pool:
             image = self._pool.pop()
@@ -194,6 +202,7 @@ class ImagePoolDouble:
 
         Args:
             image: ThreadSafeTestImage to return
+
         """
         if len(self._pool) < self.pool_size:
             self._pool.append(image)

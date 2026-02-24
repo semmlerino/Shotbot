@@ -400,16 +400,11 @@ class TestThreeDESceneWorker:
         worker.started.connect(started_handler)
         worker.finished.connect(finished_handler)
 
-        def cleanup_worker() -> None:
-            # Disconnect signals BEFORE stopping
-            with contextlib.suppress(TypeError, RuntimeError):
-                worker.started.disconnect(started_handler)
-            with contextlib.suppress(TypeError, RuntimeError):
-                worker.finished.disconnect(finished_handler)
-
-            if worker.isRunning():
-                worker.stop()
-                worker.wait(5000)
+        # Track signal handlers for proper cleanup
+        signal_handlers = [
+            (worker.started, started_handler),
+            (worker.finished, finished_handler),
+        ]
 
         try:
             # Start worker
@@ -427,7 +422,9 @@ class TestThreeDESceneWorker:
                 assert finished_scenes[0] == []
 
         finally:
-            cleanup_worker()
+            # Use proper cleanup to prevent Qt C++ object accumulation
+            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            cleanup_qthread_properly(worker, signal_handlers)
 
     def test_scene_discovery_with_test_double(
         self, qtbot, test_shots, test_finder
@@ -493,18 +490,12 @@ class TestThreeDESceneWorker:
             worker.finished.connect(finished_handler)
             worker.progress.connect(progress_handler)
 
-            def cleanup_worker() -> None:
-                # Disconnect signals BEFORE stopping
-                with contextlib.suppress(TypeError, RuntimeError):
-                    worker.started.disconnect(started_handler)
-                with contextlib.suppress(TypeError, RuntimeError):
-                    worker.finished.disconnect(finished_handler)
-                with contextlib.suppress(TypeError, RuntimeError):
-                    worker.progress.disconnect(progress_handler)
-
-                if worker.isRunning():
-                    worker.stop()
-                    worker.wait(5000)
+            # Track signal handlers for proper cleanup
+            signal_handlers = [
+                (worker.started, started_handler),
+                (worker.finished, finished_handler),
+                (worker.progress, progress_handler),
+            ]
 
             try:
                 # Start worker
@@ -531,7 +522,9 @@ class TestThreeDESceneWorker:
                 assert len(test_finder.progressive_calls) >= 0  # May be called
 
             finally:
-                cleanup_worker()
+                # Use proper cleanup to prevent Qt C++ object accumulation
+                from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+                cleanup_qthread_properly(worker, signal_handlers)
 
         finally:
             # Restore original finder
@@ -586,14 +579,10 @@ class TestThreeDESceneWorker:
                 return batch_ready_count.append(len(scenes))
             worker.batch_ready.connect(batch_handler)
 
-            def cleanup_worker() -> None:
-                # Disconnect signals BEFORE stopping
-                with contextlib.suppress(TypeError, RuntimeError):
-                    worker.batch_ready.disconnect(batch_handler)
-
-                if worker.isRunning():
-                    worker.stop()
-                    worker.wait(5000)
+            # Track signal handlers for proper cleanup
+            signal_handlers = [
+                (worker.batch_ready, batch_handler),
+            ]
 
             try:
                 worker.start()
@@ -605,7 +594,9 @@ class TestThreeDESceneWorker:
                 assert len(batch_ready_count) >= 0
 
             finally:
-                cleanup_worker()
+                # Use proper cleanup to prevent Qt C++ object accumulation
+                from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+                cleanup_qthread_properly(worker, signal_handlers)
 
         finally:
             # Restore original finder
@@ -648,16 +639,11 @@ class TestThreeDESceneWorker:
             worker.error.connect(error_handler)
             worker.finished.connect(finished_handler)
 
-            def cleanup_worker() -> None:
-                # Disconnect signals BEFORE stopping
-                with contextlib.suppress(TypeError, RuntimeError):
-                    worker.error.disconnect(error_handler)
-                with contextlib.suppress(TypeError, RuntimeError):
-                    worker.finished.disconnect(finished_handler)
-
-                if worker.isRunning():
-                    worker.stop()
-                    worker.wait(5000)
+            # Track signal handlers for proper cleanup
+            signal_handlers = [
+                (worker.error, error_handler),
+                (worker.finished, finished_handler),
+            ]
 
             try:
                 worker.start()
@@ -676,19 +662,11 @@ class TestThreeDESceneWorker:
                     assert len(error_messages) > 0 or len(finished_scenes) > 0
 
             finally:
-                cleanup_worker()
+                # Use proper cleanup to prevent Qt C++ object accumulation
+                from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+                cleanup_qthread_properly(worker, signal_handlers)
 
         finally:
-            # Process any pending deleteLater events
-            from PySide6.QtCore import (
-                QCoreApplication,
-            )
-            app = QCoreApplication.instance()
-            if app:
-                app.processEvents()
-                app.processEvents()  # Second pass to handle deferred deletions
-                app.sendPostedEvents(None, 0)  # Process DeferredDelete events
-
             # Restore original finder
             if original_finder:
                 threede_scene_worker.ThreeDESceneFinder = original_finder
@@ -743,14 +721,10 @@ class TestThreeDESceneWorkerIntegration:
             return finished_scenes.append(scenes)
         worker.finished.connect(finished_handler)
 
-        def cleanup_worker() -> None:
-            # Disconnect signal BEFORE stopping
-            with contextlib.suppress(TypeError, RuntimeError):
-                worker.finished.disconnect(finished_handler)
-
-            if worker.isRunning():
-                worker.stop()
-                worker.wait(5000)
+        # Track signal handlers for proper cleanup
+        signal_handlers = [
+            (worker.finished, finished_handler),
+        ]
 
         try:
             worker.start()
@@ -765,7 +739,9 @@ class TestThreeDESceneWorkerIntegration:
                 assert isinstance(scenes, list)
 
         finally:
-            cleanup_worker()
+            # Use proper cleanup to prevent Qt C++ object accumulation
+            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            cleanup_qthread_properly(worker, signal_handlers)
 
 
 class TestWorkerInterruption:
@@ -850,10 +826,9 @@ class TestWorkerInterruption:
         finally:
             # Restore original finder
             threede_scene_worker.ThreeDESceneFinder = original_finder
-            # Ensure worker is stopped
-            if worker.isRunning():
-                worker.stop()
-                worker.wait(1000)
+            # Use proper cleanup to prevent Qt C++ object accumulation
+            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            cleanup_qthread_properly(worker, signal_handlers=None)
 
     def test_cancel_flag_prevents_filesystem_iteration(self, qtbot) -> None:
         """Test cancel_flag stops iteration before expensive filesystem I/O.
@@ -924,6 +899,6 @@ class TestWorkerInterruption:
 
         finally:
             threede_scene_worker.ThreeDESceneFinder = original_finder
-            if worker.isRunning():
-                worker.stop()
-                worker.wait(1000)
+            # Use proper cleanup to prevent Qt C++ object accumulation
+            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            cleanup_qthread_properly(worker, signal_handlers=None)

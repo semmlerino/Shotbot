@@ -1,5 +1,4 @@
-"""
-Modern Pytest Parametrization Examples
+"""Modern Pytest Parametrization Examples
 
 This file demonstrates modern pytest parametrization patterns for the shotbot test suite.
 Use these patterns as templates when enhancing existing tests or creating new ones.

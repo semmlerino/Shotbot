@@ -20,6 +20,7 @@ Examples:
     # Type-safe fixture usage
     def test_with_real_data(real_shot_data: ShotTestData) -> None:
         assert real_shot_data.shot.show == "TEST"
+
 """
 
 from __future__ import annotations
@@ -190,6 +191,7 @@ def create_real_cache_manager(cache_dir: Path) -> CacheManager:
 
     Returns:
         Real CacheManager instance with temporary storage
+
     """
     # Local application imports
     from cache_manager import (
@@ -215,6 +217,7 @@ def create_test_shot_data(
 
     Returns:
         ShotTestData with real Shot object and paths
+
     """
     # Local application imports
     from shot_model import (
@@ -248,6 +251,7 @@ def create_typed_process_pool_mock() -> ProcessPoolProtocol:
 
     Returns:
         Properly typed mock implementing ProcessPoolProtocol
+
     """
     mock = MagicMock(spec=ProcessPoolProtocol)
 
@@ -264,6 +268,7 @@ def create_typed_launcher_mock() -> LauncherProtocol:
 
     Returns:
         Properly typed mock implementing LauncherProtocol
+
     """
     mock = MagicMock(spec=LauncherProtocol)
     mock.launch_application.return_value = True
@@ -286,6 +291,7 @@ def isolated_test_env(cache_dir: Path | None = None) -> Iterator[dict[str, Any]]
 
     Yields:
         Dictionary with initialized test components
+
     """
     temp_dir = tempfile.TemporaryDirectory()
     test_cache_dir = cache_dir or Path(temp_dir.name) / "cache"
@@ -311,6 +317,7 @@ def wait_for_qt_events(timeout_ms: int = 100) -> None:
 
     Args:
         timeout_ms: Maximum time to wait in milliseconds
+
     """
     app = QApplication.instance()
     if app is not None:
@@ -341,6 +348,7 @@ def assert_signal_emitted(
 
     Raises:
         AssertionError: If signal wasn't emitted as expected
+
     """
     # Third-party imports
     from PySide6.QtTest import (
@@ -394,6 +402,7 @@ class TypedThreadTestHelper:
 
         Returns:
             List of successful operation results
+
         """
         # Standard library imports
         import concurrent.futures
@@ -442,6 +451,7 @@ def suppress_mock_member_access(mock_obj: Mock, attr_name: str) -> Any:
 
     Returns:
         Mock attribute value
+
     """
     # Using getattr to make the dynamic access explicit
     return getattr(mock_obj, attr_name)  # pyright: ignore[reportUnknownMemberType]
@@ -458,6 +468,7 @@ def typed_mock_assert_called_with(
         mock_method: Mock method to check
         *expected_args: Expected positional arguments
         **expected_kwargs: Expected keyword arguments
+
     """
     # Explicit ignore for mock method access
     mock_method.assert_called_with(*expected_args, **expected_kwargs)  # pyright: ignore[reportUnknownMemberType]
@@ -477,6 +488,7 @@ def real_test_environment(qapp) -> Iterator[dict[str, Any]]:
 
     Yields:
         Dictionary with real components for integration testing
+
     """
     with isolated_test_env() as env:
         # Use pytest-qt's qapp fixture instead of creating our own

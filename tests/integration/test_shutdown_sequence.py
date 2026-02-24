@@ -62,9 +62,13 @@ class TestProcessPoolManagerShutdown:
         ProcessPoolManager.reset()
         pool = ProcessPoolManager.get_instance()
 
+        # Use interruptible wait to avoid orphan threads that crash subsequent Qt tests
+        stop_event = threading.Event()
+
         # Submit a slow task that won't finish quickly
         def slow_task() -> str:
-            time.sleep(10.0)  # Much longer than timeout
+            # Interruptible wait - can be signaled to stop early
+            stop_event.wait(timeout=10.0)
             return "done"
 
         _future = pool._executor.submit(slow_task)
@@ -76,6 +80,9 @@ class TestProcessPoolManagerShutdown:
 
         # Should complete around timeout, not wait for task
         assert elapsed < 2.0, f"Shutdown didn't respect timeout: {elapsed}s"
+
+        # Signal task to stop (CRITICAL for test isolation)
+        stop_event.set()
 
         # Cleanup
         ProcessPoolManager.reset()
@@ -308,9 +315,14 @@ class TestExecutorShutdownTimeout:
 
         executor = ThreadPoolExecutor(max_workers=2)
 
+        # Use an interruptible wait so we can clean up at test end
+        # (time.sleep() leaves orphan threads that crash subsequent tests)
+        stop_event = threading.Event()
+
         # Submit a task that will block
         def blocking_task() -> str:
-            time.sleep(60.0)  # Very long
+            # Wait for stop signal, or timeout after 60s (whichever comes first)
+            stop_event.wait(timeout=60.0)
             return "done"
 
         _future = executor.submit(blocking_task)
@@ -334,8 +346,11 @@ class TestExecutorShutdownTimeout:
             # Timeout worked - force non-blocking shutdown
             executor.shutdown(wait=False, cancel_futures=True)
 
-        # Either way, we shouldn't hang
-        shutdown_thread.join(timeout=1.0)
+        # Signal task to stop so thread doesn't linger (CRITICAL for test isolation)
+        stop_event.set()
+
+        # Wait for cleanup to complete
+        shutdown_thread.join(timeout=2.0)
 
     def test_cancel_futures_stops_pending_tasks(self) -> None:
         """cancel_futures=True cancels queued but not-yet-started tasks."""
@@ -345,12 +360,13 @@ class TestExecutorShutdownTimeout:
         executor = ThreadPoolExecutor(max_workers=1)
 
         started = threading.Event()
-        finished = threading.Event()
+        stop_event = threading.Event()
 
         def slow_task() -> str:
             started.set()
-            time.sleep(10.0)
-            finished.set()
+            # Use interruptible wait instead of time.sleep()
+            # (orphan threads from time.sleep crash subsequent Qt tests)
+            stop_event.wait(timeout=10.0)
             return "done"
 
         # Submit multiple tasks - first will run, rest will queue
@@ -368,3 +384,6 @@ class TestExecutorShutdownTimeout:
         # (future1 is running, future2/3 are queued)
         assert future2.cancelled() or not future2.done()
         assert future3.cancelled() or not future3.done()
+
+        # Signal running task to stop (CRITICAL for test isolation)
+        stop_event.set()

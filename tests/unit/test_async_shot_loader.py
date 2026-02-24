@@ -33,25 +33,39 @@ class TestAsyncShotLoader:
         Args:
             tmp_path: Temporary directory for isolated test state
             monkeypatch: Pytest monkeypatch for config isolation
+
+        Returns:
+            Tuple of (pool, tmp_path) so loader fixture can use same tmp_path
+
+        Note:
+            Uses tmp_path directly in outputs (not Config.SHOWS_ROOT) to ensure
+            the paths always match what the parser expects after monkeypatch.
         """
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
-        pool = TestProcessPool()
-        shows_root = Config.SHOWS_ROOT
+        pool = TestProcessPool(allow_main_thread=True)
+        # Use tmp_path directly - don't read Config.SHOWS_ROOT which might
+        # not reflect the monkeypatch in some edge cases
         pool.set_outputs(
-            f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010\n"
-            f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0020\n"
-            f"workspace {shows_root}/TEST/shots/seq02/TEST_seq02_0010"
+            f"workspace {tmp_path}/TEST/shots/seq01/TEST_seq01_0010\n"
+            f"workspace {tmp_path}/TEST/shots/seq01/TEST_seq01_0020\n"
+            f"workspace {tmp_path}/TEST/shots/seq02/TEST_seq02_0010"
         )
-        return pool
+        return pool, tmp_path
 
     @pytest.fixture
-    def loader(self, test_process_pool, qtbot, cache_manager):
+    def loader(self, test_process_pool, qtbot, cache_manager, monkeypatch):
         """Create AsyncShotLoader for testing."""
+        pool, test_tmp_path = test_process_pool
+
+        # Ensure SHOWS_ROOT matches the test_process_pool's tmp_path
+        # This is critical for path validation in _parse_ws_output
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(test_tmp_path))
+
         # Create BaseShotModel instance to get the parse function
         # Use isolated cache_manager from fixture
         base_model = BaseShotModel(cache_manager=cache_manager)
         loader = AsyncShotLoader(
-            test_process_pool, parse_function=base_model._parse_ws_output
+            pool, parse_function=base_model._parse_ws_output
         )
         # AsyncShotLoader is a QThread, not a QWidget, so we don't use addWidget
         # Instead, ensure it gets properly cleaned up
@@ -89,7 +103,7 @@ class TestAsyncShotLoader:
     def test_failed_loading_signal_emission(self, qtbot, cache_manager) -> None:
         """Test load_failed signal is emitted on exception."""
         # Create failing process pool
-        failing_pool = TestProcessPool()
+        failing_pool = TestProcessPool(allow_main_thread=True)
         failing_pool.should_fail = True
         failing_pool.fail_with_message = "Command failed"
 
@@ -115,7 +129,7 @@ class TestAsyncShotLoader:
     def test_loader_stop_request(self, qtbot, cache_manager) -> None:
         """Test that stop() request prevents signal emission."""
         # Create slow process pool
-        slow_pool = TestProcessPool()
+        slow_pool = TestProcessPool(allow_main_thread=True)
         slow_pool.simulated_delay = 0.1  # Simulate slow operation
         shows_root = Config.SHOWS_ROOT
         slow_pool.set_outputs(f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010")
@@ -150,10 +164,10 @@ class TestAsyncShotLoader:
     def test_concurrent_loader_instances(self, qtbot, cache_manager) -> None:
         """Test multiple AsyncShotLoader instances don't interfere."""
         shows_root = Config.SHOWS_ROOT
-        pool1 = TestProcessPool()
+        pool1 = TestProcessPool(allow_main_thread=True)
         pool1.set_outputs(f"workspace {shows_root}/SHOW1/shots/seq01/SHOW1_seq01_0010")
 
-        pool2 = TestProcessPool()
+        pool2 = TestProcessPool(allow_main_thread=True)
         pool2.set_outputs(f"workspace {shows_root}/SHOW2/shots/seq01/SHOW2_seq01_0020")
 
         base_model1 = BaseShotModel(cache_manager=cache_manager)
@@ -205,7 +219,7 @@ class TestShotModelSignals:
         finished_spy = QSignalSpy(optimized_model.background_load_finished)
 
         # Use TestProcessPool boundary mock to avoid real subprocess
-        test_pool = TestProcessPool()
+        test_pool = TestProcessPool(allow_main_thread=True)
         shows_root = Config.SHOWS_ROOT
         test_pool.set_outputs(f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010")
         optimized_model._process_pool = test_pool
@@ -248,7 +262,7 @@ class TestShotModelSignals:
         shots_changed_spy = QSignalSpy(optimized_model.shots_changed)
 
         # Use TestProcessPool with different data (simulating workspace change)
-        test_pool = TestProcessPool()
+        test_pool = TestProcessPool(allow_main_thread=True)
         shows_root = Config.SHOWS_ROOT
         # New data is different from initial shots (NEW shot instead of OLD)
         test_pool.set_outputs(f"workspace {shows_root}/NEW/shots/seq01/NEW_seq01_0010")
@@ -285,7 +299,7 @@ class TestShotModelSignals:
         model = ShotModel(real_cache_manager)
 
         # Set up test process pool with shot data
-        test_pool = TestProcessPool()
+        test_pool = TestProcessPool(allow_main_thread=True)
         shows_root = Config.SHOWS_ROOT
         test_pool.set_outputs(
             f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010\n"

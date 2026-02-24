@@ -193,6 +193,8 @@ class TestErrorRecovery:
 
         # Use test double returning partial data with dynamic SHOWS_ROOT
         class TestProcessPool:  # Named to match the check in refresh_strategy
+            _allow_main_thread = True  # Allow main thread execution for testing
+
             def execute_workspace_command(self, command=None, **kwargs) -> str:
                 # Use Config.SHOWS_ROOT for proper test isolation
                 shows_root = Config.SHOWS_ROOT
@@ -209,7 +211,7 @@ workspace {shows_root}/test/shots/seq03/seq03_0030"""
         )
 
         model = ShotModel(CacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-        model._process_pool = TestProcessPool()
+        model._process_pool = TestProcessPool()  # Local class with _allow_main_thread = True
 
         result = model.refresh_shots()
 

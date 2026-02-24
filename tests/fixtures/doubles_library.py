@@ -433,6 +433,7 @@ class TestShotModel(QObject):
 
         Args:
             show: Show name to filter by or None for all shows
+
         """
         self._filter_show = show
 
@@ -441,6 +442,7 @@ class TestShotModel(QObject):
 
         Returns:
             Filtered list of shots
+
         """
         if not hasattr(self, "_filter_show"):
             self._filter_show = None
@@ -455,6 +457,7 @@ class TestShotModel(QObject):
 
         Returns:
             Set of unique show names
+
         """
         return {shot.show for shot in self._shots}
 
@@ -595,6 +598,7 @@ class TestCacheManager(QObject):
 
         Returns:
             List of shot dictionaries or None if not cached
+
         """
         if not self._cached_shots:
             return None
@@ -631,6 +635,7 @@ class TestCacheManager(QObject):
 
         Args:
             key: Cache key identifier
+
         """
         if key == "previous_shots":
             self._cached_previous_shots = None
@@ -646,6 +651,7 @@ class TestCacheManager(QObject):
 
         Returns:
             Cached data or None if not found
+
         """
         # Test double: return None for any key (no persistent generic cache)
         return None
@@ -655,6 +661,7 @@ class TestCacheManager(QObject):
 
         Returns:
             List of migrated shot dictionaries or None
+
         """
         # Test double: return None (no migration tracking)
         return None

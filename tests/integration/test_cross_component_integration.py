@@ -24,7 +24,7 @@ from PySide6.QtWidgets import QApplication
 # from main_window import MainWindow
 from cache_manager import CacheManager
 from shot_model import Shot
-from tests.test_doubles_library import TestProcessPool
+from tests.fixtures.doubles_library import TestProcessPool
 from tests.test_helpers import process_qt_events
 from threede_scene_model import ThreeDEScene
 

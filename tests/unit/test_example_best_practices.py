@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from cache_manager import CacheManager
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestShot, TestShotModel, TestSubprocess
+from tests.fixtures.doubles_library import TestShot, TestShotModel, TestSubprocess
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
@@ -71,7 +71,7 @@ class TestBehaviorNotImplementation:
         assert model.get_shots()[1].shot == "0020"
 
         # Test signal emission (behavior)
-        # TestShotModel from test_doubles_library tracks emissions in signal_emissions dict
+        # TestShotModel from fixtures/doubles_library tracks emissions in signal_emissions dict
         assert model.signal_emissions["shots_updated"] == 2  # Emitted for each add
 
 
@@ -87,7 +87,6 @@ class TestRealComponentsOverMocks:
 
         ✅ GOOD: Real component with temp storage (this example)
         """
-
         # Use real cache manager with temp directory
         cache_dir = tmp_path / "cache"
         cache = CacheManager(cache_dir=cache_dir)
@@ -171,7 +170,7 @@ class SignalDoubleTestingPatterns:
         # NOTE: Could use LauncherWorkerDouble from test doubles
         # from tests.test_doubles import LauncherWorkerDouble
         # worker = LauncherWorkerDouble(launcher_id="test_123", command="echo test")
-        from tests.test_doubles_library import (
+        from tests.fixtures.doubles_library import (
             SignalDouble,
         )
 
@@ -252,7 +251,6 @@ class TestNoSleepPattern:
         ❌ BAD: time.sleep(0.5)  # Wait for thread
         ✅ GOOD: Use Events, Barriers, or Conditions
         """
-
         # Use Event for synchronization
         ready = threading.Event()
 
@@ -328,7 +326,6 @@ def real_cache_manager(tmp_path: Path):
 
     Best practice: Use real components with temp directories.
     """
-
     cache_dir = tmp_path / "test_cache"
     cache_dir.mkdir()
     return CacheManager(cache_dir=cache_dir)

@@ -36,7 +36,7 @@ from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QTabWidget
 
 # Import test doubles
-from tests.test_doubles_library import (
+from tests.fixtures.doubles_library import (
     TestCacheManager,
     TestShot,
     TestShotModel,

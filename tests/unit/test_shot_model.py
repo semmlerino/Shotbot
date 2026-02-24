@@ -251,6 +251,7 @@ class TestShot:
         assert restored_shot.full_name == original_shot.full_name
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestShotModel:
     """Test cases for ShotModel class using real components."""
 
@@ -430,6 +431,7 @@ class TestShotModel:
         assert len(real_shot_model.shots) == 0
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestShotModelErrorHandling:
     """Test error handling scenarios in ShotModel using test doubles."""
 

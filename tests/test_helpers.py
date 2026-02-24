@@ -8,7 +8,7 @@ Key Components:
     - process_qt_events: Process pending Qt events (preferred over qtbot.wait)
     - Factory fixtures and helpers
 
-Note: ThreadSafeTestImage is available from tests.test_doubles_library.
+Note: ThreadSafeTestImage is available from tests.fixtures.doubles_library.
 """
 
 from __future__ import annotations
@@ -23,9 +23,10 @@ from PySide6.QtCore import QEventLoop, QObject, Signal
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QApplication
 
+from tests.fixtures.doubles_library import ThreadSafeTestImage
+
 # Import canonical doubles - these are the recommended implementations
 from tests.fixtures.test_doubles import SignalDouble  # noqa: F401 (re-export)
-from tests.test_doubles_library import ThreadSafeTestImage
 
 
 if TYPE_CHECKING:
