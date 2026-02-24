@@ -22,7 +22,24 @@ from pytestqt.qtbot import QtBot
 # from main_window import MainWindow
 # from shot_model import Shot
 from config import Config
-from tests.unit.test_protocols import ProcessPoolProtocol as TestProcessPoolType
+from typing import Protocol
+
+
+class TestProcessPoolType(Protocol):
+    """Protocol for process pool test doubles."""
+
+    __test__ = False
+
+    should_fail: bool
+    call_count: int
+    commands: list[str]
+
+    def set_outputs(self, output: str) -> None: ...
+    def set_errors(self, error: str) -> None: ...
+    def execute_workspace_command(
+        self, command: str, cache_ttl: int | None = None
+    ) -> str: ...
+    def reset(self) -> None: ...
 
 
 pytestmark = [

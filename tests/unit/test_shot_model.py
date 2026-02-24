@@ -13,7 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 # pyright: basic
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 # Third-party imports
 import pytest
@@ -34,8 +34,20 @@ if TYPE_CHECKING:
 
     from cache_manager import CacheManager
 
-    # Local application imports
-    from tests.unit.test_protocols import TestShotFactory
+    from shot_model import Shot
+
+    class TestShotFactory(Protocol):
+        """Protocol for shot factory fixtures."""
+
+        __test__ = False
+
+        def __call__(
+            self,
+            show: str = "test",
+            sequence: str = "seq01",
+            shot: str = "0010",
+            with_thumbnail: bool = True,
+        ) -> Shot: ...
 
 
 @pytest.mark.unit
