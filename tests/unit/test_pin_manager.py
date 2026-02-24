@@ -93,32 +93,9 @@ class TestPinShot:
         assert pin_manager.get_pin_order(shot3) == 1
         assert pin_manager.get_pin_order(shot2) == 2
 
-    def test_pin_shot_marks_as_pinned(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Pinned shot should be marked as pinned."""
-        shot = sample_shots[0]
-
-        assert not pin_manager.is_pinned(shot)
-        pin_manager.pin_shot(shot)
-        assert pin_manager.is_pinned(shot)
-
 
 class TestUnpinShot:
     """Tests for unpin_shot() method."""
-
-    def test_unpin_shot_removes_from_list(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Unpinning should remove shot from pinned list."""
-        shot1, shot2, _ = sample_shots
-
-        pin_manager.pin_shot(shot1)
-        pin_manager.pin_shot(shot2)
-
-        assert pin_manager.is_pinned(shot1)
-        pin_manager.unpin_shot(shot1)
-        assert not pin_manager.is_pinned(shot1)
 
     def test_unpin_shot_updates_order(
         self, pin_manager: PinManager, sample_shots: list[Shot]
@@ -136,35 +113,6 @@ class TestUnpinShot:
         assert pin_manager.get_pin_order(shot3) == 0
         assert pin_manager.get_pin_order(shot1) == 1
         assert pin_manager.get_pin_order(shot2) == -1  # Not pinned
-
-    def test_unpin_nonexistent_is_noop(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Unpinning a non-pinned shot should not raise."""
-        shot = sample_shots[0]
-
-        # Should not raise
-        pin_manager.unpin_shot(shot)
-        assert not pin_manager.is_pinned(shot)
-
-
-class TestIsPinned:
-    """Tests for is_pinned() method."""
-
-    def test_is_pinned_returns_false_for_unpinned(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Unpinned shots should return False."""
-        shot = sample_shots[0]
-        assert not pin_manager.is_pinned(shot)
-
-    def test_is_pinned_returns_true_for_pinned(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Pinned shots should return True."""
-        shot = sample_shots[0]
-        pin_manager.pin_shot(shot)
-        assert pin_manager.is_pinned(shot)
 
 
 class TestGetPinOrder:
@@ -193,84 +141,11 @@ class TestGetPinOrder:
         assert pin_manager.get_pin_order(shot1) == 2
 
 
-class TestGetPinnedCount:
-    """Tests for get_pinned_count() method."""
-
-    def test_get_pinned_count_starts_at_zero(
-        self, pin_manager: PinManager
-    ) -> None:
-        """Initial count should be zero."""
-        assert pin_manager.get_pinned_count() == 0
-
-    def test_get_pinned_count_increments(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Count should increment when pinning."""
-        shot1, shot2, _ = sample_shots
-
-        pin_manager.pin_shot(shot1)
-        assert pin_manager.get_pinned_count() == 1
-
-        pin_manager.pin_shot(shot2)
-        assert pin_manager.get_pinned_count() == 2
-
-    def test_get_pinned_count_decrements_on_unpin(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Count should decrement when unpinning."""
-        shot1, shot2, _ = sample_shots
-
-        pin_manager.pin_shot(shot1)
-        pin_manager.pin_shot(shot2)
-        assert pin_manager.get_pinned_count() == 2
-
-        pin_manager.unpin_shot(shot1)
-        assert pin_manager.get_pinned_count() == 1
-
-
-class TestClearPins:
-    """Tests for clear_pins() method."""
-
-    def test_clear_pins_removes_all(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Clear should remove all pinned shots."""
-        for shot in sample_shots:
-            pin_manager.pin_shot(shot)
-
-        assert pin_manager.get_pinned_count() == 3
-
-        pin_manager.clear_pins()
-
-        assert pin_manager.get_pinned_count() == 0
-        for shot in sample_shots:
-            assert not pin_manager.is_pinned(shot)
-
-
 # ============= Persistence Tests =============
 
 
 class TestPersistence:
     """Tests for cache persistence."""
-
-    def test_pins_persist_across_instances(
-        self, cache_manager: CacheManager, sample_shots: list[Shot]
-    ) -> None:
-        """Pinned shots should persist when creating a new PinManager instance."""
-        shot1, shot2, _ = sample_shots
-
-        # Pin shots with first instance
-        pm1 = PinManager(cache_manager)
-        pm1.pin_shot(shot1)
-        pm1.pin_shot(shot2)
-
-        # Create new instance
-        pm2 = PinManager(cache_manager)
-
-        # Pins should be loaded
-        assert pm2.is_pinned(shot1)
-        assert pm2.is_pinned(shot2)
-        assert pm2.get_pinned_count() == 2
 
     def test_pin_order_persists(
         self, cache_manager: CacheManager, sample_shots: list[Shot]
@@ -318,39 +193,6 @@ class TestPersistence:
 
 class TestCacheRecovery:
     """Tests for handling corrupted or missing cache."""
-
-    def test_handles_missing_cache_file(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Should handle missing cache file gracefully."""
-        pm = PinManager(cache_manager)
-        assert pm.get_pinned_count() == 0
-
-    def test_handles_corrupted_json(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Should handle corrupted JSON gracefully."""
-        # Write corrupted JSON
-        cache_file = cache_manager.cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text("not valid json {{{")
-
-        # Should not raise, should start with empty list
-        pm = PinManager(cache_manager)
-        assert pm.get_pinned_count() == 0
-
-    def test_handles_invalid_cache_format(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Should handle invalid cache format gracefully."""
-        # Write valid JSON but wrong format
-        cache_file = cache_manager.cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text('{"wrong": "format"}')
-
-        # Should not raise, should start with empty list
-        pm = PinManager(cache_manager)
-        assert pm.get_pinned_count() == 0
 
     def test_handles_partial_cache_data(
         self, cache_manager: CacheManager

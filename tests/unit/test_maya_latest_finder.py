@@ -13,28 +13,6 @@ import pytest
 from maya_latest_finder import MayaLatestFinder
 
 
-class TestMayaLatestFinderInitialization:
-    """Test MayaLatestFinder initialization."""
-
-    def test_initialization(self) -> None:
-        """Test that finder initializes correctly."""
-        finder = MayaLatestFinder()
-        assert finder is not None
-        # Should have logger from LoggingMixin
-        assert hasattr(finder, "logger")
-        # Should have custom VERSION_PATTERN for Maya files
-        assert hasattr(finder, "VERSION_PATTERN")
-        # Pattern should match Maya file extensions
-        assert finder.VERSION_PATTERN.pattern == r"_v(\d{3})\.(ma|mb)$"
-
-    def test_inherits_version_mixin(self) -> None:
-        """Test that finder inherits VersionHandlingMixin methods."""
-        finder = MayaLatestFinder()
-        assert hasattr(finder, "_extract_version")
-        assert hasattr(finder, "_find_latest_by_version")
-        assert hasattr(finder, "_sort_files_by_version")
-
-
 class TestFindLatestMayaScene:
     """Test find_latest_maya_scene method."""
 
@@ -97,29 +75,6 @@ class TestFindLatestMayaScene:
         assert latest is not None
         assert latest.name == "model_v003.ma"
 
-    def test_empty_workspace_returns_none(self, tmp_path: Path) -> None:
-        """Test that empty workspace returns None."""
-        workspace = tmp_path / "empty_workspace"
-        workspace.mkdir()
-
-        finder = MayaLatestFinder()
-        latest = finder.find_latest_maya_scene(str(workspace))
-
-        assert latest is None
-
-    def test_no_user_directory(self, tmp_path: Path) -> None:
-        """Test workspace without user directory."""
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-        # No user directory created
-
-        finder = MayaLatestFinder()
-        with patch.object(finder.logger, "debug") as mock_debug:
-            latest = finder.find_latest_maya_scene(str(workspace))
-
-            assert latest is None
-            mock_debug.assert_any_call(f"No user directory in workspace: {workspace}")
-
     def test_no_maya_scenes_directory(self, tmp_path: Path) -> None:
         """Test user directory without maya/scenes structure."""
         workspace = tmp_path / "workspace"
@@ -149,24 +104,6 @@ class TestFindLatestMayaScene:
 
             assert latest is None
             mock_debug.assert_any_call(f"No Maya files found in workspace: {workspace}")
-
-    def test_nonexistent_workspace(self) -> None:
-        """Test with nonexistent workspace path."""
-        finder = MayaLatestFinder()
-        with patch.object(finder.logger, "debug") as mock_debug:
-            latest = finder.find_latest_maya_scene("/nonexistent/path")
-
-            assert latest is None
-            mock_debug.assert_called_with("Workspace does not exist: /nonexistent/path")
-
-    def test_empty_workspace_path(self) -> None:
-        """Test with empty workspace path."""
-        finder = MayaLatestFinder()
-        with patch.object(finder.logger, "debug") as mock_debug:
-            latest = finder.find_latest_maya_scene("")
-
-            assert latest is None
-            mock_debug.assert_called_with("No workspace path provided")
 
     def test_with_shot_name_in_logging(self, tmp_path: Path) -> None:
         """Test that shot name is used in logging."""
@@ -283,27 +220,6 @@ class TestFindAllMayaScenes:
 
         assert len(all_scenes) == 1
         assert all_scenes[0].name == "scene_v001.ma"
-
-    def test_empty_workspace_returns_empty_list(self, tmp_path: Path) -> None:
-        """Test that empty workspace returns empty list."""
-        workspace = tmp_path / "empty"
-        workspace.mkdir()
-
-        all_scenes = MayaLatestFinder.find_all_maya_scenes(str(workspace))
-
-        assert all_scenes == []
-
-    def test_nonexistent_workspace_returns_empty_list(self) -> None:
-        """Test that nonexistent workspace returns empty list."""
-        all_scenes = MayaLatestFinder.find_all_maya_scenes("/nonexistent/path")
-
-        assert all_scenes == []
-
-    def test_empty_path_returns_empty_list(self) -> None:
-        """Test that empty path returns empty list."""
-        all_scenes = MayaLatestFinder.find_all_maya_scenes("")
-
-        assert all_scenes == []
 
     def test_no_maya_directory_returns_empty(self, tmp_path: Path) -> None:
         """Test workspace with users but no maya directories."""

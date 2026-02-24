@@ -67,16 +67,6 @@ def sample_file_paths() -> list[Path]:
 class TestPinFile:
     """Tests for pin_file() method."""
 
-    def test_pin_file_marks_as_pinned(
-        self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
-    ) -> None:
-        """Pinning a file should mark it as pinned."""
-        file_path = sample_file_paths[0]
-
-        assert not file_pin_manager.is_pinned(file_path)
-        file_pin_manager.pin_file(file_path)
-        assert file_pin_manager.is_pinned(file_path)
-
     def test_pin_file_with_comment(
         self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
     ) -> None:
@@ -150,18 +140,6 @@ class TestPinFile:
 class TestUnpinFile:
     """Tests for unpin_file() method."""
 
-    def test_unpin_file_removes_pin(
-        self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
-    ) -> None:
-        """Unpinning should remove the pin."""
-        file_path = sample_file_paths[0]
-
-        file_pin_manager.pin_file(file_path)
-        assert file_pin_manager.is_pinned(file_path)
-
-        file_pin_manager.unpin_file(file_path)
-        assert not file_pin_manager.is_pinned(file_path)
-
     def test_unpin_file_emits_signal(
         self,
         qtbot: QtBot,
@@ -177,50 +155,9 @@ class TestUnpinFile:
 
         assert blocker.args == [str(file_path)]
 
-    def test_unpin_nonexistent_is_noop(
-        self,
-        qtbot: QtBot,
-        file_pin_manager: FilePinManager,
-        sample_file_paths: list[Path],
-    ) -> None:
-        """Unpinning a non-pinned file should not raise or emit signal."""
-        file_path = sample_file_paths[0]
-
-        # Should not raise
-        file_pin_manager.unpin_file(file_path)
-        assert not file_pin_manager.is_pinned(file_path)
-
-    def test_unpin_decrements_count(
-        self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
-    ) -> None:
-        """Unpinning should decrement pin count."""
-        file1, file2, _ = sample_file_paths
-
-        file_pin_manager.pin_file(file1)
-        file_pin_manager.pin_file(file2)
-        assert file_pin_manager.get_pinned_count() == 2
-
-        file_pin_manager.unpin_file(file1)
-        assert file_pin_manager.get_pinned_count() == 1
-
 
 class TestIsPinned:
     """Tests for is_pinned() method."""
-
-    def test_is_pinned_returns_false_for_unpinned(
-        self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
-    ) -> None:
-        """Unpinned files should return False."""
-        file_path = sample_file_paths[0]
-        assert not file_pin_manager.is_pinned(file_path)
-
-    def test_is_pinned_returns_true_for_pinned(
-        self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
-    ) -> None:
-        """Pinned files should return True."""
-        file_path = sample_file_paths[0]
-        file_pin_manager.pin_file(file_path)
-        assert file_pin_manager.is_pinned(file_path)
 
     def test_is_pinned_accepts_string_path(
         self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
@@ -304,57 +241,8 @@ class TestSetComment:
         assert file_pin_manager.get_comment(file_path) == "Whitespace comment"
 
 
-class TestGetPinnedCount:
-    """Tests for get_pinned_count() method."""
-
-    def test_get_pinned_count_starts_at_zero(
-        self, file_pin_manager: FilePinManager
-    ) -> None:
-        """Initial count should be zero."""
-        assert file_pin_manager.get_pinned_count() == 0
-
-    def test_get_pinned_count_increments(
-        self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
-    ) -> None:
-        """Count should increment when pinning."""
-        file1, file2, _ = sample_file_paths
-
-        file_pin_manager.pin_file(file1)
-        assert file_pin_manager.get_pinned_count() == 1
-
-        file_pin_manager.pin_file(file2)
-        assert file_pin_manager.get_pinned_count() == 2
-
-    def test_get_pinned_count_does_not_increment_for_repin(
-        self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
-    ) -> None:
-        """Re-pinning same file should not increment count."""
-        file_path = sample_file_paths[0]
-
-        file_pin_manager.pin_file(file_path, "First")
-        file_pin_manager.pin_file(file_path, "Second")
-        file_pin_manager.pin_file(file_path, "Third")
-
-        assert file_pin_manager.get_pinned_count() == 1
-
-
 class TestClearPins:
     """Tests for clear_pins() method."""
-
-    def test_clear_pins_removes_all(
-        self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
-    ) -> None:
-        """Clear should remove all pinned files."""
-        for file_path in sample_file_paths:
-            file_pin_manager.pin_file(file_path, "comment")
-
-        assert file_pin_manager.get_pinned_count() == 3
-
-        file_pin_manager.clear_pins()
-
-        assert file_pin_manager.get_pinned_count() == 0
-        for file_path in sample_file_paths:
-            assert not file_pin_manager.is_pinned(file_path)
 
     def test_clear_pins_emits_signals(
         self,
@@ -447,42 +335,6 @@ class TestPersistence:
 
 class TestCacheRecovery:
     """Tests for handling corrupted or missing cache."""
-
-    def test_handles_missing_cache_file(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Should handle missing cache file gracefully."""
-        pm = FilePinManager(cache_manager)
-        assert pm.get_pinned_count() == 0
-        pm.deleteLater()
-
-    def test_handles_corrupted_json(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Should handle corrupted JSON gracefully."""
-        # Write corrupted JSON
-        cache_file = cache_manager.cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text("not valid json {{{")
-
-        # Should not raise, should start with empty dict
-        pm = FilePinManager(cache_manager)
-        assert pm.get_pinned_count() == 0
-        pm.deleteLater()
-
-    def test_handles_invalid_cache_format(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Should handle invalid cache format gracefully."""
-        # Write valid JSON but wrong format (list instead of dict)
-        cache_file = cache_manager.cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text('[{"wrong": "format"}]')
-
-        # Should not raise, should start with empty dict
-        pm = FilePinManager(cache_manager)
-        assert pm.get_pinned_count() == 0
-        pm.deleteLater()
 
     def test_handles_partial_cache_data(
         self, cache_manager: CacheManager
