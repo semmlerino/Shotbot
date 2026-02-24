@@ -137,6 +137,7 @@ def test_shows_root_dynamic_configuration():
                 # Test shot_parser.py
                 try:
                     # Local application imports
+                    import shot_parser
 
                     # Reload the module to pick up new SHOWS_ROOT
                     importlib.reload(shot_parser)

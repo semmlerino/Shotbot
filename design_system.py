@@ -663,9 +663,12 @@ design_system = DesignSystem()
 
 def _reset_design_system() -> None:
     """Reset the global design system instance to defaults. Used in tests."""
-    global design_system
-    design_system = DesignSystem()
+    import sys
+
+    module = sys.modules[__name__]
+    module.design_system = DesignSystem()  # type: ignore[attr-defined]
 
 
-# Attach reset as a classmethod to DesignSystem class for test isolation
-DesignSystem.reset = classmethod(lambda cls: _reset_design_system())
+DesignSystem.reset = classmethod(  # type: ignore[attr-defined]
+    lambda cls: _reset_design_system()  # noqa: ARG005
+)

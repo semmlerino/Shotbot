@@ -6,14 +6,14 @@ dealing with network file systems, large data sets, and heavy applications.
 
 # Standard library imports
 import os
-from typing import cast
+from typing import ClassVar, cast
 
 
 class TimeoutConfig:
     """Timeout configuration for various operations in seconds."""
 
     # Store original values for reset (populated after class definition)
-    _DEFAULTS: dict[str, int | float] = {}
+    initial_defaults: ClassVar[dict[str, int | float]] = {}
 
     # Command execution timeouts
     WORKSPACE_COMMAND_DEFAULT: int = 120  # 2 minutes for workspace commands
@@ -117,7 +117,7 @@ class TimeoutConfig:
     @classmethod
     def reset(cls) -> None:
         """Reset all timeout values to defaults. Used in test isolation."""
-        for attr_name, default_value in cls._DEFAULTS.items():
+        for attr_name, default_value in cls.initial_defaults.items():
             setattr(cls, attr_name, default_value)
 
     @classmethod
@@ -138,14 +138,19 @@ class TimeoutConfig:
         return summary
 
 
+def _capture_timeout_defaults(cls: type[TimeoutConfig]) -> None:
+    """Capture current TimeoutConfig class attribute values as reset defaults."""
+    cls.initial_defaults = {
+        attr: getattr(cls, attr)
+        for attr in dir(cls)
+        if not attr.startswith("_")
+        and attr.isupper()
+        and isinstance(getattr(cls, attr), (int, float))
+    }
+
+
 # Capture defaults after class definition
-TimeoutConfig._DEFAULTS = {
-    attr: getattr(TimeoutConfig, attr)
-    for attr in dir(TimeoutConfig)
-    if not attr.startswith("_")
-    and attr.isupper()
-    and isinstance(getattr(TimeoutConfig, attr), (int, float))
-}
+_capture_timeout_defaults(TimeoutConfig)
 
 # Environment-based configuration
 # Allow environment override for critical timeouts

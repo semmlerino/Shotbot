@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 logger = get_module_logger(__name__)
 
 # Import path validation internals needed by this module (not re-exported)
-from path_validators import (  # type: ignore[reportPrivateUsage]
-    _PATH_CACHE_TTL,
+from path_validators import (
+    _PATH_CACHE_TTL,  # pyright: ignore[reportPrivateUsage]
     clear_path_cache,
     disable_path_caching,
     enable_path_caching,

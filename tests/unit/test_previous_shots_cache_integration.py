@@ -29,7 +29,7 @@ from previous_shots_model import PreviousShotsModel
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestShot, TestShotModel
+from tests.fixtures.doubles_library import TestShot, TestShotModel
 from tests.test_helpers import process_qt_events
 
 
@@ -54,13 +54,13 @@ pytestmark = [
 def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     """Reset module-level cache disabled flag to prevent test contamination.
 
-    The _cache_disabled flag in utils.py is a global state that can persist
+    The _cache_disabled flag in path_validators.py is a global state that can persist
     across tests, causing subsequent tests to see incorrect cache behavior.
     This fixture ensures each test starts with a clean state.
     """
-    import utils
+    import path_validators
 
-    monkeypatch.setattr(utils, "_cache_disabled", False)
+    monkeypatch.setattr(path_validators, "_cache_disabled", False)
 
 
 @pytest.mark.xdist_group("serial_qt_state")
@@ -416,7 +416,6 @@ class TestPreviousShootsCacheIntegration:
 
     def test_concurrent_cache_access(self, cache_manager, temp_cache_dir) -> None:
         """Test thread safety of cache operations."""
-
         results = []
         errors = []
 

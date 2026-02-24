@@ -23,7 +23,7 @@ from shot_model import Shot, ShotModel
 # Removed sys.path modification - can cause import issues
 # sys.path.insert(0, str(Path(__file__).parent.parent))
 # Third-party imports
-from tests.test_doubles_library import TestCacheManager
+from tests.fixtures.doubles_library import TestCacheManager
 
 
 # Integration tests may show error dialogs when mocks are incomplete
@@ -46,13 +46,13 @@ if TYPE_CHECKING:
 def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     """Reset module-level cache disabled flag to prevent test contamination.
 
-    The _cache_disabled flag in utils.py is a global state that can persist
+    The _cache_disabled flag in path_validators.py is a global state that can persist
     across tests, causing subsequent tests to see incorrect cache behavior.
     This fixture ensures each test starts with a clean state.
     """
-    import utils
+    import path_validators
 
-    monkeypatch.setattr(utils, "_cache_disabled", False)
+    monkeypatch.setattr(path_validators, "_cache_disabled", False)
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
@@ -123,11 +123,11 @@ class TestFeatureFlagSwitching:
             ) as mock_get_instance:
                 # Return a test double for ProcessPoolManager
                 # Local application imports
-                from tests.test_doubles_library import (
+                from tests.fixtures.doubles_library import (
                     TestProcessPool,
                 )
 
-                mock_get_instance.return_value = TestProcessPool()
+                mock_get_instance.return_value = TestProcessPool(allow_main_thread=True)
                 window = MainWindow()
                 qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
@@ -213,11 +213,11 @@ class TestFeatureFlagSwitching:
                             "process_pool_manager.ProcessPoolManager.get_instance"
                         ) as mock_get_instance:
                             # Local application imports
-                            from tests.test_doubles_library import (
+                            from tests.fixtures.doubles_library import (
                                 TestProcessPool,
                             )
 
-                            mock_get_instance.return_value = TestProcessPool()
+                            mock_get_instance.return_value = TestProcessPool(allow_main_thread=True)
                             window = MainWindow()
                             qtbot.addWidget(
                                 window
@@ -447,11 +447,11 @@ class TestMainWindowIntegration:
                 "process_pool_manager.ProcessPoolManager.get_instance"
             ) as mock_get_instance:
                 # Local application imports
-                from tests.test_doubles_library import (
+                from tests.fixtures.doubles_library import (
                     TestProcessPool,
                 )
 
-                mock_get_instance.return_value = TestProcessPool()
+                mock_get_instance.return_value = TestProcessPool(allow_main_thread=True)
                 # Should not raise any exceptions
                 window = MainWindow()
                 qtbot.addWidget(window)  # CRITICAL: Register for cleanup
@@ -520,11 +520,11 @@ class TestMainWindowIntegration:
                 ) as mock_get_instance,
             ):
                 # Local application imports
-                from tests.test_doubles_library import (
+                from tests.fixtures.doubles_library import (
                     TestProcessPool,
                 )
 
-                mock_get_instance.return_value = TestProcessPool()
+                mock_get_instance.return_value = TestProcessPool(allow_main_thread=True)
                 window = MainWindow()
                 qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
