@@ -293,7 +293,7 @@ class TestShotThumbnailCaching:
             workspace_path="/shows/testshow/shots/sq010/sq010_0010",
         )
 
-        assert isinstance(shot._thumbnail_lock, threading.Lock)
+        assert type(shot._thumbnail_lock) is type(threading.Lock())
 
     def test_thumbnail_lock_per_instance(self) -> None:
         """Each Shot instance has its own lock (not shared)."""
