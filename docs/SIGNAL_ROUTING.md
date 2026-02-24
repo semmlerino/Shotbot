@@ -6,7 +6,7 @@
 
 ## Overview
 
-MainWindow has **40+ signal connections** making it the central coupling hub. This document groups connections by subsystem and marks which are critical for app functionality.
+MainWindow has **~40 signal connections** making it the central coupling hub. This document groups connections by subsystem and marks which are critical for app functionality.
 
 ---
 

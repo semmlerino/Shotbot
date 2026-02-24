@@ -153,5 +153,5 @@ chmod +x .git/hooks/post-commit
 
 ## Related Documentation
 
-- `AUTO_PUSH_SYSTEM.md` - System architecture and setup
+- System architecture is documented in CLAUDE.md under "Auto-Push System"
 - `.post-commit-output/` - Logs from hook execution

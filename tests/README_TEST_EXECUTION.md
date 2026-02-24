@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ShotBot test suite contains 2,600+ tests spanning unit, integration, and performance coverage. As of November 2025 the suite can run end-to-end with `pytest tests/ -n auto --dist=loadgroup` thanks to the eager Qt bootstrap (`_GLOBAL_QAPP`), sandboxed config directories, and the automatic xdist grouping in `tests/conftest.py`. Running tests by category is still useful for focus and speed, but the historical “Fatal Python error: Aborted” crash is resolved for both serial and grouped-parallel runs.
+The ShotBot test suite contains 3,500+ tests spanning unit and integration coverage. As of November 2025 the suite can run end-to-end with `pytest tests/ -n auto --dist=loadgroup` thanks to the eager Qt bootstrap (`_GLOBAL_QAPP`), sandboxed config directories, and the automatic xdist grouping in `tests/conftest.py`. Running tests by category is still useful for focus and speed, but the historical “Fatal Python error: Aborted” crash is resolved for both serial and grouped-parallel runs.
 
 ## Quick Start
 
@@ -54,7 +54,7 @@ The ShotBot test suite contains 2,600+ tests spanning unit, integration, and per
 
 ## Test Categories
 
-### Unit Tests (2318 tests)
+### Unit Tests (~3,200+ tests)
 Location: `tests/unit/`
 Purpose: Test individual components in isolation
 Execution Time: ~15-20 minutes
@@ -62,20 +62,12 @@ Execution Time: ~15-20 minutes
 ~/.local/bin/uv run pytest -p no:rerunfailures tests/unit/ --no-cov
 ```
 
-### Integration Tests (195 tests)
+### Integration Tests (~330+ tests)
 Location: `tests/integration/`
 Purpose: Test components working together (async workflows, cross-component coordination)
 Execution Time: ~5-10 minutes (includes slow subprocess/timeout tests)
 ```bash
 ~/.local/bin/uv run pytest -p no:rerunfailures tests/integration/ --no-cov
-```
-
-### Performance Tests (67 tests)
-Location: `tests/performance/`
-Purpose: Test performance characteristics and benchmarks
-Execution Time: ~3-5 minutes
-```bash
-~/.local/bin/uv run pytest -p no:rerunfailures tests/performance/ --no-cov
 ```
 
 ## Real Qt Widgets in Tests
@@ -142,25 +134,6 @@ Available markers:
 - `gui_mainwindow`: Tests for main window GUI
 - `integration_safe`: Integration tests that can run in any order
 - `integration_unsafe`: Integration tests with side effects
-
-## Continuous Integration
-
-For CI/CD pipelines, run tests separately:
-
-```yaml
-# Example GitHub Actions / GitLab CI
-test-unit:
-  script:
-    - uv run pytest -p no:rerunfailures tests/unit/ --no-cov -x
-
-test-integration:
-  script:
-    - uv run pytest -p no:rerunfailures tests/integration/ --no-cov -x
-
-test-performance:
-  script:
-    - uv run pytest -p no:rerunfailures tests/performance/ --no-cov -x
-```
 
 ## Debugging Test Failures
 
@@ -268,7 +241,7 @@ def test_concurrent_access(cache_manager):
 
 ## Summary
 
-**Key Takeaway**: Run unit, integration, and performance tests SEPARATELY to avoid Qt initialization conflicts during mass import. Tests pass reliably when run by category - this is the expected and supported workflow.
+**Key Takeaway**: The full suite (3,500+ tests) runs reliably with `pytest tests/ -n auto --dist=loadgroup`. Run by category when you want faster feedback on a specific area.
 
 ## Additional Resources
 

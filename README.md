@@ -19,9 +19,10 @@ Shotbot supports the standard matchmove pipeline:
 ## Features
 
 - Visual shot browsing with thumbnail grid
-- Two-tab interface:
+- Three-tab interface:
   - **My Shots**: Your current shots from `ws -sg`
   - **Other 3DE scenes**: Browse 3DE scenes created by other artists
+  - **Previous Shots**: Completed/migrated shots from prior sessions
 - Launch applications (3de, Nuke, Maya, RV, Publish) in shot context
 - Automatic thumbnail loading from shot directories with caching
 - Resizable thumbnail view with Ctrl+scroll zoom
@@ -118,8 +119,7 @@ The "Other 3DE scenes" tab shows 3DE scene files created by other matchmove arti
   - User who created the scene (e.g., "john-d")
   - Plate name (e.g., "FG01", "BG01")
 - **Scene Launching**: Double-clicking opens 3DE with the specific scene file
-- **Caching**: Scene discovery results are cached for 30 minutes
-- **Background Updates**: Scenes refresh automatically every 5 minutes
+- **Caching**: Scene discovery uses persistent incremental caching (no TTL expiration)
 
 ## Architecture
 
@@ -130,16 +130,18 @@ The "Other 3DE scenes" tab shows 3DE scene files created by other matchmove arti
 
 ### Shot Management
 - `shot_model.py` - Shot data model with caching and change detection
-- `shot_grid.py` - Thumbnail grid widget for "My Shots" tab
+- `shot_grid_view.py` - Thumbnail grid widget for "My Shots" tab
 - `shot_info_panel.py` - Current shot information display
 - `thumbnail_widget.py` - Individual thumbnail display with selection effects
+- `previous_shots_model.py` - Data model for completed/migrated shots
+- `previous_shots_view.py` - Grid widget for "Previous Shots" tab
 
 ### 3DE Scene Features
 - `threede_scene_model.py` - Data model for 3DE scenes from other users
 - `threede_scene_finder.py` - Discovers .3de files in user directories
-- `threede_shot_grid.py` - Grid widget for "Other 3DE scenes" tab
+- `threede_grid_view.py` - Grid widget for "Other 3DE scenes" tab
 - `threede_thumbnail_widget.py` - Enhanced thumbnails showing user and plate info
-- `threede_scene_scanner.py` - Background scanner with progress reporting
+- `threede_scene_worker.py` - Background scanner with progress reporting
 
 ### Application Integration
 - `command_launcher.py` - Main launcher orchestrating application launches with shot context
@@ -148,8 +150,6 @@ The "Other 3DE scenes" tab shows 3DE scene files created by other matchmove arti
   - `environment_manager.py` - Detects terminals, rez availability
   - `process_executor.py` - Executes processes in terminal emulators
   - `process_verifier.py` - Verifies process execution success
-- `undistortion_finder.py` - Finds undistortion .nk files for Nuke
-
 ### Utilities
 - `log_viewer.py` - Command history display
 - `cache_manager.py` - Caching for thumbnails, shots, and 3DE scenes
@@ -194,8 +194,8 @@ Settings are stored in `~/.shotbot/settings.json` and include:
 ~/.local/bin/uv run pytest tests/ -k "test_cache" -v
 ```
 
-> ℹ️ Coverage is already enabled via `pyproject.toml`; HTML output lands in
-> `coverage_html/` after any `pytest` invocation using the default config.
+> Coverage is disabled by default for faster runs. Enable manually with
+> `~/.local/bin/uv run pytest tests/ --cov=. --cov-report=html:coverage_html`.
 
 For deeper guidance (Qt hygiene, fixture behavior, debugging tips) see
 [UNIFIED_TESTING_V2.md](./UNIFIED_TESTING_V2.md).

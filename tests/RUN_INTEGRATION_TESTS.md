@@ -39,6 +39,13 @@
 | `test_user_workflows.py` | User interaction workflows |
 | `test_feature_flag_switching.py` | Feature flag toggle behavior |
 | `test_thumbnail_discovery_integration.py` | Thumbnail discovery and caching |
+| `test_cache_persistence.py` | Cache persistence across restarts |
+| `test_feature_flag_simplified.py` | Feature flag simplified workflow |
+| `test_process_pool_contract.py` | ProcessPoolManager contract verification |
+| `test_real_command_patterns.py` | Real command pattern execution |
+| `test_real_workspace_commands.py` | Real workspace command behavior |
+| `test_shutdown_sequence.py` | Graceful shutdown sequence |
+| `test_ws_parsing_real.py` | Real ws command output parsing |
 
 ## Test Markers
 
