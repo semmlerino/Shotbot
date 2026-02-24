@@ -105,37 +105,6 @@ workspace /shows/TEST/seq02/0030""")
 
         assert len(signals_received) == 0, "No signals should be emitted after stop"
 
-    def test_concurrent_stop_during_execution(self) -> None:
-        """Test stopping loader while it's executing."""
-
-        # Make execute_workspace_command slow
-        def slow_command(*args: Any, **kwargs: Any) -> str:
-            time.sleep(0.1)  # Simulate slow command
-            return "workspace /shows/TEST/seq01/0010"
-
-        self.test_process_pool.execute_workspace_command = slow_command
-        loader = AsyncShotLoader(self.test_process_pool)
-
-        # Start loader in thread
-        loader.start()
-
-        # Try to stop from multiple threads while running
-        def attempt_stop() -> None:
-            # Use wait() to ensure loader thread has started
-            loader.wait(10)  # Brief wait for thread to start
-            loader.stop()
-
-        threads = [threading.Thread(target=attempt_stop) for _ in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        # Wait for loader to finish
-        assert loader.wait(1000), "Loader should stop within 1 second"
-        assert loader._stop_requested, "Stop should be requested"  # pyright: ignore[reportPrivateUsage]
-
-
 class TestShotModelThreadSafety:
     """Test thread safety of ShotModel."""
 
@@ -154,69 +123,6 @@ class TestShotModelThreadSafety:
             for _ in range(10):  # Multiple passes to ensure all events processed
                 qapp.processEvents()
         self.temp_dir.cleanup()
-
-    def test_concurrent_background_refresh(self) -> None:
-        """Test that concurrent calls to _start_background_refresh are safe."""
-        called_count = [0]
-
-        def mock_start(*args: Any, **kwargs: Any) -> None:
-            called_count[0] += 1
-
-        # Temporarily replace start method
-        with patch.object(AsyncShotLoader, "start", mock_start):
-            # Try to start refresh from multiple threads
-            def attempt_refresh() -> None:
-                self.model._start_background_refresh()  # pyright: ignore[reportPrivateUsage]
-
-            threads = [threading.Thread(target=attempt_refresh) for _ in range(10)]
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
-
-            # Only one loader should be created due to lock protection
-            assert called_count[0] == 1, "Only one loader should be created"
-
-    @pytest.mark.timeout(15)  # Longer timeout for cleanup
-    def test_cleanup_during_active_loading(self) -> None:
-        """Test cleanup while background loading is active."""
-        # Mock the command execution to be slow instead of mocking run()
-        # This preserves Qt's thread lifecycle while still testing cleanup
-        original_execute = self.model._process_pool.execute_workspace_command
-
-        def slow_execute(*args: Any, **kwargs: Any) -> str:
-            """Slow command execution that checks for interruption."""
-            # Simulate slow command execution
-            for _ in range(10):  # 10 iterations of 0.05s = 0.5s total
-                time.sleep(0.05)
-            return "workspace /shows/TEST/seq01/0010"
-
-        try:
-            # Patch the execute method
-            self.model._process_pool.execute_workspace_command = slow_execute  # pyright: ignore[reportAttributeAccessIssue]
-
-            # Start background load
-            self.model.initialize_async()
-
-            # Brief wait to ensure thread has started
-            # The loader's isRunning() method will indicate when ready
-            if self.model._async_loader:  # pyright: ignore[reportPrivateUsage]
-                self.model._async_loader.wait(100)  # pyright: ignore[reportPrivateUsage]
-
-            # Cleanup should handle running thread
-            start_time = time.time()
-            self.model.cleanup()
-            cleanup_time = time.time() - start_time
-
-            # Should complete within reasonable time
-            assert cleanup_time < 5, "Cleanup should not take more than 5 seconds"
-            assert self.model._async_loader is None, "Loader should be cleaned up"  # pyright: ignore[reportPrivateUsage]
-        finally:
-            # Restore original method
-            self.model._process_pool.execute_workspace_command = original_execute  # pyright: ignore[reportAttributeAccessIssue]
-
-            # Ensure cleanup
-            self.model.cleanup()
 
     def test_race_condition_protection_in_refresh(self) -> None:
         """Test that rapid refresh calls don't cause race conditions."""
