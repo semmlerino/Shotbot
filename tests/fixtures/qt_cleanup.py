@@ -183,11 +183,10 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
     # Wrap event processing in try-except to prevent crashes from leaked objects
     try:
         # Now clean up state from previous test
-        # Multiple rounds ensure complete event processing
-        for _ in range(2):
-            QCoreApplication.processEvents()
-            # Flush deferred deletes explicitly (deleteLater() calls)
-            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+        # 1 round is sufficient; post-test cleanup of the previous test already handled most state
+        QCoreApplication.processEvents()
+        # Flush deferred deletes explicitly (deleteLater() calls)
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
         # Clear Qt caches to prevent memory accumulation
         QPixmapCache.clear()
@@ -236,18 +235,14 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
     # Wrap event processing in try-except to prevent crashes from leaked objects
     try:
         # Now that threads are done, clean up Qt resources
-        # Multiple rounds to catch cascading cleanups
-        for _ in range(3):
+        # 2 rounds: first processes deleteLater() objects, second handles cascading deletes
+        for _ in range(2):
             QCoreApplication.processEvents()
             # Flush deferred deletes - prevents dangling signals/slots
             QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
         # Clear Qt caches again after test
         QPixmapCache.clear()
-
-        # Final event processing after thread cleanup
-        QCoreApplication.processEvents()
-        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
     except (RuntimeError, SystemError) as e:
         _logger.warning("Qt cleanup after-test exception (check for orphaned Qt objects): %s", e)
         if STRICT_CLEANUP:

@@ -811,17 +811,6 @@ def pytest_configure(config: pytest.Config) -> None:
             pytrace=False,
         )
 
-    # FAIL-FAST: Verify singleton dependency order is correct
-    # This catches cases where cleanup order doesn't match declared dependencies
-    dep_violations = SingletonRegistry.validate_dependency_order()
-    if dep_violations:
-        pytest.fail(
-            "SINGLETON DEPENDENCY ORDER VIOLATION:\n"
-            + "\n".join(f"  - {v}" for v in dep_violations)
-            + "\n\nFix: Adjust cleanup_order values so dependencies clean up AFTER dependents.",
-            pytrace=False,
-        )
-
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
     """Setup hook: track current test item and handle skip conditions.

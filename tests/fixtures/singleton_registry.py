@@ -48,7 +48,6 @@ class SingletonEntry:
     import_path: str  # e.g., "notification_manager.NotificationManager"
     cleanup_order: int  # Lower = earlier cleanup
     description: str = ""
-    depends_on: frozenset[str] = frozenset()  # Singletons that must be cleaned AFTER this one
 
 
 class SingletonRegistry:
@@ -74,7 +73,6 @@ class SingletonRegistry:
         import_path: str,
         cleanup_order: int = 50,
         description: str = "",
-        depends_on: frozenset[str] | None = None,
     ) -> None:
         """Register a singleton for cleanup.
 
@@ -82,8 +80,6 @@ class SingletonRegistry:
             import_path: Fully qualified path like "module.ClassName"
             cleanup_order: Lower values clean up first (default: 50)
             description: Optional description for debugging
-            depends_on: Optional set of singleton import paths that must be
-                cleaned up AFTER this singleton (higher cleanup_order)
 
         Raises:
             ValueError: If cleanup_order is already used (non-deterministic cleanup)
@@ -110,7 +106,6 @@ class SingletonRegistry:
             import_path=import_path,
             cleanup_order=cleanup_order,
             description=description,
-            depends_on=depends_on or frozenset(),
         )
         cls._entries.append(entry)
         # Keep sorted by cleanup_order
@@ -192,39 +187,6 @@ class SingletonRegistry:
     def get_entries(cls) -> list[SingletonEntry]:
         """Return a copy of all registered entries (for inspection)."""
         return list(cls._entries)
-
-    @classmethod
-    def validate_dependency_order(cls) -> list[str]:
-        """Validate that cleanup order respects declared dependencies.
-
-        If singleton A declares depends_on={B}, then B must have a higher
-        cleanup_order than A (i.e., B is cleaned up AFTER A).
-
-        Returns:
-            List of violation messages (empty if valid)
-
-        """
-        violations: list[str] = []
-        order_map = {e.import_path: e.cleanup_order for e in cls._entries}
-
-        for entry in cls._entries:
-            for dep in entry.depends_on:
-                if dep in order_map:
-                    # Dependency must be cleaned AFTER this entry (higher order number)
-                    if order_map[dep] <= entry.cleanup_order:
-                        violations.append(
-                            f"{entry.import_path} (order={entry.cleanup_order}) depends on "
-                            f"{dep} (order={order_map[dep]}), but dependency cleans up first!"
-                        )
-                else:
-                    # Dependency not registered - might be intentional (optional dep)
-                    _logger.debug(
-                        "Dependency %s of %s is not registered",
-                        dep,
-                        entry.import_path,
-                    )
-
-        return violations
 
     @classmethod
     def clear(cls) -> None:

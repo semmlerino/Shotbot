@@ -397,8 +397,8 @@ class TestEXRProcessing:
         # PIL will fail on our mock EXR file since it's not a real EXR
         # This is expected behavior - graceful degradation without OpenEXR/Imath
         if result is None:
-            # Verify no exception was raised (graceful failure)
-            assert True
+            # Verify graceful failure: result is None (no exception, no cache entry)
+            assert result is None
 
     def test_exr_thumbnail_with_missing_file(
         self, cache_manager: CacheManager, tmp_path: Path

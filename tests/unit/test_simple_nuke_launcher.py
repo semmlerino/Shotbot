@@ -198,11 +198,10 @@ class TestSimpleNukeLauncher:
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
 
-        simple_launcher.create_new_version(mock_shot, "FG01")
+        command, log_messages = simple_launcher.create_new_version(mock_shot, "FG01")
 
-        # mkdir is called on the Path object, not the mock
-        # Just verify the command was generated successfully
-        assert True  # If we get here without exception, test passes
+        # Verify a valid nuke command was produced (directory creation succeeded)
+        assert command.startswith("nuke")
 
     @patch.dict("os.environ", {"USER": "testuser"})
     @patch("simple_nuke_launcher.Path.mkdir")

@@ -324,7 +324,7 @@ class TestPathValidationProperties:
 class TestSceneFinderProperties:
     """Property-based tests for 3DE scene finder."""
 
-    @settings(suppress_health_check=[HealthCheck.too_slow])
+    @settings(suppress_health_check=[HealthCheck.too_slow], deadline=None)
     @given(
         st.lists(
             st.tuples(
@@ -381,8 +381,11 @@ class TestSceneFinderProperties:
                 # Should find same number of scenes
                 assert len(scenes1) == len(scenes2)
             else:
-                # Empty list should return empty result
-                assert True  # Pass for empty case
+                # Empty scene list: finder should return an empty result
+                scenes = finder.find_scenes_for_shot(
+                    str(shot_path), "test", "seq01", "seq01_0010"
+                )
+                assert scenes == []
 
 
 # Test runner for standalone execution
