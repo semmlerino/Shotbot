@@ -34,7 +34,6 @@ class TestNukeLaunchRouter:
         assert router.simple_launcher is not None
         assert router.complex_launcher is not None
         assert router.simple_launches == 0
-        assert router.complex_launches == 0
 
     def test_route_to_simple_open_latest(self, router, mock_shot) -> None:
         """Test routing to simple launcher for open_latest_scene."""
@@ -47,7 +46,6 @@ class TestNukeLaunchRouter:
             )
 
             assert router.simple_launches == 1
-            assert router.complex_launches == 0
             mock_open.assert_called_once_with(
                 mock_shot, "FG01", create_if_missing=True
             )
@@ -65,7 +63,6 @@ class TestNukeLaunchRouter:
             )
 
             assert router.simple_launches == 1
-            assert router.complex_launches == 0
             mock_create.assert_called_once_with(mock_shot, "FG01")
 
     def test_no_options_opens_empty_nuke(self, router, mock_shot) -> None:
@@ -77,7 +74,6 @@ class TestNukeLaunchRouter:
 
         assert command == "nuke"
         assert router.simple_launches == 1  # Counts as simple workflow
-        assert router.complex_launches == 0
         assert any("no options selected" in msg.lower() for msg in messages)
 
     def test_no_plate_selected_error(self, router, mock_shot) -> None:
@@ -128,20 +124,16 @@ class TestNukeLaunchRouter:
         caplog.set_level(logging.INFO, logger="nuke_launch_router.NukeLaunchRouter")
 
         router.simple_launches = 47
-        router.complex_launches = 3
 
         router.log_usage_stats()
 
         assert "Nuke Launcher Usage Statistics" in caplog.text
         assert "Simple workflow:" in caplog.text
-        assert "Complex workflow:" in caplog.text
         assert "47" in caplog.text
-        assert "3" in caplog.text
 
     def test_log_usage_stats_empty(self, router, caplog) -> None:
         """Test that log_usage_stats handles zero launches gracefully."""
         router.simple_launches = 0
-        router.complex_launches = 0
 
         router.log_usage_stats()
 

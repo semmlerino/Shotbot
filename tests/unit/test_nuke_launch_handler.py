@@ -31,7 +31,6 @@ class TestNukeLaunchHandler:
 
     def test_initialization(self, nuke_handler) -> None:
         """Test that handler initializes with required modules."""
-        assert nuke_handler.workspace_manager is not None
         assert nuke_handler.script_generator is not None
 
     def test_prepare_nuke_command_basic(self, nuke_handler, mock_shot) -> None:

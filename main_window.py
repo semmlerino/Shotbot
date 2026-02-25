@@ -613,13 +613,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self  # pyright: ignore[reportArgumentType]
         )
 
-        # Set up keyboard navigation tab order
-        AccessibilityManager.setup_keyboard_navigation(self)  # pyright: ignore[reportArgumentType]
-
-        # Apply focus indicator stylesheet
-        existing_style = self.styleSheet() or ""
-        focus_style = AccessibilityManager.add_focus_indicators_stylesheet()
-        self.setStyleSheet(existing_style + focus_style)
 
     def _connect_signals(self) -> None:
         """Connect signals."""

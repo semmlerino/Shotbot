@@ -100,18 +100,6 @@ class TestShotHeaderDisplay:
 class TestShotHeaderCopyPath:
     """Tests for path copy functionality."""
 
-    def test_copy_button_emits_signal(
-        self, qtbot: QtBot, mock_shot: MagicMock
-    ) -> None:
-        """Copy button emits path_copy_requested signal."""
-        header = ShotHeader()
-        qtbot.addWidget(header)
-        header.set_shot(mock_shot)
-
-        with qtbot.waitSignal(header.path_copy_requested, timeout=1000):
-            qtbot.mouseClick(header._copy_path_btn, Qt.MouseButton.LeftButton)
-            process_qt_events()
-
     def test_copy_button_copies_to_clipboard(
         self, qtbot: QtBot, mock_shot: MagicMock
     ) -> None:

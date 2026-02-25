@@ -42,24 +42,6 @@ class SceneDataProtocol(Protocol):
 
 
 @runtime_checkable
-class WorkerProtocol(Protocol):
-    """Protocol for background worker threads."""
-
-    def start_work(self) -> None:
-        """Start the worker."""
-        ...
-
-    def stop_work(self) -> None:
-        """Stop the worker."""
-        ...
-
-    @property
-    def is_running(self) -> bool:
-        """Check if worker is currently running."""
-        ...
-
-
-@runtime_checkable
 class ProcessPoolInterface(Protocol):
     """Protocol for process pool implementations.
 

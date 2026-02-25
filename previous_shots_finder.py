@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
-import os
 import re
 import time
 from pathlib import Path
@@ -537,7 +536,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         """Find all shots with user work directories using parallel search.
 
         This method overrides the parent's synchronous implementation with
-        a parallel version. Falls back to legacy method if environment variable is set.
+        a parallel version.
 
         Args:
             shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None)
@@ -552,12 +551,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         elif isinstance(shows_root, str):
             shows_root = Path(shows_root)
 
-        # Check for legacy mode fallback
-        if os.environ.get("USE_LEGACY_SHOT_FINDER"):
-            self.logger.info("Using legacy sequential shot finder")
-            return super().find_user_shots(shows_root)
-
-        # Use new parallel implementation
+        # Use parallel implementation
         self.logger.info("Using parallel shot finder with incremental loading")
         start_time = time.time()
 

@@ -29,7 +29,6 @@ class NukeLaunchRouter(LoggingMixin):
 
         # Usage tracking for metrics
         self.simple_launches: int = 0
-        self.complex_launches: int = 0
 
     def prepare_nuke_command(
         self,
@@ -131,18 +130,14 @@ class NukeLaunchRouter(LoggingMixin):
         return self.complex_launcher.get_environment_fixes()
 
     def log_usage_stats(self) -> None:
-        """Log usage statistics for simple vs complex workflows."""
-        total = self.simple_launches + self.complex_launches
+        """Log usage statistics for simple workflow."""
+        total = self.simple_launches
         if total == 0:
             return
-
-        simple_pct = (self.simple_launches / total) * 100
-        complex_pct = (self.complex_launches / total) * 100
 
         self.logger.info("=" * 60)
         self.logger.info("Nuke Launcher Usage Statistics")
         self.logger.info("=" * 60)
-        self.logger.info(f"Simple workflow:  {self.simple_launches:3d} launches ({simple_pct:5.1f}%)")
-        self.logger.info(f"Complex workflow: {self.complex_launches:3d} launches ({complex_pct:5.1f}%)")
+        self.logger.info(f"Simple workflow:  {self.simple_launches:3d} launches")
         self.logger.info(f"Total launches:   {total:3d}")
         self.logger.info("=" * 60)

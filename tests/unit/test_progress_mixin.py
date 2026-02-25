@@ -179,46 +179,6 @@ class TestStopRequest:
         assert "Stopped at" in obj.operations_performed[-1]
 
 
-class TestProgressCalculation:
-    """Test progress calculation utilities."""
-
-    def test_calculate_percentage(self) -> None:
-        """Test percentage calculation."""
-        obj = ConcreteProgressClass()
-
-        # Normal cases
-        assert obj._calculate_percentage(50, 100) == 50
-        assert obj._calculate_percentage(0, 100) == 0
-        assert obj._calculate_percentage(100, 100) == 100
-
-        # Edge cases
-        assert obj._calculate_percentage(0, 0) == 0  # Division by zero
-        assert obj._calculate_percentage(10, 0) == 0  # Invalid total
-        assert obj._calculate_percentage(-5, 100) == 0  # Negative current
-        assert obj._calculate_percentage(150, 100) == 100  # Over 100%
-
-    def test_progress_with_zero_total(self) -> None:
-        """Test progress reporting with zero total."""
-        obj = ConcreteProgressClass()
-        callback = MagicMock()
-        obj.set_progress_callback(callback)
-
-        # Should handle gracefully
-        obj._report_progress(0, 0, "Empty operation")
-        callback.assert_called_once_with(0, 0, "Empty operation")
-
-    def test_progress_with_negative_values(self) -> None:
-        """Test progress with negative values."""
-        obj = ConcreteProgressClass()
-
-        # Should clamp to valid range
-        percentage = obj._calculate_percentage(-10, 100)
-        assert percentage == 0
-
-        percentage = obj._calculate_percentage(10, -100)
-        assert percentage == 0
-
-
 class TestProgressReportingIntegration:
     """Test integrated progress reporting scenarios."""
 
@@ -233,7 +193,6 @@ class TestProgressReportingIntegration:
                     "current": current,
                     "total": total,
                     "message": message,
-                    "percentage": obj._calculate_percentage(current, total),
                 }
             )
 
@@ -242,8 +201,6 @@ class TestProgressReportingIntegration:
 
         assert result is True
         assert len(progress_reports) == 10
-        assert progress_reports[0]["percentage"] == 10
-        assert progress_reports[-1]["percentage"] == 100
         assert progress_reports[-1]["current"] == 10
 
     def test_multiple_operations_with_reset(self) -> None:

@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, NamedTuple, NotRequired, Protocol, TypedDict, TypeVar, cast
+from typing import Literal, NamedTuple, NotRequired, TypedDict, cast
 
 # Third-party imports
 from PySide6.QtCore import Signal
@@ -267,124 +267,6 @@ class ThumbnailInfoDict(TypedDict, total=False):
     height: int
     format: str
     cached_at: float
-
-
-# ==============================================================================
-# Protocol Definitions for Interfaces
-# ==============================================================================
-
-
-class CacheProtocol(Protocol):
-    """Protocol for cache implementations."""
-
-    def cache_shots(self, shots: list[ShotDict]) -> None:
-        """Cache shot data."""
-        ...
-
-    def get_cached_shots(self) -> list[ShotDict] | None:
-        """Retrieve cached shots."""
-        ...
-
-    def clear_cache(self) -> None:
-        """Clear all cached data."""
-        ...
-
-    def get_memory_usage(self) -> CacheMetricsDict:
-        """Get cache memory usage statistics."""
-        ...
-
-
-class WorkerProtocol(Protocol):
-    """Protocol for background worker threads."""
-
-    # Qt signals
-    started: Signal
-    finished: Signal
-    error_occurred: Signal
-
-    def start(self) -> None:
-        """Start the worker thread."""
-        ...
-
-    def stop(self) -> None:
-        """Stop the worker thread."""
-        ...
-
-    def wait(self, timeout: int = 5000) -> bool:
-        """Wait for worker to finish."""
-        ...
-
-
-class ThumbnailProcessorProtocol(Protocol):
-    """Protocol for thumbnail processing backends."""
-
-    def load_thumbnail(
-        self, path: str | Path, size: tuple[int, int] = (100, 100)
-    ) -> object | None:  # Returns QPixmap/QImage/PIL.Image depending on backend
-        """Load and resize a thumbnail."""
-        ...
-
-    def supports_format(self, image_format: str) -> bool:
-        """Check if processor supports given format."""
-        ...
-
-
-class LauncherProtocol(Protocol):
-    """Protocol for application launchers."""
-
-    def launch(
-        self,
-        command: str,
-        shot_name: str | None = None,
-        environment: dict[str, str] | None = None,
-    ) -> ProcessInfoDict:
-        """Launch an application."""
-        ...
-
-    def is_running(self, process_id: int | str) -> bool:
-        """Check if a process is still running."""
-        ...
-
-    def terminate(self, process_id: int | str) -> bool:
-        """Terminate a running process."""
-        ...
-
-
-# Generic type variable for finder results
-T = TypeVar("T")
-
-
-class FinderProtocol(Protocol[T]):
-    """Protocol for file/scene finders."""
-
-    def find_all(self) -> list[T]:
-        """Find all items."""
-        ...
-
-    def find_for_shot(self, show: str, sequence: str, shot: str) -> list[T]:
-        """Find items for a specific shot."""
-        ...
-
-
-class AsyncLoaderProtocol(Protocol):
-    """Protocol for async shot loaders with background processing."""
-
-    # Qt signals for communication
-    shots_loaded: Signal
-    load_failed: Signal
-    finished: Signal
-
-    def start(self) -> None:
-        """Start the async loading process."""
-        ...
-
-    def stop(self) -> None:
-        """Stop the async loading process."""
-        ...
-
-    def wait(self, timeout: int = 5000) -> bool:
-        """Wait for process to finish with timeout."""
-        ...
 
 
 # ==============================================================================

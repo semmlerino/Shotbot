@@ -123,30 +123,6 @@ class TestPlatePriorityValidation:
             )
             assert priority >= 0, f"Plate {plate} has negative priority {priority}"
 
-    def test_plate_priority_order_legacy_compatibility(self) -> None:
-        """Validate legacy PLATE_PRIORITY_ORDER maintains reasonable values.
-
-        Legacy priority order uses inverse ordering (higher = better priority).
-        Values should be positive and FG/PL plates should have high values.
-        """
-        legacy = Config.PLATE_PRIORITY_ORDER
-
-        # Check all values are positive numeric
-        for plate, priority in legacy.items():
-            assert isinstance(priority, (int, float)), (
-                f"Legacy plate {plate} has non-numeric priority {priority!r}"
-            )
-            assert priority > 0, f"Legacy plate {plate} has non-positive priority {priority}"
-
-        # Check FG/PL plates have high priority (high values in legacy)
-        primary_plates = ["FG01", "PL01", "BG01"]
-        for plate in primary_plates:
-            if plate in legacy:
-                assert legacy[plate] >= 4, (
-                    f"Legacy primary plate {plate} has low priority {legacy[plate]}, "
-                    f"should be >= 4 for production plates"
-                )
-
 
 class TestPathConfigurationValidation:
     """Validation tests for filesystem path configuration."""

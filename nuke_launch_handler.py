@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 from config import Config
 from logging_mixin import LoggingMixin
 from nuke_script_generator import NukeScriptGenerator
-from nuke_workspace_manager import NukeWorkspaceManager
 from plate_discovery import PlateDiscovery
 
 
@@ -26,8 +25,6 @@ class NukeLaunchHandler(LoggingMixin):
     def __init__(self) -> None:
         """Initialize with all required Nuke modules."""
         super().__init__()
-        self.workspace_manager: NukeWorkspaceManager = NukeWorkspaceManager()
-
         # These are stored as classes since they use static methods
         self.script_generator: type[NukeScriptGenerator] = NukeScriptGenerator
 

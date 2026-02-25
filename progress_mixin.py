@@ -10,13 +10,9 @@ from __future__ import annotations
 # Standard library imports
 import contextlib
 from collections.abc import Callable
-from typing import TypeVar
 
 # Local application imports
 from logging_mixin import LoggingMixin
-
-
-T = TypeVar("T")
 
 
 class ProgressReportingMixin(LoggingMixin):
@@ -123,41 +119,6 @@ class ProgressReportingMixin(LoggingMixin):
             # Disable callback to prevent further errors
             self._progress_callback = None
 
-    def _calculate_percentage(self, current: int, total: int) -> int:
-        """Calculate progress percentage safely.
-
-        Handles edge cases like division by zero and invalid values.
-
-        Args:
-            current: Current progress value
-            total: Total progress value
-
-        Returns:
-            Percentage as integer (0-100)
-
-        """
-        if total <= 0 or current < 0:
-            return 0
-        if current >= total:
-            return 100
-        return int((current / total) * 100)
-
-    def _report_progress_percentage(self, percentage: float, message: str = "") -> None:
-        """Report progress as a percentage.
-
-        Convenience method for reporting progress as a percentage
-        rather than absolute values.
-
-        Args:
-            percentage: Progress percentage (0.0 to 100.0)
-            message: Optional progress message
-
-        """
-        # Convert percentage to current/total values
-        current = int(percentage)
-        total = 100
-        self._report_progress(current, total, message)
-
     def _check_stop(self) -> bool:
         """Check if operation should stop.
 
@@ -182,99 +143,3 @@ class ProgressReportingMixin(LoggingMixin):
             return True
         return False
 
-    def _with_progress_tracking(
-        self,
-        items: list[T],
-        operation: Callable[[T], object],
-        message_formatter: Callable[[int, T], str] | None = None,
-    ) -> list[object]:
-        """Process items with automatic progress tracking.
-
-        Utility method to process a list of items with automatic
-        progress reporting and stop checking.
-
-        Args:
-            items: List of items to process
-            operation: Function to call for each item
-            message_formatter: Optional function to format progress message
-                             Signature: (index: int, item: any) -> str
-
-        Returns:
-            List of results from operation (None for stopped items)
-
-        """
-        results: list[object] = []
-        total = len(items)
-
-        for i, item in enumerate(items):
-            # Check for stop request
-            if self._check_stop():
-                # Return partial results
-                break
-
-            # Format message
-            if message_formatter:
-                message = message_formatter(i, item)
-            else:
-                message = f"Processing item {i + 1} of {total}"
-
-            # Report progress
-            self._report_progress(i, total, message)
-
-            # Process item
-            try:
-                result = operation(item)
-                results.append(result)
-            except Exception as e:
-                self.logger.error(f"Error processing item {i}: {e}")
-                results.append(None)
-
-        # Report completion
-        if not self._stop_requested:
-            self._report_progress(total, total, "Complete")
-
-        return results
-
-    def _estimate_remaining_time(
-        self, current: int, total: int, elapsed_seconds: float
-    ) -> float:
-        """Estimate remaining time based on current progress.
-
-        Args:
-            current: Current progress value
-            total: Total progress value
-            elapsed_seconds: Time elapsed so far in seconds
-
-        Returns:
-            Estimated remaining time in seconds
-
-        """
-        if current <= 0 or total <= 0:
-            return 0.0
-
-        rate = current / elapsed_seconds  # items per second
-        remaining = total - current
-
-        if rate > 0:
-            return remaining / rate
-        return 0.0
-
-    def _format_time_estimate(self, seconds: float) -> str:
-        """Format time estimate for display.
-
-        Args:
-            seconds: Time in seconds
-
-        Returns:
-            Human-readable time string (e.g., "2m 30s")
-
-        """
-        if seconds < 60:
-            return f"{int(seconds)}s"
-        if seconds < 3600:
-            minutes = int(seconds / 60)
-            secs = int(seconds % 60)
-            return f"{minutes}m {secs}s"
-        hours = int(seconds / 3600)
-        minutes = int((seconds % 3600) / 60)
-        return f"{hours}h {minutes}m"

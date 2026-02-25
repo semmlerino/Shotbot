@@ -34,7 +34,6 @@ from PySide6.QtCore import (
     QMutexLocker,
     QObject,
     QThread,
-    Signal,
 )
 from PySide6.QtWidgets import QApplication
 
@@ -411,10 +410,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
     _lock = threading.Lock()  # Use Python's threading.Lock for singleton access
     _initialized = False  # Class-level flag to track singleton initialization
 
-    # Qt signals
-    command_completed = Signal(str, object)  # command_id, result
-    command_failed = Signal(str, str)  # command_id, error
-
     def __new__(cls, max_workers: int = 4) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety.
 
@@ -615,14 +610,10 @@ class ProcessPoolManager(LoggingMixin, QObject):
             elapsed = (time.time() - start_time) * 1000
             self._metrics.update_response_time(elapsed)
 
-            # Emit completion signal
-            self.command_completed.emit(command, result)
-
             return result
 
         except Exception as e:
             self.logger.error(f"Command execution failed: {e}")
-            self.command_failed.emit(command, str(e))
             raise
 
     def batch_execute(
@@ -909,27 +900,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 self._cache.invalidate()  # Clear entire cache
                 if cache_size > 0:
                     self.logger.debug(f"Cleared {cache_size} command cache entries")
-
-            # Disconnect Qt signals to prevent crashes during destruction
-            # Note: Only disconnect signals that have active connections
-            try:
-                # Standard library imports
-                import warnings
-
-                # Suppress RuntimeWarning about disconnecting signals with no connections
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore",
-                        category=RuntimeWarning,
-                        message=".*Failed to disconnect.*"
-                    )
-                    if hasattr(self, "command_completed"):
-                        _ = self.command_completed.disconnect()
-                    if hasattr(self, "command_failed"):
-                        _ = self.command_failed.disconnect()
-            except (RuntimeError, TypeError):
-                # Signals may already be disconnected or in invalid state
-                pass
 
         except Exception as e:
             self.logger.warning(f"Error during resource cleanup: {e}")

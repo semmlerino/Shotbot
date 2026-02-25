@@ -159,7 +159,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         ]  # Populated in create_associations_widget
         self.associations_widget: QWidget
         self.launchers_edit: QTextEdit
-        self.edit_launchers_btn: QPushButton
         self.validate_launchers_btn: QPushButton
 
         # Advanced tab widgets
@@ -460,9 +459,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Launcher buttons
         launcher_buttons = QHBoxLayout()
-        self.edit_launchers_btn = QPushButton("Edit Launchers...")
         self.validate_launchers_btn = QPushButton("Validate")
-        launcher_buttons.addWidget(self.edit_launchers_btn)
         launcher_buttons.addWidget(self.validate_launchers_btn)
         launcher_buttons.addStretch()
         launchers_layout.addLayout(launcher_buttons)
@@ -610,9 +607,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         _ = self.validate_launchers_btn.clicked.connect(
             self.validate_custom_launchers  # type: ignore[reportAny, return-value]
         )
-        _ = self.edit_launchers_btn.clicked.connect(
-            self.edit_custom_launchers  # type: ignore[reportAny, return-value]
-        )
 
     def set_initial_tab(self, tab_name: str) -> None:
         """Set the initial tab to display."""
@@ -717,16 +711,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             )
         except json.JSONDecodeError as e:
             _ = QMessageBox.warning(self, "Validation Error", f"Invalid JSON format:\n{e}")
-
-    @Slot()
-    def edit_custom_launchers(self) -> None:  # type: ignore[reportAny]
-        """Open custom launchers editor."""
-        # TODO: Implement launcher editor dialog
-        _ = QMessageBox.information(
-            self,
-            "Not Implemented",
-            "Launcher editor will be implemented in future version.",
-        )
 
     def handle_button_click(self, button: QAbstractButton) -> None:
         """Handle custom button clicks."""

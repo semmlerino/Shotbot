@@ -201,13 +201,9 @@ class InjectableProcessPoolManager(ProcessPoolManager):
                 elapsed = (time.time() - start_time) * 1000
                 self._metrics.update_response_time(elapsed)
 
-                # Emit completion signal
-                self.command_completed.emit(command, result)
-
                 return result
 
-            except Exception as e:
-                self.command_failed.emit(command, str(e))
+            except Exception:
                 raise
         else:
             # Use parent implementation with secure executor

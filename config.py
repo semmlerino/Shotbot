@@ -283,22 +283,6 @@ class Config:
         "*": 12,  # All others lowest priority
     }
 
-    # Legacy plate priority (for backward compatibility)
-    PLATE_PRIORITY_ORDER: ClassVar[dict[str, float]] = {
-        "FG01": 10,
-        "fg01": 9,
-        "FG02": 8,
-        "PL01": 7,  # Primary turnover plate - high priority
-        "PL02": 6,  # Secondary turnover plate
-        "PL03": 5,  # Tertiary turnover plate
-        "COMP01": 4.5,  # Composite plates - between PL and BG
-        "COMP02": 4.4,
-        "COMP03": 4.3,
-        "BG01": 4.0,
-        "bg01": 3.5,
-        "BG02": 2,
-    }  # Higher value = higher priority
-
     # Common color space patterns in plate names
     COLOR_SPACE_PATTERNS: ClassVar[list[str]] = [
         "aces",

@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, final
 
-from PySide6.QtCore import Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QApplication,
@@ -57,12 +56,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
     - Workspace path + copy button (10px, dim)
     - DCC Status Strip (latest version per app)
 
-    Attributes:
-        path_copy_requested: Signal emitted when copy button clicked.
-
     """
-
-    path_copy_requested = Signal()
 
     def __init__(
         self,
@@ -197,7 +191,6 @@ class ShotHeader(QtWidgetMixin, QWidget):
             clipboard = QApplication.clipboard()
             if clipboard:
                 clipboard.setText(self._current_shot.workspace_path)
-        self.path_copy_requested.emit()
 
     def set_shot(self, shot: Shot | None) -> None:
         """Set the current shot to display.
