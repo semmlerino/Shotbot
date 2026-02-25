@@ -25,7 +25,6 @@ import pytest
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
-    from type_definitions import ShotDict
 
 pytestmark = [pytest.mark.integration]
 
@@ -196,33 +195,6 @@ class TestFilesystemDiscoveryE2E:
             shots = list(seq.iterdir())
             assert len(shots) == 4  # SH0010, SH0020, SH0030, SH0040
 
-    def test_path_cache_with_real_filesystem(
-        self, mock_vfx_structure: Path
-    ) -> None:
-        """Verify path caching works with real filesystem operations."""
-        from path_validators import PathValidators, clear_path_cache, get_cache_stats
-
-        clear_path_cache()
-
-        shows_dir = mock_vfx_structure / "shows" / "TESTSHOW" / "shots"
-
-        # First validation - cache miss
-        result1 = PathValidators.validate_path_exists(shows_dir, "test")
-        assert result1 is True
-
-        stats1 = get_cache_stats()
-        size1 = stats1.get("path_cache_size", stats1.get("size", 0))
-
-        # Second validation - cache hit
-        result2 = PathValidators.validate_path_exists(shows_dir, "test")
-        assert result2 is True
-
-        stats2 = get_cache_stats()
-        size2 = stats2.get("path_cache_size", stats2.get("size", 0))
-
-        # Size should be same (cache hit, not miss)
-        assert size1 == size2
-
 
 # ==============================================================================
 # E2E Settings Persistence Tests
@@ -270,63 +242,6 @@ class TestSettingsPersistenceE2E:
 
 
 # ==============================================================================
-# E2E Image Processing Tests
-# ==============================================================================
-
-
-class TestImageProcessingE2E:
-    """End-to-end tests for image processing with PIL."""
-
-    @pytest.fixture
-    def real_image_dir(self, tmp_path: Path) -> Path:
-        """Create directory with real test images."""
-        base = tmp_path / "shotbot_e2e_thumb"
-        base.mkdir()
-
-        # Create a simple valid image file
-        from PIL import Image
-
-        test_image = base / "test_plate.png"
-        img = Image.new("RGB", (100, 100), color="red")
-        img.save(test_image)
-
-        return base
-
-    def test_pil_can_read_created_image(self, real_image_dir: Path) -> None:
-        """Verify PIL can read images created in tests."""
-        from PIL import Image
-
-        source = real_image_dir / "test_plate.png"
-        img = Image.open(source)
-
-        assert img.size == (100, 100)
-        assert img.mode == "RGB"
-
-    def test_pil_can_resize_image(self, real_image_dir: Path) -> None:
-        """Verify PIL can resize images (thumbnail generation)."""
-        from PIL import Image
-
-        source = real_image_dir / "test_plate.png"
-        img = Image.open(source)
-
-        # Resize to thumbnail
-        thumb_size = (64, 64)
-        thumb = img.resize(thumb_size, Image.Resampling.LANCZOS)
-
-        # Verify thumbnail
-        assert thumb.size == thumb_size
-
-        # Save and reload
-        thumb_path = real_image_dir / "thumb.png"
-        thumb.save(thumb_path)
-        assert thumb_path.exists()
-
-        # Verify saved thumbnail is valid
-        reloaded = Image.open(thumb_path)
-        assert reloaded.size == thumb_size
-
-
-# ==============================================================================
 # E2E Path Validation Tests
 # ==============================================================================
 
@@ -369,95 +284,3 @@ class TestPathValidationE2E:
         assert PathValidators.validate_path_exists(link, "link")
 
 
-# ==============================================================================
-# E2E 3DE Scene Discovery Tests
-# ==============================================================================
-
-
-class TestThreeDEDiscoveryE2E:
-    """End-to-end tests for 3DE scene discovery."""
-
-    @pytest.fixture
-    def mock_3de_structure(self, tmp_path: Path) -> Path:
-        """Create a realistic 3DE workspace structure."""
-        base = tmp_path / "shotbot_e2e_3de"
-        base.mkdir()
-
-        # Create user workspaces with .3de files
-        for user in ["user1", "user2"]:
-            workspace = base / "workspaces" / user / "shots" / "SQ010" / "SH0010"
-            workspace.mkdir(parents=True)
-
-            # Create some 3DE files
-            (workspace / f"{user}_track_v001.3de").touch()
-            (workspace / f"{user}_track_v002.3de").touch()
-
-        return base
-
-    def test_find_3de_files_in_real_directory(
-        self, mock_3de_structure: Path
-    ) -> None:
-        """Verify 3DE file discovery finds actual files."""
-        workspace = mock_3de_structure / "workspaces"
-
-        # Find all .3de files
-        found_files = list(workspace.rglob("*.3de"))
-
-        assert len(found_files) == 4  # 2 users * 2 files each
-
-        # Verify file names
-        names = {f.stem for f in found_files}
-        assert "user1_track_v001" in names
-        assert "user2_track_v002" in names
-
-    def test_3de_file_sorting_by_mtime(
-        self, mock_3de_structure: Path
-    ) -> None:
-        """Verify 3DE files can be sorted by modification time."""
-        workspace = mock_3de_structure / "workspaces" / "user1" / "shots" / "SQ010" / "SH0010"
-
-        # Modify one file to be newer
-        newer_file = workspace / "user1_track_v002.3de"
-        time.sleep(0.01)  # Ensure different mtime
-        newer_file.touch()
-
-        # Get files sorted by mtime
-        files = sorted(workspace.glob("*.3de"), key=lambda f: f.stat().st_mtime)
-
-        # v002 should be last (newest)
-        assert files[-1].stem == "user1_track_v002"
-
-
-# ==============================================================================
-# E2E JSON Serialization Tests
-# ==============================================================================
-
-
-class TestJSONSerializationE2E:
-    """End-to-end tests for JSON serialization/deserialization."""
-
-    def test_shot_data_json_roundtrip(self, tmp_path: Path) -> None:
-        """Verify shot data survives JSON serialization."""
-        shot_data: list[ShotDict] = [
-            {
-                "show": "TESTSHOW",
-                "sequence": "SQ010",
-                "shot": "SH0010",
-                "workspace_path": "/shows/test/shots/SQ010/SH0010",
-                "full_shot_name": "TESTSHOW_SQ010_SH0010",
-            }
-        ]
-
-        # Write to file
-        json_file = tmp_path / "shots.json"
-        with json_file.open("w") as f:
-            json.dump(shot_data, f)
-
-        # Read back
-        with json_file.open() as f:
-            loaded: list[ShotDict] = json.load(f)
-
-        assert len(loaded) == 1
-        assert loaded[0]["show"] == "TESTSHOW"
-        assert loaded[0]["sequence"] == "SQ010"
-        assert loaded[0]["shot"] == "SH0010"

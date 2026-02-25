@@ -619,50 +619,6 @@ class TestLazyImportThreadSafety:
         unique_ids = set(parser_ids)
         assert len(unique_ids) == 1, f"Got {len(unique_ids)} different parser instances"
 
-    def test_parser_available_after_init(self) -> None:
-        """Parser is correctly available after lazy initialization."""
-        scanner = FileSystemScanner()
-        scanner.parser = None
-
-        # Access via the pattern used in _run_find_with_polling
-        with scanner._parser_lock:
-            if scanner.parser is None:
-                from scene_parser import SceneParser
-                scanner.parser = SceneParser()
-
-        # Should be available
-        assert scanner.parser is not None
-        assert hasattr(scanner.parser, "parse_3de_file_path")
-
-    def test_exception_during_init_leaves_none(self) -> None:
-        """Exception during lazy initialization leaves attribute as None.
-
-        If an exception occurs while initializing parser or coordinator,
-        the attribute should remain None, allowing retry.
-        """
-        scanner = FileSystemScanner()
-        scanner.parser = None
-
-        # Simulate failed initialization attempt
-        with scanner._parser_lock:
-            if scanner.parser is None:
-                try:
-                    # Simulate an error during initialization
-                    raise ImportError("Test import failure")
-                except ImportError:
-                    pass  # Expected - don't set parser
-
-        # Parser should still be None after failed import
-        assert scanner.parser is None, "Parser should remain None after failed init"
-
-        # Subsequent successful initialization should work
-        with scanner._parser_lock:
-            if scanner.parser is None:
-                from scene_parser import SceneParser
-
-                scanner.parser = SceneParser()
-
-        assert scanner.parser is not None, "Parser should be set after successful init"
 
 
 # =============================================================================

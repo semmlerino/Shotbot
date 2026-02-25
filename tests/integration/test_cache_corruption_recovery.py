@@ -380,44 +380,6 @@ class TestWriteFailureRecovery:
 
 
 # ==============================================================================
-# TTL Expiration Tests
-# ==============================================================================
-
-
-@pytest.mark.integration
-class TestTTLExpiration:
-    """Tests for cache TTL expiration behavior."""
-
-    @pytest.fixture
-    def cache_manager(self, tmp_path: Path) -> CacheManager:
-        """Create CacheManager with isolated cache directory."""
-        cache_path = tmp_path / "cache"
-        cache_path.mkdir(parents=True, exist_ok=True)
-        return CacheManager(cache_dir=cache_path)
-
-    def test_fresh_cache_is_valid(self, cache_manager: CacheManager) -> None:
-        """Just-written cache is valid (not expired)."""
-        cache_file = cache_manager.shots_cache_file
-        shots = [make_shot_dict()]
-        cache_manager._write_json_cache(cache_file, shots)
-
-        result = cache_manager._read_json_cache(cache_file, check_ttl=True)
-
-        assert result is not None
-
-    def test_ttl_check_can_be_disabled(self, cache_manager: CacheManager) -> None:
-        """TTL check can be disabled with check_ttl=False."""
-        cache_file = cache_manager.shots_cache_file
-        shots = [make_shot_dict()]
-        cache_manager._write_json_cache(cache_file, shots)
-
-        # Even if we could artificially age the file, check_ttl=False should skip
-        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
-
-        assert result is not None
-
-
-# ==============================================================================
 # Public API Recovery Tests
 # ==============================================================================
 

@@ -190,64 +190,58 @@ class TestMainThreadAssertion:
         assert "QPixmap" in error_raised[0]
         assert "worker thread" in error_raised[0]
 
-    def test_get_image_allowed_from_worker_thread(self, qapp: QApplication) -> None:
-        """Test that get_image works from any thread."""
+    @pytest.mark.parametrize(
+        ("op_name", "setup_fn", "worker_fn", "assert_fn"),
+        [
+            pytest.param(
+                "get_image",
+                lambda cache: (
+                    cache.store_image("test", QImage(100, 100, QImage.Format.Format_RGB32))
+                ),
+                lambda cache, out: out.append(cache.get_image("test") is not None),
+                lambda out: out[0] is True,
+                id="get_image_from_worker",
+            ),
+            pytest.param(
+                "store_image",
+                lambda _cache: None,
+                lambda cache, out: (
+                    cache.store_image(
+                        "worker_stored",
+                        QImage(50, 50, QImage.Format.Format_RGB32),
+                    ),
+                    out.append(True),
+                ),
+                lambda out: out[0] is True,
+                id="store_image_from_worker",
+            ),
+            pytest.param(
+                "has_image",
+                lambda cache: (
+                    cache.store_image("exists", QImage(50, 50, QImage.Format.Format_RGB32))
+                ),
+                lambda cache, out: out.append(
+                    (cache.has_image("exists"), cache.has_image("not_exists"))
+                ),
+                lambda out: out[0] == (True, False),
+                id="has_image_from_worker",
+            ),
+        ],
+    )
+    def test_operations_allowed_from_worker_thread(
+        self, qapp: QApplication, op_name: str, setup_fn, worker_fn, assert_fn
+    ) -> None:
+        """Test that thread-safe cache operations work from worker threads."""
         cache = ThreadSafeThumbnailCache()
-        image = QImage(100, 100, QImage.Format.Format_RGB32)
-        image.fill(QColor(128, 128, 128))
-        cache.store_image("test", image)
+        setup_fn(cache)
 
-        result: list[bool] = []
+        out: list = []
 
-        def worker_access() -> None:
-            retrieved = cache.get_image("test")
-            result.append(retrieved is not None)
-
-        thread = threading.Thread(target=worker_access)
+        thread = threading.Thread(target=lambda: worker_fn(cache, out))
         thread.start()
         thread.join(timeout=5.0)
 
-        assert result[0] is True
-
-    def test_store_image_allowed_from_worker_thread(self, qapp: QApplication) -> None:
-        """Test that store_image works from any thread."""
-        cache = ThreadSafeThumbnailCache()
-        stored: list[bool] = []
-
-        def worker_store() -> None:
-            try:
-                image = QImage(50, 50, QImage.Format.Format_RGB32)
-                image.fill(QColor(200, 100, 50))
-                cache.store_image("worker_stored", image)
-                stored.append(True)
-            except Exception:
-                stored.append(False)
-
-        thread = threading.Thread(target=worker_store)
-        thread.start()
-        thread.join(timeout=5.0)
-
-        assert stored[0] is True
-        assert cache.has_image("worker_stored")
-
-    def test_has_image_allowed_from_worker_thread(self, qapp: QApplication) -> None:
-        """Test that has_image works from any thread."""
-        cache = ThreadSafeThumbnailCache()
-        image = QImage(50, 50, QImage.Format.Format_RGB32)
-        cache.store_image("exists", image)
-
-        results: list[tuple[bool, bool]] = []
-
-        def worker_check() -> None:
-            exists = cache.has_image("exists")
-            not_exists = cache.has_image("not_exists")
-            results.append((exists, not_exists))
-
-        thread = threading.Thread(target=worker_check)
-        thread.start()
-        thread.join(timeout=5.0)
-
-        assert results[0] == (True, False)
+        assert assert_fn(out), f"{op_name} failed from worker thread"
 
     def test_create_thread_safe_pixmap_returns_none_from_worker(
         self, qapp: QApplication, tmp_path: Path
@@ -617,92 +611,80 @@ class TestRaceConditionScenarios:
 class TestCacheEvictionUnderConcurrency:
     """Test cache clear/remove during concurrent access."""
 
-    def test_clear_during_concurrent_writes(self, qapp: QApplication) -> None:
-        """Test clearing cache while writers are active."""
+    @pytest.mark.parametrize("mode", ["writes", "reads"])
+    def test_clear_during_concurrent_access(self, qapp: QApplication, mode: str) -> None:
+        """Test clearing cache while writers or readers are concurrently active."""
         cache = ThreadSafeThumbnailCache()
-        num_writers = 5
-        writes_per_thread = 100
-        num_clears = 10
-        errors: list[tuple[str, Exception]] = []
+        errors: list[Exception] = []
 
-        def writer(writer_id: int) -> None:
-            try:
-                for i in range(writes_per_thread):
-                    key = f"w{writer_id}_i{i}"
-                    image = QImage(10, 10, QImage.Format.Format_RGB32)
-                    cache.store_image(key, image)
-            except Exception as e:
-                errors.append(("writer", e))
+        if mode == "writes":
+            num_workers = 5
+            ops_per_thread = 100
+            num_clears = 10
 
-        def clearer() -> None:
-            try:
-                for _ in range(num_clears):
-                    # Wait for writers to be active before clearing
+            def worker(worker_id: int) -> None:
+                try:
+                    for i in range(ops_per_thread):
+                        key = f"w{worker_id}_i{i}"
+                        image = QImage(10, 10, QImage.Format.Format_RGB32)
+                        cache.store_image(key, image)
+                except Exception as e:
+                    errors.append(e)
+
+            workers = [threading.Thread(target=worker, args=(i,)) for i in range(num_workers)]
+
+            def clearer() -> None:
+                try:
+                    for _ in range(num_clears):
+                        SynchronizationHelpers.wait_for_condition(
+                            lambda: any(w.is_alive() for w in workers),
+                            timeout_ms=1000,
+                        )
+                        cache.clear()
+                except Exception as e:
+                    errors.append(e)
+
+        else:  # reads
+            # Pre-populate
+            for i in range(50):
+                image = QImage(10, 10, QImage.Format.Format_RGB32)
+                cache.store_image(f"key_{i}", image)
+
+            num_workers = 10
+            ops_per_thread = 100
+
+            def worker(worker_id: int) -> None:  # type: ignore[misc]
+                try:
+                    for _ in range(ops_per_thread):
+                        for i in range(50):
+                            _ = cache.get_image(f"key_{i}")
+                            _ = cache.has_image(f"key_{i}")
+                except Exception as e:
+                    errors.append(e)
+
+            workers = [threading.Thread(target=worker, args=(i,)) for i in range(num_workers)]
+
+            def clearer() -> None:
+                try:
                     SynchronizationHelpers.wait_for_condition(
-                        lambda: any(w.is_alive() for w in writers),
+                        lambda: any(w.is_alive() for w in workers),
                         timeout_ms=1000,
                     )
                     cache.clear()
-            except Exception as e:
-                errors.append(("clearer", e))
+                except Exception as e:
+                    errors.append(e)
 
-        writers = [threading.Thread(target=writer, args=(i,)) for i in range(num_writers)]
         clearer_thread = threading.Thread(target=clearer)
 
-        for w in writers:
+        for w in workers:
             w.start()
         clearer_thread.start()
 
-        for w in writers:
+        for w in workers:
             w.join(timeout=15.0)
         clearer_thread.join(timeout=5.0)
 
-        assert len(errors) == 0, f"Errors: {errors}"
-
-    def test_clear_during_concurrent_reads(self, qapp: QApplication) -> None:
-        """Test clearing cache while readers are active."""
-        cache = ThreadSafeThumbnailCache()
-        num_readers = 10
-        reads_per_thread = 100
-        errors: list[Exception] = []
-
-        # Pre-populate
-        for i in range(50):
-            image = QImage(10, 10, QImage.Format.Format_RGB32)
-            cache.store_image(f"key_{i}", image)
-
-        def reader() -> None:
-            try:
-                for _ in range(reads_per_thread):
-                    for i in range(50):
-                        _ = cache.get_image(f"key_{i}")
-                        _ = cache.has_image(f"key_{i}")
-            except Exception as e:
-                errors.append(e)
-
-        def clearer() -> None:
-            try:
-                # Wait for readers to be active before clearing
-                SynchronizationHelpers.wait_for_condition(
-                    lambda: any(t.is_alive() for t in reader_threads),
-                    timeout_ms=1000,
-                )
-                cache.clear()
-            except Exception as e:
-                errors.append(e)
-
-        reader_threads = [threading.Thread(target=reader) for _ in range(num_readers)]
-        clearer_thread = threading.Thread(target=clearer)
-
-        for t in reader_threads:
-            t.start()
-        clearer_thread.start()
-
-        for t in reader_threads:
-            t.join(timeout=15.0)
-        clearer_thread.join(timeout=5.0)
-
-        assert len(errors) == 0
+        assert len(errors) == 0, f"Errors during clear-during-{mode}: {errors}"
 
 
 class TestMemoryManagement:
@@ -883,36 +865,42 @@ class TestStressConditions:
             stats = cache.get_stats()
             assert stats["image_count"] == 0
 
-    @pytest.mark.parametrize("iteration", range(5))
-    def test_race_detection_repeated(
-        self, iteration: int, qapp: QApplication
-    ) -> None:
+    def test_race_detection_repeated(self, qapp: QApplication) -> None:
         """Run race condition test multiple times to catch intermittent issues."""
-        cache = ThreadSafeThumbnailCache()
-        key = "race_key"
-        num_threads = 10
-        iterations_per_thread = 50
-        errors: list[Exception] = []
+        for iteration in range(5):
+            cache = ThreadSafeThumbnailCache()
+            key = "race_key"
+            num_threads = 10
+            iterations_per_thread = 50
+            errors: list[Exception] = []
 
-        barrier = threading.Barrier(num_threads)
+            barrier = threading.Barrier(num_threads)
 
-        def contestant(thread_id: int) -> None:
-            try:
-                barrier.wait(timeout=5.0)  # Synchronize start
-                for _ in range(iterations_per_thread):
-                    image = QImage(5, 5, QImage.Format.Format_RGB32)
-                    cache.store_image(key, image)
-                    _ = cache.get_image(key)
-                    _ = cache.has_image(key)
-            except Exception as e:
-                errors.append(e)
+            def contestant(
+                thread_id: int,
+                *,
+                _barrier: threading.Barrier = barrier,
+                _iters: int = iterations_per_thread,
+                _cache: ThreadSafeThumbnailCache = cache,
+                _key: str = key,
+                _errors: list[Exception] = errors,
+            ) -> None:
+                try:
+                    _barrier.wait(timeout=5.0)  # Synchronize start
+                    for _ in range(_iters):
+                        image = QImage(5, 5, QImage.Format.Format_RGB32)
+                        _cache.store_image(_key, image)
+                        _ = _cache.get_image(_key)
+                        _ = _cache.has_image(_key)
+                except Exception as e:
+                    _errors.append(e)
 
-        threads = [
-            threading.Thread(target=contestant, args=(i,)) for i in range(num_threads)
-        ]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join(timeout=15.0)
+            threads = [
+                threading.Thread(target=contestant, args=(i,)) for i in range(num_threads)
+            ]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=15.0)
 
-        assert len(errors) == 0, f"Race condition detected in iteration {iteration}: {errors}"
+            assert len(errors) == 0, f"Race condition detected in iteration {iteration}: {errors}"

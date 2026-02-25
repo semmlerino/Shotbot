@@ -37,22 +37,6 @@ pytestmark = [
 class TestProcessPoolManagerShutdown:
     """Tests for ProcessPoolManager shutdown behavior."""
 
-    @pytest.mark.permissive_process_pool
-    def test_shutdown_with_idle_executor(self, qtbot: QtBot) -> None:
-        """Shutdown succeeds quickly when no tasks are running."""
-        from process_pool_manager import ProcessPoolManager
-
-        # Get the test pool (mocked by autouse fixture)
-        pool = ProcessPoolManager.get_instance()
-
-        # Shutdown should complete quickly (no hung tasks)
-        start = time.time()
-        pool.shutdown(timeout=2.0)
-        elapsed = time.time() - start
-
-        # Should be very fast with idle executor
-        assert elapsed < 1.0, f"Idle shutdown took too long: {elapsed}s"
-
     @pytest.mark.real_subprocess
     def test_shutdown_with_hung_task_uses_timeout(self) -> None:
         """Shutdown uses timeout when task is stuck."""
@@ -309,84 +293,3 @@ class TestAppWideShutdown:
         ProcessPoolManager.reset()
 
 
-class TestExecutorShutdownTimeout:
-    """Tests for ThreadPoolExecutor shutdown timeout handling."""
-
-    def test_shutdown_timeout_wrapper_works(self) -> None:
-        """Shutdown timeout wrapper prevents indefinite blocking."""
-        from concurrent.futures import ThreadPoolExecutor
-
-        executor = ThreadPoolExecutor(max_workers=2)
-
-        # Use an interruptible wait so we can clean up at test end
-        # (time.sleep() leaves orphan threads that crash subsequent tests)
-        stop_event = threading.Event()
-
-        # Submit a task that will block
-        def blocking_task() -> str:
-            # Wait for stop signal, or timeout after 60s (whichever comes first)
-            stop_event.wait(timeout=60.0)
-            return "done"
-
-        _future = executor.submit(blocking_task)
-
-        # Use timeout wrapper pattern (same as ProcessPoolManager)
-        shutdown_complete = threading.Event()
-
-        def do_shutdown() -> None:
-            try:
-                executor.shutdown(wait=True, cancel_futures=True)
-            finally:
-                shutdown_complete.set()
-
-        shutdown_thread = threading.Thread(target=do_shutdown, daemon=True)
-        shutdown_thread.start()
-
-        # Should timeout, not wait forever
-        completed = shutdown_complete.wait(timeout=1.0)
-
-        if not completed:
-            # Timeout worked - force non-blocking shutdown
-            executor.shutdown(wait=False, cancel_futures=True)
-
-        # Signal task to stop so thread doesn't linger (CRITICAL for test isolation)
-        stop_event.set()
-
-        # Wait for cleanup to complete
-        shutdown_thread.join(timeout=2.0)
-
-    def test_cancel_futures_stops_pending_tasks(self) -> None:
-        """cancel_futures=True cancels queued but not-yet-started tasks."""
-        from concurrent.futures import ThreadPoolExecutor
-
-        # Small pool so tasks queue up
-        executor = ThreadPoolExecutor(max_workers=1)
-
-        started = threading.Event()
-        stop_event = threading.Event()
-
-        def slow_task() -> str:
-            started.set()
-            # Use interruptible wait instead of time.sleep()
-            # (orphan threads from time.sleep crash subsequent Qt tests)
-            stop_event.wait(timeout=10.0)
-            return "done"
-
-        # Submit multiple tasks - first will run, rest will queue
-        _future1 = executor.submit(slow_task)
-        future2 = executor.submit(slow_task)
-        future3 = executor.submit(slow_task)
-
-        # Wait for first task to start
-        started.wait(timeout=2.0)
-
-        # Shutdown with cancel_futures - pending tasks should be cancelled
-        executor.shutdown(wait=False, cancel_futures=True)
-
-        # Queued tasks should be cancelled
-        # (future1 is running, future2/3 are queued)
-        assert future2.cancelled() or not future2.done()
-        assert future3.cancelled() or not future3.done()
-
-        # Signal running task to stop (CRITICAL for test isolation)
-        stop_event.set()

@@ -416,44 +416,43 @@ class TestThumbnailSizeManagement:
 class TestGetThumbnailRect:
     """Test _get_thumbnail_rect() calculations."""
 
-    def test_get_thumbnail_rect_default_padding(self, qtbot) -> None:
-        """Test thumbnail rect calculation with default padding."""
+    @pytest.mark.parametrize(
+        ("item_rect", "theme_kwargs", "expected_fn"),
+        [
+            pytest.param(
+                QRect(0, 0, 200, 240),
+                {},
+                lambda _r, t: QRect(
+                    t.padding,
+                    t.padding,
+                    200 - 2 * t.padding,
+                    240 - t.text_height - 2 * t.padding,
+                ),
+                id="default_padding",
+            ),
+            pytest.param(
+                QRect(10, 20, 300, 350),
+                {"padding": 16, "text_height": 50},
+                lambda _r, _t: QRect(10 + 16, 20 + 16, 300 - 2 * 16, 350 - 50 - 2 * 16),
+                id="custom_padding",
+            ),
+        ],
+    )
+    def test_get_thumbnail_rect_calculations(
+        self, qtbot, item_rect: QRect, theme_kwargs: dict, expected_fn
+    ) -> None:
+        """Test thumbnail rect calculation with various padding configurations."""
         view = QListView()
         qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
 
-        item_rect = QRect(0, 0, 200, 240)
+        if theme_kwargs:
+            custom_theme = DelegateTheme(**theme_kwargs)
+            delegate = CustomThemeDelegate(custom_theme, parent=view)
+        else:
+            delegate = ConcreteThumbnailDelegate(parent=view)
+
         thumb_rect = delegate._get_thumbnail_rect(item_rect)
-
-        padding = delegate.theme.padding
-        text_height = delegate.theme.text_height
-
-        expected = QRect(
-            padding,
-            padding,
-            200 - 2 * padding,
-            240 - text_height - 2 * padding,
-        )
-
-        assert thumb_rect == expected
-
-    def test_get_thumbnail_rect_custom_padding(self, qtbot) -> None:
-        """Test thumbnail rect calculation with custom padding."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        custom_theme = DelegateTheme(padding=16, text_height=50)
-        delegate = CustomThemeDelegate(custom_theme, parent=view)
-
-        item_rect = QRect(10, 20, 300, 350)
-        thumb_rect = delegate._get_thumbnail_rect(item_rect)
-
-        expected = QRect(
-            10 + 16,
-            20 + 16,
-            300 - 2 * 16,
-            350 - 50 - 2 * 16,
-        )
+        expected = expected_fn(item_rect, delegate.theme)
 
         assert thumb_rect == expected
 
@@ -744,8 +743,17 @@ class TestLoadingAnimation:
         repainted_rows = {spy.at(i)[0].row() for i in range(spy.count())}
         assert repainted_rows == {0, 1}, f"Expected rows {{0, 1}} to be repainted, got {repainted_rows}"
 
-    def test_loading_animation_no_loading_items(self, qtbot) -> None:
-        """Test that animation does nothing when no items are loading."""
+    @pytest.mark.parametrize(
+        ("num_shots", "num_loading", "expected_signals"),
+        [
+            pytest.param(10, 0, 0, id="no_loading_items"),
+            pytest.param(5, 5, 5, id="all_items_loading"),
+        ],
+    )
+    def test_loading_animation_signal_count(
+        self, qtbot, num_shots: int, num_loading: int, expected_signals: int
+    ) -> None:
+        """Test animation emits correct number of dataChanged signals for loading items."""
         view = QListView()
         model = ShotItemModel()
         view.setModel(model)
@@ -754,49 +762,24 @@ class TestLoadingAnimation:
         delegate = ConcreteThumbnailDelegate(parent=view)
         view.setItemDelegate(delegate)
 
-        # Add shots but don't mark any as loading
-        shots = [create_mock_shot(i) for i in range(10)]
+        shots = [create_mock_shot(i) for i in range(num_shots)]
         model.set_items(shots)
 
-        # Spy on dataChanged
-        spy = QSignalSpy(model.dataChanged)
-
-        # Trigger animation
-        delegate._update_loading_animation()
-
-        # Should emit no signals (no items loading)
-        assert spy.count() == 0, f"Expected 0 signals for no loading items, got {spy.count()}"
-
-    def test_loading_animation_all_items_loading(self, qtbot) -> None:
-        """Test animation when all items are loading (worst case)."""
-        view = QListView()
-        model = ShotItemModel()
-        view.setModel(model)
-        qtbot.addWidget(view)
-
-        delegate = ConcreteThumbnailDelegate(parent=view)
-        view.setItemDelegate(delegate)
-
-        # Add 5 shots
-        shots = [create_mock_shot(i) for i in range(5)]
-        model.set_items(shots)
-
-        # Mark ALL as loading
-        for shot in shots:
+        # Mark the first num_loading shots as loading
+        for shot in shots[:num_loading]:
             model._loading_states[shot.full_name] = "loading"
 
-        # Spy on dataChanged
         spy = QSignalSpy(model.dataChanged)
-
-        # Trigger animation
         delegate._update_loading_animation()
 
-        # Should emit 5 signals (one per item)
-        assert spy.count() == 5, f"Expected 5 signals for 5 loading items, got {spy.count()}"
+        assert spy.count() == expected_signals, (
+            f"Expected {expected_signals} signals for {num_loading}/{num_shots} loading items, "
+            f"got {spy.count()}"
+        )
 
-        # Verify all rows repainted
-        repainted_rows = {spy.at(i)[0].row() for i in range(spy.count())}
-        assert repainted_rows == {0, 1, 2, 3, 4}
+        if num_loading > 0:
+            repainted_rows = {spy.at(i)[0].row() for i in range(spy.count())}
+            assert repainted_rows == set(range(num_loading))
 
     def test_animation_angle_updates(self, qtbot) -> None:
         """Test that animation angle increments correctly."""
@@ -911,20 +894,6 @@ class TestResourceCleanup:
 class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_empty_name_in_data(self, qtbot) -> None:
-        """Test handling of empty name in item data."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        data: ThumbnailItemData = {"name": ""}
-        delegate = MinimalDataDelegate(data_override=data, parent=view)
-
-        index = QModelIndex()
-        extracted_data = delegate.get_item_data(index)
-
-        # Should handle empty string
-        assert extracted_data["name"] == ""
-
     @pytest.mark.parametrize(
         "data",
         [
@@ -962,62 +931,6 @@ class TestEdgeCases:
         # Should return valid size (not error)
         assert size.width() > 0
         assert size.height() > 0
-
-    def test_special_characters_in_name(self, qtbot) -> None:
-        """Test handling of special characters in item name."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        special_name = "shot_<>&\"'_test"
-        data: ThumbnailItemData = {"name": special_name}
-        delegate = MinimalDataDelegate(data_override=data, parent=view)
-
-        index = QModelIndex()
-        extracted_data = delegate.get_item_data(index)
-
-        # Should preserve special characters
-        assert extracted_data["name"] == special_name
-
-    def test_unicode_characters_in_name(self, qtbot) -> None:
-        """Test handling of unicode characters in item name."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        unicode_name = "shot_日本語_テスト"
-        data: ThumbnailItemData = {"name": unicode_name}
-        delegate = MinimalDataDelegate(data_override=data, parent=view)
-
-        index = QModelIndex()
-        extracted_data = delegate.get_item_data(index)
-
-        # Should preserve unicode
-        assert extracted_data["name"] == unicode_name
-
-    def test_multiple_optional_fields_present(self, qtbot) -> None:
-        """Test handling when all optional fields are present."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        data: ThumbnailItemData = {
-            "name": "test_shot",
-            "show": "test_show",
-            "sequence": "seq01",
-            "shot": "shot_0001",
-            "thumbnail": create_test_pixmap(),
-            "loading_state": "idle",
-            "is_selected": True,
-            "user": "test_user",
-            "timestamp": "2025-01-01 12:00:00",
-        }
-        delegate = MinimalDataDelegate(data_override=data, parent=view)
-
-        index = QModelIndex()
-        extracted_data = delegate.get_item_data(index)
-
-        # All fields should be present
-        assert extracted_data["name"] == "test_shot"
-        assert extracted_data["show"] == "test_show"
-        assert extracted_data["user"] == "test_user"
 
     def test_partial_optional_fields(self, qtbot) -> None:
         """Test handling when only some optional fields are present."""

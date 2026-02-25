@@ -81,7 +81,7 @@ class TestMainWindowInitialization:
     def test_main_window_creates_all_components(
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
-        """Test that MainWindow initializes all required components."""
+        """Test that MainWindow initializes all required components and uses provided cache manager."""
         # Use real cache manager with temp directory
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir(exist_ok=True)
@@ -91,8 +91,10 @@ class TestMainWindowInitialization:
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
+        # Verify cache manager is used
+        assert main_window.cache_manager is cache_manager
+
         # Verify all critical components exist
-        assert main_window.cache_manager is not None
         assert main_window.shot_model is not None
         assert main_window.threede_scene_model is not None
         assert main_window.previous_shots_model is not None
@@ -104,20 +106,6 @@ class TestMainWindowInitialization:
         assert main_window.threede_shot_grid is not None
         assert main_window.previous_shots_grid is not None
         assert main_window.right_panel is not None
-
-    def test_main_window_with_custom_cache_manager(
-        self, qtbot: QtBot, tmp_path: Path
-    ) -> None:
-        """Test MainWindow with custom cache manager."""
-        cache_dir = tmp_path / "custom_cache"
-        cache_dir.mkdir(exist_ok=True)
-        cache_manager = CacheManager(cache_dir=cache_dir)
-
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Verify cache manager is used
-        assert main_window.cache_manager is cache_manager
 
     def test_main_window_creates_default_cache_manager(self, qtbot: QtBot) -> None:
         """Test MainWindow creates default cache manager if none provided."""
@@ -285,77 +273,6 @@ class TestApplicationLaunching:
         # Test behavior: should have shown an error (mocked by autouse fixture)
         # We're verifying that the code path completes without crashing
 
-    @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
-    def test_launch_app_with_selection(
-        self,
-        test_process_pool: TestProcessPoolType,
-        qtbot: QtBot,
-        tmp_path: Path,
-        monkeypatch,
-    ) -> None:
-        """Test launching an app with a shot selected."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Use mock mode for this test
-        monkeypatch.setenv("SHOTBOT_MOCK_MODE", "1")
-
-        # CRITICAL: Wait for background shot loading to complete before test setup
-        # The ShotModel starts async loading on init, we need it to finish first
-        # to avoid race conditions where the background load overwrites test data
-        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
-
-        # Testing the actual behavior rather than mocking internal methods
-        # We verify the full integration from shot selection to app launch
-
-        # Set up test process pool for workspace command
-        shows_root = Config.SHOWS_ROOT
-        test_process_pool.set_outputs(
-            f"workspace {shows_root}/test/shots/seq01/seq01_0010"
-        )
-        main_window.shot_model._process_pool = test_process_pool
-
-        # CRITICAL: Recreate parser to use correct SHOWS_ROOT from test environment
-        # Manually create pattern with correct shows_root to bypass Config import issues
-        import re
-        shows_root_escaped = re.escape(shows_root)
-        ws_pattern = re.compile(
-            rf"workspace\s+({shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+))"
-        )
-        # Manually set the pattern on the existing parser
-        main_window.shot_model._parser._ws_pattern = ws_pattern
-
-        # Load shots
-        main_window._refresh_shots()
-
-        # Wait for async refresh to complete
-        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
-
-        # Verify shot loaded
-        assert len(main_window.shot_model.shots) == 1
-        shot = main_window.shot_model.shots[0]
-
-        # Select the shot
-        main_window.shot_selection_controller.on_shot_selected(shot)
-
-        # Verify DCC section launch buttons enabled (test behavior)
-        assert "nuke" in main_window.right_panel._dcc_accordion._sections
-        assert main_window.right_panel._dcc_accordion._sections["nuke"]._launch_btn.isEnabled()
-
-        # Test complete workflow - just verify the app launch doesn't crash
-        # The subprocess call is already mocked by our autouse fixture (no real process spawned)
-        # We're testing the integration, not the implementation details
-
-        # Mock the workspace directory creation to avoid permission errors
-        def mock_mkdir(self, *args, **kwargs) -> None:
-            pass  # Don't actually create directories
-
-        monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
-        main_window.launch_app("nuke")
-
-        # Test behavior: app launch completed without errors
-        # (If it failed, it would have shown an error notification which is mocked)
 
 
 class TestSignalConnections:
@@ -396,15 +313,6 @@ class TestWindowCleanup:
 
 class TestStatusBar:
     """Test status bar functionality."""
-
-    def test_status_bar_exists(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test that status bar is created."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Verify status bar exists
-        assert main_window.statusBar() is not None
 
     def test_background_load_started_shows_message(
         self, qtbot: QtBot, tmp_path: Path

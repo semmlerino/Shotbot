@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QThread, Signal
 
 from command_launcher import CommandLauncher, LaunchContext
 from config import Config
@@ -933,67 +933,49 @@ class TestCommandLauncherThreadSafety:
                 worker.wait(1000)
             worker.deleteLater()
 
-    def test_signal_emission_from_gui_thread(
+    def test_signal_emissions_gui_and_cross_thread(
         self, qtbot: QtBot, launcher: CommandLauncher
     ) -> None:
-        """Test that signals are emitted correctly from GUI thread."""
-        signals_received = []
+        """Test command_error signal delivery from GUI thread and concurrent worker threads."""
+        # Part 1: GUI thread emission
+        gui_signals: list[tuple[str, str]] = []
+        launcher.command_error.connect(lambda ts, err: gui_signals.append((ts, err)))
 
-        def on_command_error(timestamp: str, error: str) -> None:
-            signals_received.append((timestamp, error))
-
-        launcher.command_error.connect(on_command_error)
-
-        # Emit error (which internally uses command_error signal)
-        launcher._emit_error("Test error")
-
-        # Process Qt events to ensure signal delivery
+        launcher._emit_error("Test error from GUI")
         qtbot.wait(10)
 
-        # Verify signal was received
-        assert len(signals_received) > 0
-        assert "Test error" in signals_received[0][1]
+        assert len(gui_signals) > 0
+        assert "Test error from GUI" in gui_signals[0][1]
 
-    def test_concurrent_error_emissions(
-        self, qtbot: QtBot, launcher: CommandLauncher
-    ) -> None:
-        """Test concurrent error emissions from multiple threads.
-
-        This tests Qt's signal queuing mechanism with cross-thread emissions.
-        """
-        signals_received: list[tuple[str, str]] = []
+        # Part 2: Concurrent cross-thread emissions
+        cross_thread_signals: list[tuple[str, str]] = []
         lock = threading.Lock()
+        launcher2 = CommandLauncher()
 
         def on_error(timestamp: str, error: str) -> None:
             with lock:
-                signals_received.append((timestamp, error))
+                cross_thread_signals.append((timestamp, error))
 
-        launcher.command_error.connect(on_error)
+        launcher2.command_error.connect(on_error)
 
-        # Create multiple threads that emit errors
         def emit_error(thread_id: int) -> None:
             for i in range(5):
-                launcher._emit_error(f"Error from thread {thread_id}, iteration {i}")
-                time.sleep(0)  # Yield to encourage interleaving
+                launcher2._emit_error(f"Error from thread {thread_id}, iteration {i}")
+                time.sleep(0)
 
         threads = [threading.Thread(target=emit_error, args=(i,)) for i in range(3)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
-        # Start all threads
-        for thread in threads:
-            thread.start()
-
-        # Wait for all threads to complete
-        for thread in threads:
-            thread.join()
-
-        # Process Qt events to ensure all signals delivered
         qtbot.wait(100)
 
-        # Verify all errors were received (3 threads * 5 iterations = 15 total)
-        assert len(signals_received) == 15
-
-        # Verify all thread IDs are present
-        thread_ids = {int(error.split("thread ")[1].split(",")[0]) for _, error in signals_received}
+        assert len(cross_thread_signals) == 15
+        thread_ids = {
+            int(err.split("thread ")[1].split(",")[0])
+            for _, err in cross_thread_signals
+        }
         assert thread_ids == {0, 1, 2}
 
     def test_launch_app_called_concurrently(
@@ -1089,45 +1071,6 @@ class TestCommandLauncherThreadSafety:
         # Verify spawn verification was called
         # (We can't directly test thread ID, but if it runs without crashing, it's correct)
         assert mock_process.poll.called
-
-    def test_signal_slot_cross_thread_delivery(
-        self, qtbot: QtBot, launcher: CommandLauncher
-    ) -> None:
-        """Test Qt signal/slot mechanism works across threads.
-
-        This is a fundamental Qt feature, but worth verifying for
-        CommandLauncher's signal emissions.
-        """
-        signals_received: list[str] = []
-
-        class SlotReceiver(QObject):
-            """Helper class to receive signals on GUI thread."""
-
-            def __init__(self) -> None:
-                super().__init__()
-
-            def on_signal(self, _timestamp: str, message: str) -> None:
-                signals_received.append(message)
-
-        receiver = SlotReceiver()
-        launcher.command_error.connect(receiver.on_signal)
-
-        # Emit signals from worker thread
-        def emit_from_thread() -> None:
-            for i in range(5):
-                launcher._emit_error(f"Message {i}")
-
-        thread = threading.Thread(target=emit_from_thread)
-        thread.start()
-        thread.join()
-
-        # Wait for signal delivery
-        qtbot.wait(100)
-
-        # Verify all signals delivered
-        assert len(signals_received) == 5
-        for i in range(5):
-            assert f"Message {i}" in signals_received[i]
 
     @pytest.mark.usefixtures("qtbot")
     def test_cleanup_thread_safety(

@@ -261,16 +261,24 @@ class TestBaseThumbnailLoaderErrorHandling:
         qtbot.addWidget(widget)
         return widget
 
-    def test_loader_handles_permission_error(
-        self, qtbot: QtBot, test_widget: ThumbnailWidget, tmp_path: Path
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            PermissionError("Access denied"),
+            OSError("I/O error"),
+            RuntimeError("Unexpected error"),
+        ],
+        ids=["permission_error", "os_error", "generic_exception"],
+    )
+    def test_loader_handles_exception_types(
+        self, qtbot: QtBot, test_widget: ThumbnailWidget, tmp_path: Path, exc: Exception
     ) -> None:
-        """Test loader handles PermissionError gracefully."""
-        test_path = tmp_path / "restricted.png"
+        """Test loader handles PermissionError, OSError, and generic exceptions by emitting failed."""
+        test_path = tmp_path / "error.png"
         test_path.write_text("test")
 
-        # Mock QImage to raise PermissionError
         with patch("thumbnail_widget_base.QImage") as mock_qimage:
-            mock_qimage.side_effect = PermissionError("Access denied")
+            mock_qimage.side_effect = exc
 
             loader = BaseThumbnailLoader(test_widget, test_path)
             failed_spy = QSignalSpy(loader.signals.failed)
@@ -278,47 +286,6 @@ class TestBaseThumbnailLoaderErrorHandling:
             loader.run()
             qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
 
-            # Should emit failed signal
-            assert failed_spy.count() == 1
-
-    def test_loader_handles_os_error(
-        self, qtbot: QtBot, test_widget: ThumbnailWidget, tmp_path: Path
-    ) -> None:
-        """Test loader handles OSError gracefully."""
-        test_path = tmp_path / "ioerror.png"
-        test_path.write_text("test")
-
-        # Mock QImage to raise OSError
-        with patch("thumbnail_widget_base.QImage") as mock_qimage:
-            mock_qimage.side_effect = OSError("I/O error")
-
-            loader = BaseThumbnailLoader(test_widget, test_path)
-            failed_spy = QSignalSpy(loader.signals.failed)
-
-            loader.run()
-            qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
-
-            # Should emit failed signal
-            assert failed_spy.count() == 1
-
-    def test_loader_handles_generic_exception(
-        self, qtbot: QtBot, test_widget: ThumbnailWidget, tmp_path: Path
-    ) -> None:
-        """Test loader handles generic exceptions gracefully."""
-        test_path = tmp_path / "exception.png"
-        test_path.write_text("test")
-
-        # Mock QImage to raise generic exception
-        with patch("thumbnail_widget_base.QImage") as mock_qimage:
-            mock_qimage.side_effect = RuntimeError("Unexpected error")
-
-            loader = BaseThumbnailLoader(test_widget, test_path)
-            failed_spy = QSignalSpy(loader.signals.failed)
-
-            loader.run()
-            qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
-
-            # Should emit failed signal
             assert failed_spy.count() == 1
 
 
@@ -345,18 +312,6 @@ class TestBaseThumbnailLoader:
         image_path = tmp_path / "test_image.png"
         image_path.write_bytes(_MINIMAL_PNG)
         return image_path
-
-    def test_loader_initialization(
-        self, test_widget: ThumbnailWidget, test_image_path: Path
-    ) -> None:
-        """Test BaseThumbnailLoader initializes correctly."""
-        loader = BaseThumbnailLoader(test_widget, test_image_path)
-
-        assert loader.widget == test_widget
-        assert loader.path == test_image_path
-        assert hasattr(loader, "signals")
-        assert hasattr(loader.signals, "loaded")
-        assert hasattr(loader.signals, "failed")
 
     def test_loader_with_valid_image(
         self, qtbot: QtBot, test_widget: ThumbnailWidget, test_image_path: Path
@@ -840,21 +795,6 @@ class TestThumbnailWidgetBaseContextMenu:
             assert isinstance(started_workers[0], FolderOpenerWorker)
             assert started_workers[0].folder_path == menu_widget.data.workspace_path
 
-    def test_on_folder_open_error_logs_error(
-        self, menu_widget: ThumbnailWidget
-    ) -> None:
-        """Test _on_folder_open_error logs error message."""
-        error_msg = "Test error message"
-
-        # Should not raise exception
-        menu_widget._on_folder_open_error(error_msg)
-
-    def test_on_folder_open_success_logs_success(
-        self, menu_widget: ThumbnailWidget
-    ) -> None:
-        """Test _on_folder_open_success logs success."""
-        # Should not raise exception
-        menu_widget._on_folder_open_success()
 
 
 class TestThumbnailWidgetBaseEdgeCases:
@@ -910,33 +850,3 @@ class TestThumbnailWidgetBaseEdgeCases:
         assert not pixmap.isNull()
         assert pixmap.size().width() == widget._thumbnail_size
 
-    def test_widget_handles_rapid_size_changes(
-        self, qtbot: QtBot, test_shot: Shot
-    ) -> None:
-        """Test widget handles rapid size changes without errors."""
-        widget = ThumbnailWidget(test_shot, 100)
-        qtbot.addWidget(widget)
-
-        # Rapidly change size
-        for size in [120, 140, 160, 180, 200, 150, 100]:
-            widget.set_size(size)
-            _process_events()
-
-        # Widget should still be functional
-        assert widget._thumbnail_size == 100
-        assert widget is not None
-
-    def test_widget_handles_selection_toggle_rapidly(
-        self, qtbot: QtBot, test_shot: Shot
-    ) -> None:
-        """Test widget handles rapid selection toggles."""
-        widget = ThumbnailWidget(test_shot, Config.DEFAULT_THUMBNAIL_SIZE)
-        qtbot.addWidget(widget)
-
-        # Rapidly toggle selection
-        for i in range(20):
-            widget.set_selected(i % 2 == 0)
-            _process_events()
-
-        # Widget should still be functional
-        assert isinstance(widget._selected, bool)

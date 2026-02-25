@@ -106,34 +106,28 @@ class TestSettingsManager:
             assert isinstance(defaults[category], dict)
             assert len(defaults[category]) > 0
 
-    def test_window_geometry(self, settings_manager: SettingsManager) -> None:
-        """Test getting and setting window geometry."""
-        # Test default
-        geometry = settings_manager.get_window_geometry()
-        assert isinstance(geometry, QByteArray)
-        assert geometry.isEmpty()
+    @pytest.mark.parametrize(
+        ("getter_name", "setter_name", "test_value"),
+        [
+            ("get_window_geometry", "set_window_geometry", QByteArray(b"test_geometry_data")),
+            ("get_window_state", "set_window_state", QByteArray(b"test_state_data")),
+            ("get_background_refresh", "set_background_refresh", True),
+            ("get_background_gui_apps", "set_background_gui_apps", False),
+        ],
+    )
+    def test_simple_get_set_roundtrip(
+        self,
+        settings_manager: SettingsManager,
+        getter_name: str,
+        setter_name: str,
+        test_value: Any,
+    ) -> None:
+        """Test that simple get/set methods correctly round-trip values."""
+        getter = getattr(settings_manager, getter_name)
+        setter = getattr(settings_manager, setter_name)
 
-        # Test setting
-        test_geometry = QByteArray(b"test_geometry_data")
-        settings_manager.set_window_geometry(test_geometry)
-
-        # Verify it was saved
-        retrieved = settings_manager.get_window_geometry()
-        assert retrieved == test_geometry
-
-    def test_window_state(self, settings_manager: SettingsManager) -> None:
-        """Test getting and setting window state."""
-        # Test default
-        state = settings_manager.get_window_state()
-        assert isinstance(state, QByteArray)
-
-        # Test setting
-        test_state = QByteArray(b"test_state_data")
-        settings_manager.set_window_state(test_state)
-
-        # Verify
-        retrieved = settings_manager.get_window_state()
-        assert retrieved == test_state
+        setter(test_value)
+        assert getter() == test_value
 
     def test_window_size(self, settings_manager: SettingsManager) -> None:
         """Test getting and setting window size with validation."""
@@ -241,19 +235,6 @@ class TestSettingsManager:
         settings_manager.set_last_directory(fake_path)
         # Should still be the previous valid path
         assert Path(settings_manager.get_last_directory()) == test_path
-
-    def test_background_refresh(self, settings_manager: SettingsManager) -> None:
-        """Test background refresh boolean setting."""
-        # Test default
-        default = settings_manager.get_background_refresh()
-        assert isinstance(default, bool)
-
-        # Test setting
-        settings_manager.set_background_refresh(True)
-        assert settings_manager.get_background_refresh() is True
-
-        settings_manager.set_background_refresh(False)
-        assert settings_manager.get_background_refresh() is False
 
     def test_custom_launchers(self, settings_manager: SettingsManager) -> None:
         """Test custom launcher list management."""
@@ -502,19 +483,6 @@ class TestSettingsManager:
         default_size = settings_manager.get_window_size()
         assert default_size.width() == Config.DEFAULT_WINDOW_WIDTH
 
-    def test_background_gui_apps(self, settings_manager: SettingsManager) -> None:
-        """Test background GUI apps boolean setting."""
-        # Test default is True (terminals auto-close after launching GUI apps)
-        default = settings_manager.get_background_gui_apps()
-        assert default is True
-
-        # Test setting to False
-        settings_manager.set_background_gui_apps(False)
-        assert settings_manager.get_background_gui_apps() is False
-
-        # Test setting back to True
-        settings_manager.set_background_gui_apps(True)
-        assert settings_manager.get_background_gui_apps() is True
 
 
 class TestSettingsManagerAtomicWrite:

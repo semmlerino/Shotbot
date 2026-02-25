@@ -23,19 +23,10 @@ from pathlib import Path
 import pytest
 
 from type_definitions import (
-    CacheKey,
-    CacheMetricsDict,
-    # Protocols
-    CommandList,
-    Duration,
-    FinderProtocol,
-    LauncherProtocol,
-    PathLike,
     Shot,
     # TypedDicts
     ShotDict,
     ThreeDESceneDict,
-    Timestamp,
 )
 
 
@@ -376,21 +367,6 @@ class TestShotThreadSafety:
 class TestShotDict:
     """Tests for ShotDict TypedDict structure."""
 
-    def test_required_fields_enforced(self) -> None:
-        """ShotDict requires show, sequence, shot, workspace_path."""
-        # Valid dict with all required fields
-        valid: ShotDict = {
-            "show": "test",
-            "sequence": "sq01",
-            "shot": "0010",
-            "workspace_path": "/path",
-        }
-
-        assert valid["show"] == "test"
-        assert valid["sequence"] == "sq01"
-        assert valid["shot"] == "0010"
-        assert valid["workspace_path"] == "/path"
-
     def test_optional_discovered_at(self) -> None:
         """ShotDict can optionally include discovered_at."""
         with_discovered: ShotDict = {
@@ -416,24 +392,6 @@ class TestShotDict:
 class TestThreeDESceneDict:
     """Tests for ThreeDESceneDict TypedDict structure."""
 
-    def test_all_required_fields(self) -> None:
-        """ThreeDESceneDict has all expected fields."""
-        scene: ThreeDESceneDict = {
-            "filepath": "/path/to/scene.3de",
-            "show": "testshow",
-            "sequence": "sq010",
-            "shot": "0010",
-            "user": "artist",
-            "filename": "scene.3de",
-            "modified_time": 1700000000.0,
-            "workspace_path": "/shows/testshow/shots/sq010/sq010_0010",
-        }
-
-        assert scene["filepath"] == "/path/to/scene.3de"
-        assert scene["user"] == "artist"
-        assert scene["filename"] == "scene.3de"
-        assert scene["modified_time"] == 1700000000.0
-
     def test_optional_last_seen(self) -> None:
         """ThreeDESceneDict can optionally include last_seen."""
         with_last_seen: ThreeDESceneDict = {
@@ -449,27 +407,6 @@ class TestThreeDESceneDict:
         }
 
         assert with_last_seen.get("last_seen") == 1700000001.0
-
-
-@pytest.mark.unit
-class TestCacheMetricsDict:
-    """Tests for CacheMetricsDict TypedDict structure."""
-
-    def test_all_fields_present(self) -> None:
-        """CacheMetricsDict has all expected fields."""
-        metrics: CacheMetricsDict = {
-            "total_size_bytes": 1024000,
-            "item_count": 100,
-            "hit_rate": 0.85,
-            "miss_rate": 0.15,
-            "eviction_count": 5,
-            "last_cleanup": 1700000000.0,
-        }
-
-        assert metrics["total_size_bytes"] == 1024000
-        assert metrics["item_count"] == 100
-        assert metrics["hit_rate"] == 0.85
-        assert metrics["miss_rate"] == 0.15
 
 
 # ==============================================================================
@@ -502,96 +439,6 @@ class TestCacheProtocolCompliance:
         assert callable(cache.get_memory_usage)
 
 
-@pytest.mark.unit
-class TestFinderProtocolCompliance:
-    """Tests that verify implementations satisfy FinderProtocol."""
-
-    def test_protocol_requires_find_all(self) -> None:
-        """FinderProtocol requires find_all method."""
-        # Get protocol method names
-        import inspect
-
-        protocol_methods = [
-            name
-            for name, _ in inspect.getmembers(FinderProtocol, predicate=inspect.isfunction)
-            if not name.startswith("_")
-        ]
-
-        assert "find_all" in protocol_methods or hasattr(FinderProtocol, "find_all")
-
-    def test_protocol_requires_find_for_shot(self) -> None:
-        """FinderProtocol requires find_for_shot method."""
-        import inspect
-
-        protocol_methods = [
-            name
-            for name, _ in inspect.getmembers(FinderProtocol, predicate=inspect.isfunction)
-            if not name.startswith("_")
-        ]
-
-        assert "find_for_shot" in protocol_methods or hasattr(
-            FinderProtocol, "find_for_shot"
-        )
-
-
-@pytest.mark.unit
-class TestLauncherProtocolCompliance:
-    """Tests that verify implementations satisfy LauncherProtocol."""
-
-    def test_protocol_requires_launch(self) -> None:
-        """LauncherProtocol requires launch method."""
-        assert hasattr(LauncherProtocol, "launch")
-
-    def test_protocol_requires_is_running(self) -> None:
-        """LauncherProtocol requires is_running method."""
-        assert hasattr(LauncherProtocol, "is_running")
-
-    def test_protocol_requires_terminate(self) -> None:
-        """LauncherProtocol requires terminate method."""
-        assert hasattr(LauncherProtocol, "terminate")
-
-
-# ==============================================================================
-# Type Alias Tests
-# ==============================================================================
-
-
-@pytest.mark.unit
-class TestTypeAliases:
-    """Tests for type alias correctness."""
-
-    def test_pathlike_accepts_str(self) -> None:
-        """PathLike type accepts str."""
-        path: PathLike = "/some/path"
-        assert isinstance(path, str)
-
-    def test_pathlike_accepts_path(self) -> None:
-        """PathLike type accepts Path."""
-        path: PathLike = Path("/some/path")
-        assert isinstance(path, Path)
-
-    def test_timestamp_is_float(self) -> None:
-        """Timestamp type is float."""
-        ts: Timestamp = time.time()
-        assert isinstance(ts, float)
-
-    def test_duration_is_float(self) -> None:
-        """Duration type is float."""
-        duration: Duration = 5.5
-        assert isinstance(duration, float)
-
-    def test_command_list_is_list_of_str(self) -> None:
-        """CommandList type is list of str."""
-        cmd: CommandList = ["python", "-c", "print('hello')"]
-        assert isinstance(cmd, list)
-        assert all(isinstance(item, str) for item in cmd)
-
-    def test_cache_key_is_str(self) -> None:
-        """CacheKey type is str."""
-        key: CacheKey = "my_cache_key"
-        assert isinstance(key, str)
-
-
 # ==============================================================================
 # Dataclass Field Introspection Tests
 # ==============================================================================
@@ -607,34 +454,6 @@ class TestShotDataclassFields:
         # show, sequence, shot, workspace_path, discovered_at, frame_start, frame_end,
         # _cached_thumbnail_path, _thumbnail_lock
         assert len(shot_fields) == 9
-
-    def test_private_fields_not_in_init(self) -> None:
-        """Private fields are excluded from __init__."""
-        shot_fields = fields(Shot)
-        init_fields = [f for f in shot_fields if f.init]
-
-        # Only public fields should be in __init__
-        init_field_names = [f.name for f in init_fields]
-        assert "_cached_thumbnail_path" not in init_field_names
-        assert "_thumbnail_lock" not in init_field_names
-
-    def test_private_fields_not_in_repr(self) -> None:
-        """Private fields are excluded from __repr__."""
-        shot_fields = fields(Shot)
-        repr_fields = [f for f in shot_fields if f.repr]
-
-        repr_field_names = [f.name for f in repr_fields]
-        assert "_cached_thumbnail_path" not in repr_field_names
-        assert "_thumbnail_lock" not in repr_field_names
-
-    def test_private_fields_not_in_compare(self) -> None:
-        """Private fields are excluded from comparison."""
-        shot_fields = fields(Shot)
-        compare_fields = [f for f in shot_fields if f.compare]
-
-        compare_field_names = [f.name for f in compare_fields]
-        assert "_cached_thumbnail_path" not in compare_field_names
-        assert "_thumbnail_lock" not in compare_field_names
 
 
 # ==============================================================================

@@ -571,48 +571,32 @@ class TestThreadStatusMonitoring:
 
         assert count == 1  # Only worker1 is running
 
-    def test_get_thread_status_running(
-        self, threading_manager: ThreadingManager
+    @pytest.mark.parametrize(
+        ("is_running", "is_finished", "expected_status"),
+        [
+            (True, False, "running"),
+            (False, True, "finished"),
+            (False, False, "ready"),
+        ],
+    )
+    def test_get_thread_status_single_worker(
+        self,
+        threading_manager: ThreadingManager,
+        is_running: bool,
+        is_finished: bool,
+        expected_status: str,
     ) -> None:
-        """Test thread status reporting for running thread."""
+        """Test thread status reporting for running, finished, and ready threads."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
-        worker.isRunning = Mock(return_value=True)
-        worker.isFinished = Mock(return_value=False)
+        worker.isRunning = Mock(return_value=is_running)
+        worker.isFinished = Mock(return_value=is_finished)
 
         threading_manager.add_custom_worker("worker", worker)
 
         status = threading_manager.get_thread_status()
 
-        assert status == {"worker": "running"}
-
-    def test_get_thread_status_finished(
-        self, threading_manager: ThreadingManager
-    ) -> None:
-        """Test thread status reporting for finished thread."""
-        worker = Mock(spec=QThread)
-        worker.start = Mock()
-        worker.isRunning = Mock(return_value=False)
-        worker.isFinished = Mock(return_value=True)
-
-        threading_manager.add_custom_worker("worker", worker)
-
-        status = threading_manager.get_thread_status()
-
-        assert status == {"worker": "finished"}
-
-    def test_get_thread_status_ready(self, threading_manager: ThreadingManager) -> None:
-        """Test thread status reporting for ready thread."""
-        worker = Mock(spec=QThread)
-        worker.start = Mock()
-        worker.isRunning = Mock(return_value=False)
-        worker.isFinished = Mock(return_value=False)
-
-        threading_manager.add_custom_worker("worker", worker)
-
-        status = threading_manager.get_thread_status()
-
-        assert status == {"worker": "ready"}
+        assert status == {"worker": expected_status}
 
     def test_get_thread_status_multiple_workers(
         self, threading_manager: ThreadingManager
@@ -841,36 +825,6 @@ class TestThreadSafety:
             # Second call should be rejected due to mutex protection
             assert result is False
 
-    def test_get_active_thread_count_thread_safe(
-        self, threading_manager: ThreadingManager
-    ) -> None:
-        """Test get_active_thread_count uses mutex protection."""
-        worker = Mock(spec=QThread)
-        worker.start = Mock()
-        worker.isRunning = Mock(return_value=True)
-
-        threading_manager.add_custom_worker("worker", worker)
-
-        # Should safely access _workers dict
-        count = threading_manager.get_active_thread_count()
-
-        assert count == 1
-
-    def test_get_thread_status_thread_safe(
-        self, threading_manager: ThreadingManager
-    ) -> None:
-        """Test get_thread_status uses mutex protection."""
-        worker = Mock(spec=QThread)
-        worker.start = Mock()
-        worker.isRunning = Mock(return_value=True)
-        worker.isFinished = Mock(return_value=False)
-
-        threading_manager.add_custom_worker("worker", worker)
-
-        # Should safely access _workers dict
-        status = threading_manager.get_thread_status()
-
-        assert "worker" in status
 
 
 # =============================================================================

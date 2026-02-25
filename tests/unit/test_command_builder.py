@@ -55,82 +55,27 @@ class TestPathValidation:
         # shlex.quote should escape the single quote
         assert result == "'/home/user/It'\"'\"'s a file.txt'"
 
-    def test_command_separator_semicolon_rejected(self) -> None:
-        """Test rejection of path with semicolon (command separator)."""
-        path = "/home/user/file.txt; rm -rf /"
-        with pytest.raises(ValueError, match=r"dangerous character.*;"):
-            CommandBuilder.validate_path(path)
-
-    def test_command_separator_and_rejected(self) -> None:
-        """Test rejection of path with && (AND operator)."""
-        path = "/home/user/file.txt && malicious"
-        with pytest.raises(ValueError, match=r"dangerous character.*&&"):
-            CommandBuilder.validate_path(path)
-
-    def test_command_separator_or_rejected(self) -> None:
-        """Test rejection of path with || (OR operator)."""
-        path = "/home/user/file.txt || malicious"
-        with pytest.raises(ValueError, match=r"dangerous character.*\|\|"):
-            CommandBuilder.validate_path(path)
-
-    def test_command_separator_pipe_rejected(self) -> None:
-        """Test rejection of path with | (pipe)."""
-        path = "/home/user/file.txt | cat"
-        with pytest.raises(ValueError, match=r"dangerous character.*\|"):
-            CommandBuilder.validate_path(path)
-
-    def test_output_redirection_rejected(self) -> None:
-        """Test rejection of path with > (output redirection)."""
-        path = "/home/user/file.txt > /tmp/output"
-        with pytest.raises(ValueError, match=r"dangerous character.*>"):
-            CommandBuilder.validate_path(path)
-
-    def test_input_redirection_rejected(self) -> None:
-        """Test rejection of path with < (input redirection)."""
-        path = "/home/user/file.txt < /tmp/input"
-        with pytest.raises(ValueError, match=r"dangerous character.*<"):
-            CommandBuilder.validate_path(path)
-
-    def test_append_redirection_rejected(self) -> None:
-        """Test rejection of path with >> (append redirection)."""
-        path = "/home/user/file.txt >> /tmp/log"
-        with pytest.raises(ValueError, match=r"dangerous character.*>>"):
-            CommandBuilder.validate_path(path)
-
-    def test_command_substitution_backtick_rejected(self) -> None:
-        """Test rejection of path with backtick (command substitution)."""
-        path = "/home/user/`malicious`.txt"
-        with pytest.raises(ValueError, match=r"dangerous character.*`"):
-            CommandBuilder.validate_path(path)
-
-    def test_command_substitution_dollar_paren_rejected(self) -> None:
-        """Test rejection of path with $( (command substitution)."""
-        path = "/home/user/$(malicious).txt"
-        with pytest.raises(ValueError, match=r"dangerous character.*\$\("):
-            CommandBuilder.validate_path(path)
-
-    def test_newline_rejected(self) -> None:
-        """Test rejection of path with newline character."""
-        path = "/home/user/file.txt\nmalicious"
-        with pytest.raises(ValueError, match="dangerous character"):
-            CommandBuilder.validate_path(path)
-
-    def test_carriage_return_rejected(self) -> None:
-        """Test rejection of path with carriage return character."""
-        path = "/home/user/file.txt\rmalicious"
-        with pytest.raises(ValueError, match="dangerous character"):
-            CommandBuilder.validate_path(path)
-
-    def test_variable_expansion_rejected(self) -> None:
-        """Test rejection of path with ${ (variable expansion)."""
-        path = "/home/user/${MALICIOUS}.txt"
-        with pytest.raises(ValueError, match=r"dangerous character.*\$\{"):
-            CommandBuilder.validate_path(path)
-
-    def test_arithmetic_expansion_rejected(self) -> None:
-        """Test rejection of path with $(( (arithmetic expansion)."""
-        path = "/home/user/$((malicious)).txt"
-        with pytest.raises(ValueError, match=r"dangerous character.*\$\(\("):
+    @pytest.mark.parametrize(
+        ("path", "match_pattern"),
+        [
+            ("/home/user/file.txt; rm -rf /", r"dangerous character.*;"),
+            ("/home/user/file.txt && malicious", r"dangerous character.*&&"),
+            ("/home/user/file.txt || malicious", r"dangerous character.*\|\|"),
+            ("/home/user/file.txt | cat", r"dangerous character.*\|"),
+            ("/home/user/file.txt > /tmp/output", r"dangerous character.*>"),
+            ("/home/user/file.txt < /tmp/input", r"dangerous character.*<"),
+            ("/home/user/file.txt >> /tmp/log", r"dangerous character.*>>"),
+            ("/home/user/`malicious`.txt", r"dangerous character.*`"),
+            ("/home/user/$(malicious).txt", r"dangerous character.*\$\("),
+            ("/home/user/file.txt\nmalicious", "dangerous character"),
+            ("/home/user/file.txt\rmalicious", "dangerous character"),
+            ("/home/user/${MALICIOUS}.txt", r"dangerous character.*\$\{"),
+            ("/home/user/$((malicious)).txt", r"dangerous character.*\$\(\("),
+        ],
+    )
+    def test_dangerous_characters_rejected(self, path: str, match_pattern: str) -> None:
+        """Test rejection of paths containing dangerous shell characters."""
+        with pytest.raises(ValueError, match=match_pattern):
             CommandBuilder.validate_path(path)
 
     def test_path_with_dotdot_normalizes_safely(self) -> None:

@@ -611,15 +611,6 @@ class TestDCCSectionEmbeddedFiles:
             section._file_table.clicked.emit(index)
             process_qt_events()
 
-    def test_rv_section_has_no_files(self, qtbot: QtBot) -> None:
-        """RV section should not have embedded files."""
-        rv_config = get_default_config("rv")
-        assert rv_config is not None
-        section = DCCSection(rv_config)
-        qtbot.addWidget(section)
-
-        assert section._files_section is None
-
     def test_default_configs_have_files_section(self, qtbot: QtBot) -> None:
         """3DE, Maya, Nuke have files sections; RV does not."""
         for config in DEFAULT_DCC_CONFIGS:

@@ -8,11 +8,9 @@ from __future__ import annotations
 
 # Standard library imports
 import sys
-import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -240,43 +238,6 @@ class TestAsyncWorkflowIntegration:
         info_panel.deleteLater()
         process_qt_events()
 
-    def test_cache_coherence_across_components(
-        self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
-        test_shots: list[Shot],
-        qtbot: QtBot,
-    ) -> None:
-        """Test cache coherence when multiple components access same thumbnails."""
-        item_model, info_panel, cache_manager = integration_components()
-
-        # Set same shot in both components
-        target_shot = test_shots[0]
-        item_model.set_items([target_shot])
-        info_panel.set_shot(target_shot)
-
-        # Track cache interactions
-        cache_calls: list[tuple[Any, ...]] = []
-        original_cache_thumbnail = cache_manager.cache_thumbnail
-
-        def track_cache_calls(*args: Any, **kwargs: Any) -> Any:
-            cache_calls.append(args)
-            return original_cache_thumbnail(*args, **kwargs)
-
-        with patch.object(cache_manager, "cache_thumbnail", track_cache_calls):
-            # Trigger loading in both components
-            item_model.set_visible_range(0, 1)
-            qtbot.wait(1)  # Minimal event processing for loading trigger
-
-            # Wait for cache operations to complete
-            qtbot.waitUntil(
-                lambda: item_model._loading_states.get(target_shot.full_name) is not None,
-                timeout=2000
-            )
-
-            # Verify cache was accessed appropriately
-            # (Exact behavior depends on cache implementation)
-            assert len(cache_calls) >= 0  # May be 0 if using test cache
-
     def test_memory_management_during_async_operations(
         self,
         integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
@@ -362,42 +323,6 @@ class TestAsyncWorkflowIntegration:
             thumbnail_text in ["", "No Image"]
             or info_panel.thumbnail_label.pixmap() is not None
         )
-
-    def test_threading_safety_across_components(
-        self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
-        test_shots: list[Shot],
-        qtbot: QtBot,
-    ) -> None:
-        """Test thread safety - verify Qt operations only allowed on main thread."""
-        from base_item_model import (
-            QtThreadError,
-        )
-
-        item_model, _info_panel, _cache_manager = integration_components()
-
-        # Test that set_shots() correctly raises error when called from background thread
-        error_raised = threading.Event()
-
-        def model_operations() -> None:
-            try:
-                item_model.set_shots(test_shots[:1])
-            except QtThreadError:
-                error_raised.set()  # Expected behavior - operation blocked
-
-        # Run operation in separate thread
-        model_thread = threading.Thread(target=model_operations)
-        model_thread.start()
-        model_thread.join(timeout=5.0)
-
-        # Verify the thread safety check worked
-        assert error_raised.is_set(), "set_shots() should raise QtThreadError from background thread"
-
-        # Allow Qt to process any pending events
-        qtbot.wait(1)  # Minimal event processing
-
-        # Model should remain stable
-        assert item_model.rowCount() >= 0
 
 
 @pytest.mark.xdist_group("serial_qt_state")

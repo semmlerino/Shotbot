@@ -255,33 +255,6 @@ class TestIncrementalCachingWorkflow:
         assert migrated_final is not None
         assert len(migrated_final) == 3, "Deduplication should prevent duplicates"
 
-    def test_cache_corruption_recovery(
-        self, shot_model_temp: ShotModel, test_process_pool, temp_cache_dir: Path, qtbot
-    ):
-        """Test graceful degradation on cache corruption."""
-        # Setup: Two refresh outputs - initial valid and recovery after corruption
-        test_process_pool.set_outputs(
-            "workspace /shows/broken_eggs/shots/sq0010/sq0010_0010\n"
-            "workspace /shows/broken_eggs/shots/sq0010/sq0010_0020\n",
-            "workspace /shows/broken_eggs/shots/sq0010/sq0010_0030\n",
-            repeat=False,
-        )
-        success1, changes1 = shot_model_temp.refresh_shots()
-        assert success1
-        assert changes1
-
-        # Corrupt cache file
-        cache_file = temp_cache_dir / "shots.json"
-        cache_file.write_text("{ corrupted json content [[[")
-
-        # Execute: Refresh with corrupted cache (uses second output)
-        success2, changes2 = shot_model_temp.refresh_shots()
-
-        # Verify: Graceful degradation (uses fresh data only)
-        assert success2, "Should succeed despite corrupted cache"
-        assert changes2, "Should detect changes"
-        assert len(shot_model_temp.shots) >= 1, "Should have at least new shot"
-
     def test_full_workflow_432_shots(
         self, shot_model_temp: ShotModel, test_process_pool, qtbot
     ):

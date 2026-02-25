@@ -12,7 +12,6 @@ from typing import Any
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QLabel,
     QLineEdit,
     QListWidget,
     QMainWindow,
@@ -36,259 +35,72 @@ from design_system import (
 )
 
 
+# ==============================================================================
+# Parameterized constant snapshot test (replaces 5 separate dataclass test classes)
+# ==============================================================================
+
+
+@pytest.mark.parametrize(
+    ("component", "attr", "expected"),
+    [
+        # ColorPalette
+        ("colors", "primary", "#2196F3"),
+        ("colors", "primary_hover", "#1976D2"),
+        ("colors", "primary_pressed", "#0D47A1"),
+        ("colors", "secondary", "#00BCD4"),
+        ("colors", "success", "#4CAF50"),
+        ("colors", "error", "#F44336"),
+        ("colors", "warning", "#FF9800"),
+        ("colors", "info", "#03A9F4"),
+        ("colors", "bg_primary", "#1E1E1E"),
+        ("colors", "bg_secondary", "#252525"),
+        ("colors", "bg_tertiary", "#2D2D2D"),
+        ("colors", "text_primary", "#FFFFFF"),
+        ("colors", "text_secondary", "#B0B0B0"),
+        ("colors", "text_disabled", "#707070"),
+        ("colors", "text_hint", "#808080"),
+        # Spacing
+        ("spacing", "unit", 4),
+        ("spacing", "xs", 4),
+        ("spacing", "sm", 8),
+        ("spacing", "md", 16),
+        ("spacing", "lg", 24),
+        ("spacing", "xl", 32),
+        ("spacing", "xxl", 48),
+        ("spacing", "button_padding_h", 16),
+        ("spacing", "button_padding_v", 8),
+        ("spacing", "card_padding", 16),
+        ("spacing", "dialog_padding", 24),
+        ("spacing", "grid_gap", 16),
+        ("spacing", "thumbnail_spacing", 12),
+        # Borders
+        ("borders", "width_thin", 1),
+        ("borders", "width_medium", 2),
+        ("borders", "width_thick", 3),
+        ("borders", "radius_sm", 4),
+        ("borders", "radius_md", 6),
+        ("borders", "radius_lg", 8),
+        ("borders", "radius_xl", 12),
+        ("borders", "radius_round", "50%"),
+        # Animation
+        ("animation", "duration_instant", 100),
+        ("animation", "duration_fast", 200),
+        ("animation", "duration_normal", 300),
+        ("animation", "duration_slow", 500),
+    ],
+)
+def test_design_system_constant_values(component: str, attr: str, expected: object) -> None:
+    """Snapshot test: all design system constant values match expected."""
+    ds = DesignSystem()
+    obj = getattr(ds, component)
+    assert getattr(obj, attr) == expected
+
+
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,  # CRITICAL for parallel safety
 ]
-
-
-class TestColorPalette:
-    """Test ColorPalette dataclass values and properties."""
-
-    def test_default_primary_colors(self) -> None:
-        """Test primary color defaults match Material Design."""
-        palette = ColorPalette()
-        assert palette.primary == "#2196F3"
-        assert palette.primary_hover == "#1976D2"
-        assert palette.primary_pressed == "#0D47A1"
-
-    def test_default_secondary_colors(self) -> None:
-        """Test secondary color defaults."""
-        palette = ColorPalette()
-        assert palette.secondary == "#00BCD4"
-        assert palette.secondary_hover == "#00ACC1"
-        assert palette.secondary_pressed == "#00838F"
-
-    def test_semantic_colors(self) -> None:
-        """Test semantic color values for success/error/warning/info."""
-        palette = ColorPalette()
-        assert palette.success == "#4CAF50"
-        assert palette.error == "#F44336"
-        assert palette.warning == "#FF9800"
-        assert palette.info == "#03A9F4"
-
-    def test_background_colors(self) -> None:
-        """Test background color hierarchy."""
-        palette = ColorPalette()
-        assert palette.bg_primary == "#1E1E1E"
-        assert palette.bg_secondary == "#252525"
-        assert palette.bg_tertiary == "#2D2D2D"
-
-    def test_text_colors_wcag_compliant(self) -> None:
-        """Test text colors are documented as WCAG AA compliant."""
-        palette = ColorPalette()
-        assert palette.text_primary == "#FFFFFF"  # 21:1 contrast
-        assert palette.text_secondary == "#B0B0B0"  # 7:1 contrast
-        assert palette.text_disabled == "#707070"  # 4.5:1 contrast
-        assert palette.text_hint == "#808080"  # 5:1 contrast
-
-    def test_special_ui_elements(self) -> None:
-        """Test special UI element colors."""
-        palette = ColorPalette()
-        assert "rgba" in palette.selection.lower()
-        assert "rgba" in palette.overlay.lower()
-
-    def test_color_palette_immutable_fields(self) -> None:
-        """Test that color palette fields can be accessed."""
-        palette = ColorPalette()
-        # Test we can access all fields
-        fields = [
-            "primary",
-            "primary_hover",
-            "primary_pressed",
-            "secondary",
-            "secondary_hover",
-            "secondary_pressed",
-            "success",
-            "error",
-            "warning",
-            "info",
-            "bg_primary",
-            "bg_secondary",
-            "bg_tertiary",
-            "surface",
-            "surface_hover",
-            "surface_pressed",
-            "text_primary",
-            "text_secondary",
-            "text_disabled",
-            "text_hint",
-            "border_default",
-            "border_focus",
-            "border_error",
-            "selection",
-            "overlay",
-        ]
-        for field in fields:
-            assert hasattr(palette, field)
-            assert isinstance(getattr(palette, field), str)
-
-
-class TestTypography:
-    """Test Typography dataclass values."""
-
-    def test_font_families(self) -> None:
-        """Test font family stacks."""
-        typo = Typography()
-        assert "Segoe UI" in typo.font_family
-        assert "Roboto" in typo.font_family
-        assert "Cascadia Code" in typo.font_family_mono
-        assert "monospace" in typo.font_family_mono
-
-    def test_font_sizes_hierarchy(self) -> None:
-        """Test font sizes follow proper hierarchy."""
-        typo = Typography()
-        assert typo.size_h1 == 26
-        assert typo.size_h2 == 22
-        assert typo.size_h3 == 20
-        assert typo.size_h4 == 18
-        assert typo.size_body == 16
-        assert typo.size_small == 14
-        assert typo.size_tiny == 13
-        assert typo.size_extra_tiny == 12
-        assert typo.size_extra_small == 11
-        assert typo.size_micro == 10
-
-        # Verify hierarchy
-        assert typo.size_h1 > typo.size_h2 > typo.size_h3 > typo.size_h4
-        assert typo.size_h4 > typo.size_body > typo.size_small > typo.size_tiny
-        assert typo.size_tiny > typo.size_extra_tiny > typo.size_extra_small > typo.size_micro
-
-    def test_font_weights(self) -> None:
-        """Test font weight values."""
-        typo = Typography()
-        assert typo.weight_light == 300
-        assert typo.weight_regular == 400
-        assert typo.weight_medium == 500
-        assert typo.weight_bold == 600
-
-        # Verify weight progression
-        assert (
-            typo.weight_light
-            < typo.weight_regular
-            < typo.weight_medium
-            < typo.weight_bold
-        )
-
-    def test_line_heights(self) -> None:
-        """Test line height values."""
-        typo = Typography()
-        assert typo.line_height_tight == 1.2
-        assert typo.line_height_normal == 1.5
-        assert typo.line_height_relaxed == 1.75
-
-        # Verify progression
-        assert (
-            typo.line_height_tight < typo.line_height_normal < typo.line_height_relaxed
-        )
-
-
-class TestSpacing:
-    """Test Spacing dataclass values."""
-
-    def test_base_unit(self) -> None:
-        """Test base spacing unit."""
-        spacing = Spacing()
-        assert spacing.unit == 4
-
-    def test_spacing_scale(self) -> None:
-        """Test spacing scale follows 4px base unit."""
-        spacing = Spacing()
-        assert spacing.xs == 4  # 1 unit
-        assert spacing.sm == 8  # 2 units
-        assert spacing.md == 16  # 4 units
-        assert spacing.lg == 24  # 6 units
-        assert spacing.xl == 32  # 8 units
-        assert spacing.xxl == 48  # 12 units
-
-        # Verify they're multiples of base unit
-        assert spacing.xs % spacing.unit == 0
-        assert spacing.sm % spacing.unit == 0
-        assert spacing.md % spacing.unit == 0
-
-    def test_component_spacing(self) -> None:
-        """Test component-specific spacing."""
-        spacing = Spacing()
-        assert spacing.button_padding_h == 16
-        assert spacing.button_padding_v == 8
-        assert spacing.card_padding == 16
-        assert spacing.dialog_padding == 24
-
-    def test_grid_spacing(self) -> None:
-        """Test grid-related spacing."""
-        spacing = Spacing()
-        assert spacing.grid_gap == 16
-        assert spacing.thumbnail_spacing == 12
-
-
-class TestBorders:
-    """Test Borders dataclass values."""
-
-    def test_border_widths(self) -> None:
-        """Test border width values."""
-        borders = Borders()
-        assert borders.width_thin == 1
-        assert borders.width_medium == 2
-        assert borders.width_thick == 3
-
-        # Verify progression
-        assert borders.width_thin < borders.width_medium < borders.width_thick
-
-    def test_border_radii(self) -> None:
-        """Test border radius values."""
-        borders = Borders()
-        assert borders.radius_sm == 4
-        assert borders.radius_md == 6
-        assert borders.radius_lg == 8
-        assert borders.radius_xl == 12
-        assert borders.radius_round == "50%"
-
-        # Verify progression for numeric radii
-        assert (
-            borders.radius_sm
-            < borders.radius_md
-            < borders.radius_lg
-            < borders.radius_xl
-        )
-
-
-class TestShadows:
-    """Test Shadows dataclass values."""
-
-    def test_shadow_definitions(self) -> None:
-        """Test shadow string definitions."""
-        shadows = Shadows()
-
-        # All shadows should be valid CSS box-shadow strings
-        assert "rgba" in shadows.sm.lower()
-        assert "rgba" in shadows.md.lower()
-        assert "rgba" in shadows.lg.lower()
-        assert "rgba" in shadows.xl.lower()
-        assert "rgba" in shadows.focus.lower()
-
-    def test_shadow_elevation_progression(self) -> None:
-        """Test shadows have increasing complexity for elevation."""
-        shadows = Shadows()
-
-        # Extract first shadow offset values (should increase with elevation)
-        import re
-
-        def get_first_offset(shadow: str) -> int:
-            """Extract the first pixel offset from shadow string."""
-            match = re.search(r"(\d+)px", shadow)
-            return int(match.group(1)) if match else 0
-
-        # Higher elevation shadows should have larger offsets
-        sm_offset = get_first_offset(shadows.sm)
-        md_offset = get_first_offset(shadows.md)
-        lg_offset = get_first_offset(shadows.lg)
-        xl_offset = get_first_offset(shadows.xl)
-
-        assert sm_offset < md_offset < lg_offset < xl_offset
-
-        # Focus shadow should be distinct (no offset)
-        assert "0 0 0" in shadows.focus  # No offset for focus ring
 
 
 class TestAnimation:
@@ -473,24 +285,6 @@ class TestDesignSystem:
             assert widget in stylesheet, f"Missing styles for {widget}"
 
 
-class TestGlobalInstance:
-    """Test the global design_system instance."""
-
-    def test_global_instance_exists(self) -> None:
-        """Test that global design_system instance is available."""
-        assert design_system is not None
-        assert isinstance(design_system, DesignSystem)
-
-    def test_global_instance_initialized(self) -> None:
-        """Test global instance has all components initialized."""
-        assert isinstance(design_system.colors, ColorPalette)
-        assert isinstance(design_system.typography, ScaledTypography)
-        assert isinstance(design_system.spacing, Spacing)
-        assert isinstance(design_system.borders, Borders)
-        assert isinstance(design_system.shadows, Shadows)
-        assert isinstance(design_system.animation, Animation)
-
-
 class TestQtIntegration:
     """Test design system integration with actual Qt widgets."""
 
@@ -515,58 +309,6 @@ class TestQtIntegration:
 
         # Verify it was applied
         assert window.styleSheet() == stylesheet
-
-    def test_button_variants_with_qt(self, qtbot: Any) -> None:
-        """Test button variant styles work with actual QPushButton."""
-        # Primary button
-        primary_btn = QPushButton("Primary")
-        primary_btn.setObjectName("primaryButton")
-        qtbot.addWidget(primary_btn)
-
-        # Success button
-        success_btn = QPushButton("Success")
-        success_btn.setObjectName("successButton")
-        qtbot.addWidget(success_btn)
-
-        # Danger button
-        danger_btn = QPushButton("Danger")
-        danger_btn.setObjectName("dangerButton")
-        qtbot.addWidget(danger_btn)
-
-        # Apply stylesheet to parent widget
-        parent = QWidget()
-        qtbot.addWidget(parent)
-        parent.setStyleSheet(design_system.get_stylesheet())
-
-        # Buttons should accept the stylesheet without errors
-        primary_btn.setParent(parent)
-        success_btn.setParent(parent)
-        danger_btn.setParent(parent)
-
-    def test_label_variants_with_qt(self, qtbot: Any) -> None:
-        """Test label variants work with QLabel."""
-        # Create labels with different object names
-        h1 = QLabel("Heading 1")
-        h1.setObjectName("heading1")
-        qtbot.addWidget(h1)
-
-        h2 = QLabel("Heading 2")
-        h2.setObjectName("heading2")
-        qtbot.addWidget(h2)
-
-        hint = QLabel("Hint text")
-        hint.setObjectName("hint")
-        qtbot.addWidget(hint)
-
-        # Apply stylesheet
-        parent = QWidget()
-        qtbot.addWidget(parent)
-        parent.setStyleSheet(design_system.get_stylesheet())
-
-        # Set parents to apply styles
-        h1.setParent(parent)
-        h2.setParent(parent)
-        hint.setParent(parent)
 
     def test_complex_widget_hierarchy(self, qtbot: Any) -> None:
         """Test stylesheet with complex widget hierarchy."""

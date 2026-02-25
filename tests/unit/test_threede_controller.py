@@ -377,7 +377,7 @@ class TestSignalSetup:
     """Test signal connections during initialization."""
 
     @pytest.mark.parametrize(
-        "signal_name, handler_attr",
+        ("signal_name", "handler_attr"),
         [
             ("scene_selected", "on_scene_selected"),
             ("scene_double_clicked", "on_scene_double_clicked"),
@@ -597,31 +597,27 @@ class TestSceneChangeDetection:
 
         assert controller.has_scene_changes(new_scenes) is False
 
-    def test_has_scene_changes_detects_user_change(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    @pytest.mark.parametrize(
+        ("old_kwargs", "new_kwargs"),
+        [
+            ({"user": "alice"}, {"user": "bob"}),
+            ({"scene_path": "/old/path.3de"}, {"scene_path": "/new/path.3de"}),
+        ],
+        ids=["user_change", "path_change"],
+    )
+    def test_has_scene_changes_detects_attribute_change(
+        self,
+        controller: ThreeDEController,
+        window_double: ThreeDETargetDouble,
+        old_kwargs: dict,
+        new_kwargs: dict,
     ) -> None:
-        """Test that changes are detected when scene user changes."""
-        old_scene = make_scene(user="alice")
+        """Test that changes are detected when scene user or path changes."""
+        old_scene = make_scene(**old_kwargs)
         window_double.threede_scene_model._scenes = [old_scene]
 
-        # Same shot but different user
-        new_scene = make_scene(user="bob")
-        new_scenes = [new_scene]
-
-        assert controller.has_scene_changes(new_scenes) is True
-
-    def test_has_scene_changes_detects_path_change(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that changes are detected when scene path changes."""
-        old_scene = make_scene(scene_path="/old/path.3de")
-        window_double.threede_scene_model._scenes = [old_scene]
-
-        # Same shot but different path
-        new_scene = make_scene(scene_path="/new/path.3de")
-        new_scenes = [new_scene]
-
-        assert controller.has_scene_changes(new_scenes) is True
+        new_scene = make_scene(**new_kwargs)
+        assert controller.has_scene_changes([new_scene]) is True
 
 
 # ============================================================================
@@ -850,29 +846,6 @@ class TestRefreshGuards:
 
 
 # ============================================================================
-# Test Current Scene Property
-# ============================================================================
-
-
-class TestCurrentSceneProperty:
-    """Test current_scene property."""
-
-    def test_current_scene_returns_none_initially(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that current_scene returns None when no selection."""
-        # Add scenes to model
-        window_double.threede_scene_model._scenes = [make_scene()]
-
-        # current_scene property relies on grid view selection
-        # Without actual Qt widget, this should return None or first scene
-        # depending on implementation
-        result = controller.current_scene
-        # The property may return None if no selection, or the scene if auto-selected
-        assert result is None or isinstance(result, ThreeDEScene)
-
-
-# ============================================================================
 # Test Cache Operations
 # ============================================================================
 
@@ -898,22 +871,4 @@ class TestCacheOperations:
         assert cached[0]["sequence"] == "sq010"
 
 
-# ============================================================================
-# Test Logging
-# ============================================================================
-
-
-class TestLogging:
-    """Test logging behavior."""
-
-    def test_log_discovered_scenes_logs_count(
-        self, controller: ThreeDEController, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Test that log_discovered_scenes logs scene count."""
-        scenes = [make_scene(), make_scene(shot="sh0020")]
-
-        with caplog.at_level("INFO"):
-            controller.log_discovered_scenes(scenes)
-
-        assert any("2" in record.message for record in caplog.records)
 

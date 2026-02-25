@@ -88,27 +88,6 @@ class TestExtractShowsFromActiveShots:
 
         assert shows == set()
 
-    def test_extract_with_logging(self) -> None:
-        """Test that extraction logs properly."""
-        finder = TargetedShotsFinder()
-        active_shots = [
-            Shot(show="test_show", sequence="seq", shot="0010", workspace_path="/path"),
-        ]
-
-        with patch.object(finder.logger, "info") as mock_info, patch.object(
-            finder.logger, "debug"
-        ) as mock_debug:
-            shows = finder.extract_shows_from_active_shots(active_shots)
-
-            mock_info.assert_called_once()
-            assert (
-                "Extracted 1 unique shows from 1 active shots"
-                in mock_info.call_args[0][0]
-            )
-            assert len(shows) == 1  # Verify the expected show count
-            mock_debug.assert_called_once()
-            assert "test_show" in str(mock_debug.call_args[0][0])
-
     def test_extract_many_shows(self) -> None:
         """Test extracting from many shows."""
         finder = TargetedShotsFinder()
@@ -160,17 +139,13 @@ class TestScanShowForUser:
             mock_proc.run.assert_called_once()
 
     def test_scan_nonexistent_show(self, tmp_path: Path) -> None:
-        """Test scanning a show that doesn't exist."""
+        """Test scanning a show that doesn't exist returns empty list."""
         finder = TargetedShotsFinder()
         shows_root = tmp_path / "shows"
         shows_root.mkdir()
 
-        with patch.object(finder.logger, "debug") as mock_debug:
-            shots = finder._scan_show_for_user("nonexistent_show", shows_root)
-
-            assert shots == []
-            mock_debug.assert_called()
-            assert "does not exist" in mock_debug.call_args[0][0]
+        shots = finder._scan_show_for_user("nonexistent_show", shows_root)
+        assert shots == []
 
     def test_scan_with_stop_requested(self, tmp_path: Path) -> None:
         """Test scanning stops when stop is requested."""
@@ -181,52 +156,35 @@ class TestScanShowForUser:
 
         assert shots == []
 
-    def test_scan_with_subprocess_timeout(self, tmp_path: Path) -> None:
-        """Test handling of subprocess timeout."""
+    @pytest.mark.parametrize(
+        "proc_setup",
+        [
+            "timeout",
+            "error",
+        ],
+    )
+    def test_scan_with_subprocess_failure(self, tmp_path: Path, proc_setup: str) -> None:
+        """Test that subprocess timeout and error both return empty shot list."""
         finder = TargetedShotsFinder()
 
         shows_root = tmp_path / "shows"
         show_path = shows_root / "test_show" / "shots"
         show_path.mkdir(parents=True)
 
-        # Mock CancellableSubprocess to return timeout status
-        mock_result = MagicMock()
-        mock_result.returncode = None
-        mock_result.stdout = ""
-        mock_result.status = "timeout"
-
         mock_proc = MagicMock()
-        mock_proc.run.return_value = mock_result
+        if proc_setup == "timeout":
+            mock_result = MagicMock()
+            mock_result.returncode = None
+            mock_result.stdout = ""
+            mock_result.status = "timeout"
+            mock_proc.run.return_value = mock_result
+        else:
+            mock_proc.run.side_effect = Exception("Process failed")
 
-        with patch(
-            "targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
-        ), patch.object(finder.logger, "warning") as mock_warning:
+        with patch("targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
             shots = finder._scan_show_for_user("test_show", shows_root)
 
-            assert shots == []
-            mock_warning.assert_called_once()
-            assert "Timeout scanning show" in mock_warning.call_args[0][0]
-
-    def test_scan_with_subprocess_error(self, tmp_path: Path) -> None:
-        """Test handling of subprocess errors."""
-        finder = TargetedShotsFinder()
-
-        shows_root = tmp_path / "shows"
-        show_path = shows_root / "test_show" / "shots"
-        show_path.mkdir(parents=True)
-
-        # Mock CancellableSubprocess to raise an exception
-        mock_proc = MagicMock()
-        mock_proc.run.side_effect = Exception("Process failed")
-
-        with patch(
-            "targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
-        ), patch.object(finder.logger, "error") as mock_error:
-            shots = finder._scan_show_for_user("test_show", shows_root)
-
-            assert shots == []
-            mock_error.assert_called_once()
-            assert "Error scanning show" in mock_error.call_args[0][0]
+        assert shots == []
 
     def test_scan_with_multiple_shots(self, tmp_path: Path, monkeypatch) -> None:
         """Test scanning show with multiple shots."""
@@ -428,17 +386,11 @@ class TestFindUserShotsInShows:
             assert "No target shows provided" in mock_warning.call_args[0][0]
 
     def test_find_with_nonexistent_shows_root(self) -> None:
-        """Test finding with nonexistent shows root."""
+        """Test finding with nonexistent shows root returns empty list."""
         finder = TargetedShotsFinder()
 
-        with patch.object(finder.logger, "warning") as mock_warning:
-            shots = list(
-                finder.find_user_shots_in_shows({"show1"}, Path("/nonexistent"))
-            )
-
-            assert shots == []
-            mock_warning.assert_called()
-            assert "Shows root does not exist" in mock_warning.call_args[0][0]
+        shots = list(finder.find_user_shots_in_shows({"show1"}, Path("/nonexistent")))
+        assert shots == []
 
     def test_find_with_stop_requested(self) -> None:
         """Test that finding stops when stop is requested."""

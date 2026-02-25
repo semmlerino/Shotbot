@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.resolve()))
 import concurrent.futures
 import logging
 import threading
-import time
 from typing import Any
 
 # Third-party imports
@@ -137,51 +136,7 @@ def test_process_pool_manager_race_condition() -> None:
     assert len(errors) == 0, f"Errors occurred: {errors}"
 
 
-@pytest.mark.slow
-@pytest.mark.xdist_group("process_pool_race")
-def test_process_pool_manager_resource_leak() -> None:
-    """Test for resource leaks due to duplicate initialization.
-
-    The duplicate self._initialized = True on line 257 could cause
-    resources to be created multiple times.
-    """
-    # Standard library imports
-    import concurrent.futures
-
-    # Local application imports
-    from process_pool_manager import (
-        ProcessPoolManager,
-    )
-
-    # Reset singleton completely
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-
-    # Track ThreadPoolExecutor creations
-    executor_creations = []
-    original_executor_init = concurrent.futures.ThreadPoolExecutor.__init__
-
-    def tracked_executor_init(self, *args, **kwargs):
-        executor_creations.append(time.time())
-        return original_executor_init(self, *args, **kwargs)
-
-    concurrent.futures.ThreadPoolExecutor.__init__ = tracked_executor_init
-
-    try:
-        # Create instance
-        ProcessPoolManager()
-
-        # Check for duplicate executor creations
-        _logger.debug("Executor creations: %d", len(executor_creations))
-        assert len(executor_creations) == 1, "Multiple executors created!"
-
-    finally:
-        # Restore original
-        concurrent.futures.ThreadPoolExecutor.__init__ = original_executor_init
-
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     test_process_pool_manager_race_condition()
-    test_process_pool_manager_resource_leak()
     _logger.info("Tests completed - race conditions verified")

@@ -241,7 +241,7 @@ class TestThumbnailCaching:
     """Test thumbnail processing and caching operations."""
 
     @pytest.mark.parametrize(
-        "image_fixture, shot_id",
+        ("image_fixture", "shot_id"),
         [
             ("test_image_jpg", "shot010"),
             ("test_image_png", "shot020"),
@@ -365,90 +365,62 @@ class TestThreadSafety:
     Following UNIFIED_TESTING_GUIDE: "Thread Safety in Tests"
     """
 
-    def test_concurrent_shot_caching(
-        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    @pytest.mark.parametrize(
+        ("cache_type", "num_threads", "ops_per_thread", "expected_results"),
+        [
+            pytest.param("shots", 5, 1, 5, id="concurrent_shot_caching"),
+            pytest.param("thumbnails", 3, 5, 15, id="concurrent_thumbnail_caching"),
+        ],
+    )
+    def test_concurrent_caching(
+        self,
+        cache_manager: CacheManager,
+        sample_shots: list[Shot],
+        test_image_jpg: Path,
+        cache_type: str,
+        num_threads: int,
+        ops_per_thread: int,
+        expected_results: int,
     ) -> None:
-        """Test thread-safe concurrent shot caching operations.
-
-        NOTE: This test may be flaky when run with full test suite due to
-        pytest-qt event loop cleanup issues. Passes consistently when run alone.
-        The cache_manager itself IS thread-safe (uses QMutex properly).
-        """
+        """Test thread-safe concurrent shot and thumbnail caching operations."""
         import queue
 
         results_queue: queue.Queue[bool] = queue.Queue()
 
-        def cache_operation(thread_id: int) -> None:
-            """Simulate concurrent cache operations."""
-            shots = [
-                Shot(
-                    "show",
-                    f"seq{thread_id}",
-                    f"shot{i:03d}",
-                    f"/path/{thread_id}/{i}",
-                )
-                for i in range(10)
-            ]
-            cache_manager.cache_shots(shots)
-            # cache_shots() is synchronous - write completes before return
-            cached = cache_manager.get_cached_shots()
-            results_queue.put(cached is not None)
+        if cache_type == "shots":
+            def worker(thread_id: int) -> None:
+                shots = [
+                    Shot("show", f"seq{thread_id}", f"shot{i:03d}", f"/path/{thread_id}/{i}")
+                    for i in range(10)
+                ]
+                cache_manager.cache_shots(shots)
+                cached = cache_manager.get_cached_shots()
+                results_queue.put(cached is not None)
+        else:
+            def worker(thread_id: int) -> None:  # type: ignore[misc]
+                for i in range(ops_per_thread):
+                    result = cache_manager.cache_thumbnail(
+                        test_image_jpg,
+                        f"show{thread_id}",
+                        f"seq{thread_id}",
+                        f"shot{i:03d}",
+                    )
+                    results_queue.put(result is not None)
 
-        # Run 5 threads concurrently using Thread instead of ThreadPoolExecutor
-        # to avoid Qt event loop issues in test environment
-        threads = [
-            threading.Thread(target=cache_operation, args=(i,)) for i in range(5)
-        ]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join()
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(num_threads)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
-        # Collect results from thread-safe queue
         results = []
         while not results_queue.empty():
             results.append(results_queue.get())
 
-        # All operations should succeed without corruption
-        assert all(results), f"Some cache operations failed: {results}"
-        assert len(results) == 5, f"Expected 5 results, got {len(results)}"
-
-    def test_concurrent_thumbnail_caching(
-        self, cache_manager: CacheManager, test_image_jpg: Path
-    ) -> None:
-        """Test thread-safe concurrent thumbnail operations."""
-        import queue
-
-        results_queue: queue.Queue[bool] = queue.Queue()
-
-        def thumbnail_operation(thread_id: int) -> None:
-            """Simulate concurrent thumbnail caching."""
-            for i in range(5):
-                result = cache_manager.cache_thumbnail(
-                    test_image_jpg,
-                    f"show{thread_id}",
-                    f"seq{thread_id}",
-                    f"shot{i:03d}",
-                )
-                results_queue.put(result is not None)
-
-        # Run multiple threads
-        threads = [
-            threading.Thread(target=thumbnail_operation, args=(i,)) for i in range(3)
-        ]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join()
-
-        # Collect results from thread-safe queue
-        results = []
-        while not results_queue.empty():
-            results.append(results_queue.get())
-
-        # All operations should succeed
-        assert all(results)
-        assert len(results) == 15  # 3 threads x 5 operations
+        assert all(results), f"Some {cache_type} cache operations failed: {results}"
+        assert len(results) == expected_results, (
+            f"Expected {expected_results} results for {cache_type}, got {len(results)}"
+        )
 
     def test_concurrent_cache_clearing(
         self, cache_manager: CacheManager, sample_shots: list[Shot]
@@ -676,21 +648,25 @@ class TestPersistentPreviousShotsCache:
         regular = cache_manager.get_cached_previous_shots()
         assert regular is None  # Expired with TTL check
 
-    def test_persistent_cache_returns_none_when_missing(
-        self, cache_manager: CacheManager
+    @pytest.mark.parametrize(
+        ("setup_shots", "expected"),
+        [
+            pytest.param(None, None, id="missing_returns_none"),
+            pytest.param([], [], id="empty_list_returns_empty"),
+        ],
+    )
+    def test_persistent_cache_boundary_conditions(
+        self,
+        cache_manager: CacheManager,
+        setup_shots: list[Shot] | None,
+        expected: list | None,
     ) -> None:
-        """Test persistent cache returns None for non-existent cache file."""
-        result = cache_manager.get_persistent_previous_shots()
-        assert result is None
-
-    def test_persistent_cache_handles_empty_cache(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Test persistent cache handles empty shot list."""
-        cache_manager.cache_previous_shots([])
+        """Test persistent cache returns correct value for missing file or empty list."""
+        if setup_shots is not None:
+            cache_manager.cache_previous_shots(setup_shots)
 
         result = cache_manager.get_persistent_previous_shots()
-        assert result == []
+        assert result == expected
 
     def test_persistent_cache_preserves_data_format(
         self, cache_manager: CacheManager, sample_shots: list[Shot]
@@ -757,27 +733,30 @@ class TestShotMigration:
         result = cache_manager.get_migrated_shots()
         assert result is None
 
-    def test_first_migration_creates_file(
+    def test_first_migration_creates_file_and_emits_signal(
         self, cache_manager: CacheManager, qtbot
     ) -> None:
-        """First migration creates migrated_shots.json."""
+        """First migration creates migrated_shots.json and emits shots_migrated signal."""
         shots = [
             Shot("show1", "seq01", "shot010", "/p1"),
             Shot("show1", "seq01", "shot020", "/p2"),
         ]
 
-        # Verify signal emission
-        with qtbot.waitSignal(cache_manager.shots_migrated, timeout=1000):
+        with qtbot.waitSignal(
+            cache_manager.shots_migrated, timeout=1000
+        ) as signal_blocker:
             cache_manager.migrate_shots_to_previous(shots)
 
-        # Verify file created
+        # Verify file created and content correct
         assert cache_manager.migrated_shots_cache_file.exists()
-
-        # Verify content
         migrated = cache_manager.get_migrated_shots()
         assert migrated is not None
         assert len(migrated) == 2
         assert migrated[0]["shot"] in ("shot010", "shot020")
+
+        # Verify signal payload
+        emitted_shots = signal_blocker.args[0]
+        assert len(emitted_shots) == 2
 
     def test_subsequent_migration_merges(self, cache_manager: CacheManager) -> None:
         """Subsequent migrations merge with existing."""
@@ -862,21 +841,6 @@ class TestShotMigration:
         migrated = cache_manager.get_migrated_shots()
         assert migrated is not None
         assert len(migrated) == 2
-
-    def test_migration_signal_emission(self, cache_manager: CacheManager, qtbot) -> None:
-        """shots_migrated signal emitted with correct payload."""
-        shots = [Shot("show1", "seq01", "shot010", "/p1")]
-
-        # Capture signal
-        with qtbot.waitSignal(
-            cache_manager.shots_migrated, timeout=1000
-        ) as signal_blocker:
-            cache_manager.migrate_shots_to_previous(shots)
-
-        # Verify payload
-        emitted_shots = signal_blocker.args[0]
-        assert len(emitted_shots) == 1
-        assert emitted_shots[0]["shot"] == "shot010"
 
     def test_migration_no_signal_on_empty(
         self, cache_manager: CacheManager, qtbot
@@ -1036,31 +1000,44 @@ class TestCacheWriteFailureSignals:
         assert f"failed:{cache_key}" in signals_received
         assert "updated" not in signals_received
 
-    def test_migrate_returns_true_on_success(
-        self, cache_manager: CacheManager, qtbot
+    @pytest.mark.parametrize(
+        ("shots_input", "mock_write_failure", "expected_result"),
+        [
+            pytest.param(
+                [Shot("show1", "seq01", "0010", "/path")],
+                False,
+                True,
+                id="success_returns_true",
+            ),
+            pytest.param(
+                [Shot("show1", "seq01", "0010", "/path")],
+                True,
+                False,
+                id="write_failure_returns_false",
+            ),
+            pytest.param(
+                [],
+                False,
+                True,
+                id="empty_list_returns_true",
+            ),
+        ],
+    )
+    def test_migrate_return_values(
+        self,
+        cache_manager: CacheManager,
+        qtbot,
+        mocker,
+        shots_input: list[Shot],
+        mock_write_failure: bool,
+        expected_result: bool,
     ) -> None:
-        """migrate_shots_to_previous returns True on successful write."""
-        shots = [Shot("show1", "seq01", "0010", "/path")]
-        result = cache_manager.migrate_shots_to_previous(shots)
-        assert result is True
+        """migrate_shots_to_previous returns correct bool for success, failure, and empty."""
+        if mock_write_failure:
+            mocker.patch.object(cache_manager, "_write_json_cache", return_value=False)
 
-    def test_migrate_returns_false_on_write_failure(
-        self, cache_manager: CacheManager, qtbot, mocker
-    ) -> None:
-        """migrate_shots_to_previous returns False when write fails."""
-        mocker.patch.object(cache_manager, "_write_json_cache", return_value=False)
-
-        shots = [Shot("show1", "seq01", "0010", "/path")]
-        result = cache_manager.migrate_shots_to_previous(shots)
-
-        assert result is False
-
-    def test_migrate_returns_true_for_empty_list(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """migrate_shots_to_previous returns True for empty input (no-op)."""
-        result = cache_manager.migrate_shots_to_previous([])
-        assert result is True
+        result = cache_manager.migrate_shots_to_previous(shots_input)
+        assert result is expected_result
 
     def test_migrate_emits_write_failed_on_error(
         self, cache_manager: CacheManager, qtbot, mocker
