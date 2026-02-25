@@ -32,3 +32,47 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 2. Default scope is `function`; use `session` only for expensive immutable fixtures
 3. New singletons: inherit `SingletonMixin`, register in `singleton_registry.py`
 4. Update this table
+
+## Subprocess Mocking Strategy
+
+### Unit Tests: `subprocess_mock` fixture (monkeypatch)
+
+Use `SubprocessMock` from `subprocess_mocking.py` via the `subprocess_mock` fixture.
+
+- **Strict-by-default**: Any unpatched `subprocess.run()`, `subprocess.Popen()`, or `subprocess.check_output()` call raises `RuntimeError`
+- Catches accidental real subprocess calls
+- Configure expected commands via `subprocess_mock.set_result()` or `subprocess_mock.set_popen_result()`
+
+```python
+def test_launcher_builds_command(subprocess_mock):
+    subprocess_mock.set_result("nuke", returncode=0, stdout="OK")
+    launcher.launch()
+    assert subprocess_mock.call_count == 1
+```
+
+### Integration Tests: `TestSubprocess` / `PopenDouble` (injection)
+
+Use test doubles from `test_doubles.py` when the component accepts a subprocess executor via constructor/parameter.
+
+- Explicit test doubles — no monkeypatching
+- `TestSubprocess` wraps `TestCompletedProcess` for `subprocess.run()`-style interfaces
+- `PopenDouble` provides a mock `Popen` interface for streaming output
+
+```python
+def test_executor_handles_failure():
+    test_subprocess = TestSubprocess(returncode=1, stderr="error")
+    executor = ProcessExecutor(subprocess_runner=test_subprocess)
+    result = executor.run("command")
+    assert result.failed
+```
+
+### When to use which
+
+| Scenario | Use |
+|----------|-----|
+| Unit test, no DI for subprocess | `subprocess_mock` fixture |
+| Integration test, DI available | `TestSubprocess` / `PopenDouble` |
+| Need to verify exact command args | `subprocess_mock` (captures calls) |
+| Need streaming Popen behavior | `PopenDouble` |
+
+**Do NOT merge these two systems.** They serve different purposes — monkeypatch-based safety net vs. explicit test doubles for composed components.
