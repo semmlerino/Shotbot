@@ -410,7 +410,8 @@ class TargetedShotsFinder(ShotFinderBase):
         """
         # Local application imports
         from config import Config
-        from utils import FileUtils, PathUtils
+        from thumbnail_finders import ThumbnailFinders
+        from utils import FileUtils
 
         try:
             # Try editorial thumbnail first
@@ -421,7 +422,7 @@ class TargetedShotsFinder(ShotFinderBase):
                     return thumbnail
 
             # Fall back to turnover plate thumbnails
-            thumbnail = PathUtils.find_turnover_plate_thumbnail(
+            thumbnail = ThumbnailFinders.find_turnover_plate_thumbnail(
                 Config.SHOWS_ROOT,
                 shot.show,
                 shot.sequence,
@@ -431,7 +432,7 @@ class TargetedShotsFinder(ShotFinderBase):
                 return thumbnail
 
             # Third fallback: any EXR with 1001 in publish folder
-            return PathUtils.find_any_publish_thumbnail(
+            return ThumbnailFinders.find_any_publish_thumbnail(
                 Config.SHOWS_ROOT,
                 shot.show,
                 shot.sequence,

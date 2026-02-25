@@ -11,8 +11,11 @@ import re
 from pathlib import Path
 
 # Local application imports
+from file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
-from utils import PathUtils, VersionUtils, find_path_case_insensitive
+from path_builders import PathBuilders
+from path_validators import PathValidators
+from utils import VersionUtils, find_path_case_insensitive
 
 
 # Module logger
@@ -36,13 +39,13 @@ class PlateDiscovery:
             List of plate names sorted by priority (e.g., ['FG01', 'BG01', 'FG02'])
 
         """
-        base_path = PathUtils.build_raw_plate_path(workspace_path)
-        if not PathUtils.validate_path_exists(base_path, "Plate base path"):
+        base_path = PathBuilders.build_raw_plate_path(workspace_path)
+        if not PathValidators.validate_path_exists(base_path, "Plate base path"):
             logger.debug(f"No plate base path found: {base_path}")
             return []
 
         # Discover all plates
-        all_plates = PathUtils.discover_plate_directories(str(base_path))
+        all_plates = FileDiscovery.discover_plate_directories(str(base_path))
 
         # Filter to primary plates only (FG, BG)
         # Excludes PL (reference/turnover), BC (background clean), etc.
@@ -142,7 +145,7 @@ class PlateDiscovery:
             "get_plate_script_directory() is deprecated for script storage. "
              "Use get_workspace_script_directory() instead."
         )
-        base_path = PathUtils.build_raw_plate_path(workspace_path)
+        base_path = PathBuilders.build_raw_plate_path(workspace_path)
 
         # Get plate directory with case-insensitive lookup
         plate_dir = find_path_case_insensitive(base_path, plate_name)

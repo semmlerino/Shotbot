@@ -225,9 +225,10 @@ class BaseThumbnailLoader(QRunnable):
 
                 # Try MOV fallback before giving up
                 # Local application imports
-                from utils import ImageUtils, PathUtils
+                from file_discovery import FileDiscovery
+                from utils import ImageUtils
 
-                mov_path = PathUtils.find_mov_file_for_path(self.path)
+                mov_path = FileDiscovery.find_mov_file_for_path(self.path)
                 if mov_path:
                     logger.debug(f"Attempting MOV fallback: {mov_path.name}")
                     extracted_frame = ImageUtils.extract_frame_from_mov(mov_path)

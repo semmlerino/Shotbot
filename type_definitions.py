@@ -108,9 +108,9 @@ class Shot:
         """Get thumbnail directory path."""
         # Import here to avoid circular dependency at module level
         from config import Config
-        from utils import PathUtils
+        from path_builders import PathBuilders
 
-        return PathUtils.build_thumbnail_path(
+        return PathBuilders.build_thumbnail_path(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,
@@ -142,10 +142,10 @@ class Shot:
 
             # Import here to avoid circular dependency at module level
             from config import Config
-            from utils import PathUtils
+            from thumbnail_finders import ThumbnailFinders
 
             # Use the unified thumbnail discovery method
-            thumbnail = PathUtils.find_shot_thumbnail(
+            thumbnail = ThumbnailFinders.find_shot_thumbnail(
                 Config.SHOWS_ROOT,
                 self.show,
                 self.sequence,

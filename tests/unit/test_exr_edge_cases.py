@@ -20,7 +20,8 @@ import pytest
 # Lazy imports to avoid Qt initialization at module level
 # from PySide6.QtCore import QCoreApplication
 # from cache_manager import CacheManager
-from utils import FileUtils, PathUtils
+from path_validators import PathValidators
+from utils import FileUtils
 
 
 try:
@@ -144,7 +145,7 @@ class TestPermissionErrors:
 
         try:
             # PathUtils should handle permission errors gracefully
-            result = PathUtils.validate_path_exists(test_file, "Test file")
+            result = PathValidators.validate_path_exists(test_file, "Test file")
             # Should return False when can't access due to permissions
             assert result is False
         except PermissionError:
@@ -248,7 +249,7 @@ class TestUnusualFormats:
         jpg_file.write_bytes(b"JPG")
 
         # Should handle deep paths
-        assert PathUtils.validate_path_exists(jpg_file, "Deep file")
+        assert PathValidators.validate_path_exists(jpg_file, "Deep file")
 
         result = FileUtils.get_first_image_file(deep_path, allow_fallback=True)
         assert result == jpg_file

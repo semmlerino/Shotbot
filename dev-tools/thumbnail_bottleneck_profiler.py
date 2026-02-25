@@ -31,8 +31,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     # Local application imports
     from config import Config
+    from path_builders import PathBuilders
+    from path_validators import PathValidators
     from shot_model import Shot
-    from utils import FileUtils, PathUtils, get_cache_stats
+    from thumbnail_finders import ThumbnailFinders
+    from utils import FileUtils, get_cache_stats
 
     shotbot_available = True
 except ImportError:
@@ -177,10 +180,10 @@ class ThumbnailBottleneckProfiler:
         for show, sequence, shot in test_shots:
             # Stage 1: Editorial thumbnails
             start = time.perf_counter()
-            thumbnail_dir = PathUtils.build_thumbnail_path(
+            thumbnail_dir = PathBuilders.build_thumbnail_path(
                 Config.SHOWS_ROOT, show, sequence, shot
             )
-            editorial_exists = PathUtils.validate_path_exists(
+            editorial_exists = PathValidators.validate_path_exists(
                 thumbnail_dir, "Thumbnail dir"
             )
             filesystem_operations += 1
@@ -198,7 +201,7 @@ class ThumbnailBottleneckProfiler:
 
             # Stage 2: Turnover plate thumbnails
             start = time.perf_counter()
-            turnover_thumbnail = PathUtils.find_turnover_plate_thumbnail(
+            turnover_thumbnail = ThumbnailFinders.find_turnover_plate_thumbnail(
                 Config.SHOWS_ROOT, show, sequence, shot
             )
             filesystem_operations += 3  # Multiple path validations
@@ -209,7 +212,7 @@ class ThumbnailBottleneckProfiler:
 
             # Stage 3: Publish folder fallback
             start = time.perf_counter()
-            PathUtils.find_any_publish_thumbnail(
+            ThumbnailFinders.find_any_publish_thumbnail(
                 Config.SHOWS_ROOT, show, sequence, shot, max_depth=3
             )
             filesystem_operations += 5  # Recursive search
@@ -441,7 +444,7 @@ class ThumbnailBottleneckProfiler:
         """Test batch path validation performance."""
         paths: list[str | Path] = [f"/fake/path/{i}/test" for i in range(100)]
         if SHOTBOT_AVAILABLE:
-            results = PathUtils.batch_validate_paths(paths)
+            results = PathValidators.batch_validate_paths(paths)
         else:
             results = dict.fromkeys(paths, False)
         return len(results)
@@ -453,7 +456,7 @@ class ThumbnailBottleneckProfiler:
 
         count = 0
         for i in range(10):
-            PathUtils.find_shot_thumbnail(  # type: ignore[reportUnknownMemberType]
+            ThumbnailFinders.find_shot_thumbnail(
                 "/fake/root", f"Show{i}", f"0{i:02d}", f"00{i:02d}"
             )
             count += 1
@@ -483,11 +486,11 @@ class ThumbnailBottleneckProfiler:
         # Simulate cache usage
         paths = [f"/test/cache/path/{i}" for i in range(50)]
         for path in paths:
-            PathUtils.validate_path_exists(path, "Test")
+            PathValidators.validate_path_exists(path, "Test")
 
         # Second pass should hit cache
         for path in paths:
-            PathUtils.validate_path_exists(path, "Test")
+            PathValidators.validate_path_exists(path, "Test")
 
         return len(paths)
 

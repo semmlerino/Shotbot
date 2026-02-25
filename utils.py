@@ -9,7 +9,7 @@ import threading
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, final
+from typing import TYPE_CHECKING, ClassVar
 
 # Local application imports
 from config import Config
@@ -31,6 +31,7 @@ logger = get_module_logger(__name__)
 # Import path validation internals needed by this module (not re-exported)
 from path_validators import (
     _PATH_CACHE_TTL,  # pyright: ignore[reportPrivateUsage]
+    PathValidators,
     clear_path_cache,
     disable_path_caching,
     enable_path_caching,
@@ -42,7 +43,6 @@ __all__ = [
     "CacheIsolation",
     "FileUtils",
     "ImageUtils",
-    "PathUtils",
     "ValidationUtils",
     "VersionUtils",
     "clear_all_caches",
@@ -229,7 +229,7 @@ class VersionUtils:
             List of (version_number, version_string) tuples sorted by version
 
         """
-        if not PathUtils.validate_path_exists(base_path, "Version search path"):
+        if not PathValidators.validate_path_exists(base_path, "Version search path"):
             return []
 
         path_str = str(base_path)
@@ -357,7 +357,7 @@ class VersionUtils:
             Next available version number (1 if no files exist)
 
         """
-        if not PathUtils.validate_path_exists(directory, "Version search directory"):
+        if not PathValidators.validate_path_exists(directory, "Version search directory"):
             return 1
 
         dir_path = Path(directory) if isinstance(directory, str) else directory
@@ -456,7 +456,7 @@ class FileUtils:
             - Path validation uses TTL caching to avoid repeated stat calls
 
         """
-        if not PathUtils.validate_path_exists(directory, "Search directory"):
+        if not PathValidators.validate_path_exists(directory, "Search directory"):
             return []
 
         # Normalize extensions to set for O(1) lookup
@@ -548,7 +548,7 @@ class FileUtils:
         if max_size_mb is None:
             max_size_mb = Config.MAX_FILE_SIZE_MB
 
-        if not PathUtils.validate_path_exists(file_path, "File"):
+        if not PathValidators.validate_path_exists(file_path, "File"):
             return False
 
         path_obj = Path(file_path) if isinstance(file_path, str) else file_path
@@ -1030,47 +1030,3 @@ class ValidationUtils:
         logger.debug(f"Excluding users: {excluded}")
         return excluded
 
-# Import the new focused modules (at end to avoid circular imports)
-# These modules depend on FileUtils/VersionUtils which are defined above
-from file_discovery import FileDiscovery
-from path_builders import PathBuilders
-from path_validators import PathValidators
-from thumbnail_finders import ThumbnailFinders
-
-
-@final
-class PathUtils:
-    """DEPRECATED: Compatibility layer for PathUtils.
-
-    This class re-exports methods from the new focused modules:
-    - path_builders.PathBuilders: Path construction utilities
-    - path_validators.PathValidators: Path validation with caching
-    - file_discovery.FileDiscovery: File and directory discovery
-    - thumbnail_finders.ThumbnailFinders: Thumbnail finding logic
-
-    For new code, import directly from the specific modules instead of using PathUtils.
-    This compatibility layer maintains backward compatibility for existing code.
-    """
-
-    # Path construction methods (from path_builders)
-    build_path = PathBuilders.build_path
-    build_thumbnail_path = PathBuilders.build_thumbnail_path
-    build_raw_plate_path = PathBuilders.build_raw_plate_path
-    build_threede_scene_path = PathBuilders.build_threede_scene_path
-
-    # Path validation methods (from path_validators)
-    validate_path_exists = PathValidators.validate_path_exists
-    batch_validate_paths = PathValidators.batch_validate_paths
-    # Note: _cleanup_path_cache is private and not re-exported
-
-    # File discovery methods (from file_discovery)
-    safe_mkdir = FileDiscovery.safe_mkdir
-    find_mov_file_for_path = FileDiscovery.find_mov_file_for_path
-    discover_plate_directories = FileDiscovery.discover_plate_directories
-
-    # Thumbnail finding methods (from thumbnail_finders)
-    find_turnover_plate_thumbnail = ThumbnailFinders.find_turnover_plate_thumbnail
-    find_any_publish_thumbnail = ThumbnailFinders.find_any_publish_thumbnail
-    find_undistorted_jpeg_thumbnail = ThumbnailFinders.find_undistorted_jpeg_thumbnail
-    find_user_workspace_jpeg_thumbnail = ThumbnailFinders.find_user_workspace_jpeg_thumbnail
-    find_shot_thumbnail = ThumbnailFinders.find_shot_thumbnail

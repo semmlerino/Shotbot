@@ -33,11 +33,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Local application imports
 from path_validators import (  # type: ignore[reportPrivateUsage]
+    PathValidators,
     _path_cache,
     _path_cache_lock,
 )
+from thumbnail_finders import ThumbnailFinders
 from type_definitions import Shot
-from utils import PathUtils, VersionUtils
+from utils import VersionUtils
 
 
 class TestConcurrentThumbnailRaceConditions:
@@ -72,7 +74,7 @@ class TestConcurrentThumbnailRaceConditions:
                     path_str = f"{base_path}/seq_{i % 10}/shot_{i}"
 
                     # Validate path (triggers cache access)
-                    result = PathUtils.validate_path_exists(path_str, f"Worker {worker_id}")
+                    result = PathValidators.validate_path_exists(path_str, f"Worker {worker_id}")
 
                     # Record result
                     with paths_lock:
@@ -223,8 +225,8 @@ class TestConcurrentThumbnailRaceConditions:
         discovery_count = 0
         discovery_lock = threading.Lock()
 
-        # Monkey-patch PathUtils.find_shot_thumbnail to count calls
-        original_find = PathUtils.find_shot_thumbnail
+        # Monkey-patch ThumbnailFinders.find_shot_thumbnail to count calls
+        original_find = ThumbnailFinders.find_shot_thumbnail
 
         def counting_find(shows_root: str, show: str, sequence: str, shot: str) -> Path | None:
             nonlocal discovery_count
@@ -235,7 +237,7 @@ class TestConcurrentThumbnailRaceConditions:
             expensive_event.wait(timeout=0.01)
             return original_find(shows_root, show, sequence, shot)
 
-        PathUtils.find_shot_thumbnail = counting_find  # type: ignore[method-assign]
+        ThumbnailFinders.find_shot_thumbnail = counting_find  # type: ignore[method-assign]
 
         try:
             results: list[tuple[int, Path | None]] = []
@@ -291,7 +293,7 @@ class TestConcurrentThumbnailRaceConditions:
 
         finally:
             # Restore original function
-            PathUtils.find_shot_thumbnail = original_find  # type: ignore[method-assign]
+            ThumbnailFinders.find_shot_thumbnail = original_find  # type: ignore[method-assign]
 
     def test_massive_concurrent_load_stress_test(self) -> None:
         """Stress test simulating production load: 285 concurrent callbacks.
@@ -332,7 +334,7 @@ class TestConcurrentThumbnailRaceConditions:
                     _ = shot.get_thumbnail_path()
 
                     # Also validate paths (triggers utils cache)
-                    PathUtils.validate_path_exists(
+                    PathValidators.validate_path_exists(
                         shot.workspace_path,
                         f"Model {model_id}",
                     )
@@ -399,7 +401,7 @@ class TestConcurrentThumbnailRaceConditions:
             try:
                 for i in range(num_iterations):
                     path = f"/test/path/worker{worker_id}/iteration{i}"
-                    PathUtils.validate_path_exists(path, f"Worker {worker_id}")
+                    PathValidators.validate_path_exists(path, f"Worker {worker_id}")
             except Exception as e:
                 print(f"Worker {worker_id} failed: {e}")
                 corruption_detected.set()

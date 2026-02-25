@@ -595,12 +595,12 @@ class CacheManager(LoggingMixin, QObject):
             # Try MOV fallback if PIL can't read the image (e.g., EXR files)
             self.logger.debug(f"Attempting MOV fallback for {source.name}")
 
+            from file_discovery import FileDiscovery
             from utils import (
                 ImageUtils,
-                PathUtils,
             )
 
-            mov_path = PathUtils.find_mov_file_for_path(source)
+            mov_path = FileDiscovery.find_mov_file_for_path(source)
             if mov_path:
                 self.logger.debug(f"Found MOV file for fallback: {mov_path.name}")
                 extracted_frame = ImageUtils.extract_frame_from_mov(mov_path)

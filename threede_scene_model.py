@@ -13,7 +13,9 @@ from typing import TYPE_CHECKING, cast
 # Local application imports
 from cache_manager import CacheManager
 from config import Config
-from utils import PathUtils, ValidationUtils
+from path_builders import PathBuilders
+from thumbnail_finders import ThumbnailFinders
+from utils import ValidationUtils
 
 
 if TYPE_CHECKING:
@@ -61,7 +63,7 @@ class ThreeDEScene:
     @property
     def thumbnail_dir(self) -> Path:
         """Get thumbnail directory path (same as regular shots)."""
-        return PathUtils.build_thumbnail_path(
+        return PathBuilders.build_thumbnail_path(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,
@@ -88,7 +90,7 @@ class ThreeDEScene:
         )
 
         # Use the unified thumbnail discovery method
-        thumbnail = PathUtils.find_shot_thumbnail(
+        thumbnail = ThumbnailFinders.find_shot_thumbnail(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,

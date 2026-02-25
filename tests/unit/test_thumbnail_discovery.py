@@ -19,7 +19,7 @@ import pytest
 from tests.fixtures.test_doubles import (
     TestSubprocess,
 )
-from utils import PathUtils
+from thumbnail_finders import ThumbnailFinders
 
 
 pytestmark = [
@@ -65,7 +65,7 @@ class TestThumbnailDiscoveryIntegration:
         test_file1 = plate_path1 / "seq01_shot01_FG01_v001.1001.exr"
         test_file1.write_bytes(b"EXR1")
 
-        result1 = PathUtils.find_turnover_plate_thumbnail(
+        result1 = ThumbnailFinders.find_turnover_plate_thumbnail(
             str(self.shows_root), "show1", "seq01", "shot01"
         )
 
@@ -92,7 +92,7 @@ class TestThumbnailDiscoveryIntegration:
         test_file2 = plate_path2 / "seq02_shot02_BG01_v001.1001.exr"
         test_file2.write_bytes(b"EXR2")
 
-        result2 = PathUtils.find_turnover_plate_thumbnail(
+        result2 = ThumbnailFinders.find_turnover_plate_thumbnail(
             str(self.shows_root), "show2", "seq02", "shot02"
         )
 
@@ -136,7 +136,7 @@ class TestThumbnailDiscoveryIntegration:
         fg_file.write_bytes(b"FG_EXR")
 
         # Should return FG01 as it has highest priority
-        result = PathUtils.find_turnover_plate_thumbnail(
+        result = ThumbnailFinders.find_turnover_plate_thumbnail(
             str(self.shows_root), "priority_test", "seq01", "shot01"
         )
 
@@ -167,7 +167,7 @@ class TestThumbnailDiscoveryIntegration:
         fallback_file.write_bytes(b"FALLBACK_EXR")
 
         # Should find the fallback file when no turnover plates exist
-        result = PathUtils.find_any_publish_thumbnail(
+        result = ThumbnailFinders.find_any_publish_thumbnail(
             str(self.shows_root), "fallback_test", "seq01", "shot01", max_depth=5
         )
 
@@ -202,7 +202,7 @@ class TestThumbnailDiscoveryIntegration:
         deep_file.write_bytes(b"DEEP_EXR")
 
         # Should find deeply nested files within max_depth limit
-        result = PathUtils.find_any_publish_thumbnail(
+        result = ThumbnailFinders.find_any_publish_thumbnail(
             str(self.shows_root), "deep_test", "seq01", "shot01", max_depth=8
         )
 
@@ -211,7 +211,7 @@ class TestThumbnailDiscoveryIntegration:
         assert "1001" in result.name
 
         # Should NOT find files beyond max_depth limit
-        result_limited = PathUtils.find_any_publish_thumbnail(
+        result_limited = ThumbnailFinders.find_any_publish_thumbnail(
             str(self.shows_root), "deep_test", "seq01", "shot01", max_depth=3
         )
 
@@ -236,13 +236,13 @@ class TestThumbnailDiscoveryIntegration:
         shot_path.mkdir(parents=True)
 
         # Should return None when no turnover plates exist
-        result1 = PathUtils.find_turnover_plate_thumbnail(
+        result1 = ThumbnailFinders.find_turnover_plate_thumbnail(
             str(self.shows_root), "empty_test", "seq01", "shot01"
         )
         assert result1 is None
 
         # Should return None when no 1001 files exist
-        result2 = PathUtils.find_any_publish_thumbnail(
+        result2 = ThumbnailFinders.find_any_publish_thumbnail(
             str(self.shows_root), "empty_test", "seq01", "shot01", max_depth=5
         )
         assert result2 is None

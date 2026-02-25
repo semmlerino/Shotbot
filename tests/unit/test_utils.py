@@ -35,10 +35,13 @@ import path_validators
 
 # Local application imports
 from config import Config
+from file_discovery import FileDiscovery
+from path_builders import PathBuilders
+from path_validators import PathValidators
+from thumbnail_finders import ThumbnailFinders
 from utils import (
     FileUtils,
     ImageUtils,
-    PathUtils,
     ValidationUtils,
     VersionUtils,
     clear_all_caches,
@@ -57,30 +60,30 @@ class TestPathUtils:
 
     def test_build_path_basic(self) -> None:
         """Test basic path construction."""
-        result = PathUtils.build_path("/base", "dir1", "dir2", "file.txt")
+        result = PathBuilders.build_path("/base", "dir1", "dir2", "file.txt")
         expected = Path("/base/dir1/dir2/file.txt")
         assert result == expected
 
     def test_build_path_with_path_object(self) -> None:
         """Test path construction with Path object as base."""
         base = Path("/base")
-        result = PathUtils.build_path(base, "dir1", "file.txt")
+        result = PathBuilders.build_path(base, "dir1", "file.txt")
         expected = Path("/base/dir1/file.txt")
         assert result == expected
 
     def test_build_path_empty_base_raises_error(self) -> None:
         """Test that empty base path raises ValueError."""
         with pytest.raises(ValueError, match="Base path cannot be empty"):
-            PathUtils.build_path("", "dir1")
+            PathBuilders.build_path("", "dir1")
 
         with pytest.raises(ValueError, match="Base path cannot be empty"):
-            PathUtils.build_path(None, "dir1")
+            PathBuilders.build_path(None, "dir1")
 
     def test_build_path_empty_segments_are_skipped(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test that empty segments are skipped with warning."""
-        result = PathUtils.build_path("/base", "dir1", "", "dir2", None, "file.txt")
+        result = PathBuilders.build_path("/base", "dir1", "", "dir2", None, "file.txt")
         expected = Path("/base/dir1/dir2/file.txt")
         assert result == expected
 
@@ -92,7 +95,7 @@ class TestPathUtils:
 
     def test_build_thumbnail_path(self) -> None:
         """Test thumbnail path construction following VFX conventions."""
-        result = PathUtils.build_thumbnail_path("/shows", "myshow", "seq01", "shot01")
+        result = PathBuilders.build_thumbnail_path("/shows", "myshow", "seq01", "shot01")
 
         # Shot directory should be named {sequence}_{shot}
         expected = Path(f"{Config.SHOWS_ROOT}/myshow/shots/seq01/seq01_shot01") / Path(
@@ -102,13 +105,13 @@ class TestPathUtils:
 
     def test_build_raw_plate_path(self) -> None:
         """Test raw plate path construction."""
-        result = PathUtils.build_raw_plate_path("/workspace/shot")
+        result = PathBuilders.build_raw_plate_path("/workspace/shot")
         expected = Path("/workspace/shot") / Path(*Config.RAW_PLATE_SEGMENTS)
         assert result == expected
 
     def test_build_threede_scene_path(self) -> None:
         """Test 3DE scene path construction."""
-        result = PathUtils.build_threede_scene_path("/workspace", "testuser")
+        result = PathBuilders.build_threede_scene_path("/workspace", "testuser")
         expected_segments = ["user", "testuser", *Config.THREEDE_SCENE_SEGMENTS]
         expected = Path("/workspace") / Path(*expected_segments)
         assert result == expected
@@ -123,18 +126,18 @@ class TestPathUtils:
         test_file.write_text("test content")
 
         # Test existing path
-        assert PathUtils.validate_path_exists(test_file, "Test file") is True
+        assert PathValidators.validate_path_exists(test_file, "Test file") is True
 
         # Test non-existing path
         non_existing = tmp_path / "nonexistent.txt"
         assert (
-            PathUtils.validate_path_exists(non_existing, "Non-existing file") is False
+            PathValidators.validate_path_exists(non_existing, "Non-existing file") is False
         )
 
     def test_validate_path_exists_empty_path(self) -> None:
         """Test validation of empty paths."""
-        assert PathUtils.validate_path_exists("", "Empty path") is False
-        assert PathUtils.validate_path_exists(None, "None path") is False
+        assert PathValidators.validate_path_exists("", "Empty path") is False
+        assert PathValidators.validate_path_exists(None, "None path") is False
 
     def test_validate_path_exists_manual_refresh_mode(
         self, tmp_path: Path, caching_enabled: Path
@@ -150,7 +153,7 @@ class TestPathUtils:
         test_file.write_text("test")
 
         # First call populates cache
-        result1 = PathUtils.validate_path_exists(test_file, "Manual refresh test")
+        result1 = PathValidators.validate_path_exists(test_file, "Manual refresh test")
         assert result1 is True
 
         # Verify cache entry was created
@@ -162,12 +165,12 @@ class TestPathUtils:
         test_file.unlink()
 
         # Next call should still use cached result (no automatic expiry)
-        result2 = PathUtils.validate_path_exists(test_file, "Manual refresh test")
+        result2 = PathValidators.validate_path_exists(test_file, "Manual refresh test")
         assert result2 is True  # Still cached, not automatically refreshed
 
         # Manual cache clear should force re-check
         clear_all_caches()
-        result3 = PathUtils.validate_path_exists(test_file, "Manual refresh test")
+        result3 = PathValidators.validate_path_exists(test_file, "Manual refresh test")
         assert result3 is False  # Now detects file is gone
 
     def test_batch_validate_paths(self, tmp_path: Path) -> None:
@@ -184,7 +187,7 @@ class TestPathUtils:
         non_existing_files = [tmp_path / "missing_1.txt", tmp_path / "missing_2.txt"]
 
         all_paths = existing_files + non_existing_files
-        results = PathUtils.batch_validate_paths(all_paths)
+        results = PathValidators.batch_validate_paths(all_paths)
 
         # Verify results
         assert len(results) == 5
@@ -197,7 +200,7 @@ class TestPathUtils:
         """Test successful directory creation."""
         new_dir = tmp_path / "new" / "nested" / "directory"
 
-        result = PathUtils.safe_mkdir(new_dir, "Test directory")
+        result = FileDiscovery.safe_mkdir(new_dir, "Test directory")
         assert result is True
         assert new_dir.exists()
         assert new_dir.is_dir()
@@ -207,15 +210,15 @@ class TestPathUtils:
         existing_dir = tmp_path / "existing"
         existing_dir.mkdir()
 
-        result = PathUtils.safe_mkdir(existing_dir, "Existing directory")
+        result = FileDiscovery.safe_mkdir(existing_dir, "Existing directory")
         assert result is True
 
     def test_safe_mkdir_empty_path(self) -> None:
         """Test mkdir with empty path."""
-        result = PathUtils.safe_mkdir("", "Empty path")
+        result = FileDiscovery.safe_mkdir("", "Empty path")
         assert result is False
 
-        result = PathUtils.safe_mkdir(None, "None path")
+        result = FileDiscovery.safe_mkdir(None, "None path")
         assert result is False
 
     def test_safe_mkdir_permission_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -226,7 +229,7 @@ class TestPathUtils:
 
         monkeypatch.setattr(Path, "mkdir", raise_permission_error)
 
-        result = PathUtils.safe_mkdir("/some/path", "Permission test")
+        result = FileDiscovery.safe_mkdir("/some/path", "Permission test")
         assert result is False
 
     def test_cache_cleanup_when_size_exceeded(
@@ -249,7 +252,7 @@ class TestPathUtils:
         # Trigger cleanup by calling validate_path_exists
         test_file = tmp_path / "cleanup_test.txt"
         test_file.write_text("test")
-        PathUtils.validate_path_exists(test_file, "Cleanup trigger")
+        PathValidators.validate_path_exists(test_file, "Cleanup trigger")
 
         # Cache should be cleaned down to reasonable size
         assert len(path_validators._path_cache) <= 2500
@@ -731,11 +734,11 @@ class TestCacheManagement:
         # Populate path cache using public API
         test_path1 = tmp_path / "cache_test1"
         test_path1.mkdir()
-        PathUtils.validate_path_exists(test_path1)
+        PathValidators.validate_path_exists(test_path1)
 
         test_path2 = tmp_path / "cache_test2"
         test_path2.mkdir()
-        PathUtils.validate_path_exists(test_path2)
+        PathValidators.validate_path_exists(test_path2)
 
         # Populate version cache using public API
         version_dir = tmp_path / "versions"
@@ -768,11 +771,11 @@ class TestCacheManagement:
         # Populate path cache using public API
         test_path1 = tmp_path / "stats_test1"
         test_path1.mkdir()
-        PathUtils.validate_path_exists(test_path1)
+        PathValidators.validate_path_exists(test_path1)
 
         test_path2 = tmp_path / "stats_test2"
         test_path2.mkdir()
-        PathUtils.validate_path_exists(test_path2)
+        PathValidators.validate_path_exists(test_path2)
 
         # Populate version cache using public API
         version_dir = tmp_path / "versions"
@@ -817,7 +820,7 @@ class TestFindTurnoverPlateThumbnail:
         )
         test_frame.write_text("fake exr content")
 
-        result = PathUtils.find_turnover_plate_thumbnail(
+        result = ThumbnailFinders.find_turnover_plate_thumbnail(
             str(shows_root),
             "myshow",
             "seq01",
@@ -849,7 +852,7 @@ class TestFindTurnoverPlateThumbnail:
         fg_frame = fg_path / "shot_FG01.1001.exr"
         fg_frame.write_text("fg content")
 
-        result = PathUtils.find_turnover_plate_thumbnail(
+        result = ThumbnailFinders.find_turnover_plate_thumbnail(
             str(shows_root),
             "myshow",
             "seq01",
@@ -884,7 +887,7 @@ class TestFindTurnoverPlateThumbnail:
         (plate_path / "shot.1001.exr").write_text("frame 1001")  # Should be first
         (plate_path / "shot.1005.exr").write_text("frame 1005")
 
-        result = PathUtils.find_turnover_plate_thumbnail(
+        result = ThumbnailFinders.find_turnover_plate_thumbnail(
             str(shows_root),
             "myshow",
             "seq01",
@@ -896,7 +899,7 @@ class TestFindTurnoverPlateThumbnail:
 
     def test_find_turnover_plate_thumbnail_no_base_path(self) -> None:
         """Test turnover plate discovery when base path doesn't exist."""
-        result = PathUtils.find_turnover_plate_thumbnail(
+        result = ThumbnailFinders.find_turnover_plate_thumbnail(
             "/nonexistent",
             "show",
             "seq",
@@ -911,7 +914,7 @@ class TestFindTurnoverPlateThumbnail:
         base_path = shot_path / "publish" / "turnover" / "plate" / "input_plate"
         base_path.mkdir(parents=True)
 
-        result = PathUtils.find_turnover_plate_thumbnail(
+        result = ThumbnailFinders.find_turnover_plate_thumbnail(
             str(shows_root),
             "myshow",
             "seq01",
@@ -942,7 +945,7 @@ class TestFindAnyPublishThumbnail:
         (deep_path / "comp_v001.1002.exr").write_text("other frame")
         (deep_path / "comp_v001.jpg").write_text("wrong extension")
 
-        result = PathUtils.find_any_publish_thumbnail(
+        result = ThumbnailFinders.find_any_publish_thumbnail(
             str(tmp_path / "shows"),
             "testshow",
             "seq01",
@@ -970,7 +973,7 @@ class TestFindAnyPublishThumbnail:
         shallow_file = shallow / "shallow.1001.exr"
         shallow_file.write_text("shallow")
 
-        result = PathUtils.find_any_publish_thumbnail(
+        result = ThumbnailFinders.find_any_publish_thumbnail(
             str(shows_root),
             "testshow",
             "seq01",
@@ -994,7 +997,7 @@ class TestFindAnyPublishThumbnail:
         restricted.chmod(0o000)
 
         try:
-            result = PathUtils.find_any_publish_thumbnail(
+            result = ThumbnailFinders.find_any_publish_thumbnail(
                 str(shows_root),
                 "testshow",
                 "seq01",
@@ -1009,7 +1012,7 @@ class TestFindAnyPublishThumbnail:
         shows_root = tmp_path / "shows"
         shows_root.mkdir()
 
-        result = PathUtils.find_any_publish_thumbnail(
+        result = ThumbnailFinders.find_any_publish_thumbnail(
             str(shows_root),
             "testshow",
             "seq01",
@@ -1076,7 +1079,7 @@ class TestUserWorkspaceJPEGDiscovery:
         jpeg_file = jpeg_dir / filename
         jpeg_file.write_text("fake jpeg content")
 
-        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
             str(shows_root), "jack_ryan", seq, shot
         )
 
@@ -1130,7 +1133,7 @@ class TestUserWorkspaceJPEGDiscovery:
         scene_jpeg.parent.mkdir(parents=True)
         scene_jpeg.write_text("scene jpeg")
 
-        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -1165,7 +1168,7 @@ class TestUserWorkspaceJPEGDiscovery:
         jpeg_file = jpeg_dir / "lowercase_plate.jpeg"
         jpeg_file.write_text("jpeg")
 
-        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -1180,7 +1183,7 @@ class TestUserWorkspaceJPEGDiscovery:
         shot_path.mkdir(parents=True)
         # No user/ directory created
 
-        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -1214,7 +1217,7 @@ class TestUserWorkspaceJPEGDiscovery:
         jpeg_file = user2_jpeg_dir / "user2_work.jpeg"
         jpeg_file.write_text("jpeg from user2")
 
-        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -1261,7 +1264,7 @@ class TestThumbnailFallbackOrder:
         v002_jpeg = v002_dir / "seq01_shot01_editorial-cutref_v002.1001.jpg"
         v002_jpeg.write_text("v002 jpeg")
 
-        result = PathUtils.find_shot_thumbnail(
+        result = ThumbnailFinders.find_shot_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -1287,7 +1290,7 @@ class TestThumbnailFallbackOrder:
         other_jpeg = other_dir / "other.jpg"
         other_jpeg.write_text("other jpeg")
 
-        result = PathUtils.find_shot_thumbnail(
+        result = ThumbnailFinders.find_shot_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
