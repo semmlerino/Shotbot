@@ -25,7 +25,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, cast, final
+from typing import TYPE_CHECKING, ClassVar, Final, cast, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -402,6 +402,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
         The reset() method is called by SingletonRegistry during test cleanup
         to ensure proper test isolation.
     """
+
+    _cleanup_order: ClassVar[int] = 30
+    _singleton_description: ClassVar[str] = "Subprocess execution and caching"
 
     # Singleton instance
     _instance = None

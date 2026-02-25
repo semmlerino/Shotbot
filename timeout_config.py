@@ -12,6 +12,9 @@ from typing import ClassVar, cast
 class TimeoutConfig:
     """Timeout configuration for various operations in seconds."""
 
+    _cleanup_order: ClassVar[int] = 42
+    _singleton_description: ClassVar[str] = "Timeout configuration constants"
+
     # Store original values for reset (populated after class definition)
     initial_defaults: ClassVar[dict[str, int | float]] = {}
 

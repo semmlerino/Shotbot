@@ -10,7 +10,7 @@ from collections.abc import Callable
 
 # Standard library imports
 from dataclasses import dataclass
-from typing import final
+from typing import ClassVar, final
 
 from PySide6.QtCore import QObject, Signal
 
@@ -280,6 +280,9 @@ class Animation:
 @final
 class DesignSystem(QObject):
     """Central design system with all design tokens."""
+
+    _cleanup_order: ClassVar[int] = 40
+    _singleton_description: ClassVar[str] = "Design system with colors, typography, spacing, borders, shadows, and animation"
 
     # Emitted when UI scale changes, for live preview updates
     scale_changed = Signal(float)

@@ -300,6 +300,9 @@ class ProgressManager:
     NotificationManager for consistent user experience.
     """
 
+    _cleanup_order: ClassVar[int] = 15
+    _singleton_description: ClassVar[str] = "Progress dialogs and operation tracking"
+
     _instance: ClassVar[ProgressManager | None] = None
     _operation_stack: ClassVar[list[ProgressOperation]] = []
     _stack_lock: ClassVar[QMutex] = QMutex()  # Thread safety for operation stack

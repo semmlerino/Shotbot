@@ -197,6 +197,9 @@ class SingletonRegistry:
     def verify_all_singletons_registered(cls) -> list[str]:
         """Check that all SingletonMixin subclasses are registered.
 
+        Auto-registers any subclass that declares _cleanup_order >= 0.
+        Returns unregistered subclasses that still need manual registration.
+
         This catches cases where a developer creates a new SingletonMixin
         subclass but forgets to register it in the registry.
 
@@ -216,10 +219,20 @@ class SingletonRegistry:
                 continue
 
             class_name = subclass.__name__
-            # Check if this class is registered (by class name)
             if class_name not in registered_names:
-                full_path = f"{subclass.__module__}.{class_name}"
-                unregistered.append(full_path)
+                cleanup_order = getattr(subclass, "_cleanup_order", -1)
+                if cleanup_order >= 0:
+                    full_path = f"{subclass.__module__}.{class_name}"
+                    description = getattr(subclass, "_singleton_description", "")
+                    try:
+                        cls.register(full_path, cleanup_order=cleanup_order, description=description)
+                        _logger.info("Auto-registered singleton: %s (order=%d)", full_path, cleanup_order)
+                    except ValueError as e:
+                        _logger.warning("Auto-registration failed for %s: %s", full_path, e)
+                        unregistered.append(full_path)
+                else:
+                    full_path = f"{subclass.__module__}.{class_name}"
+                    unregistered.append(full_path)
 
         return unregistered
 
@@ -243,11 +256,7 @@ SingletonRegistry.register(
 )
 
 # 20-29: Worker/Runnable Tracking
-SingletonRegistry.register(
-    "runnable_tracker.QRunnableTracker",
-    cleanup_order=20,
-    description="Tracks QRunnable lifecycle for cleanup",
-)
+# QRunnableTracker auto-registers via _cleanup_order=20 on the class.
 SingletonRegistry.register(
     "thread_safe_worker.ThreadSafeWorker",
     cleanup_order=25,
@@ -267,11 +276,7 @@ SingletonRegistry.register(
     cleanup_order=40,
     description="Design system with colors, typography, spacing, borders, shadows, and animation",
 )
-SingletonRegistry.register(
-    "filesystem_coordinator.FilesystemCoordinator",
-    cleanup_order=41,
-    description="Filesystem caching and coordination",
-)
+# FilesystemCoordinator auto-registers via _cleanup_order=41 on the class.
 SingletonRegistry.register(
     "timeout_config.TimeoutConfig",
     cleanup_order=42,

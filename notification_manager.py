@@ -282,6 +282,9 @@ class NotificationManager(QObject):
     for proper integration with the application UI.
     """
 
+    _cleanup_order: ClassVar[int] = 10
+    _singleton_description: ClassVar[str] = "Toast notifications and status bar messaging"
+
     _instance: ClassVar[NotificationManager | None] = None
     _main_window: ClassVar[QMainWindow | None] = None
     _status_bar: ClassVar[QStatusBar | None] = None

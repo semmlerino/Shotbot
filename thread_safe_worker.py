@@ -59,6 +59,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
     CREATED -> STARTING -> RUNNING -> STOPPING -> STOPPED -> DELETED
     """
 
+    _cleanup_order: ClassVar[int] = 25
+    _singleton_description: ClassVar[str] = "Zombie worker cleanup timer"
+
     # Lifecycle signals
     worker_started: Signal = Signal()  # type: ignore[assignment]
     worker_stopping: Signal = Signal()  # type: ignore[assignment]

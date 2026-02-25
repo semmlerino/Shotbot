@@ -56,6 +56,11 @@ class SingletonMixin:
     # Track all subclasses for registry verification
     _known_subclasses: ClassVar[set[type]] = set()
 
+    # Subclasses set these to enable auto-registration in SingletonRegistry.
+    # -1 means "not configured, must register manually".
+    _cleanup_order: ClassVar[int] = -1
+    _singleton_description: ClassVar[str] = ""
+
     def __init_subclass__(cls, **kwargs: object) -> None:
         """Track subclass for singleton registry verification.
 

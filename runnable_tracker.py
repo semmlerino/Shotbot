@@ -8,7 +8,7 @@ import logging
 import threading
 import weakref
 from collections.abc import Mapping
-from typing import final
+from typing import ClassVar, final
 
 # Third-party imports
 from PySide6.QtCore import QRunnable, QThreadPool
@@ -28,6 +28,9 @@ class QRunnableTracker(SingletonMixin):
     garbage collection. Provides methods for registration, monitoring,
     and cleanup of thread pool tasks.
     """
+
+    _cleanup_order: ClassVar[int] = 20
+    _singleton_description: ClassVar[str] = "Tracks QRunnable lifecycle for cleanup"
 
     def __init__(self) -> None:
         """Initialize the tracker (only once)."""

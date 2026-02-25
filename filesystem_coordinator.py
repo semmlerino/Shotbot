@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import ClassVar
 
 from logging_mixin import LoggingMixin
 from singleton_mixin import SingletonMixin
@@ -17,6 +18,9 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
     multiple workers from scanning the same directories repeatedly. It reduces
     I/O operations by up to 50% by sharing cached results between workers.
     """
+
+    _cleanup_order: ClassVar[int] = 41
+    _singleton_description: ClassVar[str] = "Filesystem caching and coordination"
 
     def __init__(self) -> None:
         """Initialize the coordinator.
