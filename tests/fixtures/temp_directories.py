@@ -4,7 +4,6 @@ This module provides fixtures for creating isolated temporary directories
 used in tests that need filesystem access, caching, or VFX directory structures.
 
 Fixtures:
-    temp_shows_root: Temporary shows root directory
     temp_cache_dir: Temporary cache directory
     cache_manager: CacheManager instance with temp cache dir
     real_cache_manager: Alias for cache_manager (compatibility)
@@ -21,19 +20,6 @@ import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-
-
-@pytest.fixture
-def temp_shows_root() -> Iterator[Path]:
-    """Create temporary shows root directory for testing.
-
-    Yields:
-        Path to a temporary directory for simulated VFX shows
-
-    """
-    with tempfile.TemporaryDirectory() as temp_dir:
-        shows_root = Path(temp_dir)
-        yield shows_root
 
 
 @pytest.fixture

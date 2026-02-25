@@ -407,26 +407,3 @@ def seed_cache_file(tmp_path: Path) -> Iterator[SeedCacheFile]:
     else:
         os.environ.pop("SHOTBOT_TEST_CACHE_DIR", None)
 
-
-# Type hint for the seed_cache_file return type
-if TYPE_CHECKING:
-    from typing import Protocol
-
-    class SeedCacheFile(Protocol):
-        """Protocol for seed_cache_file fixture helper."""
-
-        cache_dir: Path
-
-        def __call__(
-            self,
-            filename: str,
-            content: str | dict | list,
-            *,
-            in_production: bool = True,
-        ) -> Path: ...
-
-        def corrupt(self, filename: str, *, in_production: bool = True) -> Path: ...
-
-        def truncated(self, filename: str, *, in_production: bool = True) -> Path: ...
-
-        def empty(self, filename: str, *, in_production: bool = True) -> Path: ...

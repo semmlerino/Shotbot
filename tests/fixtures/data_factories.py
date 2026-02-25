@@ -10,7 +10,6 @@ Fixtures:
     make_test_filesystem: Factory for creating TestFileSystem instances
     make_real_3de_file: Factory for creating 3DE files in VFX structure
     real_shot_model: Factory for creating ShotModel instances
-    mock_subprocess_workspace: Mock subprocess for VFX workspace commands
     mock_environment: Mock environment variables
     isolated_test_environment: Environment with cache clearing
 """
@@ -19,7 +18,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -212,46 +210,6 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
 # Mock Fixtures
 # ==============================================================================
 
-
-@pytest.fixture
-def mock_subprocess_workspace() -> Iterator[None]:
-    """Mock subprocess.run for tests that call VFX workspace commands.
-
-    Use this fixture explicitly in tests that need subprocess mocking.
-    Most tests don't need subprocess mocking at all.
-
-    Provides:
-    - Mock responses for 'ws' (workspace) commands
-    - Prevents "ws: command not found" errors
-    - Returns realistic workspace command output
-    """
-
-    def mock_run_side_effect(*args, **kwargs):
-        """Mock subprocess.run with realistic workspace command responses."""
-        # Extract the command being run
-        cmd = args[0] if args else kwargs.get("args", [])
-
-        # Normalize to string for matching (handle both list and string forms)
-        text = " ".join(cmd) if isinstance(cmd, list) else (cmd or "")
-
-        # Handle workspace commands (ws)
-        if " ws " in f" {text} " or text.strip().startswith("ws"):
-            # Return realistic workspace command output
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = "workspace /shows/test_show/shots/seq01/seq01_0010"
-            mock_result.stderr = ""
-            return mock_result
-
-        # Default: return empty but successful result
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_result.stdout = ""
-        mock_result.stderr = ""
-        return mock_result
-
-    with patch("subprocess.run", side_effect=mock_run_side_effect):
-        yield
 
 
 @pytest.fixture

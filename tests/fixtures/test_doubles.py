@@ -3,15 +3,13 @@
 All test doubles have been split into domain-specific modules:
 - signal_doubles: SignalDouble, QtSignalDouble
 - process_doubles: TestProcessPool, TestCompletedProcess, TestSubprocess, PopenDouble,
-                   TestCommand, simulate_work_without_sleep
+                   simulate_work_without_sleep
 - model_doubles: TestShot, TestShotModel, TestCacheManager, TestFileSystem,
                  FakeShotModel, FakePreviousShotsFinder, FakeCacheManager,
                  FakePreviousShotsWorker, shot_model_factory,
                  create_test_shot, create_test_shots
-- launcher_doubles: TestLauncherEnvironment, TestLauncherTerminal, TestLauncher,
-                    LauncherManagerDouble, make_test_launcher
 - worker_doubles: TestWorker, TestThreadWorker
-- qt_doubles: TestQtWidget, ThreadSafeTestImage, simulate_work_without_sleep
+- qt_doubles: ThreadSafeTestImage, simulate_work_without_sleep
 - cache_doubles: TestCache, TestProgressOperation, TestProgressManager, test_process_pool
 
 Import directly from domain modules for new code.
@@ -24,13 +22,6 @@ from tests.fixtures.cache_doubles import (
     TestProgressManager,
     TestProgressOperation,
     test_process_pool,
-)
-from tests.fixtures.launcher_doubles import (
-    LauncherManagerDouble,
-    TestLauncher,
-    TestLauncherEnvironment,
-    TestLauncherTerminal,
-    make_test_launcher,
 )
 from tests.fixtures.model_doubles import (
     FakeCacheManager,
@@ -47,14 +38,12 @@ from tests.fixtures.model_doubles import (
 )
 from tests.fixtures.process_doubles import (
     PopenDouble,
-    TestCommand,
     TestCompletedProcess,
     TestProcessPool,
     TestSubprocess,
     simulate_work_without_sleep,
 )
 from tests.fixtures.qt_doubles import (
-    TestQtWidget,
     ThreadSafeTestImage,
 )
 from tests.fixtures.signal_doubles import (
@@ -72,22 +61,16 @@ __all__ = [
     "FakePreviousShotsFinder",
     "FakePreviousShotsWorker",
     "FakeShotModel",
-    "LauncherManagerDouble",
     "PopenDouble",
     "QtSignalDouble",
     "SignalDouble",
     "TestCache",
     "TestCacheManager",
-    "TestCommand",
     "TestCompletedProcess",
     "TestFileSystem",
-    "TestLauncher",
-    "TestLauncherEnvironment",
-    "TestLauncherTerminal",
     "TestProcessPool",
     "TestProgressManager",
     "TestProgressOperation",
-    "TestQtWidget",
     "TestShot",
     "TestShotModel",
     "TestSubprocess",
@@ -96,7 +79,6 @@ __all__ = [
     "ThreadSafeTestImage",
     "create_test_shot",
     "create_test_shots",
-    "make_test_launcher",
     "shot_model_factory",
     "simulate_work_without_sleep",
     "test_process_pool",

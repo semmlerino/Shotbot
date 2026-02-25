@@ -7,7 +7,6 @@ and flaky behavior.
 Fixtures:
     reset_caches (autouse): Lightweight cleanup for ALL tests - caches and config
     reset_singletons: Heavy cleanup for Qt tests - singletons, threads
-    cleanup_state_lite: Alias for reset_caches (backward compatibility)
     cleanup_state_heavy: Alias for reset_singletons (backward compatibility)
 
 Environment Variables:
@@ -269,9 +268,6 @@ def reset_caches(request: pytest.FixtureRequest) -> Iterator[None]:
         gc.collect()
 
 
-# Backward compatibility alias
-cleanup_state_lite = reset_caches
-
 
 @pytest.fixture
 def reset_singletons(reset_caches: None) -> Iterator[None]:
@@ -332,11 +328,3 @@ def reset_singletons(reset_caches: None) -> Iterator[None]:
 cleanup_state_heavy = reset_singletons
 
 
-@pytest.fixture
-def cleanup_state(reset_caches: None, reset_singletons: None) -> Iterator[None]:
-    """Combined cleanup fixture for backward compatibility.
-
-    This fixture combines both lite and heavy cleanup. Use this if you explicitly
-    need both, but prefer using reset_singletons directly for Qt tests.
-    """
-    return

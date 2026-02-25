@@ -303,7 +303,6 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
 pytest_plugins = [
     # NOTE: Qt fixtures (qapp, _patch_qtbot_short_waits) are now in conftest.py
     # above, not in qt_bootstrap.py - this ensures they have access to _GLOBAL_QAPP
-    "tests.fixtures.determinism",
     "tests.fixtures.temp_directories",
     "tests.fixtures.test_doubles",
     "tests.fixtures.subprocess_mocking",
