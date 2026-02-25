@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Generator
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -26,6 +27,7 @@ from thread_safe_worker import ThreadSafeWorker
 
 
 if TYPE_CHECKING:
+
     from pytestqt.qtbot import QtBot
 
 
@@ -368,6 +370,26 @@ class TestZombieCleanupTimer:
 
         ThreadSafeWorker.reset()
 
+    def test_timer_has_correct_interval(self, qtbot: QtBot) -> None:
+        """Timer interval matches the configured cleanup interval constant."""
+        ThreadSafeWorker.reset()
+        ThreadSafeWorker.start_zombie_cleanup_timer()
+
+        timer = ThreadSafeWorker._zombie_cleanup_timer
+        assert timer is not None
+        assert timer.interval() == ThreadSafeWorker._ZOMBIE_CLEANUP_INTERVAL_MS
+
+        ThreadSafeWorker.reset()
+
+    def test_stop_when_not_running_is_safe(self) -> None:
+        """Stopping a non-running timer is a safe no-op."""
+        ThreadSafeWorker.reset()
+        assert ThreadSafeWorker._zombie_cleanup_timer is None
+
+        # Should not raise
+        ThreadSafeWorker.stop_zombie_cleanup_timer()
+        assert ThreadSafeWorker._zombie_cleanup_timer is None
+
 
 class TestZombieThreadSafety:
     """Tests for thread-safe access to zombie collections."""
@@ -425,3 +447,218 @@ class TestZombieThreadSafety:
         assert errors == [], f"Concurrent access caused errors: {errors}"
 
         ThreadSafeWorker.reset()
+
+
+# =============================================================================
+# ThreadingManager Zombie Tracking Tests
+# (merged from test_concurrency_fixes.py)
+# =============================================================================
+
+
+
+from PySide6.QtCore import QThread, Signal
+
+from threading_manager import ThreadingManager
+
+
+class SlowStoppingWorker(QThread):
+    """Worker that takes time to stop — simulates real thread behavior."""
+
+    started_signal = Signal()
+
+    def __init__(self, stop_delay_ms: int = 100) -> None:
+        super().__init__()
+        self._should_stop = False
+        self._stop_delay_ms = stop_delay_ms
+
+    def run(self) -> None:
+        """Run until stop requested."""
+        while not self._should_stop:
+            self.msleep(10)
+
+    def stop(self) -> None:
+        """Request stop."""
+        self._should_stop = True
+
+    def request_stop(self) -> None:
+        """Alias for stop."""
+        self.stop()
+
+
+@pytest.fixture
+def threading_manager() -> Generator[ThreadingManager]:
+    """Create ThreadingManager instance with cleanup."""
+    from tests.test_helpers import process_qt_events
+
+    manager = ThreadingManager()
+    yield manager
+    try:
+        manager.shutdown_all_threads()
+    except Exception:
+        pass
+    process_qt_events()
+
+
+class TestThreadingManagerZombieTracking:
+    """ThreadingManager zombie worker tracking tests.
+
+    Workers that fail to stop within the wait timeout are tracked in
+    _zombie_workers instead of being discarded, preventing crashes from
+    prematurely garbage-collected running QThreads.
+    """
+
+    def test_worker_timeout_adds_to_zombie_list(
+        self, threading_manager: ThreadingManager
+    ) -> None:
+        """Worker that doesn't stop in time is added to _zombie_workers."""
+        from unittest.mock import Mock
+
+        worker = Mock(spec=QThread)
+        worker.start = Mock()
+        worker.isRunning = Mock(return_value=True)
+        worker.stop = Mock()
+        worker.wait = Mock(return_value=False)  # Timeout
+        worker.deleteLater = Mock()
+
+        threading_manager.add_custom_worker("stubborn_worker", worker)
+        assert len(threading_manager._zombie_workers) == 0
+
+        threading_manager.remove_worker("stubborn_worker")
+
+        assert len(threading_manager._zombie_workers) == 1
+        assert threading_manager._zombie_workers[0] is worker
+
+    def test_graceful_stop_does_not_create_zombie(
+        self, threading_manager: ThreadingManager
+    ) -> None:
+        """Worker that stops gracefully is NOT added to _zombie_workers."""
+        from unittest.mock import Mock
+
+        worker = Mock(spec=QThread)
+        worker.start = Mock()
+        worker.isRunning = Mock(return_value=True)
+        worker.stop = Mock()
+        worker.wait = Mock(return_value=True)  # Stops successfully
+        worker.deleteLater = Mock()
+
+        threading_manager.add_custom_worker("good_worker", worker)
+        threading_manager.remove_worker("good_worker")
+
+        assert len(threading_manager._zombie_workers) == 0
+
+    def test_multiple_zombies_accumulated(
+        self, threading_manager: ThreadingManager
+    ) -> None:
+        """Multiple failing workers accumulate in zombie list."""
+        from unittest.mock import Mock
+
+        for i in range(3):
+            worker = Mock(spec=QThread)
+            worker.start = Mock()
+            worker.isRunning = Mock(return_value=True)
+            worker.stop = Mock()
+            worker.wait = Mock(return_value=False)
+            worker.deleteLater = Mock()
+
+            threading_manager.add_custom_worker(f"zombie_{i}", worker)
+            threading_manager.remove_worker(f"zombie_{i}")
+
+        assert len(threading_manager._zombie_workers) == 3
+
+    def test_shutdown_cleans_up_zombies(
+        self, threading_manager: ThreadingManager
+    ) -> None:
+        """shutdown_all_threads() terminates and clears zombie workers."""
+        from unittest.mock import Mock
+
+        zombie1 = Mock(spec=QThread)
+        zombie1.isRunning = Mock(return_value=True)
+        zombie1.terminate = Mock()
+        zombie1.wait = Mock(return_value=True)
+        zombie1.deleteLater = Mock()
+
+        zombie2 = Mock(spec=QThread)
+        zombie2.isRunning = Mock(return_value=False)  # Already stopped
+        zombie2.terminate = Mock()
+        zombie2.wait = Mock(return_value=True)
+        zombie2.deleteLater = Mock()
+
+        threading_manager._zombie_workers = [zombie1, zombie2]
+        threading_manager.shutdown_all_threads()
+
+        assert len(threading_manager._zombie_workers) == 0
+        zombie1.terminate.assert_called_once()
+        zombie1.deleteLater.assert_called_once()
+        zombie2.terminate.assert_not_called()
+        zombie2.deleteLater.assert_called_once()
+
+    def test_shutdown_handles_mix_of_worker_types(
+        self, threading_manager: ThreadingManager
+    ) -> None:
+        """Shutdown handles normal, stuck, and zombie workers together."""
+        from unittest.mock import Mock
+
+        normal = Mock(spec=QThread)
+        normal.start = Mock()
+        normal.isRunning = Mock(return_value=True)
+        normal.stop = Mock()
+        normal.wait = Mock(return_value=True)
+        normal.deleteLater = Mock()
+
+        stuck = Mock(spec=QThread)
+        stuck.start = Mock()
+        stuck.isRunning = Mock(return_value=True)
+        stuck.stop = Mock()
+        stuck.wait = Mock(return_value=False)
+        stuck.deleteLater = Mock()
+
+        zombie = Mock(spec=QThread)
+        zombie.isRunning = Mock(return_value=True)
+        zombie.terminate = Mock()
+        zombie.wait = Mock(return_value=True)
+        zombie.deleteLater = Mock()
+
+        threading_manager._zombie_workers = [zombie]
+        threading_manager.add_custom_worker("normal", normal)
+        threading_manager.add_custom_worker("stuck", stuck)
+
+        threading_manager.shutdown_all_threads()
+
+        assert len(threading_manager._workers) == 0
+        assert len(threading_manager._zombie_workers) == 0
+        normal.deleteLater.assert_called_once()
+        stuck.deleteLater.assert_called_once()
+        zombie.deleteLater.assert_called_once()
+        zombie.terminate.assert_called_once()
+
+    def test_remove_worker_waits_outside_lock(
+        self, threading_manager: ThreadingManager
+    ) -> None:
+        """Worker dict is updated before wait() is called (two-phase lock)."""
+        from unittest.mock import Mock
+
+        from PySide6.QtCore import QMutexLocker
+
+        worker = Mock(spec=QThread)
+        worker.start = Mock()
+        worker.isRunning = Mock(return_value=True)
+        worker.stop = Mock()
+        worker.deleteLater = Mock()
+
+        call_order: list[str] = []
+        original_wait = worker.wait
+
+        def tracking_wait(timeout: int) -> bool:
+            with QMutexLocker(threading_manager._mutex):
+                in_dict = "worker" in threading_manager._workers
+            call_order.append(f"wait:in_dict={in_dict}")
+            return original_wait(timeout)
+
+        worker.wait = tracking_wait
+
+        threading_manager.add_custom_worker("worker", worker)
+        threading_manager.remove_worker("worker")
+
+        assert any("wait:in_dict=False" in c for c in call_order), (
+            f"wait() should be called after removing from dict. Call order: {call_order}"
+        )

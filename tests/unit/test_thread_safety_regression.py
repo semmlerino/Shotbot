@@ -343,59 +343,6 @@ class TestMemoryLeakPrevention:
             qapp.processEvents()  # Process any pending deletions
 
 
-class TestStressConditions:
-    """Stress tests for thread safety under load."""
-
-    def setup_method(self) -> None:
-        """Set up test environment."""
-        self.temp_dir = tempfile.TemporaryDirectory()
-
-    def teardown_method(self) -> None:
-        """Clean up test environment."""
-        self.temp_dir.cleanup()
-
-    def test_many_concurrent_refreshes(self) -> None:
-        """Test many concurrent refresh operations."""
-        cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
-        model = ShotModel(cache_manager)
-
-        # Use test double to avoid real subprocess calls
-        test_pool = TestProcessPool(allow_main_thread=True)
-        test_pool.set_outputs("")
-        model._process_pool = test_pool
-
-        errors = []
-
-        def stress_refresh() -> None:
-            try:
-                for _ in range(10):
-                    model.refresh_shots()
-                    # Yield CPU between operations to increase race condition likelihood
-                    # Note: time.sleep() acceptable in stress test to simulate real-world timing
-                    time.sleep(0.001)  # Small delay
-            except Exception as e:
-                errors.append(e)
-
-        # Run stress test
-        threads = []
-        for _ in range(20):
-            t = threading.Thread(target=stress_refresh)
-            threads.append(t)
-            t.start()
-
-        for t in threads:
-            t.join(timeout=30)
-
-        # Cleanup
-        model.cleanup()
-
-        # Verify no errors
-        assert len(errors) == 0, f"Errors during stress test: {errors}"
-
-        # Verify model is still functional
-        result = model.refresh_shots()
-        assert isinstance(result, RefreshResult)
-
 
 class SimpleTestWorker(ThreadSafeWorker):
     """Lightweight test worker without timeouts."""

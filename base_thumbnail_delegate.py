@@ -217,8 +217,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         # Extract attributes from option
         # PySide6 type stubs missing .rect and .state attributes on QStyleOptionViewItem
         # These attributes exist at runtime and are documented in Qt API
-        rect = cast("QRect", option.rect)  # pyright: ignore[reportAttributeAccessIssue]
-        state = cast("QStyle.StateFlag", option.state)  # pyright: ignore[reportAttributeAccessIssue]
+        rect: QRect = option.rect  # pyright: ignore[reportAttributeAccessIssue]
+        state: QStyle.StateFlag = option.state  # pyright: ignore[reportAttributeAccessIssue]
 
         painter.save()
 

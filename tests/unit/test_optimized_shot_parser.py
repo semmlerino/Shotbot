@@ -414,6 +414,38 @@ class TestRealWorldScenarios:
                 "workspace /shows/myshow/shots/finale/finale_001",
                 ParseResult("myshow", "finale", "001", "/shows/myshow/shots/finale/finale_001"),
             ),
+            # Compound sequence names (sequence directory contains underscores)
+            (
+                "workspace /shows/gator/shots/012_DC/012_DC_1000",
+                ParseResult("gator", "012_DC", "1000", "/shows/gator/shots/012_DC/012_DC_1000"),
+            ),
+            (
+                "workspace /shows/jack_ryan/shots/DB_271/DB_271_1760",
+                ParseResult(
+                    "jack_ryan",
+                    "DB_271",
+                    "1760",
+                    "/shows/jack_ryan/shots/DB_271/DB_271_1760",
+                ),
+            ),
+            (
+                "workspace /shows/broken_eggs/shots/BRX_166/BRX_166_0010",
+                ParseResult(
+                    "broken_eggs",
+                    "BRX_166",
+                    "0010",
+                    "/shows/broken_eggs/shots/BRX_166/BRX_166_0010",
+                ),
+            ),
+            (
+                "workspace /shows/jack_ryan/shots/999_xx/999_xx_999",
+                ParseResult(
+                    "jack_ryan",
+                    "999_xx",
+                    "999",
+                    "/shows/jack_ryan/shots/999_xx/999_xx_999",
+                ),
+            ),
         ],
     )
     def test_real_world_workspace_patterns(

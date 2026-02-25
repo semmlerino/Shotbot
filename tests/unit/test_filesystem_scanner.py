@@ -970,3 +970,170 @@ class TestProgressiveDiscoveryFallback:
         usernames = {username for username, _ in result}
         assert "excluded_user" not in usernames
         assert "temp" not in usernames
+
+
+# =============================================================================
+# ThreeDESceneWorker Cancel/Interrupt Tests
+# (merged from test_worker_stop_responsiveness.py)
+# =============================================================================
+
+
+from unittest.mock import patch
+
+from shot_model import Shot
+from threede_scene_worker import ThreeDESceneWorker
+
+
+@pytest.mark.qt
+@pytest.mark.concurrency
+@pytest.mark.regression
+class TestThreeDEWorkerStopAndCancel:
+    """Cancel and interrupt behaviour for ThreeDESceneWorker.
+
+    These are regression tests for the zombie thread issue where workers
+    would get stuck in blocking subprocess.run() calls for up to 5 seconds.
+    The fix threads a cancel_flag through to filesystem operations so that
+    worker.stop() propagates quickly.
+    """
+
+    def _make_shot(self) -> Shot:
+        return Shot(
+            workspace_path="/shows/test_show/shots/TEST_001/TEST_001_0010",
+            show="test_show",
+            sequence="TEST_001",
+            shot="0010",
+        )
+
+    def test_worker_stops_quickly_during_scan(self, qtbot: pytest.fixture) -> None:
+        """Worker can be stopped within 2 seconds during a long filesystem scan.
+
+        Regression test: before the fix workers blocked inside subprocess.run()
+        for the full scan timeout (up to 5 seconds).
+        """
+        from collections.abc import Callable
+
+        worker = ThreeDESceneWorker(
+            shots=[self._make_shot()],
+            excluded_users=set(),
+            scan_all_shots=True,
+        )
+
+        with patch(
+            "threede_scene_finder.OptimizedThreeDESceneFinder"
+            ".find_all_scenes_in_shows_truly_efficient_parallel"
+        ) as mock_find:
+            scan_started_event = threading.Event()
+
+            def long_scan(
+                shots: list[Shot],
+                excluded_users: set[str],
+                progress_callback: Callable[[int, str], None] | None = None,
+                cancel_flag: Callable[[], bool] | None = None,
+            ) -> list:
+                scan_started_event.set()
+                for _ in range(100):
+                    if cancel_flag and cancel_flag():
+                        return []
+                    threading.Event().wait(timeout=0.1)
+                return []
+
+            mock_find.side_effect = long_scan
+
+            thread = threading.Thread(target=worker.run, daemon=True)
+            thread.start()
+
+            scan_started_event.wait(timeout=2.0)
+
+            stop_start = time.time()
+            worker.stop()
+            thread.join(timeout=3.0)
+            stop_duration = time.time() - stop_start
+
+            assert stop_duration < 2.0, (
+                f"Worker took {stop_duration:.2f}s to stop (should be <2s)"
+            )
+            assert not thread.is_alive(), "Worker thread should have stopped"
+
+    def test_rapid_stop_start_cycles_no_zombies(self, qtbot: pytest.fixture) -> None:
+        """Rapid stop/start cycles don't accumulate zombie threads.
+
+        Simulates the production scenario where the artist clicks refresh
+        multiple times in quick succession.
+        """
+        with patch(
+            "threede_scene_finder.OptimizedThreeDESceneFinder"
+            ".find_all_scenes_in_shows_truly_efficient_parallel",
+            return_value=[],
+        ):
+            active_before = threading.active_count()
+
+            for cycle in range(3):
+                worker = ThreeDESceneWorker(
+                    shots=[self._make_shot()],
+                    excluded_users=set(),
+                    scan_all_shots=True,
+                )
+                thread = threading.Thread(target=worker.run, daemon=True)
+                thread.start()
+
+                threading.Event().wait(timeout=0.1)
+                worker.stop()
+                thread.join(timeout=1.0)
+
+                assert not thread.is_alive(), f"Cycle {cycle}: thread should be stopped"
+
+            threading.Event().wait(timeout=0.5)
+            thread_leak = threading.active_count() - active_before
+            assert thread_leak <= 2, f"Leaked {thread_leak} threads after rapid cycles"
+
+    def test_should_stop_consulted_as_cancel_flag(self) -> None:
+        """should_stop() is wired as the cancel_flag passed to filesystem ops.
+
+        Verifies the integration: worker.stop() → worker.should_stop() returns
+        True → cancel_flag() returns True → scanner exits early.
+        """
+        from collections.abc import Callable
+
+        worker = ThreeDESceneWorker(
+            shots=[self._make_shot()],
+            excluded_users=set(),
+            scan_all_shots=True,
+        )
+
+        original_should_stop = worker.should_stop
+        should_stop_calls = 0
+
+        def tracked_should_stop() -> bool:
+            nonlocal should_stop_calls
+            should_stop_calls += 1
+            return original_should_stop()
+
+        worker.should_stop = tracked_should_stop  # type: ignore[method-assign]
+
+        def mock_find(
+            shots: list[Shot],
+            excluded_users: set[str],
+            progress_callback: Callable[[int, str], None] | None = None,
+            cancel_flag: Callable[[], bool] | None = None,
+        ) -> list:
+            if cancel_flag:
+                for _ in range(5):
+                    if cancel_flag():
+                        return []
+            return []
+
+        with patch(
+            "threede_scene_finder.OptimizedThreeDESceneFinder"
+            ".find_all_scenes_in_shows_truly_efficient_parallel",
+            side_effect=mock_find,
+        ):
+            thread = threading.Thread(target=worker.run, daemon=True)
+            thread.start()
+
+            threading.Event().wait(timeout=0.1)
+            worker.stop()
+            thread.join(timeout=1.0)
+
+            assert should_stop_calls >= 5, (
+                f"should_stop() only called {should_stop_calls} times"
+            )

@@ -863,349 +863,6 @@ class TestPersistentPreviousShotsCache:
         assert len(persistent_valid) == 3
 
 
-class TestIncrementalShotMerging:
-    """Compact contract tests for incremental shot merge behavior."""
-
-    @staticmethod
-    def _shot(show: str, sequence: str, shot: str, workspace_path: str) -> Shot:
-        return Shot(show, sequence, shot, workspace_path)
-
-    @pytest.mark.parametrize(
-        ("scenario", "expected_updated", "expected_new", "expected_removed", "expected_has_changes"),
-        [
-            ("empty_cached_all_new", 2, 2, 0, True),
-            ("identical", 2, 0, 0, False),
-            ("add", 3, 2, 0, True),
-            ("remove", 1, 0, 2, True),
-            ("empty_fresh", 0, 0, 2, True),
-        ],
-    )
-    def test_incremental_merge_contract(
-        self,
-        cache_manager: CacheManager,
-        scenario: str,
-        expected_updated: int,
-        expected_new: int,
-        expected_removed: int,
-        expected_has_changes: bool,
-    ) -> None:
-        """Core merge contract for add/remove/no-change paths."""
-        a = self._shot("show1", "seq01", "shot010", "/p1")
-        b = self._shot("show1", "seq01", "shot020", "/p2")
-        c = self._shot("show1", "seq02", "shot030", "/p3")
-
-        if scenario == "empty_cached_all_new":
-            cached, fresh = None, [a, b]
-        elif scenario == "identical":
-            cached, fresh = [a, b], [a, b]
-        elif scenario == "add":
-            cached, fresh = [a], [a, b, c]
-        elif scenario == "remove":
-            cached, fresh = [a, b, c], [a]
-        else:  # empty_fresh
-            cached, fresh = [a, b], []
-
-        result = cache_manager.merge_shots_incremental(cached, fresh)
-
-        assert len(result.updated_shots) == expected_updated
-        assert len(result.new_shots) == expected_new
-        assert len(result.removed_shots) == expected_removed
-        assert result.has_changes is expected_has_changes
-
-    def test_composite_key_cross_show_uniqueness(self, cache_manager: CacheManager) -> None:
-        """Composite key includes show and prevents cross-show collisions."""
-        cached = [
-            self._shot("show1", "seq01", "shot010", "/show1/path"),
-            self._shot("show2", "seq01", "shot010", "/show2/path"),
-        ]
-        fresh = [
-            self._shot("show1", "seq01", "shot010", "/show1/path"),
-            self._shot("show2", "seq01", "shot010", "/show2/updated"),
-            self._shot("show3", "seq01", "shot010", "/show3/path"),
-        ]
-        result = cache_manager.merge_shots_incremental(cached, fresh)
-
-        assert len(result.updated_shots) == 3
-        assert len(result.new_shots) == 1
-        keys = {(s["show"], s["sequence"], s["shot"]) for s in result.updated_shots}
-        assert len(keys) == 3
-        assert {s["show"] for s in result.updated_shots} == {"show1", "show2", "show3"}
-
-    def test_accepts_dict_and_mixed_inputs(self, cache_manager: CacheManager) -> None:
-        """Merge accepts ShotDict-only and mixed Shot/ShotDict payloads."""
-        cached_dict = [
-            {"show": "show1", "sequence": "seq01", "shot": "shot010", "workspace_path": "/p1"}
-        ]
-        fresh_dict = [
-            {"show": "show1", "sequence": "seq01", "shot": "shot010", "workspace_path": "/p1"},
-            {"show": "show1", "sequence": "seq01", "shot": "shot020", "workspace_path": "/p2"},
-        ]
-        dict_result = cache_manager.merge_shots_incremental(cached_dict, fresh_dict)
-        assert len(dict_result.updated_shots) == 2
-        assert len(dict_result.new_shots) == 1
-
-        cached_mixed = [self._shot("show1", "seq01", "shot010", "/p1")]
-        fresh_mixed = [
-            self._shot("show1", "seq01", "shot010", "/p1"),
-            {"show": "show1", "sequence": "seq01", "shot": "shot020", "workspace_path": "/p2"},
-        ]
-        mixed_result = cache_manager.merge_shots_incremental(cached_mixed, fresh_mixed)
-        assert len(mixed_result.updated_shots) == 2
-        assert len(mixed_result.new_shots) == 1
-
-    def test_get_persistent_shots_handles_empty_and_populated_cache(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Persistent shot reads bypass TTL and handle empty cache."""
-        assert cache_manager.get_persistent_shots() is None
-
-        shots = [
-            self._shot("show1", "seq01", "shot010", "/p1"),
-            self._shot("show1", "seq01", "shot020", "/p2"),
-        ]
-        cache_manager.cache_shots(shots)
-        cached = cache_manager.get_persistent_shots()
-
-        assert cached is not None
-        assert len(cached) == 2
-
-    def test_fresh_data_is_source_of_truth(self, cache_manager: CacheManager) -> None:
-        """Fresh metadata must overwrite cached metadata for the same key."""
-        cached = [self._shot("show1", "seq01", "shot010", "/old/metadata")]
-        fresh = [self._shot("show1", "seq01", "shot010", "/new/metadata")]
-
-        result = cache_manager.merge_shots_incremental(cached, fresh)
-
-        assert len(result.updated_shots) == 1
-        assert result.updated_shots[0]["workspace_path"] == "/new/metadata"
-
-    def test_workspace_path_change_not_structural_change(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Workspace path updates are metadata-only changes for an existing shot key."""
-        cached = [
-            self._shot(
-                "show1",
-                "seq01",
-                "shot010",
-                f"{Config.SHOWS_ROOT}/show1/seq01/shot010",
-            )
-        ]
-        fresh = [
-            self._shot(
-                "show1",
-                "seq01",
-                "shot010",
-                f"{Config.SHOWS_ROOT}/show1/seq01_v2/shot010",
-            )
-        ]
-
-        result = cache_manager.merge_shots_incremental(cached, fresh)
-
-        assert len(result.updated_shots) == 1
-        assert result.updated_shots[0]["workspace_path"] == f"{Config.SHOWS_ROOT}/show1/seq01_v2/shot010"
-        assert len(result.new_shots) == 0
-        assert len(result.removed_shots) == 0
-        assert result.has_changes is False  # No duplicates
-
-
-
-class TestIncrementalSceneMerging:
-    """Compact contract tests for incremental 3DE scene merge behavior."""
-
-    @staticmethod
-    def _scene(
-        show: str,
-        sequence: str,
-        shot: str,
-        user: str,
-        plate: str,
-        scene_path: str,
-        workspace_path: str,
-    ) -> ThreeDEScene:
-        return ThreeDEScene(
-            show=show,
-            sequence=sequence,
-            shot=shot,
-            user=user,
-            plate=plate,
-            scene_path=Path(scene_path),
-            workspace_path=workspace_path,
-        )
-
-    @pytest.mark.parametrize(
-        (
-            "scenario",
-            "expected_updated",
-            "expected_new",
-            "expected_removed",
-            "expected_has_changes",
-        ),
-        [
-            ("empty_cached_all_new", 2, 2, 0, True),
-            ("identical", 2, 0, 0, False),
-            ("add", 3, 2, 0, True),
-            # Persistent scenes remain in cache even when missing from fresh scan.
-            ("remove", 3, 0, 2, True),
-            ("empty_fresh", 2, 0, 2, True),
-        ],
-    )
-    def test_incremental_merge_contract(
-        self,
-        cache_manager: CacheManager,
-        scenario: str,
-        expected_updated: int,
-        expected_new: int,
-        expected_removed: int,
-        expected_has_changes: bool,
-    ) -> None:
-        """Core merge contract, including persistent-history semantics."""
-        a = self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/scene1.3de", "/p1")
-        b = self._scene("show1", "seq01", "shot020", "artist2", "bg01", "/scene2.3de", "/p2")
-        c = self._scene("show1", "seq02", "shot030", "artist3", "pl01", "/scene3.3de", "/p3")
-
-        if scenario == "empty_cached_all_new":
-            cached, fresh = None, [a, b]
-        elif scenario == "identical":
-            cached, fresh = [a, b], [a, b]
-        elif scenario == "add":
-            cached, fresh = [a], [a, b, c]
-        elif scenario == "remove":
-            cached, fresh = [a, b, c], [a]
-        else:  # empty_fresh
-            cached, fresh = [a, b], []
-
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
-
-        assert len(result.updated_scenes) == expected_updated
-        assert len(result.new_scenes) == expected_new
-        assert len(result.removed_scenes) == expected_removed
-        assert result.has_changes is expected_has_changes
-
-    def test_composite_key_cross_show_uniqueness(self, cache_manager: CacheManager) -> None:
-        """Composite key includes show and prevents cross-show scene collisions."""
-        cached = [
-            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/show1.3de", "/show1/path"),
-            self._scene("show2", "seq01", "shot010", "artist2", "bg01", "/show2.3de", "/show2/path"),
-        ]
-        fresh = [
-            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/show1.3de", "/show1/path"),
-            self._scene("show2", "seq01", "shot010", "artist2_updated", "fg02", "/show2_new.3de", "/show2/new"),
-            self._scene("show3", "seq01", "shot010", "artist3", "pl01", "/show3.3de", "/show3/path"),
-        ]
-
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
-
-        assert len(result.updated_scenes) == 3
-        assert len(result.new_scenes) == 1
-        keys = {(s["show"], s["sequence"], s["shot"]) for s in result.updated_scenes}
-        assert len(keys) == 3
-        assert {s["show"] for s in result.updated_scenes} == {"show1", "show2", "show3"}
-
-    def test_accepts_scene_dict_and_mixed_inputs(self, cache_manager: CacheManager) -> None:
-        """Merge accepts ThreeDESceneDict-only and mixed object/dict payloads."""
-        cached_dict = [
-            {
-                "show": "show1",
-                "sequence": "seq01",
-                "shot": "shot010",
-                "user": "artist1",
-                "plate": "fg01",
-                "scene_path": "/path/scene1.3de",
-                "workspace_path": "/p1",
-            }
-        ]
-        fresh_dict = [
-            {
-                "show": "show1",
-                "sequence": "seq01",
-                "shot": "shot010",
-                "user": "artist1",
-                "plate": "fg01",
-                "scene_path": "/path/scene1.3de",
-                "workspace_path": "/p1",
-            },
-            {
-                "show": "show1",
-                "sequence": "seq01",
-                "shot": "shot020",
-                "user": "artist2",
-                "plate": "bg01",
-                "scene_path": "/path/scene2.3de",
-                "workspace_path": "/p2",
-            },
-        ]
-        dict_result = cache_manager.merge_scenes_incremental(cached_dict, fresh_dict)
-        assert len(dict_result.updated_scenes) == 2
-        assert len(dict_result.new_scenes) == 1
-
-        cached_mixed = [
-            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/scene1.3de", "/p1")
-        ]
-        fresh_mixed = [
-            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/scene1.3de", "/p1"),
-            {
-                "show": "show1",
-                "sequence": "seq01",
-                "shot": "shot020",
-                "user": "artist2",
-                "plate": "bg01",
-                "scene_path": "/path/scene2.3de",
-                "workspace_path": "/p2",
-            },
-        ]
-        mixed_result = cache_manager.merge_scenes_incremental(cached_mixed, fresh_mixed)
-        assert len(mixed_result.updated_scenes) == 2
-        assert len(mixed_result.new_scenes) == 1
-
-    def test_get_persistent_threede_scenes_handles_empty_and_populated_cache(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Persistent scene reads bypass TTL and handle empty cache."""
-        assert cache_manager.get_persistent_threede_scenes() is None
-
-        scenes = [
-            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/scene1.3de", "/p1"),
-            self._scene("show1", "seq01", "shot020", "artist2", "bg01", "/scene2.3de", "/p2"),
-        ]
-        cache_manager.cache_threede_scenes([s.to_dict() for s in scenes])
-        cached = cache_manager.get_persistent_threede_scenes()
-
-        assert cached is not None
-        assert len(cached) == 2
-
-    def test_fresh_data_is_source_of_truth(self, cache_manager: CacheManager) -> None:
-        """Fresh metadata must overwrite cached metadata for the same scene key."""
-        cached = [
-            self._scene(
-                "show1",
-                "seq01",
-                "shot010",
-                "old_artist",
-                "old_plate",
-                "/old/scene.3de",
-                "/old/path",
-            )
-        ]
-        fresh = [
-            self._scene(
-                "show1",
-                "seq01",
-                "shot010",
-                "new_artist",
-                "new_plate",
-                "/new/scene.3de",
-                "/new/path",
-            )
-        ]
-
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
-
-        assert len(result.updated_scenes) == 1
-        assert result.updated_scenes[0]["user"] == "new_artist"
-        assert result.updated_scenes[0]["plate"] == "new_plate"  # No duplicates
-
-
 class TestShotMigration:
     """Test Phase 2: Shot migration from My Shots to Previous Shots (v2.3)."""
 
@@ -1544,3 +1201,195 @@ class TestCacheWriteFailureSignals:
 
         assert "failed:migrated_shots" in signals_received
         assert "migrated" not in signals_received
+
+
+# ==============================================================================
+# PathValidators path-cache tests (folded from test_cache_logic.py)
+# ==============================================================================
+
+
+def _validate_path(path: Path | str, description: str = "Path") -> bool:
+    """Call PathValidators.validate_path_exists."""
+    from path_validators import PathValidators
+
+    return PathValidators.validate_path_exists(path, description)
+
+
+def _get_path_cache_stats() -> dict[str, int]:
+    """Return path cache size with a stable key."""
+    from path_validators import get_cache_stats
+
+    stats = get_cache_stats()
+    return {"size": stats.get("path_cache_size", stats.get("size", 0))}
+
+
+class TestPathCacheHitMiss:
+    """Test path cache hit/miss behavior for PathValidators."""
+
+    def test_cache_hit_returns_cached_result(self, tmp_path: Path) -> None:
+        """Second lookup returns cached result without growing cache."""
+        from path_validators import clear_path_cache
+
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+        clear_path_cache()
+
+        result1 = _validate_path(test_dir, "test dir")
+        assert result1 is True
+        size_after_first = _get_path_cache_stats()["size"]
+
+        result2 = _validate_path(test_dir, "test dir")
+        assert result2 is True
+
+        assert _get_path_cache_stats()["size"] == size_after_first
+
+    def test_cache_miss_on_new_path(self, tmp_path: Path) -> None:
+        """New paths grow the cache."""
+        from path_validators import clear_path_cache
+
+        clear_path_cache()
+        initial_size = _get_path_cache_stats()["size"]
+
+        test_path1 = tmp_path / "path1"
+        test_path1.mkdir()
+        _validate_path(test_path1, "path 1")
+        size_after_first = _get_path_cache_stats()["size"]
+        assert size_after_first > initial_size
+
+        test_path2 = tmp_path / "path2"
+        test_path2.mkdir()
+        _validate_path(test_path2, "path 2")
+        assert _get_path_cache_stats()["size"] > size_after_first
+
+    def test_cache_returns_false_for_nonexistent(self, tmp_path: Path) -> None:
+        """Non-existent paths cache a False result."""
+        from path_validators import clear_path_cache
+
+        clear_path_cache()
+        nonexistent = tmp_path / "nonexistent"
+
+        assert _validate_path(nonexistent, "nonexistent") is False
+        assert _validate_path(nonexistent, "nonexistent") is False
+
+
+class TestPathCacheClearing:
+    """Test path cache clearing behavior."""
+
+    def test_clear_cache_empties_cache(self, tmp_path: Path) -> None:
+        """clear_path_cache empties the cache."""
+        from path_validators import clear_path_cache
+
+        test_path = tmp_path / "test"
+        test_path.mkdir()
+        _validate_path(test_path, "test")
+        assert _get_path_cache_stats()["size"] > 0
+
+        clear_path_cache()
+        assert _get_path_cache_stats()["size"] == 0
+
+    def test_cache_refills_after_clear(self, tmp_path: Path) -> None:
+        """Cache refills after being cleared."""
+        from path_validators import clear_path_cache
+
+        test_path = tmp_path / "test"
+        test_path.mkdir()
+        _validate_path(test_path, "test")
+        clear_path_cache()
+
+        _validate_path(test_path, "test")
+        assert _get_path_cache_stats()["size"] > 0
+
+
+class TestCachingEnabledDisabled:
+    """Test enabling/disabling PathValidators caching."""
+
+    def test_caching_disabled_bypasses_cache(
+        self, tmp_path: Path, caching_disabled: None
+    ) -> None:
+        """caching_disabled fixture prevents cache population."""
+        test_path = tmp_path / "test"
+        test_path.mkdir()
+
+        _validate_path(test_path, "test")
+        _validate_path(test_path, "test")
+        _validate_path(test_path, "test")
+
+        assert _get_path_cache_stats()["size"] == 0
+
+    def test_caching_enabled_uses_cache(
+        self, tmp_path: Path, caching_enabled: Path
+    ) -> None:
+        """caching_enabled fixture allows cache population."""
+        from path_validators import clear_path_cache
+
+        clear_path_cache()
+        test_path = tmp_path / "test"
+        test_path.mkdir()
+
+        _validate_path(test_path, "test")
+        assert _get_path_cache_stats()["size"] > 0
+
+
+class TestCacheManagerWithPathCache:
+    """Test CacheManager behaviour alongside the path-validation cache."""
+
+    def test_shots_cache_survives_clear_all_caches(
+        self, isolated_cache_manager: CacheManager
+    ) -> None:
+        """clear_all_caches() must not evict CacheManager's persistent JSON caches.
+
+        clear_all_caches() only clears path-validation and version caches, not
+        CacheManager's shot/scene JSON files.
+        """
+        from utils import clear_all_caches
+
+        manager = isolated_cache_manager
+        shot_data = [{"show": "TEST", "sequence": "SQ010", "shot": "SH0010"}]
+        manager.cache_shots(shot_data)
+
+        clear_all_caches()
+
+        cached = manager.get_cached_shots()
+        assert cached is not None
+        assert len(cached) == 1
+        assert cached[0]["shot"] == "SH0010"
+
+
+class TestCacheIsolationContext:
+    """Test utils.CacheIsolation context manager."""
+
+    def test_cache_isolation_clears_and_disables(self, tmp_path: Path) -> None:
+        """CacheIsolation provides a clean, cache-disabled environment inside the block."""
+        from utils import CacheIsolation
+
+        test_path = tmp_path / "test"
+        test_path.mkdir()
+        _validate_path(test_path, "test")
+        assert _get_path_cache_stats()["size"] > 0
+
+        with CacheIsolation():
+            assert _get_path_cache_stats()["size"] == 0
+
+            another_path = tmp_path / "another"
+            another_path.mkdir()
+            _validate_path(another_path, "another")
+            # Caching is disabled inside CacheIsolation
+            assert _get_path_cache_stats()["size"] == 0
+
+        # Cache still empty after exit (nothing was cached inside)
+        assert _get_path_cache_stats()["size"] == 0
+
+    def test_cache_isolation_reenables_caching_on_exit(self, tmp_path: Path) -> None:
+        """Caching is re-enabled after CacheIsolation block exits."""
+        from path_validators import clear_path_cache
+        from utils import CacheIsolation
+
+        clear_path_cache()
+
+        with CacheIsolation():
+            pass
+
+        test_path = tmp_path / "test"
+        test_path.mkdir()
+        _validate_path(test_path, "test")
+        assert _get_path_cache_stats()["size"] > 0

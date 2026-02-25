@@ -10,30 +10,28 @@ This refactored version:
 from __future__ import annotations
 
 # Standard library imports
+import json
 from pathlib import Path
-
-# pyright: basic
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, NoReturn, Protocol
 
 # Third-party imports
 import pytest
+from PySide6.QtTest import QSignalSpy
 
 
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 # Local application imports
-from cache_manager import ShotMergeResult
+from cache_manager import CacheManager, ShotMergeResult
 from config import Config
 from shot_model import RefreshResult, Shot, ShotModel
+from tests.fixtures.doubles_library import TestProcessPool
 
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
     from pytestqt.qtbot import QtBot
-
-    from cache_manager import CacheManager
-    from shot_model import Shot
 
     class TestShotFactory(Protocol):
         """Protocol for shot factory fixtures."""
@@ -713,3 +711,132 @@ class TestShotModelPerformance:
         # Here we test that the method exists and can be called
         metrics = real_shot_model.get_performance_metrics()
         assert metrics is not None
+
+
+@pytest.mark.allow_main_thread
+class TestShotModelRefreshSignals:
+    """Tests for refresh signal emission and cache integration (ported from integration suite)."""
+
+    def test_signal_emission_order(self, real_shot_model, test_process_pool, qtbot: QtBot) -> None:
+        """Test that signals are emitted in correct order during refresh."""
+        test_process_pool.set_outputs(
+            f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0010"
+        )
+        real_shot_model._process_pool = test_process_pool
+
+        signal_order: list[str] = []
+
+        def started_handler() -> None:
+            signal_order.append("started")
+
+        def changed_handler(_: object) -> None:
+            signal_order.append("changed")
+
+        def cache_handler() -> None:
+            signal_order.append("cache")
+
+        def finished_handler(*_: object) -> None:
+            signal_order.append("finished")
+
+        real_shot_model.refresh_started.connect(started_handler)
+        real_shot_model.shots_changed.connect(changed_handler)
+        real_shot_model.cache_updated.connect(cache_handler)
+        real_shot_model.refresh_finished.connect(finished_handler)
+
+        try:
+            real_shot_model.refresh_shots()
+
+            assert signal_order[0] == "started"
+            assert signal_order[-1] == "finished"
+            assert "changed" in signal_order
+            assert "cache" in signal_order
+        finally:
+            real_shot_model.refresh_started.disconnect(started_handler)
+            real_shot_model.shots_changed.disconnect(changed_handler)
+            real_shot_model.cache_updated.disconnect(cache_handler)
+            real_shot_model.refresh_finished.disconnect(finished_handler)
+
+    def test_error_signal_on_failure(self, real_shot_model, qtbot: QtBot) -> None:
+        """Test that error_occurred signal is emitted on failures."""
+        def raise_error(*args: object, **kwargs: object) -> NoReturn:
+            raise RuntimeError("Test error")
+
+        real_shot_model._process_pool.execute_workspace_command = raise_error
+
+        error_spy = QSignalSpy(real_shot_model.error_occurred)
+
+        result = real_shot_model.refresh_shots()
+
+        assert result.success is False
+        assert error_spy.count() == 1
+        assert "Test error" in error_spy.at(0)[0]
+
+    def test_refresh_with_cache_updates_json_file(
+        self, real_shot_model, real_cache_manager: CacheManager, test_process_pool
+    ) -> None:
+        """Test that refresh properly updates the on-disk cache JSON file."""
+        cache_dir = real_cache_manager.cache_dir
+        test_process_pool.set_outputs(
+            f"workspace {Config.SHOWS_ROOT}/show1/shots/seq01/seq01_0010"
+        )
+        real_shot_model._process_pool = test_process_pool
+
+        result = real_shot_model.refresh_shots()
+        assert result.success is True
+
+        cache_file = cache_dir / "shots.json"
+        assert cache_file.exists()
+
+        with cache_file.open() as f:
+            cache_data = json.load(f)
+
+        assert "data" in cache_data
+        assert len(cache_data["data"]) == 1
+        assert cache_data["data"][0]["show"] == "show1"
+
+        # Update to a different show and verify the cache is overwritten
+        test_process_pool.set_outputs(
+            f"workspace {Config.SHOWS_ROOT}/show2/shots/seq01/seq01_0010"
+        )
+        real_shot_model.refresh_shots()
+
+        with cache_file.open() as f:
+            updated = json.load(f)
+
+        assert updated["data"][0]["show"] == "show2"
+
+    def test_shot_data_persistence_through_cache(
+        self, real_cache_manager: CacheManager
+    ) -> None:
+        """Test shot data loaded from pre-seeded raw-dict cache at model init."""
+        test_shots_data = [
+            {
+                "show": "test_show",
+                "sequence": "seq01",
+                "shot": "seq01_0010",
+                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/shots/seq01/seq01_0010",
+                "name": "seq01_0010",
+            },
+            {
+                "show": "test_show",
+                "sequence": "seq01",
+                "shot": "seq01_0020",
+                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/shots/seq01/seq01_0020",
+                "name": "seq01_0020",
+            },
+        ]
+
+        real_cache_manager.cache_shots(test_shots_data)
+
+        pool = TestProcessPool(allow_main_thread=True)
+        model = ShotModel(
+            cache_manager=real_cache_manager,
+            process_pool=pool,
+        )
+
+        shots = model.get_shots()
+        assert len(shots) == 2
+        assert shots[0].show == "test_show"
+        assert shots[0].sequence == "seq01"
+        assert shots[0].shot == "seq01_0010"
+        assert shots[1].shot == "seq01_0020"
