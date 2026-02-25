@@ -75,15 +75,15 @@ def test_shots() -> list[Shot]:
 
 @pytest.fixture
 def shot_item_model(
-    qapp: QApplication, real_cache_manager: CacheManager
+    qapp: QApplication, cache_manager: CacheManager
 ) -> ShotItemModel:
     """Create a ShotItemModel instance for testing."""
-    return ShotItemModel(cache_manager=real_cache_manager)
+    return ShotItemModel(cache_manager=cache_manager)
 
 
 @pytest.fixture
 def base_shot_model(
-    real_cache_manager: CacheManager, test_process_pool: TestProcessPool
+    cache_manager: CacheManager, test_process_pool: TestProcessPool
 ) -> BaseShotModel:
     """Create a real BaseShotModel with test process pool."""
     from base_shot_model import (
@@ -91,7 +91,7 @@ def base_shot_model(
     )
 
     return BaseShotModel(
-        cache_manager=real_cache_manager,
+        cache_manager=cache_manager,
         load_cache=False,
         process_pool=test_process_pool,
     )
@@ -106,24 +106,24 @@ class TestInitialization:
     """Test ShotItemModel initialization behavior."""
 
     def test_initialization_with_underlying_model(
-        self, qapp: QApplication, real_cache_manager: CacheManager
+        self, qapp: QApplication, cache_manager: CacheManager
     ) -> None:
         """Test proper setup with cache manager."""
-        model = ShotItemModel(cache_manager=real_cache_manager)
+        model = ShotItemModel(cache_manager=cache_manager)
 
-        assert model._cache_manager is real_cache_manager
+        assert model._cache_manager is cache_manager
         assert model.rowCount() == 0
         assert model.get_selected_shot() is None
 
     def test_initialization_with_cache_manager(
-        self, qapp: QApplication, real_cache_manager: CacheManager
+        self, qapp: QApplication, cache_manager: CacheManager
     ) -> None:
         """Test cache integration during initialization."""
-        model = ShotItemModel(cache_manager=real_cache_manager)
+        model = ShotItemModel(cache_manager=cache_manager)
 
         # Verify cache manager is properly set
         assert model._cache_manager is not None
-        assert model._cache_manager is real_cache_manager
+        assert model._cache_manager is cache_manager
 
         # Verify initial state
         assert len(model.shots) == 0
@@ -179,7 +179,7 @@ class TestThumbnailLoading:
         shot_item_model: ShotItemModel,
         qtbot: QtBot,
         test_shots: list[Shot],
-        real_cache_manager: CacheManager,
+        cache_manager: CacheManager,
     ) -> None:
         """Test no duplicate loads for same shot (atomic check-and-mark)."""
         shot_item_model.set_shots(test_shots)
@@ -234,7 +234,7 @@ class TestThumbnailLoading:
         shot_item_model: ShotItemModel,
         qtbot: QtBot,
         test_shots: list[Shot],
-        real_cache_manager: CacheManager,
+        cache_manager: CacheManager,
     ) -> None:
         """Test load → cache → retrieve pattern."""
         shot_item_model.set_shots(test_shots)

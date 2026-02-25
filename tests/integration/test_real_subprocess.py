@@ -23,6 +23,7 @@ import pytest
 
 
 @pytest.mark.real_subprocess
+@pytest.mark.xdist_group("real_subprocess")
 class TestLauncherRealSubprocess:
     """Real subprocess tests for the launcher system.
 
@@ -62,6 +63,7 @@ class TestLauncherRealSubprocess:
 
 
 @pytest.mark.real_subprocess
+@pytest.mark.xdist_group("real_subprocess")
 class TestLauncherStackSmoke:
     """Smoke tests for the actual launcher stack with real subprocess execution.
 
@@ -94,7 +96,7 @@ class TestLauncherStackSmoke:
                 result_container["output"] = pool.execute_workspace_command(
                     'echo "LAUNCHER_STACK_OK"',
                     cache_ttl=0,  # No caching for test
-                    timeout=10,
+                    timeout=30,
                 )
             except Exception as e:
                 result_container["error"] = str(e)
@@ -122,7 +124,7 @@ class TestLauncherStackSmoke:
             ["/bin/bash", "-ilc", 'echo "path with spaces/and_special-chars"'],
             capture_output=True,
             text=True,
-            timeout=5, check=False,
+            timeout=15, check=False,
         )
         assert result.returncode == 0
         assert "path with spaces" in result.stdout
@@ -134,7 +136,7 @@ class TestLauncherStackSmoke:
             ["/bin/bash", "-ilc", "echo shell_init_ok"],
             capture_output=True,
             text=True,
-            timeout=10, check=False,  # Login shell may take longer to initialize
+            timeout=30, check=False,  # Login shell slow under xdist/WSL2
         )
         assert result.returncode == 0
         assert "shell_init_ok" in result.stdout

@@ -422,33 +422,33 @@ class TestThumbnailWidgetIntegration:
 
     @pytest.fixture
     def integrated_widget(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
+        self, qtbot: QtBot, cache_manager: CacheManager
     ) -> ThumbnailWidget:
         """Create widget with real cache manager."""
         shot = Shot("integrated", "test", "0001", "/test/path")
 
         # Set cache manager on widget class
-        ThumbnailWidget.set_cache_manager(real_cache_manager)
+        ThumbnailWidget.set_cache_manager(cache_manager)
 
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)
         return widget
 
     def test_cache_manager_integration(
-        self, integrated_widget: ThumbnailWidget, real_cache_manager: CacheManager
+        self, integrated_widget: ThumbnailWidget, cache_manager: CacheManager
     ) -> None:
         """Test widget integrates with cache manager."""
         widget = integrated_widget
 
         # Widget should use the cache manager
-        assert widget._cache_manager == real_cache_manager
+        assert widget._cache_manager == cache_manager
 
     def test_widget_with_real_cache(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
+        self, qtbot: QtBot, cache_manager: CacheManager
     ) -> None:
         """Test widget behavior with real cache manager."""
         shot = Shot("cached", "test", "0001", "/test/path")
-        ThumbnailWidget.set_cache_manager(real_cache_manager)
+        ThumbnailWidget.set_cache_manager(cache_manager)
 
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)

@@ -208,9 +208,9 @@ class TestShotModelSignals:
     """Test ShotModel signal emission patterns."""
 
     @pytest.fixture
-    def optimized_model(self, real_cache_manager, qtbot):
+    def optimized_model(self, cache_manager, qtbot):
         """Create ShotModel for testing."""
-        return ShotModel(real_cache_manager)
+        return ShotModel(cache_manager)
         # model is a QObject, not a widget
 
     def test_background_load_signals(self, optimized_model, qtbot) -> None:
@@ -277,7 +277,7 @@ class TestShotModelSignals:
         assert optimized_model.shots[0].show == "NEW"
 
     def test_shots_loaded_signal_re_emitted_after_background_load(
-        self, real_cache_manager, qtbot
+        self, cache_manager, qtbot
     ) -> None:
         """Test shots_loaded signal is re-emitted after background load completes.
 
@@ -293,10 +293,10 @@ class TestShotModelSignals:
         shots_loaded was only emitted once.
         """
         # Clear cache to simulate first run without cached data
-        real_cache_manager.clear_cached_data("shots")
+        cache_manager.clear_cached_data("shots")
 
         # Create model with empty cache
-        model = ShotModel(real_cache_manager)
+        model = ShotModel(cache_manager)
 
         # Set up test process pool with shot data
         test_pool = TestProcessPool(allow_main_thread=True)

@@ -4,59 +4,17 @@ This module provides factory fixtures for creating test data instances
 including shots, 3DE scenes, and VFX directory structures.
 
 Fixtures:
-    sample_shot_data: Sample shot dictionary
-    sample_threede_scene_data: Sample 3DE scene dictionary
     make_test_shot: Factory for creating Shot instances
     make_test_filesystem: Factory for creating TestFileSystem instances
     make_real_3de_file: Factory for creating 3DE files in VFX structure
     real_shot_model: Factory for creating ShotModel instances
-    mock_environment: Mock environment variables
-    isolated_test_environment: Environment with cache clearing
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
-
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from PySide6.QtWidgets import QApplication
-
-
-# ==============================================================================
-# Sample Data Fixtures
-# ==============================================================================
-
-
-@pytest.fixture
-def sample_shot_data() -> dict[str, object]:
-    """Sample shot data for testing."""
-    return {
-        "show": "TestShow",
-        "sequence": "SEQ001",
-        "shot": "0010",
-        "workspace_path": "/shows/TestShow/shots/SEQ001/SEQ001_0010",
-    }
-
-
-@pytest.fixture
-def sample_threede_scene_data() -> dict[str, object]:
-    """Sample 3DE scene data for testing."""
-    return {
-        "filepath": "/shows/TestShow/shots/SEQ001/SEQ001_0010/user/test_user/3de/SEQ001_0010_v001.3de",
-        "show": "TestShow",
-        "sequence": "SEQ001",
-        "shot": "0010",
-        "user": "test_user",
-        "filename": "SEQ001_0010_v001.3de",
-        "modified_time": 1234567890.0,
-        "workspace_path": "/shows/TestShow/shots/SEQ001/SEQ001_0010",
-    }
 
 
 # ==============================================================================
@@ -205,64 +163,3 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
     # Create ShotModel instance with test process pool and shared cache manager
     return ShotModel(cache_manager=cache_manager, process_pool=test_process_pool)
 
-
-# ==============================================================================
-# Mock Fixtures
-# ==============================================================================
-
-
-
-@pytest.fixture
-def mock_environment(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]:
-    """Set up mock environment variables for testing.
-
-    Uses monkeypatch.setenv for safer environment manipulation that
-    doesn't clear the entire environment mapping (which can surprise
-    other threads).
-    """
-    # Set test environment using monkeypatch (safer than clearing os.environ)
-    monkeypatch.setenv("SHOTBOT_MODE", "test")
-    monkeypatch.setenv("USER", "test_user")
-
-    # Cleanup is automatic via monkeypatch
-    return {
-        "SHOTBOT_MODE": "test",
-        "USER": "test_user",
-    }
-
-
-@pytest.fixture
-def isolated_test_environment(qapp: QApplication) -> Iterator[None]:
-    """Provide isolated test environment with cache clearing for Qt widgets.
-
-    This fixture ensures complete test isolation by:
-    1. Clearing all utility caches (VersionUtils, path cache, etc.)
-    2. Processing Qt events to ensure clean state
-    3. Providing proper cleanup after test execution
-
-    Critical for parallel test execution with pytest-xdist to prevent
-    cache pollution between tests running in different workers.
-
-    Args:
-        qapp: QApplication fixture from qt_bootstrap
-
-    """
-    from PySide6.QtCore import QCoreApplication, QEvent
-
-    from utils import clear_all_caches
-
-    # Clear all utility caches before test
-    clear_all_caches()
-
-    # Process Qt events for clean state
-    qapp.processEvents()
-    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-
-    yield
-
-    # Clear caches after test for next test's isolation
-    clear_all_caches()
-
-    # Final Qt cleanup
-    qapp.processEvents()
-    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)

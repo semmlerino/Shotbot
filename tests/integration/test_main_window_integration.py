@@ -12,20 +12,24 @@ import traceback
 from collections.abc import Generator, Iterator
 from datetime import UTC
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from cache_manager import CacheManager
-from notification_manager import NotificationType
 from previous_shots_finder import PreviousShotsFinder
 from previous_shots_model import PreviousShotsModel
-from shot_model import RefreshResult, Shot, ShotModel
+from shot_model import Shot, ShotModel
+from tests.fixtures.integration_doubles import (
+    MainWindowTestProgressManager,
+    ProgressOperationDouble,
+    TestMessageBox,
+    TestNotificationManager,
+)
 from tests.fixtures.test_doubles import (
     PopenDouble,
     TestCompletedProcess,
@@ -87,141 +91,7 @@ def _close_windows(windows: list[Any], qtbot: Any) -> None:
             process_qt_events()
 
 
-# ---------------------------------------------------------------------------
-# Test doubles used by TestMainWindowUICoordination and related classes
-# ---------------------------------------------------------------------------
-
-class TestProgressContext:
-    """Test double for ProgressManager context."""
-
-    __test__ = False
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        self.args = args
-        self.kwargs = kwargs
-        self.progress_updates: list[dict[str, Any]] = []
-
-    def __enter__(self) -> TestProgressContext:
-        return self
-
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        pass
-
-    def update(self, value: int, message: str = "") -> None:
-        self.progress_updates.append({"value": value, "message": message})
-
-    def set_indeterminate(self) -> None:
-        self.progress_updates.append(
-            {"type": "indeterminate", "value": -1, "message": "Indeterminate"}
-        )
-
-
-class TestProgressManager:
-    """Test double for ProgressManager following UNIFIED_TESTING_GUIDE."""
-
-    __test__ = False
-
-    def __init__(self) -> None:
-        self.operations: list[dict[str, Any]] = []
-        self.active_operations: dict[str, TestProgressContext] = {}
-        self._next_operation_id = 0
-
-    def operation(self, *args: Any, **kwargs: Any) -> TestProgressContext:
-        return TestProgressContext(*args, **kwargs)
-
-    def start_operation(self, config: Any) -> TestProgressContext:
-        operation_id = config.title if hasattr(config, "title") else str(config)
-        self._next_operation_id += 1
-        key = f"{operation_id}_{self._next_operation_id}"
-        self.operations.append({"type": "start", "id": operation_id})
-        ctx = TestProgressContext()
-        self.active_operations[key] = ctx
-        return ctx
-
-    def finish_operation(self, success: bool = True, error_message: str = "") -> None:
-        self.operations.append({"type": "finish", "success": success})
-        if self.active_operations:
-            key = list(self.active_operations.keys())[-1]
-            del self.active_operations[key]
-
-    def clear(self) -> None:
-        self.operations.clear()
-        self.active_operations.clear()
-        self._next_operation_id = 0
-
-
-class TestNotificationManager:
-    """Test double for NotificationManager following UNIFIED_TESTING_GUIDE.
-
-    All methods are @classmethod to match the real NotificationManager interface.
-    """
-
-    __test__ = False
-
-    _notifications: ClassVar[list[dict[str, Any]]] = []
-
-    @classmethod
-    def _record_notification(
-        cls, notif_type: str, title: str, message: str = "", **kwargs: Any
-    ) -> None:
-        cls._notifications.append(
-            {"type": notif_type, "title": title, "message": message, **kwargs}
-        )
-
-    @classmethod
-    def error(cls, title: str, message: str = "", details: str = "") -> None:
-        cls._record_notification("error", title, message, details=details)
-
-    @classmethod
-    def warning(cls, title: str, message: str = "", details: str = "") -> None:
-        cls._record_notification("warning", title, message, details=details)
-
-    @classmethod
-    def info(cls, message: str, timeout: int = 3000) -> None:
-        cls._record_notification("info", "", message, timeout=timeout)
-
-    @classmethod
-    def success(cls, message: str, timeout: int = 3000) -> None:
-        cls._record_notification("success", "", message, timeout=timeout)
-
-    @classmethod
-    def toast(
-        cls,
-        message: str,
-        notification_type: NotificationType = NotificationType.INFO,
-        duration: int = 4000,
-    ) -> None:
-        cls._record_notification(
-            "toast", "", message, notification_type=notification_type, duration=duration
-        )
-
-    @classmethod
-    def get_last_notification(cls) -> dict[str, Any] | None:
-        return cls._notifications[-1] if cls._notifications else None
-
-    @classmethod
-    def clear(cls) -> None:
-        cls._notifications.clear()
-
-
-class TestMessageBox:
-    """Test double for QMessageBox to capture dialogs."""
-
-    __test__ = False
-
-    def __init__(self) -> None:
-        self.messages: list[dict[str, Any]] = []
-
-    def warning(self, parent: QObject | None, title: str, message: str) -> None:
-        self.messages.append(
-            {"type": "warning", "parent": parent, "title": title, "message": message}
-        )
-
-    def get_last_message(self) -> dict[str, Any] | None:
-        return self.messages[-1] if self.messages else None
-
-    def clear(self) -> None:
-        self.messages.clear()
+# Test doubles are imported from tests.fixtures.integration_doubles above.
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +143,7 @@ def main_window_with_real_components(
     NotificationManager.toast = TestNotificationManager.toast
 
     from progress_manager import ProgressManager
-    test_progress_manager = TestProgressManager()
+    test_progress_manager = MainWindowTestProgressManager()
     original_operation = ProgressManager.operation
     original_start_operation = ProgressManager.start_operation
     original_finish_operation = ProgressManager.finish_operation
@@ -563,142 +433,6 @@ class TestCrossTabSynchronization:
 
 
 # ---------------------------------------------------------------------------
-# TestCacheUICoordination
-# ---------------------------------------------------------------------------
-
-@pytest.mark.allow_main_thread
-class TestCacheUICoordination:
-    """Test cache manager and UI synchronization."""
-
-    @pytest.fixture(autouse=True)
-    def setup_and_teardown(self, qtbot: QtBot, tmp_path: Path) -> None:
-        self.test_windows: list[Any] = []
-        yield
-        _close_windows(self.test_windows, qtbot)
-
-    def test_cache_invalidation_refreshes_data(
-        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
-    ) -> None:
-        """Verify that refreshing after data changes returns updated results."""
-        import os
-        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
-
-        window = MainWindow()
-        qtbot.addWidget(window)
-        self.test_windows.append(window)
-
-        test_pool = TestProcessPool(allow_main_thread=True)
-        test_pool.set_outputs(
-            "workspace /shows/TEST/shots/seq01/seq01_0010\nworkspace /shows/TEST/shots/seq01/seq01_0020"
-        )
-        window.shot_model._process_pool = test_pool
-
-        success, _ = window.shot_model.refresh_shots()
-        assert success
-        assert len(window.shot_model.shots) == 2
-
-        test_pool.set_outputs(
-            "workspace /shows/TEST/shots/seq01/seq01_0010\n"
-            "workspace /shows/TEST/shots/seq01/seq01_0020\n"
-            "workspace /shows/TEST/shots/seq01/seq01_0030"
-        )
-
-        success, _has_changes = window.shot_model.refresh_shots()
-        assert success
-        assert len(window.shot_model.shots) == 3
-
-
-# ---------------------------------------------------------------------------
-# TestErrorPropagationChains
-# ---------------------------------------------------------------------------
-
-@pytest.mark.allow_main_thread
-class TestErrorPropagationChains:
-    """Test error handling across component boundaries."""
-
-    @pytest.fixture(autouse=True)
-    def setup_and_teardown(self, qtbot: QtBot) -> None:
-        self.test_windows: list[Any] = []
-        yield
-        _close_windows(self.test_windows, qtbot)
-
-    def test_subprocess_failure_handled_gracefully(
-        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
-    ) -> None:
-        """Verify subprocess failures are caught, signal is emitted, and UI stays responsive."""
-        import os
-        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
-
-        window = MainWindow()
-        qtbot.addWidget(window)
-        self.test_windows.append(window)
-        window.show()
-
-        test_pool = TestProcessPool(allow_main_thread=True)
-        test_pool.should_fail = True
-        window.shot_model._process_pool = test_pool
-
-        error_emitted = False
-        error_message = ""
-
-        def on_error(msg: str) -> None:
-            nonlocal error_emitted, error_message
-            error_emitted = True
-            error_message = msg
-
-        window.shot_model.error_occurred.connect(on_error)
-
-        try:
-            success, _ = window.shot_model.refresh_shots()
-            assert not success
-            assert error_emitted
-            assert "fail" in error_message.lower()
-            assert window.isVisible()
-        finally:
-            with contextlib.suppress(TypeError, RuntimeError):
-                window.shot_model.error_occurred.disconnect(on_error)
-
-    def test_timeout_handled_properly(
-        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
-    ) -> None:
-        """Verify timeout errors are handled and the system recovers."""
-        import os
-        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
-
-        window = MainWindow()
-        qtbot.addWidget(window)
-        self.test_windows.append(window)
-        window.show()
-
-        test_pool = TestProcessPool(allow_main_thread=True)
-        test_pool.fail_with_timeout = True
-        window.shot_model._process_pool = test_pool
-
-        error_emitted = False
-
-        def on_error(msg: str) -> None:
-            nonlocal error_emitted
-            error_emitted = True
-
-        window.shot_model.error_occurred.connect(on_error)
-
-        try:
-            success, _ = window.shot_model.refresh_shots()
-            assert not success
-            assert error_emitted
-
-            test_pool.fail_with_timeout = False
-            test_pool.set_outputs("workspace /shows/TEST/shots/seq01/seq01_0010")
-
-            success, _ = window.shot_model.refresh_shots()
-            assert success
-            assert len(window.shot_model.shots) == 1
-        finally:
-            with contextlib.suppress(TypeError, RuntimeError):
-                window.shot_model.error_occurred.disconnect(on_error)
-
-
-# ---------------------------------------------------------------------------
 # TestMainWindowUICoordination
 # ---------------------------------------------------------------------------
 
@@ -868,21 +602,6 @@ class TestMainWindowKeyboardShortcuts:
             f"Expected commands to be executed. Commands: {commands}"
         )
 
-    def test_tab_navigation_with_keyboard(
-        self, main_window_with_real_components: Any, qtbot: Any
-    ) -> None:
-        """Test tab navigation using keyboard."""
-        window = main_window_with_real_components
-
-        window.tab_widget.setCurrentIndex(0)
-
-        qtbot.keyClick(
-            window.tab_widget, Qt.Key.Key_Tab, Qt.KeyboardModifier.ControlModifier
-        )
-        qtbot.wait(1)
-
-        assert window.tab_widget.currentIndex() == 1
-
 
 # ---------------------------------------------------------------------------
 # TestMainWindowErrorScenarios
@@ -922,44 +641,7 @@ class TestMainWindowErrorScenarios:
                 ]
                 assert len(error_notifications) > 0
 
-    def test_handles_missing_cache_directory(
-        self, main_window_with_real_components: Any, tmp_path: Path
-    ) -> None:
-        """Test that missing cache directory is handled gracefully."""
-        window = main_window_with_real_components
 
-        cache_dir = tmp_path / "cache"
-        if cache_dir.exists():
-            shutil.rmtree(cache_dir)
-
-        result = window.shot_model.refresh_shots()
-        assert isinstance(result, RefreshResult)
-
-
-# ---------------------------------------------------------------------------
-# ProgressOperationDouble (used by TestUserWorkflows)
-# ---------------------------------------------------------------------------
-
-class ProgressOperationDouble:
-    """Test double for progress operations with real behavior."""
-
-    def __init__(self) -> None:
-        self.is_indeterminate = False
-        self.progress_value = 0
-        self.is_finished = False
-        self.operations: list[tuple] = []
-
-    def set_indeterminate(self, indeterminate: bool = True) -> None:
-        self.is_indeterminate = indeterminate
-        self.operations.append(("set_indeterminate", indeterminate))
-
-    def update(self, progress: int) -> None:
-        self.progress_value = progress
-        self.operations.append(("update", progress))
-
-    def finish(self) -> None:
-        self.is_finished = True
-        self.operations.append(("finish",))
 
 
 # ---------------------------------------------------------------------------

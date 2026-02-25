@@ -6,7 +6,6 @@ used in tests that need filesystem access, caching, or VFX directory structures.
 Fixtures:
     temp_cache_dir: Temporary cache directory
     cache_manager: CacheManager instance with temp cache dir
-    real_cache_manager: Alias for cache_manager (compatibility)
 """
 
 from __future__ import annotations
@@ -54,20 +53,3 @@ def cache_manager(temp_cache_dir: Path) -> Iterator[object]:
     yield manager
     # Cleanup
     manager.clear_cache()
-
-
-@pytest.fixture
-def real_cache_manager(cache_manager: object) -> Iterator[object]:
-    """Alias for cache_manager fixture (for compatibility).
-
-    Some tests were written using 'real_cache_manager' to distinguish
-    from mocked versions. This alias maintains compatibility.
-
-    Args:
-        cache_manager: The actual cache_manager fixture
-
-    Yields:
-        Same CacheManager instance as cache_manager
-
-    """
-    return cache_manager

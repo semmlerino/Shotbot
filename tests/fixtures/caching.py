@@ -267,7 +267,7 @@ def clean_thumbnails(tmp_path: Path) -> Iterator[Path]:
 
 
 @pytest.fixture
-def seed_cache_file(tmp_path: Path) -> Iterator[SeedCacheFile]:
+def seed_cache_file(tmp_path: Path) -> Iterator[SeedCacheFile]:  # noqa: F821
     """Fixture for seeding cache files with specific content for persistence tests.
 
     Use this fixture with @pytest.mark.persistent_cache to test:

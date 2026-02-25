@@ -38,7 +38,7 @@ pytestmark = [
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 
-@pytest.mark.usefixtures("isolated_test_environment", "qapp")
+@pytest.mark.usefixtures("qapp")
 class TestLogViewer:
     """Test LogViewer widget with real Qt components.
 

@@ -1048,7 +1048,7 @@ class TestPlateDiscoveryCaseInsensitive:
     """Test case-insensitive plate directory discovery (commit 78983a8 fix)."""
 
     @pytest.mark.parametrize(
-        "plate_names,expected_priorities",
+        ("plate_names", "expected_priorities"),
         [
             (
                 ["pl01", "fg01", "el01", "bg02"],
@@ -1111,7 +1111,7 @@ class TestUserWorkspaceJPEGDiscovery:
     """Test user workspace JPEG discovery with undistort/ and scene/ structures (commit 78983a8)."""
 
     @pytest.mark.parametrize(
-        "subdir,user,seq,shot,plate,filename",
+        ("subdir", "user", "seq", "shot", "plate", "filename"),
         [
             (
                 "undistort",

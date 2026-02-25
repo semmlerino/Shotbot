@@ -6,7 +6,6 @@ functions following UNIFIED_TESTING_GUIDE patterns.
 
 from __future__ import annotations
 
-import contextlib
 import threading
 from collections.abc import Generator
 from typing import TYPE_CHECKING
@@ -64,29 +63,18 @@ def status_bar(qtbot: QtBot) -> QStatusBar:
     return bar
 
 
+@pytest.fixture(autouse=True)
+def _reset_progress_manager() -> Generator[None, None, None]:
+    """Reset ProgressManager singleton state before and after each test."""
+    ProgressManager.reset()
+    yield
+    ProgressManager.reset()
+
+
 @pytest.fixture
 def progress_config() -> ProgressConfig:
     """Create default progress configuration."""
     return ProgressConfig(title="Test Operation", cancelable=False)
-
-
-@pytest.fixture(autouse=True)
-def reset_progress_manager() -> Generator[None, None, None]:
-    """Reset ProgressManager singleton state before each test."""
-    # Call clear_all_operations() FIRST to properly close Qt widgets
-    with contextlib.suppress(Exception):
-        ProgressManager.clear_all_operations()
-    # Then clear singleton state
-    ProgressManager._instance = None
-    ProgressManager._operation_stack = []
-    ProgressManager._status_bar = None
-    yield
-    # Cleanup after test (same pattern)
-    with contextlib.suppress(Exception):
-        ProgressManager.clear_all_operations()
-    ProgressManager._instance = None
-    ProgressManager._operation_stack = []
-    ProgressManager._status_bar = None
 
 
 # =============================================================================

@@ -63,64 +63,6 @@ def reset_threede_finder():
     TestThreeDESceneFinder._class_error_to_raise = None
 
 
-@pytest.fixture(autouse=True)
-def reset_threede_singletons() -> None:
-    """Reset 3DE-related singletons to prevent cross-test contamination.
-
-    Resets:
-    - ProcessPoolManager._instance (used by worker for parallel discovery)
-    - NotificationManager._instance (used for progress notifications)
-    - ProgressManager._instance (used for operation tracking)
-    """
-    # Import here to avoid circular dependencies
-    from notification_manager import NotificationManager
-    from process_pool_manager import ProcessPoolManager
-    from progress_manager import ProgressManager
-
-    # Reset ProcessPoolManager
-    if ProcessPoolManager._instance is not None:
-        try:
-            if hasattr(ProcessPoolManager._instance, "shutdown"):
-                ProcessPoolManager._instance.shutdown(timeout=1.0)
-        except Exception:
-            pass
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-
-    # Reset NotificationManager
-    if NotificationManager._instance is not None:
-        try:
-            NotificationManager.cleanup()
-        except (RuntimeError, AttributeError):
-            pass
-        if hasattr(NotificationManager._instance, "_initialized"):
-            delattr(NotificationManager._instance, "_initialized")
-    NotificationManager._instance = None
-    NotificationManager._main_window = None
-    NotificationManager._status_bar = None
-    NotificationManager._active_toasts = []
-    NotificationManager._current_progress = None
-
-    # Reset ProgressManager
-    if ProgressManager._instance is not None:
-        try:
-            ProgressManager.clear_all_operations()
-        except (RuntimeError, AttributeError):
-            pass
-        if hasattr(ProgressManager._instance, "_initialized"):
-            delattr(ProgressManager._instance, "_initialized")
-    ProgressManager._instance = None
-    ProgressManager._operation_stack = []
-    ProgressManager._status_bar = None
-
-    yield
-
-    # Reset again after test (defense in depth)
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-    NotificationManager._instance = None
-    ProgressManager._instance = None
-
 
 class TestThreeDESceneFinder:
     """Test double for ThreeDESceneFinder with realistic behavior.

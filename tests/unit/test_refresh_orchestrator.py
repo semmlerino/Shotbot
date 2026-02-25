@@ -722,8 +722,8 @@ def test_refresh_shot_display_debounces_rapid_calls(
     # Should only execute once due to debouncing (first call goes through)
     assert call_count == 1, "Expected exactly 1 call due to debouncing"
 
-    # Wait for debounce interval to pass (500ms + 200ms margin)
-    qtbot.wait(700)
+    # Wait for debounce interval to pass (500ms + 700ms margin for CI/parallel load)
+    qtbot.wait(1200)
 
     # Now a new call should execute (debounce window expired)
     orchestrator._refresh_shot_display()

@@ -402,7 +402,7 @@ class TestShotModel:
         shot = real_shot_model.get_shot_by_index(1)
         assert shot is None
 
-    def test_load_from_cache_success(self, real_shot_model, real_cache_manager) -> None:
+    def test_load_from_cache_success(self, real_shot_model, cache_manager) -> None:
         """Test successful cache loading with real cache."""
         # Prepare real cache data
         cache_data = [
@@ -421,7 +421,7 @@ class TestShotModel:
         ]
 
         # Store data in real cache
-        real_cache_manager.cache_shots(cache_data)
+        cache_manager.cache_shots(cache_data)
 
         # Test actual loading behavior
         result = real_shot_model.test_load_from_cache()
@@ -433,7 +433,7 @@ class TestShotModel:
 
     def test_load_from_cache_no_data(self, real_shot_model) -> None:
         """Test cache loading when no data available."""
-        # Cache is empty by default in real_cache_manager
+        # Cache is empty by default in cache_manager
         result = real_shot_model.test_load_from_cache()
 
         assert result is False
@@ -493,7 +493,7 @@ class TestShotModelMergeErrorHandling:
     def test_process_shot_merge_cache_corruption_recovery(
         self,
         real_shot_model: ShotModel,
-        real_cache_manager: CacheManager,
+        cache_manager: CacheManager,
         mocker: MockerFixture,
     ) -> None:
         """Test recovery when cache merge fails due to corruption.
@@ -507,7 +507,7 @@ class TestShotModelMergeErrorHandling:
         ]
 
         # Mock: Cache merge throws corruption error
-        mock_merge = mocker.patch.object(real_cache_manager, "merge_shots_incremental")
+        mock_merge = mocker.patch.object(cache_manager, "merge_shots_incremental")
         mock_merge.side_effect = KeyError("corrupted_field")
 
         # Action: Process merge should recover
@@ -525,7 +525,7 @@ class TestShotModelMergeErrorHandling:
     def test_process_shot_merge_migration_failure_continues(
         self,
         real_shot_model: ShotModel,
-        real_cache_manager: CacheManager,
+        cache_manager: CacheManager,
         mocker: MockerFixture,
     ) -> None:
         """Test that migration failures don't halt the refresh operation.
@@ -544,12 +544,12 @@ class TestShotModelMergeErrorHandling:
             has_changes=True,
         )
         mocker.patch.object(
-            real_cache_manager, "merge_shots_incremental", return_value=mock_merge_result
+            cache_manager, "merge_shots_incremental", return_value=mock_merge_result
         )
 
         # Mock: Migration returns False (disk full, permissions, etc.)
         mock_migrate = mocker.patch.object(
-            real_cache_manager, "migrate_shots_to_previous", return_value=False
+            cache_manager, "migrate_shots_to_previous", return_value=False
         )
 
         # Action: Should complete despite migration failure
@@ -567,7 +567,7 @@ class TestShotModelMergeErrorHandling:
     def test_on_shots_loaded_async_merge_path(
         self,
         real_shot_model: ShotModel,
-        real_cache_manager: CacheManager,
+        cache_manager: CacheManager,
         mocker: MockerFixture,
         qtbot: QtBot,
     ) -> None:
@@ -589,7 +589,7 @@ class TestShotModelMergeErrorHandling:
             has_changes=True,
         )
         mocker.patch.object(
-            real_cache_manager, "merge_shots_incremental", return_value=mock_merge_result
+            cache_manager, "merge_shots_incremental", return_value=mock_merge_result
         )
 
         # Setup signal spies - shots_changed fires when there are new shots added
@@ -772,10 +772,10 @@ class TestShotModelRefreshSignals:
         assert "Test error" in error_spy.at(0)[0]
 
     def test_refresh_with_cache_updates_json_file(
-        self, real_shot_model, real_cache_manager: CacheManager, test_process_pool
+        self, real_shot_model, cache_manager: CacheManager, test_process_pool
     ) -> None:
         """Test that refresh properly updates the on-disk cache JSON file."""
-        cache_dir = real_cache_manager.cache_dir
+        cache_dir = cache_manager.cache_dir
         test_process_pool.set_outputs(
             f"workspace {Config.SHOWS_ROOT}/show1/shots/seq01/seq01_0010"
         )
@@ -806,7 +806,7 @@ class TestShotModelRefreshSignals:
         assert updated["data"][0]["show"] == "show2"
 
     def test_shot_data_persistence_through_cache(
-        self, real_cache_manager: CacheManager
+        self, cache_manager: CacheManager
     ) -> None:
         """Test shot data loaded from pre-seeded raw-dict cache at model init."""
         test_shots_data = [
@@ -826,11 +826,11 @@ class TestShotModelRefreshSignals:
             },
         ]
 
-        real_cache_manager.cache_shots(test_shots_data)
+        cache_manager.cache_shots(test_shots_data)
 
         pool = TestProcessPool(allow_main_thread=True)
         model = ShotModel(
-            cache_manager=real_cache_manager,
+            cache_manager=cache_manager,
             process_pool=pool,
         )
 

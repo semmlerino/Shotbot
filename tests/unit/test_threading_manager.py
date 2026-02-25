@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch  # Mock kept for boundary checks on extern
 
 import pytest
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication  # noqa: TC002
 
 from tests.test_helpers import process_qt_events
 from thread_safe_worker import ThreadSafeWorker
