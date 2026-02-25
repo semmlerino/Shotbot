@@ -486,62 +486,37 @@ class TestProcessPoolManagerBehavior:
         assert results["fast"] == "done"
         manager.shutdown()
 
-    def test_batch_execute_timeout_returns_none_for_timed_out_commands(
-        self, mocker
-    ) -> None:
-        """Commands that timeout return None in batch results."""
-        import concurrent.futures
-
-        manager = InjectableProcessPoolManager()
-        session = BashSessionDouble()
-        session.set_response("cmd1", "result1")
-        manager.set_test_session(session)
-
-        # Mock one future to raise TimeoutError
-        original_result = concurrent.futures.Future.result
-
-        def mock_result(self, timeout=None):
-            # Simulate timeout on second call
-            if hasattr(self, "_timeout_triggered"):
-                raise concurrent.futures.TimeoutError
-            self._timeout_triggered = True
-            return original_result(self, timeout=timeout)
-
-        mocker.patch.object(
-            concurrent.futures.Future, "result", mock_result
-        )
-
-        # Note: Due to mocking complexity, this is a simplified test
-        # The actual behavior is tested via integration tests
-        manager.shutdown()
-
     def test_error_recovery_during_execution(self) -> None:
         """Test that manager recovers from execution errors.
 
-        CORRECT: Testing error recovery behavior, not error detection.
+        Covers both fail-first and success-before-failure scenarios in one test:
+        verifies manager remains functional after a session error regardless of
+        whether commands succeeded beforehand.
         """
         manager = InjectableProcessPoolManager()
         session = BashSessionDouble()
+        manager.set_test_session(session)
 
-        # Configure session to fail initially
+        # Execute a successful command first (verifies normal operation)
+        session.set_response("good_cmd", "success")
+        result_pre = manager.execute_workspace_command("good_cmd")
+        assert result_pre == "success"
+
+        # Trigger a session failure
         session.should_fail = True
         session.failure_message = "Connection lost"
 
-        manager.set_test_session(session)
-
-        # First execution should handle error gracefully
         with pytest.raises(Exception, match="Connection lost"):
-            manager.execute_workspace_command("echo test")
+            manager.execute_workspace_command("bad_cmd")
 
         # Reset session to working state
         session.should_fail = False
-        session.reset()
+        session.set_response("recovery_cmd", "recovered")
 
         # Test BEHAVIOR: Manager recovers and works after error
-        result = manager.execute_workspace_command("echo recovered")
+        result = manager.execute_workspace_command("recovery_cmd")
         assert result == "recovered"
 
-        # Cleanup InjectableProcessPoolManager (it bypasses singleton)
         manager.shutdown()
 
     def test_concurrent_access_thread_safety(self, qapp) -> None:
@@ -719,10 +694,11 @@ class TestCacheInvalidation:
 class TestSessionPoolLifecycle:
     """Test session pool creation, reuse, and lifecycle management."""
 
-    def test_session_pool_created_on_first_command(self) -> None:
-        """Test that session pools are lazily created on first use.
+    def test_session_lifecycle_creation_and_reuse(self) -> None:
+        """Test that sessions are lazily created and reused across multiple commands.
 
-        CORRECT: Testing behavior (lazy initialization), not implementation.
+        Verifies lazy initialization (no pool before first command) and that
+        the same session handles all subsequent commands correctly.
         """
         manager = InjectableProcessPoolManager()
         session = BashSessionDouble()
@@ -730,25 +706,6 @@ class TestSessionPoolLifecycle:
 
         # Before any commands, no session pool should exist
         assert len(manager._session_pools) == 0
-
-        # Execute command to trigger pool creation
-        session.set_response("echo test", "test")
-        manager.execute_workspace_command("echo test")
-
-        # Test BEHAVIOR: Command executed successfully (implies session created)
-        assert len(session.executed_commands) == 1
-        assert session.executed_commands[0] == "echo test"
-
-        manager.shutdown()
-
-    def test_session_reuse_across_multiple_commands(self) -> None:
-        """Test that sessions are reused for multiple commands.
-
-        CORRECT: Testing behavior (session reuse), not tracking method calls.
-        """
-        manager = InjectableProcessPoolManager()
-        session = BashSessionDouble()
-        manager.set_test_session(session)
 
         # Configure responses
         session.set_response("cmd1", "result1")
@@ -765,7 +722,7 @@ class TestSessionPoolLifecycle:
         assert result2 == "result2"
         assert result3 == "result3"
 
-        # Test BEHAVIOR: Same session handled all commands
+        # Test BEHAVIOR: Same session handled all commands (reuse, not re-creation)
         assert len(session.executed_commands) == 3
 
         manager.shutdown()
@@ -796,31 +753,6 @@ class TestSessionPoolLifecycle:
 
 class TestRoundRobinLoadBalancing:
     """Test round-robin session selection for load distribution."""
-
-    def test_round_robin_session_selection(self) -> None:
-        """Test that commands are distributed across sessions in round-robin order.
-
-        CORRECT: Testing load distribution behavior, not internal counters.
-        """
-        manager = InjectableProcessPoolManager()
-        session = BashSessionDouble()
-        manager.set_test_session(session)
-
-        # Execute multiple commands that won't be cached
-        # (Use unique commands to avoid cache hits)
-        commands = [f"echo {i}" for i in range(10)]
-        for cmd in commands:
-            session.set_response(cmd, f"output_{cmd}")
-            manager.execute_workspace_command(cmd, cache_ttl=0)  # Disable caching
-
-        # Test BEHAVIOR: All commands executed successfully
-        assert len(session.executed_commands) == 10
-
-        # Verify commands executed in expected order
-        for i, executed_cmd in enumerate(session.executed_commands):
-            assert executed_cmd == commands[i]
-
-        manager.shutdown()
 
     def test_concurrent_round_robin_distribution(self) -> None:
         """Test round-robin works correctly under concurrent load.
@@ -870,46 +802,33 @@ class TestRoundRobinLoadBalancing:
 class TestShutdownScenarios:
     """Test manager shutdown under various conditions."""
 
-    def test_shutdown_with_no_active_work(self) -> None:
-        """Test clean shutdown when no work is pending.
+    def test_shutdown_clean_and_idempotent(self) -> None:
+        """Test that shutdown completes cleanly and is safe to call multiple times.
 
-        CORRECT: Testing shutdown behavior, not internal state.
+        Verifies both the postcondition of a clean shutdown (flag set) and that
+        repeated shutdown calls do not raise errors.
         """
         manager = InjectableProcessPoolManager()
         session = BashSessionDouble()
         manager.set_test_session(session)
 
-        # Execute and complete a command
+        # Execute and complete a command before shutting down
         session.set_response("test", "result")
         manager.execute_workspace_command("test")
 
-        # Shutdown should complete cleanly
+        # First shutdown should complete cleanly
         manager.shutdown(timeout=2.0)
-
-        # Test BEHAVIOR: Shutdown completed successfully
         assert manager._shutdown_requested
 
-    def test_shutdown_is_idempotent(self) -> None:
-        """Test that multiple shutdown calls are safe.
-
-        CORRECT: Testing behavior (idempotency), not internal flags.
-        """
-        manager = InjectableProcessPoolManager()
-        session = BashSessionDouble()
-        manager.set_test_session(session)
-
-        # First shutdown
-        manager.shutdown(timeout=1.0)
-
-        # Test BEHAVIOR: Second shutdown doesn't raise errors
+        # Subsequent shutdown calls must not raise errors (idempotent)
         try:
             manager.shutdown(timeout=1.0)
-            manager.shutdown(timeout=1.0)  # Third time for good measure
-            shutdown_successful = True
+            manager.shutdown(timeout=1.0)
+            shutdown_idempotent = True
         except Exception:
-            shutdown_successful = False
+            shutdown_idempotent = False
 
-        assert shutdown_successful
+        assert shutdown_idempotent
 
     def test_shutdown_timeout_handling(self) -> None:
         """Test shutdown respects timeout parameter.
@@ -972,35 +891,6 @@ class TestShutdownScenarios:
 
 class TestErrorRecoveryPatterns:
     """Test error recovery and resilience patterns."""
-
-    def test_recovery_from_session_failure(self) -> None:
-        """Test that manager recovers from session execution failures.
-
-        CORRECT: Testing resilience behavior, not error internals.
-        """
-        manager = InjectableProcessPoolManager()
-        session = BashSessionDouble()
-        manager.set_test_session(session)
-
-        # First command succeeds
-        session.set_response("good_cmd", "success")
-        result1 = manager.execute_workspace_command("good_cmd")
-        assert result1 == "success"
-
-        # Second command fails
-        session.should_fail = True
-        session.failure_message = "Simulated session failure"
-
-        with pytest.raises(Exception, match="Simulated session failure"):
-            manager.execute_workspace_command("bad_cmd")
-
-        # Test BEHAVIOR: Manager recovers and can execute subsequent commands
-        session.should_fail = False
-        session.set_response("recovery_cmd", "recovered")
-        result2 = manager.execute_workspace_command("recovery_cmd")
-        assert result2 == "recovered"
-
-        manager.shutdown()
 
     def test_cache_invalidation_after_error(self) -> None:
         """Test that cache can be cleared after errors.

@@ -355,35 +355,16 @@ def reset_progress_manager() -> None:
 class TestThreeDEControllerInitialization:
     """Test ThreeDEController initialization."""
 
-    def test_init_stores_window_reference(
+    def test_initialization_sets_all_attributes(
         self, window_double: ThreeDETargetDouble
     ) -> None:
-        """Test that init stores window reference."""
+        """Test that init sets all expected constructor state."""
         controller = ThreeDEController(window_double)  # type: ignore[arg-type]
         assert controller.window is window_double
-
-    def test_init_creates_mutex(self, controller: ThreeDEController) -> None:
-        """Test that init creates worker mutex."""
         assert controller._worker_mutex is not None
-
-    def test_init_sets_no_active_worker(self, controller: ThreeDEController) -> None:
-        """Test that init starts with no active worker."""
         assert controller._threede_worker is None
-
-    def test_init_sets_progress_operation_to_none(
-        self, controller: ThreeDEController
-    ) -> None:
-        """Test that init has no progress operation."""
         assert controller._current_progress_operation is None
-
-    def test_init_sets_scan_time_to_zero(self, controller: ThreeDEController) -> None:
-        """Test that init has zero scan time."""
         assert controller._last_scan_time == 0.0
-
-    def test_init_sets_minimum_scan_interval(
-        self, controller: ThreeDEController
-    ) -> None:
-        """Test that init sets minimum scan interval."""
         assert controller._min_scan_interval == 30.0
 
 
@@ -395,49 +376,28 @@ class TestThreeDEControllerInitialization:
 class TestSignalSetup:
     """Test signal connections during initialization."""
 
-    def test_scene_selected_signal_connected(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    @pytest.mark.parametrize(
+        "signal_name, handler_attr",
+        [
+            ("scene_selected", "on_scene_selected"),
+            ("scene_double_clicked", "on_scene_double_clicked"),
+            ("recover_crashes_requested", "on_recover_crashes_clicked"),
+            ("show_filter_requested", "_on_show_filter_requested"),
+            ("text_filter_requested", "_on_text_filter_requested"),
+        ],
+    )
+    def test_signal_connected(
+        self,
+        controller: ThreeDEController,
+        window_double: ThreeDETargetDouble,
+        signal_name: str,
+        handler_attr: str,
     ) -> None:
-        """Test that scene_selected signal is connected."""
+        """Test that all grid signals are connected to their handlers."""
         grid = window_double.threede_shot_grid
-        assert controller.on_scene_selected in grid.scene_selected.callbacks
-
-    def test_scene_double_clicked_signal_connected(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that scene_double_clicked signal is connected."""
-        grid = window_double.threede_shot_grid
-        assert controller.on_scene_double_clicked in grid.scene_double_clicked.callbacks
-
-    def test_recover_crashes_signal_connected(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that recover_crashes_requested signal is connected."""
-        grid = window_double.threede_shot_grid
-        assert (
-            controller.on_recover_crashes_clicked
-            in grid.recover_crashes_requested.callbacks
-        )
-
-    def test_show_filter_signal_connected(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that show_filter_requested signal is connected."""
-        grid = window_double.threede_shot_grid
-        assert (
-            controller._on_show_filter_requested
-            in grid.show_filter_requested.callbacks
-        )
-
-    def test_text_filter_signal_connected(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that text_filter_requested signal is connected."""
-        grid = window_double.threede_shot_grid
-        assert (
-            controller._on_text_filter_requested
-            in grid.text_filter_requested.callbacks
-        )
+        signal = getattr(grid, signal_name)
+        handler = getattr(controller, handler_attr)
+        assert handler in signal.callbacks
 
 
 # ============================================================================
@@ -484,18 +444,6 @@ class TestSceneSelection:
         assert len(window_double._status_messages) > 0
         assert "sq010_sh0010" in window_double._status_messages[-1]
 
-    def test_on_scene_double_clicked_logs_message(
-        self, controller: ThreeDEController, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Test that double-click on scene logs the event."""
-        scene = make_scene()
-
-        with caplog.at_level("DEBUG"):
-            controller.on_scene_double_clicked(scene)
-
-        # Double click handler logs, though actual launch logic may be elsewhere
-        assert controller is not None  # Controller processes the event
-
 
 # ============================================================================
 # Test Discovery Callbacks
@@ -533,37 +481,29 @@ class TestDiscoveryCallbacks:
         operation = ProgressManager.get_current_operation()
         assert operation is not None
 
-    def test_on_discovery_finished_clears_progress(
+    @pytest.mark.parametrize(
+        "trigger",
+        ["finished", "error"],
+    )
+    @pytest.mark.allow_dialogs
+    def test_cleanup_clears_progress_and_loading_state(
         self,
         controller: ThreeDEController,
         window_double: ThreeDETargetDouble,
         reset_progress_manager: None,
+        trigger: str,
     ) -> None:
-        """Test that discovery finish clears progress operation."""
-        # Start a progress operation first
+        """Test that discovery finish and error both clear progress and loading state."""
+        window_double.threede_item_model._loading_state = True
         controller.on_discovery_started()
         assert controller._current_progress_operation is not None
 
-        # Finish discovery
-        scenes = [make_scene()]
-        controller.on_discovery_finished(scenes)
+        if trigger == "finished":
+            controller.on_discovery_finished([make_scene()])
+        else:
+            controller.on_discovery_error("Network error")
 
         assert controller._current_progress_operation is None
-
-    def test_on_discovery_finished_clears_loading_state(
-        self,
-        controller: ThreeDEController,
-        window_double: ThreeDETargetDouble,
-        reset_progress_manager: None,
-    ) -> None:
-        """Test that discovery finish clears loading state."""
-        window_double.threede_item_model._loading_state = True
-
-        # Start progress to have valid operation
-        controller.on_discovery_started()
-
-        controller.on_discovery_finished([])
-
         assert window_double.threede_item_model._loading_state is False
 
     def test_on_discovery_finished_skipped_when_closing(
@@ -582,21 +522,6 @@ class TestDiscoveryCallbacks:
 
         # Loading state should remain unchanged when closing
         assert window_double.threede_item_model._loading_state is True
-
-    @pytest.mark.allow_dialogs
-    def test_on_discovery_error_clears_progress(
-        self,
-        controller: ThreeDEController,
-        window_double: ThreeDETargetDouble,
-        reset_progress_manager: None,
-    ) -> None:
-        """Test that discovery error clears progress operation."""
-        # Start a progress operation first
-        controller.on_discovery_started()
-
-        controller.on_discovery_error("Network error")
-
-        assert controller._current_progress_operation is None
 
     @pytest.mark.allow_dialogs
     def test_on_discovery_error_shows_warning(
@@ -819,12 +744,6 @@ class TestFilterHandling:
 class TestWorkerManagement:
     """Test worker thread management."""
 
-    def test_has_active_worker_returns_false_initially(
-        self, controller: ThreeDEController
-    ) -> None:
-        """Test that has_active_worker returns False when no worker."""
-        assert controller.has_active_worker is False
-
     def test_cleanup_worker_handles_no_worker(
         self, controller: ThreeDEController
     ) -> None:
@@ -961,13 +880,13 @@ class TestCurrentSceneProperty:
 class TestCacheOperations:
     """Test cache-related operations."""
 
-    def test_cache_scenes_serializes_all_scenes(
+    def test_cache_scenes_serializes_scenes_as_dicts(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
-        """Test that cache_scenes serializes all scenes to cache manager."""
+        """Test that cache_scenes serializes all scenes as dicts to cache manager."""
         scenes = [
-            make_scene(shot="sh0010"),
-            make_scene(shot="sh0020"),
+            make_scene(show="testshow", sequence="sq010", shot="sh0010"),
+            make_scene(show="testshow", sequence="sq010", shot="sh0020"),
         ]
         window_double.threede_scene_model._scenes = scenes
 
@@ -975,18 +894,6 @@ class TestCacheOperations:
 
         cached = window_double.cache_manager._cached_scenes
         assert len(cached) == 2
-
-    def test_cache_scenes_converts_to_dict(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that cache_scenes converts scenes to dictionaries."""
-        scene = make_scene(show="testshow", sequence="sq010")
-        window_double.threede_scene_model._scenes = [scene]
-
-        controller.cache_scenes()
-
-        cached = window_double.cache_manager._cached_scenes
-        assert len(cached) == 1
         assert cached[0]["show"] == "testshow"
         assert cached[0]["sequence"] == "sq010"
 
@@ -1010,12 +917,3 @@ class TestLogging:
 
         assert any("2" in record.message for record in caplog.records)
 
-    def test_log_discovered_scenes_handles_empty(
-        self, controller: ThreeDEController, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Test that log_discovered_scenes handles empty list."""
-        with caplog.at_level("INFO"):
-            controller.log_discovered_scenes([])
-
-        # Should not raise and should log something
-        assert len(caplog.records) >= 0  # Just verify no exception

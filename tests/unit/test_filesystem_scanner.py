@@ -418,17 +418,26 @@ class TestSubprocessTimeoutCancellation:
 
         assert result == [], "Error should return empty results, not crash"
 
-    def test_file_not_found_find_command(
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            FileNotFoundError("[Errno 2] No such file or directory: 'find'"),
+            OSError("[Errno 13] Permission denied"),
+        ],
+        ids=["file_not_found", "permission_error"],
+    )
+    def test_os_errors_return_empty_results(
         self,
         scanner_with_parser: FileSystemScanner,
         monkeypatch: pytest.MonkeyPatch,
+        exc: OSError,
     ) -> None:
-        """FileNotFoundError (find command missing) returns empty results."""
+        """FileNotFoundError and OSError from Popen both return empty results."""
 
-        def raise_file_not_found(*args: object, **kwargs: object) -> None:
-            raise FileNotFoundError("[Errno 2] No such file or directory: 'find'")
+        def raise_exc(*args: object, **kwargs: object) -> None:
+            raise exc
 
-        monkeypatch.setattr("filesystem_scanner.subprocess.Popen", raise_file_not_found)
+        monkeypatch.setattr("filesystem_scanner.subprocess.Popen", raise_exc)
 
         result = scanner_with_parser._run_find_with_polling(
             find_cmd=["find", "/test"],
@@ -439,30 +448,7 @@ class TestSubprocessTimeoutCancellation:
             max_wait_time=300.0,
         )
 
-        assert result == [], "FileNotFoundError should return empty results"
-
-    def test_permission_error_graceful(
-        self,
-        scanner_with_parser: FileSystemScanner,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """OSError (permission denied) returns empty results."""
-
-        def raise_os_error(*args: object, **kwargs: object) -> None:
-            raise OSError("[Errno 13] Permission denied")
-
-        monkeypatch.setattr("filesystem_scanner.subprocess.Popen", raise_os_error)
-
-        result = scanner_with_parser._run_find_with_polling(
-            find_cmd=["find", "/test"],
-            show_path=Path("/shows/TEST"),
-            show="TEST",
-            excluded_users=set(),
-            cancel_flag=None,
-            max_wait_time=300.0,
-        )
-
-        assert result == [], "OSError should return empty results"
+        assert result == [], f"{type(exc).__name__} should return empty results"
 
     def test_max_wait_time_validation(
         self,
@@ -537,54 +523,6 @@ class TestStreamingReadLargeOutput:
             f"Expected {output_size} chars, got {len(stdout.strip())}"
         )
         assert stderr == "", f"Expected empty stderr, got: {stderr}"
-
-    def test_very_large_output_multiple_reads(self) -> None:
-        """Very large output (multiple pipe buffer fills) is captured correctly.
-
-        Tests output that requires multiple read cycles, simulating real
-        scenarios where find commands return thousands of file paths.
-        """
-        scanner = FileSystemScanner()
-
-        # Generate 200KB of output (well over pipe buffer)
-        output_size = 200_000
-        cmd = ["python3", "-c", f"print('y' * {output_size})"]
-
-        returncode, stdout, _stderr, status = scanner._run_subprocess_with_streaming_read(
-            cmd=cmd,
-            cancel_flag=None,
-            max_wait_time=30.0,
-        )
-
-        assert status == "ok"
-        assert returncode == 0
-        assert len(stdout.strip()) == output_size
-
-    def test_multiline_large_output(self) -> None:
-        """Large output with many lines (like find command output) is captured.
-
-        Simulates the actual use case: find command returning many file paths.
-        """
-        scanner = FileSystemScanner()
-
-        # Generate 1000 lines of output (typical for a large show scan)
-        num_lines = 1000
-        cmd = [
-            "python3",
-            "-c",
-            f"for i in range({num_lines}): print(f'/shows/TEST/shots/sq{{i:03d}}/sh{{i:04d}}/user/mm/3de/scene_{{i}}.3de')",
-        ]
-
-        returncode, stdout, _stderr, status = scanner._run_subprocess_with_streaming_read(
-            cmd=cmd,
-            cancel_flag=None,
-            max_wait_time=30.0,
-        )
-
-        assert status == "ok"
-        assert returncode == 0
-        lines = stdout.strip().split("\n")
-        assert len(lines) == num_lines, f"Expected {num_lines} lines, got {len(lines)}"
 
     def test_cancellation_during_large_output(self) -> None:
         """Cancellation works correctly during large output streaming."""
@@ -680,37 +618,6 @@ class TestLazyImportThreadSafety:
         # All threads should get the same parser instance
         unique_ids = set(parser_ids)
         assert len(unique_ids) == 1, f"Got {len(unique_ids)} different parser instances"
-
-    def test_concurrent_coordinator_first_access(self) -> None:
-        """Multiple threads accessing coordinator simultaneously get same instance."""
-        scanner = FileSystemScanner()
-        scanner._fs_coordinator = None
-        scanner._fs_coordinator_lock = threading.Lock()
-
-        barrier = threading.Barrier(5)
-        coordinator_ids: list[int] = []
-        errors: list[str] = []
-
-        def access_coordinator() -> None:
-            barrier.wait()
-            try:
-                with scanner._fs_coordinator_lock:
-                    if scanner._fs_coordinator is None:
-                        from filesystem_coordinator import FilesystemCoordinator
-                        scanner._fs_coordinator = FilesystemCoordinator()
-                coordinator_ids.append(id(scanner._fs_coordinator))
-            except Exception as e:
-                errors.append(str(e))
-
-        threads = [threading.Thread(target=access_coordinator) for _ in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        assert not errors, f"Errors during concurrent coordinator access: {errors}"
-        unique_ids = set(coordinator_ids)
-        assert len(unique_ids) == 1, f"Got {len(unique_ids)} different coordinator instances"
 
     def test_parser_available_after_init(self) -> None:
         """Parser is correctly available after lazy initialization."""

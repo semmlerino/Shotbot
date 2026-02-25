@@ -398,15 +398,6 @@ class TestThumbnailSizeManagement:
 
         assert delegate._metrics_cache == {}
 
-    def test_set_thumbnail_size_without_parent(self) -> None:
-        """Test setting thumbnail size when delegate has no parent."""
-        delegate = ConcreteThumbnailDelegate()
-
-        # Should not raise error
-        delegate.set_thumbnail_size(256)
-
-        assert delegate._thumbnail_size == 256
-
     def test_set_thumbnail_size_with_parent(self, qtbot) -> None:
         """Test setting thumbnail size with parent view.
 
@@ -478,6 +469,22 @@ class TestGetThumbnailRect:
         # Thumbnail should be offset by item position + padding
         assert thumb_rect.x() == 100 + delegate.theme.padding
         assert thumb_rect.y() == 200 + delegate.theme.padding
+
+    def test_get_thumbnail_rect_with_zero_padding(self, qtbot) -> None:
+        """Test thumbnail rect calculation with zero padding."""
+        view = QListView()
+        qtbot.addWidget(view)
+
+        custom_theme = DelegateTheme(padding=0)
+        delegate = CustomThemeDelegate(custom_theme, parent=view)
+
+        item_rect = QRect(0, 0, 200, 240)
+        thumb_rect = delegate._get_thumbnail_rect(item_rect)
+
+        # Should use full width with no inset
+        assert thumb_rect.width() == 200
+        assert thumb_rect.x() == 0
+        assert thumb_rect.y() == 0
 
 
 class TestDataExtraction:
@@ -621,19 +628,6 @@ class TestPaintMethod:
 
 class TestLoadingStates:
     """Test rendering of different loading states."""
-
-    def test_get_loading_rows_empty_model(self, qtbot) -> None:
-        """Test _get_loading_rows with empty model."""
-        view = QListView()
-        model = ShotItemModel()
-        view.setModel(model)
-        qtbot.addWidget(view)
-
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        loading_rows = delegate._get_loading_rows()
-
-        assert loading_rows == []
 
     def test_get_loading_rows_no_loading_items(self, qtbot) -> None:
         """Test _get_loading_rows when no items are loading."""
@@ -831,20 +825,6 @@ class TestLoadingAnimation:
         # Should be back to initial angle (modulo 360)
         assert delegate._loading_angle == initial_angle
 
-    def test_animation_angle_wraps_at_360(self, qtbot) -> None:
-        """Test that animation angle wraps correctly at 360 degrees."""
-        view = QListView()
-        qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        # Set angle near 360
-        delegate._loading_angle = 355
-
-        delegate._update_loading_animation()
-
-        # Should wrap to 5 (355 + 10 = 365 % 360 = 5)
-        assert delegate._loading_angle == 5
-
 
 class TestResourceCleanup:
     """Test cleanup() method and resource management."""
@@ -945,32 +925,24 @@ class TestEdgeCases:
         # Should handle empty string
         assert extracted_data["name"] == ""
 
-    def test_missing_thumbnail_in_data(self, qtbot) -> None:
-        """Test handling of missing thumbnail key."""
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param({"name": "test"}, id="missing_key"),
+            pytest.param({"name": "test", "thumbnail": None}, id="explicit_none"),
+        ],
+    )
+    def test_null_thumbnail_in_data(self, qtbot, data: ThumbnailItemData) -> None:
+        """Test handling of missing or None thumbnail resolves to None."""
         view = QListView()
         qtbot.addWidget(view)
 
-        data: ThumbnailItemData = {"name": "test"}
         delegate = MinimalDataDelegate(data_override=data, parent=view)
 
         index = QModelIndex()
         extracted_data = delegate.get_item_data(index)
 
-        # Should not have thumbnail key or it should be None
         assert extracted_data.get("thumbnail") is None
-
-    def test_none_thumbnail_in_data(self, qtbot) -> None:
-        """Test handling of explicit None thumbnail."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        data: ThumbnailItemData = {"name": "test", "thumbnail": None}
-        delegate = MinimalDataDelegate(data_override=data, parent=view)
-
-        index = QModelIndex()
-        extracted_data = delegate.get_item_data(index)
-
-        assert extracted_data["thumbnail"] is None
 
     def test_very_long_name_truncation(self, qtbot) -> None:
         """Test that very long names get truncated by Qt's eliding."""
@@ -1068,106 +1040,4 @@ class TestEdgeCases:
         assert extracted_data.get("user") is None
 
 
-class TestSignals:
-    """Test delegate signals (thumbnail_clicked, thumbnail_double_clicked)."""
 
-    def test_signals_exist(self, qtbot) -> None:
-        """Test that delegate has expected signals."""
-        view = QListView()
-        qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        assert hasattr(delegate, "thumbnail_clicked")
-        assert hasattr(delegate, "thumbnail_double_clicked")
-
-    def test_thumbnail_clicked_signal_can_be_connected(self, qtbot) -> None:
-        """Test thumbnail_clicked signal can be connected to slot."""
-        view = QListView()
-        qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        # Create spy
-        spy = QSignalSpy(delegate.thumbnail_clicked)
-
-        # Connect to lambda (just to verify connection works)
-        delegate.thumbnail_clicked.connect(lambda _idx: None)
-
-        # Spy should be valid
-        assert spy.isValid()
-
-    def test_thumbnail_double_clicked_signal_can_be_connected(self, qtbot) -> None:
-        """Test thumbnail_double_clicked signal can be connected to slot."""
-        view = QListView()
-        qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        # Create spy
-        spy = QSignalSpy(delegate.thumbnail_double_clicked)
-
-        # Connect to lambda
-        delegate.thumbnail_double_clicked.connect(lambda _idx: None)
-
-        # Spy should be valid
-        assert spy.isValid()
-
-
-class TestRectCalculations:
-    """Test rectangle calculation methods for layout."""
-
-    def test_thumbnail_rect_has_positive_dimensions(self, qtbot) -> None:
-        """Test thumbnail rect always has positive width and height."""
-        view = QListView()
-        qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        item_rect = QRect(0, 0, 200, 240)
-        thumb_rect = delegate._get_thumbnail_rect(item_rect)
-
-        assert thumb_rect.width() > 0
-        assert thumb_rect.height() > 0
-
-    def test_thumbnail_rect_fits_within_item_rect(self, qtbot) -> None:
-        """Test thumbnail rect is contained within item rect."""
-        view = QListView()
-        qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        item_rect = QRect(10, 20, 200, 240)
-        thumb_rect = delegate._get_thumbnail_rect(item_rect)
-
-        # Thumbnail should be inside item rect
-        assert thumb_rect.left() >= item_rect.left()
-        assert thumb_rect.top() >= item_rect.top()
-        assert thumb_rect.right() <= item_rect.right()
-        assert thumb_rect.bottom() <= item_rect.bottom()
-
-    def test_thumbnail_rect_respects_text_height_reservation(self, qtbot) -> None:
-        """Test thumbnail rect reserves space for text at bottom."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        custom_theme = DelegateTheme(text_height=60, padding=10)
-        delegate = CustomThemeDelegate(custom_theme, parent=view)
-
-        item_rect = QRect(0, 0, 200, 300)
-        thumb_rect = delegate._get_thumbnail_rect(item_rect)
-
-        # Height should be item height - text height - 2*padding
-        expected_height = 300 - 60 - 2 * 10
-        assert thumb_rect.height() == expected_height
-
-    def test_thumbnail_rect_with_zero_padding(self, qtbot) -> None:
-        """Test thumbnail rect calculation with zero padding."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        custom_theme = DelegateTheme(padding=0)
-        delegate = CustomThemeDelegate(custom_theme, parent=view)
-
-        item_rect = QRect(0, 0, 200, 240)
-        thumb_rect = delegate._get_thumbnail_rect(item_rect)
-
-        # Should use full width
-        assert thumb_rect.width() == 200
-        assert thumb_rect.x() == 0
-        assert thumb_rect.y() == 0

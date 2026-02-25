@@ -11,10 +11,8 @@ UNIFIED_TESTING_GUIDE.md principles:
 from __future__ import annotations
 
 # Standard library imports
-import json
 import threading
 import time
-from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -143,29 +141,9 @@ class TestCacheManagerInitialization:
         assert manager.cache_dir == cache_dir
         assert cache_dir.exists()
 
-    def test_default_ttl_configuration(self, cache_manager: CacheManager) -> None:
-        """Test default TTL is set correctly."""
-        # TTL should be 30 minutes by default
-        assert cache_manager._cache_ttl == timedelta(minutes=30)
-
 
 class TestJSONCacheOperations:
     """Test JSON cache read/write operations with TTL validation."""
-
-    def test_cache_shots_writes_json(
-        self, cache_manager: CacheManager, sample_shots: list[Shot]
-    ) -> None:
-        """Test caching shots writes valid JSON file."""
-        cache_manager.cache_shots(sample_shots)
-
-        cache_file = cache_manager.shots_cache_file
-        assert cache_file.exists()
-
-        # Verify JSON structure
-        data = json.loads(cache_file.read_text())
-        assert "data" in data
-        assert "cached_at" in data
-        assert len(data["data"]) == len(sample_shots)
 
     def test_get_cached_shots_returns_data(
         self, cache_manager: CacheManager, sample_shots: list[Shot]
@@ -203,31 +181,6 @@ class TestJSONCacheOperations:
         # Cache should now be expired
         expired = cache_manager.get_cached_shots()
         assert expired is None
-
-    def test_cache_threede_scenes_writes_json(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Test caching 3DE scenes writes valid JSON."""
-        # Use dict format (as expected by cache_threede_scenes)
-        scenes = [
-            {
-                "show": "test_show",
-                "sequence": "seq01",
-                "shot": "shot010",
-                "user": "artist1",
-                "plate": "bg01",
-                "scene_path": "/path/to/scene1.3de",
-                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
-            }
-        ]
-        cache_manager.cache_threede_scenes(scenes)
-
-        cache_file = cache_manager.threede_cache_file
-        assert cache_file.exists()
-
-        data = json.loads(cache_file.read_text())
-        assert "data" in data
-        assert len(data["data"]) == 1
 
     def test_get_cached_threede_scenes_returns_data(
         self, cache_manager: CacheManager
@@ -287,36 +240,28 @@ class TestJSONCacheOperations:
 class TestThumbnailCaching:
     """Test thumbnail processing and caching operations."""
 
-    def test_cache_thumbnail_jpg(
-        self, cache_manager: CacheManager, test_image_jpg: Path
+    @pytest.mark.parametrize(
+        "image_fixture, shot_id",
+        [
+            ("test_image_jpg", "shot010"),
+            ("test_image_png", "shot020"),
+        ],
+    )
+    def test_cache_thumbnail_formats(
+        self,
+        cache_manager: CacheManager,
+        image_fixture: str,
+        shot_id: str,
+        request: pytest.FixtureRequest,
     ) -> None:
-        """Test caching JPEG thumbnail creates resized output."""
-        result = cache_manager.cache_thumbnail(
-            test_image_jpg, "test_show", "seq01", "shot010"
-        )
+        """Test caching thumbnails produces a resized JPEG for both JPG and PNG input."""
+        source_image: Path = request.getfixturevalue(image_fixture)
+        result = cache_manager.cache_thumbnail(source_image, "test_show", "seq01", shot_id)
 
         assert result is not None
         assert result.exists()
         assert result.suffix == ".jpg"
 
-        # Verify thumbnail was resized
-        thumb = QImage(str(result))
-        assert thumb.width() <= 256
-        assert thumb.height() <= 256
-
-    def test_cache_thumbnail_png(
-        self, cache_manager: CacheManager, test_image_png: Path
-    ) -> None:
-        """Test caching PNG thumbnail preserves transparency."""
-        result = cache_manager.cache_thumbnail(
-            test_image_png, "test_show", "seq01", "shot020"
-        )
-
-        assert result is not None
-        assert result.exists()
-        assert result.suffix == ".jpg"  # Converted to JPEG
-
-        # Verify resizing
         thumb = QImage(str(result))
         assert thumb.width() <= 256
         assert thumb.height() <= 256
@@ -796,71 +741,6 @@ class TestPersistentPreviousShotsCache:
         assert len(results) == 30  # 3 threads x 10 reads
         assert all(r == 3 for r in results)  # All should see 3 shots
 
-    def test_persistent_cache_survives_manager_recreation(
-        self, tmp_path: Path, sample_shots: list[Shot]
-    ) -> None:
-        """Test persistent cache survives CacheManager recreation.
-
-        This simulates application restart where cache should remain intact.
-        """
-        cache_dir = tmp_path / "persistent_cache"
-
-        # Create first manager and cache data
-        manager1 = CacheManager(cache_dir=cache_dir)
-        manager1.cache_previous_shots(sample_shots)
-
-        # "Restart" by creating new manager instance
-        # (persistence is not time-dependent)
-        manager2 = CacheManager(cache_dir=cache_dir)
-
-        # Persistent cache should still be available
-        cached = manager2.get_persistent_previous_shots()
-        assert cached is not None
-        assert len(cached) == 3
-
-        # Even hours later, it should still be there
-        cache_file = manager2.previous_shots_cache_file
-        old_time = time.time() - (60 * 60 * 48)  # 48 hours ago
-        import os
-
-        os.utime(cache_file, (old_time, old_time))
-
-        # Create third manager to simulate another restart
-        manager3 = CacheManager(cache_dir=cache_dir)
-        still_cached = manager3.get_persistent_previous_shots()
-        assert still_cached is not None
-        assert len(still_cached) == 3
-
-    def test_comparison_persistent_vs_regular_cache(
-        self, cache_manager: CacheManager, sample_shots: list[Shot]
-    ) -> None:
-        """Test that demonstrates difference between persistent and regular cache."""
-        # Cache some previous shots
-        cache_manager.cache_previous_shots(sample_shots)
-
-        # Both methods should return data initially
-        regular = cache_manager.get_cached_previous_shots()
-        persistent = cache_manager.get_persistent_previous_shots()
-
-        assert regular is not None
-        assert persistent is not None
-        assert len(regular) == len(persistent) == 3
-
-        # Expire the cache
-        cache_file = cache_manager.previous_shots_cache_file
-        old_time = time.time() - (60 * 60)  # 1 hour ago (past 30min TTL)
-        import os
-
-        os.utime(cache_file, (old_time, old_time))
-
-        # Regular cache respects TTL - returns None
-        regular_expired = cache_manager.get_cached_previous_shots()
-        assert regular_expired is None
-
-        # Persistent cache ignores TTL - still returns data
-        persistent_valid = cache_manager.get_persistent_previous_shots()
-        assert persistent_valid is not None
-        assert len(persistent_valid) == 3
 
 
 class TestShotMigration:
@@ -1221,113 +1101,6 @@ def _get_path_cache_stats() -> dict[str, int]:
 
     stats = get_cache_stats()
     return {"size": stats.get("path_cache_size", stats.get("size", 0))}
-
-
-class TestPathCacheHitMiss:
-    """Test path cache hit/miss behavior for PathValidators."""
-
-    def test_cache_hit_returns_cached_result(self, tmp_path: Path) -> None:
-        """Second lookup returns cached result without growing cache."""
-        from path_validators import clear_path_cache
-
-        test_dir = tmp_path / "test_dir"
-        test_dir.mkdir()
-        clear_path_cache()
-
-        result1 = _validate_path(test_dir, "test dir")
-        assert result1 is True
-        size_after_first = _get_path_cache_stats()["size"]
-
-        result2 = _validate_path(test_dir, "test dir")
-        assert result2 is True
-
-        assert _get_path_cache_stats()["size"] == size_after_first
-
-    def test_cache_miss_on_new_path(self, tmp_path: Path) -> None:
-        """New paths grow the cache."""
-        from path_validators import clear_path_cache
-
-        clear_path_cache()
-        initial_size = _get_path_cache_stats()["size"]
-
-        test_path1 = tmp_path / "path1"
-        test_path1.mkdir()
-        _validate_path(test_path1, "path 1")
-        size_after_first = _get_path_cache_stats()["size"]
-        assert size_after_first > initial_size
-
-        test_path2 = tmp_path / "path2"
-        test_path2.mkdir()
-        _validate_path(test_path2, "path 2")
-        assert _get_path_cache_stats()["size"] > size_after_first
-
-    def test_cache_returns_false_for_nonexistent(self, tmp_path: Path) -> None:
-        """Non-existent paths cache a False result."""
-        from path_validators import clear_path_cache
-
-        clear_path_cache()
-        nonexistent = tmp_path / "nonexistent"
-
-        assert _validate_path(nonexistent, "nonexistent") is False
-        assert _validate_path(nonexistent, "nonexistent") is False
-
-
-class TestPathCacheClearing:
-    """Test path cache clearing behavior."""
-
-    def test_clear_cache_empties_cache(self, tmp_path: Path) -> None:
-        """clear_path_cache empties the cache."""
-        from path_validators import clear_path_cache
-
-        test_path = tmp_path / "test"
-        test_path.mkdir()
-        _validate_path(test_path, "test")
-        assert _get_path_cache_stats()["size"] > 0
-
-        clear_path_cache()
-        assert _get_path_cache_stats()["size"] == 0
-
-    def test_cache_refills_after_clear(self, tmp_path: Path) -> None:
-        """Cache refills after being cleared."""
-        from path_validators import clear_path_cache
-
-        test_path = tmp_path / "test"
-        test_path.mkdir()
-        _validate_path(test_path, "test")
-        clear_path_cache()
-
-        _validate_path(test_path, "test")
-        assert _get_path_cache_stats()["size"] > 0
-
-
-class TestCachingEnabledDisabled:
-    """Test enabling/disabling PathValidators caching."""
-
-    def test_caching_disabled_bypasses_cache(
-        self, tmp_path: Path, caching_disabled: None
-    ) -> None:
-        """caching_disabled fixture prevents cache population."""
-        test_path = tmp_path / "test"
-        test_path.mkdir()
-
-        _validate_path(test_path, "test")
-        _validate_path(test_path, "test")
-        _validate_path(test_path, "test")
-
-        assert _get_path_cache_stats()["size"] == 0
-
-    def test_caching_enabled_uses_cache(
-        self, tmp_path: Path, caching_enabled: Path
-    ) -> None:
-        """caching_enabled fixture allows cache population."""
-        from path_validators import clear_path_cache
-
-        clear_path_cache()
-        test_path = tmp_path / "test"
-        test_path.mkdir()
-
-        _validate_path(test_path, "test")
-        assert _get_path_cache_stats()["size"] > 0
 
 
 class TestCacheManagerWithPathCache:

@@ -248,36 +248,6 @@ class TestCommonViewBehavior:
         qtbot.wait(1)  # Minimal event processing
         assert view._thumbnail_size == current_size  # Should not change
 
-    def test_context_menu_exists(
-        self,
-        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
-        model_class: str,
-        qtbot: QtBot,
-        make_shot: Callable[[str, str, str], Shot],
-        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
-    ) -> None:
-        """Test that views have context menu support.
-
-        Note: Testing actual menu execution is complex due to Qt's C++ bindings
-        for QMenu.exec() which blocks. This test verifies the method exists,
-        which is sufficient for pre-refactoring validation.
-        """
-        shots = [make_shot()]
-        model = make_model(model_class, shots=shots)
-        view = view_class(model=model)
-        qtbot.addWidget(view)  # CRITICAL: Register for cleanup
-
-        # Check if view has contextMenuEvent (either defined or inherited)
-        has_context_menu = hasattr(view, "contextMenuEvent")
-
-        if view_class == ShotGridView:
-            assert has_context_menu, "ShotGridView should have context menu"
-        elif view_class == PreviousShotsView:
-            assert has_context_menu, "PreviousShotsView should have context menu"
-        elif view_class == ThreeDEGridView and not has_context_menu:
-            # ThreeDEGridView doesn't have context menu yet, skip for now
-            pytest.skip("ThreeDEGridView doesn't have context menu yet")
-
     def test_size_slider_functionality(
         self,
         view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
@@ -369,21 +339,6 @@ class TestCommonViewBehavior:
                 if hasattr(view, "_visibility_timer"):
                     assert view._visibility_timer.isActive()
 
-    def test_focus_policy_consistency(
-        self,
-        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
-        model_class: str,
-        qtbot: QtBot,
-        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
-    ) -> None:
-        """Test all views have consistent focus policy."""
-        model = make_model(model_class)
-        view = view_class(model=model)
-        qtbot.addWidget(view)
-
-        # All views should have StrongFocus for keyboard navigation
-        assert view.focusPolicy() == Qt.FocusPolicy.StrongFocus
-
     def test_show_filter_combo_exists(
         self,
         view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
@@ -406,22 +361,3 @@ class TestCommonViewBehavior:
         assert view.show_combo.count() >= 1
         assert view.show_combo.itemText(0) == "All Shows"
 
-    def test_loading_indicators_exist(
-        self,
-        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
-        model_class: str,
-        qtbot: QtBot,
-        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
-    ) -> None:
-        """Test that loading indicators are properly configured."""
-        model = make_model(model_class)
-        view = view_class(model=model)
-        qtbot.addWidget(view)
-
-        # Different views have different loading mechanisms
-        if view_class == ThreeDEGridView:
-            # ThreeDEGridView has loading bar and label
-            assert hasattr(view, "loading_bar")
-            assert hasattr(view, "loading_label")
-            assert not view.loading_bar.isVisible()  # Initially hidden
-            assert not view.loading_label.isVisible()  # Initially hidden

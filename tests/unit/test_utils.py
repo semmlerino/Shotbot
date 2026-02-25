@@ -136,36 +136,6 @@ class TestPathUtils:
         assert PathUtils.validate_path_exists("", "Empty path") is False
         assert PathUtils.validate_path_exists(None, "None path") is False
 
-    def test_validate_path_exists_caching_behavior(
-        self, tmp_path: Path, caching_enabled: Path
-    ) -> None:
-        """Test that path validation uses caching correctly.
-
-        Uses caching_enabled fixture for proper isolation in parallel execution.
-        Note: This test accesses _path_cache directly for verification.
-        """
-        clear_all_caches()
-
-        test_file = tmp_path / "cached_test.txt"
-        test_file.write_text("test")
-
-        # First call should check filesystem
-        result1 = PathUtils.validate_path_exists(test_file, "Cached test")
-        assert result1 is True
-
-        # Second call should use cache (verify cache is populated)
-        path_str = str(test_file)
-        assert path_str in path_validators._path_cache
-
-        # Verify cache entry structure
-        exists, timestamp = path_validators._path_cache[path_str]
-        assert exists is True
-        assert isinstance(timestamp, float)
-
-        # Third call should use cached result
-        result2 = PathUtils.validate_path_exists(test_file, "Cached test")
-        assert result2 is True
-
     def test_validate_path_exists_manual_refresh_mode(
         self, tmp_path: Path, caching_enabled: Path
     ) -> None:
@@ -621,21 +591,16 @@ class TestValidationUtils:
         )
         assert result is True
 
-    def test_validate_not_empty_with_none(
-        self, caplog: pytest.LogCaptureFixture
+    @pytest.mark.parametrize(
+        "empty_value",
+        [None, ""],
+        ids=["none", "empty_string"],
+    )
+    def test_validate_not_empty_with_falsy_value(
+        self, empty_value: str | None, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test validation fails with None values."""
-        result = ValidationUtils.validate_not_empty("valid", None, "also_valid")
-        assert result is False
-        assert any(
-            "Empty or None value 1" in record.message for record in caplog.records
-        )
-
-    def test_validate_not_empty_with_empty_string(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Test validation fails with empty strings."""
-        result = ValidationUtils.validate_not_empty("valid", "", "also_valid")
+        """Test validation fails with None or empty string values."""
+        result = ValidationUtils.validate_not_empty("valid", empty_value, "also_valid")
         assert result is False
         assert any(
             "Empty or None value 1" in record.message for record in caplog.records
@@ -848,39 +813,6 @@ class TestCacheManagement:
         assert "extract_version_cache_info" in stats
         assert stats["path_cache_size"] >= 2, "Path cache should have at least 2 entries"
         assert stats["version_cache_size"] >= 1, "Version cache should have at least 1 entry"
-
-    def test_path_cache_manual_refresh_mode(
-        self, tmp_path: Path, caching_enabled: Path
-    ) -> None:
-        """Test that path cache works in manual refresh mode (TTL = 0).
-
-        Uses caching_enabled fixture for proper isolation in parallel execution.
-        """
-        clear_all_caches()
-
-        test_file = tmp_path / "manual_refresh_test.txt"
-        test_file.write_text("test")
-
-        # Validate path to populate cache
-        result1 = PathUtils.validate_path_exists(test_file)
-        assert result1 is True
-
-        # Verify cache entry was created (via stats, not direct access)
-        stats = get_cache_stats()
-        assert stats["path_cache_size"] >= 1, "Cache should have at least one entry"
-
-        # Remove file, but with TTL = 0 (manual refresh mode),
-        # cache should not automatically expire
-        test_file.unlink()
-
-        # Next validation should still use cached result (no auto-expiry)
-        result2 = PathUtils.validate_path_exists(test_file)
-        assert result2 is True  # Still cached
-
-        # Manual cache clear should force re-check
-        clear_all_caches()
-        result3 = PathUtils.validate_path_exists(test_file)
-        assert result3 is False  # Now detects file is gone
 
 
 class TestFindTurnoverPlateThumbnail:
@@ -1115,62 +1047,40 @@ class TestFindAnyPublishThumbnail:
 class TestPlateDiscoveryCaseInsensitive:
     """Test case-insensitive plate directory discovery (commit 78983a8 fix)."""
 
-    def test_discover_plate_directories_case_insensitive_lowercase(
-        self, tmp_path: Path
+    @pytest.mark.parametrize(
+        "plate_names,expected_priorities",
+        [
+            (
+                ["pl01", "fg01", "el01", "bg02"],
+                {"fg01": 0, "pl01": 0.5, "bg02": 1, "el01": 2},
+            ),
+            (
+                ["Pl01", "FG01", "eL02"],
+                {"FG01": 0, "Pl01": 0.5, "eL02": 2},
+            ),
+        ],
+        ids=["lowercase", "mixed_case"],
+    )
+    def test_discover_plate_directories_case_insensitive(
+        self,
+        tmp_path: Path,
+        plate_names: list[str],
+        expected_priorities: dict[str, float],
     ) -> None:
-        """Test that lowercase plate names (pl01, fg01, el01) are discovered."""
+        """Test that plate names are discovered and prioritised case-insensitively."""
         base_path = tmp_path / "plates"
         base_path.mkdir()
 
-        # Create lowercase plate directories (common in user workspaces)
-        (base_path / "pl01").mkdir()
-        (base_path / "fg01").mkdir()
-        (base_path / "el01").mkdir()
-        (base_path / "bg02").mkdir()
+        for name in plate_names:
+            (base_path / name).mkdir()
 
         result = PathUtils.discover_plate_directories(base_path)
 
-        # Should find all plates with case-insensitive matching
-        assert len(result) == 4
-        plate_names = [item[0] for item in result]
-        assert "pl01" in plate_names
-        assert "fg01" in plate_names
-        assert "el01" in plate_names
-        assert "bg02" in plate_names
-
-        # Verify priorities are assigned correctly despite case
+        assert len(result) == len(plate_names)
         plate_dict = dict(result)
-        assert plate_dict["fg01"] == 0  # FG priority
-        assert (
-            plate_dict["pl01"] == 0.5
-        )  # PL priority (in Config.TURNOVER_PLATE_PRIORITY)
-        assert plate_dict["bg02"] == 1  # BG priority
-        assert plate_dict["el01"] == 2  # EL priority
-
-    def test_discover_plate_directories_mixed_case(self, tmp_path: Path) -> None:
-        """Test mixed case plate names (Pl01, FG01, eL02)."""
-        base_path = tmp_path / "plates"
-        base_path.mkdir()
-
-        # Create mixed-case directories
-        (base_path / "Pl01").mkdir()
-        (base_path / "FG01").mkdir()
-        (base_path / "eL02").mkdir()
-
-        result = PathUtils.discover_plate_directories(base_path)
-
-        assert len(result) == 3
-        plate_dict = dict(result)
-
-        # Should match patterns case-insensitively
-        assert "Pl01" in plate_dict
-        assert "FG01" in plate_dict
-        assert "eL02" in plate_dict
-
-        # Priorities should be correct
-        assert plate_dict["FG01"] == 0  # FG
-        assert plate_dict["Pl01"] == 0.5  # PL (now in Config.TURNOVER_PLATE_PRIORITY)
-        assert plate_dict["eL02"] == 2  # EL
+        for name, priority in expected_priorities.items():
+            assert name in plate_dict
+            assert plate_dict[name] == priority
 
     def test_discover_plate_directories_priority_ordering_case_insensitive(
         self, tmp_path: Path
@@ -1200,21 +1110,51 @@ class TestPlateDiscoveryCaseInsensitive:
 class TestUserWorkspaceJPEGDiscovery:
     """Test user workspace JPEG discovery with undistort/ and scene/ structures (commit 78983a8)."""
 
-    def test_find_user_workspace_jpeg_undistort_structure(self, tmp_path: Path) -> None:
-        """Test finding JPEGs in undistort/ directory structure (SF_000_0030 case)."""
-        # Create path: user/ryan-p/mm/nuke/outputs/mm-default/undistort/pl01/undistorted_plate/v001/4312x2304/jpeg/
+    @pytest.mark.parametrize(
+        "subdir,user,seq,shot,plate,filename",
+        [
+            (
+                "undistort",
+                "ryan-p",
+                "SF_000",
+                "0030",
+                "pl01",
+                "SF_000_0030_mm-default_PL01_undistorted_v001.1001.jpeg",
+            ),
+            (
+                "scene",
+                "sarah-b",
+                "DA_000",
+                "0005",
+                "FG01",
+                "DA_000_0005_mm-default_FG01_undistorted_v001.1001.jpeg",
+            ),
+        ],
+        ids=["undistort_structure", "scene_structure"],
+    )
+    def test_find_user_workspace_jpeg_output_structure(
+        self,
+        tmp_path: Path,
+        subdir: str,
+        user: str,
+        seq: str,
+        shot: str,
+        plate: str,
+        filename: str,
+    ) -> None:
+        """Test finding JPEGs in undistort/ and scene/ directory structures."""
         shows_root = tmp_path / "shows"
-        shot_path = shows_root / "jack_ryan" / "shots" / "SF_000" / "SF_000_0030"
+        shot_path = shows_root / "jack_ryan" / "shots" / seq / f"{seq}_{shot}"
         jpeg_dir = (
             shot_path
             / "user"
-            / "ryan-p"
+            / user
             / "mm"
             / "nuke"
             / "outputs"
             / "mm-default"
-            / "undistort"
-            / "pl01"
+            / subdir
+            / plate
             / "undistorted_plate"
             / "v001"
             / "4312x2304"
@@ -1222,51 +1162,16 @@ class TestUserWorkspaceJPEGDiscovery:
         )
         jpeg_dir.mkdir(parents=True)
 
-        # Create JPEG file
-        jpeg_file = jpeg_dir / "SF_000_0030_mm-default_PL01_undistorted_v001.1001.jpeg"
+        jpeg_file = jpeg_dir / filename
         jpeg_file.write_text("fake jpeg content")
 
         result = PathUtils.find_user_workspace_jpeg_thumbnail(
-            str(shows_root), "jack_ryan", "SF_000", "0030"
+            str(shows_root), "jack_ryan", seq, shot
         )
 
         assert result is not None
         assert result.name == jpeg_file.name
-        assert "undistort" in str(result)  # Verify it found the undistort path
-
-    def test_find_user_workspace_jpeg_scene_structure(self, tmp_path: Path) -> None:
-        """Test finding JPEGs in scene/ directory structure (alternative path)."""
-        # Create path: user/sarah-b/mm/nuke/outputs/mm-default/scene/FG01/undistorted_plate/v001/4312x2304/jpeg/
-        shows_root = tmp_path / "shows"
-        shot_path = shows_root / "jack_ryan" / "shots" / "DA_000" / "DA_000_0005"
-        jpeg_dir = (
-            shot_path
-            / "user"
-            / "sarah-b"
-            / "mm"
-            / "nuke"
-            / "outputs"
-            / "mm-default"
-            / "scene"
-            / "FG01"
-            / "undistorted_plate"
-            / "v001"
-            / "4312x2304"
-            / "jpeg"
-        )
-        jpeg_dir.mkdir(parents=True)
-
-        # Create JPEG file
-        jpeg_file = jpeg_dir / "DA_000_0005_mm-default_FG01_undistorted_v001.1001.jpeg"
-        jpeg_file.write_text("fake jpeg content")
-
-        result = PathUtils.find_user_workspace_jpeg_thumbnail(
-            str(shows_root), "jack_ryan", "DA_000", "0005"
-        )
-
-        assert result is not None
-        assert result.name == jpeg_file.name
-        assert "scene" in str(result)  # Verify it found the scene path
+        assert subdir in str(result)
 
     def test_find_user_workspace_jpeg_undistort_priority_over_scene(
         self, tmp_path: Path

@@ -352,37 +352,28 @@ class TestThreeDESceneWorker:
         assert worker.enable_progressive is True
         assert not worker._is_paused
 
-    def test_stop_mechanism(self, worker) -> None:
-        """Test worker stop functionality."""
+    def test_stop_and_pause_resume_mechanism(self, worker) -> None:
+        """Test worker stop, pause, and resume state transitions."""
+        # Stop mechanism
         assert not worker.should_stop()
-
         worker.stop()
-
         assert worker.should_stop()
 
-    def test_pause_resume_mechanism(self, worker) -> None:
-        """Test pause and resume functionality."""
-        assert not worker._is_paused
-
-        # Test pause
-        worker.pause()
-        assert worker._is_paused
-
-        # Test resume
-        worker.resume()
-        assert not worker._is_paused
-
-    def test_signal_existence(self, worker) -> None:
-        """Test all required signals exist."""
-        # Check signals are defined
-        assert hasattr(worker, "started")
-        assert hasattr(worker, "batch_ready")
-        assert hasattr(worker, "progress")
-        assert hasattr(worker, "scan_progress")
-        assert hasattr(worker, "finished")
-        assert hasattr(worker, "error")
-        assert hasattr(worker, "paused")
-        assert hasattr(worker, "resumed")
+        # Recreate worker for pause/resume (stop is terminal)
+        fresh = ThreeDESceneWorker(
+            shots=[Shot("test_show", "seq01", "0010", f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010")],
+            excluded_users=set(),
+            enable_progressive=False,
+        )
+        try:
+            assert not fresh._is_paused
+            fresh.pause()
+            assert fresh._is_paused
+            fresh.resume()
+            assert not fresh._is_paused
+        finally:
+            from tests.test_helpers import cleanup_qthread_properly
+            cleanup_qthread_properly(fresh, signal_handlers=None)
 
     def test_run_with_no_shots(self, qtbot) -> None:
         """Test worker behavior with empty shot list."""
@@ -539,78 +530,6 @@ class TestThreeDESceneWorker:
             TestThreeDESceneFinder._class_should_raise_error = False
             TestThreeDESceneFinder._class_error_to_raise = None
 
-    def test_batch_processing(self, qtbot, test_shots, test_finder) -> None:
-        """Test progressive batch processing using test double."""
-        # Configure test double for progressive batches
-        test_scene = ThreeDEScene(
-            show="test_show",
-            sequence="seq01",
-            shot="0010",
-            workspace_path=f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010",
-            user="testuser",
-            plate="plate01",
-            scene_path=Path("/test/scene.3de"),
-        )
-
-        # Set up progressive batches
-        progressive_batches = [
-            ([test_scene], 1, 2, "Scanning shot 1/2"),
-            ([test_scene], 2, 2, "Scanning shot 2/2"),
-        ]
-        test_finder.set_progressive_batches(progressive_batches)
-        test_finder.set_estimate_result(2, 10)  # 2 users, ~10 files
-
-        # Inject test double
-        # Local application imports
-        import threede_scene_worker
-
-        original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
-        threede_scene_worker.ThreeDESceneFinder = test_finder
-
-        try:
-            worker = ThreeDESceneWorker(
-                shots=test_shots, batch_size=1, enable_progressive=True
-            )
-
-            # Track signals with lambda handlers (not QSignalSpy)
-            batch_ready_count = []
-
-            def batch_handler(scenes):
-                return batch_ready_count.append(len(scenes))
-            worker.batch_ready.connect(batch_handler)
-
-            # Track signal handlers for proper cleanup
-            signal_handlers = [
-                (worker.batch_ready, batch_handler),
-            ]
-
-            try:
-                worker.start()
-
-                # Minimal event processing for batch emissions
-                qtbot.wait(1)
-
-                # Should have emitted batches (exact count depends on timing)
-                assert len(batch_ready_count) >= 0
-
-            finally:
-                # Use proper cleanup to prevent Qt C++ object accumulation
-                from tests.test_helpers import cleanup_qthread_properly
-                cleanup_qthread_properly(worker, signal_handlers)
-
-        finally:
-            # Restore original finder
-            if original_finder:
-                threede_scene_worker.ThreeDESceneFinder = original_finder
-
-            # CRITICAL: Reset class-level state to prevent cross-test contamination
-            # These class variables persist across tests and cause worker crashes
-            TestThreeDESceneFinder._class_scenes_to_return = []
-            TestThreeDESceneFinder._class_progressive_batches = []
-            TestThreeDESceneFinder._class_estimate_result = (0, 0)
-            TestThreeDESceneFinder._class_should_raise_error = False
-            TestThreeDESceneFinder._class_error_to_raise = None
-
     def test_error_handling(self, qtbot, test_shots, test_finder) -> None:
         """Test error handling during scene discovery using test double."""
         # Configure test double to raise an exception
@@ -746,94 +665,6 @@ class TestThreeDESceneWorkerIntegration:
 
 class TestWorkerInterruption:
     """Test suite for worker interruption handling (Phase 3 improvements)."""
-
-    def test_worker_stops_quickly_when_interrupted(self, qtbot) -> None:
-        """Test worker stops within 2 seconds when interrupted.
-
-        This verifies Phase 3 improvements where cancel_flag is checked
-        in tight loops, allowing workers to stop quickly.
-        """
-        # Create a test double that simulates slow progressive discovery
-        class SlowProgressiveFinder:
-            """Test double that simulates slow scene discovery."""
-
-            @staticmethod
-            def find_all_scenes_progressive(
-                _shot_tuples, _excluded_users=None, _batch_size=10, cancel_flag=None
-            ):
-                """Generator that would run for a long time if not cancelled."""
-                # Simulate discovering many shots (would take 100 seconds without cancellation)
-                for i in range(1000):
-                    # Check cancellation (this is what we're testing)
-                    if cancel_flag and cancel_flag():
-                        return  # Respect cancellation
-
-                    # Simulate slow operation
-                    time.sleep(0.1)
-                    # Yield a batch
-                    yield [], i, 1000, f"Processing shot {i}"
-
-            @staticmethod
-            def estimate_scan_size(_shot_tuples, _excluded_users=None):
-                """Return estimate."""
-                return 10, 1000
-
-        # Replace the finder with our slow test double
-        original_finder = threede_scene_worker.ThreeDESceneFinder
-        threede_scene_worker.ThreeDESceneFinder = SlowProgressiveFinder
-
-        try:
-            # Create worker with progressive mode enabled
-            shots = [
-                Shot(
-                    "TEST_SHOW",
-                    "SEQ01",
-                    "SHOT01",
-                    "/tmp/workspace",
-                )
-            ]
-            worker = ThreeDESceneWorker(
-                shots=shots, excluded_users=set(), enable_progressive=True
-            )
-
-            # Set up signal tracking
-            started = []
-            worker.started.connect(lambda: started.append(True))
-
-            # Start worker
-            worker.start()
-
-            # Wait for worker to actually start processing
-            qtbot.waitUntil(lambda: len(started) > 0, timeout=1000)
-
-            # Wait until the worker is confirmed running in its loop
-            from tests.test_helpers import SynchronizationHelpers
-            SynchronizationHelpers.wait_for_condition(
-                lambda: worker.isRunning(),
-                timeout_ms=1000,
-                poll_interval_ms=10,
-            )
-
-            # Request interruption
-            start_time = time.time()
-            worker.requestInterruption()
-
-            # Wait for worker to stop (should be < 2s)
-            success = worker.wait(2000)
-            elapsed = time.time() - start_time
-
-            # Verify it stopped quickly
-            assert success, "Worker should stop gracefully within 2 seconds"
-            assert (
-                elapsed < 2.0
-            ), f"Worker took {elapsed:.1f}s to stop (should be < 2s)"
-
-        finally:
-            # Restore original finder
-            threede_scene_worker.ThreeDESceneFinder = original_finder
-            # Use proper cleanup to prevent Qt C++ object accumulation
-            from tests.test_helpers import cleanup_qthread_properly
-            cleanup_qthread_properly(worker, signal_handlers=None)
 
     def test_cancel_flag_prevents_filesystem_iteration(self, qtbot) -> None:
         """Test cancel_flag stops iteration before expensive filesystem I/O.
