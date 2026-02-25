@@ -191,23 +191,18 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 
             # Execute with test session
             start_time = time.time()
-            try:
-                result = self._test_session.execute(command, timeout)
+            result = self._test_session.execute(command, timeout)
 
-                # Cache result
-                self._cache.set(command, result, ttl=cache_ttl)
+            # Cache result
+            self._cache.set(command, result, ttl=cache_ttl)
 
-                # Update metrics
-                elapsed = (time.time() - start_time) * 1000
-                self._metrics.update_response_time(elapsed)
+            # Update metrics
+            elapsed = (time.time() - start_time) * 1000
+            self._metrics.update_response_time(elapsed)
 
-                return result
-
-            except Exception:
-                raise
-        else:
-            # Use parent implementation with secure executor
-            return super().execute_workspace_command(command, cache_ttl, timeout)
+            return result
+        # Use parent implementation with secure executor
+        return super().execute_workspace_command(command, cache_ttl, timeout)
 
     def _execute_with_session_pool(
         self,
