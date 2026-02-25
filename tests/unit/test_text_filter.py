@@ -32,7 +32,7 @@ from shot_grid_view import ShotGridView
 # Local application imports
 from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
-from tests.fixtures.doubles_library import TestCacheManager, TestProcessPool
+from tests.fixtures.test_doubles import TestCacheManager, TestProcessPool
 from tests.test_helpers import process_qt_events
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel

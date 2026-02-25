@@ -29,40 +29,6 @@ from shot_model import Shot
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 
-class FakeSignal:
-    """Lightweight signal test double from UNIFIED_TESTING_GUIDE."""
-
-    def __init__(self) -> None:
-        self.emissions = []
-        self.callbacks = []
-
-    def emit(self, *args) -> None:
-        self.emissions.append(args)
-        for callback in self.callbacks:
-            callback(*args)
-
-    def connect(self, callback) -> None:
-        self.callbacks.append(callback)
-
-    def disconnect(self, callback=None) -> None:
-        if callback:
-            if callback in self.callbacks:
-                self.callbacks.remove(callback)
-        else:
-            self.callbacks.clear()
-
-    @property
-    def was_emitted(self):
-        return len(self.emissions) > 0
-
-    @property
-    def emit_count(self):
-        return len(self.emissions)
-
-    def last_emission(self):
-        return self.emissions[-1] if self.emissions else None
-
-
 class FakeShotModel(QObject):
     """Test double for ShotModel with real Qt signals and predictable behavior."""
 

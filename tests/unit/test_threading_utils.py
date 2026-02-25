@@ -22,7 +22,7 @@ from typing import NoReturn
 import pytest
 
 # Local application imports
-from tests.helpers.synchronization import simulate_work_without_sleep
+from tests.test_helpers import simulate_work_without_sleep
 from threading_utils import CancellationEvent, ThreadSafeProgressTracker
 
 

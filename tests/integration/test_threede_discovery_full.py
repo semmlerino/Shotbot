@@ -221,7 +221,7 @@ class TestThreeDEDiscoveryIntegration:
         Following Worker Thread Pattern (GUIDE line 91).
         """
         # Local application imports
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
         from threede_scene_worker import (
             ThreeDESceneWorker,
         )

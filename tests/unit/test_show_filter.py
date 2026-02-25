@@ -30,7 +30,7 @@ from shot_grid_view import ShotGridView
 # Local application imports
 from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
-from tests.fixtures.doubles_library import TestCacheManager, TestProcessPool
+from tests.fixtures.test_doubles import TestCacheManager, TestProcessPool
 
 
 if TYPE_CHECKING:
@@ -369,7 +369,7 @@ class TestMainWindowFilterHandlers:
 
         # Set up minimal required attributes
         # Local application imports
-        from tests.fixtures.doubles_library import (
+        from tests.fixtures.test_doubles import (
             TestCacheManager,
             TestProcessPool,
         )

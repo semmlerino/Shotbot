@@ -123,7 +123,7 @@ def make_test_filesystem(tmp_path: Path):
             shot_path = fs.create_vfx_structure("show1", "seq01", "0010")
             fs.create_file(shot_path / "user/artist/scene.3de", "content")
     """
-    from tests.fixtures.doubles_extended import TestFileSystem
+    from tests.fixtures.test_doubles import TestFileSystem
 
     def _make_filesystem() -> TestFileSystem:
         """Create a TestFileSystem instance with tmp_path as base."""

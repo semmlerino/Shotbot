@@ -41,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.fixtures.doubles_library import TestCacheManager
+from tests.fixtures.test_doubles import TestCacheManager
 
 
 pytestmark = [

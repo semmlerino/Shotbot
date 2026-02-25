@@ -20,6 +20,7 @@ import pytest
 
 from controllers.threede_controller import ThreeDEController
 from progress_manager import ProgressManager
+from tests.fixtures.test_doubles import SignalDouble
 from threede_scene_model import ThreeDEScene
 
 
@@ -36,32 +37,6 @@ pytestmark = [
 # ============================================================================
 # Test Doubles
 # ============================================================================
-
-
-class SignalDouble:
-    """Test double for Qt Signal."""
-
-    __test__ = False
-
-    def __init__(self) -> None:
-        self._connections: list[Any] = []
-        self._emitted_values: list[Any] = []
-
-    def connect(self, slot: Any) -> bool:
-        self._connections.append(slot)
-        return True
-
-    def disconnect(self, slot: Any | None = None) -> bool:
-        if slot is None:
-            self._connections.clear()
-        elif slot in self._connections:
-            self._connections.remove(slot)
-        return True
-
-    def emit(self, *args: Any) -> None:
-        self._emitted_values.append(args)
-        for slot in self._connections:
-            slot(*args)
 
 
 class ThreeDEGridViewDouble:
@@ -425,14 +400,14 @@ class TestSignalSetup:
     ) -> None:
         """Test that scene_selected signal is connected."""
         grid = window_double.threede_shot_grid
-        assert controller.on_scene_selected in grid.scene_selected._connections
+        assert controller.on_scene_selected in grid.scene_selected.callbacks
 
     def test_scene_double_clicked_signal_connected(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
         """Test that scene_double_clicked signal is connected."""
         grid = window_double.threede_shot_grid
-        assert controller.on_scene_double_clicked in grid.scene_double_clicked._connections
+        assert controller.on_scene_double_clicked in grid.scene_double_clicked.callbacks
 
     def test_recover_crashes_signal_connected(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
@@ -441,7 +416,7 @@ class TestSignalSetup:
         grid = window_double.threede_shot_grid
         assert (
             controller.on_recover_crashes_clicked
-            in grid.recover_crashes_requested._connections
+            in grid.recover_crashes_requested.callbacks
         )
 
     def test_show_filter_signal_connected(
@@ -451,7 +426,7 @@ class TestSignalSetup:
         grid = window_double.threede_shot_grid
         assert (
             controller._on_show_filter_requested
-            in grid.show_filter_requested._connections
+            in grid.show_filter_requested.callbacks
         )
 
     def test_text_filter_signal_connected(
@@ -461,7 +436,7 @@ class TestSignalSetup:
         grid = window_double.threede_shot_grid
         assert (
             controller._on_text_filter_requested
-            in grid.text_filter_requested._connections
+            in grid.text_filter_requested.callbacks
         )
 
 

@@ -29,7 +29,7 @@ from previous_shots_model import PreviousShotsModel
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.fixtures.doubles_library import TestShot, TestShotModel
+from tests.fixtures.test_doubles import TestShot, TestShotModel
 from tests.test_helpers import process_qt_events
 
 

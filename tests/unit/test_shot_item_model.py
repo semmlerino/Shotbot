@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
-    from tests.fixtures.doubles_library import TestProcessPool
+    from tests.fixtures.test_doubles import TestProcessPool
 
 pytestmark = [
     pytest.mark.unit,

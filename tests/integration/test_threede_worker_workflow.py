@@ -192,7 +192,7 @@ class TestThreeDEWorkerWorkflow:
         3. Worker calls parallel discovery methods
         4. ThreadSafeProgressTracker receives progress_interval parameter
         """
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         test_shots = self._create_test_vfx_structure()
 
@@ -271,7 +271,7 @@ class TestThreeDEWorkerWorkflow:
 
     def test_worker_error_handling_workflow(self, qtbot) -> None:
         """Test worker error handling when parallel discovery encounters issues."""
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         # Create invalid shot paths to trigger errors
         invalid_shots = [
@@ -320,7 +320,7 @@ class TestThreeDEWorkerWorkflow:
 
     def test_worker_signal_emission_patterns(self, qtbot) -> None:
         """Test that worker emits signals correctly throughout the workflow."""
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         test_shots = self._create_test_vfx_structure()
 
@@ -386,7 +386,7 @@ class TestThreeDEWorkerWorkflow:
 
     def test_worker_memory_and_resource_cleanup(self, qtbot) -> None:
         """Test that worker properly cleans up resources after completion."""
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         test_shots = self._create_test_vfx_structure()
 
@@ -450,7 +450,7 @@ class TestThreeDEWorkerWorkflow:
         without losing signals or causing race conditions.
         """
         # Import cleanup helper
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         # Create larger structure to generate more signals
         test_shots = self._create_test_vfx_structure()
@@ -537,7 +537,7 @@ class TestThreeDEWorkerWorkflow:
             cleanup_qthread_properly(worker, signal_handlers)
     def test_worker_timeout_handling(self, qtbot) -> None:
         """Test worker behavior with realistic timeouts."""
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         test_shots = self._create_test_vfx_structure()
 
@@ -583,7 +583,7 @@ class TestThreeDEWorkerWorkflow:
         3. Worker uses progressive scan with parallel discovery
         4. Parallel discovery creates ThreadSafeProgressTracker with progress_interval
         """
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         # Create realistic production-scale test data
         test_shots = self._create_test_vfx_structure()

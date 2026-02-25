@@ -26,7 +26,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 from cache_manager import CacheManager, ShotMergeResult
 from config import Config
 from shot_model import RefreshResult, Shot, ShotModel
-from tests.fixtures.doubles_library import TestProcessPool
+from tests.fixtures.test_doubles import TestProcessPool
 
 
 if TYPE_CHECKING:

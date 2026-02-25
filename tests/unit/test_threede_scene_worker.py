@@ -339,7 +339,7 @@ class TestThreeDESceneWorker:
             threede_scene_worker.ThreeDESceneFinder = original_finder
 
         # CRITICAL: Proper cleanup for QThread to prevent Qt C++ object accumulation
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
         cleanup_qthread_properly(worker, signal_handlers=None)
 
     def test_worker_initialization(self, worker, test_shots) -> None:
@@ -423,7 +423,7 @@ class TestThreeDESceneWorker:
 
         finally:
             # Use proper cleanup to prevent Qt C++ object accumulation
-            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            from tests.test_helpers import cleanup_qthread_properly
             cleanup_qthread_properly(worker, signal_handlers)
 
     def test_scene_discovery_with_test_double(
@@ -523,7 +523,7 @@ class TestThreeDESceneWorker:
 
             finally:
                 # Use proper cleanup to prevent Qt C++ object accumulation
-                from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+                from tests.test_helpers import cleanup_qthread_properly
                 cleanup_qthread_properly(worker, signal_handlers)
 
         finally:
@@ -595,7 +595,7 @@ class TestThreeDESceneWorker:
 
             finally:
                 # Use proper cleanup to prevent Qt C++ object accumulation
-                from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+                from tests.test_helpers import cleanup_qthread_properly
                 cleanup_qthread_properly(worker, signal_handlers)
 
         finally:
@@ -663,7 +663,7 @@ class TestThreeDESceneWorker:
 
             finally:
                 # Use proper cleanup to prevent Qt C++ object accumulation
-                from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+                from tests.test_helpers import cleanup_qthread_properly
                 cleanup_qthread_properly(worker, signal_handlers)
 
         finally:
@@ -740,7 +740,7 @@ class TestThreeDESceneWorkerIntegration:
 
         finally:
             # Use proper cleanup to prevent Qt C++ object accumulation
-            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            from tests.test_helpers import cleanup_qthread_properly
             cleanup_qthread_properly(worker, signal_handlers)
 
 
@@ -827,7 +827,7 @@ class TestWorkerInterruption:
             # Restore original finder
             threede_scene_worker.ThreeDESceneFinder = original_finder
             # Use proper cleanup to prevent Qt C++ object accumulation
-            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            from tests.test_helpers import cleanup_qthread_properly
             cleanup_qthread_properly(worker, signal_handlers=None)
 
     def test_cancel_flag_prevents_filesystem_iteration(self, qtbot) -> None:
@@ -900,5 +900,5 @@ class TestWorkerInterruption:
         finally:
             threede_scene_worker.ThreeDESceneFinder = original_finder
             # Use proper cleanup to prevent Qt C++ object accumulation
-            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            from tests.test_helpers import cleanup_qthread_properly
             cleanup_qthread_properly(worker, signal_handlers=None)

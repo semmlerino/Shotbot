@@ -53,7 +53,7 @@ def setup_qt_imports() -> None:
     from cache_manager import (
         CacheManager,
     )
-    from tests.helpers.synchronization import (
+    from tests.test_helpers import (
         process_qt_events,
     )
 

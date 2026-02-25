@@ -20,7 +20,7 @@ from config import Config
 
 # Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
-from tests.fixtures.doubles_library import TestCacheManager
+from tests.fixtures.test_doubles import TestCacheManager
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene
 

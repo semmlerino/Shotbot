@@ -18,42 +18,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.fixtures.test_doubles import SignalDouble
+
 
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
 ]
-
-
-# ============================================================================
-# Test Doubles
-# ============================================================================
-
-
-class SignalDouble:
-    """Test double for Qt Signal."""
-
-    __test__ = False
-
-    def __init__(self) -> None:
-        self._connections: list[Any] = []
-        self._emitted_values: list[Any] = []
-
-    def connect(self, slot: Any) -> bool:
-        self._connections.append(slot)
-        return True
-
-    def disconnect(self, slot: Any | None = None) -> bool:
-        if slot is None:
-            self._connections.clear()
-        elif slot in self._connections:
-            self._connections.remove(slot)
-        return True
-
-    def emit(self, *args: Any) -> None:
-        self._emitted_values.append(args)
-        for slot in self._connections:
-            slot(*args)
 
 
 class ShotGridViewDouble:

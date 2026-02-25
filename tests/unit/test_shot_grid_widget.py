@@ -42,7 +42,7 @@ from shot_item_model import ShotItemModel
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.fixtures.doubles_library import (
+from tests.fixtures.test_doubles import (
     TestCacheManager,
     TestShot,
 )

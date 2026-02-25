@@ -16,7 +16,7 @@ import pytest
 
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.fixtures.doubles_library import (
+from tests.fixtures.test_doubles import (
     TestSubprocess,
 )
 from utils import PathUtils

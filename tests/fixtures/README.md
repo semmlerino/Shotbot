@@ -1,146 +1,34 @@
 # Test Fixtures
 
-This directory contains reusable test fixtures organized by category. Fixtures are automatically loaded via `pytest_plugins` in `tests/conftest.py`.
+Fixtures are organized by category and auto-loaded via `pytest_plugins` in `tests/conftest.py`.
 
-## Loaded Fixture Modules
+## Fixture Index
 
-| Module | Purpose | Key Fixtures |
-|--------|---------|--------------|
-| `determinism.py` | Reproducible random seed control | `stable_random_seed` |
-| `temp_directories.py` | Temporary path/cache fixtures | `temp_shows_root`, `temp_cache_dir`, `cache_manager` |
-| `test_doubles.py` | Test doubles for system boundaries | `TestProcessPool`, `test_process_pool`, `make_test_launcher` |
-| `subprocess_mocking.py` | **Autouse** subprocess mocking + controllable mock | `mock_process_pool_manager`, `mock_subprocess_popen`, `subprocess_mock` |
-| `qt_safety.py` | **Autouse** Qt safety fixtures | `suppress_qmessagebox`, `prevent_qapp_exit` |
-| `qt_cleanup.py` | Qt state cleanup (auto-applied to Qt tests) | `qt_cleanup` |
-| `singleton_isolation.py` | **Autouse** lightweight cleanup + heavy cleanup for Qt | `cleanup_state_lite`, `cleanup_state_heavy` |
-| `data_factories.py` | Test data factories | `make_test_shot`, `make_real_3de_file`, `sample_shot_data` |
+| Module | Autouse | Key Fixtures | Purpose |
+|--------|---------|-------------|---------|
+| `determinism.py` | No | `stable_random_seed` | Reproducible random seed control |
+| `temp_directories.py` | No | `temp_shows_root`, `temp_cache_dir`, `cache_manager` | Temporary paths and cache instances |
+| `test_doubles.py` | No | `TestProcessPool`, `test_process_pool`, `make_test_launcher` | Test doubles for system boundaries |
+| `subprocess_mocking.py` | Yes | `mock_process_pool_manager`, `mock_subprocess_popen`, `subprocess_mock` | Global subprocess interception; `subprocess_mock` for controllable error paths |
+| `qt_safety.py` | Yes | `suppress_qmessagebox`, `prevent_qapp_exit` | Prevent modal dialogs and app-exit from blocking tests |
+| `qt_cleanup.py` | Qt tests only | `qt_cleanup` | Clears Qt event queue, QThreadPool, QPixmapCache between tests |
+| `singleton_isolation.py` | Yes (lite) / Qt only (heavy) | `cleanup_state_lite`, `cleanup_state_heavy` | Resets singleton state; lite runs for all tests, heavy for Qt tests only |
+| `data_factories.py` | No | `make_test_shot`, `make_real_3de_file`, `sample_shot_data` | Factories for building test data objects |
 
-## Autouse Fixtures
+## Session-Scoped (in conftest.py)
 
-The following fixtures run automatically for **every test** (opt-out patterns available):
+- `qapp` — session-scoped `QApplication`; must exist before `pytest_plugins` loads
+- `_patch_qtbot_short_waits` — intercepts `qtbot.wait()` for tiny delays to prevent re-entrancy crashes
 
-### Subprocess Mocking (`subprocess_mocking.py`)
-- `mock_process_pool_manager`: Replaces `ProcessPoolManager` singleton with `TestProcessPool`
-- `mock_subprocess_popen`: Replaces `subprocess.Popen` with a mock
+## Opt-Out Markers
 
-**Opt-out**: Add `@pytest.mark.real_subprocess` to run with real subprocess.
+- `@pytest.mark.real_subprocess` — bypass autouse subprocess mocking
+- `@pytest.mark.allow_dialogs` — suppress strict dialog failure for a test
+- `@pytest.mark.real_timing` — bypass the short-wait patch for tests with genuine QTimer dependencies
 
-### Qt Safety (`qt_safety.py`)
-- `suppress_qmessagebox`: Prevents modal dialogs from blocking tests. Returns a `DialogRecorder` for asserting dialog behavior:
-  ```python
-  def test_error_shows_dialog(suppress_qmessagebox):
-      trigger_error()
-      suppress_qmessagebox.assert_shown("critical", "Error occurred")
-  ```
-- `prevent_qapp_exit`: Prevents `QApplication.quit()` from terminating the test session
+## Adding a Fixture
 
-### Singleton Isolation (`singleton_isolation.py`)
-- `cleanup_state_lite`: (autouse) Clears caches, disables caching, resets Config.SHOWS_ROOT
-
-## Conditionally Applied Fixtures
-
-The following fixtures are **auto-applied to Qt tests** (tests using `qtbot` or marked `@pytest.mark.qt`) via `pytest_collection_modifyitems`:
-
-### Qt Cleanup (`qt_cleanup.py`)
-- `qt_cleanup`: Clears Qt event queue, QThreadPool, and QPixmapCache between tests
-
-### Heavy Singleton Cleanup (`singleton_isolation.py`)
-- `cleanup_state_heavy`: Resets Qt-dependent singletons (NotificationManager, ProgressManager, ProcessPoolManager, etc.)
-
-**Why conditional?** Pure logic tests (data parsing, validation) don't need 0.5s+ of Qt/singleton cleanup overhead.
-
-## Usage Examples
-
-### Using a Factory Fixture
-```python
-def test_shot_creation(make_test_shot):
-    shot = make_test_shot(show="TestShow", sequence="SEQ001", shot="0010")
-    assert shot.show == "TestShow"
-```
-
-### Using Test Process Pool
-```python
-def test_with_process_pool(test_process_pool):
-    test_process_pool.set_outputs("workspace /shows/test/shots/010/0010")
-    # ... test code that uses ProcessPoolManager
-    assert test_process_pool.commands  # Verify what was called
-```
-
-### Using Controllable Subprocess Mock
-```python
-def test_command_parsing(subprocess_mock):
-    """Test with controllable subprocess output."""
-    subprocess_mock.set_output("workspace /shows/test/shots/010/0010")
-    subprocess_mock.set_return_code(0)
-    # ... test code that calls subprocess ...
-    assert subprocess_mock.calls  # Verify commands were called
-```
-
-### Testing Subprocess Error Paths
-
-The `SubprocessMock` class in `subprocess_mocking.py` provides methods for
-testing error conditions. Use the `subprocess_mock` fixture (NOT autouse):
-
-```python
-def test_handles_subprocess_failure(subprocess_mock):
-    """Test error handling when subprocess fails."""
-    subprocess_mock.set_return_code(1)
-    subprocess_mock.set_output("", "Command failed: permission denied")
-    # ... trigger code that uses subprocess ...
-    # ... assert error handling behavior ...
-
-def test_handles_subprocess_exception(subprocess_mock):
-    """Test handling of subprocess exceptions."""
-    subprocess_mock.set_exception(OSError("No such file or directory"))
-    with pytest.raises(SomeExpectedException):
-        # ... test code that calls subprocess ...
-
-def test_handles_subprocess_timeout(subprocess_mock):
-    """Test timeout handling."""
-    subprocess_mock.set_timeout(True)
-    # ... trigger code that should handle timeout ...
-```
-
-The autouse mocks (`mock_process_pool_manager`, `mock_subprocess_popen`)
-return success by default (returncode=0, empty output). For error testing,
-explicitly request the controllable `subprocess_mock` fixture.
-
-### Opting Out of Subprocess Mocking
-```python
-@pytest.mark.real_subprocess
-def test_real_shell_command():
-    """This test uses real subprocess execution."""
-    import subprocess
-    result = subprocess.run(["echo", "test"], capture_output=True, text=True)
-    assert result.stdout.strip() == "test"
-```
-
-## Session-Scoped Fixtures (in conftest.py)
-
-The following fixtures are in `tests/conftest.py` (not in this directory) because they need special handling:
-
-- `qapp`: Session-scoped QApplication instance (created before pytest_plugins loads)
-- `_patch_qtbot_short_waits`: Intercepts `qtbot.wait()` for tiny delays to prevent re-entrancy crashes
-
-## Guidelines for Adding Fixtures
-
-1. **Choose the right module**:
-   - Data creation? → `data_factories.py`
-   - Test doubles? → `test_doubles.py`
-   - Temp directories? → `temp_directories.py`
-   - Qt-related? → `qt_cleanup.py` or `qt_safety.py`
-   - Subprocess-related? → `subprocess_mocking.py`
-
-2. **Naming conventions**:
-   - Factory fixtures: `make_*` (e.g., `make_test_shot`)
-   - Sample data: `sample_*` (e.g., `sample_shot_data`)
-   - Test doubles: Use class name (e.g., `TestProcessPool`)
-
-3. **Fixture scope**:
-   - Default: `scope="function"` for isolation
-   - Use `scope="session"` only for expensive, immutable fixtures
-   - Use `scope="module"` for shared state within a test module
-
-4. **Documentation**:
-   - Add docstrings with usage examples
-   - Update this README when adding new fixtures
+1. Put it in the right module (data? → `data_factories.py`; subprocess? → `subprocess_mocking.py`; Qt? → `qt_safety.py` or `qt_cleanup.py`)
+2. Default scope is `function`; use `session` only for expensive immutable fixtures
+3. New singletons: inherit `SingletonMixin`, register in `singleton_registry.py`
+4. Update this table

@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Local application imports
 from cache_manager import CacheManager
 from shot_model import AsyncShotLoader, RefreshResult, ShotModel
-from tests.fixtures.doubles_library import TestProcessPool
+from tests.fixtures.test_doubles import TestProcessPool
 from tests.test_helpers import process_qt_events
 from thread_safe_worker import ThreadSafeWorker, WorkerState
 

@@ -41,7 +41,7 @@ from config import Config
 # Local application imports
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
-from tests.fixtures.doubles_library import TestCompletedProcess
+from tests.fixtures.test_doubles import TestCompletedProcess
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
@@ -86,7 +86,7 @@ class TestPreviousShotsWorkerBasics:
         self, mock_active_shots: list[Shot], shows_root: Path
     ) -> Generator[PreviousShotsWorker, None, None]:
         """Create PreviousShotsWorker instance with proper thread cleanup."""
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         worker = PreviousShotsWorker(
             active_shots=mock_active_shots, username="testuser", shows_root=shows_root
@@ -166,7 +166,7 @@ class TestPreviousShotsWorkerWorkflow:
         self, shows_root_with_shots: Path
     ) -> Generator[PreviousShotsWorker, None, None]:
         """Create worker with cleanup and pre-populated shot directories."""
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         active_shots = [
             Shot("active_show", "seq1", "shot1", f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1"),
@@ -280,7 +280,7 @@ class TestPreviousShotsWorkerWorkflow:
 
         finally:
             # Proper QThread cleanup to prevent segfaults from Qt C++ object accumulation
-            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            from tests.test_helpers import cleanup_qthread_properly
 
             cleanup_qthread_properly(worker)
 
@@ -460,7 +460,7 @@ class TestPreviousShotsWorkerWorkflow:
 
         finally:
             # Proper QThread cleanup to prevent segfaults from Qt C++ object accumulation
-            from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+            from tests.test_helpers import cleanup_qthread_properly
 
             cleanup_qthread_properly(worker)
 
@@ -581,7 +581,7 @@ class TestPreviousShotsWorkerIntegration:
         assert finished, "Worker did not finish within timeout"
 
         # Proper QThread cleanup to prevent segfaults from Qt C++ object accumulation
-        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        from tests.test_helpers import cleanup_qthread_properly
 
         cleanup_qthread_properly(worker)
 

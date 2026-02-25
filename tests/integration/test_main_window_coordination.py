@@ -34,10 +34,10 @@ from shot_model import RefreshResult, Shot
 
 # Import qapp fixture from conftest to ensure QApplication exists
 # Import proper test doubles following UNIFIED_TESTING_GUIDE
-from tests.fixtures.doubles_library import (
+from tests.fixtures.test_doubles import (
+    TestProcessPool,
     TestSubprocess,
 )
-from tests.fixtures.test_doubles import TestProcessPool
 
 
 # Module-level fixture to handle lazy imports after Qt initialization

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 import pytest
 from PySide6.QtGui import QColor, QImage, QPixmap
 
-from tests.helpers.synchronization import simulate_work_without_sleep
+from tests.test_helpers import simulate_work_without_sleep
 from thread_safe_thumbnail_cache import (
     ThreadSafeThumbnailCache,
     create_thread_safe_pixmap,

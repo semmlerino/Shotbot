@@ -55,7 +55,7 @@ from cache_manager import CacheManager
 from previous_shots_finder import PreviousShotsFinder
 from previous_shots_model import PreviousShotsModel
 from shot_model import Shot, ShotModel
-from tests.fixtures.doubles_library import (
+from tests.fixtures.test_doubles import (
     PopenDouble,
     TestCompletedProcess,
     TestSubprocess,
@@ -351,7 +351,7 @@ class TestUserWorkflows:
         )
 
         # Local application imports
-        from tests.fixtures.doubles_library import (
+        from tests.fixtures.test_doubles import (
             TestProcessPool,
         )
 
@@ -515,7 +515,7 @@ class TestUserWorkflows:
         4. Maintains stable state after errors
         5. Logs errors appropriately
         """
-        from tests.fixtures.doubles_library import TestProcessPool
+        from tests.fixtures.test_doubles import TestProcessPool
         from tests.test_helpers import process_qt_events
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
