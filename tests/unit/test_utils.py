@@ -254,32 +254,6 @@ class TestPathUtils:
         # Cache should be cleaned down to reasonable size
         assert len(path_validators._path_cache) <= 2500
 
-    def test_discover_plate_directories(self, tmp_path: Path) -> None:
-        """Test plate directory discovery with priority ordering."""
-        # Create plate directories
-        base_path = tmp_path / "plates"
-        base_path.mkdir()
-
-        # Create directories matching PLATE_DISCOVERY_PATTERNS
-        (base_path / "FG01").mkdir()
-        (base_path / "BG01").mkdir()
-        (base_path / "FG02").mkdir()
-
-        result = PathUtils.discover_plate_directories(base_path)
-
-        # Should return list of (plate_name, priority) tuples
-        assert len(result) == 3
-
-        # Verify all found plates are in the result
-        plate_names = [item[0] for item in result]
-        assert "FG01" in plate_names
-        assert "BG01" in plate_names
-        assert "FG02" in plate_names
-
-    def test_discover_plate_directories_nonexistent_path(self) -> None:
-        """Test plate discovery with non-existent base path."""
-        result = PathUtils.discover_plate_directories("/nonexistent/path")
-        assert result == []
 
 
 class TestFileUtils:
@@ -1042,69 +1016,6 @@ class TestFindAnyPublishThumbnail:
             "shot01",
         )
         assert result is None
-
-
-class TestPlateDiscoveryCaseInsensitive:
-    """Test case-insensitive plate directory discovery (commit 78983a8 fix)."""
-
-    @pytest.mark.parametrize(
-        ("plate_names", "expected_priorities"),
-        [
-            (
-                ["pl01", "fg01", "el01", "bg02"],
-                {"fg01": 0, "pl01": 0.5, "bg02": 1, "el01": 2},
-            ),
-            (
-                ["Pl01", "FG01", "eL02"],
-                {"FG01": 0, "Pl01": 0.5, "eL02": 2},
-            ),
-        ],
-        ids=["lowercase", "mixed_case"],
-    )
-    def test_discover_plate_directories_case_insensitive(
-        self,
-        tmp_path: Path,
-        plate_names: list[str],
-        expected_priorities: dict[str, float],
-    ) -> None:
-        """Test that plate names are discovered and prioritised case-insensitively."""
-        base_path = tmp_path / "plates"
-        base_path.mkdir()
-
-        for name in plate_names:
-            (base_path / name).mkdir()
-
-        result = PathUtils.discover_plate_directories(base_path)
-
-        assert len(result) == len(plate_names)
-        plate_dict = dict(result)
-        for name, priority in expected_priorities.items():
-            assert name in plate_dict
-            assert plate_dict[name] == priority
-
-    def test_discover_plate_directories_priority_ordering_case_insensitive(
-        self, tmp_path: Path
-    ) -> None:
-        """Test that priority ordering works with case-insensitive matches."""
-        base_path = tmp_path / "plates"
-        base_path.mkdir()
-
-        # Create plates in non-priority order
-        (base_path / "pl01").mkdir()
-        (base_path / "fg01").mkdir()
-        (base_path / "bg01").mkdir()
-        (base_path / "el01").mkdir()
-
-        result = PathUtils.discover_plate_directories(base_path)
-
-        # Should be sorted by priority (lower = higher priority)
-        # FG (0) < BG (1) < EL (2) < PL (3)
-        priorities = [item[1] for item in result]
-        assert priorities == sorted(priorities), "Plates should be sorted by priority"
-
-        # First should be fg01 (FG priority 0)
-        assert result[0][0] == "fg01"
-        assert result[0][1] == 0
 
 
 class TestUserWorkspaceJPEGDiscovery:

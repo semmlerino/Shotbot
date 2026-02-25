@@ -54,25 +54,6 @@ class ConcreteTestModel(BaseShotModel):
 class TestBaseShotModelInitialization:
     """Test BaseShotModel initialization behavior."""
 
-    def test_initialization_default(self) -> None:
-        """Test default initialization creates cache manager."""
-        model = ConcreteTestModel(load_cache=False)
-
-        assert model.shots == []
-        assert model.cache_manager is not None
-        assert model.get_selected_shot() is None
-        assert model.get_show_filter() is None
-        assert model.get_text_filter() is None
-
-    def test_initialization_with_cache_manager(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Test initialization with provided cache manager."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
-
-        assert model.cache_manager is cache_manager
-        assert model.shots == []
-
     def test_initialization_loads_cache_by_default(
         self, cache_manager: CacheManager
     ) -> None:

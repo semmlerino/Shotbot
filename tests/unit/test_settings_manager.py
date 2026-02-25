@@ -564,33 +564,22 @@ class TestSortOrderSettings:
         """Create settings manager with temporary storage."""
         return make_settings_manager(tmp_path)
 
-    def test_get_sort_order_default_my_shots(
-        self, settings_manager: SettingsManager
+    @pytest.mark.parametrize(
+        ("tab_id", "expected_order"),
+        [
+            ("my_shots", "name"),
+            ("threede_scenes", "date"),
+            ("previous_shots", "date"),
+            ("unknown_tab", "name"),
+        ],
+        ids=["my_shots_default", "threede_scenes_default", "previous_shots_default", "unknown_defaults_to_name"],
+    )
+    def test_get_sort_order_defaults(
+        self, settings_manager: SettingsManager, tab_id: str, expected_order: str
     ) -> None:
-        """Test default sort order for my_shots is 'name'."""
-        result = settings_manager.get_sort_order("my_shots")
-        assert result == "name"
-
-    def test_get_sort_order_default_threede_scenes(
-        self, settings_manager: SettingsManager
-    ) -> None:
-        """Test default sort order for threede_scenes is 'date'."""
-        result = settings_manager.get_sort_order("threede_scenes")
-        assert result == "date"
-
-    def test_get_sort_order_default_previous_shots(
-        self, settings_manager: SettingsManager
-    ) -> None:
-        """Test default sort order for previous_shots is 'date'."""
-        result = settings_manager.get_sort_order("previous_shots")
-        assert result == "date"
-
-    def test_get_sort_order_unknown_tab_defaults_to_name(
-        self, settings_manager: SettingsManager
-    ) -> None:
-        """Test that unknown tab IDs default to 'name'."""
-        result = settings_manager.get_sort_order("unknown_tab")
-        assert result == "name"
+        """Test default sort orders for different tabs."""
+        result = settings_manager.get_sort_order(tab_id)
+        assert result == expected_order
 
     def test_set_sort_order_persists(
         self, settings_manager: SettingsManager
@@ -683,30 +672,23 @@ class TestUIScaleSettings:
         """Test that default UI scale is 1.0 (100%)."""
         assert settings_manager.get_ui_scale() == 1.0
 
-    def test_set_ui_scale_valid(self, settings_manager: SettingsManager) -> None:
-        """Test setting a valid UI scale value."""
-        settings_manager.set_ui_scale(1.2)
-        assert settings_manager.get_ui_scale() == 1.2
-
-    def test_set_ui_scale_clamps_minimum(self, settings_manager: SettingsManager) -> None:
-        """Test that UI scale is clamped to minimum 0.8."""
-        settings_manager.set_ui_scale(0.5)
-        assert settings_manager.get_ui_scale() == 0.8
-
-    def test_set_ui_scale_clamps_maximum(self, settings_manager: SettingsManager) -> None:
-        """Test that UI scale is clamped to maximum 1.5."""
-        settings_manager.set_ui_scale(2.0)
-        assert settings_manager.get_ui_scale() == 1.5
-
-    def test_set_ui_scale_boundary_minimum(self, settings_manager: SettingsManager) -> None:
-        """Test setting UI scale at minimum boundary."""
-        settings_manager.set_ui_scale(0.8)
-        assert settings_manager.get_ui_scale() == 0.8
-
-    def test_set_ui_scale_boundary_maximum(self, settings_manager: SettingsManager) -> None:
-        """Test setting UI scale at maximum boundary."""
-        settings_manager.set_ui_scale(1.5)
-        assert settings_manager.get_ui_scale() == 1.5
+    @pytest.mark.parametrize(
+        ("input_value", "expected_value"),
+        [
+            (1.2, 1.2),  # Valid value
+            (0.5, 0.8),  # Below minimum, clamped to 0.8
+            (2.0, 1.5),  # Above maximum, clamped to 1.5
+            (0.8, 0.8),  # At minimum boundary
+            (1.5, 1.5),  # At maximum boundary
+        ],
+        ids=["valid", "clamps_minimum", "clamps_maximum", "boundary_minimum", "boundary_maximum"],
+    )
+    def test_set_ui_scale_boundaries(
+        self, settings_manager: SettingsManager, input_value: float, expected_value: float
+    ) -> None:
+        """Test UI scale validation and boundary clamping."""
+        settings_manager.set_ui_scale(input_value)
+        assert settings_manager.get_ui_scale() == expected_value
 
     def test_set_ui_scale_emits_signal(
         self, settings_manager: SettingsManager, qtbot: QtBot

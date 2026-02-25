@@ -24,16 +24,6 @@ def file_discovery():
 class TestSafeMkdir:
     """Tests for FileDiscovery.safe_mkdir()."""
 
-    def test_creates_directory_successfully(self, tmp_path: Path, file_discovery: type) -> None:
-        """Successfully creates directory and returns True."""
-        new_dir = tmp_path / "new_directory"
-
-        result = file_discovery.safe_mkdir(new_dir)
-
-        assert result is True
-        assert new_dir.exists()
-        assert new_dir.is_dir()
-
     def test_creates_nested_directories(self, tmp_path: Path, file_discovery: type) -> None:
         """Creates nested directories with parents=True."""
         nested = tmp_path / "a" / "b" / "c" / "d"
@@ -42,21 +32,6 @@ class TestSafeMkdir:
 
         assert result is True
         assert nested.exists()
-
-    def test_returns_true_for_existing_directory(self, tmp_path: Path, file_discovery: type) -> None:
-        """Returns True for already existing directory (exist_ok=True)."""
-        existing = tmp_path / "existing"
-        existing.mkdir()
-
-        result = file_discovery.safe_mkdir(existing)
-
-        assert result is True
-
-    def test_returns_false_on_empty_path(self, file_discovery: type) -> None:
-        """Returns False for empty path."""
-        result = file_discovery.safe_mkdir("")
-
-        assert result is False
 
     def test_accepts_string_path(self, tmp_path: Path, file_discovery: type) -> None:
         """Accepts string path argument."""

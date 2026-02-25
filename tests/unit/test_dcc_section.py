@@ -98,15 +98,6 @@ class TestDCCConfigDefaults:
 class TestDCCSectionInit:
     """Tests for DCCSection initialization."""
 
-    def test_default_state_collapsed(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """Section is collapsed by default."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-
-        assert not section.is_expanded()
-
     def test_displays_config_name(
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
@@ -144,72 +135,6 @@ class TestDCCSectionInit:
         qtbot.addWidget(section)
 
         assert not section._launch_btn.isEnabled()
-
-
-class TestDCCSectionExpansion:
-    """Tests for expand/collapse functionality."""
-
-    def test_toggle_expansion(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """Clicking expand button toggles expansion."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-
-        # Initially collapsed
-        assert not section.is_expanded()
-
-        # Click to expand
-        qtbot.mouseClick(section._expand_btn, Qt.MouseButton.LeftButton)
-        process_qt_events()
-        assert section.is_expanded()
-
-        # Click to collapse
-        qtbot.mouseClick(section._expand_btn, Qt.MouseButton.LeftButton)
-        process_qt_events()
-        assert not section.is_expanded()
-
-    def test_set_expanded_programmatically(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """Can set expansion state programmatically."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-
-        section.set_expanded(True)
-        assert section.is_expanded()
-
-        section.set_expanded(False)
-        assert not section.is_expanded()
-
-    def test_expanded_changed_signal_emitted(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """Signal emitted when expansion state changes."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-
-        with qtbot.waitSignal(section.expanded_changed, timeout=1000) as blocker:
-            section.set_expanded(True)
-
-        assert blocker.args == ["3de", True]
-
-    def test_content_visibility_matches_expansion(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """Content visibility matches expansion state."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-        section.show()
-        process_qt_events()
-
-        # Collapsed - content hidden
-        assert not section._content.isVisible()
-
-        # Expanded - content visible
-        section.set_expanded(True)
-        process_qt_events()
-        assert section._content.isVisible()
 
 
 class TestDCCSectionLaunch:

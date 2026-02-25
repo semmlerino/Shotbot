@@ -36,6 +36,9 @@ from PySide6.QtCore import (
 from PySide6.QtWidgets import QApplication
 
 # Import canonical doubles - these are the recommended implementations
+from tests.fixtures.process_doubles import (
+    simulate_work_without_sleep,  # noqa: F401 (re-export from canonical location)
+)
 from tests.fixtures.test_doubles import SignalDouble  # noqa: F401 (re-export)
 
 
@@ -260,33 +263,12 @@ class SynchronizationHelpers:
             timeout_ms=max_wait_ms,
         )
 
-    @staticmethod
-    def simulate_work_without_sleep(duration_ms: int = 10) -> None:
-        """Simulate work without using sleep for stress tests.
-
-        Args:
-            duration_ms: How long to simulate work
-
-        Example:
-            # Instead of: time.sleep(0.01)  # Simulate work
-            # Use: simulate_work_without_sleep(10)
-
-        """
-        # Use busy-wait with yield to simulate work without blocking
-        start = time.perf_counter()
-        target = start + (duration_ms / 1000.0)
-
-        while time.perf_counter() < target:
-            # Yield to other threads
-            time.sleep(0)  # Minimal sleep just to yield
-
-
 # Convenience functions for direct import (mirrors synchronization.py public API)
 wait_for_condition = SynchronizationHelpers.wait_for_condition
 wait_for_file_operation = SynchronizationHelpers.wait_for_file_operation
 wait_for_qt_signal = SynchronizationHelpers.wait_for_qt_signal
 wait_for_threads_to_start = SynchronizationHelpers.wait_for_threads_to_start
-simulate_work_without_sleep = SynchronizationHelpers.simulate_work_without_sleep
+# simulate_work_without_sleep is imported from process_doubles (canonical location)
 
 
 # ---------------------------------------------------------------------------
