@@ -1200,6 +1200,27 @@ class CacheManager(LoggingMixin, QObject):
                     f"Cleared latest files cache for workspace: {workspace_path}"
                 )
 
+    def has_cache_entry(self, workspace_path: str, file_type: str) -> bool:
+        """Check if a cache entry exists for a workspace/file_type (regardless of value).
+
+        Unlike get_cached_latest_file(), this returns True even when the cached
+        result is None (i.e., a "not found" result was cached), letting callers
+        distinguish between "cache miss - need to search" and "searched, found nothing".
+
+        Args:
+            workspace_path: Full path to the shot workspace
+            file_type: Type of file ("maya" or "threede")
+
+        Returns:
+            True if an entry exists in the cache (even if the path is None), False if no entry
+
+        """
+        cache_data = self._read_latest_files_cache()
+        if cache_data is None:
+            return False
+        key = f"{workspace_path}:{file_type}"
+        return key in cache_data
+
     def _read_latest_files_cache(self) -> dict[str, dict[str, object]] | None:
         """Read the latest files cache from disk.
 

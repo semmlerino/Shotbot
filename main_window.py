@@ -1153,8 +1153,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             return
 
         # Standard launch without specific file
-        _ = self.command_launcher.launch_app(
-            app_name,
+        from command_launcher import LaunchContext
+
+        context = LaunchContext(
             open_latest_threede=bool(options.get("open_latest_threede", False)),
             open_latest_maya=bool(options.get("open_latest_maya", False)),
             open_latest_scene=bool(options.get("open_latest_scene", False)),
@@ -1162,6 +1163,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             selected_plate=options.get("selected_plate"),
             sequence_path=options.get("sequence_path"),
         )
+        _ = self.command_launcher.launch_app(app_name, context)
 
     def _get_current_workspace_path(self) -> str | None:
         """Get workspace path from current shot or selected 3DE scene.

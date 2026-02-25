@@ -598,23 +598,43 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         # Continue with the rest of launch_app flow (from ws command onwards)
         _ = self._finish_launch(app_name, command)
 
-    def _finish_launch(self, app_name: str, command: str) -> bool:
-        """Complete the launch after file search is done.
+    def _finish_launch(
+        self,
+        app_name: str,
+        command: str,
+        workspace_path: str | None = None,
+        nuke_env_context: str = "",
+        log_suffix: str = "",
+        error_context: str = "",
+        command_prefix: str = "",
+    ) -> bool:
+        """Complete the launch: ws wrap, rez wrap, logging, and execute.
 
-        This contains the common launch completion logic shared between
-        synchronous (cache hit) and async (cache miss) paths.
+        This is the single dispatch point for all launch operations, shared
+        between the sync (cache hit) and async (cache miss) paths and all
+        four public launch methods.
 
         Args:
             app_name: Application name
             command: Command with scene path (if any) already added
+            workspace_path: Workspace directory for the ws command.
+                If None, falls back to self.current_shot.workspace_path.
+            nuke_env_context: Context string for Nuke environment fix log message
+            log_suffix: Appended to the emitted full_command (e.g., " (Scene by: ...)")
+            error_context: Context for error messages in _launch_in_new_terminal
+            command_prefix: Shell prefix inserted between ws and env_fixes
+                (e.g., "export SGTK_FILE_TO_OPEN=... && ")
 
         Returns:
             True if launch succeeded, False otherwise
 
         """
-        if self.current_shot is None:
-            self._emit_error("Cannot launch - no shot selected")
-            return False
+        # Resolve workspace path
+        if workspace_path is None:
+            if self.current_shot is None:
+                self._emit_error("Cannot launch - no shot selected")
+                return False
+            workspace_path = self.current_shot.workspace_path
 
         # Pre-flight: Check if ws command is available
         if not self.env_manager.is_ws_available():
@@ -626,11 +646,9 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
         # Build full command with ws (workspace setup)
         try:
-            safe_workspace_path = CommandBuilder.validate_path(
-                self.current_shot.workspace_path
-            )
-            env_fixes = self._apply_nuke_environment_fixes(app_name)
-            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
+            safe_workspace_path = CommandBuilder.validate_path(workspace_path)
+            env_fixes = self._apply_nuke_environment_fixes(app_name, nuke_env_context)
+            ws_command = f"ws {safe_workspace_path} && {command_prefix}{env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
@@ -667,21 +685,20 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         full_command = CommandBuilder.add_logging(full_command, Config)
 
         # Log the command to UI
-        self.command_executed.emit(self.timestamp, full_command)
+        self.command_executed.emit(self.timestamp, f"{full_command}{log_suffix}")
 
         # Enhanced debug logging for command integrity verification
-        workspace = self.current_shot.workspace_path
-        shot_name = self.current_shot.full_name
         self.logger.debug(
             f"Constructed command for {app_name}:\n"
             f"  Command: {full_command!r}\n"
             f"  Length: {len(full_command)} chars\n"
-            f"  Workspace: {workspace}\n"
-            f"  Shot: {shot_name}"
+            f"  Workspace: {workspace_path}"
         )
 
         # Execute launch
-        return self._execute_launch(full_command, app_name, has_rez_wrapper=should_wrap_rez)
+        return self._launch_in_new_terminal(
+            full_command, app_name, error_context, has_rez_wrapper=should_wrap_rez
+        )
 
     def cancel_pending_search(self) -> None:
         """Cancel any pending async file search."""
@@ -775,114 +792,48 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
         return True
 
-    def _execute_launch(
-        self,
-        full_command: str,
-        app_name: str,
-        error_context: str = "",
-        has_rez_wrapper: bool = False,
-    ) -> bool:
-        """Execute command in a new terminal window.
 
-        Template method for all launch operations.
-
-        Args:
-            full_command: Complete command to execute (with logging, rez, etc.)
-            app_name: Application name (for spawn verification)
-            error_context: Additional context for error messages (e.g., " with scene")
-            has_rez_wrapper: If True, enables shell optimization for rez-wrapped commands.
-
-        Returns:
-            True if launch successful, False otherwise
-
-        """
-        return self._launch_in_new_terminal(
-            full_command, app_name, error_context, has_rez_wrapper
-        )
-
-    def launch_app(
+    def _build_app_command(
         self,
         app_name: str,
-        context: LaunchContext | None = None,
-        # Legacy parameters for backward compatibility
-        open_latest_threede: bool = False,
-        open_latest_maya: bool = False,
-        open_latest_scene: bool = False,
-        create_new_file: bool = False,
-        selected_plate: str | None = None,
-        sequence_path: str | None = None,
-    ) -> bool:
-        """Launch an application in the current shot context.
+        context: LaunchContext,
+    ) -> tuple[str | None, bool]:
+        """Build the app-specific command string for launch_app.
+
+        Handles app-specific command building for Nuke, 3DE, Maya, and RV.
+        Emits log signals as a side effect.
 
         Args:
-            app_name: Name of the application to launch
-            context: Launch context with options (preferred)
-            open_latest_threede: (Legacy) Whether to open the latest 3DE scene file (3DE only)
-            open_latest_maya: (Legacy) Whether to open the latest Maya scene file (Maya only)
-            open_latest_scene: (Legacy) Whether to open the latest Nuke script (Nuke only)
-            create_new_file: (Legacy) Whether to create a new version (Nuke only)
-            selected_plate: (Legacy) Selected plate space for Nuke workspace scripts
-            sequence_path: (Legacy) Image sequence path for RV playback
+            app_name: Application name (must already be validated against Config.APPS)
+            context: Launch context with options
 
         Returns:
-            True if launch was successful, False otherwise
-
-        Note:
-            The context parameter is preferred. Legacy parameters are kept for
-            backward compatibility but will be removed in a future version.
+            (command, is_async) tuple where:
+            - command is the built command string, or None to stop
+            - is_async is True when an async file search was started (return True from caller)
+            - (None, False) means an error was emitted; caller should return False
+            - (None, True) means async search started; caller should return True
 
         """
-        # Handle backward compatibility: if context not provided, create from legacy params
-        if context is None:
-            context = LaunchContext(
-                open_latest_threede=open_latest_threede,
-                open_latest_maya=open_latest_maya,
-                open_latest_scene=open_latest_scene,
-                create_new_file=create_new_file,
-                selected_plate=selected_plate,
-                sequence_path=sequence_path,
-            )
-
-        if not self.current_shot:
-            self._emit_error("No shot selected")
-            return False
-
-        if app_name not in Config.APPS:
-            self._emit_error(f"Unknown application: {app_name}")
-            return False
-
-        # Validate workspace before launching (Task 5.4)
-        if not self._validate_workspace_before_launch(
-            self.current_shot.workspace_path, app_name
-        ):
-            return False
-
-        # Get the command
+        # Precondition: caller must have verified current_shot is not None
+        assert self.current_shot is not None, "_build_app_command called without a current shot"
         command = Config.APPS[app_name]
 
         # Handle Nuke-specific launching logic
         if app_name == "nuke":
-            # Use the unified Nuke handler for all Nuke-specific logic
             options = {
                 "open_latest_scene": context.open_latest_scene,
                 "create_new_file": context.create_new_file,
             }
-
             command, log_messages = self.nuke_handler.prepare_nuke_command(
                 self.current_shot, command, options, selected_plate=context.selected_plate
             )
-
-            # Emit log messages
             timestamp = self.timestamp
             for msg in log_messages:
                 self.command_executed.emit(timestamp, msg)
-
-            # Check for empty command (signals failure, e.g., missing plate)
             if not command:
                 self._emit_error("Nuke launch aborted - see log messages above")
-                return False
-
-        # Old Nuke handling code has been removed - see NukeLaunchHandler
+                return None, False
 
         # Handle 3DE/Maya with latest scene file (async-aware)
         needs_file_search = (
@@ -905,9 +856,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                 if threede_cached is None:
                     # Check if we have a "not found" cache entry (path is None in cache)
                     # vs no cache entry at all (need to search)
-                    cache_data = self._cache_manager._read_latest_files_cache()
-                    key = f"{workspace}:threede"
-                    if cache_data is None or key not in cache_data:
+                    if not self._cache_manager.has_cache_entry(workspace, "threede"):
                         cache_hit = False
                     # else: cache says "not found", use None as result
 
@@ -916,9 +865,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                     workspace, "maya"
                 )
                 if maya_cached is None:
-                    cache_data = self._cache_manager._read_latest_files_cache()
-                    key = f"{workspace}:maya"
-                    if cache_data is None or key not in cache_data:
+                    if not self._cache_manager.has_cache_entry(workspace, "maya"):
                         cache_hit = False
 
             if cache_hit:
@@ -937,7 +884,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                         self._emit_error(
                             f"Cannot launch 3DE: Invalid scene path '{threede_cached}': {e!s}"
                         )
-                        return False
+                        return None, False
                 elif app_name == "3de" and context.open_latest_threede:
                     self.command_executed.emit(
                         self.timestamp,
@@ -960,7 +907,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                         self._emit_error(
                             f"Cannot launch Maya: Invalid scene path '{maya_cached}': {e!s}"
                         )
-                        return False
+                        return None, False
                 elif app_name == "maya" and context.open_latest_maya:
                     self.command_executed.emit(
                         self.timestamp,
@@ -970,105 +917,67 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                 # Cache miss - start async search and return
                 # Launch will continue when search completes
                 self._start_async_file_search(app_name, context, command)
-                return True  # Async launch in progress
+                return None, True  # Async launch in progress
 
         # Handle RV with default settings and optional sequence path
         if app_name == "rv":
-            # Add default RV settings: 12fps, auto-play, oscillate (ping-pong) mode
             command = f"{command} -fps 12 -play -eval 'setPlayMode(2)'"
-
-            # Add sequence path if provided
             if context.sequence_path:
                 try:
                     safe_sequence_path = CommandBuilder.validate_path(
                         context.sequence_path
                     )
                     command = f"{command} {safe_sequence_path}"
-                    timestamp = self.timestamp
-                    # Extract just the filename for cleaner logging
                     seq_name = Path(context.sequence_path).name
                     self.command_executed.emit(
-                        timestamp,
+                        self.timestamp,
                         f"Opening sequence in RV: {seq_name}",
                     )
                 except ValueError as e:
                     self._emit_error(
                         f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"
                     )
-                    return False
+                    return None, False
 
-        # Pre-flight: Check if ws command is available
-        if not self.env_manager.is_ws_available():
-            self._emit_error(
-                "Workspace command 'ws' not found. "
-                "Ensure workspace tools are installed and on PATH."
-            )
+        return command, False
+
+    def launch_app(
+        self,
+        app_name: str,
+        context: LaunchContext | None = None,
+    ) -> bool:
+        """Launch an application in the current shot context.
+
+        Args:
+            app_name: Name of the application to launch
+            context: Launch context with options
+
+        Returns:
+            True if launch was successful, False otherwise
+
+        """
+        if context is None:
+            context = LaunchContext()
+
+        if not self.current_shot:
+            self._emit_error("No shot selected")
             return False
 
-        # Build full command with ws (workspace setup)
-        # Validate and escape workspace path to prevent injection
-        try:
-            safe_workspace_path = CommandBuilder.validate_path(
-                self.current_shot.workspace_path
-            )
-
-            # Apply Nuke environment fixes if needed
-            env_fixes = self._apply_nuke_environment_fixes(app_name)
-
-            # Build workspace command with environment fixes
-            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
-        except ValueError as e:
-            self._emit_error(f"Invalid workspace path: {e!s}")
+        if app_name not in Config.APPS:
+            self._emit_error(f"Unknown application: {app_name}")
             return False
 
-        # Determine if rez wrapping should be applied using the new RezMode enum
-        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
-        if should_wrap_rez:
-            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
-            if rez_packages:
-                # Use CommandBuilder to wrap with rez environment
-                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
-                timestamp = self.timestamp
-                packages_str = " ".join(rez_packages)
-                self.command_executed.emit(
-                    timestamp, f"Using rez environment with packages: {packages_str}"
-                )
-            else:
-                full_command = ws_command
-                should_wrap_rez = False  # No packages means no actual rez wrapper
-        else:
-            full_command = ws_command
-            # Emit message explaining why Rez wrapping is skipped
-            timestamp = self.timestamp
-            if os.environ.get("REZ_USED"):
-                self.command_executed.emit(
-                    timestamp,
-                    f"Note: Already in rez environment - skipping rez wrap for {app_name}",
-                )
-            else:
-                self.command_executed.emit(
-                    timestamp,
-                    f"Note: Using system PATH version of {app_name}",
-                )
+        # Validate workspace before launching
+        if not self._validate_workspace_before_launch(
+            self.current_shot.workspace_path, app_name
+        ):
+            return False
 
-        # Add logging redirection for debugging
-        full_command = CommandBuilder.add_logging(full_command, Config)
+        command, is_async = self._build_app_command(app_name, context)
+        if command is None:
+            return is_async  # True = async started, False = error
 
-        # Log the command to UI
-        timestamp = self.timestamp
-        self.command_executed.emit(timestamp, full_command)
-
-        # Enhanced debug logging for command integrity verification
-        workspace = self.current_shot.workspace_path if self.current_shot else "None"
-        shot_name = self.current_shot.full_name if self.current_shot else "None"
-        self.logger.debug(
-            f"Constructed command for {app_name}:\n  Command: {full_command!r}\n  Length: {len(full_command)} chars\n  Workspace: {workspace}\n  Shot: {shot_name}"
-        )
-
-        # Use template method for terminal launch
-        return self._execute_launch(
-            full_command, app_name, has_rez_wrapper=should_wrap_rez
-        )
+        return self._finish_launch(app_name, command)
 
     def launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:
         """Launch an application with a specific 3DE scene file.
@@ -1108,54 +1017,13 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         if not self._validate_workspace_before_launch(scene.workspace_path, app_name):
             return False
 
-        # Pre-flight: Check if ws command is available
-        if not self.env_manager.is_ws_available():
-            self._emit_error(
-                "Workspace command 'ws' not found. "
-                "Ensure workspace tools are installed and on PATH."
-            )
-            return False
-
-        # Build full command with ws (workspace setup)
-        # Validate and escape workspace path to prevent injection
-        try:
-            safe_workspace_path = CommandBuilder.validate_path(scene.workspace_path)
-
-            # Apply Nuke environment fixes if needed (same as regular launch)
-            env_fixes = self._apply_nuke_environment_fixes(app_name, "Nuke scene launch")
-
-            # Build workspace command with environment fixes
-            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
-        except ValueError as e:
-            self._emit_error(f"Invalid workspace path: {e!s}")
-            return False
-
-        # Determine if rez wrapping should be applied using the new RezMode enum
-        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
-        if should_wrap_rez:
-            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
-            if rez_packages:
-                # Use CommandBuilder to wrap with rez environment
-                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
-            else:
-                full_command = ws_command
-                should_wrap_rez = False  # No packages means no actual rez wrapper
-        else:
-            full_command = ws_command
-
-        # Add logging redirection for debugging
-        full_command = CommandBuilder.add_logging(full_command, Config)
-
-        # Log the command
-        timestamp = self.timestamp
-        self.command_executed.emit(
-            timestamp,
-            f"{full_command} (Scene by: {scene.user}, Plate: {scene.plate})",
-        )
-
-        # Use template method for terminal launch
-        return self._execute_launch(
-            full_command, app_name, " with scene", has_rez_wrapper=should_wrap_rez
+        return self._finish_launch(
+            app_name,
+            command,
+            workspace_path=scene.workspace_path,
+            nuke_env_context="Nuke scene launch",
+            log_suffix=f" (Scene by: {scene.user}, Plate: {scene.plate})",
+            error_context=" with scene",
         )
 
     def launch_with_file(
@@ -1230,71 +1098,25 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         if not self._validate_workspace_before_launch(workspace_path, app_name):
             return False
 
-        # Pre-flight: Check if ws command is available
-        if not self.env_manager.is_ws_available():
-            self._emit_error(
-                "Workspace command 'ws' not found. "
-                "Ensure workspace tools are installed and on PATH."
-            )
-            return False
-
-        # Build full command with ws (workspace setup)
-        # Validate and escape workspace path to prevent injection
-        try:
-            safe_workspace_path = CommandBuilder.validate_path(workspace_path)
-
-            # Apply Nuke environment fixes if needed
-            env_fixes = self._apply_nuke_environment_fixes(app_name, "File launch")
-
-            # Set SGTK_FILE_TO_OPEN for SGTK-enabled apps (Maya, Nuke, 3DE)
-            # This tells ShotGrid Toolkit to bootstrap context from the file path,
-            # ensuring the full environment is loaded when opening via command line
-            sgtk_apps = ("maya", "nuke", "3de")
-            if app_name.lower() in sgtk_apps:
-                sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_file_path} && "
-                self.logger.debug(f"Setting SGTK_FILE_TO_OPEN={safe_file_path}")
-            else:
-                sgtk_export = ""
-
-            # Build workspace command with environment fixes
-            ws_command = f"ws {safe_workspace_path} && {sgtk_export}{env_fixes}{command}"
-        except ValueError as e:
-            self._emit_error(f"Invalid workspace path: {e!s}")
-            return False
-
-        # Determine if rez wrapping should be applied using the new RezMode enum
-        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
-        if should_wrap_rez:
-            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
-            if rez_packages:
-                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
-            else:
-                full_command = ws_command
-                should_wrap_rez = False  # No packages means no actual rez wrapper
+        # Set SGTK_FILE_TO_OPEN for SGTK-enabled apps (Maya, Nuke, 3DE)
+        # This tells ShotGrid Toolkit to bootstrap context from the file path,
+        # ensuring the full environment is loaded when opening via command line
+        # safe_file_path was validated above in the command-building block
+        sgtk_apps = ("maya", "nuke", "3de")
+        if app_name.lower() in sgtk_apps:
+            sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_file_path} && "
+            self.logger.debug(f"Setting SGTK_FILE_TO_OPEN={safe_file_path}")
         else:
-            full_command = ws_command
+            sgtk_export = ""
 
-        # Add logging redirection for debugging
-        full_command = CommandBuilder.add_logging(full_command, Config)
-
-        # Log the full command chain for debugging file dialog issues
-        self.logger.debug(
-            f"launch_with_file full command chain:\n"
-            f"  ws_command: {ws_command}\n"
-            f"  rez_wrapped: {should_wrap_rez}\n"
-            f"  full_command: {full_command}"
-        )
-
-        # Log the command
-        timestamp = self.timestamp
-        self.command_executed.emit(
-            timestamp,
-            f"{full_command} (File: {file_path.name})",
-        )
-
-        # Use template method for terminal launch
-        return self._execute_launch(
-            full_command, app_name, " with file", has_rez_wrapper=should_wrap_rez
+        return self._finish_launch(
+            app_name,
+            command,
+            workspace_path=workspace_path,
+            nuke_env_context="File launch",
+            log_suffix=f" (File: {file_path.name})",
+            error_context=" with file",
+            command_prefix=sgtk_export,
         )
 
     def launch_app_with_scene_context(
@@ -1323,59 +1145,13 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         if not self._validate_workspace_before_launch(scene.workspace_path, app_name):
             return False
 
-        # Pre-flight: Check if ws command is available
-        if not self.env_manager.is_ws_available():
-            self._emit_error(
-                "Workspace command 'ws' not found. "
-                "Ensure workspace tools are installed and on PATH."
-            )
-            return False
-
-        # Build full command with ws (workspace setup)
-        # Validate and escape workspace path to prevent injection
-        try:
-            safe_workspace_path = CommandBuilder.validate_path(scene.workspace_path)
-
-            # Apply Nuke environment fixes if needed (same as other launch paths)
-            env_fixes = self._apply_nuke_environment_fixes(app_name, "scene context launch")
-
-            # Build workspace command with environment fixes
-            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
-        except ValueError as e:
-            self._emit_error(f"Invalid workspace path: {e!s}")
-            return False
-
-        # Determine if rez wrapping should be applied using the new RezMode enum
-        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
-        if should_wrap_rez:
-            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
-            if rez_packages:
-                # Use CommandBuilder to wrap with rez environment
-                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
-                timestamp = self.timestamp
-                packages_str = " ".join(rez_packages)
-                self.command_executed.emit(
-                    timestamp, f"Using rez environment with packages: {packages_str}"
-                )
-            else:
-                full_command = ws_command
-                should_wrap_rez = False  # No packages means no actual rez wrapper
-        else:
-            full_command = ws_command
-
-        # Add logging redirection for debugging
-        full_command = CommandBuilder.add_logging(full_command, Config)
-
-        # Log the command
-        timestamp = self.timestamp
-        self.command_executed.emit(
-            timestamp,
-            f"{full_command} (Context: {scene.user}'s {scene.plate})",
-        )
-
-        # Use template method for terminal launch
-        return self._execute_launch(
-            full_command, app_name, " in scene context", has_rez_wrapper=should_wrap_rez
+        return self._finish_launch(
+            app_name,
+            command,
+            workspace_path=scene.workspace_path,
+            nuke_env_context="scene context launch",
+            log_suffix=f" (Context: {scene.user}'s {scene.plate})",
+            error_context=" in scene context",
         )
 
     # Methods removed - now using launch components:

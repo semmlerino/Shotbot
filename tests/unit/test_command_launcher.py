@@ -221,7 +221,7 @@ class TestCommandLauncher:
 
         # Launch RV with sequence path (simulates double-click on playblast)
         sequence_path = "/shows/TEST/shots/seq01/seq01_0010/playblast/shot.####.exr"
-        result = launcher.launch_app("rv", sequence_path=sequence_path)
+        result = launcher.launch_app("rv", LaunchContext(sequence_path=sequence_path))
 
         # Verify launch was successful
         assert result is True
