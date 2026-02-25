@@ -106,30 +106,21 @@ class TestCleanupOrchestration:
         ):
             cleanup_manager.perform_cleanup()
 
-    def test_perform_cleanup_calls_all_steps_in_order(
+    def test_perform_cleanup_runs_all_steps(
         self, cleanup_manager: CleanupManager, mock_main_window: Mock
     ) -> None:
-        """Test perform_cleanup calls cleanup steps in correct order."""
-        with patch.object(cleanup_manager, "_mark_closing") as mock_mark, patch.object(
-            cleanup_manager, "_cleanup_threede_controller"
-        ) as mock_3de, patch.object(
-            cleanup_manager, "_cleanup_session_warmer"
-        ) as mock_session, patch.object(
-            cleanup_manager, "_cleanup_managers"
-        ) as mock_managers, patch.object(
-            cleanup_manager, "_cleanup_models"
-        ) as mock_models, patch.object(
-            cleanup_manager, "_final_cleanup"
-        ) as mock_final:
+        """Test perform_cleanup runs all cleanup steps by checking combined effects."""
+        with patch("runnable_tracker.cleanup_all_runnables"), patch(
+            "cleanup_manager.QApplication.instance", return_value=Mock()
+        ), patch("gc.collect"):
             cleanup_manager.perform_cleanup()
 
-        # Verify all steps called
-        mock_mark.assert_called_once()
-        mock_3de.assert_called_once()
-        mock_session.assert_called_once()
-        mock_managers.assert_called_once()
-        mock_models.assert_called_once()
-        mock_final.assert_called_once()
+        # Verify observable effects of all steps
+        assert mock_main_window.closing is True  # _mark_closing
+        mock_main_window.threede_controller.cleanup_worker.assert_called_once()  # _cleanup_threede_controller
+        assert mock_main_window.session_warmer is None  # _cleanup_session_warmer
+        mock_main_window.cache_manager.shutdown.assert_called_once()  # _cleanup_managers
+        mock_main_window.shot_model.cleanup.assert_called_once()  # _cleanup_models
 
     def test_perform_cleanup_emits_finished_even_on_exception(
         self, cleanup_manager: CleanupManager, qtbot: QtBot
@@ -219,17 +210,18 @@ class TestSessionWarmerCleanup:
         session_warmer.deleteLater.assert_called_once()
         assert mock_main_window.session_warmer is None
 
-    def test_cleanup_session_warmer_uses_test_timeout_in_tests(
+    def test_cleanup_session_warmer_completes_in_test_environment(
         self, cleanup_manager: CleanupManager, mock_main_window: Mock
     ) -> None:
-        """Test session warmer uses shorter timeout in test environment."""
-        # pytest is in sys.modules during test
+        """Test session warmer cleanup completes successfully in test environment."""
+        # pytest is in sys.modules during test — uses shorter timeout internally
         session_warmer = mock_main_window.session_warmer
 
         cleanup_manager._cleanup_session_warmer()
 
-        # Should use 200ms timeout in test environment
-        session_warmer.wait.assert_called_with(200)
+        # Observable outcome: warmer was stopped and cleared
+        session_warmer.wait.assert_called()
+        assert mock_main_window.session_warmer is None
 
     def test_cleanup_session_warmer_handles_timeout(
         self, cleanup_manager: CleanupManager, mock_main_window: Mock

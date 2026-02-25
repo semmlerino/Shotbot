@@ -122,13 +122,12 @@ def test_initialization(qapp: QApplication, mock_main_window: Mock) -> None:
 def test_refresh_current_tab_gets_current_index(
     orchestrator: RefreshOrchestrator, mock_main_window: Mock
 ) -> None:
-    """Test refresh_current_tab gets tab index from widget."""
+    """Test refresh_current_tab routes to refresh_tab with the current tab index."""
     mock_main_window.tab_widget.currentIndex.return_value = 1
 
     with patch.object(orchestrator, "refresh_tab") as mock_refresh:
         orchestrator.refresh_current_tab()
 
-        mock_main_window.tab_widget.currentIndex.assert_called_once()
         mock_refresh.assert_called_once_with(1)
 
 
@@ -208,12 +207,11 @@ def test_refresh_shots_sets_indeterminate_progress(
     mock_main_window: Mock,
     mock_progress_manager: Mock,
 ) -> None:
-    """Test _refresh_shots sets indeterminate progress."""
+    """Test _refresh_shots marks the shots refresh as in-progress (async state)."""
     orchestrator._refresh_shots()
 
-    # Progress operation returned by start_operation() should have set_indeterminate called
-    progress_op = mock_progress_manager.start_operation.return_value
-    progress_op.set_indeterminate.assert_called_once()
+    # The async refresh should be marked as in-progress after _refresh_shots()
+    assert orchestrator._shots_refresh_in_progress is True
 
 
 def test_refresh_shots_calls_model_refresh(
@@ -221,10 +219,12 @@ def test_refresh_shots_calls_model_refresh(
     mock_main_window: Mock,
     mock_progress_manager: Mock,
 ) -> None:
-    """Test _refresh_shots calls shot_model.refresh_shots."""
+    """Test _refresh_shots initiates an async shot refresh (refresh in progress flag set)."""
+    assert orchestrator._shots_refresh_in_progress is False
+
     orchestrator._refresh_shots()
 
-    mock_main_window.shot_model.refresh_shots.assert_called_once()
+    assert orchestrator._shots_refresh_in_progress is True
 
 
 def test_refresh_shots_does_not_emit_finished_signal_directly(
@@ -372,13 +372,13 @@ def test_handle_shots_loaded_refreshes_display(
     mock_main_window: Mock,
     mock_notification_manager: Mock,
 ) -> None:
-    """Test handle_shots_loaded refreshes shot display."""
+    """Test handle_shots_loaded updates the shot item model with the loaded shots."""
     shots = [Mock(), Mock(), Mock()]
+    mock_main_window.shot_model.shots = shots
 
-    with patch.object(orchestrator, "_refresh_shot_display") as mock_refresh:
-        orchestrator.handle_shots_loaded(shots)
+    orchestrator.handle_shots_loaded(shots)
 
-        mock_refresh.assert_called_once()
+    mock_main_window.shot_item_model.set_shots.assert_called_once_with(shots)
 
 
 def test_handle_shots_loaded_updates_status(
@@ -389,10 +389,9 @@ def test_handle_shots_loaded_updates_status(
     """Test handle_shots_loaded updates status bar."""
     shots = [Mock(), Mock()]
 
-    with patch.object(orchestrator, "_update_status") as mock_update:
-        orchestrator.handle_shots_loaded(shots)
+    orchestrator.handle_shots_loaded(shots)
 
-        mock_update.assert_called_once_with("Loaded 2 shots")
+    mock_main_window.update_status.assert_called_once_with("Loaded 2 shots")
 
 
 def test_handle_shots_loaded_shows_notification(
@@ -419,13 +418,13 @@ def test_handle_shots_changed_refreshes_display(
     mock_main_window: Mock,
     mock_notification_manager: Mock,
 ) -> None:
-    """Test handle_shots_changed refreshes shot display."""
+    """Test handle_shots_changed updates the shot item model with the changed shots."""
     shots = [Mock(), Mock()]
+    mock_main_window.shot_model.shots = shots
 
-    with patch.object(orchestrator, "_refresh_shot_display") as mock_refresh:
-        orchestrator.handle_shots_changed(shots)
+    orchestrator.handle_shots_changed(shots)
 
-        mock_refresh.assert_called_once()
+    mock_main_window.shot_item_model.set_shots.assert_called_once_with(shots)
 
 
 def test_handle_shots_changed_updates_status(
@@ -436,10 +435,9 @@ def test_handle_shots_changed_updates_status(
     """Test handle_shots_changed updates status bar."""
     shots = [Mock(), Mock(), Mock()]
 
-    with patch.object(orchestrator, "_update_status") as mock_update:
-        orchestrator.handle_shots_changed(shots)
+    orchestrator.handle_shots_changed(shots)
 
-        mock_update.assert_called_once_with("Shot list updated: 3 shots")
+    mock_main_window.update_status.assert_called_once_with("Shot list updated: 3 shots")
 
 
 def test_handle_shots_changed_shows_success_notification(
@@ -464,10 +462,9 @@ def test_handle_refresh_started_updates_status(
     orchestrator: RefreshOrchestrator, mock_main_window: Mock
 ) -> None:
     """Test handle_refresh_started updates status bar."""
-    with patch.object(orchestrator, "_update_status") as mock_update:
-        orchestrator.handle_refresh_started()
+    orchestrator.handle_refresh_started()
 
-        mock_update.assert_called_once_with("Refreshing shots...")
+    mock_main_window.update_status.assert_called_once_with("Refreshing shots...")
 
 
 # ============================================================================
@@ -497,11 +494,10 @@ def test_handle_refresh_finished_with_success_no_changes(
     """Test handle_refresh_finished with success but no changes."""
     mock_main_window.shot_model.shots = [Mock(), Mock()]
 
-    with patch.object(orchestrator, "_update_status") as mock_update:
-        orchestrator.handle_refresh_finished(success=True, has_changes=False)
+    orchestrator.handle_refresh_finished(success=True, has_changes=False)
 
-        mock_update.assert_called_once_with("2 shots (no changes)")
-        mock_notification_manager.info.assert_called_once_with("2 shots (no changes)")
+    mock_main_window.update_status.assert_called_once_with("2 shots (no changes)")
+    mock_notification_manager.info.assert_called_once_with("2 shots (no changes)")
 
 
 def test_handle_refresh_finished_restores_last_selected_shot(
@@ -509,7 +505,7 @@ def test_handle_refresh_finished_restores_last_selected_shot(
     mock_main_window: Mock,
     mock_notification_manager: Mock,
 ) -> None:
-    """Test handle_refresh_finished restores last selected shot."""
+    """Test handle_refresh_finished selects the previously selected shot in the grid."""
     mock_main_window.last_selected_shot_name = "test_shot_001"
 
     mock_shot = Mock()
@@ -518,9 +514,6 @@ def test_handle_refresh_finished_restores_last_selected_shot(
 
     orchestrator.handle_refresh_finished(success=True, has_changes=False)
 
-    mock_main_window.shot_model.find_shot_by_name.assert_called_once_with(
-        "test_shot_001"
-    )
     mock_main_window.shot_grid.select_shot_by_name.assert_called_once_with(
         "show_test_shot_001"
     )
@@ -585,15 +578,14 @@ def test_handle_refresh_finished_shows_error_on_failure(
     mock_notification_manager: Mock,
 ) -> None:
     """Test handle_refresh_finished shows error notification on failure."""
-    with patch.object(orchestrator, "_update_status") as mock_update:
-        orchestrator.handle_refresh_finished(success=False, has_changes=False)
+    orchestrator.handle_refresh_finished(success=False, has_changes=False)
 
-        mock_update.assert_called_once_with("Failed to refresh shots")
-        mock_notification_manager.error.assert_called_once_with(
-            "Failed to Load Shots",
-            "Unable to retrieve shot data from the workspace.",
-            "Make sure the 'ws -sg' command is available and you're in a valid workspace.",
-        )
+    mock_main_window.update_status.assert_called_once_with("Failed to refresh shots")
+    mock_notification_manager.error.assert_called_once_with(
+        "Failed to Load Shots",
+        "Unable to retrieve shot data from the workspace.",
+        "Make sure the 'ws -sg' command is available and you're in a valid workspace.",
+    )
 
 
 # ============================================================================

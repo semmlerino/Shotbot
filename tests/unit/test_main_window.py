@@ -653,7 +653,7 @@ class TestCrashRecovery:
                 mock_dialog_class.assert_called_once()
 
     def test_crash_recovery_no_shot_selected(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
     ) -> None:
         """Test crash recovery shows warning when no shot is selected."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
@@ -664,16 +664,11 @@ class TestCrashRecovery:
         assert main_window.command_launcher.current_shot is None
         assert main_window.threede_shot_grid.selected_scene is None
 
-        # Mock NotificationManager to capture warning
-        with patch("notification_manager.NotificationManager") as mock_notif:
-            # Trigger crash recovery
-            main_window.shot_selection_controller.on_recover_crashes_requested()
+        # Trigger crash recovery
+        main_window.shot_selection_controller.on_recover_crashes_requested()
 
-            # Verify warning was shown
-            mock_notif.warning.assert_called_once_with(
-                "No Shot Selected",
-                "Please select a shot before attempting crash recovery."
-            )
+        # Verify a warning dialog was shown (QMessageBox.warning intercepted by fixture)
+        expect_dialog.assert_shown("warning", "No Shot Selected")
 
     def test_crash_recovery_no_crash_files_found(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
@@ -693,18 +688,16 @@ class TestCrashRecovery:
             mock_manager = mock_manager_class.return_value
             mock_manager.find_crash_files.return_value = []  # No crash files
 
-            with patch("notification_manager.NotificationManager") as mock_notif:
-                # Trigger crash recovery
-                main_window.shot_selection_controller.on_recover_crashes_requested()
+            # Trigger crash recovery
+            main_window.shot_selection_controller.on_recover_crashes_requested()
 
-                # Verify info message was shown
-                mock_notif.info.assert_called_once()
-                call_args = mock_notif.info.call_args[0][0]
-                assert "No 3DE crash files found" in call_args
-                assert shot.full_name in call_args
+            # Verify info message was shown in the status bar
+            message = main_window.status_bar.currentMessage()
+            assert "No 3DE crash files found" in message
+            assert shot.full_name in message
 
     def test_crash_recovery_with_error(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
     ) -> None:
         """Test crash recovery handles errors gracefully."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
@@ -721,15 +714,12 @@ class TestCrashRecovery:
             mock_manager = mock_manager_class.return_value
             mock_manager.find_crash_files.side_effect = Exception("Test error")
 
-            with patch("notification_manager.NotificationManager") as mock_notif:
-                # Trigger crash recovery
-                main_window.shot_selection_controller.on_recover_crashes_requested()
+            # Trigger crash recovery
+            main_window.shot_selection_controller.on_recover_crashes_requested()
 
-                # Verify error was shown
-                mock_notif.error.assert_called_once()
-                call_args = mock_notif.error.call_args
-                assert call_args[0][0] == "Scan Error"
-                assert "Test error" in call_args[0][1]
+            # Verify a critical error dialog was shown (QMessageBox.critical intercepted)
+            expect_dialog.assert_shown("critical", "Scan Error")
+            expect_dialog.assert_shown("critical", "Test error")
 
 
 class TestRightPanelFileLaunch:
@@ -827,7 +817,7 @@ class TestRightPanelFileLaunch:
             )
 
     def test_launch_with_selected_file_no_context_shows_error(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
     ) -> None:
         """Test that launching without context shows an error."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
@@ -848,16 +838,12 @@ class TestRightPanelFileLaunch:
             user="user",
         )
 
-        # Mock error notification - patch at source module
-        with patch("notification_manager.error") as mock_error:
-            options = {"selected_file": nuke_file}
-            main_window._on_right_panel_launch("nuke", options)
+        options = {"selected_file": nuke_file}
+        main_window._on_right_panel_launch("nuke", options)
 
-            # Verify error was shown
-            mock_error.assert_called_once_with(
-                "Cannot Launch File",
-                "No shot or scene context available. Select a shot first.",
-            )
+        # Verify a critical error dialog was shown with correct message
+        expect_dialog.assert_shown("critical", "Cannot Launch File")
+        expect_dialog.assert_shown("critical", "No shot or scene context available")
 
     def test_launch_without_selected_file_uses_launch_app(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch

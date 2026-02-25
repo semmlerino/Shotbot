@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Local application imports
 from progress_mixin import ProgressReportingMixin
@@ -98,11 +98,10 @@ class TestProgressCallback:
         callback = MagicMock(side_effect=Exception("Callback error"))
         obj.set_progress_callback(callback)
 
-        with patch.object(obj.logger, "error") as mock_error:
-            # Should not raise exception
-            obj._report_progress(5, 10, "Test")
-            mock_error.assert_called_once()
-            assert "Error in progress callback" in mock_error.call_args[0][0]
+        # Should not raise exception
+        obj._report_progress(5, 10, "Test")
+        # Callback is disabled after an error to prevent further failures
+        assert obj._progress_callback is None
 
     def test_duplicate_progress_filtering(self) -> None:
         """Test that duplicate progress values are filtered."""
@@ -151,10 +150,7 @@ class TestStopRequest:
         assert obj._check_stop() is False
 
         obj.request_stop()
-        with patch.object(obj.logger, "info") as mock_info:
-            assert obj._check_stop() is True
-            mock_info.assert_called_once()
-            assert "Operation stopped by user request" in mock_info.call_args[0][0]
+        assert obj._check_stop() is True
 
     def test_stop_during_operation(self) -> None:
         """Test that stop request interrupts operation."""
@@ -284,39 +280,34 @@ class TestProgressReportingIntegration:
 
 
 class TestLogging:
-    """Test logging integration."""
+    """Test side-effects of lifecycle methods."""
 
     def test_logging_on_callback_set(self) -> None:
-        """Test that setting callback logs debug message."""
+        """Test that setting callback registers the callable."""
         obj = ConcreteProgressClass()
-        with patch.object(obj.logger, "debug") as mock_debug:
-            obj.set_progress_callback(MagicMock())
-            mock_debug.assert_called_once()
-            assert "Progress callback set" in mock_debug.call_args[0][0]
+        cb = MagicMock()
+        obj.set_progress_callback(cb)
+        assert obj._progress_callback is cb
 
     def test_logging_on_callback_clear(self) -> None:
-        """Test that clearing callback logs debug message."""
+        """Test that clearing callback removes it."""
         obj = ConcreteProgressClass()
-        with patch.object(obj.logger, "debug") as mock_debug:
-            obj.clear_progress_callback()
-            mock_debug.assert_called_once()
-            assert "Progress callback cleared" in mock_debug.call_args[0][0]
+        obj.set_progress_callback(MagicMock())
+        obj.clear_progress_callback()
+        assert obj._progress_callback is None
 
     def test_logging_on_stop_request(self) -> None:
-        """Test that stop request logs info message."""
+        """Test that stop request sets the stop flag."""
         obj = ConcreteProgressClass()
-        with patch.object(obj.logger, "info") as mock_info:
-            obj.request_stop()
-            mock_info.assert_called_once()
-            assert "Stop requested" in mock_info.call_args[0][0]
+        obj.request_stop()
+        assert obj._stop_requested is True
 
     def test_logging_on_stop_clear(self) -> None:
-        """Test that clearing stop logs debug message."""
+        """Test that clearing stop resets the stop flag."""
         obj = ConcreteProgressClass()
-        with patch.object(obj.logger, "debug") as mock_debug:
-            obj.clear_stop_request()
-            mock_debug.assert_called_once()
-            assert "Stop request cleared" in mock_debug.call_args[0][0]
+        obj.request_stop()
+        obj.clear_stop_request()
+        assert obj._stop_requested is False
 
 
 class TestEdgeCases:
