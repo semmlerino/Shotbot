@@ -495,7 +495,7 @@ class CacheEntry(TypedDict):
 
 
 # ==============================================================================
-# Types consolidated from core/shot_types.py
+# Core type definitions (consolidated from historical shot_types module)
 # ==============================================================================
 
 

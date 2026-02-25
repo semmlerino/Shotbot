@@ -20,12 +20,15 @@ cp "$TEMP_DIR/shotbot_latest_metadata.json" shotbot_latest_metadata.json 2>> "$L
 ```
 
 ### Issue 2: Branch-Switching File Access
-**Problem**: Switching branches changes the working directory contents. If the background script tries to access files from the master branch after switching to encoded-releases, those files don't exist.
+**Status**: RESOLVED ✓
 
-**Impact**: `cp: cannot stat 'encoded_releases/shotbot_latest.txt': No such file or directory`
+**Problem** (historical): Switching branches changes the working directory contents. If the background script tries to access files from the master branch after switching to encoded-releases, those files don't exist.
 
-**Solution**: Copy bundle files to temporary location BEFORE switching branches:
+**Resolution**: The script was rewritten to use git plumbing commands (`hash-object`, `mktree`, `commit-tree`) that operate directly on the git object database without ever switching branches. This eliminates the file access problem entirely.
+
+**Previous solution** (no longer needed):
 ```bash
+# OLD APPROACH - NO LONGER USED
 # Copy to temp FIRST (while still on master)
 TEMP_DIR="/tmp/shotbot_bundle_$$"
 cp "$PROJECT_ROOT/encoded_releases/shotbot_latest.txt" "$TEMP_DIR/shotbot_latest.txt"
@@ -55,13 +58,18 @@ git checkout master
 ```
 
 ### Issue 4: Background Script Not Returning to Master
-**Problem**: If the background script fails during push or encounters errors, it may not return to the master branch, leaving the repository in an inconsistent state.
+**Status**: RESOLVED ✓
 
-**Symptoms**: Running `git branch --show-current` shows `encoded-releases` instead of `master`.
+**Problem** (historical): If the background script fails during push or encounters errors, it may not return to the master branch, leaving the repository in an inconsistent state.
 
-**Solution**:
-1. Force switch back to master: `git checkout -f master`
-2. The background script now includes proper error handling to ensure branch return even on failure
+**Resolution**: The script was rewritten to use git plumbing commands that never switch branches in the first place. Since the branch is never changed, there is nothing to "return" to. The repository always remains on the branch where the user is working.
+
+**Previous solution** (no longer needed):
+```bash
+# OLD APPROACH - NO LONGER USED
+# Force switch back to master: git checkout -f master
+# The background script now includes proper error handling to ensure branch return even on failure
+```
 
 ## Recovery Procedures
 
@@ -123,10 +131,15 @@ git log origin/encoded-releases -3
 
 ### Expected success output in bundle-push.log:
 ```
-✓ Successfully pushed to origin/encoded-releases
-✓ SUCCESS
-Switching back to master...
-Cleaning up temp files...
+[date] Starting background bundle push...
+Source branch: master
+Source commit: <full-commit-hash>
+Bundle blob: <blob-hash>
+Meta blob:   <blob-hash>
+Tree: <tree-hash>
+New commit: <new-commit-hash>
+SUCCESS: pushed to origin/encoded-releases
+[date] Background push completed
 ```
 
 ## Architecture Safeguards
@@ -153,5 +166,5 @@ chmod +x .git/hooks/post-commit
 
 ## Related Documentation
 
-- System architecture is documented in CLAUDE.md under "Auto-Push System"
+- Deployment system architecture: [docs/DEPLOYMENT_SYSTEM.md](./docs/DEPLOYMENT_SYSTEM.md)
 - `.post-commit-output/` - Logs from hook execution

@@ -32,11 +32,17 @@ The `.git/hooks/post-commit` script automatically:
 
 ### Background Push Script
 
-The `.git/hooks/push_bundle_background.sh` script:
-1. Switches to `encoded-releases` branch
-2. Updates `shotbot_latest.txt` and metadata
-3. Commits and pushes to `origin/encoded-releases`
-4. Switches back to original branch
+The `.git/hooks/push_bundle_background.sh` script uses git plumbing commands to create a commit on the `encoded-releases` branch **without ever switching branches or touching the working tree**:
+
+1. Reads saved context (current branch, commit hash, message) from `.post-commit-output/`
+2. Updates bundle metadata with source commit info
+3. Writes the bundle and metadata files as blob objects via `git hash-object -w`
+4. Builds a tree from those blobs via `git mktree`
+5. Creates a commit against the `encoded-releases` branch tip via `git commit-tree`
+6. Advances the branch ref via `git update-ref`
+7. Pushes `encoded-releases` to `origin`
+
+No checkout, no stash — the working tree and `HEAD` remain on `master` throughout.
 
 ### Troubleshooting
 
@@ -67,10 +73,11 @@ On the **remote VFX server**:
 git checkout encoded-releases
 git pull origin encoded-releases
 
-# Decode and extract bundle
+# Decode and extract bundle (extracts to a subdirectory named after the archive root)
 python decode_app.py shotbot_latest.txt
 
-# Run the application
+# Run the application — the subdirectory name comes from the archive root,
+# currently "shotbot_bundle_temp" (the staging dir used during bundling)
 cd shotbot_bundle_temp
 python shotbot.py
 ```
@@ -102,6 +109,7 @@ If you see import errors like `ImportError: cannot import name 'Config' from 'co
 
 4. **Test decoded bundle locally**:
    ```bash
+   # Extracts to a subdirectory named after the archive root (currently "shotbot_bundle_temp")
    python decode_app.py shotbot_latest.txt
    cd shotbot_bundle_temp
    python shotbot.py

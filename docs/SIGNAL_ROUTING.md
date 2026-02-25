@@ -2,7 +2,7 @@
 
 > **Purpose**: Document all Qt signal connections in MainWindow to reduce surprise breakage during refactoring.
 >
-> **Last Updated**: December 2025
+> **Last Updated**: February 2026
 
 ## Overview
 
@@ -32,33 +32,46 @@ MainWindow has **~40 signal connections** making it the central coupling hub. Th
 ### Shot Loading Pipeline
 
 ```
-ShotModel                              MainWindow                         ShotItemModel
-    │                                      │                                   │
-    ├─ shots_loaded ──────────────────────>│ _on_shots_loaded() ──────────────>│ set_shots()
-    │                                      │                                   │
-    ├─ background_load_started ───────────>│ _on_background_load_started()     │
-    │                                      │     └─> status bar update         │
-    │                                      │                                   │
-    ├─ background_load_finished ──────────>│ _on_background_load_finished()    │
-    │                                      │     └─> status bar update         │
-    │                                      │                                   │
-    ├─ refresh_started ───────────────────>│ _on_refresh_started()             │
-    │                                      │     └─> disable refresh action    │
-    │                                      │                                   │
-    ├─ refresh_finished ──────────────────>│ _on_refresh_finished()            │
-    │                                      │     └─> enable refresh action     │
-    │                                      │                                   │
-    ├─ error_occurred ────────────────────>│ _on_shot_error()                  │
-    │                                      │     └─> show error notification   │
-    │                                      │                                   │
-    ├─ cache_updated ─────────────────────>│ _on_cache_updated()               │
-    │                                      │     └─> log cache update          │
-    │                                      │                                   │
-    └─ data_recovery_occurred ────────────>│ _on_data_recovery()               │
-                                           │     └─> show recovery notification│
+ShotModel                              MainWindow                        RefreshOrchestrator          ShotItemModel
+    │                                      │                                   │                          │
+    ├─ shots_loaded ──────────────────────>│ _on_shots_loaded()                │                          │
+    │                                      │   ├─> orchestrator.handle_shots_loaded() ─────────────────>│ set_shots()
+    │                                      │   └─> _trigger_previous_shots_refresh()                    │
+    │                                      │         └─> orchestrator.trigger_previous_shots_refresh()  │
+    │                                      │                                   │                          │
+    ├─ shots_changed ─────────────────────>│ _on_shots_changed()               │                          │
+    │                                      │   ├─> orchestrator.handle_shots_changed() ────────────────>│ set_shots()
+    │                                      │   └─> _trigger_previous_shots_refresh()                    │
+    │                                      │                                   │                          │
+    ├─ background_load_started ───────────>│ _on_background_load_started()     │                          │
+    │                                      │     └─> status bar update         │                          │
+    │                                      │                                   │                          │
+    ├─ background_load_finished ──────────>│ _on_background_load_finished()    │                          │
+    │                                      │     (status update via shots_loaded/shots_changed)           │
+    │                                      │                                   │                          │
+    ├─ refresh_started ───────────────────>│ _on_refresh_started()             │                          │
+    │                                      │   └─> orchestrator.handle_refresh_started()                 │
+    │                                      │         └─> status bar update     │                          │
+    │                                      │                                   │                          │
+    ├─ refresh_finished ──────────────────>│ _on_refresh_finished()            │                          │
+    │                                      │   └─> orchestrator.handle_refresh_finished()                │
+    │                                      │         └─> close progress dialog, restore shot selection   │
+    │                                      │                                   │                          │
+    ├─ error_occurred ────────────────────>│ _on_shot_error()                  │                          │
+    │                                      │     └─> show error notification   │                          │
+    │                                      │                                   │                          │
+    ├─ cache_updated ─────────────────────>│ _on_cache_updated()               │                          │
+    │                                      │     └─> log cache update          │                          │
+    │                                      │                                   │                          │
+    └─ data_recovery_occurred ────────────>│ _on_data_recovery()               │                          │
+                                           │     └─> show recovery notification│                          │
 ```
 
-**Location**: `main_window.py:617-631`
+**Location**: `main_window.py:617-634`
+
+**Note on `_on_shots_loaded` side-effect**: Both `_on_shots_loaded` and `_on_shots_changed` also call `_trigger_previous_shots_refresh(shots)` (delegated to `RefreshOrchestrator.trigger_previous_shots_refresh()`), which starts a `PreviousShotsModel` refresh only when active shots are available. This prevents the "No target shows found" warning on startup when shots have not yet loaded.
+
+**Note on `shots_changed`**: Emitted by `ShotModel` when a background refresh completes and the shot list has changed from the cached version. Unlike `shots_loaded` (which fires first with cached data), `shots_changed` fires when fresh data differs from what was already displayed.
 
 ### Cache Migration
 
@@ -69,7 +82,7 @@ CacheManager                           MainWindow
                                            │     └─> update previous shots model
 ```
 
-**Location**: `main_window.py:634-636`
+**Location**: `main_window.py:637-639`
 **Connection Type**: `Qt.ConnectionType.QueuedConnection` (cross-thread safe)
 
 ### Tab Switching
@@ -86,7 +99,7 @@ QTabWidget                             MainWindow
                                            │     └─> apply tab-specific styling
 ```
 
-**Location**: `main_window.py:443, 679`
+**Location**: `main_window.py:453, 667`
 **Note**: Two separate connections to the same signal.
 
 ### Grid Launch Requests
@@ -107,7 +120,7 @@ PreviousShotsView                      CommandLauncher
     └─ app_launch_requested ──────────────>│ launch_app()
 ```
 
-**Location**: `main_window.py:641-667`
+**Location**: `main_window.py:644-664`
 
 ---
 
@@ -130,7 +143,7 @@ PreviousShotsItemModel                 FilterCoordinator
     └─ shots_updated ────────────────────>│ _on_previous_shots_updated()
 ```
 
-**Location**: `controllers/filter_coordinator.py:73-93`
+**Location**: `controllers/filter_coordinator.py:83-100`
 
 ### Right Panel
 
@@ -143,7 +156,7 @@ CommandLauncher                        RightPanelWidget
     └─ launch_ready ──────────────────────>│ set_search_pending(False)
 ```
 
-**Location**: `main_window.py:682-690`
+**Location**: `main_window.py:670-678`
 
 ### Size Synchronization (ThumbnailSizeManager)
 
@@ -160,7 +173,7 @@ PreviousShotsView.size_slider          ThumbnailSizeManager
     └─ valueChanged ──────────────────────>│ _sync_thumbnail_sizes()
 ```
 
-**Location**: `controllers/thumbnail_size_manager.py:68-80`
+**Location**: `controllers/thumbnail_size_manager.py:75-82`
 
 ### Sort Order Synchronization (MainWindow)
 
@@ -172,7 +185,7 @@ PreviousShotsView                      MainWindow
     └─ sort_order_changed ────────────────>│ _on_previous_shots_sort_order_changed()
 ```
 
-**Location**: `main_window.py:689-693`
+**Location**: `main_window.py:683-688`
 
 ### Menu Actions
 
@@ -189,7 +202,7 @@ PreviousShotsView                      MainWindow
 | Shortcuts | `triggered` | `_show_shortcuts()` |
 | About | `triggered` | `_show_about()` |
 
-**Location**: `main_window.py:510-576`
+**Location**: `main_window.py:511-576`
 
 ### Log Viewer
 
@@ -198,7 +211,7 @@ QGroupBox (log_group)                  LogViewer
     └─ toggled ───────────────────────────>│ setVisible()
 ```
 
-**Location**: `main_window.py:464`
+**Location**: `main_window.py:474`
 
 ---
 
@@ -215,7 +228,12 @@ These signals are **not** connected in MainWindow. Controllers manage them inter
 
 ### ThreeDEController
 - `threede_shot_grid.scene_selected`
+- `threede_shot_grid.scene_double_clicked`
+- `threede_shot_grid.recover_crashes_requested`
 - `threede_shot_grid.show_filter_requested`
+- `threede_shot_grid.text_filter_requested`
+
+All ThreeDEController signal connections use `ThreadSafeWorker.safe_connect()` (via `_setup_worker_signals`) to ensure deduplication and automatic cleanup when the worker thread finishes.
 
 ### FilterCoordinator
 - `shot_grid.show_filter_requested`
@@ -253,7 +271,8 @@ These signals are **not** connected in MainWindow. Controllers manage them inter
 
 ### High Risk to Modify
 
-- `shots_loaded` → breaks data display
+- `shots_loaded` → breaks data display and previous shots trigger
+- `shots_changed` → breaks refresh display update
 - `shots_migrated` → breaks previous shots
 - `currentChanged` → breaks tab switching
 - `app_launch_requested` → breaks DCC launching
@@ -268,6 +287,7 @@ def test_critical_signals_connected(main_window):
     """All critical signals must be connected."""
     # Shot model signals
     assert main_window.shot_model.shots_loaded.receivers() > 0
+    assert main_window.shot_model.shots_changed.receivers() > 0
     assert main_window.shot_model.error_occurred.receivers() > 0
 
     # Cache manager

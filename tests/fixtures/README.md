@@ -12,7 +12,7 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 | `subprocess_mocking.py` | Yes | `mock_process_pool_manager`, `mock_subprocess_popen`, `subprocess_mock` | Global subprocess interception; `subprocess_mock` for controllable error paths |
 | `qt_safety.py` | Yes | `suppress_qmessagebox`, `prevent_qapp_exit` | Prevent modal dialogs and app-exit from blocking tests |
 | `qt_cleanup.py` | Qt tests only | `qt_cleanup` | Clears Qt event queue, QThreadPool, QPixmapCache between tests |
-| `singleton_isolation.py` | Yes (lite) / Qt only (heavy) | `cleanup_state_lite`, `cleanup_state_heavy` | Resets singleton state; lite runs for all tests, heavy for Qt tests only |
+| `singleton_isolation.py` | Yes (lite) / Qt only (heavy) | `reset_caches`, `cleanup_state_heavy` | Resets singleton state; lite runs for all tests, heavy for Qt tests only |
 | `data_factories.py` | No | `make_test_shot`, `make_real_3de_file`, `sample_shot_data` | Factories for building test data objects |
 
 ## Session-Scoped (in conftest.py)

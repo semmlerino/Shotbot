@@ -62,12 +62,15 @@ Single-user tool on an isolated VFX server. Do NOT flag security issues (`shell=
 
 ```
 shotbot/
-├── controllers/       # Application controllers (settings, 3DE)
-├── core/             # Core type definitions (shot_types.py)
+├── controllers/       # Application controllers
 ├── launch/           # Process execution (command building, env management)
+├── type_definitions.py # Core type definitions (ShotData, ShotStatus, etc.)
 ├── tests/            # Test suite
+│   ├── advanced/     # Advanced integration tests
 │   ├── fixtures/     # Modular test fixtures
 │   ├── integration/  # Integration tests
+│   ├── performance/  # Performance benchmarks
+│   ├── regression/   # Regression tests
 │   └── unit/         # Unit tests
 ├── docs/             # Documentation
 ├── .git/hooks/       # Git hooks for auto-push
@@ -93,7 +96,7 @@ Key components:
 
 ## Type Safety
 
-The project uses basedpyright with strict settings. Configuration in `pyproject.toml` and `pyrightconfig.json`.
+The project uses basedpyright with strict settings. Configuration in `pyproject.toml`.
 
 Current status: **0 errors, 0 warnings, 0 notes**
 
@@ -107,6 +110,8 @@ Two singleton patterns exist:
 All singletons support `ClassName.reset()` for test isolation (parallel execution, preventing state contamination). Centralized in `tests/fixtures/singleton_registry.py`.
 
 **New singletons**: Inherit `SingletonMixin`, implement `_initialize()`, register in `singleton_registry.py`.
+
+Additional registered singletons include `DesignSystem`, `TimeoutConfig`, and `ThreadSafeWorker`.
 
 ## Qt Widget Guidelines
 
@@ -136,7 +141,7 @@ def __init__(self, cache_manager: CacheManager | None = None, parent: QWidget | 
 ~/.local/bin/uv run pytest tests/ -k "test_cache" -v
 ```
 
-- **3,500+ tests passing** with parallel execution
+- **2,500+ tests passing** with parallel execution
 - Coverage: overall % is low due to excluded VFX/GUI code; core business logic is 70-90%+
 - Session-scoped Qt fixtures (`qapp`, `_patch_qtbot_short_waits`) live in `tests/conftest.py`
 

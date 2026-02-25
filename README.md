@@ -38,6 +38,7 @@ Shotbot supports the standard matchmove pipeline:
 
 - Python 3.11+
 - PySide6
+- Pillow
 - Access to `ws -sg` command for shot listing
 - Linux environment (for terminal launching)
 
@@ -50,10 +51,8 @@ Shotbot supports the standard matchmove pipeline:
    ```
 3. Install dependencies:
    ```bash
-   uv sync
+   uv pip install -r requirements.txt
    ```
-
-That's it! uv automatically creates a virtual environment in `.venv` and installs all dependencies.
 
 ## Usage
 
@@ -126,6 +125,7 @@ The "Other 3DE scenes" tab shows 3DE scene files created by other matchmove arti
 ### Core Components
 - `shotbot.py` - Main entry point
 - `main_window.py` - Main application window with tabbed interface
+- `type_definitions.py` - Core type definitions (ShotData, ShotStatus, etc.)
 - `config.py` - Configuration constants
 
 ### Shot Management
@@ -145,6 +145,7 @@ The "Other 3DE scenes" tab shows 3DE scene files created by other matchmove arti
 
 ### Application Integration
 - `command_launcher.py` - Main launcher orchestrating application launches with shot context
+- `refresh_orchestrator.py` - Coordinated data refresh logic
 - `launch/` - Launch system components:
   - `command_builder.py` - Builds commands with rez wrapping, logging
   - `environment_manager.py` - Detects terminals, rez availability
@@ -153,10 +154,11 @@ The "Other 3DE scenes" tab shows 3DE scene files created by other matchmove arti
 ### Utilities
 - `log_viewer.py` - Command history display
 - `cache_manager.py` - Caching for thumbnails, shots, and 3DE scenes
+- `controllers/` - Application controllers for filtering, shot selection, and UI state
 
 ## Settings
 
-Settings are stored in `~/.shotbot/settings.json` and include:
+Settings are managed via Qt's QSettings system, stored at `~/.config/ShotBot/ShotBot.conf` on Linux. Persisted settings include:
 - Window geometry and layout
 - Last selected shot
 - Thumbnail size preference

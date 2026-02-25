@@ -99,7 +99,7 @@ def test_launcher_handles_failure(subprocess_mock):
     assert "ws" in subprocess_mock.calls[0]
 ```
 
-Available methods: `set_output(stdout, stderr="")`, `set_return_code(code)`, `set_exception(exc)`, `set_timeout(True)`, `reset()`, `calls` list.
+Available methods: `set_output(stdout, stderr="")`, `set_return_code(code)`, `set_exception(exc)`, `reset()`, `calls` list.
 
 **Opt out** for tests that genuinely need real subprocess:
 
@@ -137,7 +137,7 @@ All singletons support `ClassName.reset()` for test isolation. Centralized in `t
 - **Legacy pattern**: `ProcessPoolManager`, `NotificationManager`, `ProgressManager` each have a compatible `reset()` method.
 
 Isolation is split by cost:
-- `cleanup_state_lite` (autouse, all tests): Clears caches, disables caching, resets `Config.SHOWS_ROOT`
+- `reset_caches` (autouse, all tests): Clears caches, disables caching, resets `Config.SHOWS_ROOT`
 - `cleanup_state_heavy` (auto-applied to Qt tests only): Resets Qt-dependent singletons — skipped for pure logic tests to avoid 0.5s+ overhead per test
 
 ---
@@ -186,7 +186,7 @@ Work through in order:
 | Unexpected values across workers | Global state | monkeypatch |
 | Pass alone, fail in full suite | Shared cache dir | Use `tmp_path` for cache_dir |
 | Full suite crashes | Module-level Qt app | Use `qapp` fixture only |
-| Data cleared during `qtbot.wait()` | Background loader | `defer_background_loads=True` |
+| Data cleared during `qtbot.wait()` | Background loader | Stop background workers before waiting |
 
 Set `SHOTBOT_TEST_STRICT_CLEANUP=1` locally to enable thread leak detection.
 
@@ -210,5 +210,4 @@ Use `process_qt_events()` from `tests.test_helpers` (not `qtbot.wait(1)`) for ev
 
 ## Related Documentation
 
-- **Case Studies**: [docs/TEST_ISOLATION_CASE_STUDIES.md](docs/TEST_ISOLATION_CASE_STUDIES.md)
 - **Project Guide**: [CLAUDE.md](CLAUDE.md)
