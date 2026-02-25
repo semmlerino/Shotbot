@@ -23,6 +23,14 @@ from utils import FileUtils, VersionUtils, find_path_case_insensitive
 logger = get_module_logger(__name__)
 
 
+def _extract_frame_number(path: Path) -> int:
+    """Extract frame number from a filename like ``name.1001.exr``."""
+    match = re.search(r"\.(\d{4})\.exr$", path.name, re.IGNORECASE)
+    if match:
+        return int(match.group(1))
+    return 99999  # Sort non-matching files last
+
+
 class ThumbnailFinders:
     """Utilities for finding thumbnail images in VFX pipeline."""
 
@@ -142,36 +150,24 @@ class ThumbnailFinders:
 
                 # Sort to get the first frame number
                 # Files like: GG_000_0050_turnover-plate_EL01_lin_sgamut3cine_v001.1001.exr
-                def extract_frame_number(path: Path) -> int:
-                    """Extract frame number from filename."""
-                    # Match pattern like .1001.exr or .0001.exr
-                    match = re.search(r"\.(\d{4})\.exr$", path.name, re.IGNORECASE)
-                    if match:
-                        return int(match.group(1))
-                    return 99999  # Sort non-matching files last
+                sorted_frames = sorted(exr_files, key=_extract_frame_number)
+                first_frame = sorted_frames[0]
 
-                sorted_frames = sorted(exr_files, key=extract_frame_number)
+                # Check if we should use EXR as fallback
+                # Only return EXR if it's reasonably sized or if we're explicitly allowing fallback
+                file_size_mb = first_frame.stat().st_size / (1024 * 1024)
+                max_direct_size = getattr(Config, "THUMBNAIL_MAX_DIRECT_SIZE_MB", 10)
 
-                if sorted_frames:
-                    first_frame = sorted_frames[0]
-                    # Check if we should use EXR as fallback
-                    # Only return EXR if it's reasonably sized or if we're explicitly allowing fallback
-                    file_size_mb = first_frame.stat().st_size / (1024 * 1024)
-                    max_direct_size = getattr(
-                        Config, "THUMBNAIL_MAX_DIRECT_SIZE_MB", 10
+                if file_size_mb <= max_direct_size:
+                    logger.debug(
+                        f"Using turnover plate EXR as fallback: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB)",
                     )
-
-                    if file_size_mb <= max_direct_size:
-                        # Small enough to use directly
-                        logger.debug(
-                            f"Using turnover plate EXR as fallback: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB)",
-                        )
-                        return first_frame
+                else:
                     # Large EXR - return it anyway, cache_manager will resize with PIL
                     logger.debug(
                         f"Found large turnover plate EXR: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB) - will resize",
                     )
-                    return first_frame
+                return first_frame
 
         logger.debug(f"No suitable turnover plates found for {sequence}_{shot}")
         return None
@@ -329,6 +325,71 @@ class ThumbnailFinders:
         return None
 
     @staticmethod
+    def _find_jpeg_in_nuke_output(
+        mm_default_base: Path,
+        user_path: Path,
+    ) -> Path | None:
+        """Search both Nuke output structures (undistort/scene) for a JPEG thumbnail.
+
+        Args:
+            mm_default_base: Path to user's mm/nuke/outputs/mm-default directory
+            user_path: User workspace root (used only for log messages)
+
+        Returns:
+            Path to first JPEG found, or None
+
+        """
+        for output_type in ["undistort", "scene"]:
+            nuke_outputs = mm_default_base / output_type
+            if not nuke_outputs.exists():
+                continue
+
+            plate_dirs = FileDiscovery.discover_plate_directories(nuke_outputs)
+
+            for plate_name, _priority in plate_dirs:
+                plate_dir = find_path_case_insensitive(nuke_outputs, plate_name)
+                if plate_dir is None:
+                    continue
+
+                undistorted_path = plate_dir / "undistorted_plate"
+                if not undistorted_path.exists():
+                    continue
+
+                latest_version = VersionUtils.get_latest_version(undistorted_path)
+                if not latest_version:
+                    continue
+
+                version_path = undistorted_path / latest_version
+
+                for potential_jpeg_path in [version_path / "jpeg", version_path]:
+                    if not potential_jpeg_path.exists():
+                        continue
+
+                    try:
+                        for resolution_dir in potential_jpeg_path.iterdir():
+                            if not resolution_dir.is_dir():
+                                continue
+
+                            jpeg_dir = (
+                                resolution_dir / "jpeg"
+                                if (resolution_dir / "jpeg").exists()
+                                else resolution_dir
+                            )
+
+                            jpeg_file = FileUtils.get_first_image_file(jpeg_dir)
+                            if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
+                                logger.info(
+                                    f"Found user workspace JPEG: {jpeg_file.name}"
+                                    f" (user: {user_path.name}, output_type: {output_type},"
+                                    f" plate: {plate_name}, version: {latest_version})"
+                                )
+                                return jpeg_file
+                    except (OSError, PermissionError):
+                        continue
+
+        return None
+
+    @staticmethod
     def find_user_workspace_jpeg_thumbnail(
         shows_root: str,
         show: str,
@@ -363,82 +424,58 @@ class ThumbnailFinders:
             return None
 
         try:
-            # Iterate through user directories
             for user_path in user_dir.iterdir():
                 if not user_path.is_dir():
                     continue
 
-                # Check if mm/nuke/outputs/mm-default exists
                 mm_default_base = user_path / "mm" / "nuke" / "outputs" / "mm-default"
                 if not mm_default_base.exists():
                     continue
 
-                # Try both common Nuke output directory structures (undistort is more common)
-                for output_type in ["undistort", "scene"]:
-                    nuke_outputs = mm_default_base / output_type
-                    if not nuke_outputs.exists():
-                        continue
-
-                    # Discover plate directories using dynamic discovery (now case-insensitive)
-                    plate_dirs = FileDiscovery.discover_plate_directories(nuke_outputs)
-
-                    # Try each plate in priority order
-                    for plate_name, _priority in plate_dirs:
-                        # Get plate directory with case-insensitive lookup
-                        plate_dir = find_path_case_insensitive(nuke_outputs, plate_name)
-                        if plate_dir is None:
-                            continue
-
-                        undistorted_path = plate_dir / "undistorted_plate"
-                        if not undistorted_path.exists():
-                            continue
-
-                        # Find latest version
-                        latest_version = VersionUtils.get_latest_version(
-                            undistorted_path
-                        )
-                        if not latest_version:
-                            continue
-
-                        # Look for resolution/jpeg subdirectory structure
-                        version_path = undistorted_path / latest_version
-
-                        # Try direct jpeg subdirectory first, then version directory
-                        for potential_jpeg_path in [
-                            version_path / "jpeg",
-                            version_path,
-                        ]:
-                            if not potential_jpeg_path.exists():
-                                continue
-
-                            # Check for resolution subdirectories
-                            try:
-                                for resolution_dir in potential_jpeg_path.iterdir():
-                                    if not resolution_dir.is_dir():
-                                        continue
-
-                                    # Look for resolution/jpeg structure
-                                    jpeg_dir = (
-                                        resolution_dir / "jpeg"
-                                        if (resolution_dir / "jpeg").exists()
-                                        else resolution_dir
-                                    )
-
-                                    # Find first JPEG
-                                    jpeg_file = FileUtils.get_first_image_file(jpeg_dir)
-                                    if jpeg_file and jpeg_file.suffix.lower() in [
-                                        ".jpg",
-                                        ".jpeg",
-                                    ]:
-                                        logger.info(f"Found user workspace JPEG: {jpeg_file.name} (user: {user_path.name}, output_type: {output_type}, plate: {plate_name}, version: {latest_version})")
-                                        return jpeg_file
-                            except (OSError, PermissionError):
-                                continue
+                result = ThumbnailFinders._find_jpeg_in_nuke_output(mm_default_base, user_path)
+                if result is not None:
+                    return result
 
         except (OSError, PermissionError) as e:
             logger.debug(f"Error scanning user workspaces in {shot_path}: {e}")
 
         logger.debug(f"No user workspace JPEGs found for {show}/{sequence}/{shot}")
+        return None
+
+    @staticmethod
+    def _find_editorial_cutref_thumbnail(editorial_base: Path) -> Path | None:
+        """Search an editorial cutref directory for a JPEG thumbnail.
+
+        Args:
+            editorial_base: Path to publish/editorial/cutref
+
+        Returns:
+            Path to first JPEG from the latest version, or None
+
+        """
+        latest_version = VersionUtils.get_latest_version(editorial_base)
+        if not latest_version:
+            logger.debug(f"No version directories found in {editorial_base}")
+            return None
+
+        jpg_base_path = editorial_base / latest_version / "jpg"
+        if not PathValidators.validate_path_exists(jpg_base_path, "JPEG base path"):
+            logger.debug(f"No jpg directory found in {editorial_base}/{latest_version}")
+            return None
+
+        try:
+            for resolution_dir in jpg_base_path.iterdir():
+                if resolution_dir.is_dir():
+                    jpeg_file = FileUtils.get_first_image_file(resolution_dir)
+                    if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
+                        logger.info(
+                            f"Found editorial cutref thumbnail: {jpeg_file.name}"
+                            f" (version: {latest_version}, resolution: {resolution_dir.name})"
+                        )
+                        return jpeg_file
+        except (OSError, PermissionError) as e:
+            logger.debug(f"Error scanning editorial cutref JPEG directory {jpg_base_path}: {e}")
+
         return None
 
     @staticmethod
@@ -456,6 +493,8 @@ class ThumbnailFinders:
         Searches for JPEG thumbnails in:
         {workspace}/publish/editorial/cutref/{latest_version}/jpg/{resolution}/
 
+        Falls back to turnover plate thumbnail, then any publish EXR.
+
         Args:
             shows_root: Root path for shows
             show: Show name
@@ -466,48 +505,21 @@ class ThumbnailFinders:
             Path to first JPEG file from latest editorial cutref version, or None if not found
 
         """
-        # Build base path to editorial cutref directory
         shot_dir = f"{sequence}_{shot}"
         editorial_base = PathBuilders.build_path(
-            shows_root,
-            show,
-            "shots",
-            sequence,
-            shot_dir,
-            "publish",
-            "editorial",
-            "cutref",
+            shows_root, show, "shots", sequence, shot_dir,
+            "publish", "editorial", "cutref",
         )
 
-        # Try to find editorial cutref thumbnail
         if PathValidators.validate_path_exists(editorial_base, "Editorial cutref directory"):
-            # Find latest version directory (v001, v002, etc.)
-            latest_version = VersionUtils.get_latest_version(editorial_base)
-            if latest_version:
-                # Build path to jpg subdirectory
-                jpg_base_path = editorial_base / latest_version / "jpg"
-                if PathValidators.validate_path_exists(jpg_base_path, "JPEG base path"):
-                    # Find any resolution directory (1920x1080, 3840x2160, etc.)
-                    try:
-                        for resolution_dir in jpg_base_path.iterdir():
-                            if resolution_dir.is_dir():
-                                # Find first .jpg/.jpeg file in this resolution
-                                jpeg_file = FileUtils.get_first_image_file(resolution_dir)
-                                if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
-                                    logger.info(f"Found editorial cutref thumbnail: {jpeg_file.name} (version: {latest_version}, resolution: {resolution_dir.name})")
-                                    return jpeg_file
-                    except (OSError, PermissionError) as e:
-                        logger.debug(f"Error scanning editorial cutref JPEG directory {jpg_base_path}: {e}")
-                else:
-                    logger.debug(f"No jpg directory found in {editorial_base}/{latest_version}")
-            else:
-                logger.debug(f"No version directories found in {editorial_base}")
+            result = ThumbnailFinders._find_editorial_cutref_thumbnail(editorial_base)
+            if result is not None:
+                return result
         else:
             logger.debug(f"No editorial cutref directory found for {sequence}_{shot}")
 
         logger.debug(f"No editorial cutref JPEGs found for {show}/{sequence}/{shot}")
 
-        # Fall back to turnover plate thumbnail if editorial cutref not found
         logger.debug(f"Attempting turnover plate fallback for {show}/{sequence}/{shot}")
         turnover_thumbnail = ThumbnailFinders.find_turnover_plate_thumbnail(
             shows_root, show, sequence, shot
@@ -516,7 +528,6 @@ class ThumbnailFinders:
             logger.info(f"Found turnover plate thumbnail: {turnover_thumbnail}")
             return turnover_thumbnail
 
-        # Third fallback: any EXR with 1001 in publish folder
         logger.debug(f"Attempting publish directory fallback for {show}/{sequence}/{shot}")
         publish_thumbnail = ThumbnailFinders.find_any_publish_thumbnail(
             shows_root, show, sequence, shot

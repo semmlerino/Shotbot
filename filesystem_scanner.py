@@ -736,7 +736,7 @@ class FileSystemScanner(LoggingMixin):
         finally:
             sel.close()
 
-    def _run_find_with_polling(
+    def _run_find_and_parse(
         self,
         find_cmd: list[str],
         show_path: Path,
@@ -808,6 +808,179 @@ class FileSystemScanner(LoggingMixin):
 
         return results
 
+    def _ensure_parser(self) -> None:
+        """Ensure the SceneParser is initialized (thread-safe lazy init).
+
+        Uses double-check locking for concurrent ThreadPoolExecutor usage.
+        Shared by find_all_3de_files_in_show_targeted and _fallback_python_search.
+        """
+        if self.parser is None:
+            with self._parser_lock:
+                if self.parser is None:
+                    from scene_parser import SceneParser
+
+                    self.parser = SceneParser()
+
+    def _build_find_commands(
+        self, shots_dir: Path
+    ) -> tuple[list[str], list[str]]:
+        """Build the two find commands for the dual-search strategy.
+
+        Returns:
+            Tuple of (find_cmd_user, find_cmd_publish_dirs)
+
+        """
+        # Directories to aggressively prune
+        prune_dirs = [
+            "render", "comp", "output", "cache", "tmp", "temp", "backup",
+            "plates", "elements", "assets", "textures", "footage",
+            "turnover", "reference", "editorial", "audio",
+            ".git", ".svn", "__pycache__", "node_modules",
+            "versions", ".backup", "old", "archive",
+        ]
+
+        prune_expr: list[str] = []
+        for i, dir_name in enumerate(prune_dirs):
+            if i > 0:
+                prune_expr.extend(["-o"])
+            prune_expr.extend(["-path", f"*/{dir_name}"])
+
+        find_cmd_user = [
+            "find", str(shots_dir),
+            "(", *prune_expr, ")", "-prune",
+            "-o",
+            "-type", "f",
+            "-path", "*/user/*",
+            "(", "-name", "*.3de", "-o", "-name", "*.3DE", ")",
+            "-print",
+        ]
+
+        find_cmd_publish_dirs = [
+            "find", str(shots_dir),
+            "-type", "d",
+            "-path", "*/publish/mm",
+            "-print",
+        ]
+
+        return find_cmd_user, find_cmd_publish_dirs
+
+    def _find_shots_with_published_mm(
+        self,
+        find_cmd_publish_dirs: list[str],
+        cancel_flag: Callable[[], bool] | None,
+    ) -> set[tuple[str, str]] | None:
+        """Run the publish/mm directory search and return (sequence, shot) pairs.
+
+        Returns:
+            Set of (sequence, shot) tuples found, or None if cancelled.
+
+        """
+        shots_with_published_mm: set[tuple[str, str]] = set()
+        try:
+            returncode, stdout, _stderr, status = self._run_subprocess_with_streaming_read(
+                find_cmd_publish_dirs, cancel_flag, max_wait_time=30.0
+            )
+
+            if status == "cancelled":
+                return None
+
+            if returncode == 0 and stdout:
+                for line in stdout.strip().split("\n"):
+                    if not line:
+                        continue
+                    dir_path = Path(line)
+                    try:
+                        # Navigate up: mm -> publish -> SEQUENCE_SHOT -> SEQUENCE
+                        shot_dir = dir_path.parent.parent.name
+                        sequence = dir_path.parent.parent.parent.name
+
+                        # Extract shot number — must match scene_parser.py logic exactly
+                        if shot_dir.startswith(f"{sequence}_"):
+                            shot = shot_dir[len(sequence) + 1:]
+                        else:
+                            # CRITICAL FIX: Fallback logic (must match scene_parser.py:156-159)
+                            shot_parts = shot_dir.rsplit("_", 1)
+                            shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
+
+                        if shot:
+                            shots_with_published_mm.add((sequence, shot))
+                            self.logger.debug(f"Found published MM for: {sequence}/{shot}")
+                        else:
+                            self.logger.debug(f"Skipping empty shot name from: {shot_dir}")
+                    except (IndexError, AttributeError) as e:
+                        self.logger.debug(f"Could not parse publish/mm path {line}: {e}")
+
+            self.logger.info(
+                f"Found {len(shots_with_published_mm)} shots with published matchmove"
+            )
+
+        except Exception as e:
+            self.logger.warning(f"Error finding publish/mm directories: {e}")
+
+        return shots_with_published_mm
+
+    def _filter_to_published_shots(
+        self,
+        user_results: list[tuple[Path, str, str, str, str, str]],
+        shots_with_published_mm: set[tuple[str, str]],
+        user_timed_out: bool,
+    ) -> list[tuple[Path, str, str, str, str, str]]:
+        """Filter user results to only those from shots with published matchmove.
+
+        Returns:
+            Filtered list, or all user results if no published shots were found.
+
+        """
+        if shots_with_published_mm:
+            results = [
+                result for result in user_results
+                if (result[2], result[3]) in shots_with_published_mm
+            ]
+            msg_prefix = "Partial results (timeout):" if user_timed_out else "Filtered"
+            self.logger.info(
+                f"{msg_prefix} {len(user_results)} user files to {len(results)}"
+                " from shots with published MM"
+            )
+            return results
+
+        self.logger.info("No publish/mm directories found - showing all user files")
+        return user_results
+
+    def _log_scan_summary(
+        self,
+        results: list[tuple[Path, str, str, str, str, str]],
+        user_results: list[tuple[Path, str, str, str, str, str]],
+        user_timed_out: bool,
+        elapsed: float,
+    ) -> None:
+        """Log the final dual-search summary with shot statistics."""
+        unique_shots: set[str] = {f"{r[2]}/{r[3]}" for r in results}
+        file_count = len(results)
+
+        self.logger.info(
+            "=== COMPLETED find_all_3de_files_in_show_targeted (optimized) ==="
+        )
+        self.logger.info(f"  Found {file_count} .3de files in {elapsed:.2f}s")
+        self.logger.info(f"  Parsed {file_count} valid scenes")
+        self.logger.info(f"  Unique shots with 3DE files: {len(unique_shots)}")
+
+        if unique_shots:
+            sample_shots = list(unique_shots)[:5]
+            self.logger.debug(f"  Sample shots: {', '.join(sample_shots)}")
+
+        if user_timed_out:
+            self.logger.warning(
+                f"Search incomplete (timeout): {len(user_results)} user files found,"
+                f" {file_count} files from shots with published MM"
+                f" ({len(unique_shots)} shots, {elapsed:.1f}s)"
+            )
+        else:
+            self.logger.info(
+                f"Dual search complete: {len(user_results)} user files found,"
+                f" {file_count} files from shots with published MM"
+                f" ({len(unique_shots)} shots, {elapsed:.1f}s)"
+            )
+
     def find_all_3de_files_in_show_targeted(
         self,
         show_root: str,
@@ -830,15 +1003,7 @@ class FileSystemScanner(LoggingMixin):
             List of tuples: (file_path, show, sequence, shot, user, plate)
 
         """
-        # Thread-safe lazy import to avoid circular dependency
-        # Uses double-check locking pattern for concurrent ThreadPoolExecutor usage
-        if self.parser is None:
-            with self._parser_lock:
-                # Double-check: another thread might have initialized while waiting for lock
-                if self.parser is None:
-                    from scene_parser import SceneParser
-
-                    self.parser = SceneParser()
+        self._ensure_parser()
 
         self.logger.info(
             "=== STARTING find_all_3de_files_in_show_targeted (optimized) ==="
@@ -853,204 +1018,52 @@ class FileSystemScanner(LoggingMixin):
             self.logger.warning(f"No shots directory found: {shots_dir}")
             return []
 
-        results: list[tuple[Path, str, str, str, str, str]] = []
         excluded_users = excluded_users or set()
-
         start_time = time.time()
-        file_count = 0
-        parsed_count = 0
-        unique_shots: set[str] = set()
+        results: list[tuple[Path, str, str, str, str, str]] = []
+        user_results: list[tuple[Path, str, str, str, str, str]] = []
+        user_timed_out = False
 
         try:
             self.logger.info("Using optimized dual-search strategy for .3de files")
 
-            # OPTIMIZATION: Use two targeted searches instead of one complex search
-            # This is faster because:
-            # 1. Directly targets user/ and publish/ paths (no complex prune logic)
-            # 2. Uses -maxdepth to limit recursion depth
-            # 3. More aggressive pruning of VFX-specific directories
+            find_cmd_user, find_cmd_publish_dirs = self._build_find_commands(shots_dir)
 
-            # Directories to aggressively prune (expanded list)
-            prune_dirs = [
-                "render", "comp", "output", "cache", "tmp", "temp", "backup",  # Original
-                "plates", "elements", "assets", "textures", "footage",         # Media
-                "turnover", "reference", "editorial", "audio",                 # Production
-                ".git", ".svn", "__pycache__", "node_modules",                 # Version control
-                "versions", ".backup", "old", "archive"                        # Backup/archive
-            ]
-
-            # Build prune expression: -path */dir1 -o -path */dir2 ...
-            prune_expr: list[str] = []
-            for i, dir_name in enumerate(prune_dirs):
-                if i > 0:
-                    prune_expr.extend(["-o"])
-                prune_expr.extend(["-path", f"*/{dir_name}"])
-
-            # Search strategy: Two targeted searches (user + publish)
-            # Search 1: Look in user directories (depth: shots/seq/shot/user/files)
-            find_cmd_user = [
-                "find", str(shots_dir),
-                # Prune unwanted directories first
-                "(",
-                *prune_expr,
-                ")",
-                "-prune",
-                "-o",
-                # Target user directories with depth limit
-                "-type", "f",
-                "-path", "*/user/*",
-                "(",
-                "-name", "*.3de",
-                "-o",
-                "-name", "*.3DE",
-                ")",
-                "-print"
-            ]
-
-            # Search 2: Find shots with publish/mm directory (fast directory check)
-            # This validates which shots have published matchmove work
-            find_cmd_publish_dirs = [
-                "find", str(shots_dir),
-                "-type", "d",  # Look for directories only (very fast)
-                "-path", "*/publish/mm",
-                "-print"
-            ]
-
-            # Run both searches: find user files + find publish/mm directories
-            self.logger.info("🔍 Running dual search: user files + publish/mm directories")
-
-            # Search 1: User directories - find actual .3de files
+            # Search 1: user directories — actual .3de files
             self.logger.debug(f"Search 1 (user): {' '.join(find_cmd_user)}")
-
-            # Run user directory search with timeout detection
-            user_results_raw = self._run_find_with_polling(
+            user_results_raw = self._run_find_and_parse(
                 find_cmd_user, show_path, show, excluded_users, cancel_flag, max_wait_time=150
             )
-
-            # Track timeout state for conditional messaging
             user_timed_out = user_results_raw is None
-
-            # Convert None to empty list for safe iteration
             user_results = user_results_raw if user_results_raw is not None else []
 
-            # Check cancellation between searches
             if cancel_flag and cancel_flag():
                 return []
 
-            # Search 2: Find shots with publish/mm directory (indicates published matchmove)
+            # Search 2: publish/mm directories — which shots have published matchmove
             self.logger.debug(f"Search 2 (publish/mm dirs): {' '.join(find_cmd_publish_dirs)}")
+            shots_with_mm = self._find_shots_with_published_mm(
+                find_cmd_publish_dirs, cancel_flag
+            )
+            if shots_with_mm is None:  # cancelled
+                return []
 
-            # Run find command to get publish/mm directories with cancellation support
-            # Uses streaming read to avoid pipe buffer deadlock on large outputs
-            shots_with_published_mm: set[tuple[str, str]] = set()
-            max_wait_time_dirs = 30.0  # 30 second timeout for directory check
-            try:
-                returncode, stdout, _stderr, status = self._run_subprocess_with_streaming_read(
-                    find_cmd_publish_dirs, cancel_flag, max_wait_time_dirs
-                )
+            results = self._filter_to_published_shots(
+                user_results, shots_with_mm, user_timed_out
+            )
 
-                # Handle cancellation - early exit
-                if status == "cancelled":
-                    return []
-
-                # Handle timeout - continue with empty set (non-critical search)
-                # status == "timeout" just means we proceed with partial/no results
-
-                if returncode == 0 and stdout:
-                    # Parse directory paths to extract sequence/shot
-                    for line in stdout.strip().split("\n"):
-                        if not line:
-                            continue
-                        # Path format: /shows/SHOW/shots/SEQUENCE/SEQUENCE_SHOT/publish/mm
-                        dir_path = Path(line)
-                        try:
-                            # Navigate up: mm -> publish -> SEQUENCE_SHOT -> SEQUENCE
-                            shot_dir = dir_path.parent.parent.name  # SEQUENCE_SHOT
-                            sequence = dir_path.parent.parent.parent.name  # SEQUENCE
-
-                            # Extract shot number from shot_dir - must match scene_parser.py logic exactly
-                            # to prevent filtering out valid .3de files due to parsing inconsistency
-                            if shot_dir.startswith(f"{sequence}_"):
-                                # Remove the sequence prefix to get the shot number
-                                shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
-                            else:
-                                # CRITICAL FIX: Fallback logic (must match scene_parser.py:156-159)
-                                # Without this, shots with non-standard names are silently excluded,
-                                # causing valid .3de files to be filtered out (data loss bug)
-                                shot_parts = shot_dir.rsplit("_", 1)
-                                shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
-
-                            # Validate shot is not empty before adding
-                            if shot:
-                                shots_with_published_mm.add((sequence, shot))
-                                self.logger.debug(f"Found published MM for: {sequence}/{shot}")
-                            else:
-                                self.logger.debug(f"Skipping empty shot name from: {shot_dir}")
-                        except (IndexError, AttributeError) as e:
-                            self.logger.debug(f"Could not parse publish/mm path {line}: {e}")
-
-                self.logger.info(f"Found {len(shots_with_published_mm)} shots with published matchmove")
-
-            except Exception as e:
-                self.logger.warning(f"Error finding publish/mm directories: {e}")
-
-            # Filter user_results to only include shots with published matchmove
-            if shots_with_published_mm:
-                results = [
-                    result for result in user_results
-                    if (result[2], result[3]) in shots_with_published_mm  # (sequence, shot)
-                ]
-                msg_prefix = "⚠️ Partial results (timeout):" if user_timed_out else "Filtered"
-                self.logger.info(
-                    f"{msg_prefix} {len(user_results)} user files to {len(results)} from shots with published MM"
-                )
-            else:
-                # No publish/mm directories found - show all user results
-                results = user_results
-                self.logger.info("No publish/mm directories found - showing all user files")
-
-            # Track statistics
-            file_count = len(results)
-            parsed_count = len(results)
-            for _, _, sequence, shot, _, _ in results:
-                unique_shots.add(f"{sequence}/{shot}")
-
-            # Log combined results
-            elapsed = time.time() - start_time
-            if user_timed_out:
-                self.logger.warning(
-                    f"⚠️ Search incomplete (timeout): {len(user_results)} user files found, {len(results)} files from shots with published MM ({len(unique_shots)} shots, {elapsed:.1f}s)"
-                )
-            else:
-                self.logger.info(
-                    f"✅ Dual search complete: {len(user_results)} user files found, {len(results)} files from shots with published MM ({len(unique_shots)} shots, {elapsed:.1f}s)"
-                )
-
-            # Fall back to Python search if user search failed
             if not results:
-                self.logger.info("No results from user directory search, falling back to Python-based search")
-                return self._fallback_python_search(
-                    shots_dir, show_path, show, excluded_users
+                self.logger.info(
+                    "No results from user directory search, falling back to Python-based search"
                 )
-
-            # Results have been collected by the dual search above
+                return self._fallback_python_search(shots_dir, show_path, show, excluded_users)
 
         except Exception as e:
             self.logger.error(f"Error in optimized search: {e}")
             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         elapsed = time.time() - start_time
-        self.logger.info(
-            "=== COMPLETED find_all_3de_files_in_show_targeted (optimized) ==="
-        )
-        self.logger.info(f"  Found {file_count} .3de files in {elapsed:.2f}s")
-        self.logger.info(f"  Parsed {parsed_count} valid scenes")
-        self.logger.info(f"  Unique shots with 3DE files: {len(unique_shots)}")
-
-        # Log sample of unique shots
-        if unique_shots:
-            sample_shots = list(unique_shots)[:5]
-            self.logger.debug(f"  Sample shots: {', '.join(sample_shots)}")
+        self._log_scan_summary(results, user_results, user_timed_out, elapsed)
 
         return results
 
@@ -1066,15 +1079,8 @@ class FileSystemScanner(LoggingMixin):
         This uses a more efficient approach than the original by using
         glob patterns directly on the shots directory.
         """
-        # Thread-safe lazy import to avoid circular dependency
-        # Uses double-check locking pattern for concurrent ThreadPoolExecutor usage
-        if self.parser is None:
-            with self._parser_lock:
-                # Double-check: another thread might have initialized while waiting for lock
-                if self.parser is None:
-                    from scene_parser import SceneParser
-
-                    self.parser = SceneParser()
+        self._ensure_parser()
+        assert self.parser is not None
 
         results: list[tuple[Path, str, str, str, str, str]] = []
         excluded_users = excluded_users or set()

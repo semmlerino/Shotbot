@@ -280,7 +280,7 @@ class TestDirectoryCacheThreadSafety:
 class TestSubprocessTimeoutCancellation:
     """Test subprocess timeout and cancellation handling.
 
-    These tests verify that `_run_find_with_polling()` correctly handles:
+    These tests verify that `_run_find_and_parse()` correctly handles:
     - Cancel flag stopping the process
     - Timeout killing the process
     - Normal completion
@@ -324,7 +324,7 @@ class TestSubprocessTimeoutCancellation:
         def cancel_flag() -> bool:
             return True
 
-        result = scanner_with_parser._run_find_with_polling(
+        result = scanner_with_parser._run_find_and_parse(
             find_cmd=["find", "/test"],
             show_path=Path("/shows/TEST"),
             show="TEST",
@@ -351,7 +351,7 @@ class TestSubprocessTimeoutCancellation:
 
         scanner_with_parser._run_subprocess_with_streaming_read = mock_streaming_read  # type: ignore[method-assign]
 
-        result = scanner_with_parser._run_find_with_polling(
+        result = scanner_with_parser._run_find_and_parse(
             find_cmd=["find", "/test"],
             show_path=Path("/shows/TEST"),
             show="TEST",
@@ -378,7 +378,7 @@ class TestSubprocessTimeoutCancellation:
 
         scanner_with_parser._run_subprocess_with_streaming_read = mock_streaming_read  # type: ignore[method-assign]
 
-        result = scanner_with_parser._run_find_with_polling(
+        result = scanner_with_parser._run_find_and_parse(
             find_cmd=["find", "/test"],
             show_path=Path("/shows/TEST"),
             show="TEST",
@@ -407,7 +407,7 @@ class TestSubprocessTimeoutCancellation:
         scanner_with_parser._run_subprocess_with_streaming_read = mock_streaming_read  # type: ignore[method-assign]
 
         # Should not raise, just return empty results
-        result = scanner_with_parser._run_find_with_polling(
+        result = scanner_with_parser._run_find_and_parse(
             find_cmd=["find", "/test"],
             show_path=Path("/shows/TEST"),
             show="TEST",
@@ -439,7 +439,7 @@ class TestSubprocessTimeoutCancellation:
 
         monkeypatch.setattr("filesystem_scanner.subprocess.Popen", raise_exc)
 
-        result = scanner_with_parser._run_find_with_polling(
+        result = scanner_with_parser._run_find_and_parse(
             find_cmd=["find", "/test"],
             show_path=Path("/shows/TEST"),
             show="TEST",
@@ -456,7 +456,7 @@ class TestSubprocessTimeoutCancellation:
     ) -> None:
         """Invalid max_wait_time raises ValueError."""
         with pytest.raises(ValueError, match="max_wait_time must be positive"):
-            scanner_with_parser._run_find_with_polling(
+            scanner_with_parser._run_find_and_parse(
                 find_cmd=["find", "/test"],
                 show_path=Path("/shows/TEST"),
                 show="TEST",
@@ -466,7 +466,7 @@ class TestSubprocessTimeoutCancellation:
             )
 
         with pytest.raises(ValueError, match="max_wait_time must be positive"):
-            scanner_with_parser._run_find_with_polling(
+            scanner_with_parser._run_find_and_parse(
                 find_cmd=["find", "/test"],
                 show_path=Path("/shows/TEST"),
                 show="TEST",
