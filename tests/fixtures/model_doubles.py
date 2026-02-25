@@ -18,16 +18,12 @@ Functions:
 
 from __future__ import annotations
 
-import time
-from collections.abc import Callable
-from concurrent.futures import Future
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
 from PySide6.QtCore import QObject, Signal
-from PySide6.QtGui import QImage
 
 from tests.fixtures.signal_doubles import (
     SignalDouble,  # noqa: F401  (re-exported for consumers)
@@ -248,8 +244,6 @@ class TestCacheManager(QObject):
         self._cached_thumbnails: dict[str, Path] = {}
         self._cached_shots: list[TestShot] = []
         self._cached_previous_shots: list[dict[str, Any]] | None = None
-        self._memory_usage_bytes: int = 0
-        self._cache_operations: list[dict[str, Any]] = []
         self.thumbnails_dir = self.cache_dir / "thumbnails"
 
     def cache_thumbnail(
@@ -262,26 +256,13 @@ class TestCacheManager(QObject):
         timeout: float | None = None,
     ) -> Path | None:
         """Cache a thumbnail with real behavior."""
-        source = Path(source_path)
         cache_key = f"{show}_{sequence}_{shot}"
-
-        # Record operation
-        self._cache_operations.append(
-            {
-                "operation": "cache_thumbnail",
-                "source": str(source),
-                "key": cache_key,
-                "timestamp": time.time(),
-            }
-        )
 
         # Simulate caching
         cached_path = self.cache_dir / "thumbnails" / show / sequence / f"{shot}.jpg"
         cached_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Simulate file copy (just track it)
         self._cached_thumbnails[cache_key] = cached_path
-        self._memory_usage_bytes += 50000  # Simulate 50KB thumbnail
 
         self.thumbnail_cached.emit(cache_key)
         self.cache_updated.emit()
@@ -292,27 +273,6 @@ class TestCacheManager(QObject):
         """Get cached thumbnail path."""
         cache_key = f"{show}_{sequence}_{shot}"
         return self._cached_thumbnails.get(cache_key)
-
-    def load_thumbnail_async(
-        self, path: str | Path, size: tuple[int, int], callback: Callable[..., Any]
-    ) -> Any:
-        """Load a thumbnail asynchronously (test double)."""
-        from PySide6.QtCore import Qt
-
-        future: Future[QImage] = Future()
-
-        # Create a test image
-        test_image = QImage(size[0], size[1], QImage.Format.Format_RGB32)
-        test_image.fill(Qt.GlobalColor.blue)
-
-        # Call the callback synchronously in test mode
-        try:
-            callback(str(path), test_image)
-            future.set_result(test_image)
-        except Exception as e:
-            future.set_exception(e)
-
-        return future
 
     def cache_shots(self, shots: list[TestShot | dict[str, str]]) -> bool:
         """Cache shot data."""
@@ -366,21 +326,11 @@ class TestCacheManager(QObject):
         self.cache_updated.emit()
         return True
 
-    def get_memory_usage(self) -> dict[str, Any]:
-        """Get memory usage statistics."""
-        return {
-            "total_mb": self._memory_usage_bytes / (1024 * 1024),
-            "thumbnail_count": len(self._cached_thumbnails),
-            "shot_count": len(self._cached_shots),
-        }
-
     def clear_cache(self) -> None:
         """Clear all caches."""
         self._cached_thumbnails.clear()
         self._cached_shots.clear()
         self._cached_previous_shots = None
-        self._memory_usage_bytes = 0
-        self._cache_operations.clear()
         self.cache_updated.emit()
 
     def clear_cached_data(self, key: str) -> None:
@@ -396,19 +346,6 @@ class TestCacheManager(QObject):
         # but for now we only need previous_shots support
         self.cache_updated.emit()
 
-    def get_cached_data(self, key: str) -> object | None:
-        """Get cached generic data by key.
-
-        Args:
-            key: Cache key identifier
-
-        Returns:
-            Cached data or None if not found
-
-        """
-        # Test double: return None for any key (no persistent generic cache)
-        return None
-
     def get_migrated_shots(self) -> list[dict[str, Any]] | None:
         """Get shots that were migrated from My Shots.
 
@@ -419,17 +356,6 @@ class TestCacheManager(QObject):
         # Test double: return None (no migration tracking)
         return None
 
-    def validate_cache(self) -> dict[str, Any]:
-        """Validate cache integrity."""
-        return {
-            "valid": True,
-            "orphaned_files": 0,
-            "missing_files": 0,
-            "invalid_entries": 0,
-            "issues_found": 0,
-            "issues_fixed": 0,
-        }
-
     def get_cached_threede_scenes(self) -> list[dict[str, Any]] | None:
         """Get cached 3DE scene list if valid."""
         # For testing, return empty list to simulate no cached scenes initially
@@ -439,15 +365,6 @@ class TestCacheManager(QObject):
         self, scenes: list[dict[str, Any]], metadata: dict[str, Any] | None = None
     ) -> bool:
         """Cache 3DE scene data."""
-        # For testing, just track that this was called
-        self._cache_operations.append(
-            {
-                "operation": "cache_threede_scenes",
-                "scene_count": len(scenes),
-                "metadata": metadata,
-                "timestamp": time.time(),
-            }
-        )
         self.cache_updated.emit()
         return True
 
@@ -475,7 +392,6 @@ class TestFileSystem:
 
             # Verify structure was created
             assert fs.created_files  # List of all created paths
-            assert fs.exists_calls  # Track what was checked
 
             # Check specific path
             shot_path = tmp_path / "shows/show1/shots/seq01/seq01_0010"
@@ -494,9 +410,6 @@ class TestFileSystem:
         self.base_path = base_path or Path("/tmp/test_fs")
         self.created_files: list[Path] = []
         self.created_directories: list[Path] = []
-        self.exists_calls: list[Path] = []
-        self.read_operations: list[tuple[Path, str]] = []  # (path, content_read)
-        self.write_operations: list[tuple[Path, str]] = []  # (path, content_written)
 
     def create_vfx_structure(self, show: str, seq: str, shot: str) -> Path:
         """Create VFX directory structure for a shot.
@@ -558,34 +471,14 @@ class TestFileSystem:
             path.write_bytes(content)
 
         self.created_files.append(path)
-        self.write_operations.append((path, str(content)))
 
         return path
-
-    def check_exists(self, path: Path | str) -> bool:
-        """Check if path exists and track the call.
-
-        This tracks existence checks for testing purposes.
-        """
-        path = Path(path) if isinstance(path, str) else path
-        self.exists_calls.append(path)
-        return path.exists()
-
-    def read_file(self, path: Path | str) -> str:
-        """Read file content and track the operation."""
-        path = Path(path) if isinstance(path, str) else path
-        content = path.read_text() if path.exists() else ""
-        self.read_operations.append((path, content))
-        return content
 
     def get_operation_stats(self) -> dict[str, int]:
         """Get statistics about filesystem operations."""
         return {
             "files_created": len(self.created_files),
             "directories_created": len(self.created_directories),
-            "exists_checks": len(self.exists_calls),
-            "read_operations": len(self.read_operations),
-            "write_operations": len(self.write_operations),
         }
 
 

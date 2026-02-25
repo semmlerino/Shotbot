@@ -9,25 +9,9 @@ Functions:
 
 from __future__ import annotations
 
-import time
-
 from PySide6.QtGui import QColor, QImage
 
-
-def simulate_work_without_sleep(duration_ms: int = 10) -> None:
-    """Simulate work without blocking the thread.
-
-    Busy-waits for the given duration to simulate CPU work without
-    using time.sleep() which can cause Qt event loop issues.
-
-    Args:
-        duration_ms: Duration in milliseconds to simulate work.
-
-    """
-    start = time.perf_counter()
-    target = start + (duration_ms / 1000.0)
-    while time.perf_counter() < target:
-        time.sleep(0)  # Yield to other threads
+from tests.fixtures.process_doubles import simulate_work_without_sleep  # noqa: F401
 
 
 class ThreadSafeTestImage:

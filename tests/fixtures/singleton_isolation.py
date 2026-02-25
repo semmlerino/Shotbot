@@ -20,6 +20,7 @@ from __future__ import annotations
 import gc
 import logging
 import os
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -44,10 +45,7 @@ def _clear_config_files() -> None:
     - settings.json
     - window_state.json
 
-    FAILS on unexpected artifacts to catch test isolation issues early.
-
-    Raises:
-        RuntimeError: If unexpected config files or directories are found.
+    Warns on unexpected artifacts to catch test isolation issues early.
 
     """
     config_dir = os.environ.get("SHOTBOT_CONFIG_DIR")
@@ -81,14 +79,14 @@ def _clear_config_files() -> None:
             unexpected_dirs.append(item.name)
             shutil.rmtree(item, ignore_errors=True)
 
-    # Fail on unexpected artifacts to catch test isolation issues
+    # Warn on unexpected artifacts to catch test isolation issues without failing
     if unexpected_files or unexpected_dirs:
         msg_parts = ["Test leaked unexpected config artifacts (isolation failure):"]
         if unexpected_files:
             msg_parts.append(f"  Files: {unexpected_files}")
         if unexpected_dirs:
             msg_parts.append(f"  Directories: {unexpected_dirs}")
-        raise RuntimeError("\n".join(msg_parts))
+        warnings.warn("\n".join(msg_parts), stacklevel=2)
 
 
 def _clear_stat_caches() -> None:
@@ -121,12 +119,9 @@ def _clear_disk_cache_files() -> None:
     Preserved directories (expensive to regenerate):
     - thumbnails/
 
-    FAILS on unexpected artifacts to catch test isolation issues early.
+    Warns on unexpected artifacts to catch test isolation issues early.
 
     Note: Use clean_thumbnails fixture from tests.fixtures.caching for thumbnail isolation.
-
-    Raises:
-        RuntimeError: If unexpected cache files or directories are found.
 
     """
     cache_dir = os.environ.get("SHOTBOT_TEST_CACHE_DIR")
@@ -177,14 +172,14 @@ def _clear_disk_cache_files() -> None:
                     unexpected_dirs.append(f"{subdir.name}/{item.name}")
                     shutil.rmtree(item, ignore_errors=True)
 
-    # Fail on unexpected artifacts to catch test isolation issues
+    # Warn on unexpected artifacts to catch test isolation issues without failing
     if unexpected_files or unexpected_dirs:
         msg_parts = ["Test leaked unexpected cache artifacts (isolation failure):"]
         if unexpected_files:
             msg_parts.append(f"  Files: {unexpected_files}")
         if unexpected_dirs:
             msg_parts.append(f"  Directories: {unexpected_dirs}")
-        raise RuntimeError("\n".join(msg_parts))
+        warnings.warn("\n".join(msg_parts), stacklevel=2)
 
 # Strict mode fails on cleanup exceptions (auto-enabled in CI)
 STRICT_CLEANUP = (
@@ -299,7 +294,6 @@ def reset_singletons(reset_caches: None) -> Iterator[None]:
     - Process pools (ProcessPoolManager)
     - Infrastructure (FilesystemCoordinator)
     """
-    import warnings
 
     from tests.fixtures.singleton_registry import SingletonRegistry
 

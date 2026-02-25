@@ -32,15 +32,11 @@ Fixture Types:
         subprocess_error_mock: Pre-configured for error scenarios
         subprocess_timeout_mock: Simulates timeout/hanging processes
 
-DEBUGGING:
-    Set SHOTBOT_TEST_TRACK_POPEN=1 to enable call tracking in the autouse mock.
-    Use get_popen_calls() to retrieve tracked commands for debugging.
 """
 
 from __future__ import annotations
 
 import io
-import os
 from collections.abc import Iterator
 from unittest.mock import MagicMock
 
@@ -112,41 +108,6 @@ def _format_cmd(cmd: object) -> str:
     if isinstance(cmd, (list, tuple)):
         return " ".join(str(c) for c in cmd)
     return str(cmd)
-
-
-# ==============================================================================
-# OPT-IN CALL TRACKING (for debugging)
-# ==============================================================================
-# Module-level call tracking, enabled via SHOTBOT_TEST_TRACK_POPEN=1
-_popen_calls: list[list[str]] = []
-_TRACK_POPEN = os.environ.get("SHOTBOT_TEST_TRACK_POPEN", "").lower() in (
-    "1",
-    "true",
-    "yes",
-)
-
-
-def get_popen_calls() -> list[list[str]]:
-    """Get commands passed to Popen (only populated if SHOTBOT_TEST_TRACK_POPEN=1).
-
-    Returns a copy of the tracked calls list for the current test.
-
-    Example:
-        # Enable tracking: SHOTBOT_TEST_TRACK_POPEN=1 pytest ...
-        from tests.fixtures.subprocess_mocking import get_popen_calls
-        calls = get_popen_calls()
-        assert any("nuke" in " ".join(c) for c in calls)
-
-    """
-    return _popen_calls.copy()
-
-
-def clear_popen_calls() -> None:
-    """Clear tracked Popen calls.
-
-    Called automatically at the start of each test when tracking is enabled.
-    """
-    _popen_calls.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -266,22 +227,12 @@ def mock_subprocess_popen(
     # Also store in pytest stash for fixture-to-fixture communication
     request.node.stash[_SUBPROCESS_STATE_KEY] = state
 
-    # Clear tracked calls at the start of each test (if tracking enabled)
-    if _TRACK_POPEN:
-        clear_popen_calls()
-
     def _create_mock_popen(*args: object, **kwargs: object) -> MagicMock:
         """Create Popen mock with STRICT MODE."""
-        # Track the command (only if enabled via SHOTBOT_TEST_TRACK_POPEN=1)
         cmd_str = ""
         if args:
             cmd = args[0]
             cmd_str = _format_cmd(cmd)
-            if _TRACK_POPEN:
-                if isinstance(cmd, (list, tuple)):
-                    _popen_calls.append([str(c) for c in cmd])
-                else:
-                    _popen_calls.append([str(cmd)])
 
         # STRICT MODE: Fail on unexpected subprocess calls
         # Unless: permissive mode enabled OR subprocess_mock fixture is active
@@ -336,11 +287,6 @@ def mock_subprocess_popen(
         if args:
             cmd = args[0]
             cmd_str = _format_cmd(cmd)
-            if _TRACK_POPEN:
-                if isinstance(cmd, (list, tuple)):
-                    _popen_calls.append([str(c) for c in cmd])
-                else:
-                    _popen_calls.append([str(cmd)])
 
         # STRICT MODE: Fail on unexpected subprocess.run calls
         current_state = _get_current_state()
