@@ -48,7 +48,16 @@ import tempfile
 from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, NamedTuple, Protocol, TypeAlias, cast, final
+from typing import (
+    TYPE_CHECKING,
+    ClassVar,
+    NamedTuple,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    cast,
+    final,
+)
 
 # Third-party imports
 from PIL import Image
@@ -61,7 +70,7 @@ from typing_compat import override
 
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from PySide6.QtGui import QImage
 
@@ -77,6 +86,9 @@ if TYPE_CHECKING:
 JSONValue: TypeAlias = (
     dict[str, "JSONValue"] | list["JSONValue"] | str | int | float | bool | None
 )
+
+# TypeVar for _build_merge_lookups generic helper
+_D = TypeVar("_D")
 
 # Constants
 DEFAULT_TTL_MINUTES = 30
@@ -139,7 +151,7 @@ def _get_shot_key(shot: ShotDict) -> tuple[str, str, str]:
     return (shot["show"], shot["sequence"], shot["shot"])
 
 
-def _shot_to_dict(shot: Shot | ShotDict) -> ShotDict:
+def _shot_to_dict(shot: object) -> ShotDict:
     """Convert Shot object or ShotDict to ShotDict.
 
     Args:
@@ -150,8 +162,9 @@ def _shot_to_dict(shot: Shot | ShotDict) -> ShotDict:
 
     """
     if isinstance(shot, dict):
-        return shot
-    return shot.to_dict()
+        return cast("ShotDict", shot)
+    # Assume Shot object with to_dict method — TYPE_CHECKING import prevents runtime check
+    return cast("ShotDict", cast("_HasToDict", shot).to_dict())
 
 
 def _get_scene_key(scene: ThreeDESceneDict) -> tuple[str, str, str]:
@@ -700,6 +713,30 @@ class CacheManager(LoggingMixin, QObject):
         result = self._read_json_cache(self.shots_cache_file)
         return cast("list[ShotDict] | None", result)
 
+    def _cache_shot_list(
+        self,
+        shots: Sequence[Shot] | Sequence[ShotDict],
+        cache_file: Path,
+        cache_name: str,
+    ) -> None:
+        """Write a sequence of shots to a cache file, emitting signals on success/failure.
+
+        Args:
+            shots: Sequence of Shot objects or shot dictionaries
+            cache_file: Target cache file path
+            cache_name: Descriptive name used in log/signal messages (e.g. "shots")
+
+        """
+        shot_dicts = [_shot_to_dict(s) for s in shots]
+        success = self._write_json_cache(cache_file, shot_dicts)
+        if success:
+            self.cache_updated.emit()
+        else:
+            self.logger.warning(
+                f"Failed to write {cache_name} cache - data may not persist across restarts"
+            )
+            self.cache_write_failed.emit(cache_name)
+
     def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
         """Cache shot list to file.
 
@@ -707,21 +744,7 @@ class CacheManager(LoggingMixin, QObject):
             shots: Sequence of Shot objects or shot dictionaries
 
         """
-        # Convert Shot objects to dicts
-        shot_dicts: list[ShotDict] = []
-        for shot in shots:
-            if isinstance(shot, dict):
-                shot_dicts.append(shot)
-            else:
-                # Assume Shot object with to_dict method - TYPE_CHECKING import prevents runtime check
-                shot_dicts.append(shot.to_dict())
-
-        success = self._write_json_cache(self.shots_cache_file, shot_dicts)
-        if success:
-            self.cache_updated.emit()
-        else:
-            self.logger.warning("Failed to write shots cache - data may not persist across restarts")
-            self.cache_write_failed.emit("shots")
+        self._cache_shot_list(shots, self.shots_cache_file, "shots")
 
     def get_persistent_shots(self) -> list[ShotDict] | None:
         """Get My Shots cache without TTL expiration.
@@ -846,22 +869,37 @@ class CacheManager(LoggingMixin, QObject):
             shots: Sequence of Shot objects or shot dictionaries
 
         """
-        shot_dicts: list[ShotDict] = []
-        for shot in shots:
-            if isinstance(shot, dict):
-                shot_dicts.append(shot)
-            else:
-                # Assume Shot object with to_dict method - TYPE_CHECKING import prevents runtime check
-                shot_dicts.append(shot.to_dict())
+        self._cache_shot_list(shots, self.previous_shots_cache_file, "previous_shots")
 
-        success = self._write_json_cache(self.previous_shots_cache_file, shot_dicts)
-        if success:
-            self.cache_updated.emit()
-        else:
-            self.logger.warning(
-                "Failed to write previous shots cache - data may not persist across restarts"
-            )
-            self.cache_write_failed.emit("previous_shots")
+    @staticmethod
+    def _build_merge_lookups(
+        cached: Sequence[object] | None,
+        fresh: Sequence[object],
+        to_dict_fn: Callable[[object], _D],
+        get_key_fn: Callable[[_D], tuple[str, str, str]],
+    ) -> tuple[list[_D], list[_D], dict[tuple[str, str, str], _D], set[tuple[str, str, str]]]:
+        """Build lookup structures shared by merge_shots_incremental and merge_scenes_incremental.
+
+        Acquires the caller's lock externally is NOT done here — callers should
+        pass already-copied sequences. This helper operates purely on local data.
+
+        Args:
+            cached: Previously cached items (objects or dicts), or None
+            fresh: Fresh items from discovery
+            to_dict_fn: Converts each item to its dict representation
+            get_key_fn: Extracts the composite (show, sequence, shot) key
+
+        Returns:
+            Tuple of (cached_dicts, fresh_dicts, cached_by_key, fresh_keys)
+
+        """
+        cached_dicts = [to_dict_fn(s) for s in (cached or [])]
+        fresh_dicts = [to_dict_fn(s) for s in fresh]
+        cached_by_key: dict[tuple[str, str, str], _D] = {
+            get_key_fn(item): item for item in cached_dicts
+        }
+        fresh_keys = {get_key_fn(item) for item in fresh_dicts}
+        return cached_dicts, fresh_dicts, cached_by_key, fresh_keys
 
     def merge_shots_incremental(
         self,
@@ -896,18 +934,13 @@ class CacheManager(LoggingMixin, QObject):
             outside the lock since they operate on local copies.
 
         """
-        # Phase 1: Copy data under lock (minimal critical section)
+        # Phase 1: Convert and build lookups under lock (minimal critical section)
         with QMutexLocker(self._lock):
-            cached_dicts = [_shot_to_dict(s) for s in (cached or [])]
-            fresh_dicts = [_shot_to_dict(s) for s in fresh]
+            cached_dicts, fresh_dicts, cached_by_key, fresh_keys = (
+                self._build_merge_lookups(cached, fresh, _shot_to_dict, _get_shot_key)
+            )
 
-        # Phase 2: All dict operations outside lock (CPU-bound, no shared state)
-        # Build lookups using composite key (O(1) operations)
-        cached_by_key: dict[tuple[str, str, str], ShotDict] = {
-            _get_shot_key(shot): shot for shot in cached_dicts
-        }
-        fresh_keys = {_get_shot_key(shot) for shot in fresh_dicts}
-
+        # Phase 2: All merge logic outside lock (CPU-bound, no shared state)
         # Merge: Single O(n) pass using fresh data as source of truth
         updated_shots: list[ShotDict] = []
         new_shots: list[ShotDict] = []
@@ -1033,20 +1066,15 @@ class CacheManager(LoggingMixin, QObject):
         now = datetime.now(UTC).timestamp()
         cutoff = now - (max_age_days * 24 * 60 * 60)
 
-        # Phase 1: Brief lock for data copy only
+        # Phase 1: Convert and build lookups under lock (minimal critical section)
         # This protects against concurrent modification of input sequences
         with QMutexLocker(self._lock):
-            cached_dicts = [_scene_to_dict(s) for s in (cached or [])]
-            fresh_dicts = [_scene_to_dict(s) for s in fresh]
+            _, fresh_dicts, cached_by_key, fresh_keys = (
+                self._build_merge_lookups(cached, fresh, _scene_to_dict, _get_scene_key)
+            )
 
-        # Phase 2: All CPU-bound dict operations OUTSIDE lock
+        # Phase 2: All CPU-bound merge logic OUTSIDE lock
         # These operate on local copies, no shared state mutation
-
-        # Build lookups using shot-level key (O(1) operations)
-        cached_by_key: dict[tuple[str, str, str], ThreeDESceneDict] = {
-            _get_scene_key(scene): scene for scene in cached_dicts
-        }
-        fresh_keys = {_get_scene_key(scene) for scene in fresh_dicts}
 
         # Merge: fresh scenes override cached (UPDATE or ADD)
         updated_by_key: dict[tuple[str, str, str], ThreeDESceneDict] = {}
@@ -1255,21 +1283,10 @@ class CacheManager(LoggingMixin, QObject):
 
         """
         try:
-            # Atomic write using temp file
-            tmp_fd, tmp_path = tempfile.mkstemp(
-                dir=self.cache_dir,
-                suffix=".tmp",
+            self._atomic_json_write(
+                self.latest_files_cache_file, data, indent=2, fsync=False
             )
-            try:
-                with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=2)
-                _ = Path(tmp_path).replace(self.latest_files_cache_file)
-                return True
-            except Exception:
-                # Clean up temp file on error
-                with contextlib.suppress(OSError):
-                    Path(tmp_path).unlink()
-                raise
+            return True
         except Exception as e:
             self.logger.error(f"Failed to write latest files cache: {e}")
             return False
@@ -1506,6 +1523,42 @@ class CacheManager(LoggingMixin, QObject):
             self.logger.error(f"Failed to read cache file {cache_file}: {e}")
             return None
 
+    @staticmethod
+    def _atomic_json_write(
+        path: Path,
+        payload: object,
+        *,
+        indent: int | None,
+        fsync: bool,
+    ) -> None:
+        """Write *payload* as JSON to *path* atomically using a temp file + os.replace().
+
+        Raises on error — callers are responsible for exception handling and logging.
+
+        Args:
+            path: Destination file path (parent directory must already exist)
+            payload: JSON-serializable data to write
+            indent: JSON indentation level (None = compact, 2 = pretty)
+            fsync: If True, flush and fsync before the atomic rename
+
+        """
+        fd, temp_path = tempfile.mkstemp(
+            dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=indent)
+                if fsync:
+                    f.flush()
+                    os.fsync(f.fileno())
+            # Atomic rename (POSIX guarantees atomicity on same filesystem)
+            _ = Path(temp_path).replace(path)
+        except Exception:
+            # Clean up temp file on error
+            with contextlib.suppress(OSError):
+                Path(temp_path).unlink()
+            raise
+
     def _write_json_cache(self, cache_file: Path, data: object) -> bool:
         """Write data to JSON cache file atomically.
 
@@ -1529,26 +1582,9 @@ class CacheManager(LoggingMixin, QObject):
 
             # Atomic write: write to temp file, then rename
             # os.replace() is atomic on POSIX, ensuring readers see either old or new file, never partial
-            fd, temp_path = tempfile.mkstemp(
-                dir=cache_file.parent, prefix=f".{cache_file.name}.", suffix=".tmp"
-            )
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8") as f:
-                    json.dump(cache_data, f)  # No indent for 25-30% faster serialization
-                    f.flush()  # Flush Python buffers to OS
-                    os.fsync(f.fileno())  # Ensure data is on disk before rename
-
-                # Atomic rename (POSIX guarantees atomicity on same filesystem)
-                _ = Path(temp_path).replace(cache_file)
-
-                self.logger.debug(f"Cached data to: {cache_file}")
-                return True
-
-            except Exception:
-                # Clean up temp file on error
-                with contextlib.suppress(OSError):
-                    Path(temp_path).unlink()
-                raise
+            self._atomic_json_write(cache_file, cache_data, indent=None, fsync=True)
+            self.logger.debug(f"Cached data to: {cache_file}")
+            return True
 
         except (OSError, TypeError, ValueError) as e:
             self.logger.error(f"Failed to write cache file {cache_file}: {e}")
