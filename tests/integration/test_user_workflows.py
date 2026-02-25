@@ -32,12 +32,12 @@ import contextlib
 
 # Standard library imports
 import getpass
-import logging
 import shutil
 import sys
 import tempfile
 import time
 import traceback
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -114,10 +114,12 @@ class TestUserWorkflows:
     user interaction pattern that must work reliably in production.
     """
 
-    def setup_method(self) -> None:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path: Path) -> Iterator[None]:
         """Set up test environment with realistic data structures."""
         # Create temporary directories for test isolation
-        self.temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_user_workflow_"))
+        self.temp_dir = tmp_path / "shotbot"
+        self.temp_dir.mkdir()
         self.config_dir = self.temp_dir / "config"
         self.cache_dir = self.temp_dir / "cache"
         self.shows_dir = self.temp_dir / "shows"
@@ -182,27 +184,17 @@ class TestUserWorkflows:
         self.mock_progress = self.progress_patcher.start()
         self.mock_progress.return_value = self.progress_operation
 
-    def teardown_method(self) -> None:
-        """Clean up test resources with proper error handling."""
-        try:
-            # Stop the progress patcher
-            with contextlib.suppress(Exception):
-                self.progress_patcher.stop()
+        yield
 
-            # Clear any active progress operations to avoid Qt cleanup issues
-            # Local application imports
-            from progress_manager import (
-                ProgressManager,
-            )
+        # Teardown: stop mock patcher and clear Qt progress state
+        with contextlib.suppress(Exception):
+            self.progress_patcher.stop()
 
-            with contextlib.suppress(Exception):
-                ProgressManager.clear_all_operations()
+        # Clear any active progress operations to avoid Qt cleanup issues
+        from progress_manager import ProgressManager
 
-            if self.temp_dir.exists():
-                shutil.rmtree(self.temp_dir, ignore_errors=True)
-        except Exception as e:
-            # Log cleanup errors but don't fail tests
-            logging.warning(f"Test cleanup failed: {e}")
+        with contextlib.suppress(Exception):
+            ProgressManager.clear_all_operations()
 
     def _create_test_process(self, pid: int, name: str) -> PopenDouble:
         """Create a properly configured test process for testing."""
@@ -715,10 +707,6 @@ if __name__ == "__main__":
         if app is None:
             app = QApplication([])
 
-        # Run a subset of tests for standalone validation
-        test_instance = TestUserWorkflows()
-        test_instance.setup_method()
-
         print("Running critical user workflow integration tests...")
 
         # Test 1: Launcher workflow
@@ -741,8 +729,43 @@ if __name__ == "__main__":
                     return False
 
             qtbot = StandaloneQtBot()
-            test_instance.test_launch_nuke_with_shot(qtbot)
-            print("   ✓ Nuke launch workflow passed")
+
+            # Standalone: set up temp dir manually (pytest tmp_path not available here)
+            standalone_temp = tempfile.mkdtemp(prefix="shotbot_user_workflow_")
+            test_instance = TestUserWorkflows()
+            test_instance.temp_dir = Path(standalone_temp)
+            test_instance.config_dir = test_instance.temp_dir / "config"
+            test_instance.cache_dir = test_instance.temp_dir / "cache"
+            test_instance.shows_dir = test_instance.temp_dir / "shows"
+            for d in [test_instance.config_dir, test_instance.cache_dir, test_instance.shows_dir]:
+                d.mkdir(parents=True, exist_ok=True)
+            test_instance.test_shots = [
+                {
+                    "show": "feature_film",
+                    "sequence": "SEQ_001_FOREST",
+                    "shot": "0010",
+                    "name": "SEQ_001_FOREST_0010",
+                    "workspace_path": "/shows/feature_film/shots/SEQ_001_FOREST/SEQ_001_FOREST_0010",
+                },
+            ]
+            test_instance.test_subprocess = TestSubprocess()
+            test_instance.test_processes = {
+                "nuke": PopenDouble(["nuke"], returncode=0, stdout="Nuke started", stderr=""),
+            }
+            test_instance.test_processes["nuke"].pid = 11111
+            test_instance.signal_events = []
+            test_instance.progress_operation = ProgressOperationDouble()
+            test_instance.progress_patcher = patch("progress_manager.ProgressManager.start_operation")
+            test_instance.mock_progress = test_instance.progress_patcher.start()
+            test_instance.mock_progress.return_value = test_instance.progress_operation
+
+            try:
+                test_instance.test_launch_nuke_with_shot(qtbot)
+                print("   ✓ Nuke launch workflow passed")
+            finally:
+                with contextlib.suppress(Exception):
+                    test_instance.progress_patcher.stop()
+                cleanup_test_environment(Path(standalone_temp))
         except Exception as e:
             print(f"   ✗ Nuke launch workflow failed: {e}")
 
@@ -753,7 +776,4 @@ if __name__ == "__main__":
 
         traceback.print_exc()
     finally:
-        # Cleanup
-        with contextlib.suppress(Exception):
-            test_instance.teardown_method()
         cleanup_test_environment(temp_dir)

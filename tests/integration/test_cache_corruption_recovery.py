@@ -78,13 +78,9 @@ class TestMalformedJsonRecovery:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache.cache_dir = tmp_path / "cache"
-        cache.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache.shots_cache_file = cache.cache_dir / "shots.json"
-        cache.previous_shots_cache_file = cache.cache_dir / "previous_shots.json"
-        cache.threede_cache_file = cache.cache_dir / "threede_scenes.json"
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_recover_from_malformed_content(self, cache_manager: CacheManager) -> None:
         """Malformed cache payloads return None without crashing."""
@@ -131,11 +127,9 @@ class TestInvalidDataStructureRecovery:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache.cache_dir = tmp_path / "cache"
-        cache.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache.shots_cache_file = cache.cache_dir / "shots.json"
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_rejects_invalid_data_structures(self, cache_manager: CacheManager) -> None:
         """Invalid decoded JSON structures are rejected consistently."""
@@ -188,11 +182,9 @@ class TestPermissionErrorRecovery:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache.cache_dir = tmp_path / "cache"
-        cache.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache.shots_cache_file = cache.cache_dir / "shots.json"
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_recover_from_unreadable_file(
         self, cache_manager: CacheManager, tmp_path: Path
@@ -257,11 +249,9 @@ class TestAtomicWriteGuarantees:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache.cache_dir = tmp_path / "cache"
-        cache.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache.shots_cache_file = cache.cache_dir / "shots.json"
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_successful_write_creates_file(
         self, cache_manager: CacheManager
@@ -345,11 +335,9 @@ class TestWriteFailureRecovery:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache.cache_dir = tmp_path / "cache"
-        cache.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache.shots_cache_file = cache.cache_dir / "shots.json"
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_invalid_data_type_fails_gracefully(
         self, cache_manager: CacheManager
@@ -403,11 +391,9 @@ class TestTTLExpiration:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache.cache_dir = tmp_path / "cache"
-        cache.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache.shots_cache_file = cache.cache_dir / "shots.json"
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_fresh_cache_is_valid(self, cache_manager: CacheManager) -> None:
         """Just-written cache is valid (not expired)."""
@@ -443,13 +429,9 @@ class TestPublicAPIRecovery:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache.cache_dir = tmp_path / "cache"
-        cache.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache.shots_cache_file = cache.cache_dir / "shots.json"
-        cache.previous_shots_cache_file = cache.cache_dir / "previous_shots.json"
-        cache.threede_cache_file = cache.cache_dir / "threede_scenes.json"
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_get_cached_data_with_corrupted_file(
         self, cache_manager: CacheManager
@@ -534,11 +516,9 @@ class TestConcurrentErrorRecovery:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache.cache_dir = tmp_path / "cache"
-        cache.cache_dir.mkdir(parents=True, exist_ok=True)
-        cache.shots_cache_file = cache.cache_dir / "shots.json"
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_concurrent_reads_of_valid_cache(
         self, cache_manager: CacheManager

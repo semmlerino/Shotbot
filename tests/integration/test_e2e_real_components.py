@@ -16,8 +16,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
-import tempfile
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -41,12 +39,11 @@ class TestCacheManagerE2E:
     """End-to-end tests for CacheManager with real filesystem."""
 
     @pytest.fixture
-    def real_cache_dir(self) -> Path:
+    def real_cache_dir(self, tmp_path: Path) -> Path:
         """Create a real temporary cache directory."""
-        cache_dir = Path(tempfile.mkdtemp(prefix="shotbot_e2e_cache_"))
-        yield cache_dir
-        # Cleanup
-        shutil.rmtree(cache_dir, ignore_errors=True)
+        cache_dir = tmp_path / "shotbot_e2e_cache"
+        cache_dir.mkdir()
+        return cache_dir
 
     @pytest.fixture
     def real_cache_manager(
@@ -157,9 +154,10 @@ class TestFilesystemDiscoveryE2E:
     """End-to-end tests for filesystem discovery operations."""
 
     @pytest.fixture
-    def mock_vfx_structure(self) -> Path:
+    def mock_vfx_structure(self, tmp_path: Path) -> Path:
         """Create a realistic VFX directory structure."""
-        base = Path(tempfile.mkdtemp(prefix="shotbot_e2e_vfx_"))
+        base = tmp_path / "shotbot_e2e_vfx"
+        base.mkdir()
 
         # Create show/sequence/shot structure
         shows_dir = base / "shows"
@@ -176,8 +174,7 @@ class TestFilesystemDiscoveryE2E:
                     (shot_dir / "plate").mkdir()
                     (shot_dir / "plate" / "turnover.exr").touch()
 
-        yield base
-        shutil.rmtree(base, ignore_errors=True)
+        return base
 
     def test_discover_shots_in_real_directory(
         self, mock_vfx_structure: Path
@@ -281,9 +278,10 @@ class TestImageProcessingE2E:
     """End-to-end tests for image processing with PIL."""
 
     @pytest.fixture
-    def real_image_dir(self) -> Path:
+    def real_image_dir(self, tmp_path: Path) -> Path:
         """Create directory with real test images."""
-        base = Path(tempfile.mkdtemp(prefix="shotbot_e2e_thumb_"))
+        base = tmp_path / "shotbot_e2e_thumb"
+        base.mkdir()
 
         # Create a simple valid image file
         from PIL import Image
@@ -292,8 +290,7 @@ class TestImageProcessingE2E:
         img = Image.new("RGB", (100, 100), color="red")
         img.save(test_image)
 
-        yield base
-        shutil.rmtree(base, ignore_errors=True)
+        return base
 
     def test_pil_can_read_created_image(self, real_image_dir: Path) -> None:
         """Verify PIL can read images created in tests."""
@@ -381,9 +378,10 @@ class TestThreeDEDiscoveryE2E:
     """End-to-end tests for 3DE scene discovery."""
 
     @pytest.fixture
-    def mock_3de_structure(self) -> Path:
+    def mock_3de_structure(self, tmp_path: Path) -> Path:
         """Create a realistic 3DE workspace structure."""
-        base = Path(tempfile.mkdtemp(prefix="shotbot_e2e_3de_"))
+        base = tmp_path / "shotbot_e2e_3de"
+        base.mkdir()
 
         # Create user workspaces with .3de files
         for user in ["user1", "user2"]:
@@ -394,8 +392,7 @@ class TestThreeDEDiscoveryE2E:
             (workspace / f"{user}_track_v001.3de").touch()
             (workspace / f"{user}_track_v002.3de").touch()
 
-        yield base
-        shutil.rmtree(base, ignore_errors=True)
+        return base
 
     def test_find_3de_files_in_real_directory(
         self, mock_3de_structure: Path

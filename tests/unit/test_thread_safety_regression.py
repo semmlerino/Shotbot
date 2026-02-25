@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from cache_manager import CacheManager
 from shot_model import AsyncShotLoader, RefreshResult, ShotModel
 from tests.fixtures.doubles_library import TestProcessPool
+from tests.test_helpers import process_qt_events
 from thread_safe_worker import ThreadSafeWorker, WorkerState
 
 
@@ -522,9 +523,9 @@ class TestSimpleThreadingIntegration:
             # Wait for worker to start work without nested Qt wait loops.
             deadline = time.perf_counter() + 1.0
             while time.perf_counter() < deadline and not worker.work_started:
-                QApplication.processEvents()
+                process_qt_events()
                 time.sleep(0.001)
-            QApplication.processEvents()
+            process_qt_events()
 
             if worker.isRunning():
                 worker.request_stop()
@@ -547,7 +548,7 @@ class TestSimpleThreadingIntegration:
                 worker.deleteLater()
 
             # Process Qt events to ensure cleanup is executed
-            QApplication.processEvents()
+            process_qt_events()
 
 
 if __name__ == "__main__":

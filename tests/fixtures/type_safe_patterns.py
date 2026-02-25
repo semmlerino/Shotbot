@@ -206,6 +206,7 @@ def create_test_shot_data(
     sequence: str = "seq01",
     shot: str = "0010",
     workspace_path: Path | None = None,
+    tmp_dir: Path | None = None,
 ) -> ShotTestData:
     """Create real shot test data with proper file structure.
 
@@ -213,7 +214,9 @@ def create_test_shot_data(
         show: Show name
         sequence: Sequence name
         shot: Shot name
-        workspace_path: Custom workspace path (creates temp if None)
+        workspace_path: Custom workspace path (used as-is if provided)
+        tmp_dir: Base temporary directory for workspace creation (required if
+            workspace_path is None; use pytest's tmp_path fixture)
 
     Returns:
         ShotTestData with real Shot object and paths
@@ -225,8 +228,10 @@ def create_test_shot_data(
     )
 
     if workspace_path is None:
-        temp_dir = Path(tempfile.mkdtemp())
-        workspace_path = temp_dir / show / "shots" / sequence / f"{sequence}_{shot}"
+        if tmp_dir is None:
+            msg = "Either workspace_path or tmp_dir must be provided"
+            raise ValueError(msg)
+        workspace_path = tmp_dir / show / "shots" / sequence / f"{sequence}_{shot}"
         workspace_path.mkdir(parents=True, exist_ok=True)
 
     shot_obj = Shot(show, sequence, shot, str(workspace_path))

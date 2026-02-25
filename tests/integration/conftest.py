@@ -1,7 +1,6 @@
 """Configuration and fixtures for integration tests."""
 
 # Standard library imports
-import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -28,13 +27,6 @@ def pytest_collection_modifyitems(
     for item in items:
         if "integration" in str(item.fspath):
             item.add_marker(pytest.mark.integration)
-
-
-@pytest.fixture(scope="session")
-def integration_temp_dir() -> Iterator[Path]:
-    """Session-scoped temporary directory for integration tests."""
-    with tempfile.TemporaryDirectory(prefix="shotbot_integration_") as temp_dir:
-        yield Path(temp_dir)
 
 
 @pytest.fixture

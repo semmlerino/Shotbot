@@ -44,7 +44,6 @@ References:
 from __future__ import annotations
 
 # Standard library imports
-import tempfile
 import time
 from pathlib import Path
 
@@ -143,18 +142,12 @@ class TestThreeDEWorkerWorkflow:
     the ThreadSafeProgressTracker parameter bug in production.
     """
 
-    def setup_method(self) -> None:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path: Path) -> None:
         """Set up test fixtures."""
-        self.temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_worker_test_"))
+        self.temp_dir = tmp_path / "shotbot"
+        self.temp_dir.mkdir()
         self.shows_root = self.temp_dir / "shows"
-
-    def teardown_method(self) -> None:
-        """Clean up test directories."""
-        # Standard library imports
-        import shutil
-
-        if self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def _create_test_vfx_structure(self) -> list[Shot]:
         """Create test VFX structure and return list of shots."""

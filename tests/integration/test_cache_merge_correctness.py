@@ -95,10 +95,9 @@ class TestShotMergeCorrectness:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache._cache_dir = tmp_path / "cache"
-        cache._cache_dir.mkdir(parents=True, exist_ok=True)
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_merge_with_empty_cached(self, cache_manager: CacheManager) -> None:
         """Merge with empty cache returns all fresh shots as new."""
@@ -264,10 +263,9 @@ class TestSceneMergeCorrectness:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache._cache_dir = tmp_path / "cache"
-        cache._cache_dir.mkdir(parents=True, exist_ok=True)
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_merge_with_empty_cached(self, cache_manager: CacheManager) -> None:
         """Merge with empty cache returns all fresh scenes as new."""
@@ -388,10 +386,9 @@ class TestMergeThreadSafety:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache._cache_dir = tmp_path / "cache"
-        cache._cache_dir.mkdir(parents=True, exist_ok=True)
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_concurrent_shot_merge_no_crash(
         self, cache_manager: CacheManager
@@ -504,10 +501,9 @@ class TestMergeEdgeCases:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache._cache_dir = tmp_path / "cache"
-        cache._cache_dir.mkdir(parents=True, exist_ok=True)
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_merge_large_shot_lists(self, cache_manager: CacheManager) -> None:
         """Merge handles large lists efficiently."""
@@ -619,10 +615,9 @@ class TestMergeResultCorrectness:
     @pytest.fixture
     def cache_manager(self, tmp_path: Path) -> CacheManager:
         """Create CacheManager with isolated cache directory."""
-        cache = CacheManager()
-        cache._cache_dir = tmp_path / "cache"
-        cache._cache_dir.mkdir(parents=True, exist_ok=True)
-        return cache
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return CacheManager(cache_dir=cache_path)
 
     def test_shot_merge_result_invariants(self, cache_manager: CacheManager) -> None:
         """Verify ShotMergeResult invariants hold."""

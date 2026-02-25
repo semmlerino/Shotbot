@@ -481,7 +481,7 @@ class TestCacheMetricsDict:
 class TestCacheProtocolCompliance:
     """Tests that verify implementations satisfy CacheProtocol."""
 
-    def test_cache_manager_satisfies_protocol(self) -> None:
+    def test_cache_manager_satisfies_protocol(self, tmp_path: Path) -> None:
         """CacheManager implements all CacheProtocol methods."""
         from cache_manager import CacheManager
 
@@ -493,7 +493,9 @@ class TestCacheProtocolCompliance:
 
         # Verify method signatures by getting type hints
         # (This is a structural check - runtime protocol compliance)
-        cache = CacheManager()
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        cache = CacheManager(cache_dir=cache_path)
         assert callable(cache.cache_shots)
         assert callable(cache.get_cached_shots)
         assert callable(cache.clear_cache)

@@ -7,9 +7,7 @@
 # - Thread-safe testing patterns
 
 # Standard library imports
-import shutil
 import sys
-import tempfile
 import traceback
 from pathlib import Path
 
@@ -32,21 +30,15 @@ pytestmark = [
 class TestThumbnailDiscoveryIntegration:
     """Integration tests for thumbnail discovery."""
 
-    def setup_method(self) -> None:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path: Path) -> None:
+        """Minimal setup to avoid pytest fixture overhead."""
         # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
-        """Minimal setup to avoid pytest fixture overhead."""
-        self.temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_integration_"))
+        self.temp_dir = tmp_path / "shotbot"
+        self.temp_dir.mkdir()
         self.shows_root = self.temp_dir / "shows"
         self.shows_root.mkdir(parents=True, exist_ok=True)
-
-    def teardown_method(self) -> None:
-        """Direct cleanup without fixture dependencies."""
-        try:
-            if self.temp_dir.exists():
-                shutil.rmtree(self.temp_dir, ignore_errors=True)
-        except Exception:
-            pass  # Ignore cleanup errors
 
     def test_turnover_plate_discovery_integration(self) -> None:
         """Integration test for turnover plate discovery across different structures."""
@@ -258,8 +250,15 @@ class TestThumbnailDiscoveryIntegration:
 
 # Allow running as standalone test
 if __name__ == "__main__":
+    import shutil
+    import tempfile
+
+    standalone_temp = Path(tempfile.mkdtemp(prefix="shotbot_integration_"))
     test = TestThumbnailDiscoveryIntegration()
-    test.setup_method()
+    test.temp_dir = standalone_temp
+    test.shows_root = standalone_temp / "shows"
+    test.shows_root.mkdir(parents=True, exist_ok=True)
+    test.test_subprocess = TestSubprocess()
     try:
         print("Running turnover plate discovery integration...")
         test.test_turnover_plate_discovery_integration()
@@ -287,4 +286,4 @@ if __name__ == "__main__":
 
         traceback.print_exc()
     finally:
-        test.teardown_method()
+        shutil.rmtree(standalone_temp, ignore_errors=True)

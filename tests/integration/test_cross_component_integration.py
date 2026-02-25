@@ -321,15 +321,8 @@ class TestCrossTabSynchronization:
         QTimer.singleShot = lambda *_args, **_kwargs: None  # Disable all timers
 
         # Create a temporary cache manager in a fresh directory to avoid old data
-        # Standard library imports
-        import tempfile
-        from pathlib import (
-            Path,
-        )
-
-        # Local application imports
-
-        temp_cache_dir = Path(tempfile.mkdtemp(prefix="shotbot_test_"))
+        temp_cache_dir = tmp_path / "shotbot_test_cache"
+        temp_cache_dir.mkdir()
         test_cache_manager = CacheManager(cache_dir=temp_cache_dir)
 
         # Create MainWindow with fresh cache manager
@@ -380,7 +373,7 @@ class TestCrossTabSynchronization:
         assert success, "refresh_shots should succeed"
 
         # Process any pending events
-        QApplication.processEvents()
+        process_qt_events()
 
         # Check My Shots tab has all shots initially
         shot_item_model = window.shot_item_model
@@ -388,7 +381,7 @@ class TestCrossTabSynchronization:
 
         # Apply show filter to SHOW1
         shot_item_model.set_show_filter(window.shot_model, "SHOW1")
-        QApplication.processEvents()  # Process updates without timer
+        process_qt_events()  # Process updates without timer
 
         # Verify filter applied
         assert shot_item_model.rowCount() == 2  # Only SHOW1 shots visible

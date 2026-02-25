@@ -202,13 +202,11 @@ class TestQtThreadSafety:
     @pytest.fixture(autouse=True)
     def ensure_clean_qt_state(self, qtbot: QtBot) -> None:
         """Ensure Qt event loop is clean before and after each test."""
-        from PySide6.QtWidgets import QApplication
-
         # Clear any pending events from previous tests
-        QApplication.processEvents()
+        process_qt_events()
         yield
         # Clean up after test
-        QApplication.processEvents()
+        process_qt_events()
 
     def test_qthread_cleanup(self, qtbot: QtBot) -> None:
         """QThread cleans up properly when quit is called."""
@@ -245,7 +243,6 @@ class TestQtThreadSafety:
 
     def test_cross_thread_signal(self, qtbot: QtBot) -> None:
         """Signals work across threads via queued connections."""
-        from PySide6.QtWidgets import QApplication
 
         class Worker(QObject):
             result = Signal(str)
@@ -276,7 +273,7 @@ class TestQtThreadSafety:
                 thread.quit()
                 thread.wait(2000)
             # Process any remaining events before cleanup
-            QApplication.processEvents()
+            process_qt_events()
             thread.deleteLater()
             worker.deleteLater()
-            QApplication.processEvents()
+            process_qt_events()
