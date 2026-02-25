@@ -136,7 +136,7 @@ class TestCommandLauncherThreading:
         def emit_error(thread_id: int) -> None:
             for i in range(5):
                 launcher._emit_error(f"Error from thread {thread_id}, iteration {i}")
-                time.sleep(0.001)  # Small delay to encourage interleaving
+                time.sleep(0)  # Yield to encourage interleaving
 
         threads = [threading.Thread(target=emit_error, args=(i,)) for i in range(3)]
 
@@ -331,7 +331,7 @@ class TestCommandLauncherThreading:
         def set_shots_rapidly() -> None:
             for shot in shots:
                 launcher.set_current_shot(shot)
-                time.sleep(0.001)
+                time.sleep(0)
 
         threads = [threading.Thread(target=set_shots_rapidly) for _ in range(3)]
 

@@ -17,6 +17,7 @@ import time
 
 import pytest
 
+from tests.test_helpers import SynchronizationHelpers
 from threading_utils import CancellationEvent
 
 
@@ -225,14 +226,18 @@ class TestCallbackRegistrationRaces:
             try:
                 for _ in range(50):
                     event.add_cleanup_callback(lambda: None)
-                    time.sleep(0.001)
+                    time.sleep(0)  # Yield to scheduler between iterations
             except Exception as e:
                 errors.append(e)
 
         def do_cancel() -> None:
-            """Wait a bit then cancel."""
+            """Wait until at least one callback is registered, then cancel."""
             try:
-                time.sleep(0.01)
+                SynchronizationHelpers.wait_for_condition(
+                    lambda: event.get_stats()["callback_count"] > 0,
+                    timeout_ms=1000,
+                    poll_interval_ms=10,
+                )
                 event.cancel()
             except Exception as e:
                 errors.append(e)
@@ -271,15 +276,19 @@ class TestCancellationStateConsistency:
         def checker() -> None:
             """Check is_cancelled() in loop until cancelled."""
             while not event.is_cancelled():
-                time.sleep(0.001)
+                time.sleep(0)  # Yield to scheduler between checks
             seen_cancelled.append(True)
             check_complete.set()
 
         checker_thread = threading.Thread(target=checker)
         checker_thread.start()
 
-        # Small delay to ensure checker is running
-        time.sleep(0.01)
+        # Wait until the checker thread is actually running before cancelling
+        SynchronizationHelpers.wait_for_condition(
+            lambda: checker_thread.is_alive(),
+            timeout_ms=1000,
+            poll_interval_ms=10,
+        )
 
         # Cancel from main thread
         event.cancel()
@@ -303,8 +312,12 @@ class TestCancellationStateConsistency:
         waiter_thread = threading.Thread(target=waiter)
         waiter_thread.start()
 
-        # Small delay then cancel
-        time.sleep(0.05)
+        # Wait until the waiter thread is running before cancelling
+        SynchronizationHelpers.wait_for_condition(
+            lambda: waiter_thread.is_alive(),
+            timeout_ms=1000,
+            poll_interval_ms=10,
+        )
         event.cancel()
 
         # Waiter should return quickly
@@ -428,8 +441,12 @@ class TestEdgeCases:
         for t in threads:
             t.start()
 
-        # Cancel
-        time.sleep(0.05)
+        # Wait until all waiter threads are running before cancelling
+        SynchronizationHelpers.wait_for_condition(
+            lambda: all(t.is_alive() for t in threads),
+            timeout_ms=1000,
+            poll_interval_ms=10,
+        )
         event.cancel()
 
         # All waiters should return True

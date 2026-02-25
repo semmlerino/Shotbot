@@ -17,7 +17,11 @@ import pytest
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 from PySide6.QtWidgets import QLabel, QPushButton, QWidget
 
-from tests.test_helpers import flush_deferred_deletes, process_qt_events
+from tests.test_helpers import (
+    SynchronizationHelpers,
+    flush_deferred_deletes,
+    process_qt_events,
+)
 
 
 if TYPE_CHECKING:
@@ -182,8 +186,11 @@ class TestQtTimerLifecycle:
 
         process_qt_events()
 
-        # Timer should be stopped - no more ticks
-        time.sleep(0.05)  # Give time for potential ticks
+        # Timer should be stopped - wait briefly to surface any spurious ticks
+        # (plain sleep polling without event processing, so Qt timer can't fire)
+        SynchronizationHelpers.wait_for_condition(
+            lambda: len(fired) > count_before_delete + 2, timeout_ms=50
+        )
         process_qt_events()
 
         # Count shouldn't have increased much (timer should be stopped)

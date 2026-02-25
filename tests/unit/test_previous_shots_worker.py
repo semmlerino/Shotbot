@@ -42,6 +42,7 @@ from config import Config
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
 from tests.fixtures.test_doubles import TestCompletedProcess
+from tests.test_helpers import SynchronizationHelpers
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
@@ -295,11 +296,11 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Mock slow subprocess to allow time for stop
         def slow_subprocess(*args: Any, **kwargs: Any) -> TestCompletedProcess:
-            # Small delay to allow stop request to be processed
-            # Standard library imports
-            import time
-
-            time.sleep(0.1)
+            # Wait for stop request to be processed
+            SynchronizationHelpers.wait_for_condition(
+                lambda: worker.should_stop(),
+                timeout_ms=100,
+            )
             if worker.should_stop():
                 # Return minimal result when stopped
                 return TestCompletedProcess(

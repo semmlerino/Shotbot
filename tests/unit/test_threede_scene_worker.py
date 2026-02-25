@@ -806,8 +806,13 @@ class TestWorkerInterruption:
             # Wait for worker to actually start processing
             qtbot.waitUntil(lambda: len(started) > 0, timeout=1000)
 
-            # Give it a moment to get into the loop
-            time.sleep(0.1)
+            # Wait until the worker is confirmed running in its loop
+            from tests.test_helpers import SynchronizationHelpers
+            SynchronizationHelpers.wait_for_condition(
+                lambda: worker.isRunning(),
+                timeout_ms=1000,
+                poll_interval_ms=10,
+            )
 
             # Request interruption
             start_time = time.time()
@@ -878,8 +883,13 @@ class TestWorkerInterruption:
 
             worker.start()
 
-            # Give worker time to start and process some iterations
-            time.sleep(0.2)
+            # Wait for the worker to process at least one iteration before cancelling
+            from tests.test_helpers import SynchronizationHelpers
+            SynchronizationHelpers.wait_for_condition(
+                lambda: iteration_counts[0] > 0,
+                timeout_ms=2000,
+                poll_interval_ms=10,
+            )
 
             # Cancel and wait
             worker.requestInterruption()

@@ -489,7 +489,7 @@ class TestConcurrentAccess:
         def clearer() -> None:
             try:
                 import time
-                time.sleep(0.001)
+                time.sleep(0)
                 cache.clear_shot("show/seq/shot1")
             except Exception as e:
                 errors.append(e)

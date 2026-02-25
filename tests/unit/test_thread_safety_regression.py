@@ -471,7 +471,7 @@ class TestSimpleThreadingIntegration:
             deadline = time.perf_counter() + 1.0
             while time.perf_counter() < deadline and not worker.work_started:
                 process_qt_events()
-                time.sleep(0.001)
+                time.sleep(0)
             process_qt_events()
 
             if worker.isRunning():

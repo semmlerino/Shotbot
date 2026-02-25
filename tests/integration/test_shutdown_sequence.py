@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import pytest
 from PySide6.QtCore import QMutexLocker, QObject, Signal
 
-from tests.test_helpers import process_qt_events
+from tests.test_helpers import SynchronizationHelpers, process_qt_events
 
 
 if TYPE_CHECKING:
@@ -291,8 +291,11 @@ class TestAppWideShutdown:
         op_thread = threading.Thread(target=simulate_operation)
         op_thread.start()
 
-        # Small delay to ensure operation started
-        time.sleep(0.05)
+        # Wait for operation to start
+        SynchronizationHelpers.wait_for_condition(
+            lambda: "started" in active_operations,
+            timeout_ms=1000,
+        )
 
         # Shutdown while operation is active
         pool.shutdown(timeout=2.0)

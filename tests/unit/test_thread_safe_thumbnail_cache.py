@@ -16,14 +16,13 @@ from __future__ import annotations
 
 import concurrent.futures
 import threading
-import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 from PySide6.QtGui import QColor, QImage, QPixmap
 
-from tests.test_helpers import simulate_work_without_sleep
+from tests.test_helpers import SynchronizationHelpers, simulate_work_without_sleep
 from thread_safe_thumbnail_cache import (
     ThreadSafeThumbnailCache,
     create_thread_safe_pixmap,
@@ -553,8 +552,11 @@ class TestRaceConditionScenarios:
 
         def remover() -> None:
             try:
-                # Remove keys while readers are active
-                time.sleep(0.001)  # Let readers start
+                # Wait for readers to start before removing
+                SynchronizationHelpers.wait_for_condition(
+                    lambda: any(t.is_alive() for t in reader_threads),
+                    timeout_ms=1000,
+                )
                 for i in range(0, 50, 2):  # Remove even keys
                     cache.remove(f"key_{i}")
             except Exception as e:
@@ -635,7 +637,11 @@ class TestCacheEvictionUnderConcurrency:
         def clearer() -> None:
             try:
                 for _ in range(num_clears):
-                    time.sleep(0.005)  # Brief delay between clears
+                    # Wait for writers to be active before clearing
+                    SynchronizationHelpers.wait_for_condition(
+                        lambda: any(w.is_alive() for w in writers),
+                        timeout_ms=1000,
+                    )
                     cache.clear()
             except Exception as e:
                 errors.append(("clearer", e))
@@ -676,7 +682,11 @@ class TestCacheEvictionUnderConcurrency:
 
         def clearer() -> None:
             try:
-                time.sleep(0.002)
+                # Wait for readers to be active before clearing
+                SynchronizationHelpers.wait_for_condition(
+                    lambda: any(t.is_alive() for t in reader_threads),
+                    timeout_ms=1000,
+                )
                 cache.clear()
             except Exception as e:
                 errors.append(e)
