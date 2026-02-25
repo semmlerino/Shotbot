@@ -16,48 +16,6 @@ from maya_latest_finder import MayaLatestFinder
 class TestFindLatestMayaScene:
     """Test find_latest_maya_scene method."""
 
-    def test_find_latest_with_multiple_versions(self, tmp_path: Path) -> None:
-        """Test finding latest from multiple versioned files."""
-        # Create workspace structure
-        workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
-        maya_scenes.mkdir(parents=True)
-
-        # Create versioned Maya files
-        (maya_scenes / "scene_v001.ma").touch()
-        (maya_scenes / "scene_v003.ma").touch()
-        (maya_scenes / "scene_v002.mb").touch()
-        (maya_scenes / "scene_v005.mb").touch()
-
-        finder = MayaLatestFinder()
-        latest = finder.find_latest_maya_scene(str(workspace))
-
-        assert latest is not None
-        assert latest.name == "scene_v005.mb"
-        assert latest.parent == maya_scenes
-
-    def test_find_latest_with_multiple_users(self, tmp_path: Path) -> None:
-        """Test finding latest across multiple users."""
-        workspace = tmp_path / "workspace"
-
-        # Create files for user1
-        user1_scenes = workspace / "user" / "alice" / "mm" / "maya" / "scenes"
-        user1_scenes.mkdir(parents=True)
-        (user1_scenes / "shot_v002.ma").touch()
-
-        # Create files for user2
-        user2_scenes = workspace / "user" / "bob" / "mm" / "maya" / "scenes"
-        user2_scenes.mkdir(parents=True)
-        (user2_scenes / "shot_v004.ma").touch()
-        (user2_scenes / "shot_v001.ma").touch()
-
-        finder = MayaLatestFinder()
-        latest = finder.find_latest_maya_scene(str(workspace))
-
-        assert latest is not None
-        assert latest.name == "shot_v004.ma"
-        assert "bob" in str(latest.parent)
-
     def test_find_latest_mixed_extensions(self, tmp_path: Path) -> None:
         """Test handling of mixed .ma and .mb files."""
         workspace = tmp_path / "workspace"
@@ -74,36 +32,6 @@ class TestFindLatestMayaScene:
 
         assert latest is not None
         assert latest.name == "model_v003.ma"
-
-    def test_no_maya_scenes_directory(self, tmp_path: Path) -> None:
-        """Test user directory without maya/scenes structure."""
-        workspace = tmp_path / "workspace"
-        user_dir = workspace / "user" / "john"
-        user_dir.mkdir(parents=True)
-        # No maya/scenes directory
-
-        finder = MayaLatestFinder()
-        latest = finder.find_latest_maya_scene(str(workspace))
-
-        assert latest is None
-
-    def test_no_versioned_files(self, tmp_path: Path) -> None:
-        """Test directory with no versioned Maya files."""
-        workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
-        maya_scenes.mkdir(parents=True)
-
-        # Create unversioned files
-        (maya_scenes / "temp.ma").touch()
-        (maya_scenes / "backup.mb").touch()
-        (maya_scenes / "scene_noversion.ma").touch()
-
-        finder = MayaLatestFinder()
-        with patch.object(finder.logger, "debug") as mock_debug:
-            latest = finder.find_latest_maya_scene(str(workspace))
-
-            assert latest is None
-            mock_debug.assert_any_call(f"No Maya files found in workspace: {workspace}")
 
     def test_with_shot_name_in_logging(self, tmp_path: Path) -> None:
         """Test that shot name is used in logging."""

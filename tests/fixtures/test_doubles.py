@@ -1,16 +1,14 @@
 """Test doubles - re-export shim for backward compatibility.
 
 All test doubles have been split into domain-specific modules:
-- signal_doubles: SignalDouble, QtSignalDouble
+- signal_doubles: SignalDouble
 - process_doubles: TestProcessPool, TestCompletedProcess, TestSubprocess, PopenDouble,
                    simulate_work_without_sleep
 - model_doubles: TestShot, TestShotModel, TestCacheManager, TestFileSystem,
                  FakeShotModel, FakePreviousShotsFinder, FakeCacheManager,
                  FakePreviousShotsWorker, shot_model_factory,
                  create_test_shot, create_test_shots
-- worker_doubles: TestWorker, TestThreadWorker
-- qt_doubles: ThreadSafeTestImage, simulate_work_without_sleep
-- cache_doubles: TestCache, TestProgressOperation, TestProgressManager, test_process_pool
+- cache_doubles: TestProgressOperation, TestProgressManager, test_process_pool
 
 Import directly from domain modules for new code.
 """
@@ -18,7 +16,6 @@ Import directly from domain modules for new code.
 from __future__ import annotations
 
 from tests.fixtures.cache_doubles import (
-    TestCache,
     TestProgressManager,
     TestProgressOperation,
     test_process_pool,
@@ -43,16 +40,8 @@ from tests.fixtures.process_doubles import (
     TestSubprocess,
     simulate_work_without_sleep,
 )
-from tests.fixtures.qt_doubles import (
-    ThreadSafeTestImage,
-)
 from tests.fixtures.signal_doubles import (
-    QtSignalDouble,
     SignalDouble,
-)
-from tests.fixtures.worker_doubles import (
-    TestThreadWorker,
-    TestWorker,
 )
 
 
@@ -62,9 +51,7 @@ __all__ = [
     "FakePreviousShotsWorker",
     "FakeShotModel",
     "PopenDouble",
-    "QtSignalDouble",
     "SignalDouble",
-    "TestCache",
     "TestCacheManager",
     "TestCompletedProcess",
     "TestFileSystem",
@@ -74,9 +61,6 @@ __all__ = [
     "TestShot",
     "TestShotModel",
     "TestSubprocess",
-    "TestThreadWorker",
-    "TestWorker",
-    "ThreadSafeTestImage",
     "create_test_shot",
     "create_test_shots",
     "shot_model_factory",

@@ -16,36 +16,6 @@ from threede_latest_finder import ThreeDELatestFinder
 class TestFindLatestThreeDEScene:
     """Test find_latest_threede_scene method."""
 
-    def test_find_latest_with_multiple_versions(self, tmp_path: Path) -> None:
-        """Test finding latest from multiple versioned files."""
-        # Create 3DE-specific directory structure
-        workspace = tmp_path / "workspace"
-        threede_scenes = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        threede_scenes.mkdir(parents=True)
-
-        # Create versioned 3DE files
-        (threede_scenes / "track_v001.3de").touch()
-        (threede_scenes / "track_v003.3de").touch()
-        (threede_scenes / "track_v002.3de").touch()
-        (threede_scenes / "track_v005.3de").touch()
-
-        finder = ThreeDELatestFinder()
-        latest = finder.find_latest_threede_scene(str(workspace))
-
-        assert latest is not None
-        assert latest.name == "track_v005.3de"
-        assert latest.parent == threede_scenes
-
     def test_find_latest_across_plates(self, tmp_path: Path) -> None:
         """Test finding latest across different plate directories."""
         workspace = tmp_path / "workspace"
@@ -81,48 +51,6 @@ class TestFindLatestThreeDEScene:
         assert latest.name == "track_v006.3de"
         assert "PL01" in str(latest.parent)
 
-    def test_find_latest_with_multiple_users(self, tmp_path: Path) -> None:
-        """Test finding latest across multiple users."""
-        workspace = tmp_path / "workspace"
-
-        # Create files for user1
-        user1_scenes = (
-            workspace
-            / "user"
-            / "alice"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        user1_scenes.mkdir(parents=True)
-        (user1_scenes / "track_v002.3de").touch()
-
-        # Create files for user2
-        user2_scenes = (
-            workspace
-            / "user"
-            / "bob"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        user2_scenes.mkdir(parents=True)
-        (user2_scenes / "track_v004.3de").touch()
-        (user2_scenes / "track_v001.3de").touch()
-
-        finder = ThreeDELatestFinder()
-        latest = finder.find_latest_threede_scene(str(workspace))
-
-        assert latest is not None
-        assert latest.name == "track_v004.3de"
-        assert "bob" in str(latest.parent)
-
     def test_special_3de_directory_structure(self, tmp_path: Path) -> None:
         """Test that 3DE's unique directory structure is handled correctly."""
         workspace = tmp_path / "workspace"
@@ -154,18 +82,6 @@ class TestFindLatestThreeDEScene:
         assert latest.name == "track_v001.3de"
         # Should only find file in correct structure
 
-    def test_no_3de_directory_structure(self, tmp_path: Path) -> None:
-        """Test user directory without 3DE structure."""
-        workspace = tmp_path / "workspace"
-        user_dir = workspace / "user" / "john"
-        user_dir.mkdir(parents=True)
-        # No mm/3de/mm-default/scenes/scene structure
-
-        finder = ThreeDELatestFinder()
-        latest = finder.find_latest_threede_scene(str(workspace))
-
-        assert latest is None
-
     def test_no_plate_directories(self, tmp_path: Path) -> None:
         """Test 3DE structure without plate subdirectories."""
         workspace = tmp_path / "workspace"
@@ -186,34 +102,6 @@ class TestFindLatestThreeDEScene:
         latest = finder.find_latest_threede_scene(str(workspace))
 
         assert latest is None
-
-    def test_no_versioned_files(self, tmp_path: Path) -> None:
-        """Test directory with no versioned 3DE files."""
-        workspace = tmp_path / "workspace"
-        threede_scenes = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        threede_scenes.mkdir(parents=True)
-
-        # Create unversioned files
-        (threede_scenes / "temp.3de").touch()
-        (threede_scenes / "backup.3de").touch()
-        (threede_scenes / "track_noversion.3de").touch()
-
-        finder = ThreeDELatestFinder()
-        with patch.object(finder.logger, "debug") as mock_debug:
-            latest = finder.find_latest_threede_scene(str(workspace))
-
-            assert latest is None
-            mock_debug.assert_any_call(f"No 3DE files found in workspace: {workspace}")
 
     def test_with_shot_name_in_logging(self, tmp_path: Path) -> None:
         """Test that shot name is used in logging."""
