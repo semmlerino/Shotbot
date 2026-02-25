@@ -161,5 +161,7 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
     shows_root.mkdir(exist_ok=True)
 
     # Create ShotModel instance with test process pool and shared cache manager
-    return ShotModel(cache_manager=cache_manager, process_pool=test_process_pool)
+    model = ShotModel(cache_manager=cache_manager, process_pool=test_process_pool)
+    model._force_sync_refresh = True
+    return model
 

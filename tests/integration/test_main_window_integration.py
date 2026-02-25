@@ -185,6 +185,7 @@ def main_window_with_real_components(
     window._test_notification_manager = TestNotificationManager
 
     window.shot_model._process_pool = test_pool
+    window.shot_model._force_sync_refresh = True
 
     try:
         yield window
@@ -280,6 +281,7 @@ class TestCrossTabSynchronization:
             "workspace /shows/TEST/shots/seq01/seq01_0010\nworkspace /shows/TEST/shots/seq01/seq01_0020"
         )
         window.shot_model._process_pool = test_pool
+        window.shot_model._force_sync_refresh = True
 
         success, _has_changes = window.shot_model.refresh_shots()
         assert success, "refresh_shots should succeed"
@@ -413,6 +415,7 @@ class TestCrossTabSynchronization:
             "workspace /shows/SHOW2/shots/seq02/seq02_0030"
         )
         window.shot_model._process_pool = test_pool
+        window.shot_model._force_sync_refresh = True
 
         QTimer.singleShot = original_singleshot
 
@@ -907,6 +910,7 @@ class TestUserWorkflows:
 
         test_pool = TestProcessPool(allow_main_thread=True)
         main_window.shot_model._process_pool = test_pool
+        main_window.shot_model._force_sync_refresh = True
 
         error_events: list[tuple[str, str]] = []
         recovery_events: list[float] = []

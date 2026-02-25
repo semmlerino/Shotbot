@@ -42,6 +42,7 @@ def shot_model_temp(
     model = ShotModel(cache_manager=cache_manager_temp, load_cache=False)
     # Inject test process pool
     model._process_pool = test_process_pool  # type: ignore[attr-defined]
+    model._force_sync_refresh = True
     return model
 
 

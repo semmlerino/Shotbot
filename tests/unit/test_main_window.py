@@ -226,6 +226,7 @@ class TestShotRefresh:
             f"workspace {shows_root}/test/shots/seq01/seq01_0010\nworkspace {shows_root}/test/shots/seq01/seq01_0020"
         )
         main_window.shot_model._process_pool = test_process_pool
+        main_window.shot_model._force_sync_refresh = True
 
         # CRITICAL: Recreate parser to use correct SHOWS_ROOT from test environment
         # Manually create pattern with correct shows_root to bypass Config import issues
@@ -414,6 +415,7 @@ class TestMainWindowIntegration:
             f"workspace {shows_root}/test/shots/seq01/seq01_0010"
         )
         main_window.shot_model._process_pool = test_process_pool
+        main_window.shot_model._force_sync_refresh = True
 
         # CRITICAL: Recreate parser to use correct SHOWS_ROOT from test environment
         # Manually create pattern with correct shows_root to bypass Config import issues

@@ -199,6 +199,9 @@ class ShotModel(BaseShotModel):
         self._cache_hit_count = 0
         self._cache_miss_count = 0
 
+        # Set to True to force synchronous refresh (used by tests)
+        self._force_sync_refresh: bool = False
+
     def initialize_async(self) -> RefreshResult:
         """Initialize with cached data and start background refresh.
 
@@ -509,15 +512,7 @@ class ShotModel(BaseShotModel):
     @override
     def refresh_strategy(self) -> RefreshResult:
         """Override to use async strategy if no shots loaded yet."""
-        # If we're in a test environment (process pool is a test double),
-        # use synchronous refresh for compatibility
-        if hasattr(
-            self._process_pool, "__class__"
-        ) and self._process_pool.__class__.__name__ in [
-            "TestProcessPool",
-            "TestProcessPoolManager",
-        ]:
-            self.logger.debug("Test environment detected, using synchronous refresh")
+        if self._force_sync_refresh:
             return self.refresh_shots_sync()
 
         # Check loading state with lock held
