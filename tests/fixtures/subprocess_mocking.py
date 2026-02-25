@@ -30,7 +30,6 @@ Fixture Types:
     OPT-IN (control):
         subprocess_mock: Controllable mock for testing command execution
         subprocess_error_mock: Pre-configured for error scenarios
-        subprocess_timeout_mock: Simulates timeout/hanging processes
 
 """
 

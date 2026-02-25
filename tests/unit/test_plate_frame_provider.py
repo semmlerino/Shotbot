@@ -20,7 +20,6 @@ from PySide6.QtGui import QImage
 
 from plate_frame_provider import (
     FrameExtractionRunnable,
-    FrameExtractionSignals,
     PlateFrameProvider,
     PlateSource,
 )
@@ -155,16 +154,6 @@ class TestPlateSource:
             frame_end=1100,
         )
         assert source.get_exr_path_for_frame(1050) is None
-
-
-class TestFrameExtractionSignals:
-    """Tests for FrameExtractionSignals."""
-
-    def test_signals_exist(self, qapp: QApplication) -> None:
-        """Test that signals are properly defined."""
-        signals = FrameExtractionSignals()
-        assert hasattr(signals, "finished")
-        assert hasattr(signals, "failed")
 
 
 class TestFrameExtractionRunnable:

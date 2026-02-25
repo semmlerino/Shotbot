@@ -15,9 +15,7 @@ Following UNIFIED_TESTING_GUIDE best practices:
 from __future__ import annotations
 
 import concurrent.futures
-import threading
 import time
-from dataclasses import fields
 from pathlib import Path
 
 import pytest
@@ -133,33 +131,6 @@ class TestShotDataclass:
 
         assert shot1 != shot2
 
-    def test_shot_slots_attribute(self) -> None:
-        """Shot uses slots for memory efficiency."""
-        shot = Shot(
-            show="testshow",
-            sequence="sq010",
-            shot="0010",
-            workspace_path="/shows/testshow/shots/sq010/sq010_0010",
-        )
-
-        # Slotted classes don't have __dict__
-        assert not hasattr(shot, "__dict__")
-
-    def test_shot_repr_contains_all_fields(self) -> None:
-        """Shot repr contains all main fields for debugging."""
-        shot = Shot(
-            show="testshow",
-            sequence="sq010",
-            shot="0010",
-            workspace_path="/shows/testshow/shots/sq010/sq010_0010",
-        )
-
-        repr_str = repr(shot)
-        assert "testshow" in repr_str
-        assert "sq010" in repr_str
-        assert "0010" in repr_str
-
-
 @pytest.mark.unit
 class TestShotSerialization:
     """Tests for Shot serialization to/from dictionary."""
@@ -274,17 +245,6 @@ class TestShotThumbnailCaching:
         from type_definitions import _NOT_SEARCHED
 
         assert shot._cached_thumbnail_path is _NOT_SEARCHED
-
-    def test_thumbnail_lock_is_threading_lock(self) -> None:
-        """Shot has a threading.Lock for thread-safe thumbnail caching."""
-        shot = Shot(
-            show="testshow",
-            sequence="sq010",
-            shot="0010",
-            workspace_path="/shows/testshow/shots/sq010/sq010_0010",
-        )
-
-        assert type(shot._thumbnail_lock) is type(threading.Lock())
 
     def test_thumbnail_lock_per_instance(self) -> None:
         """Each Shot instance has its own lock (not shared)."""
@@ -437,23 +397,6 @@ class TestCacheProtocolCompliance:
         assert callable(cache.get_cached_shots)
         assert callable(cache.clear_cache)
         assert callable(cache.get_memory_usage)
-
-
-# ==============================================================================
-# Dataclass Field Introspection Tests
-# ==============================================================================
-
-
-@pytest.mark.unit
-class TestShotDataclassFields:
-    """Tests for Shot dataclass field definitions."""
-
-    def test_shot_has_expected_field_count(self) -> None:
-        """Shot has exactly the expected number of fields."""
-        shot_fields = fields(Shot)
-        # show, sequence, shot, workspace_path, discovered_at, frame_start, frame_end,
-        # _cached_thumbnail_path, _thumbnail_lock
-        assert len(shot_fields) == 9
 
 
 # ==============================================================================

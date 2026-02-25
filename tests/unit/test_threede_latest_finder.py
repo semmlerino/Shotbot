@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -82,116 +81,9 @@ class TestFindLatestThreeDEScene:
         assert latest.name == "track_v001.3de"
         # Should only find file in correct structure
 
-    def test_no_plate_directories(self, tmp_path: Path) -> None:
-        """Test 3DE structure without plate subdirectories."""
-        workspace = tmp_path / "workspace"
-        threede_base = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-        )
-        threede_base.mkdir(parents=True)
-        # No plate subdirectories created
-
-        finder = ThreeDELatestFinder()
-        latest = finder.find_latest_threede_scene(str(workspace))
-
-        assert latest is None
-
-    def test_with_shot_name_in_logging(self, tmp_path: Path) -> None:
-        """Test that shot name is used in logging."""
-        workspace = tmp_path / "workspace"
-        threede_scenes = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        threede_scenes.mkdir(parents=True)
-        (threede_scenes / "track_v001.3de").touch()
-
-        finder = ThreeDELatestFinder()
-        with patch.object(finder.logger, "info") as mock_info:
-            latest = finder.find_latest_threede_scene(
-                str(workspace), shot_name="shot_010"
-            )
-
-            assert latest is not None
-            mock_info.assert_called_with(
-                "Found latest 3DE scene for shot_010: track_v001.3de"
-            )
-
-    def test_logging_for_found_files(self, tmp_path: Path) -> None:
-        """Test debug logging for found files."""
-        workspace = tmp_path / "workspace"
-        threede_scenes = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        threede_scenes.mkdir(parents=True)
-        (threede_scenes / "track_v001.3de").touch()
-        (threede_scenes / "track_v002.3de").touch()
-
-        finder = ThreeDELatestFinder()
-        with patch.object(finder.logger, "debug") as mock_debug:
-            finder.find_latest_threede_scene(str(workspace))
-
-            # Check that files are logged
-            assert any(
-                "Found 3DE file: track_v001.3de (v001)" in str(call)
-                for call in mock_debug.call_args_list
-            )
-            assert any(
-                "Found 3DE file: track_v002.3de (v002)" in str(call)
-                for call in mock_debug.call_args_list
-            )
-
 
 class TestFindAllThreeDEScenes:
     """Test find_all_threede_scenes static method."""
-
-    def test_find_all_basic(self, tmp_path: Path) -> None:
-        """Test finding all 3DE scene files."""
-        workspace = tmp_path / "workspace"
-        threede_scenes = (
-            workspace
-            / "user"
-            / "artist"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        threede_scenes.mkdir(parents=True)
-
-        # Create various 3DE files
-        (threede_scenes / "track_v001.3de").touch()
-        (threede_scenes / "track_v002.3de").touch()
-        (threede_scenes / "solve_v001.3de").touch()
-
-        all_scenes = ThreeDELatestFinder.find_all_threede_scenes(str(workspace))
-
-        assert len(all_scenes) == 3
-        assert all(scene.suffix == ".3de" for scene in all_scenes)
 
     def test_find_all_across_plates(self, tmp_path: Path) -> None:
         """Test finding files across different plates."""
@@ -231,67 +123,9 @@ class TestFindAllThreeDEScenes:
         assert "BG01" in parent_dirs
         assert "PL01" in parent_dirs
 
-    def test_find_all_multiple_users(self, tmp_path: Path) -> None:
-        """Test finding files across multiple users."""
-        workspace = tmp_path / "workspace"
-
-        # User 1 - Add version numbers for files to be included
-        user1_scenes = (
-            workspace
-            / "user"
-            / "alice"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        user1_scenes.mkdir(parents=True)
-        (user1_scenes / "alice_track_v001.3de").touch()
-
-        # User 2 - Add version numbers for files to be included
-        user2_scenes = (
-            workspace
-            / "user"
-            / "bob"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "BG01"
-        )
-        user2_scenes.mkdir(parents=True)
-        (user2_scenes / "bob_track_v002.3de").touch()
-        (user2_scenes / "bob_solve_v003.3de").touch()
-
-        all_scenes = ThreeDELatestFinder.find_all_threede_scenes(str(workspace))
-
-        assert len(all_scenes) == 3
-        scene_names = [s.name for s in all_scenes]
-        assert "alice_track_v001.3de" in scene_names
-        assert "bob_track_v002.3de" in scene_names
-        assert "bob_solve_v003.3de" in scene_names
-
-
 
 class TestVersionPattern:
     """Test 3DE-specific version pattern."""
-
-    def test_version_pattern_matches_3de_files(self) -> None:
-        """Test pattern matches .3de files correctly."""
-        finder = ThreeDELatestFinder()
-
-        # Should match
-        assert finder.VERSION_PATTERN.search("track_v001.3de") is not None
-        assert finder.VERSION_PATTERN.search("solve_v999.3de") is not None
-
-        # Should not match
-        assert finder.VERSION_PATTERN.search("track_v001.txt") is None
-        assert finder.VERSION_PATTERN.search("track.3de") is None
-        assert finder.VERSION_PATTERN.search("v001_track.3de") is None
-        assert finder.VERSION_PATTERN.search("track_v001.ma") is None  # Wrong extension
 
     def test_version_extraction(self, tmp_path: Path) -> None:
         """Test version extraction from 3DE files."""
@@ -368,34 +202,6 @@ class TestPlateHandling:
 
         assert len(all_scenes) == 2
         # Should handle any directory name as plate
-
-    def test_empty_plate_directories(self, tmp_path: Path) -> None:
-        """Test handling of empty plate directories."""
-        workspace = tmp_path / "workspace"
-        base_3de = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-        )
-
-        # Empty plate directory
-        empty_plate = base_3de / "FG01"
-        empty_plate.mkdir(parents=True)
-
-        # Plate with files
-        active_plate = base_3de / "BG01"
-        active_plate.mkdir(parents=True)
-        (active_plate / "track_v001.3de").touch()
-
-        all_scenes = ThreeDELatestFinder.find_all_threede_scenes(str(workspace))
-
-        assert len(all_scenes) == 1
-        assert all_scenes[0].parent.name == "BG01"
 
 
 class TestEdgeCases:

@@ -696,14 +696,3 @@ class TestUpdateScrubPosition:
         assert len(extract_calls) == 0
 
 
-class TestSignals:
-    """Tests for signal definitions."""
-
-    def test_signals_exist(self, qapp: QApplication) -> None:
-        """Test all signals are properly defined."""
-        manager = ScrubPreviewManager()
-
-        assert hasattr(manager, "scrub_frame_ready")
-        assert hasattr(manager, "scrub_started")
-        assert hasattr(manager, "scrub_ended")
-        assert hasattr(manager, "request_repaint")

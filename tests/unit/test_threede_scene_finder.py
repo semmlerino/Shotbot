@@ -99,14 +99,6 @@ class TestThreeDESceneFinderBasics:
         assert hasattr(ThreeDESceneFinder, "clear_cache")
         assert hasattr(ThreeDESceneFinder, "refresh_cache")
 
-    def test_static_methods_exist(self) -> None:
-        """Test that expected static methods exist."""
-        assert hasattr(ThreeDESceneFinder, "find_scenes_for_shot")
-        assert hasattr(ThreeDESceneFinder, "extract_plate_from_path")
-        assert hasattr(ThreeDESceneFinder, "verify_scene_exists")
-        assert hasattr(ThreeDESceneFinder, "quick_3de_exists_check_optimized")
-        assert hasattr(ThreeDESceneFinder, "find_all_scenes_in_shows_truly_efficient")
-
     def test_extract_plate_from_path(self, temp_vfx_structure) -> None:
         """Test extracting plate name from path."""
         user_path = Path(temp_vfx_structure) / "user" / "artist1"

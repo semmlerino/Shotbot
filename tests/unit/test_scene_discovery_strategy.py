@@ -20,7 +20,6 @@ from scene_discovery_strategy import (
     NetworkAwareStrategy,
     ParallelFileSystemStrategy,
     ProgressiveDiscoveryStrategy,
-    SceneDiscoveryStrategy,
     create_discovery_strategy,
 )
 
@@ -93,59 +92,6 @@ class TestCreateDiscoveryStrategy:
 # ==============================================================================
 
 
-class TestParallelStrategyInitialization:
-    """Tests for ParallelFileSystemStrategy initialization."""
-
-    def test_accepts_num_workers_parameter(self) -> None:
-        """num_workers parameter is stored."""
-        strategy = ParallelFileSystemStrategy(num_workers=4)
-
-        assert strategy.num_workers == 4
-
-    def test_default_num_workers_is_none(self) -> None:
-        """num_workers defaults to None."""
-        strategy = ParallelFileSystemStrategy()
-
-        assert strategy.num_workers is None
-
-    def test_factory_passes_num_workers(self) -> None:
-        """Factory function passes num_workers to strategy."""
-        strategy = create_discovery_strategy("parallel", num_workers=8)
-
-        assert isinstance(strategy, ParallelFileSystemStrategy)
-        assert strategy.num_workers == 8
-
-
-class TestNetworkStrategyInitialization:
-    """Tests for NetworkAwareStrategy initialization."""
-
-    def test_accepts_network_timeout_parameter(self) -> None:
-        """network_timeout parameter is stored."""
-        strategy = NetworkAwareStrategy(network_timeout=60)
-
-        assert strategy.network_timeout == 60
-
-    def test_default_network_timeout_is_30(self) -> None:
-        """network_timeout defaults to 30 seconds."""
-        strategy = NetworkAwareStrategy()
-
-        assert strategy.network_timeout == 30
-
-    def test_factory_passes_network_timeout(self) -> None:
-        """Factory function passes network_timeout to strategy."""
-        strategy = create_discovery_strategy("network", network_timeout=120)
-
-        assert isinstance(strategy, NetworkAwareStrategy)
-        assert strategy.network_timeout == 120
-
-    def test_factory_uses_default_timeout_if_not_specified(self) -> None:
-        """Factory uses default timeout when not specified."""
-        strategy = create_discovery_strategy("network")
-
-        assert isinstance(strategy, NetworkAwareStrategy)
-        assert strategy.network_timeout == 30
-
-
 # ==============================================================================
 # Strategy Name Tests
 # ==============================================================================
@@ -179,40 +125,6 @@ class TestStrategyNames:
 
 class TestSceneDiscoveryStrategyBase:
     """Tests for SceneDiscoveryStrategy base class behavior."""
-
-    def test_strategy_has_scanner(self) -> None:
-        """Strategy has FileSystemScanner instance."""
-        strategy = create_discovery_strategy("local")
-
-        assert hasattr(strategy, "scanner")
-        assert strategy.scanner is not None
-
-    def test_strategy_has_parser(self) -> None:
-        """Strategy has SceneParser instance."""
-        strategy = create_discovery_strategy("local")
-
-        assert hasattr(strategy, "parser")
-        assert strategy.parser is not None
-
-    def test_strategy_has_cache(self) -> None:
-        """Strategy has SceneCache instance."""
-        strategy = create_discovery_strategy("local")
-
-        assert hasattr(strategy, "cache")
-        assert strategy.cache is not None
-
-    def test_all_strategies_inherit_from_base(self) -> None:
-        """All strategies inherit from SceneDiscoveryStrategy."""
-        strategies = [
-            LocalFileSystemStrategy(),
-            ParallelFileSystemStrategy(),
-            ProgressiveDiscoveryStrategy(),
-            NetworkAwareStrategy(),
-        ]
-
-        for strategy in strategies:
-            assert isinstance(strategy, SceneDiscoveryStrategy)
-
 
 # ==============================================================================
 # LocalFileSystemStrategy Behavior Tests

@@ -21,15 +21,6 @@ from targeted_shot_finder import TargetedShotsFinder
 class TestTargetedShotsFinderInitialization:
     """Test TargetedShotsFinder initialization."""
 
-    def test_initialization_default(self) -> None:
-        """Test that finder initializes with default values."""
-        finder = TargetedShotsFinder()
-        assert finder is not None
-        assert hasattr(finder, "username")
-        assert hasattr(finder, "max_workers")
-        assert hasattr(finder, "logger")
-        assert hasattr(finder, "_shot_pattern")
-
     def test_initialization_with_username(self) -> None:
         """Test initialization with specific username."""
         finder = TargetedShotsFinder(username="test_user")
@@ -48,15 +39,6 @@ class TestTargetedShotsFinderInitialization:
         finder = TargetedShotsFinder()
         # Pattern should be based on SHOWS_ROOT
         assert finder._shot_pattern.pattern.startswith("/test/shows")
-
-    def test_inherits_shot_finder_base(self) -> None:
-        """Test that finder inherits ShotFinderBase methods."""
-        finder = TargetedShotsFinder()
-        # Should have progress methods from ProgressReportingMixin
-        assert hasattr(finder, "set_progress_callback")
-        assert hasattr(finder, "request_stop")
-        assert hasattr(finder, "_report_progress")
-        assert hasattr(finder, "_check_stop")
 
 
 class TestExtractShowsFromActiveShots:

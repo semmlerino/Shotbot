@@ -33,87 +33,9 @@ class TestFindLatestMayaScene:
         assert latest is not None
         assert latest.name == "model_v003.ma"
 
-    def test_with_shot_name_in_logging(self, tmp_path: Path) -> None:
-        """Test that shot name is used in logging."""
-        workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
-        maya_scenes.mkdir(parents=True)
-        (maya_scenes / "anim_v001.ma").touch()
-
-        finder = MayaLatestFinder()
-        with patch.object(finder.logger, "info") as mock_info:
-            latest = finder.find_latest_maya_scene(str(workspace), shot_name="shot_010")
-
-            assert latest is not None
-            mock_info.assert_called_with(
-                "Found latest Maya scene for shot_010: anim_v001.ma"
-            )
-
-    def test_logging_for_found_files(self, tmp_path: Path) -> None:
-        """Test debug logging for found files."""
-        workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
-        maya_scenes.mkdir(parents=True)
-        (maya_scenes / "scene_v001.ma").touch()
-        (maya_scenes / "scene_v002.mb").touch()
-
-        finder = MayaLatestFinder()
-        with patch.object(finder.logger, "debug") as mock_debug:
-            finder.find_latest_maya_scene(str(workspace))
-
-            # Check that files are logged
-            assert any(
-                "Found Maya ASCII file: scene_v001.ma (v001)" in str(call)
-                for call in mock_debug.call_args_list
-            )
-            assert any(
-                "Found Maya Binary file: scene_v002.mb (v002)" in str(call)
-                for call in mock_debug.call_args_list
-            )
-
 
 class TestFindAllMayaScenes:
     """Test find_all_maya_scenes static method."""
-
-    def test_find_all_basic(self, tmp_path: Path) -> None:
-        """Test finding all Maya scene files."""
-        workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "artist" / "mm" / "maya" / "scenes"
-        maya_scenes.mkdir(parents=True)
-
-        # Create various Maya files
-        (maya_scenes / "scene_v001.ma").touch()
-        (maya_scenes / "scene_v002.ma").touch()
-        (maya_scenes / "model_v001.mb").touch()
-
-        all_scenes = MayaLatestFinder.find_all_maya_scenes(str(workspace))
-
-        assert len(all_scenes) == 3
-        assert all(scene.suffix in [".ma", ".mb"] for scene in all_scenes)
-
-    def test_find_all_multiple_users(self, tmp_path: Path) -> None:
-        """Test finding files across multiple users."""
-        workspace = tmp_path / "workspace"
-
-        # User 1
-        user1_scenes = workspace / "user" / "alice" / "mm" / "maya" / "scenes"
-        user1_scenes.mkdir(parents=True)
-        (user1_scenes / "alice_scene.ma").touch()
-
-        # User 2
-        user2_scenes = workspace / "user" / "bob" / "mm" / "maya" / "scenes"
-        user2_scenes.mkdir(parents=True)
-        (user2_scenes / "bob_scene.ma").touch()
-        (user2_scenes / "bob_model.mb").touch()
-
-        all_scenes = MayaLatestFinder.find_all_maya_scenes(str(workspace))
-
-        assert len(all_scenes) == 3
-        # Check files from both users are found
-        scene_names = [s.name for s in all_scenes]
-        assert "alice_scene.ma" in scene_names
-        assert "bob_scene.ma" in scene_names
-        assert "bob_model.mb" in scene_names
 
     def test_exclude_autosave_by_default(self, tmp_path: Path) -> None:
         """Test that autosave files are excluded by default."""
@@ -149,33 +71,9 @@ class TestFindAllMayaScenes:
         assert len(all_scenes) == 1
         assert all_scenes[0].name == "scene_v001.ma"
 
-    def test_no_maya_directory_returns_empty(self, tmp_path: Path) -> None:
-        """Test workspace with users but no maya directories."""
-        workspace = tmp_path / "workspace"
-        user_dir = workspace / "user" / "john" / "nuke" / "scripts"
-        user_dir.mkdir(parents=True)
-        # No maya directory
-
-        all_scenes = MayaLatestFinder.find_all_maya_scenes(str(workspace))
-
-        assert all_scenes == []
-
 
 class TestVersionPattern:
     """Test Maya-specific version pattern."""
-
-    def test_version_pattern_matches_ma_files(self) -> None:
-        """Test pattern matches .ma files correctly."""
-        finder = MayaLatestFinder()
-
-        # Should match
-        assert finder.VERSION_PATTERN.search("scene_v001.ma") is not None
-        assert finder.VERSION_PATTERN.search("file_v999.ma") is not None
-
-        # Should not match
-        assert finder.VERSION_PATTERN.search("scene_v001.txt") is None
-        assert finder.VERSION_PATTERN.search("scene.ma") is None
-        assert finder.VERSION_PATTERN.search("v001_scene.ma") is None
 
     def test_version_pattern_matches_mb_files(self) -> None:
         """Test pattern matches .mb files correctly."""

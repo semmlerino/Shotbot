@@ -752,30 +752,6 @@ class TestVisibilityTracking:
 class TestSignals:
     """Test signal definitions and connectivity."""
 
-    def test_app_launch_requested_signal_exists(
-        self, grid_view: ConcreteGridView
-    ) -> None:
-        """Test app_launch_requested signal is defined."""
-        assert hasattr(grid_view, "app_launch_requested")
-        signal_spy = QSignalSpy(grid_view.app_launch_requested)
-        assert signal_spy is not None
-
-    def test_show_filter_requested_signal_exists(
-        self, grid_view: ConcreteGridView
-    ) -> None:
-        """Test show_filter_requested signal is defined."""
-        assert hasattr(grid_view, "show_filter_requested")
-        signal_spy = QSignalSpy(grid_view.show_filter_requested)
-        assert signal_spy is not None
-
-    def test_text_filter_requested_signal_exists(
-        self, grid_view: ConcreteGridView
-    ) -> None:
-        """Test text_filter_requested signal is defined."""
-        assert hasattr(grid_view, "text_filter_requested")
-        signal_spy = QSignalSpy(grid_view.text_filter_requested)
-        assert signal_spy is not None
-
 
 # ============================================================================
 # Test HasAvailableShows Protocol

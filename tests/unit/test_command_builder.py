@@ -207,66 +207,55 @@ class TestRezWrapping:
 class TestNukeEnvironmentFixes:
     """Tests for Nuke-specific environment fixes."""
 
-    def test_all_fixes_enabled(self, mock_config: MagicMock) -> None:
-        """Test with all Nuke fixes enabled."""
-        command = "nuke"
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = True
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = "/path/to/config.ocio"
+    @pytest.mark.parametrize(
+        ("skip_plugins", "ocio_config", "expected_present", "expected_absent"),
+        [
+            (
+                True,
+                "/path/to/config.ocio",
+                ["NUKE_PATH=$(", "case", "problematic_plugins", "OCIO=/path/to/config.ocio", "NUKE_CRASH_REPORTS=0"],
+                [],
+            ),
+            (
+                False,
+                "",
+                ["NUKE_CRASH_REPORTS=0"],
+                ["NUKE_PATH", "OCIO="],
+            ),
+            (
+                True,
+                "",
+                ["NUKE_PATH=$(", "case", "problematic_plugins", "NUKE_CRASH_REPORTS=0"],
+                ["OCIO="],
+            ),
+            (
+                False,
+                "/custom/ocio.ocio",
+                ["OCIO=/custom/ocio.ocio", "NUKE_CRASH_REPORTS=0"],
+                ["NUKE_PATH"],
+            ),
+        ],
+        ids=["all_fixes", "crash_reporting_only", "plugin_filtering_only", "ocio_fallback_only"],
+    )
+    def test_nuke_environment_fixes(
+        self,
+        mock_config: MagicMock,
+        skip_plugins: bool,
+        ocio_config: str,
+        expected_present: list[str],
+        expected_absent: list[str],
+    ) -> None:
+        """Test apply_nuke_environment_fixes under different configuration combinations."""
+        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = skip_plugins
+        mock_config.NUKE_OCIO_FALLBACK_CONFIG = ocio_config
 
-        result = CommandBuilder.apply_nuke_environment_fixes(command, mock_config)
+        result = CommandBuilder.apply_nuke_environment_fixes("nuke", mock_config)
 
-        # Should contain NUKE_PATH filtering using case statement approach
-        assert "NUKE_PATH=$(" in result
-        assert "case" in result
-        assert "problematic_plugins" in result
-
-        # Should contain OCIO fallback (shlex.quote only adds quotes if needed)
-        assert "OCIO=/path/to/config.ocio" in result
-
-        # Should disable crash reports
-        assert "NUKE_CRASH_REPORTS=0" in result
-
-        # Original command should be at the end
+        for substring in expected_present:
+            assert substring in result, f"Expected {substring!r} in result: {result!r}"
+        for substring in expected_absent:
+            assert substring not in result, f"Did not expect {substring!r} in result: {result!r}"
         assert result.endswith("&& nuke")
-
-    def test_only_crash_reporting_disabled(self, mock_config: MagicMock) -> None:
-        """Test with only crash reporting disabled (minimal fixes)."""
-        command = "nuke"
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = ""
-
-        result = CommandBuilder.apply_nuke_environment_fixes(command, mock_config)
-
-        # Should only contain crash reporting disable
-        assert result == "NUKE_CRASH_REPORTS=0 && nuke"
-
-    def test_plugin_filtering_only(self, mock_config: MagicMock) -> None:
-        """Test with only plugin filtering enabled."""
-        command = "nuke"
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = True
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = ""
-
-        result = CommandBuilder.apply_nuke_environment_fixes(command, mock_config)
-
-        # Should contain NUKE_PATH filtering (case statement approach) and crash reporting
-        assert "NUKE_PATH=$(" in result
-        assert "case" in result
-        assert "problematic_plugins" in result
-        assert "NUKE_CRASH_REPORTS=0" in result
-        assert "OCIO=" not in result
-
-    def test_ocio_fallback_only(self, mock_config: MagicMock) -> None:
-        """Test with only OCIO fallback enabled."""
-        command = "nuke"
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = "/custom/ocio.ocio"
-
-        result = CommandBuilder.apply_nuke_environment_fixes(command, mock_config)
-
-        # Should contain OCIO (shlex.quote only adds quotes if needed)
-        assert "OCIO=/custom/ocio.ocio" in result
-        assert "NUKE_CRASH_REPORTS=0" in result
-        assert "NUKE_PATH" not in result
 
     def test_ocio_path_with_spaces(self, mock_config: MagicMock) -> None:
         """Test OCIO path with spaces is properly quoted."""

@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from scene_file import FileType, SceneFile
 from shot_file_finder import ShotFileFinder
 
@@ -51,64 +53,31 @@ class TestSceneFile:
             )
             assert scene_file.app_name == expected_app
 
-    def test_scene_file_relative_age_just_now(self) -> None:
-        """Test relative_age for recent files."""
+    @pytest.mark.parametrize(
+        ("offset", "expected_substring", "exact_match"),
+        [
+            (timedelta(0), "just now", True),
+            (timedelta(minutes=30), "minute", False),
+            (timedelta(hours=5), "hour", False),
+            (timedelta(days=1), "yesterday", True),
+            (timedelta(days=5), "day", False),
+        ],
+    )
+    def test_scene_file_relative_age(
+        self, offset: timedelta, expected_substring: str, exact_match: bool
+    ) -> None:
+        """Test relative_age for files at various ages."""
         now = datetime.now()
         scene_file = SceneFile(
             path=Path("/test/file.3de"),
             file_type=FileType.THREEDE,
-            modified_time=now,
+            modified_time=now - offset,
             user="test",
         )
-        assert scene_file.relative_age == "just now"
-
-    def test_scene_file_relative_age_minutes(self) -> None:
-        """Test relative_age for files modified minutes ago."""
-        now = datetime.now()
-        modified = now - timedelta(minutes=30)
-        scene_file = SceneFile(
-            path=Path("/test/file.3de"),
-            file_type=FileType.THREEDE,
-            modified_time=modified,
-            user="test",
-        )
-        assert "minute" in scene_file.relative_age
-
-    def test_scene_file_relative_age_hours(self) -> None:
-        """Test relative_age for files modified hours ago."""
-        now = datetime.now()
-        modified = now - timedelta(hours=5)
-        scene_file = SceneFile(
-            path=Path("/test/file.3de"),
-            file_type=FileType.THREEDE,
-            modified_time=modified,
-            user="test",
-        )
-        assert "hour" in scene_file.relative_age
-
-    def test_scene_file_relative_age_yesterday(self) -> None:
-        """Test relative_age for files modified yesterday."""
-        now = datetime.now()
-        modified = now - timedelta(days=1)
-        scene_file = SceneFile(
-            path=Path("/test/file.3de"),
-            file_type=FileType.THREEDE,
-            modified_time=modified,
-            user="test",
-        )
-        assert scene_file.relative_age == "yesterday"
-
-    def test_scene_file_relative_age_days(self) -> None:
-        """Test relative_age for files modified days ago."""
-        now = datetime.now()
-        modified = now - timedelta(days=5)
-        scene_file = SceneFile(
-            path=Path("/test/file.3de"),
-            file_type=FileType.THREEDE,
-            modified_time=modified,
-            user="test",
-        )
-        assert "day" in scene_file.relative_age
+        if exact_match:
+            assert scene_file.relative_age == expected_substring
+        else:
+            assert expected_substring in scene_file.relative_age
 
     def test_scene_file_colors(self) -> None:
         """Test that each file type has a color."""

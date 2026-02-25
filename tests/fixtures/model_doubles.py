@@ -7,11 +7,9 @@ Classes:
     TestFileSystem: Test double for file system operations
     FakeShotModel: Test double for ShotModel (Previous Shots feature)
     FakePreviousShotsFinder: Test double for PreviousShotsFinder
-    FakeCacheManager: Test double for CacheManager (Previous Shots feature)
     FakePreviousShotsWorker: Test double for PreviousShotsWorker
 
 Functions:
-    shot_model_factory: Fixture factory for ShotModel with injected test doubles
     create_test_shot: Factory function for creating test shots
     create_test_shots: Factory function for creating multiple test shots
 """
@@ -22,7 +20,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import pytest
 from PySide6.QtCore import QObject, Signal
 
 from tests.fixtures.signal_doubles import (
@@ -32,7 +29,6 @@ from tests.fixtures.signal_doubles import (
 
 if TYPE_CHECKING:
     from shot_model import Shot
-    from tests.fixtures.process_doubles import TestProcessPool
 
 
 # Imported here to avoid circular import; used only in simulate_work_without_sleep calls
@@ -593,61 +589,6 @@ class FakePreviousShotsFinder:
         }
 
 
-class FakeCacheManager(QObject):
-    """Test double for CacheManager with real signals and memory tracking."""
-
-    # Real Qt signal for compatibility
-    cache_updated = Signal()
-
-    def __init__(self, cache_dir=None) -> None:
-        super().__init__()
-        self.cache_dir = cache_dir
-
-        # In-memory storage
-        self._cache_data: dict[str, Any] = {}
-        self._previous_shots_cache: list[dict[str, Any]] | None = None
-
-        # Track method calls
-        self.get_cached_previous_shots_calls = 0
-        self.cache_previous_shots_calls: list[Any] = []
-        self.clear_cached_data_calls: list[Any] = []
-
-    def get_cached_previous_shots(self) -> list[dict[str, Any]] | None:
-        """Return cached previous shots."""
-        self.get_cached_previous_shots_calls += 1
-        return self._previous_shots_cache
-
-    def cache_previous_shots(self, shots: list[dict[str, Any]]) -> None:
-        """Cache previous shots data."""
-        self.cache_previous_shots_calls.append(shots)
-        self._previous_shots_cache = shots
-        self.cache_updated.emit()
-
-    def clear_cached_data(self, key: str) -> None:
-        """Clear cached data by key."""
-        self.clear_cached_data_calls.append(key)
-        if key == "previous_shots":
-            self._previous_shots_cache = None
-        elif key in self._cache_data:
-            del self._cache_data[key]
-
-    def get_cached_thumbnail(
-        self, source_path: str, show: str = "", sequence: str = "", shot: str = ""
-    ) -> str | None:
-        """Return cached thumbnail path (fake implementation)."""
-        # Return None to simulate no cached thumbnail exists
-        return None
-
-    def cache_thumbnail(
-        self, source_path: str, show: str = "", sequence: str = "", shot: str = ""
-    ) -> str | None:
-        """Cache a thumbnail (fake implementation)."""
-        # Return a fake cache path
-        cache_key = f"{show}_{sequence}_{shot}"
-        self._cache_data[cache_key] = f"/fake/cache/{cache_key}.jpg"
-        return self._cache_data[cache_key]
-
-
 class FakePreviousShotsWorker(QObject):
     """Test double for PreviousShotsWorker with controlled behavior and real Qt signals."""
 
@@ -737,63 +678,3 @@ def create_test_shots(count: int = 3, show: str = "test") -> list[Any]:
         for i in range(count)
     ]
 
-
-# =============================================================================
-# PYTEST FIXTURES
-# =============================================================================
-
-
-@pytest.fixture
-def shot_model_factory(test_process_pool: TestProcessPool):
-    """Factory for ShotModel with injected test doubles.
-
-    Creates ShotModel instances with the test process pool already injected
-    via constructor, which is preferred over mutating model._process_pool
-    after construction.
-
-    Example usage:
-        def test_something(shot_model_factory, test_process_pool, tmp_path):
-            test_process_pool.set_outputs("workspace /shows/test/shots/sq01/sh01")
-            model = shot_model_factory(cache_dir=tmp_path / "cache")
-            # model already has test_process_pool injected via constructor
-
-    Args:
-        test_process_pool: The TestProcessPool fixture for mocking subprocess
-
-    Returns:
-        Factory callable that creates configured ShotModel instances
-
-    """
-    from cache_manager import CacheManager
-    from shot_model import ShotModel
-
-    def _create_model(
-        cache_dir: Path | None = None,
-        cache_manager: CacheManager | None = None,
-        load_cache: bool = False,
-        **kwargs: Any,
-    ) -> ShotModel:
-        """Create a ShotModel with test doubles.
-
-        Args:
-            cache_dir: Optional directory for cache (creates CacheManager if provided)
-            cache_manager: Optional pre-configured CacheManager (takes precedence over cache_dir)
-            load_cache: Whether to load existing cache on init (default False for tests)
-            **kwargs: Additional arguments passed to ShotModel
-
-        Returns:
-            ShotModel instance with test_process_pool injected
-
-        """
-        if cache_manager is None and cache_dir is not None:
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            cache_manager = CacheManager(cache_dir=cache_dir)
-
-        return ShotModel(
-            cache_manager=cache_manager,
-            load_cache=load_cache,
-            process_pool=test_process_pool,
-            **kwargs,
-        )
-
-    return _create_model

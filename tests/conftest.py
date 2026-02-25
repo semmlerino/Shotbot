@@ -162,10 +162,9 @@ atexit.register(_cleanup_test_dirs)
 # NOW safe to import PySide6
 # ==============================================================================
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import pytest
-from PySide6.QtCore import QSettings, QStandardPaths
+from PySide6.QtCore import QStandardPaths
 from PySide6.QtWidgets import QApplication
 
 
@@ -597,97 +596,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             # Auto-apply heavy cleanup fixtures to Qt tests
             # (qt_cleanup handles Qt state, cleanup_state_heavy handles singletons)
             item.add_marker(pytest.mark.usefixtures("qt_cleanup", "cleanup_state_heavy"))
-
-        # Auto-enable enforce_unique_connections fixture if marker is present
-        if item.get_closest_marker("enforce_unique_connections"):
-            item.add_marker(pytest.mark.usefixtures("enforce_unique_connections"))
-
-
-# ==============================================================================
-# Signal Connection Safety Fixtures
-# ==============================================================================
-
-
-@pytest.fixture(scope="session")
-def _signal_instance_type():
-    """Discover the type used by PySide6 for signal instances.
-
-    This fixture robustly discovers the concrete type that PySide6 uses
-    for signal objects, which we need for monkey-patching connect().
-    """
-    from PySide6.QtCore import QObject, Signal
-
-    class _Dummy(QObject):
-        sig = Signal()
-
-    return type(_Dummy().sig)
-
-
-@pytest.fixture
-def enforce_unique_connections(request, monkeypatch, _signal_instance_type):
-    """Force all signal.connect() calls to use UniqueConnection during tests.
-
-    This fixture prevents duplicate signal connections by automatically using
-    Qt.UniqueConnection for all connect() calls. If a signal is connected to
-    the same slot twice, Qt will ignore the second connection silently.
-
-    Scope: Currently only applies to tests marked with @pytest.mark.enforce_unique_connections
-
-    Why this helps:
-    - Catches duplicate signal connections at connection time (not emission time)
-    - Makes "double-emission on click" bugs impossible
-    - Provides immediate feedback in the test that creates the duplicate
-
-    Usage:
-        @pytest.mark.enforce_unique_connections
-        def test_my_widget(qtbot, enforce_unique_connections):
-            widget = MyWidget()
-            # Any duplicate connections will be prevented
-
-    Expand to all tests:
-        Change this to autouse=True once validated on launcher tests.
-    """
-    from PySide6.QtCore import Qt
-
-    # Get original connect method
-    original_connect = _signal_instance_type.connect
-
-    def _connect_unique(self, slot, connection_type=Qt.ConnectionType.AutoConnection):
-        """Override connect() to enforce UniqueConnection while preserving caller's semantics."""
-        # Preserve caller's choice (Queued, Blocked, etc.), just OR the UniqueConnection flag
-        return original_connect(self, slot, connection_type | Qt.ConnectionType.UniqueConnection)
-
-    # Patch connect() method
-    monkeypatch.setattr(_signal_instance_type, "connect", _connect_unique, raising=True)
-
-
-    # Cleanup is automatic via monkeypatch
-
-
-# ==============================================================================
-# Mock Fixtures
-# ==============================================================================
-
-
-@pytest.fixture
-def mock_settings() -> Iterator[Mock]:
-    """Mock QSettings for testing settings persistence."""
-    settings_data: dict[str, object] = {}
-
-    def mock_value(key: str, default: object = None, value_type: type | None = None) -> object:
-        value = settings_data.get(key, default)
-        if value_type and value is not None:
-            return value_type(value)
-        return value
-
-    def mock_set_value(key: str, value: object) -> None:
-        settings_data[key] = value
-
-    mock_instance = Mock(spec=QSettings)
-    mock_instance.value = mock_value
-    mock_instance.setValue = mock_set_value
-
-    return mock_instance
 
 
 # ==============================================================================

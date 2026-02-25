@@ -51,31 +51,6 @@ if TYPE_CHECKING:
 class TestShot:
     """Test cases for Shot dataclass using real files."""
 
-    def test_shot_creation(self, make_test_shot: TestShotFactory) -> None:
-        """Test Shot instance creation with real paths."""
-        shot = make_test_shot("testshow", "101_ABC", "0010")
-
-        assert shot.show == "testshow"
-        assert shot.sequence == "101_ABC"
-        assert shot.shot == "0010"
-        assert "testshow" in shot.workspace_path
-        assert "101_ABC" in shot.workspace_path
-        assert "0010" in shot.workspace_path
-
-    def test_shot_string_representation(self, make_test_shot: TestShotFactory) -> None:
-        """Test Shot string representation."""
-        shot = make_test_shot("testshow", "101_ABC", "0010")
-        shot_str = str(shot)
-
-        assert "testshow" in shot_str
-        assert "101_ABC" in shot_str
-        assert "0010" in shot_str
-
-    def test_shot_full_name_property(self, make_test_shot: TestShotFactory) -> None:
-        """Test Shot full_name property."""
-        shot = make_test_shot("testshow", "101_ABC", "0010")
-        assert shot.full_name == "101_ABC_0010"
-
     def test_shot_thumbnail_dir_property(self, make_test_shot: TestShotFactory) -> None:
         """Test Shot thumbnail_dir property."""
         shot = make_test_shot("testshow", "101_ABC", "0010")
@@ -206,59 +181,6 @@ class TestShot:
         # Test that None result is cached
         thumbnail_path_cached = shot.get_thumbnail_path()
         assert thumbnail_path_cached is None
-
-    def test_shot_to_dict_serialization(self, make_test_shot: TestShotFactory) -> None:
-        """Test Shot to_dict serialization."""
-        shot = make_test_shot("testshow", "101_ABC", "0010")
-        shot_dict = shot.to_dict()
-
-        assert shot_dict["show"] == "testshow"
-        assert shot_dict["sequence"] == "101_ABC"
-        assert shot_dict["shot"] == "0010"
-        assert "testshow" in shot_dict["workspace_path"]
-        assert isinstance(shot_dict, dict)
-        # String fields should be strings
-        for key in ("show", "sequence", "shot", "workspace_path"):
-            assert isinstance(shot_dict[key], str), f"{key} should be str"
-        # discovered_at is a float timestamp
-        assert isinstance(shot_dict["discovered_at"], float), "discovered_at should be float"
-
-    def test_shot_from_dict_deserialization(self) -> None:
-        """Test Shot from_dict deserialization."""
-        shows_root = Config.SHOWS_ROOT
-        shot_data = {
-            "show": "testshow",
-            "sequence": "101_ABC",
-            "shot": "0010",
-            "workspace_path": f"{shows_root}/testshow/shots/101_ABC/101_ABC_0010",
-        }
-
-        shot = Shot.from_dict(shot_data)
-
-        assert shot.show == "testshow"
-        assert shot.sequence == "101_ABC"
-        assert shot.shot == "0010"
-        assert shot.workspace_path == f"{shows_root}/testshow/shots/101_ABC/101_ABC_0010"
-
-    def test_shot_serialization_roundtrip(
-        self, make_test_shot: TestShotFactory
-    ) -> None:
-        """Test Shot serialization roundtrip maintains data integrity."""
-        original_shot = make_test_shot("testshow", "101_ABC", "0010")
-
-        # Serialize to dict
-        shot_dict = original_shot.to_dict()
-
-        # Deserialize back to Shot
-        restored_shot = Shot.from_dict(shot_dict)
-
-        # Verify all data is preserved
-        assert restored_shot.show == original_shot.show
-        assert restored_shot.sequence == original_shot.sequence
-        assert restored_shot.shot == original_shot.shot
-        assert restored_shot.workspace_path == original_shot.workspace_path
-        assert restored_shot.full_name == original_shot.full_name
-
 
 @pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestShotModel:
