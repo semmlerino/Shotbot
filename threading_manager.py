@@ -95,6 +95,7 @@ class ThreadingManager(QObject):
 
         Returns:
             True if discovery started, False if already running
+
         """
         # Phase 1: Check state, claim ownership, and grab old worker reference
         old_worker: ThreeDESceneWorker | None = None
@@ -186,6 +187,7 @@ class ThreadingManager(QObject):
 
         Args:
             worker: The worker thread to clean up
+
         """
         # Connect finished signal for cleanup (safe even if already finished)
         _ = worker.finished.connect(worker.deleteLater)
@@ -238,6 +240,7 @@ class ThreadingManager(QObject):
             percentage: Progress percentage (unused)
             description: Status description
             eta: ETA string (unused)
+
         """
         # Emit our simplified progress signal
         self.threede_discovery_progress.emit(current, total, description)
@@ -247,6 +250,7 @@ class ThreadingManager(QObject):
 
         Args:
             scenes: List of discovered scenes
+
         """
         with QMutexLocker(self._mutex):
             self._threede_discovery_active = False
@@ -262,6 +266,7 @@ class ThreadingManager(QObject):
 
         Args:
             error_message: Error description
+
         """
         with QMutexLocker(self._mutex):
             self._threede_discovery_active = False
@@ -277,6 +282,7 @@ class ThreadingManager(QObject):
 
         Returns:
             True if paused successfully, False if not running
+
         """
         with QMutexLocker(self._mutex):
             if self._current_threede_worker and self._threede_discovery_active:
@@ -289,6 +295,7 @@ class ThreadingManager(QObject):
 
         Returns:
             True if resumed successfully, False if not paused
+
         """
         with QMutexLocker(self._mutex):
             if self._current_threede_worker and self._threede_discovery_active:
@@ -301,6 +308,7 @@ class ThreadingManager(QObject):
 
         Returns:
             True if stopped successfully, False if not running
+
         """
         with QMutexLocker(self._mutex):
             if self._current_threede_worker and self._threede_discovery_active:
@@ -314,6 +322,7 @@ class ThreadingManager(QObject):
 
         Returns:
             True if discovery is running, False otherwise
+
         """
         with QMutexLocker(self._mutex):
             return self._threede_discovery_active
@@ -323,6 +332,7 @@ class ThreadingManager(QObject):
 
         Args:
             worker_name: Name of worker to clean up
+
         """
         # Pop from dict under lock to prevent race condition
         with QMutexLocker(self._mutex):
@@ -337,6 +347,7 @@ class ThreadingManager(QObject):
 
         Returns:
             Number of active worker threads
+
         """
         with QMutexLocker(self._mutex):
             active_count = 0
@@ -350,6 +361,7 @@ class ThreadingManager(QObject):
 
         Returns:
             Dictionary mapping thread names to status strings
+
         """
         with QMutexLocker(self._mutex):
             status: dict[str, str] = {}
@@ -450,6 +462,7 @@ class ThreadingManager(QObject):
 
         Returns:
             True if added successfully, False if name already exists
+
         """
         with QMutexLocker(self._mutex):
             if name in self._workers:
@@ -471,6 +484,7 @@ class ThreadingManager(QObject):
 
         Returns:
             True if removed successfully, False if not found
+
         """
         # Phase 1: Grab reference and remove from dict under lock
         worker: QThread | None = None

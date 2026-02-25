@@ -18,10 +18,10 @@ from typing_compat import override
 if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
-    from type_definitions import RefreshResult
     from notes_manager import NotesManager
     from pin_manager import PinManager
     from shot_model import Shot
+    from type_definitions import RefreshResult
 
 
 class ShotItemModel(BaseItemModel["Shot"]):

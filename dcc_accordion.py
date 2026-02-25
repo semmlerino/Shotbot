@@ -37,6 +37,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         launch_requested: Signal(str, dict) - app_name, options dict
         section_expanded: Signal(str, bool) - app_name, is_expanded
         file_selected: Signal(str, object) - app_name, SceneFile
+
     """
 
     launch_requested = Signal(str, dict)  # app_name, options
@@ -55,6 +56,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
             configs: List of DCC configurations. Uses defaults if None.
             settings_manager: Optional settings manager for persisting UI state.
             parent: Optional parent widget.
+
         """
         super().__init__(parent)
         self._configs = configs or DEFAULT_DCC_CONFIGS
@@ -126,6 +128,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         Args:
             app_name: Name of the app to launch
             options: Launch options dict
+
         """
         self.launch_requested.emit(app_name, options)
 
@@ -135,6 +138,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         Args:
             app_name: Name of the app section
             is_expanded: Whether section is now expanded
+
         """
         self.section_expanded.emit(app_name, is_expanded)
 
@@ -144,6 +148,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         Args:
             app_name: Name of the app section
             file: The selected SceneFile
+
         """
         self.file_selected.emit(app_name, file)
 
@@ -154,6 +159,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         Args:
             shot: Currently selected shot, or None
+
         """
         self._current_shot = shot
         enabled = shot is not None
@@ -166,6 +172,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         Args:
             enabled: True to enable, False to disable
+
         """
         for section in self._sections.values():
             section.set_enabled(enabled)
@@ -177,6 +184,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         Args:
             pending: True if async search is in progress
+
         """
         for section in self._sections.values():
             section.set_search_pending(pending)
@@ -186,6 +194,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         Args:
             plates: List of plate names (e.g., ['FG01', 'BG01'])
+
         """
         for section in self._sections.values():
             section.set_available_plates(plates)
@@ -202,6 +211,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
             app_name: App name (e.g., "3de", "nuke")
             version: Version string (e.g., "v005") or None
             age: Age string (e.g., "21m ago") or None
+
         """
         section = self._sections.get(app_name)
         if section:
@@ -220,6 +230,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         Returns:
             The DCCSection or None if not found
+
         """
         return self._sections.get(app_name)
 
@@ -229,6 +240,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         Args:
             app_name: App name (e.g., "3de", "nuke")
             expanded: True to expand, False to collapse
+
         """
         section = self._sections.get(app_name)
         if section:
@@ -249,6 +261,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         Returns:
             List of app names that are currently expanded
+
         """
         return [
             name for name, section in self._sections.items()
@@ -263,6 +276,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         Returns:
             Options dict or None if section not found
+
         """
         section = self._sections.get(app_name)
         if section:
@@ -278,6 +292,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
             app_name: App name (e.g., "3de", "nuke")
             version: Version string (e.g., "v005") or None to hide
             plate: Plate name (e.g., "FG01") or None
+
         """
         section = self._sections.get(app_name)
         if section:
@@ -291,6 +306,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         Returns:
             Selected plate name or None
+
         """
         section = self._sections.get(app_name)
         if section:
@@ -305,6 +321,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         Args:
             app_name: App name (e.g., "3de", "nuke", "maya")
             files: List of scene files to display
+
         """
         section = self._sections.get(app_name)
         if section:
@@ -318,6 +335,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         Args:
             app_name: App name (e.g., "3de", "nuke", "maya")
             file: The file to mark as default, or None to clear
+
         """
         section = self._sections.get(app_name)
         if section:
@@ -331,6 +349,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         Returns:
             Selected SceneFile or None
+
         """
         section = self._sections.get(app_name)
         if section:

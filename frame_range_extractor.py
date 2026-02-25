@@ -29,6 +29,7 @@ def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
     Example:
         >>> extract_frame_range("/shows/myshow/shots/sq010/sh0010")
         (1001, 1150)
+
     """
     from publish_plate_finder import find_main_plate
 

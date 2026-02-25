@@ -97,6 +97,7 @@ class SettingsController(LoggingMixin):
 
     Attributes:
         window: The target window that implements SettingsTarget protocol
+
     """
 
     def __init__(self, window: SettingsTarget) -> None:
@@ -104,6 +105,7 @@ class SettingsController(LoggingMixin):
 
         Args:
             window: The window object that provides the SettingsTarget interface
+
         """
         super().__init__()
         self.window: SettingsTarget = window

@@ -278,7 +278,6 @@ class TestConcurrentEdgeCases:
 
     def test_file_deleted_during_processing(self, tmp_path) -> None:
         """File deleted while being processed should be handled."""
-
         exr_file = tmp_path / "vanishing.exr"
         exr_file.write_bytes(b"EXR" + b"x" * 1024)
 
@@ -317,7 +316,6 @@ class TestConcurrentEdgeCases:
 
     def test_file_modified_during_processing(self, tmp_path) -> None:
         """File modified while being processed should be handled."""
-
         exr_file = tmp_path / "changing.exr"
         exr_file.write_bytes(b"EXR" + b"x" * 1024)
 

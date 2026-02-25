@@ -1,5 +1,6 @@
 # Old encoded bundles (keep only in encoded_releases/)
 encoded_app_*.txt
+encoded_app_*_metadata.json
 
 # Build artifacts
 *.pyc

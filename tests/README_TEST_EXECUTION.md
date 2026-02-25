@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ShotBot test suite contains 3,500+ tests spanning unit and integration coverage. As of November 2025 the suite can run end-to-end with `pytest tests/ -n auto --dist=loadgroup` thanks to the eager Qt bootstrap (`_GLOBAL_QAPP`), sandboxed config directories, and the automatic xdist grouping in `tests/conftest.py`. Running tests by category is still useful for focus and speed, but the historical “Fatal Python error: Aborted” crash is resolved for both serial and grouped-parallel runs.
+The ShotBot test suite currently collects **3436 tests** (3342 active in the default marker set), spanning unit and integration coverage. The suite runs end-to-end with `pytest tests/ -n auto --dist=loadgroup` thanks to the eager Qt bootstrap (`_GLOBAL_QAPP`), sandboxed config directories, and automatic xdist grouping in `tests/conftest.py`.
 
 ## Quick Start
 
@@ -54,7 +54,7 @@ The ShotBot test suite contains 3,500+ tests spanning unit and integration cover
 
 ## Test Categories
 
-### Unit Tests (~3,200+ tests)
+### Unit Tests (~3,100+ tests)
 Location: `tests/unit/`
 Purpose: Test individual components in isolation
 Execution Time: ~15-20 minutes
@@ -62,7 +62,7 @@ Execution Time: ~15-20 minutes
 ~/.local/bin/uv run pytest -p no:rerunfailures tests/unit/ --no-cov
 ```
 
-### Integration Tests (~330+ tests)
+### Integration Tests (~200 tests, 22 files)
 Location: `tests/integration/`
 Purpose: Test components working together (async workflows, cross-component coordination)
 Execution Time: ~5-10 minutes (includes slow subprocess/timeout tests)
@@ -134,6 +134,26 @@ Available markers:
 - `gui_mainwindow`: Tests for main window GUI
 - `integration_safe`: Integration tests that can run in any order
 - `integration_unsafe`: Integration tests with side effects
+- `legacy`: Historical/overlapping coverage excluded from default runs
+- `performance_like`: Timing-sensitive behavior checks excluded from default runs
+- `tutorial`: Educational/reference tests excluded from default runs
+
+Default runs now apply:
+```bash
+-m "not legacy and not performance_like and not tutorial"
+```
+
+CI policy:
+- Default CI should run the same high-signal marker expression above.
+- Run `legacy` suites in a scheduled/nightly or manual job to keep periodic
+  coverage without adding noise to fast feedback pipelines.
+
+Use explicit marker selection to run excluded buckets:
+```bash
+~/.local/bin/uv run pytest -m legacy tests/integration/test_cache_persistence.py
+~/.local/bin/uv run pytest -m performance_like tests/unit/test_optimized_cache_scenarios.py
+~/.local/bin/uv run pytest -m tutorial tests/unit/test_example_best_practices.py
+```
 
 ## Debugging Test Failures
 
@@ -161,6 +181,21 @@ tail -f /tmp/pytest_integration_tests.log
 1. **Unit tests**: Place in `tests/unit/`, use `qtbot` fixture for Qt widgets
 2. **Integration tests**: Place in `tests/integration/`, ensure proper cleanup
 3. **Mark appropriately**: Use `@pytest.mark.slow`, `@pytest.mark.qt_heavy`, etc.
+
+### Cache Test Placement (Unit vs Integration)
+
+Use unit tests for deterministic cache behavior contracts:
+- merge invariants and deduplication keys
+- signal emission semantics
+- API-level handling of malformed payloads
+
+Use integration tests only when validating true cross-component or filesystem workflows:
+- startup/load behavior across manager recreation
+- corruption recovery through public APIs with real files
+- concurrency behavior across real components/threads
+
+Avoid duplicating the same cache contract in both layers unless there is a unique
+integration-only guarantee.
 
 ### Qt Widget Testing Best Practices
 

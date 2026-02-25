@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 def setup_mock_vfx_environment() -> bool:
     """Set up environment to simulate VFX workstation."""
-
     # Check for mock filesystem
     mock_vfx_root = Path("/tmp/mock_vfx")
     if not mock_vfx_root.exists():
@@ -103,7 +102,6 @@ def setup_mock_vfx_environment() -> bool:
 
 def create_shows_symlink() -> bool:
     """Create /shows symlink for path compatibility."""
-
     # Try different approaches
     symlink_created = False
 
@@ -164,7 +162,6 @@ def create_shows_symlink() -> bool:
 
 def run_shotbot() -> int:
     """Run ShotBot with mock environment."""
-
     # Python executable from venv
     python_exe = Path(__file__).parent / "venv" / "bin" / "python"
     if not python_exe.exists():
@@ -203,7 +200,6 @@ def run_shotbot() -> int:
 
 def main() -> int:
     """Main entry point."""
-
     logger.info("=" * 60)
     logger.info("ShotBot Mock VFX Environment Launcher")
     logger.info("=" * 60)

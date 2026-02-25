@@ -90,6 +90,7 @@ class EnvironmentManager:
 
         Returns:
             True if rez wrapping should be applied, False to skip wrapping
+
         """
         return self.should_wrap_with_rez(config)
 
@@ -106,6 +107,7 @@ class EnvironmentManager:
 
         Returns:
             True if rez wrapping should be applied, False to skip wrapping
+
         """
         from config import RezMode
 
@@ -155,6 +157,7 @@ class EnvironmentManager:
             If REZ_USED is set, the shell environment is already properly initialized
             (Rez sets this during shell startup at BlueBolt). Skip the check to avoid
             the subprocess overhead - we can assume ws is available.
+
         """
         # Fast path: if we're in a rez environment, ws is definitely available
         # (BlueBolt's shell init chain sets up both rez and ws together)
@@ -218,6 +221,7 @@ class EnvironmentManager:
         Notes:
             - Returns empty list for unknown applications
             - Packages are defined in Config.REZ_*_PACKAGES
+
         """
         package_map: dict[str, list[str]] = {
             "nuke": config.REZ_NUKE_PACKAGES,
@@ -240,6 +244,7 @@ class EnvironmentManager:
             - Caches result for performance with 5-minute TTL
             - Preference: gnome-terminal > konsole > xterm > x-terminal-emulator
             - Skips X11 terminals when DISPLAY is not set (headless/WSL)
+
         """
         # Return cached result if not expired (cache_time > 0 means detection was performed)
         current_time = time.monotonic()

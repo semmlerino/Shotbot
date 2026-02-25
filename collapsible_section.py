@@ -28,6 +28,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
 
     Attributes:
         expanded_changed: Signal emitted when expansion state changes (bool).
+
     """
 
     expanded_changed = Signal(bool)
@@ -44,6 +45,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
             title: Section title displayed in header
             expanded: Initial expansion state
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         self._title = title
@@ -124,6 +126,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
 
         Args:
             expanded: True to expand, False to collapse
+
         """
         if self._expanded != expanded:
             self._expanded = expanded
@@ -140,6 +143,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
 
         Args:
             title: New title
+
         """
         self._title = title
         self._update_header_text()
@@ -149,6 +153,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
 
         Args:
             count: Item count, or None to hide count
+
         """
         self._count = count
         self._update_header_text()
@@ -160,6 +165,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
 
         Args:
             widget: Widget to display when expanded
+
         """
         # Remove existing content
         if self._content_widget is not None:
@@ -186,6 +192,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
             color: Text color
             hover_color: Text color on hover
             hover_bg: Background color on hover
+
         """
         self._header_color = color
         self._header_hover_color = hover_color

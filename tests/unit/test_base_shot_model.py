@@ -16,8 +16,8 @@ from PySide6.QtTest import QSignalSpy
 
 from base_shot_model import BaseShotModel
 from config import Config
-from type_definitions import RefreshResult
 from shot_model import Shot
+from type_definitions import RefreshResult
 
 
 if TYPE_CHECKING:

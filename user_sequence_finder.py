@@ -51,6 +51,7 @@ class UserSequenceFinder:
 
         Returns:
             List of ImageSequence objects, sorted by modified time (newest first)
+
         """
         if username is None:
             username = cls.get_current_username()
@@ -113,6 +114,7 @@ class UserSequenceFinder:
 
         Returns:
             List of ImageSequence objects, sorted by modified time (newest first)
+
         """
         if username is None:
             username = cls.get_current_username()
@@ -185,6 +187,7 @@ class UserSequenceFinder:
 
         Returns:
             ImageSequence for the latest version, or None if not found
+
         """
         # Find version directories (v001, v002, etc.)
         version_dirs: list[tuple[Path, int]] = []
@@ -250,6 +253,7 @@ class UserSequenceFinder:
 
         Returns:
             ImageSequence object, or None on error
+
         """
         # Build pattern path (replace frame numbers with ####)
         # Match 4+ digit frame numbers at end of filename before extension
@@ -301,6 +305,7 @@ class UserSequenceFinder:
 
         Returns:
             ImageSequence object, or None on error
+
         """
         # Extract version from path (look for v### pattern)
         path_str = str(sample_file)
@@ -334,6 +339,7 @@ class UserSequenceFinder:
 
         Returns:
             Render type name, or "unknown" if not found
+
         """
         # Walk up the path looking for the type directory
         # exr -> resolution -> v### -> type -> camera
@@ -364,6 +370,7 @@ class UserSequenceFinder:
 
         Returns:
             Tuple of (first_frame, last_frame), defaults to (1001, 1100)
+
         """
         # Pattern to extract frame numbers from filenames
         frame_pattern = re.compile(rf"\.(\d{{4,}})\.{extension}$", re.IGNORECASE)

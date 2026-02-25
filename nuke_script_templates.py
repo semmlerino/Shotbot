@@ -61,6 +61,7 @@ class NukeScriptTemplates:
 
         Returns:
             Formatted Root node string
+
         """
         return f"""Root {{
  inputs 0
@@ -115,6 +116,7 @@ class NukeScriptTemplates:
 
         Returns:
             Formatted Read node string
+
         """
         raw_str = "true" if raw_flag else "false"
 
@@ -160,6 +162,7 @@ class NukeScriptTemplates:
 
         Returns:
             Formatted Grade node string
+
         """
         return f"""Grade {{
  inputs 1
@@ -190,6 +193,7 @@ class NukeScriptTemplates:
 
         Returns:
             Formatted Viewer node string
+
         """
         return f"""Viewer {{
  frame_range {first_frame}-{last_frame}
@@ -224,6 +228,7 @@ class NukeScriptTemplates:
 
         Returns:
             Formatted StickyNote node string
+
         """
         return f"""StickyNote {{
  inputs 0
@@ -256,6 +261,7 @@ class NukeScriptTemplates:
 
         Returns:
             Formatted NoOp node string
+
         """
         oncreate_attr = f' onCreate "{oncreate_script}"' if oncreate_script else ""
 
@@ -279,6 +285,7 @@ class NukeScriptTemplates:
 
         Returns:
             Escaped path with forward slashes
+
         """
         if not path:
             return ""
@@ -293,6 +300,7 @@ class NukeScriptTemplates:
 
         Returns:
             Path with %04d format for Nuke
+
         """
         if not path:
             return ""

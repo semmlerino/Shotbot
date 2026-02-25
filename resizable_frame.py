@@ -51,6 +51,7 @@ class ResizableFrame(QWidget):
             initial_height: Starting height for the child widget.
             accent_color: Color for the resize handle highlight on hover.
             parent: Parent widget.
+
         """
         super().__init__(parent)
         self._child = child_widget
@@ -68,6 +69,7 @@ class ResizableFrame(QWidget):
 
         Args:
             initial_height: Initial height for the child widget.
+
         """
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -112,6 +114,7 @@ class ResizableFrame(QWidget):
 
         Returns:
             True if event was handled, False to pass to default handler.
+
         """
         if obj is self._handle:
             if event.type() == QEvent.Type.MouseButtonPress:
@@ -147,6 +150,7 @@ class ResizableFrame(QWidget):
 
         Args:
             height: The desired height (will be clamped to min/max).
+
         """
         clamped = max(self._min_height, min(self._max_height, height))
         self._child.setFixedHeight(clamped)
@@ -157,6 +161,7 @@ class ResizableFrame(QWidget):
 
         Returns:
             The current height of the child widget.
+
         """
         return self._child.height()
 

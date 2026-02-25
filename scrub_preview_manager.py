@@ -31,6 +31,7 @@ class ScrubState:
         current_frame: Currently displayed frame
         plate_source: Discovered plate source (MOV/EXR)
         is_active: Whether scrub is currently active
+
     """
 
     shot_key: str
@@ -65,6 +66,7 @@ class ScrubState:
 
         Returns:
             Frame number
+
         """
         frame_offset = int(ratio * (self.frame_count - 1))
         return self.frame_start + frame_offset
@@ -103,6 +105,7 @@ class ScrubPreviewManager(QObject):
         Args:
             parent: Parent QObject
             prefetch_radius: Number of frames to prefetch around current
+
         """
         super().__init__(parent)
         self._prefetch_radius: int = prefetch_radius
@@ -130,6 +133,7 @@ class ScrubPreviewManager(QObject):
         Args:
             index: Model index of the item
             rect: Visual rectangle of the item
+
         """
         if not index.isValid():
             logger.debug("start_scrub: invalid index")
@@ -208,6 +212,7 @@ class ScrubPreviewManager(QObject):
         Args:
             index: Model index of the item
             x_ratio: Horizontal position ratio (0.0-1.0)
+
         """
         if not index.isValid():
             return
@@ -272,6 +277,7 @@ class ScrubPreviewManager(QObject):
 
         Args:
             index: Model index of the item
+
         """
         if not index.isValid():
             return
@@ -302,6 +308,7 @@ class ScrubPreviewManager(QObject):
 
         Returns:
             ScrubState if scrubbing, None otherwise
+
         """
         if not index.isValid():
             return None
@@ -315,6 +322,7 @@ class ScrubPreviewManager(QObject):
 
         Returns:
             True if actively scrubbing
+
         """
         state = self.get_scrub_state(index)
         return state is not None and state.is_active
@@ -327,6 +335,7 @@ class ScrubPreviewManager(QObject):
 
         Returns:
             Current frame number, or None if not scrubbing
+
         """
         state = self.get_scrub_state(index)
         if state is None or not state.is_active:
@@ -341,6 +350,7 @@ class ScrubPreviewManager(QObject):
 
         Returns:
             Current QPixmap, or None if not available
+
         """
         state = self.get_scrub_state(index)
         if state is None or not state.is_active:
@@ -371,6 +381,7 @@ class ScrubPreviewManager(QObject):
 
         Returns:
             Nearest cached frame number, or None if no frames are cached
+
         """
         cached_frames = self._frame_provider.get_cached_frames(state.shot_key)
         if not cached_frames:
@@ -394,6 +405,7 @@ class ScrubPreviewManager(QObject):
             shot_key: Shot identifier
             frame: Frame number
             image: Extracted QImage
+
         """
         row = self._key_to_row.get(shot_key)
         if row is None:
@@ -426,6 +438,7 @@ class ScrubPreviewManager(QObject):
             shot_key: Shot identifier
             frame: Frame number
             error: Error message
+
         """
         logger.debug(f"Frame extraction failed for {shot_key}:{frame} - {error}")
 
@@ -437,6 +450,7 @@ class ScrubPreviewManager(QObject):
 
         Returns:
             Unique shot key string
+
         """
         # Handle Shot
         if hasattr(shot_data, "show") and hasattr(shot_data, "sequence"):
@@ -456,6 +470,7 @@ class ScrubPreviewManager(QObject):
 
         Returns:
             Workspace path string
+
         """
         if hasattr(shot_data, "workspace_path"):
             return str(getattr(shot_data, "workspace_path", ""))
@@ -469,6 +484,7 @@ class ScrubPreviewManager(QObject):
 
         Returns:
             Tuple of (frame_start, frame_end)
+
         """
         frame_start = getattr(shot_data, "frame_start", None)
         frame_end = getattr(shot_data, "frame_end", None)

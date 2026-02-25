@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Decode application bundle from base64-encoded tar.gz file.
+"""Decode application bundle from base64-encoded tar.gz file.
 
 This script decodes the base64-encoded compressed application bundle
 and extracts it to a specified directory.
@@ -22,6 +21,7 @@ def _cleanup_partial_extraction(output_dir: str, root_name: str | None) -> None:
     Args:
         output_dir: Directory where extraction was attempted
         root_name: Root folder name from the archive (if known)
+
     """
     if root_name:
         partial_path = Path(output_dir) / root_name
@@ -34,8 +34,7 @@ def _cleanup_partial_extraction(output_dir: str, root_name: str | None) -> None:
 
 
 def decode_bundle(encoded_file: str, output_dir: str | None = None, list_only: bool = False) -> bool:
-    """
-    Decode a base64-encoded tar.gz bundle and extract it.
+    """Decode a base64-encoded tar.gz bundle and extract it.
 
     Args:
         encoded_file: Path to the base64-encoded file
@@ -44,6 +43,7 @@ def decode_bundle(encoded_file: str, output_dir: str | None = None, list_only: b
 
     Returns:
         True if successful, False otherwise
+
     """
     try:
         # Default output directory

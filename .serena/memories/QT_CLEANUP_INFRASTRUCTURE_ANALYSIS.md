@@ -1,5 +1,7 @@
 # Qt Cleanup and Test Isolation Infrastructure Analysis
 
+> **Note**: Line numbers are approximate references from analysis date. Code may have evolved.
+
 **Date**: 2025-11-29
 **Scope**: Detailed verification of Qt cleanup, test isolation, and timing patch infrastructure
 **Key Finding**: The infrastructure is correctly implemented with proper safeguards

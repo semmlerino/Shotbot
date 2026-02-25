@@ -54,6 +54,7 @@ def caching_enabled(tmp_path: Path) -> Iterator[Path]:
         def test_cache_hit_returns_cached_result(caching_enabled):
             cache_dir = caching_enabled
             # Test cache behavior with caching enabled
+
     """
     from utils import clear_all_caches, enable_caching
 
@@ -101,6 +102,7 @@ def caching_disabled() -> Iterator[None]:
     Example:
         def test_path_validation_without_cache(caching_disabled):
             # Test behavior with caching explicitly disabled
+
     """
     from utils import clear_all_caches, disable_caching, enable_caching
 
@@ -136,6 +138,7 @@ def isolated_cache_manager(tmp_path: Path) -> Iterator[CacheManager]:
             manager = isolated_cache_manager
             manager.cache_shots([shot_data])
             # Verify data is persisted
+
     """
     from cache_manager import CacheManager
 
@@ -182,6 +185,7 @@ def clean_disk_cache(tmp_path: Path) -> Iterator[Path]:
             cache_dir = clean_disk_cache
             assert not list(cache_dir.iterdir())  # Empty!
             # Test behavior with empty cache
+
     """
     cache_dir = tmp_path / "clean_cache"
     cache_dir.mkdir(exist_ok=True)
@@ -235,6 +239,7 @@ def clean_thumbnails(tmp_path: Path) -> Iterator[Path]:
             thumbnails_dir = clean_thumbnails
             assert not list(thumbnails_dir.iterdir())  # Empty!
             # Generate thumbnail and verify
+
     """
     thumbnails_dir = tmp_path / "thumbnails"
     thumbnails_dir.mkdir(exist_ok=True)
@@ -259,3 +264,169 @@ def clean_thumbnails(tmp_path: Path) -> Iterator[Path]:
         shutil.rmtree(thumbnails_dir, ignore_errors=True)
     except Exception as e:
         _logger.debug("clean_thumbnails cleanup exception: %s", e)
+
+
+@pytest.fixture
+def seed_cache_file(tmp_path: Path) -> Iterator[SeedCacheFile]:
+    """Fixture for seeding cache files with specific content for persistence tests.
+
+    Use this fixture with @pytest.mark.persistent_cache to test:
+    - Cache file loading behavior
+    - Corrupted JSON handling
+    - Missing field handling
+    - Schema migration paths
+    - Permission error handling
+
+    The fixture creates an isolated cache directory and provides a helper
+    function to write cache files with specific content.
+
+    Yields:
+        SeedCacheFile: A callable that writes cache files with given content
+
+    Example:
+        @pytest.mark.persistent_cache
+        def test_loads_valid_cache(seed_cache_file):
+            cache_dir = seed_cache_file.cache_dir
+            seed_cache_file("shots.json", '{"version": 1, "shots": []}')
+
+            # Now test cache loading behavior
+            manager = CacheManager(cache_dir=cache_dir)
+            ...
+
+    """
+    import json
+    from dataclasses import dataclass
+
+    cache_dir = tmp_path / "seeded_cache"
+    cache_dir.mkdir(exist_ok=True)
+    (cache_dir / "production").mkdir(exist_ok=True)
+    (cache_dir / "thumbnails").mkdir(exist_ok=True)
+
+    # Save and set environment variable
+    original_cache_dir = os.environ.get("SHOTBOT_TEST_CACHE_DIR")
+    os.environ["SHOTBOT_TEST_CACHE_DIR"] = str(cache_dir)
+
+    @dataclass
+    class SeedCacheFile:
+        """Helper for seeding cache files with specific content."""
+
+        cache_dir: Path
+
+        def __call__(
+            self,
+            filename: str,
+            content: str | dict | list,
+            *,
+            in_production: bool = True,
+        ) -> Path:
+            """Write a cache file with the given content.
+
+            Args:
+                filename: Name of the cache file (e.g., "shots.json")
+                content: File content - string for raw content, dict/list for JSON
+                in_production: If True, write to production/ subdirectory
+
+            Returns:
+                Path to the created cache file
+
+            """
+            if in_production:
+                target_dir = self.cache_dir / "production"
+            else:
+                target_dir = self.cache_dir
+
+            target_dir.mkdir(exist_ok=True)
+            file_path = target_dir / filename
+
+            if isinstance(content, str):
+                file_path.write_text(content, encoding="utf-8")
+            else:
+                file_path.write_text(
+                    json.dumps(content, indent=2), encoding="utf-8"
+                )
+
+            _logger.debug("Seeded cache file: %s", file_path)
+            return file_path
+
+        def corrupt(self, filename: str, *, in_production: bool = True) -> Path:
+            """Write a corrupted (invalid JSON) cache file.
+
+            Args:
+                filename: Name of the cache file
+                in_production: If True, write to production/ subdirectory
+
+            Returns:
+                Path to the corrupted cache file
+
+            """
+            return self(
+                filename,
+                "{invalid json: [",  # Syntactically invalid JSON
+                in_production=in_production,
+            )
+
+        def truncated(self, filename: str, *, in_production: bool = True) -> Path:
+            """Write a truncated (incomplete) cache file.
+
+            Args:
+                filename: Name of the cache file
+                in_production: If True, write to production/ subdirectory
+
+            Returns:
+                Path to the truncated cache file
+
+            """
+            return self(
+                filename,
+                '{"version": 1, "shots": [{"show": "test"',  # Cut off mid-object
+                in_production=in_production,
+            )
+
+        def empty(self, filename: str, *, in_production: bool = True) -> Path:
+            """Write an empty cache file.
+
+            Args:
+                filename: Name of the cache file
+                in_production: If True, write to production/ subdirectory
+
+            Returns:
+                Path to the empty cache file
+
+            """
+            return self(filename, "", in_production=in_production)
+
+    seeder = SeedCacheFile(cache_dir=cache_dir)
+
+    _logger.debug("seed_cache_file fixture created at: %s", cache_dir)
+
+    yield seeder
+
+    # Cleanup: restore original env var
+    if original_cache_dir is not None:
+        os.environ["SHOTBOT_TEST_CACHE_DIR"] = original_cache_dir
+    else:
+        os.environ.pop("SHOTBOT_TEST_CACHE_DIR", None)
+
+
+# Type hint for the seed_cache_file return type
+if TYPE_CHECKING:
+    from typing import Protocol
+
+    class SeedCacheFile(Protocol):
+        """Protocol for seed_cache_file fixture helper."""
+
+        cache_dir: Path
+
+        def __call__(
+            self,
+            filename: str,
+            content: str | dict | list,
+            *,
+            in_production: bool = True,
+        ) -> Path: ...
+
+        def corrupt(self, filename: str, *, in_production: bool = True) -> Path: ...
+
+        def truncated(self, filename: str, *, in_production: bool = True) -> Path: ...
+
+        def empty(self, filename: str, *, in_production: bool = True) -> Path: ...

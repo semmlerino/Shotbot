@@ -167,6 +167,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         launch_requested: Signal(str, dict) - app_name, options dict
         expanded_changed: Signal(str, bool) - app_name, is_expanded
         file_selected: Signal(object) - emits SceneFile when user clicks a file
+
     """
 
     launch_requested = Signal(str, dict)  # app_name, options
@@ -185,6 +186,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             config: Configuration for this DCC
             settings_manager: Settings manager for height persistence
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         self.config = config
@@ -564,6 +566,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             expanded: True to expand, False to collapse
+
         """
         if self._expanded != expanded:
             self._expanded = expanded
@@ -598,6 +601,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Returns:
             Hex color string with subtle DCC color tint.
+
         """
         color = self.config.color
         if not color.startswith("#") or not base.startswith("#"):
@@ -669,6 +673,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             enabled: True to enable launching
+
         """
         self._should_be_enabled = enabled
         if not self._launch_in_progress:
@@ -682,6 +687,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             pending: True if async search is in progress
+
         """
         self._search_pending = pending
         if pending:
@@ -697,6 +703,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Returns:
             Dict with checkbox states and selected plate
+
         """
         options: dict[str, bool | str | None] = {
             key: cb.isChecked() for key, cb in self._checkboxes.items()
@@ -713,6 +720,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             plates: List of plate names (e.g., ['FG01', 'BG01'])
+
         """
         if not self._plate_selector:
             return
@@ -741,6 +749,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         Args:
             version: Version string (e.g., "v005") or None
             age: Age string (e.g., "21m ago") or None
+
         """
         self._version_info = version
         self._age_info = age
@@ -765,6 +774,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         Args:
             version: Version string (e.g., "v005") or None to hide
             plate: Plate name (e.g., "FG01") or None
+
         """
         if version:
             parts = [version]
@@ -782,6 +792,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             content_layout: The layout to add the files section to
+
         """
         # Local import to avoid circular dependency
         from files_tab_widget import FileTableModel
@@ -915,6 +926,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             index: The clicked model index
+
         """
         if self._file_model is not None:
             file = self._file_model.get_file(index.row())
@@ -935,6 +947,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             index: The double-clicked model index
+
         """
         if self._file_model is None:
             return
@@ -957,6 +970,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             pos: Position where context menu was requested
+
         """
         if self._file_table is None or self._file_model is None:
             return
@@ -995,6 +1009,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             file: SceneFile to launch
+
         """
         # Update selection state
         self._current_selected_file = file
@@ -1011,6 +1026,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             file: SceneFile whose parent folder to open
+
         """
         from pathlib import Path
 
@@ -1027,6 +1043,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             file: SceneFile whose path to copy
+
         """
         clipboard = QApplication.clipboard()
         clipboard.setText(str(file.path))
@@ -1036,6 +1053,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             file: The selected scene file
+
         """
         if file.version is not None:
             version_str = f"v{file.version:03d}"
@@ -1047,6 +1065,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             files: List of scene files to display
+
         """
         if self._file_model is not None:
             self._file_model.set_files(files)
@@ -1066,6 +1085,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Returns:
             Selected SceneFile or None
+
         """
         # Return the tracked current selected file
         return self._current_selected_file
@@ -1075,6 +1095,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             file: The file to mark as default, or None to clear
+
         """
         self._current_selected_file = file
         if self._file_model is not None:
@@ -1087,6 +1108,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             expanded: True to expand, False to collapse
+
         """
         if self._files_expanded != expanded:
             self._files_expanded = expanded
@@ -1107,6 +1129,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             content_layout: The layout to add the sequence sections to
+
         """
         # Colors matching DCC themes
         playblast_color = "#6b4d8a"  # Purple (Maya-like)
@@ -1141,6 +1164,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Returns:
             Dict containing section state and UI elements
+
         """
         section = QWidget()
         layout = QVBoxLayout(section)
@@ -1245,6 +1269,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             section_data: Dict containing section state and UI elements
+
         """
         section_data["expanded"] = not section_data["expanded"]
         section_data["content"].setVisible(section_data["expanded"])
@@ -1259,6 +1284,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             item: The double-clicked list item
+
         """
         sequence = item.data(Qt.ItemDataRole.UserRole)
         if isinstance(sequence, ImageSequence):
@@ -1273,6 +1299,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             sequences: List of ImageSequence objects
+
         """
         if self._playblasts_section:
             self._update_sequence_list(self._playblasts_section, sequences)
@@ -1282,6 +1309,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             sequences: List of ImageSequence objects
+
         """
         if self._renders_section:
             self._update_sequence_list(self._renders_section, sequences)
@@ -1294,6 +1322,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         Args:
             section_data: Dict containing section state and UI elements
             sequences: List of ImageSequence objects to display
+
         """
         list_widget: QListWidget = section_data["list_widget"]
         list_widget.clear()
@@ -1322,6 +1351,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Returns:
             Selected ImageSequence or None
+
         """
         return self._selected_sequence
 
@@ -1332,6 +1362,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Returns:
             Stored height or default of 120.
+
         """
         if self._settings_manager is None:
             return 120
@@ -1344,6 +1375,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Args:
             height: The new height value.
+
         """
         if self._settings_manager is not None:
             key = f"ui/table_height/{self.config.name}"
@@ -1357,6 +1389,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         Returns:
             Stored height or default of 120.
+
         """
         if self._settings_manager is None:
             return 120
@@ -1370,6 +1403,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         Args:
             title: The sequence subsection title.
             height: The new height value.
+
         """
         if self._settings_manager is not None:
             key = f"ui/table_height/{self.config.name}/{title}"

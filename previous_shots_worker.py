@@ -51,6 +51,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             username: Username to search for (uses current if None).
             shows_root: Root directory to search (defaults to /shows).
             parent: parent QObject.
+
         """
         super().__init__(parent)
 
@@ -75,6 +76,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             current: Current progress value
             total: Total progress value
             message: Progress message
+
         """
         # Forward progress to our own signal
         self.scan_progress.emit(current, total, message)
@@ -227,5 +229,6 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
         Returns:
             List of Shot objects found during scanning.
+
         """
         return self._found_shots.copy()

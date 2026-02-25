@@ -18,6 +18,7 @@ def find_main_plate(workspace_path: str) -> str | None:
     Returns:
         Path pattern with @@@@ for frame numbers (RV format), or None if not found.
         Example: /shows/.../FG01/v001/exr/4312x2304/shot_name.@@@@.exr
+
     """
     # Build base path to FG01
     fg01_path = Path(workspace_path) / "publish" / "turnover" / "plate" / "input_plate" / "FG01"
@@ -55,6 +56,7 @@ def _find_latest_version(base_path: Path) -> Path | None:
 
     Returns:
         Path to latest version directory, or None if none found
+
     """
     version_pattern = re.compile(r"^v(\d+)$")
     versions: list[tuple[int, Path]] = []
@@ -84,6 +86,7 @@ def _extract_plate_pattern(resolution_dir: Path) -> str | None:
 
     Returns:
         Path pattern with @@@@ for frame numbers, or None if no exr found
+
     """
     # Pattern to match frame numbers in filename
     # Example: shot_name_turnover-plate_FG01_lin_sgamut3cine_v001.1001.exr

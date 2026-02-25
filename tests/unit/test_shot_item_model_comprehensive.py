@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from base_item_model import BaseItemRole as UnifiedRole
 from shot_item_model import ShotItemModel
 from shot_model import Shot
-from tests.test_doubles_library import TestCacheManager
+from tests.fixtures.doubles_library import TestCacheManager
 from tests.test_helpers import process_qt_events
 
 

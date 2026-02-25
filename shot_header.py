@@ -39,6 +39,7 @@ class DCCStatus:
         version: Version string (e.g., "v005") or None if no files
         age: Human-readable age (e.g., "21m ago") or None
         user: Username who last modified, or None
+
     """
 
     version: str | None = None
@@ -58,6 +59,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
 
     Attributes:
         path_copy_requested: Signal emitted when copy button clicked.
+
     """
 
     path_copy_requested = Signal()
@@ -70,6 +72,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
 
         Args:
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         self._current_shot: Shot | None = None
@@ -201,6 +204,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
 
         Args:
             shot: Shot to display, or None to clear
+
         """
         self._current_shot = shot
         self._update_display()
@@ -226,6 +230,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
 
         Args:
             message: Empty state message
+
         """
         self._empty_message = message
         if self._current_shot is None:
@@ -236,6 +241,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
 
         Args:
             status: Mapping from FileType to DCCStatus
+
         """
         self._dcc_status = status
         self._update_status_strip()
@@ -265,6 +271,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
 
         Returns:
             Shortened age (e.g., "21m")
+
         """
         # Convert "X minutes ago" -> "Xm", "X hours ago" -> "Xh", etc.
         age = age.replace(" ago", "").replace("just now", "now")
@@ -284,6 +291,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
 
         Args:
             files_by_type: Mapping from FileType to list of SceneFile
+
         """
         status: dict[FileType, DCCStatus] = {}
 

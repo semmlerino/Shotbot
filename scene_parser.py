@@ -73,6 +73,7 @@ class SceneParser(LoggingMixin):
 
         Returns:
             Extracted plate name
+
         """
         try:
             # Fast path: check parent directory name first (most common case)
@@ -130,6 +131,7 @@ class SceneParser(LoggingMixin):
 
         Returns:
             Tuple of (file_path, show, sequence, shot, user, plate) or None if invalid
+
         """
         try:
             # Parse the path to extract shot information
@@ -215,6 +217,7 @@ class SceneParser(LoggingMixin):
 
         Returns:
             ThreeDEScene instance
+
         """
         # Local application imports
         from frame_range_extractor import extract_frame_range
@@ -257,6 +260,7 @@ class SceneParser(LoggingMixin):
 
         Returns:
             Tuple of (show, sequence, shot) or None if parsing fails
+
         """
         try:
             path = Path(workspace_path)
@@ -300,6 +304,7 @@ class SceneParser(LoggingMixin):
 
         Returns:
             True if valid .3de file, False otherwise
+
         """
         if not scene_path or not scene_path.exists():
             return False
@@ -319,6 +324,7 @@ class SceneParser(LoggingMixin):
 
         Returns:
             List of compiled regex patterns
+
         """
         return self._PLATE_PATTERNS.copy()
 
@@ -327,6 +333,7 @@ class SceneParser(LoggingMixin):
 
         Returns:
             Set of generic directory names
+
         """
         return self._GENERIC_DIRS.copy()
 
@@ -338,6 +345,7 @@ class SceneParser(LoggingMixin):
 
         Returns:
             True if matches BG/FG pattern, False otherwise
+
         """
         return bool(self._BG_FG_PATTERN.match(plate_name))
 
@@ -349,6 +357,7 @@ class SceneParser(LoggingMixin):
 
         Returns:
             True if matches any plate pattern, False otherwise
+
         """
         return any(pattern.match(name) for pattern in self._PLATE_PATTERNS)
 
@@ -360,5 +369,6 @@ class SceneParser(LoggingMixin):
 
         Returns:
             True if generic directory, False otherwise
+
         """
         return dir_name.lower() in self._GENERIC_DIRS

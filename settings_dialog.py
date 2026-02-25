@@ -41,6 +41,7 @@ Examples:
 Type Safety:
     All UI controls include proper type annotations and validation.
     Settings values are validated before application with clear error messages.
+
 """
 
 from __future__ import annotations
@@ -113,6 +114,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             settings_manager: SettingsManager instance
             parent: Parent widget
             initial_tab: Initial tab to show ("general", "performance", "applications", "advanced")
+
         """
         super().__init__(parent)
         self.settings_manager: SettingsManager = settings_manager

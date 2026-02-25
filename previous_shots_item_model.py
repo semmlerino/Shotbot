@@ -56,6 +56,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             pin_manager: Optional pin manager for tracking pinned shots
             notes_manager: Optional notes manager for tracking shot notes
             parent: Optional parent QObject
+
         """
         super().__init__(cache_manager, parent)
 
@@ -96,6 +97,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Shot's full name (show/sequence/shot)
+
         """
         return item.full_name
 
@@ -108,6 +110,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Formatted tooltip with shot details
+
         """
         return f"{item.show} / {item.sequence} / {item.shot}\n{item.workspace_path}"
 
@@ -121,6 +124,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Data for the role or None
+
         """
         # Import here to avoid circular dependency
         from base_item_model import BaseItemRole
@@ -148,6 +152,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Args:
             shots: List of Shot objects
+
         """
         # Apply sorting before setting items
         sorted_shots = self._apply_sort(shots)
@@ -164,6 +169,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Sorted list of shots
+
         """
         if self._pin_manager:
             # Sort: pinned first (by pin order), then unpinned (by sort order)
@@ -194,6 +200,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Args:
             order: Sort order ("name" or "date")
+
         """
         if order not in ("name", "date"):
             self.logger.warning(f"Invalid sort order '{order}', ignoring")
@@ -216,6 +223,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Current sort order ("name" or "date")
+
         """
         return self._sort_order
 
@@ -227,6 +235,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Shot object or None if invalid
+
         """
         return self.get_item_at_index(index)
 
@@ -235,6 +244,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Selected Shot or None
+
         """
         return self.get_selected_item()
 
@@ -246,6 +256,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         Args:
             previous_shots_model: Model to get filtered shots from
             show: Show name to filter by or None for all shows
+
         """
         # Set filter on the model
         previous_shots_model.set_show_filter(show)
@@ -269,6 +280,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             Tuple of (Shot, row_index) if found, None otherwise
+
         """
         for row, item in enumerate(self._items):
             if item.full_name == full_name:
@@ -280,6 +292,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Args:
             pin_manager: Pin manager for tracking pinned shots
+
         """
         self._pin_manager = pin_manager
 
@@ -312,6 +325,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             PreviousShotsModel instance
+
         """
         return self._underlying_model
 
@@ -323,6 +337,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         Returns:
             List of Shot objects
+
         """
         return self._items
 

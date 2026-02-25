@@ -28,6 +28,7 @@ class FilesSection(QtWidgetMixin, QWidget):
         file_selected: Signal(SceneFile) - emitted when file clicked
         file_open_requested: Signal(SceneFile) - emitted on double-click
         expanded_changed: Signal(bool) - emitted when expanded state changes
+
     """
 
     file_selected = Signal(object)  # SceneFile
@@ -46,6 +47,7 @@ class FilesSection(QtWidgetMixin, QWidget):
             title: Section title (default "Files")
             expanded: Initial expanded state (default False per user preference)
             parent: Optional parent widget
+
         """
         super().__init__(parent)
 
@@ -74,6 +76,7 @@ class FilesSection(QtWidgetMixin, QWidget):
 
         Args:
             files_by_type: Dict mapping FileType to list of SceneFiles
+
         """
         self._files_tab.set_files(files_by_type)
         self._update_count()
@@ -96,6 +99,7 @@ class FilesSection(QtWidgetMixin, QWidget):
 
         Args:
             expanded: True to expand, False to collapse
+
         """
         self._section.set_expanded(expanded)
 
@@ -108,6 +112,7 @@ class FilesSection(QtWidgetMixin, QWidget):
 
         Returns:
             Selected SceneFile or None
+
         """
         return self._files_tab.get_selected_file()
 
@@ -116,6 +121,7 @@ class FilesSection(QtWidgetMixin, QWidget):
 
         Args:
             file_type: The file type tab to show
+
         """
         self._files_tab.set_current_tab(file_type)
 
@@ -124,6 +130,7 @@ class FilesSection(QtWidgetMixin, QWidget):
 
         Returns:
             Total number of files
+
         """
         return self._files_tab.get_total_file_count()
 
@@ -133,6 +140,7 @@ class FilesSection(QtWidgetMixin, QWidget):
         Args:
             file_type: The file type (tab) to update
             file: The file to mark as default, or None to clear
+
         """
         self._files_tab.set_default_file(file_type, file)
 

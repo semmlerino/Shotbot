@@ -55,6 +55,7 @@ class ProgressReportingMixin(LoggingMixin):
         Args:
             callback: Function to call with progress updates
                      Signature: (current: int, total: int, message: str) -> None
+
         """
         self._progress_callback = callback
         self.logger.debug(f"Progress callback set for {self.__class__.__name__}")
@@ -89,6 +90,7 @@ class ProgressReportingMixin(LoggingMixin):
 
         Returns:
             True if stop has been requested, False otherwise
+
         """
         return self._stop_requested
 
@@ -102,6 +104,7 @@ class ProgressReportingMixin(LoggingMixin):
             current: Current progress value (0 to total)
             total: Total progress value
             message: Optional progress message
+
         """
         if not self._progress_callback:
             return
@@ -131,6 +134,7 @@ class ProgressReportingMixin(LoggingMixin):
 
         Returns:
             Percentage as integer (0-100)
+
         """
         if total <= 0 or current < 0:
             return 0
@@ -147,6 +151,7 @@ class ProgressReportingMixin(LoggingMixin):
         Args:
             percentage: Progress percentage (0.0 to 100.0)
             message: Optional progress message
+
         """
         # Convert percentage to current/total values
         current = int(percentage)
@@ -161,6 +166,7 @@ class ProgressReportingMixin(LoggingMixin):
 
         Returns:
             True if stop requested and operation should halt, False otherwise
+
         """
         if self._stop_requested:
             self.logger.info(
@@ -195,6 +201,7 @@ class ProgressReportingMixin(LoggingMixin):
 
         Returns:
             List of results from operation (None for stopped items)
+
         """
         results: list[object] = []
         total = len(items)
@@ -240,6 +247,7 @@ class ProgressReportingMixin(LoggingMixin):
 
         Returns:
             Estimated remaining time in seconds
+
         """
         if current <= 0 or total <= 0:
             return 0.0
@@ -259,6 +267,7 @@ class ProgressReportingMixin(LoggingMixin):
 
         Returns:
             Human-readable time string (e.g., "2m 30s")
+
         """
         if seconds < 60:
             return f"{int(seconds)}s"

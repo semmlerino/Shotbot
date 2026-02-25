@@ -57,6 +57,7 @@ class VFXStructureRecreator:
 
         Args:
             root_path: Root directory for recreation (default: /tmp/mock_vfx)
+
         """
         super().__init__()
         self.root: Path = Path(root_path or "/tmp/mock_vfx")
@@ -77,6 +78,7 @@ class VFXStructureRecreator:
             text: Text to display on image
             width: Image width
             height: Image height
+
         """
         # Create gradient background
         img = Image.new("RGB", (width, height))
@@ -147,6 +149,7 @@ class VFXStructureRecreator:
             shot_name: Shot name
             user: User who created the scene
             plate: Plate name
+
         """
         # 3DE files are binary but we'll create a text placeholder
         # that indicates what it represents
@@ -176,6 +179,7 @@ class VFXStructureRecreator:
             shot_name: Shot name
             start: Start frame
             end: End frame
+
         """
         path.mkdir(parents=True, exist_ok=True)
 
@@ -202,6 +206,7 @@ class VFXStructureRecreator:
         Args:
             node: Node dictionary from captured structure
             parent_path: Parent directory path
+
         """
         if node["type"] == "truncated":
             return
@@ -278,6 +283,7 @@ class VFXStructureRecreator:
 
         Args:
             structure_data: Dictionary loaded from capture JSON
+
         """
         print("Creating additional 3DE files from other users...")
 
@@ -436,6 +442,7 @@ class VFXStructureRecreator:
 
         Args:
             structure_data: Dictionary loaded from capture JSON
+
         """
         print(f"Recreating VFX structure in {self.root}")
         self.root.mkdir(parents=True, exist_ok=True)
@@ -481,6 +488,7 @@ def merge_structures(json_files: list[str]) -> StructureDataDict:
 
     Returns:
         Merged structure dictionary
+
     """
     merged: StructureDataDict = {
         "capture_time": None,

@@ -85,6 +85,7 @@ class NukeScriptGenerator:
 
         Returns:
             Complete Nuke script content as string
+
         """
         # Sanitize shot name
         safe_shot_name = self.detector.sanitize_shot_name(shot_name)
@@ -143,6 +144,7 @@ class NukeScriptGenerator:
 
         Returns:
             Path to the temporary .nk script, or None if creation failed
+
         """
         try:
             generator = NukeScriptGenerator()
@@ -193,6 +195,7 @@ class NukeScriptGenerator:
 
         Returns:
             Path to the saved script, or None on error
+
         """
         try:
             # Local application imports
@@ -254,6 +257,7 @@ class NukeScriptGenerator:
 
         Returns:
             Path to the saved script, or None on error
+
         """
         # First create the script content
         script_content = NukeScriptGenerator.create_plate_script(plate_path, shot_name)
@@ -309,6 +313,7 @@ class NukeScriptGenerator:
 
         Returns:
             Path to created script or None on error
+
         """
         try:
             generator = NukeScriptGenerator()
@@ -367,6 +372,7 @@ class NukeScriptGenerator:
 
         Returns:
             Path to created script or None on error
+
         """
         try:
             generator = NukeScriptGenerator()

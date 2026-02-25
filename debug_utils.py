@@ -52,6 +52,7 @@ class TimingProfiler(LoggingMixin):
 
         Args:
             name: Name for this profiler instance
+
         """
         super().__init__()
         self.name: str = name
@@ -65,6 +66,7 @@ class TimingProfiler(LoggingMixin):
 
         Args:
             operation_name: Name of the operation to measure
+
         """
         if not self.enabled:
             yield
@@ -100,6 +102,7 @@ class TimingProfiler(LoggingMixin):
 
         Returns:
             Dictionary with timing statistics
+
         """
         report: dict[str, dict[str, int | float]] = {}
         for operation, times in self.timings.items():
@@ -163,6 +166,7 @@ class ProcessStateTracker(LoggingMixin):
             session_id: Session identifier
             to_state: New state
             reason: Optional reason for transition
+
         """
         if not self.enabled:
             return
@@ -207,7 +211,9 @@ class ProcessStateTracker(LoggingMixin):
 
         Returns:
             Current state or 'UNKNOWN'
-        + """
+        +
+
+        """
         return self.states.get(session_id, "UNKNOWN")
 
     def get_history(self, session_id: str) -> list[tuple[float, str, str, str]]:
@@ -218,6 +224,7 @@ class ProcessStateTracker(LoggingMixin):
 
         Returns:
             List of (timestamp, from_state, to_state, reason) tuples
+
         """
         return self.state_history.get(session_id, [])
 
@@ -233,6 +240,7 @@ class SystemDiagnostics(LoggingMixin):
 
         Returns:
             Dictionary with system information (values can be primitives, lists, or nested dicts)
+
         """
         info: dict[str, str | int | float | list[str] | dict[str, float]] = {
             "timestamp": datetime.now(tz=UTC).isoformat(),
@@ -312,6 +320,7 @@ class IOBufferInspector(LoggingMixin):
             data: Buffer data to inspect
             context: Context description
             session_id: Optional session identifier
+
         """
         if not (DEBUG_IO or DEBUG_ALL):
             return
@@ -351,6 +360,7 @@ class CommandTracer(LoggingMixin):
         Args:
             command: Command being executed
             session_id: Optional session identifier
+
         """
         if not (DEBUG_TRACE or DEBUG_ALL):
             return
@@ -386,6 +396,7 @@ class DeadlockDetector(LoggingMixin):
         Args:
             session_id: Session identifier
             resource: Resource being waited for
+
         """
         if not self.enabled:
             return
@@ -400,6 +411,7 @@ class DeadlockDetector(LoggingMixin):
 
         Args:
             session_id: Session identifier
+
         """
         if not self.enabled:
             return

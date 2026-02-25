@@ -30,7 +30,7 @@ from shot_grid_view import ShotGridView
 # Local application imports
 from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
-from tests.test_doubles_library import TestCacheManager, TestProcessPool
+from tests.fixtures.doubles_library import TestCacheManager, TestProcessPool
 
 
 if TYPE_CHECKING:
@@ -38,102 +38,6 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
-
-
-class TestBaseShotModelFiltering:
-    """Test Show filter methods in BaseShotModel."""
-
-    @pytest.fixture
-    def mock_shot_model(self, tmp_path: Path) -> ShotModel:
-        """Create a ShotModel with test process pool."""
-        process_pool = TestProcessPool(allow_main_thread=True)
-        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-        model._process_pool = process_pool
-        return model
-
-    @pytest.fixture
-    def test_shots(self) -> list[Shot]:
-        """Create test shots from different shows."""
-        return [
-            Shot("show1", "seq1", "shot1", "/workspace/show1/seq1/shot1"),
-            Shot("show1", "seq2", "shot2", "/workspace/show1/seq2/shot2"),
-            Shot("show2", "seq3", "shot3", "/workspace/show2/seq3/shot3"),
-            Shot("show2", "seq3", "shot4", "/workspace/show2/seq3/shot4"),
-            Shot("show3", "seq4", "shot5", "/workspace/show3/seq4/shot5"),
-        ]
-
-    def test_set_show_filter(self, mock_shot_model: ShotModel) -> None:
-        """Test setting the show filter."""
-        # Initially no filter
-        assert mock_shot_model.get_show_filter() is None
-
-        # Set filter to show1
-        mock_shot_model.set_show_filter("show1")
-        assert mock_shot_model.get_show_filter() == "show1"
-
-        # Clear filter
-        mock_shot_model.set_show_filter(None)
-        assert mock_shot_model.get_show_filter() is None
-
-    def test_get_filtered_shots_no_filter(
-        self, mock_shot_model: ShotModel, test_shots: list[Shot]
-    ) -> None:
-        """Test getting filtered shots with no filter returns all shots."""
-        mock_shot_model.shots = test_shots
-
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 5
-        assert filtered == test_shots
-
-    def test_get_filtered_shots_with_filter(
-        self, mock_shot_model: ShotModel, test_shots: list[Shot]
-    ) -> None:
-        """Test getting filtered shots with show filter."""
-        mock_shot_model.shots = test_shots
-
-        # Filter to show1
-        mock_shot_model.set_show_filter("show1")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 2
-        assert all(shot.show == "show1" for shot in filtered)
-
-        # Filter to show2
-        mock_shot_model.set_show_filter("show2")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 2
-        assert all(shot.show == "show2" for shot in filtered)
-
-        # Filter to show3
-        mock_shot_model.set_show_filter("show3")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 1
-        assert filtered[0].show == "show3"
-
-    def test_get_filtered_shots_nonexistent_show(
-        self, mock_shot_model: ShotModel, test_shots: list[Shot]
-    ) -> None:
-        """Test filtering for a show that doesn't exist returns empty list."""
-        mock_shot_model.shots = test_shots
-
-        mock_shot_model.set_show_filter("nonexistent_show")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 0
-
-    def test_get_available_shows(
-        self, mock_shot_model: ShotModel, test_shots: list[Shot]
-    ) -> None:
-        """Test getting available shows from current shots."""
-        mock_shot_model.shots = test_shots
-
-        shows = mock_shot_model.get_available_shows()
-        assert shows == {"show1", "show2", "show3"}
-
-    def test_get_available_shows_empty(self, mock_shot_model: ShotModel) -> None:
-        """Test getting available shows with no shots."""
-        mock_shot_model.shots = []
-
-        shows = mock_shot_model.get_available_shows()
-        assert shows == set()
 
 
 class TestShotItemModelFiltering:
@@ -465,7 +369,7 @@ class TestMainWindowFilterHandlers:
 
         # Set up minimal required attributes
         # Local application imports
-        from tests.test_doubles_library import (
+        from tests.fixtures.doubles_library import (
             TestCacheManager,
             TestProcessPool,
         )

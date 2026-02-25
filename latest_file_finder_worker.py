@@ -39,6 +39,7 @@ class LatestFileFinderWorker(ThreadSafeWorker):
         worker.maya_found.connect(self._on_maya_found)
         worker.search_complete.connect(self._on_search_complete)
         worker.start()
+
     """
 
     # Result signals - emitted from background thread, received via queued connection
@@ -62,6 +63,7 @@ class LatestFileFinderWorker(ThreadSafeWorker):
             find_maya: Whether to search for Maya scenes
             find_threede: Whether to search for 3DE scenes
             parent: Optional parent QObject
+
         """
         super().__init__(parent)
         self._workspace_path: str = workspace_path

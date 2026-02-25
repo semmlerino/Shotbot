@@ -6,8 +6,7 @@
 # 3DE4.script.comment:  Registers callback to update SGTK context when project opens
 #
 
-"""
-Shotbot SGTK Context Callback for 3DEqualizer.
+"""Shotbot SGTK Context Callback for 3DEqualizer.
 
 This startup script registers a callback that runs when a project is opened.
 It updates the SGTK context with Task/Step from the project path, which

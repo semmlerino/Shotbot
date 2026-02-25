@@ -9,6 +9,7 @@ References:
 - https://pytest-qt.readthedocs.io/en/latest/note_dialogs.html
 - https://doc.qt.io/qt-6/objecttrees.html
 - https://doc.qt.io/qt-6/qthread.html#details
+
 """
 
 from __future__ import annotations
@@ -69,6 +70,7 @@ def cleanup_qthread_properly(
         5. Process events again for cascading cleanups
 
     See UNIFIED_TESTING_V2.md section "Large Qt Test Suite Stability" for details.
+
     """
     # Step 1: Disconnect all signal handlers FIRST
     # This prevents Qt from calling handlers on objects that are being deleted
@@ -143,6 +145,7 @@ def create_cleanup_handler(
             finally:
                 cleanup()
         ```
+
     """
 
     def cleanup() -> None:

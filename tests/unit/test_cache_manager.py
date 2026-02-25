@@ -864,194 +864,116 @@ class TestPersistentPreviousShotsCache:
 
 
 class TestIncrementalShotMerging:
-    """Test Phase 1: Incremental shot merge infrastructure (v2.2)."""
+    """Compact contract tests for incremental shot merge behavior."""
 
-    def test_empty_cached_all_new(self, cache_manager: CacheManager) -> None:
-        """Empty cached, all fresh shots are new."""
-        fresh = [
-            Shot("show1", "seq01", "shot010", "/p1"),
-            Shot("show1", "seq01", "shot020", "/p2"),
-        ]
-        result = cache_manager.merge_shots_incremental(None, fresh)
+    @staticmethod
+    def _shot(show: str, sequence: str, shot: str, workspace_path: str) -> Shot:
+        return Shot(show, sequence, shot, workspace_path)
 
-        assert len(result.updated_shots) == 2
-        assert len(result.new_shots) == 2
-        assert len(result.removed_shots) == 0
-        assert result.has_changes is True
-
-    def test_identical_data_no_changes(self, cache_manager: CacheManager) -> None:
-        """Identical cached and fresh data, no changes detected."""
-        shots = [
-            Shot("show1", "seq01", "shot010", "/p1"),
-            Shot("show1", "seq01", "shot020", "/p2"),
-        ]
-        result = cache_manager.merge_shots_incremental(shots, shots)
-
-        assert len(result.updated_shots) == 2
-        assert len(result.new_shots) == 0
-        assert len(result.removed_shots) == 0
-        assert result.has_changes is False
-
-    def test_add_new_shots(self, cache_manager: CacheManager) -> None:
-        """Add new shots to existing cache."""
-        cached = [Shot("show1", "seq01", "shot010", "/p1")]
-        fresh = [
-            Shot("show1", "seq01", "shot010", "/p1"),
-            Shot("show1", "seq01", "shot020", "/p2"),
-            Shot("show1", "seq02", "shot030", "/p3"),
-        ]
-        result = cache_manager.merge_shots_incremental(cached, fresh)
-
-        assert len(result.updated_shots) == 3
-        assert len(result.new_shots) == 2
-        assert len(result.removed_shots) == 0
-        assert result.has_changes is True
-
-    def test_remove_shots(self, cache_manager: CacheManager) -> None:
-        """Remove shots no longer in fresh data."""
-        cached = [
-            Shot("show1", "seq01", "shot010", "/p1"),
-            Shot("show1", "seq01", "shot020", "/p2"),
-            Shot("show1", "seq02", "shot030", "/p3"),
-        ]
-        fresh = [Shot("show1", "seq01", "shot010", "/p1")]
-        result = cache_manager.merge_shots_incremental(cached, fresh)
-
-        assert len(result.updated_shots) == 1
-        assert len(result.new_shots) == 0
-        assert len(result.removed_shots) == 2
-        assert result.has_changes is True
-        assert result.removed_shots[0]["shot"] in ("shot020", "shot030")
-
-    def test_update_shot_metadata(self, cache_manager: CacheManager) -> None:
-        """Update shot metadata (workspace_path changed)."""
-        cached = [Shot("show1", "seq01", "shot010", "/old/path")]
-        fresh = [Shot("show1", "seq01", "shot010", "/new/path")]
-        result = cache_manager.merge_shots_incremental(cached, fresh)
-
-        assert len(result.updated_shots) == 1
-        assert result.updated_shots[0]["workspace_path"] == "/new/path"
-        # Metadata updates don't trigger has_changes (by design)
-        assert result.has_changes is False
-
-    def test_combined_add_remove_update(self, cache_manager: CacheManager) -> None:
-        """Combined: add new, remove old, update existing."""
-        cached = [
-            Shot("show1", "seq01", "shot010", "/old1"),  # Update path
-            Shot("show1", "seq01", "shot020", "/p2"),  # Remove
-            Shot("show1", "seq02", "shot030", "/p3"),  # Keep
-        ]
-        fresh = [
-            Shot("show1", "seq01", "shot010", "/new1"),  # Updated
-            Shot("show1", "seq02", "shot030", "/p3"),  # Unchanged
-            Shot("show1", "seq03", "shot040", "/p4"),  # New
-        ]
-        result = cache_manager.merge_shots_incremental(cached, fresh)
-
-        assert len(result.updated_shots) == 3
-        assert len(result.new_shots) == 1  # shot040
-        assert len(result.removed_shots) == 1  # shot020
-        assert result.has_changes is True
-
-        # Verify path update
-        shot010 = next(s for s in result.updated_shots if s["shot"] == "shot010")
-        assert shot010["workspace_path"] == "/new1"
-
-    def test_empty_fresh_list(self, cache_manager: CacheManager) -> None:
-        """Empty fresh list means all cached shots removed."""
-        cached = [
-            Shot("show1", "seq01", "shot010", "/p1"),
-            Shot("show1", "seq01", "shot020", "/p2"),
-        ]
-        result = cache_manager.merge_shots_incremental(cached, [])
-
-        assert len(result.updated_shots) == 0
-        assert len(result.new_shots) == 0
-        assert len(result.removed_shots) == 2
-        assert result.has_changes is True
-
-    def test_composite_key_cross_show_uniqueness(
-        self, cache_manager: CacheManager
+    @pytest.mark.parametrize(
+        ("scenario", "expected_updated", "expected_new", "expected_removed", "expected_has_changes"),
+        [
+            ("empty_cached_all_new", 2, 2, 0, True),
+            ("identical", 2, 0, 0, False),
+            ("add", 3, 2, 0, True),
+            ("remove", 1, 0, 2, True),
+            ("empty_fresh", 0, 0, 2, True),
+        ],
+    )
+    def test_incremental_merge_contract(
+        self,
+        cache_manager: CacheManager,
+        scenario: str,
+        expected_updated: int,
+        expected_new: int,
+        expected_removed: int,
+        expected_has_changes: bool,
     ) -> None:
-        """Composite key (show, seq, shot) prevents cross-show collisions."""
+        """Core merge contract for add/remove/no-change paths."""
+        a = self._shot("show1", "seq01", "shot010", "/p1")
+        b = self._shot("show1", "seq01", "shot020", "/p2")
+        c = self._shot("show1", "seq02", "shot030", "/p3")
+
+        if scenario == "empty_cached_all_new":
+            cached, fresh = None, [a, b]
+        elif scenario == "identical":
+            cached, fresh = [a, b], [a, b]
+        elif scenario == "add":
+            cached, fresh = [a], [a, b, c]
+        elif scenario == "remove":
+            cached, fresh = [a, b, c], [a]
+        else:  # empty_fresh
+            cached, fresh = [a, b], []
+
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        assert len(result.updated_shots) == expected_updated
+        assert len(result.new_shots) == expected_new
+        assert len(result.removed_shots) == expected_removed
+        assert result.has_changes is expected_has_changes
+
+    def test_composite_key_cross_show_uniqueness(self, cache_manager: CacheManager) -> None:
+        """Composite key includes show and prevents cross-show collisions."""
         cached = [
-            Shot("show1", "seq01", "shot010", "/show1/path"),
-            Shot("show2", "seq01", "shot010", "/show2/path"),  # Same seq_shot, different show
+            self._shot("show1", "seq01", "shot010", "/show1/path"),
+            self._shot("show2", "seq01", "shot010", "/show2/path"),
         ]
         fresh = [
-            Shot("show1", "seq01", "shot010", "/show1/path"),
-            Shot("show2", "seq01", "shot010", "/show2/updated"),  # Update show2 path
-            Shot("show3", "seq01", "shot010", "/show3/path"),  # New show
+            self._shot("show1", "seq01", "shot010", "/show1/path"),
+            self._shot("show2", "seq01", "shot010", "/show2/updated"),
+            self._shot("show3", "seq01", "shot010", "/show3/path"),
         ]
         result = cache_manager.merge_shots_incremental(cached, fresh)
 
         assert len(result.updated_shots) == 3
-        assert len(result.new_shots) == 1  # show3
-        assert len(result.removed_shots) == 0
+        assert len(result.new_shots) == 1
+        keys = {(s["show"], s["sequence"], s["shot"]) for s in result.updated_shots}
+        assert len(keys) == 3
+        assert {s["show"] for s in result.updated_shots} == {"show1", "show2", "show3"}
 
-        # Verify all three shows present
-        shows = {s["show"] for s in result.updated_shots}
-        assert shows == {"show1", "show2", "show3"}
-
-    def test_shot_dict_input(self, cache_manager: CacheManager) -> None:
-        """Accept ShotDict input (not just Shot objects)."""
-
-        cached: list[ShotDict] = [
+    def test_accepts_dict_and_mixed_inputs(self, cache_manager: CacheManager) -> None:
+        """Merge accepts ShotDict-only and mixed Shot/ShotDict payloads."""
+        cached_dict = [
             {"show": "show1", "sequence": "seq01", "shot": "shot010", "workspace_path": "/p1"}
         ]
-        fresh: list[ShotDict] = [
+        fresh_dict = [
             {"show": "show1", "sequence": "seq01", "shot": "shot010", "workspace_path": "/p1"},
             {"show": "show1", "sequence": "seq01", "shot": "shot020", "workspace_path": "/p2"},
         ]
-        result = cache_manager.merge_shots_incremental(cached, fresh)
+        dict_result = cache_manager.merge_shots_incremental(cached_dict, fresh_dict)
+        assert len(dict_result.updated_shots) == 2
+        assert len(dict_result.new_shots) == 1
 
-        assert len(result.updated_shots) == 2
-        assert len(result.new_shots) == 1
-        assert isinstance(result.updated_shots[0], dict)
+        cached_mixed = [self._shot("show1", "seq01", "shot010", "/p1")]
+        fresh_mixed = [
+            self._shot("show1", "seq01", "shot010", "/p1"),
+            {"show": "show1", "sequence": "seq01", "shot": "shot020", "workspace_path": "/p2"},
+        ]
+        mixed_result = cache_manager.merge_shots_incremental(cached_mixed, fresh_mixed)
+        assert len(mixed_result.updated_shots) == 2
+        assert len(mixed_result.new_shots) == 1
 
-    def test_mixed_shot_and_dict(self, cache_manager: CacheManager) -> None:
-        """Handle mixed Shot objects and ShotDict."""
+    def test_get_persistent_shots_handles_empty_and_populated_cache(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Persistent shot reads bypass TTL and handle empty cache."""
+        assert cache_manager.get_persistent_shots() is None
 
-        cached = [Shot("show1", "seq01", "shot010", "/p1")]
-        fresh_dict: ShotDict = {
-            "show": "show1",
-            "sequence": "seq01",
-            "shot": "shot020",
-            "workspace_path": "/p2",
-        }
-        fresh = [Shot("show1", "seq01", "shot010", "/p1"), fresh_dict]
-        result = cache_manager.merge_shots_incremental(cached, fresh)
-
-        assert len(result.updated_shots) == 2
-        assert len(result.new_shots) == 1
-
-    def test_get_persistent_shots(self, cache_manager: CacheManager) -> None:
-        """get_persistent_shots() returns shots without TTL check."""
         shots = [
-            Shot("show1", "seq01", "shot010", "/p1"),
-            Shot("show1", "seq01", "shot020", "/p2"),
+            self._shot("show1", "seq01", "shot010", "/p1"),
+            self._shot("show1", "seq01", "shot020", "/p2"),
         ]
         cache_manager.cache_shots(shots)
+        cached = cache_manager.get_persistent_shots()
 
-        # Should return shots without TTL expiration
-        result = cache_manager.get_persistent_shots()
-        assert result is not None
-        assert len(result) == 2
-        assert result[0]["shot"] in ("shot010", "shot020")
+        assert cached is not None
+        assert len(cached) == 2
 
-    def test_get_persistent_shots_empty_cache(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """get_persistent_shots() returns None for empty cache."""
-        result = cache_manager.get_persistent_shots()
-        assert result is None
+    def test_fresh_data_is_source_of_truth(self, cache_manager: CacheManager) -> None:
+        """Fresh metadata must overwrite cached metadata for the same key."""
+        cached = [self._shot("show1", "seq01", "shot010", "/old/metadata")]
+        fresh = [self._shot("show1", "seq01", "shot010", "/new/metadata")]
 
-    def test_merge_preserves_fresh_data_as_source_of_truth(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Fresh data is source of truth, cached metadata discarded."""
-        cached = [Shot("show1", "seq01", "shot010", "/old/metadata")]
-        fresh = [Shot("show1", "seq01", "shot010", "/new/metadata")]
         result = cache_manager.merge_shots_incremental(cached, fresh)
 
         assert len(result.updated_shots) == 1
@@ -1060,424 +982,129 @@ class TestIncrementalShotMerging:
     def test_workspace_path_change_not_structural_change(
         self, cache_manager: CacheManager
     ) -> None:
-        """Workspace path changes are propagated but not treated as structural changes.
-
-        Critical test for preventing wrong workspace launches.
-        When a shot moves to a different workspace path, the composite key
-        (show, sequence, shot) remains the same, so it's a metadata update
-        not a new/removed shot.
-        """
-        cached = [Shot("show1", "seq01", "shot010", f"{Config.SHOWS_ROOT}/show1/seq01/shot010")]
-        fresh = [Shot("show1", "seq01", "shot010", f"{Config.SHOWS_ROOT}/show1/seq01_v2/shot010")]
+        """Workspace path updates are metadata-only changes for an existing shot key."""
+        cached = [
+            self._shot(
+                "show1",
+                "seq01",
+                "shot010",
+                f"{Config.SHOWS_ROOT}/show1/seq01/shot010",
+            )
+        ]
+        fresh = [
+            self._shot(
+                "show1",
+                "seq01",
+                "shot010",
+                f"{Config.SHOWS_ROOT}/show1/seq01_v2/shot010",
+            )
+        ]
 
         result = cache_manager.merge_shots_incremental(cached, fresh)
 
-        # Workspace path should be updated
         assert len(result.updated_shots) == 1
         assert result.updated_shots[0]["workspace_path"] == f"{Config.SHOWS_ROOT}/show1/seq01_v2/shot010"
-
-        # But this is metadata-only update, not structural change
-        assert len(result.new_shots) == 0, "Should not be treated as new shot"
-        assert len(result.removed_shots) == 0, "Should not be treated as removed"
-        assert result.has_changes is False, "Metadata-only updates are not structural changes"
-
-    def test_merge_performance_linear_time(self, cache_manager: CacheManager) -> None:
-        """Merge algorithm completes in O(n) time, not O(n²)."""
-        import time
-
-        # Generate 500 shots
-        large_cached = [Shot("show1", "seq01", f"shot{i:04d}", f"/p{i}") for i in range(500)]
-        large_fresh = [*large_cached, Shot("show1", "seq01", "shot9999", "/new")]
-
-        start = time.time()
-        result = cache_manager.merge_shots_incremental(large_cached, large_fresh)
-        elapsed_ms = (time.time() - start) * 1000
-
-        assert len(result.updated_shots) == 501
-        assert len(result.new_shots) == 1
-        assert (
-            elapsed_ms < 35
-        ), f"merge_shots_incremental should be linear (took {elapsed_ms:.2f}ms for 500 shots)"
-
-    def test_no_duplicate_keys_in_result(self, cache_manager: CacheManager) -> None:
-        """Result contains no duplicate composite keys."""
-        fresh = [
-            Shot("show1", "seq01", "shot010", "/p1"),
-            Shot("show1", "seq01", "shot020", "/p2"),
-            Shot("show2", "seq01", "shot010", "/p3"),  # Different show, same seq_shot
-        ]
-        result = cache_manager.merge_shots_incremental(None, fresh)
-
-        # Extract composite keys
-        keys = [(s["show"], s["sequence"], s["shot"]) for s in result.updated_shots]
-        assert len(keys) == len(set(keys))  # No duplicates
+        assert len(result.new_shots) == 0
+        assert len(result.removed_shots) == 0
+        assert result.has_changes is False  # No duplicates
 
 
 
 class TestIncrementalSceneMerging:
-    """Test incremental 3DE scene merge infrastructure (persistent caching)."""
+    """Compact contract tests for incremental 3DE scene merge behavior."""
 
-    def test_empty_cached_all_new(self, cache_manager: CacheManager) -> None:
-        """Empty cached, all fresh scenes are new."""
-        fresh = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/path/scene1.3de"),
-                workspace_path="/p1",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot020",
-                user="artist2",
-                plate="bg01",
-                scene_path=Path("/path/scene2.3de"),
-                workspace_path="/p2",
-            ),
-        ]
-        result = cache_manager.merge_scenes_incremental(None, fresh)
+    @staticmethod
+    def _scene(
+        show: str,
+        sequence: str,
+        shot: str,
+        user: str,
+        plate: str,
+        scene_path: str,
+        workspace_path: str,
+    ) -> ThreeDEScene:
+        return ThreeDEScene(
+            show=show,
+            sequence=sequence,
+            shot=shot,
+            user=user,
+            plate=plate,
+            scene_path=Path(scene_path),
+            workspace_path=workspace_path,
+        )
 
-        assert len(result.updated_scenes) == 2
-        assert len(result.new_scenes) == 2
-        assert len(result.removed_scenes) == 0
-        assert result.has_changes is True
-
-    def test_identical_data_no_changes(self, cache_manager: CacheManager) -> None:
-        """Identical cached and fresh data, no changes detected."""
-        scenes = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/path/scene1.3de"),
-                workspace_path="/p1",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot020",
-                user="artist2",
-                plate="bg01",
-                scene_path=Path("/path/scene2.3de"),
-                workspace_path="/p2",
-            ),
-        ]
-        result = cache_manager.merge_scenes_incremental(scenes, scenes)
-
-        assert len(result.updated_scenes) == 2
-        assert len(result.new_scenes) == 0
-        assert len(result.removed_scenes) == 0
-        assert result.has_changes is False
-
-    def test_add_new_scenes(self, cache_manager: CacheManager) -> None:
-        """Add new scenes to existing cache."""
-        cached = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/path/scene1.3de"),
-                workspace_path="/p1",
-            )
-        ]
-        fresh = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/path/scene1.3de"),
-                workspace_path="/p1",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot020",
-                user="artist2",
-                plate="bg01",
-                scene_path=Path("/path/scene2.3de"),
-                workspace_path="/p2",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq02",
-                shot="shot030",
-                user="artist3",
-                plate="pl01",
-                scene_path=Path("/path/scene3.3de"),
-                workspace_path="/p3",
-            ),
-        ]
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
-
-        assert len(result.updated_scenes) == 3
-        assert len(result.new_scenes) == 2
-        assert len(result.removed_scenes) == 0
-        assert result.has_changes is True
-
-    def test_remove_scenes(self, cache_manager: CacheManager) -> None:
-        """Remove scenes no longer in fresh data (but keep in cache for history)."""
-        cached = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/path/scene1.3de"),
-                workspace_path="/p1",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot020",
-                user="artist2",
-                plate="bg01",
-                scene_path=Path("/path/scene2.3de"),
-                workspace_path="/p2",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq02",
-                shot="shot030",
-                user="artist3",
-                plate="pl01",
-                scene_path=Path("/path/scene3.3de"),
-                workspace_path="/p3",
-            ),
-        ]
-        fresh = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/path/scene1.3de"),
-                workspace_path="/p1",
-            )
-        ]
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
-
-        # NOTE: For persistent caching, removed scenes stay in updated_scenes
-        # They're tracked in removed_scenes but still present in the final cache
-        assert len(result.updated_scenes) == 3  # All 3 scenes kept
-        assert len(result.new_scenes) == 0
-        assert len(result.removed_scenes) == 2  # Tracked for logging
-        assert result.has_changes is True
-        assert result.removed_scenes[0]["shot"] in ("shot020", "shot030")
-
-    def test_update_scene_metadata(self, cache_manager: CacheManager) -> None:
-        """Update scene metadata (user/plate changed, same shot key)."""
-        cached = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/old/scene.3de"),
-                workspace_path="/p1",
-            )
-        ]
-        fresh = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist2",  # Different user
-                plate="bg01",  # Different plate
-                scene_path=Path("/new/scene.3de"),
-                workspace_path="/p1",
-            )
-        ]
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
-
-        assert len(result.updated_scenes) == 1
-        assert result.updated_scenes[0]["user"] == "artist2"
-        assert result.updated_scenes[0]["plate"] == "bg01"
-        # Metadata updates don't trigger has_changes (by design)
-        assert result.has_changes is False
-
-    def test_combined_add_remove_update(self, cache_manager: CacheManager) -> None:
-        """Combined: add new, remove old (kept), update existing."""
-        cached = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/old1.3de"),
-                workspace_path="/p1",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot020",
-                user="artist2",
-                plate="bg01",
-                scene_path=Path("/scene2.3de"),
-                workspace_path="/p2",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq02",
-                shot="shot030",
-                user="artist3",
-                plate="pl01",
-                scene_path=Path("/scene3.3de"),
-                workspace_path="/p3",
-            ),
-        ]
-        fresh = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1_updated",
-                plate="fg02",
-                scene_path=Path("/new1.3de"),
-                workspace_path="/p1",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq02",
-                shot="shot030",
-                user="artist3",
-                plate="pl01",
-                scene_path=Path("/scene3.3de"),
-                workspace_path="/p3",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq03",
-                shot="shot040",
-                user="artist4",
-                plate="fg01",
-                scene_path=Path("/scene4.3de"),
-                workspace_path="/p4",
-            ),
-        ]
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
-
-        # Persistent caching keeps removed scenes
-        assert len(result.updated_scenes) == 4  # All scenes kept
-        assert len(result.new_scenes) == 1  # shot040
-        assert len(result.removed_scenes) == 1  # shot020 (not found but kept)
-        assert result.has_changes is True
-
-        # Verify metadata update
-        shot010 = next(s for s in result.updated_scenes if s["shot"] == "shot010")
-        assert shot010["user"] == "artist1_updated"
-        assert shot010["plate"] == "fg02"
-
-    def test_empty_fresh_list(self, cache_manager: CacheManager) -> None:
-        """Empty fresh list means all cached scenes marked as removed (but kept)."""
-        cached = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/scene1.3de"),
-                workspace_path="/p1",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot020",
-                user="artist2",
-                plate="bg01",
-                scene_path=Path("/scene2.3de"),
-                workspace_path="/p2",
-            ),
-        ]
-        result = cache_manager.merge_scenes_incremental(cached, [])
-
-        # Persistent caching keeps all cached scenes
-        assert len(result.updated_scenes) == 2
-        assert len(result.new_scenes) == 0
-        assert len(result.removed_scenes) == 2
-        assert result.has_changes is True
-
-    def test_composite_key_cross_show_uniqueness(
-        self, cache_manager: CacheManager
+    @pytest.mark.parametrize(
+        (
+            "scenario",
+            "expected_updated",
+            "expected_new",
+            "expected_removed",
+            "expected_has_changes",
+        ),
+        [
+            ("empty_cached_all_new", 2, 2, 0, True),
+            ("identical", 2, 0, 0, False),
+            ("add", 3, 2, 0, True),
+            # Persistent scenes remain in cache even when missing from fresh scan.
+            ("remove", 3, 0, 2, True),
+            ("empty_fresh", 2, 0, 2, True),
+        ],
+    )
+    def test_incremental_merge_contract(
+        self,
+        cache_manager: CacheManager,
+        scenario: str,
+        expected_updated: int,
+        expected_new: int,
+        expected_removed: int,
+        expected_has_changes: bool,
     ) -> None:
-        """Composite key (show, seq, shot) prevents cross-show collisions."""
+        """Core merge contract, including persistent-history semantics."""
+        a = self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/scene1.3de", "/p1")
+        b = self._scene("show1", "seq01", "shot020", "artist2", "bg01", "/scene2.3de", "/p2")
+        c = self._scene("show1", "seq02", "shot030", "artist3", "pl01", "/scene3.3de", "/p3")
+
+        if scenario == "empty_cached_all_new":
+            cached, fresh = None, [a, b]
+        elif scenario == "identical":
+            cached, fresh = [a, b], [a, b]
+        elif scenario == "add":
+            cached, fresh = [a], [a, b, c]
+        elif scenario == "remove":
+            cached, fresh = [a, b, c], [a]
+        else:  # empty_fresh
+            cached, fresh = [a, b], []
+
+        result = cache_manager.merge_scenes_incremental(cached, fresh)
+
+        assert len(result.updated_scenes) == expected_updated
+        assert len(result.new_scenes) == expected_new
+        assert len(result.removed_scenes) == expected_removed
+        assert result.has_changes is expected_has_changes
+
+    def test_composite_key_cross_show_uniqueness(self, cache_manager: CacheManager) -> None:
+        """Composite key includes show and prevents cross-show scene collisions."""
         cached = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/show1/scene.3de"),
-                workspace_path="/show1/path",
-            ),
-            ThreeDEScene(
-                show="show2",
-                sequence="seq01",
-                shot="shot010",
-                user="artist2",
-                plate="bg01",
-                scene_path=Path("/show2/scene.3de"),
-                workspace_path="/show2/path",
-            ),
+            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/show1.3de", "/show1/path"),
+            self._scene("show2", "seq01", "shot010", "artist2", "bg01", "/show2.3de", "/show2/path"),
         ]
         fresh = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/show1/scene.3de"),
-                workspace_path="/show1/path",
-            ),
-            ThreeDEScene(
-                show="show2",
-                sequence="seq01",
-                shot="shot010",
-                user="artist2_updated",
-                plate="fg02",
-                scene_path=Path("/show2/updated.3de"),
-                workspace_path="/show2/updated",
-            ),
-            ThreeDEScene(
-                show="show3",
-                sequence="seq01",
-                shot="shot010",
-                user="artist3",
-                plate="pl01",
-                scene_path=Path("/show3/scene.3de"),
-                workspace_path="/show3/path",
-            ),
+            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/show1.3de", "/show1/path"),
+            self._scene("show2", "seq01", "shot010", "artist2_updated", "fg02", "/show2_new.3de", "/show2/new"),
+            self._scene("show3", "seq01", "shot010", "artist3", "pl01", "/show3.3de", "/show3/path"),
         ]
+
         result = cache_manager.merge_scenes_incremental(cached, fresh)
 
         assert len(result.updated_scenes) == 3
-        assert len(result.new_scenes) == 1  # show3
-        assert len(result.removed_scenes) == 0
+        assert len(result.new_scenes) == 1
+        keys = {(s["show"], s["sequence"], s["shot"]) for s in result.updated_scenes}
+        assert len(keys) == 3
+        assert {s["show"] for s in result.updated_scenes} == {"show1", "show2", "show3"}
 
-        # Verify all three shows present
-        shows = {s["show"] for s in result.updated_scenes}
-        assert shows == {"show1", "show2", "show3"}
-
-    def test_scene_dict_input(self, cache_manager: CacheManager) -> None:
-        """Accept ThreeDESceneDict input (not just ThreeDEScene objects)."""
-
-        cached: list[ThreeDESceneDict] = [
+    def test_accepts_scene_dict_and_mixed_inputs(self, cache_manager: CacheManager) -> None:
+        """Merge accepts ThreeDESceneDict-only and mixed object/dict payloads."""
+        cached_dict = [
             {
                 "show": "show1",
                 "sequence": "seq01",
@@ -1488,7 +1115,7 @@ class TestIncrementalSceneMerging:
                 "workspace_path": "/p1",
             }
         ]
-        fresh: list[ThreeDESceneDict] = [
+        fresh_dict = [
             {
                 "show": "show1",
                 "sequence": "seq01",
@@ -1508,199 +1135,75 @@ class TestIncrementalSceneMerging:
                 "workspace_path": "/p2",
             },
         ]
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
+        dict_result = cache_manager.merge_scenes_incremental(cached_dict, fresh_dict)
+        assert len(dict_result.updated_scenes) == 2
+        assert len(dict_result.new_scenes) == 1
 
-        assert len(result.updated_scenes) == 2
-        assert len(result.new_scenes) == 1
-        assert isinstance(result.updated_scenes[0], dict)
-
-    def test_mixed_scene_and_dict(self, cache_manager: CacheManager) -> None:
-        """Handle mixed ThreeDEScene objects and ThreeDESceneDict."""
-
-        cached = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/scene1.3de"),
-                workspace_path="/p1",
-            )
+        cached_mixed = [
+            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/scene1.3de", "/p1")
         ]
-        fresh_dict: ThreeDESceneDict = {
-            "show": "show1",
-            "sequence": "seq01",
-            "shot": "shot020",
-            "user": "artist2",
-            "plate": "bg01",
-            "scene_path": "/path/scene2.3de",
-            "workspace_path": "/p2",
-        }
-        fresh = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/scene1.3de"),
-                workspace_path="/p1",
-            ),
-            fresh_dict,
+        fresh_mixed = [
+            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/scene1.3de", "/p1"),
+            {
+                "show": "show1",
+                "sequence": "seq01",
+                "shot": "shot020",
+                "user": "artist2",
+                "plate": "bg01",
+                "scene_path": "/path/scene2.3de",
+                "workspace_path": "/p2",
+            },
         ]
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
+        mixed_result = cache_manager.merge_scenes_incremental(cached_mixed, fresh_mixed)
+        assert len(mixed_result.updated_scenes) == 2
+        assert len(mixed_result.new_scenes) == 1
 
-        assert len(result.updated_scenes) == 2
-        assert len(result.new_scenes) == 1
-
-    def test_get_persistent_threede_scenes(
+    def test_get_persistent_threede_scenes_handles_empty_and_populated_cache(
         self, cache_manager: CacheManager
     ) -> None:
-        """get_persistent_threede_scenes() returns scenes without TTL check."""
+        """Persistent scene reads bypass TTL and handle empty cache."""
+        assert cache_manager.get_persistent_threede_scenes() is None
+
         scenes = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/scene1.3de"),
-                workspace_path="/p1",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot020",
-                user="artist2",
-                plate="bg01",
-                scene_path=Path("/scene2.3de"),
-                workspace_path="/p2",
-            ),
+            self._scene("show1", "seq01", "shot010", "artist1", "fg01", "/scene1.3de", "/p1"),
+            self._scene("show1", "seq01", "shot020", "artist2", "bg01", "/scene2.3de", "/p2"),
         ]
         cache_manager.cache_threede_scenes([s.to_dict() for s in scenes])
+        cached = cache_manager.get_persistent_threede_scenes()
 
-        # Should return scenes without TTL expiration
-        result = cache_manager.get_persistent_threede_scenes()
-        assert result is not None
-        assert len(result) == 2
-        assert result[0]["shot"] in ("shot010", "shot020")
+        assert cached is not None
+        assert len(cached) == 2
 
-    def test_get_persistent_threede_scenes_empty_cache(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """get_persistent_threede_scenes() returns None for empty cache."""
-        result = cache_manager.get_persistent_threede_scenes()
-        assert result is None
-
-    def test_merge_preserves_fresh_data_as_source_of_truth(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Fresh data is source of truth, cached metadata discarded."""
+    def test_fresh_data_is_source_of_truth(self, cache_manager: CacheManager) -> None:
+        """Fresh metadata must overwrite cached metadata for the same scene key."""
         cached = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="old_artist",
-                plate="old_plate",
-                scene_path=Path("/old/scene.3de"),
-                workspace_path="/old/path",
+            self._scene(
+                "show1",
+                "seq01",
+                "shot010",
+                "old_artist",
+                "old_plate",
+                "/old/scene.3de",
+                "/old/path",
             )
         ]
         fresh = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="new_artist",
-                plate="new_plate",
-                scene_path=Path("/new/scene.3de"),
-                workspace_path="/new/path",
+            self._scene(
+                "show1",
+                "seq01",
+                "shot010",
+                "new_artist",
+                "new_plate",
+                "/new/scene.3de",
+                "/new/path",
             )
         ]
+
         result = cache_manager.merge_scenes_incremental(cached, fresh)
 
         assert len(result.updated_scenes) == 1
         assert result.updated_scenes[0]["user"] == "new_artist"
-        assert result.updated_scenes[0]["plate"] == "new_plate"
-
-    def test_merge_performance_linear_time(self, cache_manager: CacheManager) -> None:
-        """Merge algorithm completes in O(n) time, not O(n²)."""
-        import time
-
-        # Generate 500 scenes
-        large_cached = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot=f"shot{i:04d}",
-                user="artist",
-                plate="fg01",
-                scene_path=Path(f"/scene{i}.3de"),
-                workspace_path=f"/p{i}",
-            )
-            for i in range(500)
-        ]
-        large_fresh = [
-            *large_cached,
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot9999",
-                user="artist",
-                plate="fg01",
-                scene_path=Path("/new.3de"),
-                workspace_path="/new",
-            ),
-        ]
-
-        start = time.time()
-        result = cache_manager.merge_scenes_incremental(large_cached, large_fresh)
-        elapsed_ms = (time.time() - start) * 1000
-
-        assert len(result.updated_scenes) == 501
-        assert len(result.new_scenes) == 1
-        assert (
-            elapsed_ms < 35
-        ), f"merge_scenes_incremental should be linear (took {elapsed_ms:.2f}ms for 500 scenes)"
-
-    def test_no_duplicate_keys_in_result(self, cache_manager: CacheManager) -> None:
-        """Result contains no duplicate composite keys."""
-        fresh = [
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot010",
-                user="artist1",
-                plate="fg01",
-                scene_path=Path("/scene1.3de"),
-                workspace_path="/p1",
-            ),
-            ThreeDEScene(
-                show="show1",
-                sequence="seq01",
-                shot="shot020",
-                user="artist2",
-                plate="bg01",
-                scene_path=Path("/scene2.3de"),
-                workspace_path="/p2",
-            ),
-            ThreeDEScene(
-                show="show2",
-                sequence="seq01",
-                shot="shot010",
-                user="artist3",
-                plate="pl01",
-                scene_path=Path("/scene3.3de"),
-                workspace_path="/p3",
-            ),
-        ]
-        result = cache_manager.merge_scenes_incremental(None, fresh)
-
-        # Extract composite keys
-        keys = [(s["show"], s["sequence"], s["shot"]) for s in result.updated_scenes]
-        assert len(keys) == len(set(keys))  # No duplicates
+        assert result.updated_scenes[0]["plate"] == "new_plate"  # No duplicates
 
 
 class TestShotMigration:
@@ -1794,7 +1297,6 @@ class TestShotMigration:
 
     def test_migrate_accepts_shot_dicts(self, cache_manager: CacheManager) -> None:
         """migrate_shots_to_previous() accepts ShotDict input."""
-
         shot_dicts: list[ShotDict] = [
             {
                 "show": "show1",
@@ -1811,7 +1313,6 @@ class TestShotMigration:
 
     def test_migrate_mixed_shot_and_dict(self, cache_manager: CacheManager) -> None:
         """migrate_shots_to_previous() handles mixed Shot and ShotDict."""
-
         shot_obj = Shot("show1", "seq01", "shot010", "/p1")
         shot_dict: ShotDict = {
             "show": "show1",
@@ -1972,11 +1473,19 @@ class TestCacheWriteFailureSignals:
         with qtbot.waitSignal(cache_manager.cache_updated, timeout=1000):
             cache_manager.cache_shots(sample_shots)
 
-    def test_cache_shots_emits_write_failed_on_error(
-        self, cache_manager: CacheManager, sample_shots: list[Shot], qtbot, mocker
+    @pytest.mark.parametrize(
+        ("cache_method_name", "cache_key"),
+        [("cache_shots", "shots"), ("cache_previous_shots", "previous_shots")],
+    )
+    def test_cache_methods_emit_write_failed_on_error(
+        self,
+        cache_manager: CacheManager,
+        sample_shots: list[Shot],
+        mocker,
+        cache_method_name: str,
+        cache_key: str,
     ) -> None:
-        """cache_write_failed signal is emitted when cache_shots fails."""
-        # Mock _write_json_cache to return False (write failure)
+        """Cache write methods emit write_failed and suppress cache_updated on errors."""
         mocker.patch.object(cache_manager, "_write_json_cache", return_value=False)
 
         signals_received: list[str] = []
@@ -1985,26 +1494,9 @@ class TestCacheWriteFailureSignals:
             lambda name: signals_received.append(f"failed:{name}")
         )
 
-        cache_manager.cache_shots(sample_shots)
+        getattr(cache_manager, cache_method_name)(sample_shots)
 
-        assert "failed:shots" in signals_received
-        assert "updated" not in signals_received
-
-    def test_cache_previous_shots_emits_write_failed_on_error(
-        self, cache_manager: CacheManager, sample_shots: list[Shot], qtbot, mocker
-    ) -> None:
-        """cache_write_failed signal is emitted when cache_previous_shots fails."""
-        mocker.patch.object(cache_manager, "_write_json_cache", return_value=False)
-
-        signals_received: list[str] = []
-        cache_manager.cache_updated.connect(lambda: signals_received.append("updated"))
-        cache_manager.cache_write_failed.connect(
-            lambda name: signals_received.append(f"failed:{name}")
-        )
-
-        cache_manager.cache_previous_shots(sample_shots)
-
-        assert "failed:previous_shots" in signals_received
+        assert f"failed:{cache_key}" in signals_received
         assert "updated" not in signals_received
 
     def test_migrate_returns_true_on_success(

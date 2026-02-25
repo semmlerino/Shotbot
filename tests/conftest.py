@@ -100,9 +100,8 @@ See also: UNIFIED_TESTING_V2.md for comprehensive testing guidance.
 
 from __future__ import annotations
 
-# NOTE: collect_ignore was used for deprecated test modules.
-# test_launcher_panel_integration.py was removed (LauncherPanel → RightPanelWidget).
-# If future deprecated tests need exclusion, add: collect_ignore = ["path/to/test.py"]
+# Test inclusion is controlled by marker policy in pyproject.toml (`-m ...`).
+# Keep collection broad here so excluded suites can still be run explicitly.
 import atexit
 import os
 import shutil
@@ -723,6 +722,10 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line("markers", "thread_safety: mark test as testing thread safety")
     config.addinivalue_line("markers", "performance: mark test as testing performance")
+    config.addinivalue_line(
+        "markers",
+        "performance_like: timing-sensitive checks excluded from default runs",
+    )
     config.addinivalue_line("markers", "critical: mark test as critical/high priority")
     config.addinivalue_line("markers", "gui_mainwindow: mark test as requiring main window GUI")
     config.addinivalue_line("markers", "qt_heavy: mark test as Qt-intensive")
@@ -761,6 +764,14 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "smoke: smoke tests for real subprocess/external dependencies "
         "(skip locally with SHOTBOT_SKIP_SMOKE=1)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "legacy: lower-signal or duplicate historical tests excluded from default runs",
+    )
+    config.addinivalue_line(
+        "markers",
+        "tutorial: educational/reference tests excluded from default runs",
     )
 
     # FAIL-FAST: Verify all registered singletons have reset() methods
@@ -855,6 +866,32 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     Only active when STRICT_CLEANUP or FAIL_ON_THREAD_LEAK is enabled
     (CI environments, GitHub Actions, or explicit env vars).
     """
+    # Final best-effort Qt drain before interpreter shutdown.
+    # This mitigates late segfaults from lingering QRunnable/QThreadPool work.
+    try:
+        from PySide6.QtCore import QCoreApplication, QEvent, QThreadPool
+        from PySide6.QtWidgets import QApplication
+
+        from runnable_tracker import get_tracker
+
+        tracker = get_tracker()
+        tracker.wait_for_all(timeout_ms=3000)
+        tracker.cleanup_all()
+        QThreadPool.globalInstance().waitForDone(3000)
+
+        app = QApplication.instance()
+        if app is not None:
+            for _ in range(3):
+                app.processEvents()
+            try:
+                QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+            except (RuntimeError, SystemError):
+                pass
+            app.processEvents()
+    except Exception:
+        # Never fail session teardown due to best-effort stability cleanup.
+        pass
+
     from tests.fixtures.qt_cleanup import get_thread_leak_summary
 
     summary = get_thread_leak_summary()
@@ -866,6 +903,47 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         else:
             # Fallback to print if reporter not available
             print(summary)
+
+
+def pytest_unconfigure(config: pytest.Config) -> None:
+    """Final Qt teardown hook to avoid PySide shutdown-time segfaults."""
+    global _GLOBAL_QAPP  # noqa: PLW0603
+
+    try:
+        from PySide6.QtCore import QCoreApplication, QEvent
+        from PySide6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        if app is not None:
+            try:
+                app.quit()
+            except (RuntimeError, SystemError):
+                pass
+            for _ in range(3):
+                try:
+                    app.processEvents()
+                except (RuntimeError, SystemError):
+                    break
+            try:
+                QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+            except (RuntimeError, SystemError):
+                pass
+            try:
+                app.processEvents()
+            except (RuntimeError, SystemError):
+                pass
+
+            # Force C++ QApplication deletion before Python interpreter finalization.
+            try:
+                from shiboken6 import Shiboken
+
+                Shiboken.delete(app)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    finally:
+        _GLOBAL_QAPP = None
 
 
 @pytest.hookimpl(trylast=True)

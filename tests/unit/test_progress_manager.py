@@ -179,167 +179,84 @@ class TestProgressOperation:
 
         assert operation.is_cancelled() is True
 
-    def test_cancel_callback_invoked(self) -> None:
-        """Test cancel callback is invoked on cancellation."""
-        callback_invoked = {"called": False}
+    def test_cancel_callback_paths(self) -> None:
+        """Test cancellation invokes callback and suppresses callback failures."""
+        callbacks_called = {"ok": False, "failing": False}
 
-        def cancel_callback() -> None:
-            callback_invoked["called"] = True
-
-        config = ProgressConfig(title="Test", cancel_callback=cancel_callback)
-        operation = ProgressOperation(config)
-
-        operation.cancel()
-
-        assert callback_invoked["called"] is True
-
-    def test_cancel_callback_exception_handled(self) -> None:
-        """Test exceptions in cancel callback are handled gracefully."""
+        def ok_callback() -> None:
+            callbacks_called["ok"] = True
 
         def failing_callback() -> None:
+            callbacks_called["failing"] = True
             raise RuntimeError("Callback failed")
 
-        config = ProgressConfig(title="Test", cancel_callback=failing_callback)
-        operation = ProgressOperation(config)
+        for callback in (ok_callback, failing_callback):
+            operation = ProgressOperation(
+                ProgressConfig(title="Test", cancel_callback=callback)
+            )
+            operation.cancel()  # must not propagate callback exceptions
+            assert operation.is_cancelled() is True
 
-        # Should not raise exception
-        operation.cancel()
+        assert callbacks_called == {"ok": True, "failing": True}
 
-        assert operation.is_cancelled() is True
-
-    def test_eta_calculation_with_no_data(
+    def test_eta_returns_empty_for_non_estimated_states(
         self, progress_config: ProgressConfig
     ) -> None:
-        """Test ETA returns empty string when no processing data available."""
-        operation = ProgressOperation(progress_config)
-        operation.set_total(100)
+        """ETA should be empty when estimation is unavailable or disabled."""
+        # No processing data
+        no_data = ProgressOperation(progress_config)
+        no_data.set_total(100)
+        assert no_data.get_eta_string() == ""
 
-        eta = operation.get_eta_string()
+        # Indeterminate operation
+        indeterminate = ProgressOperation(progress_config)
+        assert indeterminate.get_eta_string() == ""
 
-        assert eta == ""
+        # Explicitly disabled ETA
+        disabled = ProgressOperation(ProgressConfig(title="Test", show_eta=False))
+        disabled.set_total(100)
+        disabled.processing_times = [10.0]
+        disabled.current_value = 50
+        assert disabled.get_eta_string() == ""
 
-    def test_eta_calculation_indeterminate(
-        self, progress_config: ProgressConfig
-    ) -> None:
-        """Test ETA returns empty string for indeterminate progress."""
-        operation = ProgressOperation(progress_config)
-        # Indeterminate by default
+        # Completed operation
+        completed = ProgressOperation(progress_config)
+        completed.set_total(100)
+        completed.processing_times = [10.0]
+        completed.current_value = 100
+        assert completed.get_eta_string() == ""
 
-        eta = operation.get_eta_string()
-
-        assert eta == ""
-
-    def test_eta_calculation_seconds(self, progress_config: ProgressConfig) -> None:
-        """Test ETA formatting for operations under 1 minute."""
-        config = ProgressConfig(title="Test", update_interval=1)
-        operation = ProgressOperation(config)
-        operation.set_total(100)
-
-        # Simulate processing 10 items per second
-        operation.processing_times = [10.0]  # 10 items/sec
-        operation.current_value = 50
-
-        eta = operation.get_eta_string()
-
-        assert "s remaining" in eta
-        assert "~5s" in eta  # (100-50)/10 = 5 seconds
-
-    def test_eta_calculation_minutes(self, progress_config: ProgressConfig) -> None:
-        """Test ETA formatting for operations 1-60 minutes."""
-        config = ProgressConfig(title="Test", update_interval=1)
-        operation = ProgressOperation(config)
-        operation.set_total(1000)
-
-        # Simulate processing 1 item per second (slow)
-        operation.processing_times = [1.0]
-        operation.current_value = 100
-
-        eta = operation.get_eta_string()
-
-        assert "m remaining" in eta
-        assert "~15m" in eta  # (1000-100)/1 = 900s = 15min
-
-    def test_eta_calculation_hours(self, progress_config: ProgressConfig) -> None:
-        """Test ETA formatting for operations over 1 hour."""
-        config = ProgressConfig(title="Test", update_interval=1)
-        operation = ProgressOperation(config)
-        operation.set_total(10000)
-
-        # Simulate very slow processing
-        operation.processing_times = [1.0]
-        operation.current_value = 1000
-
-        eta = operation.get_eta_string()
-
-        assert "h" in eta
-        assert "m remaining" in eta
-        assert "~2h 30m" in eta  # (10000-1000)/1 = 9000s = 2.5 hours
-
-    def test_eta_disabled_when_show_eta_false(self) -> None:
-        """Test ETA calculation skipped when show_eta is False."""
-        config = ProgressConfig(title="Test", show_eta=False)
-        operation = ProgressOperation(config)
-        operation.set_total(100)
-        operation.processing_times = [10.0]
-        operation.current_value = 50
-
-        eta = operation.get_eta_string()
-
-        assert eta == ""
-
-    def test_eta_empty_when_completed(self, progress_config: ProgressConfig) -> None:
-        """Test ETA returns empty when operation is complete."""
-        operation = ProgressOperation(progress_config)
-        operation.set_total(100)
-        operation.processing_times = [10.0]
-        operation.current_value = 100  # Completed
-
-        eta = operation.get_eta_string()
-
-        assert eta == ""
+    def test_eta_calculation_formats_by_time_range(self) -> None:
+        """ETA formatting should cover seconds, minutes, and hours ranges."""
+        cases = [
+            # total, current, rate, expected fragment
+            (100, 50, 10.0, "~5s"),
+            (1000, 100, 1.0, "~15m"),
+            (10000, 1000, 1.0, "~2h 30m"),
+        ]
+        for total, current, rate, expected in cases:
+            operation = ProgressOperation(ProgressConfig(title="Test", update_interval=1))
+            operation.set_total(total)
+            operation.processing_times = [rate]
+            operation.current_value = current
+            eta = operation.get_eta_string()
+            assert expected in eta
+            assert "remaining" in eta
 
     def test_processing_rate_tracking(
         self, progress_config: ProgressConfig
     ) -> None:
-        """Test processing rate is tracked for ETA calculation."""
-        config = ProgressConfig(title="Test", update_interval=1)  # 1ms throttle
-        operation = ProgressOperation(config)
-        operation.set_total(100)
-
-        # First update
-        operation.update(10, "Step 1")
-
-        # Wait for throttle to expire
-        threading.Event().wait(timeout=0.005)  # 5ms > 1ms throttle
-
-        # Second update
-        operation.update(20, "Step 2")
-
-        # Wait again
-        threading.Event().wait(timeout=0.005)  # 5ms
-
-        # Third update
-        operation.update(30, "Step 3")
-
-        # Processing times should be tracked
-        assert len(operation.processing_times) > 0
-
-    def test_processing_rate_max_samples(
-        self, progress_config: ProgressConfig
-    ) -> None:
-        """Test processing rate maintains maximum sample window."""
+        """Processing rate tracks samples and respects max sample window."""
         config = ProgressConfig(title="Test", update_interval=1)  # 1ms throttle
         operation = ProgressOperation(config)
         operation.set_total(100)
         operation.max_eta_samples = 5
 
-        # Trigger updates to add processing time samples
-        # Wait between updates to avoid throttling
-        for i in range(15):  # More than max_eta_samples
+        for i in range(15):
             operation.update(i, f"Step {i}")
-            threading.Event().wait(timeout=0.005)  # 5ms > 1ms throttle
+            threading.Event().wait(timeout=0.005)
 
-        # Should keep only most recent samples (max 5)
+        assert len(operation.processing_times) > 0
         assert len(operation.processing_times) <= 5
 
 
@@ -741,57 +658,33 @@ class TestUIIntegration:
 class TestConvenienceFunctions:
     """Test convenience wrapper functions."""
 
-    def test_start_progress_function(self, mock_notification_manager: Mock) -> None:
-        """Test start_progress() convenience function."""
+    def test_convenience_wrapper_happy_path(
+        self, mock_notification_manager: Mock
+    ) -> None:
+        """Wrapper functions should operate on the active operation."""
         operation = start_progress("Test Operation", cancelable=True)
 
         assert operation is not None
         assert operation.config.title == "Test Operation"
         assert operation.config.cancelable is True
 
-    def test_finish_progress_function(self, mock_notification_manager: Mock) -> None:
-        """Test finish_progress() convenience function."""
-        start_progress("Test")
-
-        finish_progress(success=True)
-
-        assert not ProgressManager.is_operation_active()
-
-    def test_update_progress_function(self, mock_notification_manager: Mock) -> None:
-        """Test update_progress() convenience function."""
-        operation = start_progress("Test")
-        operation.set_total(100)
-
-        update_progress(50, "Halfway")
-
-        assert operation.current_value == 50
-        assert operation.current_message == "Halfway"
-
-    def test_set_progress_total_function(self, mock_notification_manager: Mock) -> None:
-        """Test set_progress_total() convenience function."""
-        operation = start_progress("Test")
-
         set_progress_total(100)
-
         assert operation.total_value == 100
         assert operation.is_indeterminate is False
 
-    def test_set_progress_indeterminate_function(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """Test set_progress_indeterminate() convenience function."""
-        operation = start_progress("Test")
-        operation.set_total(100)
+        update_progress(50, "Halfway")
+        assert operation.current_value == 50
+        assert operation.current_message == "Halfway"
 
         set_progress_indeterminate()
-
         assert operation.is_indeterminate is True
 
-    def test_is_progress_cancelled_function(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """Test is_progress_cancelled() convenience function."""
-        operation = start_progress("Test", cancelable=True)
+        finish_progress(success=True)
+        assert not ProgressManager.is_operation_active()
+
+    def test_is_progress_cancelled_function(self, mock_notification_manager: Mock) -> None:
+        """is_progress_cancelled reflects cancellation state of active operation."""
+        operation = start_progress("Cancelable", cancelable=True)
 
         assert is_progress_cancelled() is False
 
@@ -829,55 +722,22 @@ class TestEdgeCasesAndErrorHandling:
 
         assert not ProgressManager.is_operation_active()
 
-    def test_operation_with_zero_total(self, mock_notification_manager: Mock) -> None:
-        """Test operation handles zero total gracefully."""
-        operation = ProgressManager.start_operation("Test")
-        operation.set_total(0)
+    def test_update_value_edge_cases(self, mock_notification_manager: Mock) -> None:
+        """Operations should handle boundary/overflow update values safely."""
+        operation = ProgressManager.start_operation(
+            ProgressConfig(title="Test", update_interval=0)
+        )
+        for total, value in ((0, 0), (100, -10), (100, 150)):
+            operation.set_total(total)
+            operation.update(value, "Edge")
+            assert operation.current_value == value
 
-        # Should not crash when calculating percentage
-        operation.update(0, "Test")
-
-        assert operation.total_value == 0
-
-    def test_negative_update_values(self, mock_notification_manager: Mock) -> None:
-        """Test operation handles negative values gracefully."""
-        operation = ProgressManager.start_operation("Test")
-        operation.set_total(100)
-
-        # Should not crash with negative value
-        operation.update(-10, "Test")
-
-        assert operation.current_value == -10
-
-    def test_update_beyond_total(self, mock_notification_manager: Mock) -> None:
-        """Test operation handles values beyond total."""
+    def test_eta_with_non_positive_rate(self, mock_notification_manager: Mock) -> None:
+        """ETA should be empty for zero or negative processing rate."""
         operation = ProgressManager.start_operation("Test")
         operation.set_total(100)
-
-        operation.update(150, "Beyond total")
-
-        assert operation.current_value == 150
-
-    def test_eta_with_zero_rate(self, mock_notification_manager: Mock) -> None:
-        """Test ETA calculation handles zero processing rate."""
-        operation = ProgressManager.start_operation("Test")
-        operation.set_total(100)
-        operation.processing_times = [0.0]  # Zero rate
         operation.current_value = 50
 
-        eta = operation.get_eta_string()
-
-        # Should return empty string, not crash
-        assert eta == ""
-
-    def test_eta_with_negative_rate(self, mock_notification_manager: Mock) -> None:
-        """Test ETA calculation handles negative processing rate."""
-        operation = ProgressManager.start_operation("Test")
-        operation.set_total(100)
-        operation.processing_times = [-1.0]  # Negative rate
-        operation.current_value = 50
-
-        eta = operation.get_eta_string()
-
-        # Should return empty string, not crash
-        assert eta == ""
+        for rate in (0.0, -1.0):
+            operation.processing_times = [rate]
+            assert operation.get_eta_string() == ""

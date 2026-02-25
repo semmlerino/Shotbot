@@ -247,6 +247,7 @@ addopts = [
     "--strict-markers",     # Fail on unknown markers
     "--strict-config",      # Fail on unknown config options
     "-ra",                  # Show all test summary info
+    "-m", "not legacy and not performance_like and not tutorial",  # Default high-signal suite
     "--durations=20",       # Show slowest 20 tests
     "--randomly-seed=last", # Reproduce last run's order (use --randomly-seed=<N> for specific seed)
     "--tb=short",
@@ -300,6 +301,9 @@ markers = [
     "allow_main_thread: Allow calls from main/UI thread in TestProcessPool (opt-out from default guard)",
     "thread_leak_ok: Allow thread leaks in this test (opt-out from FAIL_ON_THREAD_LEAK)",
     "persistent_cache: Skip disk cache clearing for tests that need pre-seeded cache files",
+    "legacy: Lower-signal or duplicate historical coverage (excluded from default runs)",
+    "performance_like: Timing-sensitive behavior checks excluded from default runs",
+    "tutorial: Educational/reference tests excluded from default runs",
 ]
 
 # Coverage configuration

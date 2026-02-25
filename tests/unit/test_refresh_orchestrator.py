@@ -144,33 +144,22 @@ def test_refresh_tab_emits_refresh_started(
     assert blocker.args == [0]
 
 
-def test_refresh_tab_routes_to_shots_for_index_0(
+@pytest.mark.parametrize(
+    ("tab_index", "handler_name"),
+    [
+        (0, "_refresh_shots"),
+        (1, "_refresh_threede"),
+        (2, "_refresh_previous"),
+    ],
+)
+def test_refresh_tab_routes_to_expected_handler(
     orchestrator: RefreshOrchestrator,
+    tab_index: int,
+    handler_name: str,
 ) -> None:
-    """Test refresh_tab routes index 0 to _refresh_shots."""
-    with patch.object(orchestrator, "_refresh_shots") as mock_refresh:
-        orchestrator.refresh_tab(0)
-
-        mock_refresh.assert_called_once()
-
-
-def test_refresh_tab_routes_to_threede_for_index_1(
-    orchestrator: RefreshOrchestrator,
-) -> None:
-    """Test refresh_tab routes index 1 to _refresh_threede."""
-    with patch.object(orchestrator, "_refresh_threede") as mock_refresh:
-        orchestrator.refresh_tab(1)
-
-        mock_refresh.assert_called_once()
-
-
-def test_refresh_tab_routes_to_previous_for_index_2(
-    orchestrator: RefreshOrchestrator,
-) -> None:
-    """Test refresh_tab routes index 2 to _refresh_previous."""
-    with patch.object(orchestrator, "_refresh_previous") as mock_refresh:
-        orchestrator.refresh_tab(2)
-
+    """Test refresh_tab routes each valid index to the expected handler."""
+    with patch.object(orchestrator, handler_name) as mock_refresh:
+        orchestrator.refresh_tab(tab_index)
         mock_refresh.assert_called_once()
 
 
@@ -311,32 +300,18 @@ def test_refresh_threede_emits_success_when_controller_available(
     assert blocker.args == [1, True]
 
 
-def test_refresh_threede_handles_missing_controller(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+@pytest.mark.parametrize("controller_state", ["missing", "none"])
+def test_refresh_threede_emits_failure_when_controller_unavailable(
+    orchestrator: RefreshOrchestrator,
+    mock_main_window: Mock,
+    qtbot: QtBot,
+    controller_state: str,
 ) -> None:
-    """Test _refresh_threede handles missing controller gracefully."""
-    del mock_main_window.threede_controller
-
-    orchestrator._refresh_threede()  # Should not raise
-
-
-def test_refresh_threede_emits_failure_when_controller_missing(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
-) -> None:
-    """Test _refresh_threede emits failure when controller missing."""
-    del mock_main_window.threede_controller
-
-    with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator._refresh_threede()
-
-    assert blocker.args == [1, False]
-
-
-def test_refresh_threede_handles_none_controller(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
-) -> None:
-    """Test _refresh_threede handles None controller."""
-    mock_main_window.threede_controller = None
+    """Test _refresh_threede emits failure when controller is unavailable."""
+    if controller_state == "missing":
+        del mock_main_window.threede_controller
+    else:
+        mock_main_window.threede_controller = None
 
     with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
         orchestrator._refresh_threede()
@@ -368,32 +343,18 @@ def test_refresh_previous_emits_success_when_model_available(
     assert blocker.args == [2, True]
 
 
-def test_refresh_previous_handles_missing_model(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+@pytest.mark.parametrize("model_state", ["missing", "none"])
+def test_refresh_previous_emits_failure_when_model_unavailable(
+    orchestrator: RefreshOrchestrator,
+    mock_main_window: Mock,
+    qtbot: QtBot,
+    model_state: str,
 ) -> None:
-    """Test _refresh_previous handles missing model gracefully."""
-    del mock_main_window.previous_shots_model
-
-    orchestrator._refresh_previous()  # Should not raise
-
-
-def test_refresh_previous_emits_failure_when_model_missing(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
-) -> None:
-    """Test _refresh_previous emits failure when model missing."""
-    del mock_main_window.previous_shots_model
-
-    with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator._refresh_previous()
-
-    assert blocker.args == [2, False]
-
-
-def test_refresh_previous_handles_none_model(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
-) -> None:
-    """Test _refresh_previous handles None model."""
-    mock_main_window.previous_shots_model = None
+    """Test _refresh_previous emits failure when model is unavailable."""
+    if model_state == "missing":
+        del mock_main_window.previous_shots_model
+    else:
+        mock_main_window.previous_shots_model = None
 
     with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
         orchestrator._refresh_previous()
@@ -660,21 +621,17 @@ def test_trigger_previous_shots_refresh_skips_when_no_shots(
     mock_main_window.previous_shots_model.refresh_shots.assert_not_called()
 
 
-def test_trigger_previous_shots_refresh_handles_missing_model(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+@pytest.mark.parametrize("model_state", ["missing", "none"])
+def test_trigger_previous_shots_refresh_handles_unavailable_model(
+    orchestrator: RefreshOrchestrator,
+    mock_main_window: Mock,
+    model_state: str,
 ) -> None:
-    """Test trigger_previous_shots_refresh handles missing model."""
-    del mock_main_window.previous_shots_model
-
-    orchestrator.trigger_previous_shots_refresh([Mock()])
-    # Should not raise
-
-
-def test_trigger_previous_shots_refresh_handles_none_model(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock
-) -> None:
-    """Test trigger_previous_shots_refresh handles None model."""
-    mock_main_window.previous_shots_model = None
+    """Test trigger_previous_shots_refresh handles unavailable model safely."""
+    if model_state == "missing":
+        del mock_main_window.previous_shots_model
+    else:
+        mock_main_window.previous_shots_model = None
 
     orchestrator.trigger_previous_shots_refresh([Mock()])
     # Should not raise

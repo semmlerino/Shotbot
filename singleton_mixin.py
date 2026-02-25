@@ -1,7 +1,7 @@
 """Thread-safe singleton mixin to eliminate boilerplate singleton code.
 
-This module provides a reusable SingletonMixin that implements the double-checked
-locking singleton pattern with proper test isolation support via reset().
+This module provides a reusable SingletonMixin that implements a thread-safe
+singleton pattern with proper test isolation support via reset().
 
 Usage:
     from typing_compat import override
@@ -28,13 +28,22 @@ from typing import ClassVar, Self
 
 
 class SingletonMixin:
-    """Thread-safe singleton mixin with double-checked locking.
+    """Thread-safe singleton mixin with single-checked locking.
 
     Provides:
     - Thread-safe singleton creation via __new__
     - Initialization guard helpers (_is_initialized, _mark_initialized)
     - Test isolation via reset() classmethod
     - Customizable cleanup via _cleanup_instance() override
+    - Automatic subclass tracking for test registry verification
+
+    Thread Safety:
+    Uses single-checked locking (check only inside lock) rather than
+    double-checked locking pattern (DCLP). The outer check in DCLP is
+    unsafe in Python because attribute access isn't atomic - another
+    thread could see a partially-constructed object. The performance
+    cost of always acquiring the lock is negligible since uncontended
+    lock acquisition is cheap.
 
     Note: Subclasses must call _is_initialized() at the start of __init__
     and _mark_initialized() at the end to prevent re-initialization.
@@ -44,14 +53,30 @@ class SingletonMixin:
     _lock: ClassVar[threading.RLock] = threading.RLock()  # RLock for reentrant cleanup
     _initialized: ClassVar[bool] = False
 
+    # Track all subclasses for registry verification
+    _known_subclasses: ClassVar[set[type]] = set()
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        """Track subclass for singleton registry verification.
+
+        This hook is called when a class inherits from SingletonMixin,
+        allowing the test infrastructure to verify all singletons are
+        properly registered in SingletonRegistry.
+        """
+        super().__init_subclass__(**kwargs)
+        SingletonMixin._known_subclasses.add(cls)
+
     def __new__(cls) -> Self:
-        """Create singleton instance with thread-safe double-checked locking."""
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    instance = super().__new__(cls)
-                    cls._instance = instance
-        return cls._instance
+        """Create singleton instance with thread-safe locking.
+
+        Uses single-checked locking pattern for correctness. See class
+        docstring for rationale on why DCLP is avoided.
+        """
+        with cls._lock:
+            if cls._instance is None:
+                instance = super().__new__(cls)
+                cls._instance = instance
+            return cls._instance
 
     @classmethod
     def _is_initialized(cls) -> bool:

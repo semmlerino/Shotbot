@@ -47,6 +47,7 @@ class SimpleNukeLauncher(LoggingMixin):
 
         Returns:
             Tuple of (nuke_command, log_messages)
+
         """
         log_messages: list[str] = []
 
@@ -123,6 +124,7 @@ class SimpleNukeLauncher(LoggingMixin):
 
         Returns:
             Nuke command string with startup script
+
         """
         # Ensure directory exists
         script_dir.mkdir(parents=True, exist_ok=True)
@@ -216,6 +218,7 @@ except OSError:
 
         Returns:
             Tuple of (nuke_command, log_messages)
+
         """
         log_messages: list[str] = []
 

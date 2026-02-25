@@ -60,6 +60,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             enable_caching: Whether to enable result caching
             cache_ttl: Cache TTL in seconds
             **strategy_kwargs: Additional arguments for strategy initialization (num_workers, network_timeout)
+
         """
         super().__init__()
 
@@ -125,6 +126,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         Returns:
             List of ThreeDEScene objects
+
         """
         try:
             # Step 1: Validate input
@@ -184,6 +186,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         Returns:
             List of all ThreeDEScene objects found
+
         """
         if not user_shots:
             self.logger.info("No user shots provided for scene discovery")
@@ -257,6 +260,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         Yields:
             Tuple of (scene_batch, current_shot, total_shots, status_message)
+
         """
         try:
             # Use progressive strategy if available
@@ -411,6 +415,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         Returns:
             Number of entries cleared
+
         """
         if self.enable_caching and self.cache:
             return self.cache.clear_cache()
@@ -421,6 +426,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         Returns:
             True if entry was invalidated, False if not found
+
         """
         if self.enable_caching and self.cache:
             return self.cache.invalidate_shot(show, sequence, shot)
@@ -431,6 +437,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         Returns:
             Number of entries invalidated
+
         """
         if self.enable_caching and self.cache:
             return self.cache.invalidate_show(show)
@@ -444,6 +451,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         Args:
             strategy_type: New strategy type
             **strategy_kwargs: Additional arguments for strategy initialization (num_workers, network_timeout)
+
         """
         # Lazy import to break circular dependency
         from scene_discovery_strategy import create_discovery_strategy
@@ -461,6 +469,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             show: Show name
             sequence: Sequence name (optional)
             shot: Shot name (optional)
+
         """
         if not self.enable_caching or not self.cache:
             self.logger.warning("Caching is disabled, cannot warm cache")

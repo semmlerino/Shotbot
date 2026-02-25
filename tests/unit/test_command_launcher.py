@@ -48,6 +48,18 @@ def ensure_qt_cleanup(qtbot: QtBot):
     process_qt_events()
 
 
+@pytest.fixture(autouse=True)
+def stable_terminal_detection(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default to a deterministic terminal in non-headless tests.
+
+    Tests that need headless behavior explicitly patch detect_terminal to None.
+    """
+    monkeypatch.setattr(
+        "command_launcher.EnvironmentManager.detect_terminal",
+        lambda _self: "gnome-terminal",
+    )
+
+
 class TestCommandLauncher:
     """Test CommandLauncher functionality."""
 
@@ -94,80 +106,51 @@ class TestCommandLauncher:
         launcher.set_current_shot(None)
         assert launcher.current_shot is None
 
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    @pytest.mark.parametrize(
+        ("app_name", "expected_token"),
+        [
+            ("nuke", "nuke"),
+            ("3de", "3de"),
+            ("maya", "maya"),
+            ("rv", "rv"),
+        ],
     )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_nuke(
+    def test_launch_supported_apps(
         self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
         launcher: CommandLauncher,
         test_shot: Shot,
-        qtbot: QtBot,
+        app_name: str,
+        expected_token: str,
     ) -> None:
-        """Test launching Nuke application."""
+        """Test launching supported applications with common expectations."""
         launcher.set_current_shot(test_shot)
 
-        # Setup mock
-        mock_popen.return_value = MagicMock()
+        with (
+            patch.object(
+                CommandLauncher, "_validate_workspace_before_launch", return_value=True
+            ),
+            patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False),
+            patch("launch.process_executor.subprocess.Popen") as mock_popen,
+        ):
+            mock_popen.return_value = MagicMock()
+            result = launcher.launch_app(app_name)
 
-        # Launch Nuke
-        result = launcher.launch_app("nuke")
-
-        # Verify launch was successful
         assert result is True
-
-        # Wait for QTimer.singleShot(100ms) callback to complete
         process_qt_events()
 
-        # Verify subprocess was called
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
-        assert (
-            "gnome-terminal" in call_args
-            or "xterm" in call_args
-            or "konsole" in call_args
-            or "x-terminal-emulator" in call_args
-            or "/bin/bash" in call_args
-        )
-        assert "nuke" in " ".join(call_args)
+        command_str = " ".join(call_args)
+        assert expected_token in command_str
 
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_3de(
-        self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
-        launcher: CommandLauncher,
-        test_shot: Shot,
-        qtbot: QtBot,
-    ) -> None:
-        """Test launching 3DE application."""
-        launcher.set_current_shot(test_shot)
-
-        # Setup mock
-        mock_popen.return_value = MagicMock()
-
-        # Launch 3DE
-        result = launcher.launch_app("3de")
-
-        # Verify launch was successful
-        assert result is True
-
-        # Wait for QTimer.singleShot(100ms) callback to complete
-        process_qt_events()
-
-        # Verify subprocess was called
-        assert mock_popen.called
-        call_args = mock_popen.call_args[0][0]
-        assert "3de" in " ".join(call_args)
+        if app_name == "nuke":
+            assert (
+                "gnome-terminal" in call_args
+                or "xterm" in call_args
+                or "konsole" in call_args
+                or "x-terminal-emulator" in call_args
+                or "/bin/bash" in call_args
+            )
 
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
@@ -201,74 +184,6 @@ class TestCommandLauncher:
         call_args = mock_popen.call_args[0][0]
         assert "3de" in " ".join(call_args)
         assert str(test_scene.scene_path) in " ".join(call_args)
-
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_maya(
-        self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
-        launcher: CommandLauncher,
-        test_shot: Shot,
-        qtbot: QtBot,
-    ) -> None:
-        """Test launching Maya application."""
-        launcher.set_current_shot(test_shot)
-
-        # Setup mock
-        mock_popen.return_value = MagicMock()
-
-        # Launch Maya
-        result = launcher.launch_app("maya")
-
-        # Verify launch was successful
-        assert result is True
-
-        # Wait for QTimer.singleShot(100ms) callback to complete
-        process_qt_events()
-
-        # Verify subprocess was called
-        assert mock_popen.called
-        call_args = mock_popen.call_args[0][0]
-        assert "maya" in " ".join(call_args)
-
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_rv(
-        self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
-        launcher: CommandLauncher,
-        test_shot: Shot,
-        qtbot: QtBot,
-    ) -> None:
-        """Test launching RV application."""
-        launcher.set_current_shot(test_shot)
-
-        # Setup mock
-        mock_popen.return_value = MagicMock()
-
-        # Launch RV
-        result = launcher.launch_app("rv")
-
-        # Verify launch was successful
-        assert result is True
-
-        # Wait for QTimer.singleShot(100ms) callback to complete
-        process_qt_events()
-
-        # Verify subprocess was called
-        assert mock_popen.called
-        call_args = mock_popen.call_args[0][0]
-        assert "rv" in " ".join(call_args)
 
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
@@ -448,28 +363,19 @@ class TestCommandLauncher:
         mock_popen: MagicMock,
         mock_rez: MagicMock,
         mock_validate: MagicMock,
-        monkeypatch: pytest.MonkeyPatch,
+        launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
     ) -> None:
         """Test that GUI apps are backgrounded when setting is enabled."""
-        # Mock is_ws_available
-        from launch import EnvironmentManager
-        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
-
-        # Create mock settings manager with background_gui_apps enabled
-        mock_settings = MagicMock()
-        mock_settings.get_background_gui_apps.return_value = True
-
-        # Create launcher with mock settings
-        launcher = CommandLauncher(settings_manager=mock_settings)
         launcher.set_current_shot(test_shot)
 
         # Setup mock
         mock_popen.return_value = MagicMock()
 
         # Launch 3DE (a GUI app)
-        result = launcher.launch_app("3de")
+        with patch.object(launcher._settings_manager, "get_background_gui_apps", return_value=True):
+            result = launcher.launch_app("3de")
 
         # Verify launch was successful
         assert result is True
@@ -507,7 +413,8 @@ class TestCommandLauncher:
         mock_popen.return_value = MagicMock()
 
         # Launch 3DE (a GUI app) - default setting is False
-        result = launcher.launch_app("3de")
+        with patch.object(launcher._settings_manager, "get_background_gui_apps", return_value=False):
+            result = launcher.launch_app("3de")
 
         # Verify launch was successful
         assert result is True
@@ -536,6 +443,7 @@ class TestCommandLauncherSignals:
 
         return CommandLauncher()
 
+    @pytest.mark.allow_dialogs  # Warning dialogs are acceptable in this smoke-style path test
     def test_signal_data_format(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
         """Test basic launcher functionality."""
         shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")

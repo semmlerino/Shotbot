@@ -7,7 +7,6 @@ In Maya Script Editor (Python):
     exec(open('/nethome/gabriel-h/Python/Shotbot/scripts/check_sgtk_apps.py').read())
 """
 
-import os
 
 print("=" * 60)
 print(" SGTK Apps & Commands Check")
@@ -59,7 +58,7 @@ try:
             env = engine.sgtk.pipeline_configuration.get_environment(
                 "shot_step", engine.context
             )
-            print(f"    Environment: shot_step")
+            print("    Environment: shot_step")
             print(f"    Engines: {list(env.get_engines())}")
         except Exception as e:
             print(f"    Could not get environment: {e}")

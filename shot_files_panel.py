@@ -55,6 +55,7 @@ class FileListItem(QFrame):
             scene_file: The scene file to display
             file_pin_manager: Optional pin manager for pin operations
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         self._scene_file = scene_file
@@ -132,6 +133,7 @@ class FileListItem(QFrame):
 
         Args:
             pos: Menu position
+
         """
         menu = QMenu(self)
 
@@ -251,6 +253,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
             file_type: The type of files this section displays
             file_pin_manager: Optional pin manager for pin operations
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         self._file_type = file_type
@@ -311,6 +314,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
 
         Returns:
             Header text like "3DEqualizer (5)"
+
         """
         type_names = {
             FileType.THREEDE: "3DEqualizer",
@@ -329,6 +333,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
 
         Returns:
             Lightened hex color
+
         """
         hex_color = hex_color.lstrip("#")
         r = int(hex_color[0:2], 16)
@@ -353,6 +358,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
 
         Args:
             files: List of scene files to display
+
         """
         self._files = files
 
@@ -390,6 +396,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
 
         Returns:
             Sorted list with pinned files first
+
         """
         if not self._file_pin_manager:
             return files
@@ -430,6 +437,7 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
         Args:
             file_pin_manager: Optional pin manager for pin operations
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         self._file_pin_manager = file_pin_manager
@@ -506,6 +514,7 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
 
         Args:
             shot: The shot to display files for, or None to clear
+
         """
         self._current_shot = shot
 

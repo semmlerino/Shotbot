@@ -49,6 +49,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
 
         Args:
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         logger.debug("ThreeDEGridDelegate initialized")
@@ -59,6 +60,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
 
         Returns:
             Theme configuration for 3DE grid
+
         """
         return DelegateTheme(
             # 3DE specific colors with blue tint
@@ -91,6 +93,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
 
         Returns:
             Dictionary with 3DE scene data
+
         """
         if not index.isValid():
             return {}

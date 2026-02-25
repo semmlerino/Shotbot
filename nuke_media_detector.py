@@ -26,6 +26,7 @@ class NukeMediaDetector:
 
         Returns:
             Tuple of (first_frame, last_frame), defaults to (1001, 1100)
+
         """
         if not plate_path:
             return 1001, 1100  # Default VFX range
@@ -75,6 +76,7 @@ class NukeMediaDetector:
             Tuple of (colorspace_name, raw_flag)
             - For linear plates: ("linear", True)
             - For other plates: (colorspace_name, False)
+
         """
         if not plate_path:
             return "linear", True  # Default to linear raw
@@ -109,6 +111,7 @@ class NukeMediaDetector:
 
         Returns:
             Tuple of (width, height), defaults to (4312, 2304)
+
         """
         if not plate_path:
             return 4312, 2304  # Default production resolution
@@ -144,6 +147,7 @@ class NukeMediaDetector:
             - height: int
             - colorspace: str
             - raw_flag: bool
+
         """
         first_frame, last_frame = NukeMediaDetector.detect_frame_range(plate_path)
         width, height = NukeMediaDetector.detect_resolution(plate_path)
@@ -167,5 +171,6 @@ class NukeMediaDetector:
 
         Returns:
             Sanitized shot name safe for file paths and Nuke node names
+
         """
         return re.sub(r"[^\w\-_]", "_", shot_name)

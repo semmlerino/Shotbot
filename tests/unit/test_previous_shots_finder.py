@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Standard library imports
 
 # Local application imports
-from tests.test_doubles_previous_shots import create_test_shot, create_test_shots
+from tests.fixtures.doubles_previous_shots import create_test_shot, create_test_shots
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]

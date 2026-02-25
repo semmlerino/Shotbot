@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 
-sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.resolve()))
 
 # Standard library imports
 import fcntl
@@ -18,7 +18,6 @@ from pathlib import Path
 
 def test_basic_file_locking() -> None:
     """Test that fcntl file locking works as expected."""
-
     with tempfile.TemporaryDirectory() as tmpdir:
         lock_file = Path(tmpdir) / "test.lock"
         data_file = Path(tmpdir) / "counter.txt"

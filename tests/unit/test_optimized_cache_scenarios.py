@@ -16,9 +16,11 @@ from shot_model import ShotModel
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,  # CRITICAL for parallel safety
+    pytest.mark.performance_like,
 ]
 
 
+@pytest.mark.allow_main_thread  # Tests call pre_warm_session() synchronously from main thread
 class TestCacheScenarios:
     """Test cache hit/miss scenarios and performance tracking."""
 
@@ -169,11 +171,12 @@ class TestCacheScenarios:
 
         # Use test double instead of mock to track behavior
         # Local application imports
-        from tests.test_doubles_library import (
+        from tests.fixtures.doubles_library import (
             TestProcessPool,
         )
 
-        test_pool = TestProcessPool(strict=False)  # Permissive for this specific test
+        # Permissive for this test + allow_main_thread since test runs from main thread
+        test_pool = TestProcessPool(strict=False, allow_main_thread=True)
         test_pool.set_outputs("warming")
         model._process_pool = test_pool
 

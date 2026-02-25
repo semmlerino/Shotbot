@@ -48,6 +48,7 @@ class ShotGridDelegate(BaseThumbnailDelegate):
 
         Args:
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         logger.debug("ShotGridDelegate initialized")
@@ -58,6 +59,7 @@ class ShotGridDelegate(BaseThumbnailDelegate):
 
         Returns:
             Theme configuration for shot grid
+
         """
         return DelegateTheme(
             # Shot grid specific colors
@@ -89,6 +91,7 @@ class ShotGridDelegate(BaseThumbnailDelegate):
 
         Returns:
             Dictionary with shot data
+
         """
         if not index.isValid():
             return {}

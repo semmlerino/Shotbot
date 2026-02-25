@@ -34,6 +34,7 @@ class PlateDiscovery:
 
         Returns:
             List of plate names sorted by priority (e.g., ['FG01', 'BG01', 'FG02'])
+
         """
         base_path = PathUtils.build_raw_plate_path(workspace_path)
         if not PathUtils.validate_path_exists(base_path, "Plate base path"):
@@ -74,6 +75,7 @@ class PlateDiscovery:
 
         Returns:
             Path to highest resolution dir (e.g., .../4312x2304/) or None if not found
+
         """
         if not plate_dir.exists():
             logger.debug(f"Plate directory does not exist: {plate_dir}")
@@ -134,6 +136,7 @@ class PlateDiscovery:
 
         See Also:
             get_workspace_script_directory(): Recommended method for script storage
+
         """
         logger.warning(
             "get_plate_script_directory() is deprecated for script storage. "
@@ -184,6 +187,7 @@ class PlateDiscovery:
 
         Returns:
             Path to workspace script directory, or None if creation fails
+
         """
         # Standard library imports
         import os
@@ -222,6 +226,7 @@ class PlateDiscovery:
 
         Returns:
             List of (script_path, version) tuples sorted by version
+
         """
         script_dir = PlateDiscovery.get_workspace_script_directory(
             workspace_path, None, plate_name
@@ -266,6 +271,7 @@ class PlateDiscovery:
 
         Returns:
             Next version number (1 if no scripts exist)
+
         """
         existing_scripts = PlateDiscovery.find_existing_scripts(
             workspace_path, shot_name, plate_name

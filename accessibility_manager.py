@@ -70,6 +70,7 @@ class AccessibilityManager:
 
         Args:
             window: The main application window
+
         """
         window.setAccessibleName("ShotBot VFX Launcher")
         window.setAccessibleDescription(
@@ -85,6 +86,7 @@ class AccessibilityManager:
         Args:
             grid_widget: The grid widget to configure
             grid_type: Type of grid ("shots", "3de", "previous")
+
         """
         descriptions = {
             "shots": "Grid of assigned shots with thumbnails. Navigate with arrow keys, press Enter to select.",
@@ -134,6 +136,7 @@ class AccessibilityManager:
             name: Accessible name for the button
             description: Accessible description
             shortcut: keyboard shortcut
+
         """
         button.setAccessibleName(name)
 
@@ -154,6 +157,7 @@ class AccessibilityManager:
 
         Args:
             app_buttons: Dictionary of app name to button
+
         """
         shortcuts = {"3de": "3", "nuke": "N", "maya": "M", "rv": "R", "publish": "P"}
 
@@ -175,6 +179,7 @@ class AccessibilityManager:
             slider: The slider to configure
             name: Accessible name
             description: Accessible description
+
         """
         slider.setAccessibleName(name)
         slider.setAccessibleDescription(description)
@@ -186,6 +191,7 @@ class AccessibilityManager:
 
         Args:
             tab_widget: The tab widget to configure
+
         """
         tab_widget.setAccessibleName("Shot View Tabs")
         tab_widget.setAccessibleDescription(
@@ -211,6 +217,7 @@ class AccessibilityManager:
 
         Args:
             window: Main window with UI elements
+
         """
         # File menu tooltips
         if hasattr(window, "refresh_action") and window.refresh_action is not None:
@@ -262,6 +269,7 @@ class AccessibilityManager:
 
         Args:
             window: Main window to configure
+
         """
         # Define logical tab order
         if all(
@@ -312,6 +320,7 @@ class AccessibilityManager:
 
         Returns:
             CSS stylesheet string for focus indicators
+
         """
         return """
         /* Focus indicators for keyboard navigation */
@@ -346,6 +355,7 @@ class AccessibilityManager:
 
         Args:
             message: Message to announce
+
         """
         # Qt doesn't have a direct screen reader announcement API,
         # but we can use QAccessible events in more complex scenarios
@@ -361,6 +371,7 @@ class AccessibilityManager:
             widget: Widget being validated
             is_valid: Whether validation passed
             message: Validation message
+
         """
         if is_valid:
             widget.setAccessibleDescription(f"Valid: {message}")

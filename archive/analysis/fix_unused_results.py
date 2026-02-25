@@ -9,6 +9,7 @@ from typing import NamedTuple
 
 class WarningInfo(NamedTuple):
     """Represents a basedpyright warning."""
+
     filepath: str
     line_num: int
     return_type: str

@@ -13,7 +13,7 @@ import pytest
 # Local application imports
 from config import Config
 from shot_model import ShotModel
-from tests.test_doubles_library import TestProcessPool
+from tests.fixtures.doubles_library import TestProcessPool
 
 
 class TestVFXPathParsing:
@@ -22,7 +22,8 @@ class TestVFXPathParsing:
     @pytest.fixture
     def test_process_pool(self):
         """Create TestProcessPool for subprocess boundary mocking."""
-        return TestProcessPool()
+        # allow_main_thread=True because tests call refresh_shots() synchronously
+        return TestProcessPool(allow_main_thread=True)
 
     @pytest.fixture
     def shot_model(self, test_process_pool):

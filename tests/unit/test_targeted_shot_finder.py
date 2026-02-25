@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # Standard library imports
-import subprocess
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from pathlib import Path
@@ -145,17 +144,20 @@ class TestScanShowForUser:
         user_path = show_path / "user" / "john"
         user_path.mkdir(parents=True)
 
-        # Mock subprocess to return user path
-        with patch("targeted_shot_finder.subprocess.run") as mock_run:
-            mock_result = MagicMock()
-            mock_result.returncode = 0
-            mock_result.stdout = str(user_path)
-            mock_run.return_value = mock_result
+        # Mock CancellableSubprocess to return user path
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = str(user_path)
+        mock_result.status = "ok"
 
+        mock_proc = MagicMock()
+        mock_proc.run.return_value = mock_result
+
+        with patch("targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
             shots = finder._scan_show_for_user("test_show", shows_root)
 
             assert len(shots) > 0
-            mock_run.assert_called_once()
+            mock_proc.run.assert_called_once()
 
     def test_scan_nonexistent_show(self, tmp_path: Path) -> None:
         """Test scanning a show that doesn't exist."""
@@ -187,8 +189,17 @@ class TestScanShowForUser:
         show_path = shows_root / "test_show" / "shots"
         show_path.mkdir(parents=True)
 
+        # Mock CancellableSubprocess to return timeout status
+        mock_result = MagicMock()
+        mock_result.returncode = None
+        mock_result.stdout = ""
+        mock_result.status = "timeout"
+
+        mock_proc = MagicMock()
+        mock_proc.run.return_value = mock_result
+
         with patch(
-            "subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 30)
+            "targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
         ), patch.object(finder.logger, "warning") as mock_warning:
             shots = finder._scan_show_for_user("test_show", shows_root)
 
@@ -204,8 +215,12 @@ class TestScanShowForUser:
         show_path = shows_root / "test_show" / "shots"
         show_path.mkdir(parents=True)
 
+        # Mock CancellableSubprocess to raise an exception
+        mock_proc = MagicMock()
+        mock_proc.run.side_effect = Exception("Process failed")
+
         with patch(
-            "subprocess.run", side_effect=Exception("Process failed")
+            "targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
         ), patch.object(finder.logger, "error") as mock_error:
             shots = finder._scan_show_for_user("test_show", shows_root)
 
@@ -226,19 +241,22 @@ class TestScanShowForUser:
 
         finder = TargetedShotsFinder(username="artist")
 
-        # Mock subprocess to return multiple paths (need proper shot directory names)
+        # Mock CancellableSubprocess to return multiple paths
         user_paths = [
             f"{shows_root}/myshow/shots/010/010_0010/user/artist",
             f"{shows_root}/myshow/shots/010/010_0020/user/artist",
             f"{shows_root}/myshow/shots/020/020_0010/user/artist",
         ]
 
-        with patch("targeted_shot_finder.subprocess.run") as mock_run:
-            mock_result = MagicMock()
-            mock_result.returncode = 0
-            mock_result.stdout = "\n".join(user_paths)
-            mock_run.return_value = mock_result
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "\n".join(user_paths)
+        mock_result.status = "ok"
 
+        mock_proc = MagicMock()
+        mock_proc.run.return_value = mock_result
+
+        with patch("targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
             shots = finder._scan_show_for_user("myshow", shows_root)
 
             assert len(shots) == 3

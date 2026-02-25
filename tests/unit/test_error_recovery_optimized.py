@@ -11,6 +11,7 @@ from PySide6.QtTest import QSignalSpy
 
 # Local application imports
 from shot_model import AsyncShotLoader, ShotModel
+from tests.test_helpers import process_qt_events
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
@@ -50,9 +51,21 @@ class TestErrorRecovery:
     @pytest.fixture
     def error_prone_model(self, real_cache_manager):
         """Create model for error testing."""
-        return ShotModel(real_cache_manager)
+        model = ShotModel(real_cache_manager)
+        try:
+            yield model
+        finally:
+            model.cleanup()
 
-    def test_network_failure_recovery(self, error_prone_model, qtbot) -> None:
+    @staticmethod
+    def _wait_for_loader(model: ShotModel, timeout_ms: int = 3000) -> None:
+        """Wait for active async loader to finish and deliver queued signals."""
+        loader = model._async_loader
+        assert loader is not None, "Expected async loader to be started"
+        assert loader.wait(timeout_ms), f"Background loader did not finish in {timeout_ms}ms"
+        process_qt_events(duration_ms=10, iterations=4)
+
+    def test_network_failure_recovery(self, error_prone_model) -> None:
         """Test recovery from network/filesystem failures."""
         # Use test double that fails first, then succeeds
         failing_pool = TestProcessPoolDouble(failure_mode="network_error")
@@ -65,8 +78,8 @@ class TestErrorRecovery:
         result1 = error_prone_model.initialize_async()
         assert result1.success is True  # initialize_async always returns True
 
-        # Wait for error signal
-        qtbot.waitUntil(lambda: error_spy.count() > 0, timeout=3000)
+        # Wait for background worker completion and queued signal delivery
+        self._wait_for_loader(error_prone_model)
 
         # Verify error was handled
         assert error_spy.count() == 1
@@ -77,7 +90,7 @@ class TestErrorRecovery:
         result2 = error_prone_model.refresh_shots()
         assert result2.success is True
 
-    def test_timeout_handling(self, error_prone_model, qtbot) -> None:
+    def test_timeout_handling(self, error_prone_model) -> None:
         """Test handling of command timeouts."""
         # Use test double that simulates timeout
         timeout_pool = TestProcessPoolDouble(failure_mode="timeout_error")
@@ -94,8 +107,8 @@ class TestErrorRecovery:
         elapsed = time.perf_counter() - start_time
         assert elapsed < 0.1, "Initialization should return immediately"
 
-        # Wait for error signal from background timeout
-        qtbot.waitUntil(lambda: error_spy.count() > 0, timeout=3000)
+        # Wait for background timeout handling
+        self._wait_for_loader(error_prone_model)
         assert error_spy.count() == 1
         assert "timed out" in error_spy.at(0)[0].lower()
 
@@ -137,7 +150,7 @@ class TestErrorRecovery:
         assert len(error_prone_model.shots) == 0  # But no shots loaded
         # Should not crash the application
 
-    def test_async_loader_exception_handling(self, qtbot) -> None:
+    def test_async_loader_exception_handling(self) -> None:
         """Test AsyncShotLoader handles exceptions properly."""
 
         # Create failing process pool using test double
@@ -250,7 +263,7 @@ workspace {shows_root}/test/shots/seq03/seq03_0030"""
         # Cleanup should complete quickly
         assert cleanup_time < 2.0, f"Cleanup took {cleanup_time:.3f}s, too slow"
 
-    def test_error_metrics_tracking(self, error_prone_model, qtbot) -> None:
+    def test_error_metrics_tracking(self, error_prone_model) -> None:
         """Test that errors are tracked in performance metrics."""
 
         # Use test double that always fails
@@ -264,8 +277,8 @@ workspace {shows_root}/test/shots/seq03/seq03_0030"""
         # Attempt operations that will fail
         error_prone_model.initialize_async()
 
-        # Minimal event processing
-        qtbot.wait(1)
+        # Ensure queued updates are delivered before reading metrics
+        process_qt_events(duration_ms=5, iterations=2)
 
         # Metrics should be available even after errors
         metrics = error_prone_model.get_performance_metrics()

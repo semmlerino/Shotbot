@@ -969,13 +969,28 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         This method shuts down the process pool and resets the singleton instance.
         It should only be used in test cleanup to ensure test isolation.
+
+        IMPORTANT: Calls deleteLater() on the QObject to ensure proper Qt cleanup.
+        Without this, Qt event processing may access stale QObject references,
+        causing segfaults in pytestqt's _process_events.
         """
-        # Shutdown existing instance if it exists
-        if cls._instance is not None:
+        instance = cls._instance
+        if instance is not None:
             try:
-                cls._instance.shutdown(timeout=2.0)
+                instance.shutdown(timeout=2.0)
             except Exception as e:
                 logger.warning(f"Error during reset shutdown: {e}")
+
+            # Schedule Qt object deletion - CRITICAL for preventing segfaults
+            # in pytestqt event processing after test teardown.
+            # Check for deleteLater to handle mock objects in tests that don't
+            # inherit from QObject.
+            if hasattr(instance, "deleteLater") and callable(instance.deleteLater):
+                try:
+                    instance.deleteLater()
+                except (RuntimeError, AttributeError):
+                    # Already deleted or in invalid state
+                    pass
 
         # Reset singleton state
         with cls._lock:

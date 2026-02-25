@@ -77,6 +77,7 @@ def create_scene_file(
 
     Returns:
         SceneFile instance
+
     """
     from datetime import timedelta
 

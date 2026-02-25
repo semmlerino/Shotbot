@@ -44,6 +44,7 @@ class SignalDouble:
         signal.emit("test", 123)
         assert signal.was_emitted
         assert results == [("test", 123)]
+
     """
 
     __test__ = False  # Prevent pytest from collecting this as a test class
@@ -120,6 +121,7 @@ class QtSignalDouble:
 
     Note:
         Requires QApplication to be running. Use with qtbot fixture.
+
     """
 
     __test__ = False  # Prevent pytest from collecting this as a test class
@@ -129,6 +131,7 @@ class QtSignalDouble:
 
         Args:
             parent: Optional parent QObject for proper Qt ownership.
+
         """
         from PySide6.QtCore import QObject, Qt, Signal
 
@@ -208,8 +211,8 @@ class TestProcessPool:
     This is the canonical test double that consolidates features from:
     - fixtures/test_doubles.py (original canonical)
     - test_helpers.py TestProcessPoolManager (TTL-aware cache, signals)
-    - test_doubles_library.py TestProcessPool (metrics)
-    - test_doubles_extended.py TestProcessPoolDouble (kwargs tracking, delays)
+    - fixtures/doubles_library.py TestProcessPool (metrics)
+    - fixtures/doubles_extended.py TestProcessPoolDouble (kwargs tracking, delays)
 
     Basic Usage:
         def test_something(test_process_pool):
@@ -230,6 +233,7 @@ class TestProcessPool:
     Args:
         ttl_aware: If True, enable TTL-based caching (like TestProcessPoolManager)
         track_kwargs: If True, track kwargs for each command (like TestProcessPoolDouble)
+
     """
 
     __test__ = False  # Prevent pytest from collecting this as a test class
@@ -240,7 +244,7 @@ class TestProcessPool:
         ttl_aware: bool = False,
         track_kwargs: bool = False,
         strict: bool = True,
-        allow_main_thread: bool = True,
+        allow_main_thread: bool = False,
         enforce_thread_guard: bool = False,
     ) -> None:
         """Initialize the test double.
@@ -252,18 +256,21 @@ class TestProcessPool:
                    is called without first calling set_outputs(). This prevents tests from
                    silently passing with empty output. Use @pytest.mark.permissive_process_pool
                    to opt out for tests that intentionally don't need specific output.
-            allow_main_thread: If True (default), allow calls from main/UI thread.
-                   Default True for backward compatibility with existing tests.
+            allow_main_thread: If True, allow calls from main/UI thread.
+                   Default False to match production behavior (which raises RuntimeError).
+                   Use @pytest.mark.allow_main_thread to opt-out for tests that intentionally
+                   test synchronous UI behavior.
             enforce_thread_guard: If True, reject main-thread calls like the real ProcessPoolManager.
                    Use this in contract tests to verify proper threading behavior.
                    Takes precedence over allow_main_thread.
+
         """
         # Feature flags
         self._ttl_aware = ttl_aware
         self._track_kwargs = track_kwargs
         self._strict = strict
-        # For backward compatibility: allow_main_thread=True by default
-        # For contract testing: enforce_thread_guard=True to enable the guard
+        # Default False to match production behavior (UI-thread calls raise RuntimeError)
+        # Use @pytest.mark.allow_main_thread to opt-out for specific tests
         self._allow_main_thread = allow_main_thread and not enforce_thread_guard
 
         # Core state
@@ -310,6 +317,7 @@ class TestProcessPool:
         Default behavior (repeat=True) handles race conditions with background threads
         that may call execute_workspace_command() multiple times unpredictably.
         Use repeat=False for tests that need specific sequential outputs.
+
         """
         self._outputs_configured = True
         self._outputs_queue = list(outputs)
@@ -328,6 +336,7 @@ class TestProcessPool:
         Args:
             should_fail: Whether to fail
             message: Error message to use
+
         """
         self.should_fail = should_fail
         self.fail_with_message = message
@@ -353,6 +362,7 @@ class TestProcessPool:
         Raises:
             RuntimeError: If configured to fail
             TimeoutError: If configured to timeout
+
         """
         self.call_count += 1
 
@@ -449,6 +459,7 @@ class TestProcessPool:
 
         Returns:
             Tuple of (success, output_or_error)
+
         """
         try:
             output = self.execute_workspace_command(command, **kwargs)
@@ -461,6 +472,7 @@ class TestProcessPool:
 
         Args:
             command: Specific command to invalidate, or None for all
+
         """
         if command:
             self._cache.pop(command, None)
@@ -514,6 +526,7 @@ class TestProcessPool:
 
         Returns:
             List of matching file paths
+
         """
         try:
             path = Path(directory)
@@ -536,6 +549,7 @@ class TestProcessPool:
 
         Returns:
             Number of matching executions
+
         """
         if command_pattern is None:
             return len(self.commands)
@@ -549,6 +563,7 @@ class TestProcessPool:
 
         Returns:
             Kwargs dictionary
+
         """
         if command:
             return self.command_kwargs.get(command, {})
@@ -562,6 +577,7 @@ class TestProcessPool:
 
         Returns:
             Dictionary with execution statistics
+
         """
         total_delay = sum(self.execution_delays)
         return {
@@ -609,6 +625,8 @@ def test_process_pool(request: pytest.FixtureRequest) -> TestProcessPool:
     MARKERS:
         @pytest.mark.permissive_process_pool: Disable strict mode
         @pytest.mark.enforce_thread_guard: Enable main-thread rejection (contract testing)
+        @pytest.mark.allow_main_thread: Allow calls from main/UI thread (opt-out from guard)
+
     """
     # Check for markers
     is_permissive = "permissive_process_pool" in [
@@ -617,7 +635,14 @@ def test_process_pool(request: pytest.FixtureRequest) -> TestProcessPool:
     enforce_guard = "enforce_thread_guard" in [
         m.name for m in request.node.iter_markers()
     ]
-    return TestProcessPool(strict=not is_permissive, enforce_thread_guard=enforce_guard)
+    allow_main = "allow_main_thread" in [
+        m.name for m in request.node.iter_markers()
+    ]
+    return TestProcessPool(
+        strict=not is_permissive,
+        enforce_thread_guard=enforce_guard,
+        allow_main_thread=allow_main,
+    )
 
 
 @pytest.fixture
@@ -652,6 +677,7 @@ def make_test_launcher():
 
         Returns:
             CustomLauncher instance
+
         """
         if launcher_id is None:
             launcher_id = str(uuid.uuid4())
@@ -686,8 +712,8 @@ def shot_model_factory(test_process_pool: TestProcessPool):
 
     Returns:
         Factory callable that creates configured ShotModel instances
-    """
 
+    """
     from cache_manager import CacheManager
     from shot_model import ShotModel
 
@@ -707,6 +733,7 @@ def shot_model_factory(test_process_pool: TestProcessPool):
 
         Returns:
             ShotModel instance with test_process_pool injected
+
         """
         if cache_manager is None and cache_dir is not None:
             cache_dir.mkdir(parents=True, exist_ok=True)

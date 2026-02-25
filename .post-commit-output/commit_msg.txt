@@ -1,1 +1,1 @@
-feat: Add keyboard shortcut event filter and improve cache file locking
+docs: slim CLAUDE.md from 745 to 149 lines

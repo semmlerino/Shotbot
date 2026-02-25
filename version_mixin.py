@@ -62,6 +62,7 @@ class VersionHandlingMixin(LoggingMixin):
 
         Returns:
             Version number as integer, or None if not found
+
         """
         # Convert Path to string
         path_str = str(path)
@@ -105,6 +106,7 @@ class VersionHandlingMixin(LoggingMixin):
 
         Returns:
             Path to latest version or None if no versioned files
+
         """
         if not files:
             return None
@@ -140,6 +142,7 @@ class VersionHandlingMixin(LoggingMixin):
 
         Returns:
             Path to earliest version or None if no versioned files
+
         """
         if not files:
             return None
@@ -181,6 +184,7 @@ class VersionHandlingMixin(LoggingMixin):
 
         Returns:
             Sorted list of files
+
         """
         if not files:
             return []
@@ -221,6 +225,7 @@ class VersionHandlingMixin(LoggingMixin):
 
         Returns:
             Tuple of (min_version, max_version) or None if no versions found
+
         """
         versions: list[int] = []
 
@@ -251,6 +256,7 @@ class VersionHandlingMixin(LoggingMixin):
 
         Returns:
             Filtered list of files within version range
+
         """
         filtered: list[Path] = []
 
@@ -285,6 +291,7 @@ class VersionHandlingMixin(LoggingMixin):
 
         Returns:
             Dictionary mapping version numbers to lists of files
+
         """
         groups: dict[int, list[Path]] = {}
 
@@ -312,6 +319,7 @@ class VersionHandlingMixin(LoggingMixin):
 
         Returns:
             Next version number (highest + 1, or 1 if no versions found)
+
         """
         if not files:
             return 1
@@ -336,5 +344,6 @@ class VersionHandlingMixin(LoggingMixin):
 
         Returns:
             Formatted version string (e.g., "001", "042")
+
         """
         return f"{version:0{padding}d}"

@@ -36,6 +36,7 @@ class ShotFileFinder(LoggingMixin):
         Returns:
             Dictionary mapping FileType to list of SceneFile objects,
             sorted by modification time (newest first) within each type
+
         """
         return {
             FileType.THREEDE: self._find_threede_files(shot),
@@ -51,6 +52,7 @@ class ShotFileFinder(LoggingMixin):
 
         Returns:
             List of SceneFile objects for 3DE files, sorted by mtime (newest first)
+
         """
         paths = ThreeDELatestFinder.find_all_threede_scenes(shot.workspace_path)
         return self._paths_to_scene_files(paths, FileType.THREEDE)
@@ -63,6 +65,7 @@ class ShotFileFinder(LoggingMixin):
 
         Returns:
             List of SceneFile objects for Maya files, sorted by mtime (newest first)
+
         """
         paths = MayaLatestFinder.find_all_maya_scenes(shot.workspace_path)
         return self._paths_to_scene_files(paths, FileType.MAYA)
@@ -78,6 +81,7 @@ class ShotFileFinder(LoggingMixin):
 
         Returns:
             List of SceneFile objects for Nuke files, sorted by mtime (newest first)
+
         """
         workspace = Path(shot.workspace_path)
         if not workspace.exists():
@@ -125,6 +129,7 @@ class ShotFileFinder(LoggingMixin):
 
         Returns:
             List of SceneFile objects, sorted by modification time (newest first)
+
         """
         scene_files: list[SceneFile] = []
 
@@ -162,6 +167,7 @@ class ShotFileFinder(LoggingMixin):
 
         Returns:
             Username or 'unknown' if not found
+
         """
         parts = path.parts
         try:
@@ -182,6 +188,7 @@ class ShotFileFinder(LoggingMixin):
 
         Returns:
             Version number or None if not found
+
         """
         match = self.VERSION_PATTERN.search(path.name)
         if match:

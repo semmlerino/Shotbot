@@ -40,12 +40,12 @@ STRICT_CLEANUP = (
 )
 
 # Fail mode: pytest.fail() on thread leaks
-# Auto-enabled in CI environments to catch thread leaks before merge
+# Enabled by default to catch thread leaks early in development
 # STRICT_CLEANUP only logs warnings; FAIL_ON_THREAD_LEAK makes tests fail
+# Opt-out with SHOTBOT_TEST_ALLOW_THREAD_LEAKS=1 for quick local runs
 FAIL_ON_THREAD_LEAK = (
-    os.environ.get("SHOTBOT_TEST_FAIL_ON_THREAD_LEAK", "0") == "1"
-    or os.environ.get("CI") == "true"
-    or os.environ.get("GITHUB_ACTIONS") == "true"
+    os.environ.get("SHOTBOT_TEST_ALLOW_THREAD_LEAKS", "0") != "1"
+    and os.environ.get("SHOTBOT_TEST_FAIL_ON_THREAD_LEAK", "1") == "1"
 )
 
 # Thread count tolerance - reduced from 2 to 1 to catch single-thread leaks
@@ -79,6 +79,7 @@ def get_thread_leak_summary() -> str | None:
     Returns:
         Formatted summary string if leaks were detected, None otherwise.
         Also clears the leak list after generating summary.
+
     """
     if not _thread_leak_summary:
         return None
@@ -130,6 +131,7 @@ def _is_expected_thread(thread_name: str) -> bool:
 
     Returns:
         True if the thread is expected/harmless, False if it's a potential leak
+
     """
     return any(thread_name.startswith(prefix) for prefix in _EXPECTED_THREAD_PREFIXES)
 
@@ -158,6 +160,7 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
 
     Args:
         qapp: QApplication fixture from qt_bootstrap
+
     """
     import threading
     import time
@@ -285,16 +288,22 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
                     "all_threads": all_surviving,  # Full list for debugging
                 })
 
-        # FAIL_ON_THREAD_LEAK: Make tests fail immediately (auto-enabled in CI)
+        # FAIL_ON_THREAD_LEAK: Make tests fail immediately (enabled by default)
         # Only fail if there are UNEXPECTED threads (not just daemon count increase)
-        if FAIL_ON_THREAD_LEAK and unexpected_threads:
+        # Skip failure for tests marked with @pytest.mark.thread_leak_ok
+        has_leak_ok_marker = "thread_leak_ok" in [
+            m.name for m in request.node.iter_markers()
+        ]
+        if FAIL_ON_THREAD_LEAK and unexpected_threads and not has_leak_ok_marker:
             pytest.fail(
-                f"THREAD LEAK DETECTED (FAIL_ON_THREAD_LEAK=1, auto-enabled in CI)\n"
+                f"THREAD LEAK DETECTED (FAIL_ON_THREAD_LEAK is enabled by default)\n"
                 f"QThreadPool: {baseline_pool_threads} -> {final_pool_threads} "
                 f"(+{final_pool_threads - baseline_pool_threads})\n"
                 f"Python threads: {baseline_python_threads} -> {final_python_threads} "
                 f"(+{final_python_threads - baseline_python_threads})\n"
                 f"Unexpected threads: {unexpected_threads}\n"
-                f"(Expected threads filtered: {_EXPECTED_THREAD_PREFIXES})",
+                f"(Expected threads filtered: {_EXPECTED_THREAD_PREFIXES})\n"
+                f"To opt-out, add @pytest.mark.thread_leak_ok or set "
+                f"SHOTBOT_TEST_ALLOW_THREAD_LEAKS=1",
                 pytrace=False,
             )

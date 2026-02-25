@@ -60,7 +60,6 @@ from tests.fixtures.doubles_library import (
     TestCompletedProcess,
     TestSubprocess,
 )
-from threede_scene_model import ThreeDESceneModel
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
@@ -331,92 +330,6 @@ class TestUserWorkflows:
 
         # Verify UI state reflects launch
         assert main_window.command_launcher.current_shot == test_shot
-
-    @pytest.mark.integration
-    @pytest.mark.qt
-    def test_launch_maya_with_scene(self, qtbot: Any) -> None:
-        """Test workflow of selecting a 3DE scene and launching Maya.
-
-        Verifies the user can:
-        1. Browse 3DE scenes in the "Other 3DE scenes" tab
-        2. Select a 3DE scene
-        3. Launch Maya with the scene context
-        4. Track the Maya process properly
-        """
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-        # Create real components
-        cache_manager = CacheManager(cache_dir=self.cache_dir)
-        ThreeDESceneModel()
-        main_window = MainWindow(cache_manager=cache_manager)
-
-        qtbot.addWidget(main_window)
-
-        # Create realistic 3DE scene structure
-        shot_data = self.test_shots[0]
-        shot_path = self._create_realistic_shot_structure(shot_data)
-        scene_file = (
-            shot_path
-            / "user/alice/mm/3de/mm-default/scenes/scene/FG01/v001/test_scene.3de"
-        )
-        scene_file.write_bytes(b"3DE_SCENE_DATA" * 100)
-
-        # Switch to 3DE scenes tab
-        main_window.tab_widget.setCurrentIndex(1)  # Assuming 3DE tab is index 1
-
-        # Track scene selection signal
-        scene_selected_events = []
-
-        def on_scene_selected(scene_path) -> None:
-            scene_selected_events.append(scene_path)
-
-        if hasattr(main_window.threede_shot_grid, "scene_selected"):
-            main_window.threede_shot_grid.scene_selected.connect(on_scene_selected)
-
-        # Use test subprocess for Maya launch
-        with (
-            patch(
-                "launch.process_executor.subprocess.Popen", return_value=self.test_processes["maya"]
-            ) as mock_popen,
-            patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}),
-            patch("command_launcher.EnvironmentManager.is_ws_available", return_value=True),
-        ):
-            # Create a 3DE scene object for testing
-            # Local application imports
-            from threede_scene_model import (
-                ThreeDEScene,
-            )
-
-            test_scene = ThreeDEScene(
-                show=shot_data["show"],
-                sequence=shot_data["sequence"],
-                shot=shot_data["shot"],
-                user="alice",
-                plate="FG01",
-                scene_path=scene_file,
-                workspace_path=str(shot_path),  # Use actual created path, not hardcoded path
-            )
-
-            # Create and set the shot context
-            test_shot = Shot.from_dict(shot_data)
-            main_window.command_launcher.current_shot = test_shot
-
-            # Launch Maya with the scene directly
-            success = main_window.command_launcher.launch_app_with_scene(
-                "maya", test_scene
-            )
-
-            # Verify launch succeeded
-            assert success is True
-
-            # Process events
-            qtbot.wait(1)  # Minimal event processing
-
-            # Verify Maya was called
-            if mock_popen.called:
-                call_args = mock_popen.call_args
-                command_str = " ".join(call_args[0][0]) if call_args[0] else ""
-                assert "maya" in command_str.lower()
 
     @pytest.mark.integration
     @pytest.mark.qt

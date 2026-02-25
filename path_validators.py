@@ -51,6 +51,7 @@ def get_cache_stats() -> dict[str, int]:
 
     Returns:
         Dictionary with cache size
+
     """
     with _path_cache_lock:
         return {"path_cache_size": len(_path_cache)}
@@ -71,6 +72,7 @@ class PathValidators:
 
         Returns:
             True if path exists, False otherwise
+
         """
         if not path:
             logger.debug(f"{description} is empty")
@@ -157,6 +159,7 @@ class PathValidators:
 
         Returns:
             Dictionary mapping path strings to existence status
+
         """
         results: dict[str, bool] = {}
         current_time = time.time()

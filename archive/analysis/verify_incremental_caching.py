@@ -51,6 +51,7 @@ def generate_mock_shots(count: int, show: str = "broken_eggs") -> list[Shot]:
 
     Returns:
         List of Shot objects with sequential naming
+
     """
     shots = []
     for i in range(count):
@@ -68,6 +69,7 @@ def verify_initial_load() -> tuple[bool, CacheManager, Path]:
 
     Returns:
         Tuple of (success, cache_manager, cache_dir)
+
     """
     print_header("Test 1: Initial Load (432 Shots)")
 
@@ -112,6 +114,7 @@ def verify_merge_no_changes(cache_manager: CacheManager) -> bool:
 
     Returns:
         True if test passes
+
     """
     print_header("Test 2: Merge No Changes (432 → 432)")
 
@@ -154,6 +157,7 @@ def verify_remove_shots(cache_manager: CacheManager) -> bool:
 
     Returns:
         True if test passes
+
     """
     print_header("Test 3: Remove 3 Shots (432 → 429)")
 
@@ -220,6 +224,7 @@ def verify_deduplication(cache_manager: CacheManager) -> bool:
 
     Returns:
         True if test passes
+
     """
     print_header("Test 4: Deduplication (Composite Keys)")
 
@@ -278,6 +283,7 @@ def verify_performance(cache_manager: CacheManager) -> bool:
 
     Returns:
         True if test passes
+
     """
     print_header("Test 5: Performance Benchmark")
 
@@ -315,6 +321,7 @@ def cleanup_cache(cache_dir: Path) -> None:
 
     Args:
         cache_dir: Path to cache directory to remove
+
     """
     import shutil
 
@@ -330,6 +337,7 @@ def main() -> int:
 
     Returns:
         Exit code (0 = success, 1 = failure)
+
     """
     print("\n" + "=" * 70)
     print("  INCREMENTAL CACHING VERIFICATION")

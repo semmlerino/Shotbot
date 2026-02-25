@@ -56,6 +56,7 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
 
         Returns:
             Path to the Nuke scripts directory
+
         """
         if user is None:
             user = os.environ.get("USER", "gabriel-h")
@@ -102,6 +103,7 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
 
         Returns:
             Path to the latest Nuke script, or None if none exist
+
         """
         if not directory.exists():
             return None
@@ -168,6 +170,7 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
 
         Returns:
             Tuple of (path to next version, version number)
+
         """
         # Build the filename pattern
         pattern = f"{shot_name}_{plate}_{pass_name}_scene_v*.nk"
@@ -203,6 +206,7 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
 
         Returns:
             List of (path, version) tuples sorted by version
+
         """
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
             workspace_path, user, plate, pass_name

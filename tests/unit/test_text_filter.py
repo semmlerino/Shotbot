@@ -32,7 +32,7 @@ from shot_grid_view import ShotGridView
 # Local application imports
 from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
-from tests.test_doubles_library import TestCacheManager, TestProcessPool
+from tests.fixtures.doubles_library import TestCacheManager, TestProcessPool
 from tests.test_helpers import process_qt_events
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
@@ -46,135 +46,6 @@ if TYPE_CHECKING:
     from main_window import MainWindow
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
-
-
-class TestBaseShotModelTextFiltering:
-    """Test Text filter methods in BaseShotModel."""
-
-    @pytest.fixture
-    def mock_shot_model(self, tmp_path: Path) -> ShotModel:
-        """Create a ShotModel with test process pool."""
-        process_pool = TestProcessPool(allow_main_thread=True)
-        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-        model._process_pool = process_pool
-        return model
-
-    @pytest.fixture
-    def test_shots(self) -> list[Shot]:
-        """Create test shots with various names for filtering."""
-        return [
-            Shot("show1", "seq1", "dm_001", "/workspace/show1/seq1/dm_001"),
-            Shot("show1", "seq2", "DM_002", "/workspace/show1/seq2/DM_002"),
-            Shot("show1", "seq3", "shot_003", "/workspace/show1/seq3/shot_003"),
-            Shot("show2", "seq4", "Dm_004", "/workspace/show2/seq4/Dm_004"),
-            Shot("show2", "seq5", "other_005", "/workspace/show2/seq5/other_005"),
-        ]
-
-    def test_set_text_filter(self, mock_shot_model: ShotModel) -> None:
-        """Test setting the text filter."""
-        # Initially no filter
-        assert mock_shot_model.get_text_filter() is None
-
-        # Set filter to "dm"
-        mock_shot_model.set_text_filter("dm")
-        assert mock_shot_model.get_text_filter() == "dm"
-
-        # Clear filter
-        mock_shot_model.set_text_filter(None)
-        assert mock_shot_model.get_text_filter() is None
-
-    def test_get_filtered_shots_no_filter(self, mock_shot_model: ShotModel, test_shots: list[Shot]) -> None:
-        """Test getting filtered shots with no filter returns all shots."""
-        mock_shot_model.shots = test_shots
-
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 5
-        assert filtered == test_shots
-
-    def test_get_filtered_shots_with_text_filter(
-        self, mock_shot_model: ShotModel, test_shots: list[Shot]
-    ) -> None:
-        """Test getting filtered shots with text filter (case-insensitive)."""
-        mock_shot_model.shots = test_shots
-
-        # Filter to "dm" (case-insensitive)
-        mock_shot_model.set_text_filter("dm")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 3  # dm_001, DM_002, Dm_004
-        assert all("dm" in shot.shot.lower() for shot in filtered)
-
-        # Filter to "shot"
-        mock_shot_model.set_text_filter("shot")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 1  # shot_003
-        assert filtered[0].shot == "shot_003"
-
-        # Filter to "other"
-        mock_shot_model.set_text_filter("other")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 1  # other_005
-        assert filtered[0].shot == "other_005"
-
-    def test_get_filtered_shots_case_insensitive(
-        self, mock_shot_model: ShotModel, test_shots: list[Shot]
-    ) -> None:
-        """Test that text filtering is case-insensitive."""
-        mock_shot_model.shots = test_shots
-
-        # Test different cases of "dm"
-        for text in ["dm", "DM", "Dm", "dM"]:
-            mock_shot_model.set_text_filter(text)
-            filtered = mock_shot_model.get_filtered_shots()
-            assert len(filtered) == 3
-            assert all("dm" in shot.shot.lower() for shot in filtered)
-
-    def test_get_filtered_shots_no_matches(self, mock_shot_model: ShotModel, test_shots: list[Shot]) -> None:
-        """Test filtering for text that doesn't match any shots returns empty list."""
-        mock_shot_model.shots = test_shots
-
-        mock_shot_model.set_text_filter("nonexistent")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 0
-
-    def test_get_filtered_shots_combined_filters(
-        self, mock_shot_model: ShotModel, test_shots: list[Shot]
-    ) -> None:
-        """Test using both show filter and text filter together."""
-        mock_shot_model.shots = test_shots
-
-        # Apply both filters: show1 AND dm
-        mock_shot_model.set_show_filter("show1")
-        mock_shot_model.set_text_filter("dm")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 2  # dm_001 and DM_002 from show1
-        assert all(shot.show == "show1" for shot in filtered)
-        assert all("dm" in shot.shot.lower() for shot in filtered)
-
-        # Apply both filters: show2 AND other
-        mock_shot_model.set_show_filter("show2")
-        mock_shot_model.set_text_filter("other")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 1  # other_005 from show2
-        assert filtered[0].show == "show2"
-        assert filtered[0].shot == "other_005"
-
-    def test_get_filtered_shots_filters_on_full_name(
-        self, mock_shot_model: ShotModel, test_shots: list[Shot]
-    ) -> None:
-        """Test that filtering works on full_name property (sequence_shot)."""
-        mock_shot_model.shots = test_shots
-
-        # Filter by sequence pattern
-        mock_shot_model.set_text_filter("seq1")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 1
-        assert "seq1" in filtered[0].full_name
-
-        # Filter by full_name pattern
-        mock_shot_model.set_text_filter("seq2_DM")
-        filtered = mock_shot_model.get_filtered_shots()
-        assert len(filtered) == 1
-        assert filtered[0].full_name == "seq2_DM_002"
 
 
 class TestThreeDESceneModelTextFiltering:

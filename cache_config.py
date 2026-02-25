@@ -44,6 +44,7 @@ class CacheConfig(LoggingMixin):
 
         Returns:
             Path to cache directory (production, mock, or test)
+
         """
         # Check if we're in test mode (pytest or unittest running)
         if CacheConfig.is_test_mode():
@@ -68,6 +69,7 @@ class CacheConfig(LoggingMixin):
 
         Returns:
             True if pytest or unittest is running
+
         """
         # Check for pytest
         if "pytest" in sys.modules:
@@ -100,6 +102,7 @@ class CacheConfig(LoggingMixin):
 
         Returns:
             True if mock mode is enabled
+
         """
         # Check environment variable
         return os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes")
@@ -110,6 +113,7 @@ class CacheConfig(LoggingMixin):
 
         Returns:
             True if headless mode is enabled
+
         """
         if os.environ.get("SHOTBOT_HEADLESS", "").lower() in ("1", "true", "yes"):
             return True
@@ -150,6 +154,7 @@ class CacheConfig(LoggingMixin):
 
         Returns:
             Dictionary with cache configuration details
+
         """
         cache_dir = CacheConfig.get_cache_directory()
 
@@ -185,6 +190,7 @@ class CacheConfig(LoggingMixin):
 
         Returns:
             True if successful
+
         """
         # Standard library imports
         import shutil
@@ -233,6 +239,7 @@ class UnifiedCacheConfig(LoggingMixin, QObject):
 
         Args:
             settings_manager: The application's settings manager
+
         """
         super().__init__()
         self._settings_manager = settings_manager
@@ -275,6 +282,7 @@ class UnifiedCacheConfig(LoggingMixin, QObject):
 
         Returns:
             Dictionary with all cache configuration values
+
         """
         return {
             "memory_limit_mb": self.memory_limit_mb,
@@ -289,6 +297,7 @@ class UnifiedCacheConfig(LoggingMixin, QObject):
         Args:
             setting_key: The settings key that changed
             new_value: The new value for the setting
+
         """
         if setting_key == "performance/max_cache_memory_mb" and isinstance(new_value, int | float | str):
             # Type narrowing for numeric values from QSettings
@@ -314,6 +323,7 @@ def get_unified_cache_config() -> UnifiedCacheConfig | None:
 
     Returns:
         Global UnifiedCacheConfig instance or None if not initialized
+
     """
     return _unified_config
 
@@ -323,6 +333,7 @@ def set_unified_cache_config(config: UnifiedCacheConfig) -> None:
 
     Args:
         config: UnifiedCacheConfig instance to set as global
+
     """
     global _unified_config  # noqa: PLW0603
     _unified_config = config
@@ -339,6 +350,7 @@ def create_unified_cache_config(
 
     Returns:
         Created UnifiedCacheConfig instance
+
     """
     config = UnifiedCacheConfig(settings_manager)
     set_unified_cache_config(config)

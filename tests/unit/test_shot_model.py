@@ -33,7 +33,6 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
     from cache_manager import CacheManager
-
     from shot_model import Shot
 
     class TestShotFactory(Protocol):

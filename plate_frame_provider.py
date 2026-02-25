@@ -33,6 +33,7 @@ class PlateSource:
         frame_start: First frame number (for EXR sequences)
         frame_end: Last frame number (for EXR sequences)
         duration_seconds: Duration in seconds (for MOV files)
+
     """
 
     source_path: Path
@@ -50,6 +51,7 @@ class PlateSource:
 
         Returns:
             Time in seconds from start of video
+
         """
         if self.frame_start is None:
             return 0.0
@@ -64,6 +66,7 @@ class PlateSource:
 
         Returns:
             Path to EXR file, or None if can't be determined
+
         """
         if self.source_type != "exr":
             return None
@@ -112,6 +115,7 @@ class FrameExtractionRunnable(QRunnable):
             frame: Frame number to extract
             plate_source: PlateSource with extraction info
             thumbnail_width: Width to scale extracted frame to
+
         """
         super().__init__()
         self.shot_key: str = shot_key
@@ -201,6 +205,7 @@ class PlateFrameProvider(QObject):
             parent: Parent QObject
             max_concurrent: Maximum concurrent extraction workers
             thumbnail_width: Width to scale extracted frames to
+
         """
         super().__init__(parent)
         self._thumbnail_width: int = thumbnail_width
@@ -227,6 +232,7 @@ class PlateFrameProvider(QObject):
 
         Returns:
             PlateSource if found, None otherwise
+
         """
         # Lazy import to avoid circular import with utils -> file_discovery
         from file_discovery import FileDiscovery
@@ -288,6 +294,7 @@ class PlateFrameProvider(QObject):
 
         Returns:
             QImage if cached, None otherwise
+
         """
         return self._cache.get_image(shot_key, frame)
 
@@ -300,6 +307,7 @@ class PlateFrameProvider(QObject):
 
         Returns:
             True if frame is cached
+
         """
         return self._cache.has_frame(shot_key, frame)
 
@@ -315,6 +323,7 @@ class PlateFrameProvider(QObject):
             shot_key: Unique identifier for the shot
             plate_source: PlateSource with extraction info
             frame: Frame number to extract
+
         """
         # Skip if already cached
         if self._cache.has_frame(shot_key, frame):
@@ -362,6 +371,7 @@ class PlateFrameProvider(QObject):
             plate_source: PlateSource with extraction info
             center_frame: Frame to center prefetch around
             radius: Number of frames to prefetch on each side
+
         """
         if plate_source.frame_start is None or plate_source.frame_end is None:
             return
@@ -377,6 +387,7 @@ class PlateFrameProvider(QObject):
 
         Args:
             shot_key: Unique identifier for the shot
+
         """
         self._cache.clear_shot(shot_key)
 
@@ -391,6 +402,7 @@ class PlateFrameProvider(QObject):
 
         Returns:
             Dictionary with cache size information
+
         """
         return self._cache.get_stats()
 
@@ -402,6 +414,7 @@ class PlateFrameProvider(QObject):
 
         Returns:
             List of cached frame numbers
+
         """
         return self._cache.get_cached_frames(shot_key)
 
@@ -414,6 +427,7 @@ class PlateFrameProvider(QObject):
             shot_key: Unique identifier for the shot
             frame: Frame number
             image: Extracted QImage
+
         """
         # Remove from pending
         self._pending_extractions.discard((shot_key, frame))
@@ -434,6 +448,7 @@ class PlateFrameProvider(QObject):
             shot_key: Unique identifier for the shot
             frame: Frame number
             error: Error message
+
         """
         # Remove from pending
         self._pending_extractions.discard((shot_key, frame))

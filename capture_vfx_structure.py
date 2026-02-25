@@ -200,7 +200,6 @@ def scan_directory(
 
 def capture_structure(shows: list[str] | None = None) -> StructureDict:
     """Capture the VFX filesystem structure."""
-
     print("Capturing VFX filesystem structure...", file=sys.stderr)
 
     # Get workspace shots

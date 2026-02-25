@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-⚠️ ARCHIVED - PyFFMPEG Test Runner
+"""⚠️ ARCHIVED - PyFFMPEG Test Runner
 
 This script is archived and was designed for an obsolete project (PyFFMPEG).
 

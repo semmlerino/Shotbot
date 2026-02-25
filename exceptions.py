@@ -26,6 +26,7 @@ class ShotBotError(Exception):
         message: Human-readable error message
         details: Optional additional error details
         error_code: Optional error code for categorization
+
     """
 
     def __init__(
@@ -40,6 +41,7 @@ class ShotBotError(Exception):
             message: Error message
             details: Optional dictionary with additional context
             error_code: Optional error code for categorization
+
         """
         super().__init__(message)
         self.message: str = message
@@ -76,6 +78,7 @@ class WorkspaceError(ShotBotError):
             workspace_path: The workspace path involved
             command: The workspace command that failed
             details: Additional error context
+
         """
         error_details = details or {}
         if workspace_path:
@@ -111,6 +114,7 @@ class ThumbnailError(ShotBotError):
             thumbnail_path: Destination thumbnail path
             reason: Specific reason for failure
             details: Additional error context
+
         """
         error_details = details or {}
         if image_path:
@@ -149,6 +153,7 @@ class SecurityError(ShotBotError):
             violation_type: Type of security violation
             attempted_command: The command that was blocked
             details: Additional security context
+
         """
         error_details = details or {}
         if violation_type:
@@ -184,6 +189,7 @@ class LauncherError(ShotBotError):
             launcher_command: The command that failed
             exit_code: Process exit code if available
             details: Additional launcher context
+
         """
         error_details = details or {}
         if launcher_name:
@@ -221,6 +227,7 @@ class CacheError(ShotBotError):
             cache_file: The cache file path
             operation: The operation that failed (read/write/validate)
             details: Additional cache context
+
         """
         error_details = details or {}
         if cache_key:

@@ -61,6 +61,7 @@ def _manage_log_context(**kwargs: str) -> Generator[None, None, None]:
 
     Yields:
         None (context manager protocol)
+
     """
     # Get current context or create empty dict
     current_context = getattr(_context_storage, "context", {})
@@ -219,6 +220,7 @@ class ContextualLogger:
 
         Returns:
             True if the logger will process messages at this level
+
         """
         return self._logger.isEnabledFor(level)
 
@@ -227,6 +229,7 @@ class ContextualLogger:
 
         Args:
             level: The logging level to set (e.g., logging.DEBUG, logging.INFO)
+
         """
         self._logger.setLevel(level)
 
@@ -240,6 +243,7 @@ class ContextualLogger:
         Usage:
             with self.logger.context(shot="shot_001", operation="scan"):
                 self.logger.info("Processing shot")  # Will include context
+
         """
         yield from _manage_log_context(**kwargs)
 
@@ -273,6 +277,7 @@ class LoggingMixin:
 
         Returns:
             ContextualLogger instance with proper naming hierarchy
+
         """
         # Create logger name using module + class name for proper hierarchy
         logger_name = f"{self.__class__.__module__}.{self.__class__.__name__}"
@@ -311,6 +316,7 @@ def log_execution(
         def debug_method(self, arg1, arg2):
             # Logged with arguments at DEBUG level
             pass
+
     """
 
     def decorator(inner_func: Callable[P, T]) -> Callable[P, T]:
@@ -421,6 +427,7 @@ def get_module_logger(module_name: str) -> ContextualLogger:
     Usage:
         logger = get_module_logger(__name__)
         logger.info("Module-level message")
+
     """
     base_logger = logging.getLogger(module_name)
     return ContextualLogger(base_logger)
@@ -437,5 +444,6 @@ def log_context(**kwargs: str) -> Generator[None, None, None]:
     Usage:
         with log_context(shot="shot_001", operation="scan"):
             logger.info("Processing")  # Will include context
+
     """
     yield from _manage_log_context(**kwargs)

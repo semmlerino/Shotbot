@@ -51,6 +51,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         Returns:
             List of Path objects in the directory
+
         """
         now = time.time()
 
@@ -102,6 +103,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         Returns:
             List of matching file paths
+
         """
         results: list[Path] = []
 
@@ -126,6 +128,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         Args:
             path: Path to invalidate
+
         """
         with self._lock:
             if path in self._directory_cache:
@@ -149,6 +152,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         Args:
             paths: Dictionary of directory -> contents mappings
+
         """
         now = time.time()
         shared_count = 0
@@ -168,6 +172,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         Returns:
             Dictionary with cache statistics
+
         """
         with self._lock:
             total_requests = self._cache_hits + self._cache_misses
@@ -192,6 +197,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         Args:
             seconds: New TTL value
+
         """
         self._ttl_seconds = seconds
         self.logger.info(f"Cache TTL updated to {seconds} seconds")
@@ -201,6 +207,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         Returns:
             Number of entries removed
+
         """
         now = time.time()
         removed = 0

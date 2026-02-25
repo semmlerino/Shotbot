@@ -3,18 +3,20 @@
 > **Note**: See `CLAUDE.md` for project overview and matchmove pipeline context. This memory provides detailed architecture analysis for AI context loading.
 
 ## Executive Summary
-- **47K LOC** across **1,050 files**
+- **60K LOC** across **155 source files** (plus 190 test files)
 - **5-layer architecture** with clear separation of concerns
 - **10+ design patterns** used extensively
 - **92% SRP adherence** (excellent module cohesion)
 - **Architecture Rating: A- (92/100)**
+
+> **Last Updated**: December 2025
 
 ---
 
 ## Layer Breakdown
 
 ### 1. PRESENTATION (Qt UI)
-- **MainWindow** (1,563 LOC) - Central orchestrator
+- **MainWindow** (1,800 LOC) - Central orchestrator
 - **3 Grid Systems** - Independent data pipelines with views/delegates
 - **Panels & Dialogs** - Info display, launch controls, settings
 - **Responsibility**: UI coordination, signal routing
@@ -25,18 +27,18 @@
 
 ### 3. MODELS (Data & Logic)
 Three parallel pipelines, each with:
-- **ShotModel** (825 LOC) - Workspace integration + async
+- **ShotModel** (894 LOC) - Workspace integration + async
 - **ThreeDESceneModel** - Filesystem discovery + incremental cache
 - **PreviousShotsModel** - Historical data
 
 Generic infrastructure:
 - **BaseShotModel** - Shared shot parsing
-- **BaseItemModel[T]** (838 LOC) - Generic Qt model with lazy loading
+- **BaseItemModel[T]** (1,044 LOC) - Generic Qt model with lazy loading
 - **BaseGridView** - Common grid functionality
 
 ### 4. SYSTEM INTEGRATION (I/O & Execution)
-- **ProcessPoolManager** (746 LOC) - Singleton subprocess pool, command caching
-- **CacheManager** (1,151 LOC) - Multi-level caching with TTL
+- **ProcessPoolManager** (1,073 LOC) - Singleton subprocess pool, command caching
+- **CacheManager** (1,544 LOC) - Multi-level caching with TTL
 - **RefreshOrchestrator** - Periodic refresh coordination
 
 ### 5. INFRASTRUCTURE (Support)
@@ -52,7 +54,7 @@ Generic infrastructure:
 | Pattern | Usage | Benefit |
 |---------|-------|---------|
 | **MVC** | Core architecture | Separation of data/view/control |
-| **Singleton** | 4 managers | Centralized resource management |
+| **Singleton** | 5 managers (2 SingletonMixin, 3 custom) | Centralized resource management |
 | **Factory** | 3 implementations | Encapsulated object creation |
 | **Observer** | Qt signals | Loose coupling, thread-safe communication |
 | **Strategy** | 5+ finders | Pluggable algorithms |
@@ -68,19 +70,19 @@ Generic infrastructure:
 
 ### TIER 1: Central Orchestrators
 
-**MainWindow** (1,563 LOC, 49 methods)
+**MainWindow** (1,800 LOC, 62 methods)
 - Coordinates ALL subsystems
 - Depends on: 15+ components
 - Risk: Changes affect entire app
 - Issue: Can be decomposed
 
-**CacheManager** (1,151 LOC, 35+ methods)
+**CacheManager** (1,544 LOC, 49 methods)
 - Manages 4 cache types with different TTL
 - Single point of failure for data
 - Complexity: Incremental merge, thread safety
 - Issue: Multiple responsibilities
 
-**ProcessPoolManager** (746 LOC, 20+ methods)
+**ProcessPoolManager** (1,073 LOC, 26 methods)
 - Singleton with double-checked locking
 - Round-robin load balancing
 - Session creation/reuse/cleanup
@@ -88,8 +90,8 @@ Generic infrastructure:
 
 ### TIER 2: Data Pipeline Coordinators
 
-**ShotModel** (825 LOC) - Async loading coordination
-**BaseItemModel[T]** (838 LOC) - Generic Qt model + lazy loading
+**ShotModel** (894 LOC) - Async loading coordination
+**BaseItemModel[T]** (1,044 LOC) - Generic Qt model + lazy loading
 
 ---
 
@@ -202,13 +204,14 @@ TIER 6: Support
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| Lines of Code | 47,017 | Well-organized |
-| Modules | 1,050 | Good modularization |
+| Lines of Code | 60,259 | Well-organized |
+| Source Modules | 155 | Good modularization |
+| Test Files | 190 (162 unit + 28 integration) | Comprehensive |
 | Hotspots | 3 | Manageable |
 | Design Patterns | 10+ | Comprehensive |
 | SRP Adherence | 92% | Excellent |
-| Test Coverage | 3,500+ tests | Comprehensive |
-| Type Safety | Strict (basedpyright) | 0 errors |
+| Test Coverage | 3,599 tests | Comprehensive |
+| Type Safety | Strict (basedpyright) | 0 errors, 87 notes |
 | Architecture Rating | A- (92/100) | Very Good |
 
 ---
@@ -216,6 +219,7 @@ TIER 6: Support
 ## Related Documentation
 
 - See `CLAUDE.md` for project overview and development standards
+- See `docs/SIGNAL_ROUTING.md` for MainWindow signal connections
 - See `docs/THREADING_ARCHITECTURE.md` for threading details
 - See `SGTK_BLUEBOLT_PIPELINE_SETUP.md` for SGTK configuration
 - See `BLUEBOLT_VFX_ENVIRONMENT.md` for VFX environment setup

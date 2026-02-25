@@ -1,7 +1,11 @@
 # Integration Tests
 
-29 integration test files covering async workflows, cache correctness, Qt lifecycle,
-subprocess behavior, 3DE scene discovery, and main window coordination.
+22 integration test files covering:
+- async and cross-component workflows
+- cache correctness and recovery
+- subprocess/process-pool real behavior
+- 3DE discovery and launch flows
+- main window coordination and shutdown lifecycle
 
 ## Quick Start
 
@@ -9,8 +13,8 @@ subprocess behavior, 3DE scene discovery, and main window coordination.
 # Run all integration tests
 ~/.local/bin/uv run pytest tests/integration/ -v
 
-# Run with parallelism
+# Run in parallel with Qt-safe grouping
 ~/.local/bin/uv run pytest tests/integration/ -n auto --dist=loadgroup
 ```
 
-See `tests/RUN_INTEGRATION_TESTS.md` for the full test file inventory and category filters.
+See `tests/RUN_INTEGRATION_TESTS.md` for the current file inventory and category filters.

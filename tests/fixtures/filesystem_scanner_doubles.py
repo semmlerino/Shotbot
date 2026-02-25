@@ -37,6 +37,7 @@ class MockFileObject:
 
         Returns:
             String data read from the mock file.
+
         """
         if self._closed:
             return ""
@@ -101,6 +102,7 @@ class MockSelector:
         Args:
             returns: List of return values for successive select() calls.
                     Each return value is a list of (key, events) tuples.
+
         """
         self._select_returns = returns
         self._select_index = 0
@@ -206,6 +208,7 @@ class PollingProcessDouble:
         Example:
             # Process runs for 3 poll cycles then exits with code 0
             process.set_poll_sequence([None, None, None, 0])
+
         """
         self._poll_sequence = sequence
         self._poll_index = 0
@@ -262,6 +265,7 @@ class TimeControlledPollingProcess(PollingProcessDouble):
         Args:
             time_increments: List of time values to return from time.time() calls.
                            If None, uses real time.
+
         """
         super().__init__()
         self._time_increments = time_increments or []
@@ -295,6 +299,7 @@ def polling_process() -> PollingProcessDouble:
             polling_process.set_poll_sequence([None] * 100)  # Never complete
             monkeypatch.setattr("subprocess.Popen", lambda *a, **k: polling_process)
             # Test timeout logic...
+
     """
     return PollingProcessDouble()
 
@@ -305,5 +310,6 @@ def time_controlled_process() -> TimeControlledPollingProcess:
 
     Returns:
         TimeControlledPollingProcess instance with time simulation capabilities.
+
     """
     return TimeControlledPollingProcess()

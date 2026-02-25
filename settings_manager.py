@@ -44,6 +44,7 @@ Examples:
 Type Safety:
     All methods include comprehensive type annotations and runtime validation.
     Invalid values are rejected with clear error messages and safe fallbacks.
+
 """
 
 from __future__ import annotations
@@ -87,6 +88,7 @@ class SettingsManager(LoggingMixin, QObject):
         Args:
             organization: Organization name for QSettings
             application: Application name for QSettings
+
         """
         super().__init__()
         self.settings = QSettings(organization, application)
@@ -520,6 +522,7 @@ class SettingsManager(LoggingMixin, QObject):
 
         Returns:
             Scale factor (0.8 to 1.5, default 1.0 = 100%)
+
         """
         value = self.settings.value("ui/ui_scale", 1.0, type=float)
         if isinstance(value, (int, float)):
@@ -532,6 +535,7 @@ class SettingsManager(LoggingMixin, QObject):
 
         Args:
             scale: Scale factor (0.8 to 1.5)
+
         """
         # Validate and clamp range
         validated_scale = max(0.8, min(scale, 1.5))
@@ -568,6 +572,7 @@ class SettingsManager(LoggingMixin, QObject):
 
         Returns:
             True if section is expanded, False otherwise
+
         """
         sections = self.get_expanded_sections()
         # Default to False for unknown sections
@@ -582,6 +587,7 @@ class SettingsManager(LoggingMixin, QObject):
 
         Returns:
             Sort order string ("name" or "date")
+
         """
         # Default sort orders: name for my_shots, date for others
         defaults = {"my_shots": "name", "threede_scenes": "date", "previous_shots": "date"}
@@ -597,6 +603,7 @@ class SettingsManager(LoggingMixin, QObject):
         Args:
             tab_id: Tab identifier ("my_shots", "threede_scenes", "previous_shots")
             order: Sort order ("name" or "date")
+
         """
         if order not in ("name", "date"):
             self.logger.warning(f"Invalid sort order '{order}', ignoring")

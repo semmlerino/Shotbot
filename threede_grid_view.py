@@ -91,6 +91,7 @@ class ThreeDEGridView(BaseGridView):
             pin_manager: Optional pin manager for pinning shots
             notes_manager: Optional notes manager for shot notes
             parent: Optional parent widget
+
         """
         # Initialize widgets that will be created in template methods
         # These are set to None initially but will be assigned during super().__init__()
@@ -131,6 +132,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             layout: The main vertical layout
+
         """
         # Loading indicators
         loading_layout = QVBoxLayout()
@@ -157,6 +159,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             layout: The toolbar horizontal layout
+
         """
         # Sort toggle buttons
         sort_label = QLabel("Sort:")
@@ -207,6 +210,7 @@ class ThreeDEGridView(BaseGridView):
 
         Returns:
             ThreeDEGridDelegate instance
+
         """
         return ThreeDEGridDelegate(self)
 
@@ -215,6 +219,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             model: ThreeDEItemModel instance configured for 3DE scenes
+
         """
         self._model = model  # Set base class attribute for visibility tracking
         self._threede_model = model
@@ -239,6 +244,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             shows: List of show names or ThreeDESceneModel to extract shows from
+
         """
         if isinstance(shows, list):
             # Type narrowing: shows is list[str] after isinstance check
@@ -267,6 +273,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             row: Row index of loaded thumbnail
+
         """
         # Update the specific item
         if self._threede_model:
@@ -289,6 +296,7 @@ class ThreeDEGridView(BaseGridView):
         Args:
             current: Current item being loaded
             total: Total items to load
+
         """
         if total > 0:
             progress = int((current / total) * 100)
@@ -315,6 +323,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             index: Clicked model index
+
         """
         if not self._threede_model:
             return
@@ -331,6 +340,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             index: Double-clicked model index
+
         """
         if not self._threede_model:
             return
@@ -348,6 +358,7 @@ class ThreeDEGridView(BaseGridView):
         Args:
             start: Start row index
             end: End row index (exclusive)
+
         """
         if self._threede_model:
             # Add some buffer for smooth scrolling
@@ -360,6 +371,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             pos: Context menu position
+
         """
         index = self.list_view.indexAt(pos)
         if not index.isValid() or not self._threede_model:
@@ -494,6 +506,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             scene: Scene to open
+
         """
         self.app_launch_requested.emit("3de", scene)
 
@@ -502,6 +515,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             scene: Scene whose folder to open
+
         """
         scene_path = Path(scene.scene_path)
         if scene_path.exists():
@@ -514,6 +528,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             scene: Scene whose path to copy
+
         """
         clipboard = QApplication.clipboard()
         clipboard.setText(str(scene.scene_path))
@@ -524,6 +539,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             path: The path string to copy
+
         """
         clipboard = QApplication.clipboard()
         if clipboard:
@@ -535,6 +551,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             scene: Scene object containing workspace path
+
         """
         workspace_path = scene.workspace_path
         if not workspace_path:
@@ -554,6 +571,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             scene: Scene object containing workspace path
+
         """
         from notification_manager import error as notify_error
         from publish_plate_finder import find_main_plate
@@ -585,6 +603,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             scene: Scene to pin
+
         """
         if self._pin_manager:
             self._pin_manager.pin_by_path(scene.workspace_path)
@@ -595,6 +614,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             scene: Scene to unpin
+
         """
         if self._pin_manager:
             self._pin_manager.unpin_by_path(scene.workspace_path)
@@ -605,6 +625,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             scene: Scene to edit note for
+
         """
         if not self._notes_manager:
             return
@@ -633,6 +654,7 @@ class ThreeDEGridView(BaseGridView):
 
         Returns:
             QIcon with the specified shape and colour
+
         """
         from PySide6.QtGui import QPen
 
@@ -821,6 +843,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             event: Key press event
+
         """
         if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
             # Launch selected scene
@@ -838,6 +861,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             scene: Scene to select
+
         """
         if not self._threede_model:
             return
@@ -870,6 +894,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             button_id: ID of clicked button (0=name, 1=date)
+
         """
         order = "name" if button_id == 0 else "date"
         self.sort_order_changed.emit(order)
@@ -882,6 +907,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             order: Sort order ("name" or "date")
+
         """
         if order not in ("name", "date"):
             return

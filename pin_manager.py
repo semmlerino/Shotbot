@@ -42,6 +42,7 @@ class PinManager(LoggingMixin):
 
         Args:
             cache_manager: Cache manager for persistence
+
         """
         super().__init__()
         self._cache_manager = cache_manager
@@ -128,6 +129,7 @@ class PinManager(LoggingMixin):
 
         Returns:
             Tuple of (show, sequence, shot) for uniqueness
+
         """
         return (shot.show, shot.sequence, shot.shot)
 
@@ -138,6 +140,7 @@ class PinManager(LoggingMixin):
 
         Args:
             shot: Shot to pin
+
         """
         key = self._get_key(shot)
 
@@ -157,6 +160,7 @@ class PinManager(LoggingMixin):
 
         Args:
             shot: Shot to unpin
+
         """
         key = self._get_key(shot)
 
@@ -173,6 +177,7 @@ class PinManager(LoggingMixin):
 
         Returns:
             True if shot is pinned
+
         """
         return self._get_key(shot) in self._pinned_keys
 
@@ -186,6 +191,7 @@ class PinManager(LoggingMixin):
 
         Returns:
             True if shot is pinned
+
         """
         key = self._key_from_path(workspace_path)
         return key in self._pinned_keys if key else False
@@ -195,6 +201,7 @@ class PinManager(LoggingMixin):
 
         Args:
             workspace_path: Full workspace path
+
         """
         key = self._key_from_path(workspace_path)
         if not key:
@@ -214,6 +221,7 @@ class PinManager(LoggingMixin):
 
         Args:
             workspace_path: Full workspace path
+
         """
         key = self._key_from_path(workspace_path)
         if not key:
@@ -234,6 +242,7 @@ class PinManager(LoggingMixin):
 
         Returns:
             Tuple key or None if path can't be parsed
+
         """
         from pathlib import Path as PathLib
 
@@ -261,6 +270,7 @@ class PinManager(LoggingMixin):
 
         Returns:
             Pin order (0 = most recent), or -1 if not pinned
+
         """
         key = self._get_key(shot)
         try:
@@ -273,6 +283,7 @@ class PinManager(LoggingMixin):
 
         Returns:
             Number of pinned shots
+
         """
         return len(self._pinned_keys)
 

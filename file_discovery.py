@@ -33,6 +33,7 @@ class FileDiscovery:
 
         Returns:
             True if successful, False otherwise
+
         """
         if not path:
             logger.error(f"Cannot create {description}: empty path")
@@ -61,6 +62,7 @@ class FileDiscovery:
 
         Returns:
             Path to the MOV file if found, or None
+
         """
         try:
             # Walk up the directory tree to find a v001 (or similar version) directory
@@ -123,6 +125,7 @@ class FileDiscovery:
 
         Returns:
             Path to the MOV file, or None if not found
+
         """
         try:
             workspace = Path(workspace_path) if isinstance(workspace_path, str) else workspace_path
@@ -187,6 +190,7 @@ class FileDiscovery:
 
         Returns:
             Tuple of (first_exr_path, start_frame, end_frame) or (None, None, None)
+
         """
         try:
             workspace = Path(workspace_path) if isinstance(workspace_path, str) else workspace_path
@@ -270,6 +274,7 @@ class FileDiscovery:
 
         Returns:
             List of (plate_name, priority) tuples sorted by priority (lower = higher priority)
+
         """
         if not PathValidators.validate_path_exists(base_path, "Plate base path"):
             return []

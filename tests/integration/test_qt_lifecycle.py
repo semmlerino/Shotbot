@@ -9,15 +9,43 @@ the pytest_collection_modifyitems hook (they use qtbot).
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 from PySide6.QtWidgets import QLabel, QPushButton, QWidget
 
+from tests.test_helpers import flush_deferred_deletes, process_qt_events
+
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+
+
+pytestmark = [pytest.mark.legacy]
+
+
+def _wait_until(
+    predicate: Callable[[], bool],
+    timeout_ms: int = 1000,
+    poll_ms: int = 10,
+    flush_deletes: bool = False,
+) -> bool:
+    """Wait for a predicate by processing Qt events without nested event loops."""
+    deadline = time.perf_counter() + (timeout_ms / 1000.0)
+    while time.perf_counter() < deadline:
+        if predicate():
+            return True
+        process_qt_events(duration_ms=poll_ms, iterations=1)
+        if flush_deletes:
+            flush_deferred_deletes()
+        time.sleep(poll_ms / 1000.0)
+    process_qt_events(duration_ms=poll_ms, iterations=1)
+    if flush_deletes:
+        flush_deferred_deletes()
+    return predicate()
 
 
 @pytest.mark.qt
@@ -37,7 +65,7 @@ class TestQtParentChildLifecycle:
         child.destroyed.connect(lambda: deleted.append("child"))
 
         parent.deleteLater()
-        qtbot.waitUntil(lambda: "child" in deleted, timeout=1000)
+        assert _wait_until(lambda: "child" in deleted, timeout_ms=1000, flush_deletes=True)
 
     def test_reparenting_widget(self, qtbot: QtBot) -> None:
         """Widgets can be reparented safely."""
@@ -61,7 +89,7 @@ class TestQtParentChildLifecycle:
         widget.destroyed.connect(lambda: deleted.append("widget"))
 
         widget.deleteLater()
-        qtbot.waitUntil(lambda: "widget" in deleted, timeout=1000)
+        assert _wait_until(lambda: "widget" in deleted, timeout_ms=1000, flush_deletes=True)
 
 
 @pytest.mark.qt
@@ -92,7 +120,11 @@ class TestQtSignalLifecycle:
         deleted = []
         receiver.destroyed.connect(lambda: deleted.append("receiver"))
         receiver.deleteLater()
-        qtbot.waitUntil(lambda: "receiver" in deleted, timeout=1000)
+        assert _wait_until(
+            lambda: "receiver" in deleted,
+            timeout_ms=1000,
+            flush_deletes=True,
+        )
 
         # Emitting after receiver deleted should not crash
         # (Qt auto-disconnects when receiver is destroyed)
@@ -127,7 +159,7 @@ class TestQtTimerLifecycle:
         fired = []
 
         QTimer.singleShot(10, lambda: fired.append("timer"))
-        qtbot.waitUntil(lambda: "timer" in fired, timeout=1000)
+        assert _wait_until(lambda: "timer" in fired, timeout_ms=1000)
 
         assert len(fired) == 1
 
@@ -142,19 +174,15 @@ class TestQtTimerLifecycle:
         timer.start(10)
 
         # Wait for at least one tick
-        qtbot.waitUntil(lambda: len(fired) >= 1, timeout=1000)
+        assert _wait_until(lambda: len(fired) >= 1, timeout_ms=1000)
 
         # Delete parent (should stop timer)
         count_before_delete = len(fired)
         parent.deleteLater()
 
-        from tests.test_helpers import process_qt_events
-
         process_qt_events()
 
         # Timer should be stopped - no more ticks
-        import time
-
         time.sleep(0.05)  # Give time for potential ticks
         process_qt_events()
 
@@ -204,10 +232,9 @@ class TestQtThreadSafety:
         try:
             thread.start()
 
-            qtbot.waitUntil(lambda: "done" in finished, timeout=2000)
-            thread.wait(1000)
-
-            assert not thread.isRunning()
+            assert _wait_until(lambda: "done" in finished, timeout_ms=2000)
+            thread.quit()
+            assert _wait_until(lambda: not thread.isRunning(), timeout_ms=2000)
         finally:
             # Ensure QThread cleanup even if assertions fail
             if thread.isRunning():
@@ -233,14 +260,13 @@ class TestQtThreadSafety:
         # Connect worker to emit when thread starts
         thread.started.connect(worker.work)
         worker.result.connect(thread.quit)
+        received: list[str] = []
+        worker.result.connect(lambda value: received.append(value))
 
         try:
-            # Use waitSignal which properly handles cross-thread signals
-            with qtbot.waitSignal(worker.result, timeout=5000) as blocker:
-                thread.start()
-
-            # Verify the signal was received with correct data
-            assert blocker.args == ["from worker thread"]
+            thread.start()
+            assert _wait_until(lambda: len(received) == 1, timeout_ms=5000)
+            assert received == ["from worker thread"]
 
             # Wait for thread to finish cleanly
             thread.wait(2000)

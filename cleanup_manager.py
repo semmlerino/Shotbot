@@ -22,6 +22,7 @@ class MainWindowProtocol(Protocol):
 
     closing: bool
     threede_controller: Any
+    shot_selection_controller: Any
     session_warmer: Any
     cache_manager: Any
     shot_model: Any
@@ -48,6 +49,7 @@ class CleanupManager(QObject, LoggingMixin):
 
         Args:
             main_window: The MainWindow instance to manage cleanup for
+
         """
         super().__init__()
         LoggingMixin.__init__(self)
@@ -66,6 +68,7 @@ class CleanupManager(QObject, LoggingMixin):
         try:
             self._mark_closing()
             self._cleanup_threede_controller()
+            self._cleanup_shot_selection_controller()
             self._cleanup_session_warmer()
             self._cleanup_managers()
             self._cleanup_models()
@@ -87,6 +90,15 @@ class CleanupManager(QObject, LoggingMixin):
         ):
             self.logger.debug("Cleaning up 3DE controller")
             self.main_window.threede_controller.cleanup_worker()
+
+    def _cleanup_shot_selection_controller(self) -> None:
+        """Clean up the shot selection controller and its discovery worker."""
+        if (
+            hasattr(self.main_window, "shot_selection_controller")
+            and self.main_window.shot_selection_controller
+        ):
+            self.logger.debug("Cleaning up shot selection controller")
+            self.main_window.shot_selection_controller.cleanup()
 
     def _cleanup_session_warmer(self) -> None:
         """Clean up the session warmer thread."""

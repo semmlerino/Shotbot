@@ -401,7 +401,7 @@ class TestPerformance:
 
     def test_excluded_dirs_not_scanned(self, make_test_filesystem) -> None:
         """Test that excluded directories are not scanned using TestFileSystem."""
-        # Use TestFileSystem from test_doubles_extended
+        # Use TestFileSystem from fixtures/doubles_extended
         fs = make_test_filesystem()
         base_path = fs.create_vfx_structure("test", "seq", "shot")
 

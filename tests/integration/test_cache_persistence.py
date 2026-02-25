@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.persistent_cache,  # Skip automatic cache clearing
+    pytest.mark.legacy,
 ]
 
 

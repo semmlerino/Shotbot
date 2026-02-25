@@ -40,6 +40,7 @@ class ProcessVerifier:
         VERIFICATION_TIMEOUT_SEC: Maximum time to wait for process to start
         POLL_INTERVAL_SEC: How often to check for PID file
         PID_FILE_DIR: Directory where PID files are written
+
     """
 
     # Configuration
@@ -55,6 +56,7 @@ class ProcessVerifier:
 
         Args:
             logger: Logger instance for debug output (standard Logger or ContextualLogger)
+
         """
         self.logger: Logger | ContextualLogger = logger
         self._ensure_pid_dir()
@@ -84,6 +86,7 @@ class ProcessVerifier:
             (success, message) tuple
             - success: True if process verified, False if timeout/error
             - message: Description of result
+
         """
         if timeout_sec is None:
             timeout_sec = self.VERIFICATION_TIMEOUT_SEC
@@ -149,6 +152,7 @@ class ProcessVerifier:
             - success: True if process found, False if timeout
             - pid: Process ID if found, None if not
             - message: Description of result
+
         """
         if timeout_sec is None:
             timeout_sec = self.VERIFICATION_TIMEOUT_SEC
@@ -182,6 +186,7 @@ class ProcessVerifier:
 
         Returns:
             PID if found, None if timeout
+
         """
         if poll_interval_sec is None:
             poll_interval_sec = self.POLL_INTERVAL_SEC
@@ -236,6 +241,7 @@ class ProcessVerifier:
 
         Note:
             Uses word boundaries to avoid false positives (e.g., "rv" in "/srv/data")
+
         """
         # GUI apps we want to verify
         gui_apps = ["nuke", "3de", "maya", "rv", "houdini"]
@@ -255,6 +261,7 @@ class ProcessVerifier:
 
         Note:
             Uses word boundaries to avoid false matches (e.g., "rv" in "/srv/data")
+
         """
         # Look for known app names
         gui_apps = ["nuke", "3de", "maya", "rv", "houdini"]
@@ -289,6 +296,7 @@ class ProcessVerifier:
 
             Uses monotonic time for timeout loop to prevent clock changes from
             affecting the wait duration.
+
         """
         # Use monotonic time for timeout to avoid clock skew issues
         start_time = time.monotonic()
@@ -344,6 +352,7 @@ class ProcessVerifier:
 
         Returns:
             True if process exists
+
         """
         try:
             return psutil.pid_exists(pid)
@@ -357,6 +366,7 @@ class ProcessVerifier:
 
         Args:
             max_age_hours: Remove files older than this
+
         """
         pid_dir = Path(ProcessVerifier.PID_FILE_DIR)
         if not pid_dir.exists():

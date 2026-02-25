@@ -38,6 +38,7 @@ def measure_performance(
 
     Returns:
         Dictionary with performance metrics
+
     """
     times = []
 
@@ -69,6 +70,7 @@ def create_test_workspace(
         path: Root path for workspace
         num_users: Number of user directories to create
         files_per_user: Number of files per user
+
     """
     for i in range(num_users):
         # Maya structure

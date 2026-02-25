@@ -42,6 +42,7 @@ class ThreeDELatestFinder(VersionHandlingMixin):
 
         Returns:
             Path to the latest 3DE scene file, or None if not found or cancelled
+
         """
         if not workspace_path:
             self.logger.debug("No workspace path provided")
@@ -126,6 +127,7 @@ class ThreeDELatestFinder(VersionHandlingMixin):
 
         Returns:
             List of all 3DE scene file paths, sorted by version (empty if cancelled)
+
         """
         if not workspace_path:
             return []

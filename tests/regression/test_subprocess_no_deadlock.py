@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 
-sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.resolve()))
 
 # Standard library imports
 import subprocess
@@ -28,7 +28,6 @@ def test_subprocess_with_large_output_no_deadlock() -> None:
     This simulates what could happen with verbose VFX applications.
     The old DEVNULL approach would deadlock if the app writes >64KB to stdout/stderr.
     """
-
     # Create a Python script that generates large output
     with tempfile.TemporaryDirectory() as tmpdir:
         script_path = Path(tmpdir) / "verbose_app.py"

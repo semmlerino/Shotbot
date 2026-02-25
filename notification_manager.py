@@ -36,6 +36,7 @@ Examples:
 Type Safety:
     This module uses comprehensive type annotations and enum types for
     notification categories to ensure type-safe usage throughout the application.
+
 """
 
 from __future__ import annotations
@@ -300,6 +301,7 @@ class NotificationManager(QObject):
 
         Returns:
             True if the object exists and its C++ counterpart is valid
+
         """
         if obj is None:
             return False
@@ -361,6 +363,7 @@ class NotificationManager(QObject):
 
         Returns:
             NotificationManager: The initialized singleton instance
+
         """
         instance = cls()
         cls._main_window = main_window
@@ -400,6 +403,10 @@ class NotificationManager(QObject):
 
         This method clears all notification state and resets the singleton instance.
         It should only be used in test cleanup to ensure test isolation.
+
+        Note: This class uses a custom singleton pattern (not SingletonMixin) because
+        it needs to inherit from QObject for Qt signal/slot functionality. The
+        SingletonRegistry calls this reset() method directly during test cleanup.
         """
         # Clean up all resources
         cls.cleanup()
@@ -417,6 +424,7 @@ class NotificationManager(QObject):
             title: Error title/summary
             message: Detailed error message
             details: Optional technical details
+
         """
         # Always log the error first
         logger.error(f"Error notification: {title} - {message} - {details}")
@@ -445,6 +453,7 @@ class NotificationManager(QObject):
             title: Warning title/summary
             message: Detailed warning message
             details: Optional technical details
+
         """
         # Always log the warning first
         logger.warning(f"Warning notification: {title} - {message} - {details}")
@@ -472,6 +481,7 @@ class NotificationManager(QObject):
         Args:
             message: Information message to display
             timeout: Duration in milliseconds (0 = permanent)
+
         """
         if cls._is_qt_object_valid(cls._status_bar):
             assert cls._status_bar is not None  # Type narrowing for pyright
@@ -491,6 +501,7 @@ class NotificationManager(QObject):
         Args:
             message: Success message to display
             timeout: Duration in milliseconds (0 = permanent)
+
         """
         if cls._is_qt_object_valid(cls._status_bar):
             assert cls._status_bar is not None  # Type narrowing for pyright
@@ -543,6 +554,7 @@ class NotificationManager(QObject):
 
         Returns:
             QProgressDialog: The progress dialog instance
+
         """
         # Close existing progress dialog
         if cls._current_progress:
@@ -588,6 +600,7 @@ class NotificationManager(QObject):
             message: Message to display
             notification_type: Type of notification (affects styling)
             duration: Auto-dismiss time in milliseconds (0 = no auto-dismiss)
+
         """
         if not cls._is_qt_object_valid(cls._main_window):
             # Clear stale reference if C++ object was deleted

@@ -62,6 +62,7 @@ def filter_by_show(
         >>> filtered = filter_by_show(shots, "show1")
         >>> len(filtered)
         1
+
     """
     if show is None:
         return list(items)
@@ -89,6 +90,7 @@ def filter_by_text(
         >>> filtered = filter_by_text(shots, "shot1")
         >>> len(filtered)
         1
+
     """
     if not text:
         return list(items)
@@ -123,6 +125,7 @@ def compose_filters(
         >>> filtered = compose_filters(shots, show="show1", text="shot1")
         >>> len(filtered)
         1
+
     """
     result = list(items)
 
@@ -157,5 +160,6 @@ def get_available_shows(items: Sequence[T]) -> set[str]:
         2
         >>> "show1" in shows and "show2" in shows
         True
+
     """
     return {item.show for item in items}

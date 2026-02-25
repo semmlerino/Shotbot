@@ -61,6 +61,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
         Args:
             crash_files: List of detected crash files
             parent: Parent widget
+
         """
         super().__init__(parent)
         self.crash_files = crash_files
@@ -86,6 +87,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
 
         Returns:
             Dictionary mapping base scene names to lists of crash files
+
         """
         groups: dict[str, list[CrashFileInfo]] = {}
 
@@ -161,6 +163,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
 
         Returns:
             QGroupBox widget containing crash file details
+
         """
         # Latest crash info (first in sorted list)
         latest_crash = crash_list[0]
@@ -263,6 +266,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
 
         Returns:
             Selected crash file info, or None if no selection
+
         """
         return self.selected_crash
 
@@ -290,6 +294,7 @@ class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyri
             archived_path: Path to archived crash file (if successful)
             error_message: Error message (if failed)
             parent: Parent widget
+
         """
         super().__init__(parent)
         self.success = success

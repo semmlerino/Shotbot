@@ -52,6 +52,7 @@ class NukeLaunchRouter(LoggingMixin):
 
         Returns:
             Tuple of (command, log_messages)
+
         """
         # Extract options
         open_latest_scene = options.get("open_latest_scene", False)
@@ -93,6 +94,7 @@ class NukeLaunchRouter(LoggingMixin):
         Returns:
             Tuple of (command, log_messages). Returns empty command ("") on error
             to prevent launch - caller should check for empty command.
+
         """
         if not selected_plate:
             log_messages = ["Error: No plate selected. Please select a plate space."]
@@ -124,6 +126,7 @@ class NukeLaunchRouter(LoggingMixin):
 
         Returns:
             String containing bash export statements for environment fixes
+
         """
         return self.complex_launcher.get_environment_fixes()
 

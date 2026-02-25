@@ -95,6 +95,7 @@ class PreviousShotsView(BaseGridView):
             pin_manager: Optional pin manager for pinning shots
             notes_manager: Optional notes manager for shot notes
             parent: Optional parent widget
+
         """
         # Initialize instance variables before super().__init__()
         # These are set in methods called during base class initialization
@@ -135,6 +136,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             layout: The main vertical layout
+
         """
         header_widget = self._create_header()
         layout.addWidget(header_widget)
@@ -145,6 +147,7 @@ class PreviousShotsView(BaseGridView):
 
         Returns:
             ShotGridDelegate instance
+
         """
         return ShotGridDelegate(self)
 
@@ -153,6 +156,7 @@ class PreviousShotsView(BaseGridView):
 
         Returns:
             Header widget
+
         """
         widget = QWidget()
         header_layout = QHBoxLayout(widget)
@@ -207,6 +211,7 @@ class PreviousShotsView(BaseGridView):
 
         Returns:
             The previous shots item model or None
+
         """
         return self._unified_model
 
@@ -216,6 +221,7 @@ class PreviousShotsView(BaseGridView):
 
         Returns:
             The selected Shot object or None
+
         """
         return self._selected_shot
 
@@ -226,6 +232,7 @@ class PreviousShotsView(BaseGridView):
 
         Returns:
             Current thumbnail size in pixels
+
         """
         return self._thumbnail_size
 
@@ -234,6 +241,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             model: Previous shots item model
+
         """
         self._unified_model = model
         self._model = model  # type: ignore[assignment]
@@ -279,6 +287,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             shows: Either a list of show names or a PreviousShotsModel to extract shows from
+
         """
         # Handle model object (for compatibility with base signature)
         if not isinstance(shows, list):
@@ -337,6 +346,7 @@ class PreviousShotsView(BaseGridView):
         Args:
             current: Current progress value
             total: Total progress value
+
         """
         if total > 0:
             assert self._status_label is not None
@@ -374,6 +384,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             index: Clicked model index
+
         """
         # Qt's selection model automatically handles the click
         # _on_selection_changed will be triggered with the full selection logic
@@ -384,6 +395,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             index: Double-clicked model index
+
         """
         if not index.isValid() or not self._unified_model:
             return
@@ -405,6 +417,7 @@ class PreviousShotsView(BaseGridView):
         Args:
             current: Current selection index
             previous: Previous selection index
+
         """
         if not self._unified_model:
             return
@@ -430,6 +443,7 @@ class PreviousShotsView(BaseGridView):
         Args:
             start: Start row index
             end: End row index (exclusive)
+
         """
         if self._unified_model:
             self._unified_model.set_visible_range(start, end)  # pyright: ignore[reportAny]
@@ -440,6 +454,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             event: Context menu event
+
         """
         # Convert global position to list view coordinates
         list_view_pos = self.list_view.mapFromGlobal(event.globalPos())
@@ -556,6 +571,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             shot: Shot object containing workspace path
+
         """
         folder_path = shot.workspace_path
 
@@ -595,6 +611,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             error_msg: Error message from worker
+
         """
         self.logger.error(f"Failed to open folder: {error_msg}")
 
@@ -614,6 +631,7 @@ class PreviousShotsView(BaseGridView):
 
         Returns:
             QIcon with the specified shape and colour
+
         """
         from PySide6.QtGui import QPen
 
@@ -801,6 +819,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             path: The path string to copy
+
         """
         clipboard = QApplication.clipboard()
         if clipboard:
@@ -812,6 +831,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             shot: Shot to edit note for
+
         """
         if not self._notes_manager:
             return
@@ -832,6 +852,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             shot: Shot object containing workspace path
+
         """
         from notification_manager import error as notify_error
         from publish_plate_finder import find_main_plate
@@ -863,6 +884,7 @@ class PreviousShotsView(BaseGridView):
 
         Returns:
             Selected Shot object or None
+
         """
         return self._selected_shot
 
@@ -889,6 +911,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             event: Close event
+
         """
         # Stop the update timer to prevent memory leaks
         if self._update_timer is not None:
@@ -906,6 +929,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             button_id: ID of clicked button (0=name, 1=date)
+
         """
         order = "name" if button_id == 0 else "date"
         self.sort_order_changed.emit(order)
@@ -918,6 +942,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             order: Sort order ("name" or "date")
+
         """
         if order not in ("name", "date"):
             return
@@ -940,6 +965,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             shot: Shot to pin
+
         """
         if self._pin_manager:
             self._pin_manager.pin_shot(shot)
@@ -953,6 +979,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             shot: Shot to unpin
+
         """
         if self._pin_manager:
             self._pin_manager.unpin_shot(shot)
@@ -970,5 +997,6 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             pin_manager: Pin manager for pinning shots
+
         """
         self._pin_manager = pin_manager

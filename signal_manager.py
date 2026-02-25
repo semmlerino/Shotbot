@@ -79,6 +79,7 @@ class SignalManager(LoggingMixin):
 
         Args:
             owner: The QObject that owns these connections
+
         """
         super().__init__()
         self.owner_ref = weakref.ref(owner)
@@ -109,6 +110,7 @@ class SignalManager(LoggingMixin):
 
         Returns:
             True if connection succeeded
+
         """
         try:
             # Connect based on connection type
@@ -141,6 +143,7 @@ class SignalManager(LoggingMixin):
 
         Returns:
             True if disconnection succeeded
+
         """
         try:
             _ = signal.disconnect(slot)
@@ -169,6 +172,7 @@ class SignalManager(LoggingMixin):
 
         Returns:
             Number of connections disconnected
+
         """
         disconnected = 0
 
@@ -216,6 +220,7 @@ class SignalManager(LoggingMixin):
 
         Returns:
             True if chaining succeeded
+
         """
         try:
             # For signal chaining, we connect to the emit method
@@ -245,6 +250,7 @@ class SignalManager(LoggingMixin):
 
         Returns:
             Number of successful connections
+
         """
         connected = 0
 
@@ -263,6 +269,7 @@ class SignalManager(LoggingMixin):
         Args:
             objects: List of QObjects to block/unblock
             blocked: Whether to block (True) or unblock (False)
+
         """
         for obj in objects:
             if obj:
@@ -285,6 +292,7 @@ class SignalManager(LoggingMixin):
 
         Returns:
             Context manager
+
         """
         return BlockedSignalsContext(objects, self.logger)
 
@@ -305,6 +313,7 @@ class SignalManager(LoggingMixin):
 
         Returns:
             Number of connections made
+
         """
         connected = 0
 
@@ -344,6 +353,7 @@ class SignalManager(LoggingMixin):
 
         Returns:
             True if connection succeeded
+
         """
         # Third-party imports
         from PySide6.QtCore import QTimer
@@ -367,6 +377,7 @@ class BlockedSignalsContext:
         Args:
             objects: Objects to block signals on
             logger: Optional logger (any logger-like object)
+
         """
         super().__init__()
         self.objects = objects
@@ -419,6 +430,7 @@ class SignalThrottler(QObject):
             source_signal: The signal to throttle
             interval_ms: Minimum interval between emissions
             parent: Optional parent QObject
+
         """
         super().__init__(parent)
         # Third-party imports
@@ -466,6 +478,7 @@ class SignalDebugger(LoggingMixin):
 
         Args:
             enabled: Whether debugging is enabled
+
         """
         super().__init__()
         self.enabled = enabled
@@ -481,6 +494,7 @@ class SignalDebugger(LoggingMixin):
         Args:
             signal: The signal to trace
             signal_name: Name for logging
+
         """
         if not self.enabled:
             return

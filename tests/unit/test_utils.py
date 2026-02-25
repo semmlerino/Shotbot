@@ -1014,6 +1014,104 @@ class TestFindTurnoverPlateThumbnail:
         assert result is None
 
 
+class TestFindAnyPublishThumbnail:
+    """Test recursive publish thumbnail discovery fallback logic."""
+
+    def test_find_any_publish_thumbnail_recursive(self, tmp_path: Path) -> None:
+        """Find the first 1001 EXR recursively under publish/."""
+        publish_path = (
+            tmp_path
+            / "shows"
+            / "testshow"
+            / "shots"
+            / "seq01"
+            / "seq01_shot01"
+            / "publish"
+        )
+        deep_path = publish_path / "comp" / "v001" / "exr"
+        deep_path.mkdir(parents=True)
+
+        test_file = deep_path / "comp_v001.1001.exr"
+        test_file.write_text("fake exr")
+        (deep_path / "comp_v001.1002.exr").write_text("other frame")
+        (deep_path / "comp_v001.jpg").write_text("wrong extension")
+
+        result = PathUtils.find_any_publish_thumbnail(
+            str(tmp_path / "shows"),
+            "testshow",
+            "seq01",
+            "shot01",
+        )
+
+        assert result is not None
+        assert result.name == test_file.name
+
+    def test_find_any_publish_thumbnail_max_depth(self, tmp_path: Path) -> None:
+        """Respect max_depth and prefer shallow hits when deep hits exceed limit."""
+        shows_root = tmp_path / "shows"
+        publish_path = (
+            shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01" / "publish"
+        )
+
+        very_deep = publish_path
+        for i in range(10):
+            very_deep = very_deep / f"level{i}"
+        very_deep.mkdir(parents=True)
+        (very_deep / "too_deep.1001.exr").write_text("deep")
+
+        shallow = publish_path / "level0" / "level1"
+        shallow.mkdir(parents=True, exist_ok=True)
+        shallow_file = shallow / "shallow.1001.exr"
+        shallow_file.write_text("shallow")
+
+        result = PathUtils.find_any_publish_thumbnail(
+            str(shows_root),
+            "testshow",
+            "seq01",
+            "shot01",
+            max_depth=3,
+        )
+
+        assert result is not None
+        assert result.name == shallow_file.name
+
+    def test_find_any_publish_thumbnail_permission_error(self, tmp_path: Path) -> None:
+        """Handle unreadable subdirectories gracefully."""
+        shows_root = tmp_path / "shows"
+        publish_path = (
+            shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01" / "publish"
+        )
+        publish_path.mkdir(parents=True)
+
+        restricted = publish_path / "restricted"
+        restricted.mkdir()
+        restricted.chmod(0o000)
+
+        try:
+            result = PathUtils.find_any_publish_thumbnail(
+                str(shows_root),
+                "testshow",
+                "seq01",
+                "shot01",
+            )
+            assert result is None
+        finally:
+            restricted.chmod(0o755)
+
+    def test_find_any_publish_thumbnail_no_publish_dir(self, tmp_path: Path) -> None:
+        """Return None when the publish path does not exist."""
+        shows_root = tmp_path / "shows"
+        shows_root.mkdir()
+
+        result = PathUtils.find_any_publish_thumbnail(
+            str(shows_root),
+            "testshow",
+            "seq01",
+            "shot01",
+        )
+        assert result is None
+
+
 class TestPlateDiscoveryCaseInsensitive:
     """Test case-insensitive plate directory discovery (commit 78983a8 fix)."""
 

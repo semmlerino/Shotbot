@@ -40,6 +40,7 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
     pytest.mark.slow,
+    pytest.mark.legacy,
 ]
 
 

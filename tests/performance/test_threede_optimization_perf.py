@@ -12,6 +12,7 @@ import pytest
 
 from threede_scene_finder import OptimizedThreeDESceneFinder
 
+
 pytestmark = [pytest.mark.performance, pytest.mark.slow]
 
 

@@ -31,6 +31,7 @@ def timed_operation(
 
     Returns:
         Decorated function
+
     """
 
     def decorator(func: Callable) -> Callable:
@@ -69,6 +70,7 @@ class TimingRegistry:
         Args:
             operation: Operation name
             duration_ms: Duration in milliseconds
+
         """
         if operation not in cls._timings:
             cls._timings[operation] = []
@@ -83,6 +85,7 @@ class TimingRegistry:
 
         Returns:
             Dictionary with timing statistics or None if no data
+
         """
         if operation not in cls._timings or not cls._timings[operation]:
             return None
@@ -103,6 +106,7 @@ class TimingRegistry:
 
         Returns:
             Dictionary mapping operation names to their statistics
+
         """
         return {op: cls.get_stats(op) for op in cls._timings if cls.get_stats(op)}
 
@@ -117,6 +121,7 @@ class TimingRegistry:
 
         Returns:
             List of operation names
+
         """
         return list(cls._timings.keys())
 
@@ -130,6 +135,7 @@ class TimingRegistry:
 
         Returns:
             Speedup factor (baseline_time / optimized_time) or None if data missing
+
         """
         baseline_stats = cls.get_stats(baseline)
         optimized_stats = cls.get_stats(optimized)

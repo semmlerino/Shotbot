@@ -20,8 +20,7 @@ from config import Config
 
 # Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
-from tests.test_doubles_library import TestCacheManager
-from tests.test_helpers import process_qt_events
+from tests.fixtures.doubles_library import TestCacheManager
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene
 
@@ -198,33 +197,6 @@ class TestThreadSafety:
         # Cache should not exceed MAX_CACHE_SIZE
         assert len(model._thumbnail_cache) <= 100
 
-    def test_concurrent_thumbnail_callbacks(
-        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene], qtbot: QtBot
-    ) -> None:
-        """Test that concurrent thumbnail callbacks are handled safely."""
-        model.set_scenes(test_scenes)
-
-        signals_received: list[int] = []
-
-        # Track signals directly from the model
-        def on_thumbnail_loaded(idx: int) -> None:
-            signals_received.append(idx)
-
-        model.thumbnail_loaded.connect(on_thumbnail_loaded)
-
-        # The TestCacheManager now has load_thumbnail_async that works synchronously
-        # Trigger thumbnail loads - these should complete immediately in test mode
-        for idx, scene in enumerate(test_scenes):
-            model._load_thumbnail_async(idx, scene)
-
-        # Minimal event processing for signal delivery
-        process_qt_events()
-
-        # All thumbnails should have loaded (TestCacheManager calls callback synchronously)
-        # Note: The actual behavior depends on whether _load_thumbnail_async
-        # triggers the thumbnail_loaded signal
-        assert len(signals_received) >= 0  # At least no crash occurred
-
     def test_cleanup_releases_resources(
         self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
     ) -> None:
@@ -283,36 +255,6 @@ class TestThreadSafety:
         assert len(model.scenes) == 1
         # Timer should have been restarted
         assert model._thumbnail_timer is not None
-
-    def test_data_role_thread_safety(
-        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
-    ) -> None:
-        """Test data() method is thread-safe for all roles."""
-        model.set_scenes(test_scenes)
-
-        # Test various roles that access shared data
-        index = model.index(0, 0)
-
-        roles_to_test = [
-            Qt.ItemDataRole.DisplayRole,
-            Qt.ItemDataRole.DecorationRole,
-            Qt.ItemDataRole.ToolTipRole,
-            Qt.ItemDataRole.UserRole,
-            Qt.ItemDataRole.UserRole + 1,
-            Qt.ItemDataRole.UserRole + 2,
-            Qt.ItemDataRole.UserRole + 3,
-            Qt.ItemDataRole.UserRole + 4,
-            Qt.ItemDataRole.UserRole + 5,
-        ]
-
-        for role in roles_to_test:
-            # This should be thread-safe even if called concurrently
-            data = model.data(index, role)
-            # Verify no crashes or exceptions - data can be None for certain roles
-            # The important thing is that it doesn't crash
-            assert (
-                data is None or data is not None
-            )  # Always true - just checking no exception
 
     def test_selection_changes_during_loading(
         self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene], qtbot: QtBot

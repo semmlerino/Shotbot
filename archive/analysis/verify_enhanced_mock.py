@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Verify enhanced mock environment has 3DE files for both tabs.
+"""Verify enhanced mock environment has 3DE files for both tabs.
 """
 
 # Standard library imports

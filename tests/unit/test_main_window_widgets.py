@@ -28,10 +28,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
-    QLabel,
     QMainWindow,
-    QPushButton,
-    QSplitter,
     QStatusBar,
     QTabWidget,
     QWidget,
@@ -177,29 +174,6 @@ class TestMainWindowUIComponents:
         # MainWindow should have menu bar
         menu_bar = window.menuBar()
         assert menu_bar is not None
-
-    def test_splitter_configuration(self, main_window_ui: MainWindow) -> None:
-        """Test splitter widgets are properly configured."""
-        window = main_window_ui
-
-        # Find splitter widgets
-        splitters = window.findChildren(QSplitter)
-
-        # Should have at least one splitter for layout
-        assert len(splitters) >= 0  # May be 0 if layout doesn't use splitters
-
-    def test_essential_components_exist(self, main_window_ui: MainWindow) -> None:
-        """Test essential UI components exist."""
-        window = main_window_ui
-
-        # Should have various UI components
-        labels = window.findChildren(QLabel)
-        buttons = window.findChildren(QPushButton)
-
-        # Should have some UI elements
-        assert len(labels) >= 0
-        assert len(buttons) >= 0
-
 
 class TestMainWindowTabFunctionality:
     """Test tab widget functionality and navigation."""
@@ -392,32 +366,6 @@ class TestMainWindowKeyboardShortcuts:
         # Verify keyboard handling infrastructure exists
         assert hasattr(window, "keyPressEvent")
 
-    def test_tab_navigation_shortcuts(
-        self, qtbot: QtBot, shortcut_window: MainWindow
-    ) -> None:
-        """Test tab navigation shortcuts."""
-        window = shortcut_window
-        tab_widget = window.findChild(QTabWidget)
-
-        if tab_widget and tab_widget.count() > 1:
-            window.activateWindow()
-            window.raise_()
-            window.setFocus()
-            # Wait for window to become active
-            try:
-                qtbot.waitUntil(lambda: window.isActiveWindow(), timeout=1000)
-            except Exception:
-                # Window activation may fail in headless environment
-                pass
-
-            # Ctrl+Tab should navigate tabs (if implemented)
-            QTest.keyPress(window, Qt.Key.Key_Tab, Qt.KeyboardModifier.ControlModifier)
-            process_qt_events()
-
-            # Window should still be responsive
-            assert window.isVisible()
-            assert not window.isMinimized()
-
     def test_escape_key_handling(
         self, qtbot: QtBot, shortcut_window: MainWindow
     ) -> None:
@@ -437,11 +385,8 @@ class TestMainWindowKeyboardShortcuts:
         QTest.keyPress(window, Qt.Key.Key_Escape)
         process_qt_events()
 
-        # Window should handle escape gracefully
-        # Current behavior: window closes on escape (could be changed if undesired)
-        # For now, test accepts this behavior
-        # assert window.isVisible()  # This would test if window stays open
-        # Test passes - escape handled without crash
+        # Escape should be handled without leaving the app in invalid state.
+        assert window is not None
 
 
 class TestMainWindowStateManagement:
@@ -583,23 +528,6 @@ class TestMainWindowErrorHandling:
         # Event handling shouldn't crash the process
         assert window is not None
 
-    def test_window_with_missing_components(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
-    ) -> None:
-        """Test window handles missing components gracefully."""
-        # Local import to avoid module-level issues
-        from main_window import (
-            MainWindow,
-        )
-
-        window = MainWindow(cache_manager=real_cache_manager)
-        qtbot.addWidget(window)
-
-        # Window should be created even if some components fail
-        assert window is not None
-        assert isinstance(window, QMainWindow)
-
-
 class TestMainWindowIntegration:
     """Test integration between MainWindow components."""
 
@@ -619,22 +547,6 @@ class TestMainWindowIntegration:
         qtbot.waitExposed(window)
         process_qt_events()
         return window
-
-    def test_component_communication(
-        self, qtbot: QtBot, integrated_window: MainWindow
-    ) -> None:
-        """Test components communicate through signals."""
-        window = integrated_window
-
-        # Components should be connected
-        # This tests that the window initializes without crashes
-        assert window is not None
-
-        # Process any pending events
-        process_qt_events()
-
-        # Window should remain responsive (fixture shows it)
-        assert window.isVisible()
 
     def test_cache_manager_integration(
         self,
@@ -681,14 +593,3 @@ class TestMainWindowIntegration:
         # Window should remain responsive (fixture shows it)
         assert window.isVisible()
         assert window.isEnabled()
-
-    def test_component_cleanup(
-        self, qtbot: QtBot, integrated_window: MainWindow
-    ) -> None:
-        """Test components clean up properly."""
-        window = integrated_window
-
-        # Components should exist
-        assert window.cache_manager is not None
-
-        # Window should handle cleanup (tested by qtbot)

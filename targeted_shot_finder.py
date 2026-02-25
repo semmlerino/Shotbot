@@ -11,12 +11,12 @@ from __future__ import annotations
 # Standard library imports
 import concurrent.futures
 import re
-import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Local application imports
 from config import Config, ThreadingConfig
+from process_pool_manager import CancellableSubprocess
 from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
 from shot_model import Shot
 from typing_compat import override
@@ -45,6 +45,7 @@ class TargetedShotsFinder(ShotFinderBase):
         Args:
             username: Username to search for. If None, uses current user.
             max_workers: Maximum number of parallel workers (default: from config)
+
         """
         # Initialize parent class (ShotFinderBase) which handles username sanitization
         super().__init__(username=username)
@@ -76,6 +77,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Returns:
             Set of unique show names
+
         """
         shows = {shot.show for shot in active_shots}
         self.logger.info(
@@ -95,6 +97,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Returns:
             List of Shot objects found in this show
+
         """
         # Local application imports
         from config import Config
@@ -130,16 +133,25 @@ class TargetedShotsFinder(ShotFinderBase):
 
             self.logger.debug(f"Scanning show {show_name}: {' '.join(cmd)}")
 
-            # Run with timeout per show
-            result = subprocess.run(
-                cmd,
-                check=False, stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
+            # Run with cancellation support using CancellableSubprocess
+            proc = CancellableSubprocess(cmd, shell=False, text=True)
+            result = proc.run(
                 timeout=ThreadingConfig.PREVIOUS_SHOTS_SCAN_TIMEOUT,
-                shell=False,
+                poll_interval=0.1,
+                cancel_flag=lambda: self._stop_requested,
             )
 
+            # Handle cancellation
+            if result.status == "cancelled":
+                self.logger.debug(f"Scan cancelled for show: {show_name}")
+                return shots
+
+            # Handle timeout
+            if result.status == "timeout":
+                self.logger.warning(f"Timeout scanning show: {show_name}")
+                return shots
+
+            # Process successful result
             if result.returncode == 0:
                 for line in result.stdout.strip().split("\n"):
                     if not line or self._stop_requested:
@@ -151,8 +163,6 @@ class TargetedShotsFinder(ShotFinderBase):
 
             self.logger.debug(f"Found {len(shots)} shots in show {show_name}")
 
-        except subprocess.TimeoutExpired:
-            self.logger.warning(f"Timeout scanning show: {show_name}")
         except Exception as e:
             self.logger.error(f"Error scanning show {show_name}: {e}")
 
@@ -167,6 +177,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Returns:
             Shot object if path is valid, None otherwise
+
         """
         match = self._shot_pattern.search(path)
         if match:
@@ -213,6 +224,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Yields:
             Shot objects as they are discovered
+
         """
         # Local application imports
         from config import Config
@@ -292,6 +304,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Returns:
             List of approved/completed shots
+
         """
         # Standard library imports
         import time
@@ -356,6 +369,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Returns:
             Dictionary with shot details including paths and metadata
+
         """
         details: ShotDetailsDict = {
             "show": shot.show,
@@ -392,6 +406,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Returns:
             Path to thumbnail or None if not found
+
         """
         # Local application imports
         from config import Config
@@ -436,6 +451,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Returns:
             Status string (e.g., "approved", "active")
+
         """
         # Check for approved status
         approved_path = Path(shot.workspace_path) / "publish" / "matchmove" / "approved"
@@ -463,6 +479,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         Returns:
             List of Shot objects found
+
         """
         # Extract parameters with proper type annotations for type checker
         target_shows_raw = kwargs.get("target_shows")

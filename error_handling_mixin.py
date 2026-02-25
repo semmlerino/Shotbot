@@ -78,6 +78,7 @@ class ErrorHandlingMixin(LoggingMixin):
 
         Returns:
             Result of operation or default value on error
+
         """
         # Extract wrapper parameters from kwargs
         _default = cast("T | None", kwargs.pop("_default", default))
@@ -130,6 +131,7 @@ class ErrorHandlingMixin(LoggingMixin):
 
         Returns:
             Result of operation or default value on error
+
         """
         try:
             # Convert to Path if string
@@ -195,6 +197,7 @@ class ErrorHandlingMixin(LoggingMixin):
 
         Yields:
             Context dictionary for storing operation results
+
         """
         context: dict[str, object] = {"result": default_result, "error": None}
 
@@ -237,6 +240,7 @@ class ErrorAggregator:
 
         Args:
             logger: Logger instance (uses module logger if not provided)
+
         """
         super().__init__()
         self.errors: list[tuple[str, Exception]] = []
@@ -248,6 +252,7 @@ class ErrorAggregator:
         Args:
             context: Context where error occurred
             error: The exception
+
         """
         self.errors.append((context, error))
         if hasattr(self.logger, "debug"):
@@ -276,6 +281,7 @@ class ErrorAggregator:
 
         Args:
             level: Logging level to use
+
         """
         if not self.errors:
             return
@@ -312,6 +318,7 @@ class ErrorAggregator:
 
         Yields:
             Self for adding errors
+
         """
         self.clear()
 

@@ -45,6 +45,7 @@ def shot_model_temp(
     return model
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestIncrementalCachingWorkflow:
     """Test complete incremental caching workflow."""
 

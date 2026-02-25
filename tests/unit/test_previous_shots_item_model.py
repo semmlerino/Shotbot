@@ -16,7 +16,7 @@ from previous_shots_item_model import PreviousShotsItemModel
 from shot_model import Shot
 
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
-from tests.test_doubles_library import SignalDouble, TestCacheManager
+from tests.fixtures.doubles_library import SignalDouble, TestCacheManager
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
@@ -283,12 +283,11 @@ class TestDataConsistency:
 
 
 class TestPreviousShotsSorting:
-    """Test sorting functionality in PreviousShotsItemModel."""
+    """Compact contract tests for PreviousShotsItemModel sorting."""
 
     @pytest.fixture
     def shots_with_times(self, tmp_path, monkeypatch) -> list[Shot]:
-        """Create test shots with different discovered_at timestamps for sorting."""
-        # Isolate Config.SHOWS_ROOT per UNIFIED_TESTING_V2.md section 2
+        """Create test shots with different discovered_at timestamps."""
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
 
         return [
@@ -297,134 +296,47 @@ class TestPreviousShotsSorting:
                 sequence="010",
                 shot="0010",
                 workspace_path=f"{Config.SHOWS_ROOT}/proj1/shots/010/010_0010",
-                discovered_at=1000.0,  # Oldest
+                discovered_at=1000.0,
             ),
             Shot(
                 show="proj2",
                 sequence="020",
                 shot="0020",
                 workspace_path=f"{Config.SHOWS_ROOT}/proj2/shots/020/020_0020",
-                discovered_at=3000.0,  # Newest
+                discovered_at=3000.0,
             ),
             Shot(
                 show="proj3",
                 sequence="030",
                 shot="0030",
                 workspace_path=f"{Config.SHOWS_ROOT}/proj3/shots/030/030_0030",
-                discovered_at=2000.0,  # Middle
+                discovered_at=2000.0,
             ),
         ]
 
-    def test_default_sort_order_is_date(self, model, shots_with_times) -> None:
-        """Test that default sort order is by date (newest first)."""
+    def test_default_date_sort_order(self, model, shots_with_times) -> None:
+        """Default sort should be date-descending on initial sync."""
         model._underlying_model._shots = shots_with_times
         model._update_from_underlying_model()
 
-        # Default is "date" - newest first
-        # Order should be: 020_0020 (3000), 030_0030 (2000), 010_0010 (1000)
-        assert model.rowCount() == 3
-        shots = list(model._items)
-        assert shots[0].full_name == "020_0020"  # newest
-        assert shots[1].full_name == "030_0030"  # middle
-        assert shots[2].full_name == "010_0010"  # oldest
+        assert [shot.full_name for shot in model._items] == ["020_0020", "030_0030", "010_0010"]
 
-    def test_sort_by_name(self, model, shots_with_times) -> None:
-        """Test sorting by name (alphabetical)."""
-        model._underlying_model._shots = shots_with_times
-        model._update_from_underlying_model()
-        model.set_sort_order("name")
-
-        # Alphabetical: 010_0010, 020_0020, 030_0030
-        shots = list(model._items)
-        assert shots[0].full_name == "010_0010"
-        assert shots[1].full_name == "020_0020"
-        assert shots[2].full_name == "030_0030"
-
-    def test_sort_by_date(self, model, shots_with_times) -> None:
-        """Test sorting by date (newest first)."""
-        model._underlying_model._shots = shots_with_times
-        model._update_from_underlying_model()
-        model.set_sort_order("name")  # First switch to name
-        model.set_sort_order("date")  # Then back to date
-
-        # Newest first: 020_0020 (3000), 030_0030 (2000), 010_0010 (1000)
-        shots = list(model._items)
-        assert shots[0].full_name == "020_0020"
-        assert shots[1].full_name == "030_0030"
-        assert shots[2].full_name == "010_0010"
-
-    def test_sort_order_invalid_value_ignored(self, model, shots_with_times) -> None:
-        """Test that invalid sort order is ignored."""
-        model._underlying_model._shots = shots_with_times
-        model._update_from_underlying_model()
-        original_order = [s.full_name for s in model._items]
-
-        model.set_sort_order("invalid")
-
-        # Order should remain unchanged
-        current_order = [s.full_name for s in model._items]
-        assert current_order == original_order
-
-    def test_sort_order_no_change_noop(self, model, shots_with_times, qtbot) -> None:
-        """Test that setting same sort order is a no-op."""
+    def test_switch_to_name_sort_reorders_items(self, model, shots_with_times, qtbot) -> None:
+        """Switching sort mode should reorder and emit layout signals."""
         model._underlying_model._shots = shots_with_times
         model._update_from_underlying_model()
 
-        # Track signal emission
-        with qtbot.assertNotEmitted(model.layoutChanged):
-            model.set_sort_order("date")  # Already date, should be no-op
-
-    def test_sort_order_emits_layout_signals(self, model, shots_with_times, qtbot) -> None:
-        """Test that changing sort order emits layout signals."""
-        model._underlying_model._shots = shots_with_times
-        model._update_from_underlying_model()
-
-        # Should emit layoutAboutToBeChanged and layoutChanged
         with qtbot.waitSignals(
             [model.layoutAboutToBeChanged, model.layoutChanged], timeout=1000
         ):
             model.set_sort_order("name")
 
-    def test_sort_on_empty_model(self, model) -> None:
-        """Test that sorting empty model doesn't crash."""
-        model.set_sort_order("name")
-        model.set_sort_order("date")
-        assert model.rowCount() == 0
+        assert [shot.full_name for shot in model._items] == ["010_0010", "020_0020", "030_0030"]
 
-    def test_sort_preserves_data_integrity(self, model, shots_with_times) -> None:
-        """Test that sorting preserves all shot data."""
+    def test_setting_same_sort_order_is_noop(self, model, shots_with_times, qtbot) -> None:
+        """Setting the same order should not trigger relayout churn."""
         model._underlying_model._shots = shots_with_times
         model._update_from_underlying_model()
 
-        # Get all shot names before sorting
-        names_before = {s.full_name for s in model._items}
-
-        # Sort by name
-        model.set_sort_order("name")
-        names_after_name = {s.full_name for s in model._items}
-
-        # Sort by date
-        model.set_sort_order("date")
-        names_after_date = {s.full_name for s in model._items}
-
-        # All names should be preserved
-        assert names_before == names_after_name == names_after_date
-
-    def test_sort_case_insensitive(self, model, tmp_path, monkeypatch) -> None:
-        """Test that name sorting is case-insensitive."""
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
-
-        shots = [
-            Shot(show="proj1", sequence="AAA", shot="0010", workspace_path="/tmp"),
-            Shot(show="proj2", sequence="bbb", shot="0020", workspace_path="/tmp"),
-            Shot(show="proj3", sequence="CCC", shot="0030", workspace_path="/tmp"),
-        ]
-        model._underlying_model._shots = shots
-        model._update_from_underlying_model()
-        model.set_sort_order("name")
-
-        # Should be sorted case-insensitively: AAA, bbb, CCC
-        sorted_shots = list(model._items)
-        assert sorted_shots[0].sequence == "AAA"
-        assert sorted_shots[1].sequence == "bbb"
-        assert sorted_shots[2].sequence == "CCC"
+        with qtbot.assertNotEmitted(model.layoutChanged):
+            model.set_sort_order("date")

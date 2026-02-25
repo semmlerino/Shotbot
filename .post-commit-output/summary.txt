@@ -1,15 +1,18 @@
 
 Post-Commit Hook Summary
 ========================
-Output directory: /home/gabrielh/projects/shotbot/.post-commit-output
+Output directory: /mnt/c/CustomScripts/Python/shotbot/.post-commit-output
 Files created:
-drwxr-xr-x  2 gabrielh gabrielh  4096 Dec  3 12:26 .
-drwxr-xr-x 29 gabrielh gabrielh 36864 Dec  3 12:26 ..
--rw-r--r--  1 gabrielh gabrielh     0 Dec  3 12:26 background-startup.log
--rw-r--r--  1 gabrielh gabrielh   359 Dec  3 12:26 bundle.txt
--rw-r--r--  1 gabrielh gabrielh    72 Dec  3 12:26 commit_msg.txt
--rw-r--r--  1 gabrielh gabrielh     7 Dec  3 12:26 current_branch.txt
--rw-r--r--  1 gabrielh gabrielh    41 Dec  3 12:26 current_commit.txt
--rw-r--r--  1 gabrielh gabrielh   147 Dec  3 12:26 import-test.txt
--rw-r--r--  1 gabrielh gabrielh   240 Dec  3 12:26 info.txt
--rw-r--r--  1 gabrielh gabrielh   136 Dec  3 12:26 summary.txt
+drwxrwxrwx 1 gabri gabri   512 Feb 24 17:14 .
+drwxrwxrwx 1 gabri gabri   512 Feb 24 22:04 ..
+-rwxrwxrwx 1 gabri gabri     0 Feb 24 22:04 background-startup.log
+-rwxrwxrwx 1 gabri gabri    66 Feb 24 22:04 bundle-push.log
+-rwxrwxrwx 1 gabri gabri   358 Feb 24 22:04 bundle.txt
+-rwxrwxrwx 1 gabri gabri    43 Feb 24 22:04 commit_msg.txt
+-rwxrwxrwx 1 gabri gabri     7 Feb 24 22:04 current_branch.txt
+-rwxrwxrwx 1 gabri gabri    41 Feb 24 22:04 current_commit.txt
+-rwxrwxrwx 1 gabri gabri   147 Feb 24 22:04 import-test.txt
+-rwxrwxrwx 1 gabri gabri   212 Feb 24 22:04 info.txt
+-rwxrwxrwx 1 gabri gabri   532 Feb 24 22:04 ruff-check.txt
+-rwxrwxrwx 1 gabri gabri   140 Feb 24 22:04 summary.txt
+-rwxrwxrwx 1 gabri gabri 22969 Feb 24 22:04 type-check.txt

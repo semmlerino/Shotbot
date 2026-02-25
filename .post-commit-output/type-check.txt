@@ -1,0 +1,205 @@
+Running type checking...
+/mnt/c/CustomScripts/Python/shotbot/base_grid_view.py
+  /mnt/c/CustomScripts/Python/shotbot/base_grid_view.py:257:60 - information: Type of "start_scrub" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/base_grid_view.py:257:60 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/base_grid_view.py:259:13 - information: Type of "update_scrub_position" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/base_grid_view.py:259:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/base_grid_view.py:261:58 - information: Type of "end_scrub" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/base_grid_view.py:261:58 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/base_item_model.py
+  /mnt/c/CustomScripts/Python/shotbot/base_item_model.py:411:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/base_thumbnail_delegate.py
+  /mnt/c/CustomScripts/Python/shotbot/base_thumbnail_delegate.py:220:16 - error: Unnecessary "cast" call; type is already "QRect" (reportUnnecessaryCast)
+  /mnt/c/CustomScripts/Python/shotbot/base_thumbnail_delegate.py:221:17 - error: Unnecessary "cast" call; type is already "StateFlag" (reportUnnecessaryCast)
+/mnt/c/CustomScripts/Python/shotbot/cache_manager.py
+  /mnt/c/CustomScripts/Python/shotbot/cache_manager.py:350:13 - information: Type of "flock" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/cache_manager.py:350:44 - information: Type of "LOCK_EX" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/cache_manager.py:365:21 - information: Type of "flock" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/cache_manager.py:365:52 - information: Type of "LOCK_UN" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/cache_manager.py:1190:17 - information: Type of "data" is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/cache_utils.py
+  /mnt/c/CustomScripts/Python/shotbot/cache_utils.py:81:25 - information: Type of parameter "args" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/cache_utils.py:81:38 - information: Type of parameter "kwargs" is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:84:13 - information: Type of "_on_shot_show_filter_requested" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:84:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:87:13 - information: Type of "_on_shot_text_filter_requested" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:87:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:92:13 - information: Type of "_on_previous_show_filter_requested" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:92:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:95:13 - information: Type of "_on_previous_text_filter_requested" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:95:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:100:13 - information: Type of "_on_previous_shots_updated" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:100:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:135:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:142:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:172:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:182:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/filter_coordinator.py:210:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:88:24 - information: Type of parameter "shot" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:118:62 - information: Type of "shot" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:118:62 - information: Type of "workspace_path" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:118:62 - information: Argument type is Any
+    Argument corresponds to parameter "workspace_path" in function "get_available_plates" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:124:60 - information: Type of "shot" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:124:60 - information: Argument type is Any
+    Argument corresponds to parameter "shot" in function "find_all_files" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:129:29 - information: Type of "shot" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:168:57 - information: Type of "on_shot_selected" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:168:57 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:169:63 - information: Type of "on_shot_double_clicked" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:169:63 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:171:13 - information: Type of "on_recover_crashes_requested" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:171:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:175:67 - information: Type of "on_shot_selected" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:175:67 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:177:13 - information: Type of "on_shot_double_clicked" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:177:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:193:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:194:32 - information: Type of parameter "shot" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:225:59 - information: Argument type is Any
+    Argument corresponds to parameter "shot" in function "set_current_shot" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:228:46 - information: Argument type is Any
+    Argument corresponds to parameter "shot" in function "set_shot" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:231:63 - information: Type of "full_name" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:231:81 - information: Type of "show" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:234:52 - information: Type of "full_name" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:234:70 - information: Type of "show" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:237:51 - information: Type of "full_name" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:242:65 - information: Type of "_on_discovery_complete" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:242:65 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:243:62 - information: Type of "_on_discovery_error" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:243:62 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:246:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:247:38 - information: Type of parameter "_shot" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:251:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:285:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/shot_selection_controller.py:295:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/controllers/thumbnail_size_manager.py
+  /mnt/c/CustomScripts/Python/shotbot/controllers/thumbnail_size_manager.py:76:13 - information: Type of "_sync_thumbnail_sizes" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/thumbnail_size_manager.py:76:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/thumbnail_size_manager.py:79:13 - information: Type of "_sync_thumbnail_sizes" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/thumbnail_size_manager.py:79:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/thumbnail_size_manager.py:82:13 - information: Type of "_sync_thumbnail_sizes" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/thumbnail_size_manager.py:82:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/controllers/thumbnail_size_manager.py:87:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/dcc_section.py
+  /mnt/c/CustomScripts/Python/shotbot/dcc_section.py:1275:9 - information: Type of "setVisible" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/dcc_section.py:1277:9 - information: Type of "count" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/dcc_section.py:1277:17 - information: Type of "count" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/dcc_section.py:1278:9 - information: Type of "setText" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/dcc_section.py:1289:9 - information: Type of "sequence" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/dcc_section.py:1327:9 - information: Type of "list_widget" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/dcc_section.py:1345:9 - information: Type of "setText" is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/file_pin_manager.py
+  /mnt/c/CustomScripts/Python/shotbot/file_pin_manager.py:176:64 - information: Argument type is Any
+    Argument corresponds to parameter "o" in function "__init__" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/file_pin_manager.py:184:23 - information: Type of "pin_data_raw" is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/files_tab_widget.py
+  /mnt/c/CustomScripts/Python/shotbot/files_tab_widget.py:129:9 - information: Return type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/files_tab_widget.py:143:9 - information: Return type is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/filesystem_scanner.py
+  /mnt/c/CustomScripts/Python/shotbot/filesystem_scanner.py:717:28 - information: Type of "data" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/filesystem_scanner.py:728:24 - information: Type of "data" is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/launch/process_executor.py
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_executor.py:499:25 - information: Type of "proc_name" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_executor.py:499:37 - information: Type of "lower" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_executor.py:500:25 - information: Type of "create_time" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_executor.py:501:25 - information: Type of "proc_pid" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_executor.py:506:54 - information: Argument type is Any
+    Argument corresponds to parameter "x" in function "__new__" (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/launch/process_verifier.py
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_verifier.py:213:21 - information: Type of "proc_name" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_verifier.py:213:33 - information: Type of "lower" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_verifier.py:214:21 - information: Type of "create_time" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_verifier.py:215:21 - information: Type of "proc_pid" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/launch/process_verifier.py:224:36 - information: Return type is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/main_window.py
+  /mnt/c/CustomScripts/Python/shotbot/main_window.py:953:13 - information: Type of "on_shot_selected" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/main_window.py:961:21 - information: Type of "on_scene_selected" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/main_window.py:970:13 - information: Type of "on_shot_selected" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/main_window.py:1158:38 - information: Argument type is Any
+    Argument corresponds to parameter "o" in function "__new__" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/main_window.py:1159:35 - information: Argument type is Any
+    Argument corresponds to parameter "o" in function "__new__" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/main_window.py:1160:36 - information: Argument type is Any
+    Argument corresponds to parameter "o" in function "__new__" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/main_window.py:1161:34 - information: Argument type is Any
+    Argument corresponds to parameter "o" in function "__new__" (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/notes_manager.py
+  /mnt/c/CustomScripts/Python/shotbot/notes_manager.py:83:73 - information: Argument type is Any
+    Argument corresponds to parameter "o" in function "__init__" (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/pin_manager.py
+  /mnt/c/CustomScripts/Python/shotbot/pin_manager.py:65:80 - information: Argument type is Any
+    Argument corresponds to parameter "o" in function "__init__" (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/process_pool_manager.py
+  /mnt/c/CustomScripts/Python/shotbot/process_pool_manager.py:193:28 - information: Type of "data" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/process_pool_manager.py:204:24 - information: Type of "data" is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/scrub_preview_manager.py
+  /mnt/c/CustomScripts/Python/shotbot/scrub_preview_manager.py:127:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/scrub_preview_manager.py:152:9 - information: Type of "shot_data" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/scrub_preview_manager.py:158:39 - information: Argument type is Any
+    Argument corresponds to parameter "shot_data" in function "_get_shot_key" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/scrub_preview_manager.py:159:51 - information: Argument type is Any
+    Argument corresponds to parameter "shot_data" in function "_get_workspace_path" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/scrub_preview_manager.py:160:56 - information: Argument type is Any
+    Argument corresponds to parameter "shot_data" in function "_get_frame_range" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/scrub_preview_manager.py:170:13 - information: Type of "end_scrub" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/scrub_preview_manager.py:206:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/scrub_preview_manager.py:272:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/settings_dialog.py
+  /mnt/c/CustomScripts/Python/shotbot/settings_dialog.py:680:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/settings_dialog.py:689:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/settings_dialog.py:707:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/settings_dialog.py:721:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/settings_manager.py
+  /mnt/c/CustomScripts/Python/shotbot/settings_manager.py:737:17 - information: Type of "loaded_data" is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/shot_info_panel.py
+  /mnt/c/CustomScripts/Python/shotbot/shot_info_panel.py:471:13 - information: Type of "_on_pixmap_loaded" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/shot_info_panel.py:471:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/shot_info_panel.py:475:13 - information: Type of "_on_pixmap_failed" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/shot_info_panel.py:475:13 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/shot_info_panel.py:480:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/shot_info_panel.py:487:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/threede_scene_worker.py
+  /mnt/c/CustomScripts/Python/shotbot/threede_scene_worker.py:337:13 - information: Type of "run" is Any (reportAny)
+/mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:474:17 - information: Type of "_on_thumbnail_loaded" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:474:17 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:478:17 - information: Type of "_on_thumbnail_failed" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:478:17 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:489:21 - information: Type of "_on_thumbnail_loaded" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:489:21 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:493:21 - information: Type of "_on_thumbnail_failed" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:493:21 - information: Argument type is Any
+    Argument corresponds to parameter "slot" in function "connect" (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:509:17 - information: Type of "_on_thumbnail_failed" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:511:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:518:17 - information: Type of "_on_thumbnail_failed" is Any (reportAny)
+  /mnt/c/CustomScripts/Python/shotbot/thumbnail_widget_base.py:527:6 - information: Function decorator obscures type of function because its type is Any (reportAny)
+2 errors, 0 warnings, 137 notes
+⚠ Type errors detected (exit code: 1)

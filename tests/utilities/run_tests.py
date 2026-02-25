@@ -11,6 +11,7 @@ Examples:
     python run_tests.py --fast             # Shortcut for -m "not slow"
     python run_tests.py --qt               # Shortcut for -m qt
     python run_tests.py --cov              # Run with coverage
+
 """
 
 # Standard library imports

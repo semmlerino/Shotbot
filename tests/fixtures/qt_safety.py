@@ -68,6 +68,7 @@ class DialogRecorder:
             from PySide6.QtWidgets import QMessageBox
             suppress_qmessagebox.set_return_value("question", QMessageBox.StandardButton.No)
             # Code that shows question dialog will now get "No" response
+
         """
         self._return_values[method] = value
 
@@ -87,6 +88,7 @@ class DialogRecorder:
 
         Raises:
             AssertionError: If no matching dialog was found
+
         """
         if method is None:
             matching = self.calls
@@ -107,6 +109,7 @@ class DialogRecorder:
 
         Raises:
             AssertionError: If any dialogs were recorded
+
         """
         assert not self.calls, f"Unexpected dialogs: {self.calls}"
 
@@ -234,9 +237,17 @@ def prevent_qapp_exit(monkeypatch: pytest.MonkeyPatch, qapp: QApplication) -> No
 
     See: https://pytest-qt.readthedocs.io/en/latest/note_dialogs.html#warning-about-qapplication-exit
 
+    Scope Notes:
+        This is a function-scoped fixture that depends on session-scoped `qapp`.
+        Pytest guarantees session-scoped fixtures are created before any function-scoped
+        fixtures, so this dependency is safe. However, do not change this fixture to
+        module or session scope without careful review - the monkeypatch fixture
+        is function-scoped and would need to be changed first.
+
     Args:
         monkeypatch: Pytest monkeypatch fixture
-        qapp: QApplication fixture from qt_bootstrap
+        qapp: QApplication fixture from conftest (session-scoped)
+
     """
     from PySide6.QtCore import QCoreApplication
     from PySide6.QtWidgets import QApplication
@@ -276,6 +287,7 @@ def expect_no_dialogs(suppress_qmessagebox: DialogRecorder):
 
         # If a dialog IS shown, test fails with:
         # AssertionError: Unexpected dialogs: [{'method': 'warning', ...}]
+
     """
     yield suppress_qmessagebox
     suppress_qmessagebox.assert_not_shown()
@@ -301,6 +313,7 @@ def expect_dialog(suppress_qmessagebox: DialogRecorder):
 
         # If NO dialog shown, test fails with:
         # AssertionError: Expected at least one dialog but none were shown
+
     """
     yield suppress_qmessagebox
     assert suppress_qmessagebox.calls, "Expected at least one dialog but none were shown"
@@ -327,6 +340,7 @@ def expect_cancel(suppress_qmessagebox: DialogRecorder) -> DialogRecorder:
             original_data = get_data()
             trigger_replace_dialog()
             assert get_data() == original_data  # Cancel preserved original
+
     """
     from PySide6.QtWidgets import QMessageBox
 

@@ -51,6 +51,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             shot_model: The active shots model to compare against.
             cache_manager: Optional cache manager for persistence.
             parent: Optional parent QObject.
+
         """
         super().__init__(parent)
 
@@ -147,6 +148,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Returns:
             True if refresh was started, False if already scanning.
+
         """
         # Check and acquire lock atomically
         with QMutexLocker(self._scan_lock):
@@ -212,6 +214,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Args:
             approved_shots: List of approved shot dictionaries found by worker.
+
         """
         try:
             # Local application imports
@@ -277,6 +280,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Args:
             error_msg: Error message from worker.
+
         """
         self.logger.error(f"Previous shots scan error: {error_msg}")
         # Reset scanning flag using helper method
@@ -292,6 +296,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             current: Current progress value
             total: Total progress value
             message: Progress message (not forwarded, model signal is simpler)
+
         """
         self.scan_progress.emit(current, total)
 
@@ -300,6 +305,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Returns:
             List of Shot objects for approved shots.
+
         """
         return self._previous_shots.copy()
 
@@ -308,6 +314,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Returns:
             Number of approved shots.
+
         """
         return len(self._previous_shots)
 
@@ -319,6 +326,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Returns:
             Shot object if found, None otherwise.
+
         """
         for shot in self._previous_shots:
             if shot.shot == shot_name:
@@ -333,6 +341,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Returns:
             Dictionary with shot details.
+
         """
         # Finder returns ShotDetailsDict (TypedDict with all str values)
         # Convert to dict[str, str] with cast after validation
@@ -345,6 +354,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Args:
             show: Show name to filter by or None for all shows
+
         """
         self._filter_show = show
         self.logger.info(f"Show filter set to: {show if show else 'All Shows'}")
@@ -358,6 +368,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Args:
             text: Text to filter by (case-insensitive substring match) or None for no filter
+
         """
         self._filter_text = text
         self.logger.info(f"Text filter set to: '{text if text else ''}'")
@@ -373,6 +384,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Returns:
             Filtered list of shots
+
         """
         filtered = compose_filters(
             self._previous_shots, show=self._filter_show, text=self._filter_text
@@ -389,6 +401,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Returns:
             Set of unique show names
+
         """
         return get_available_shows(self._previous_shots)
 
@@ -397,6 +410,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Returns:
             List of Shot objects (empty list if no cache)
+
         """
         try:
             # Load both sources (persistent - no TTL expiration)
@@ -464,6 +478,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         Returns:
             True if scanning is in progress.
+
         """
         # THREAD SAFETY: Use lock when reading _is_scanning
         with QMutexLocker(self._scan_lock):

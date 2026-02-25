@@ -29,6 +29,7 @@ def temp_shows_root() -> Iterator[Path]:
 
     Yields:
         Path to a temporary directory for simulated VFX shows
+
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         shows_root = Path(temp_dir)
@@ -41,6 +42,7 @@ def temp_cache_dir() -> Iterator[Path]:
 
     Yields:
         Path to a temporary directory for cache files
+
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         cache_dir = Path(temp_dir)
@@ -58,6 +60,7 @@ def cache_manager(temp_cache_dir: Path) -> Iterator[object]:
 
     Yields:
         CacheManager instance configured with temp directory
+
     """
     from cache_manager import CacheManager
 
@@ -79,5 +82,6 @@ def real_cache_manager(cache_manager: object) -> Iterator[object]:
 
     Yields:
         Same CacheManager instance as cache_manager
+
     """
     return cache_manager

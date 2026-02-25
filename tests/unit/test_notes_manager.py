@@ -14,18 +14,7 @@ import json
 from pathlib import Path
 
 # Standard library imports
-from typing import TYPE_CHECKING
-
-# Third-party imports
 import pytest
-
-
-# Qt tests must be grouped for parallel execution
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
-
-
-if TYPE_CHECKING:
-    from pytestqt.qtbot import QtBot
 
 # Local application imports
 from cache_manager import CacheManager
@@ -34,9 +23,7 @@ from notes_manager import SHOT_NOTES_CACHE_KEY, NotesManager
 from shot_model import Shot
 
 
-pytestmark = [
-    pytest.mark.unit,
-]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 # Test fixtures following UNIFIED_TESTING_GUIDE patterns
@@ -50,12 +37,9 @@ def cache_manager(tmp_path: Path) -> CacheManager:
 
 
 @pytest.fixture
-def notes_manager(cache_manager: CacheManager, qtbot: QtBot) -> NotesManager:
+def notes_manager(cache_manager: CacheManager) -> NotesManager:
     """Create NotesManager with test cache manager."""
-    nm = NotesManager(cache_manager)
-    # Wait for any pending Qt events
-    qtbot.wait(10)
-    return nm
+    return NotesManager(cache_manager)
 
 
 @pytest.fixture
@@ -195,7 +179,7 @@ class TestClearNotes:
     """Tests for clear_notes() method."""
 
     def test_clear_notes_removes_all(
-        self, notes_manager: NotesManager, sample_shots: list[Shot], qtbot: QtBot
+        self, notes_manager: NotesManager, sample_shots: list[Shot]
     ) -> None:
         """clear_notes should remove all notes."""
         for i, shot in enumerate(sample_shots):
@@ -204,8 +188,6 @@ class TestClearNotes:
         assert notes_manager.get_notes_count() == 3
 
         notes_manager.clear_notes()
-        # Wait for debounced save
-        qtbot.wait(50)
 
         assert notes_manager.get_notes_count() == 0
         for shot in sample_shots:
@@ -219,7 +201,7 @@ class TestPersistence:
     """Tests for cache persistence."""
 
     def test_notes_persist_across_instances(
-        self, cache_manager: CacheManager, sample_shots: list[Shot], qtbot: QtBot
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
     ) -> None:
         """Notes should persist when creating a new NotesManager instance."""
         shot1, shot2, _ = sample_shots
@@ -243,7 +225,7 @@ class TestPersistence:
         assert nm2.get_notes_count() == 2
 
     def test_cache_file_format(
-        self, cache_manager: CacheManager, sample_shots: list[Shot], qtbot: QtBot
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
     ) -> None:
         """Cache file should be valid JSON with expected format."""
         shot = sample_shots[0]
@@ -321,7 +303,7 @@ class TestEdgeCases:
         assert notes_manager.get_note(shot2) == "Test note"
 
     def test_multiline_notes(
-        self, notes_manager: NotesManager, sample_shots: list[Shot], qtbot: QtBot
+        self, notes_manager: NotesManager, sample_shots: list[Shot]
     ) -> None:
         """Should handle multiline notes correctly."""
         shot = sample_shots[0]
@@ -336,7 +318,7 @@ class TestEdgeCases:
         assert nm2.get_note(shot) == multiline_note
 
     def test_unicode_notes(
-        self, notes_manager: NotesManager, sample_shots: list[Shot], qtbot: QtBot
+        self, notes_manager: NotesManager, sample_shots: list[Shot]
     ) -> None:
         """Should handle unicode characters in notes."""
         shot = sample_shots[0]
@@ -358,26 +340,28 @@ class TestSignals:
     """Tests for Qt signals."""
 
     def test_notes_changed_signal_emitted_on_set(
-        self, notes_manager: NotesManager, sample_shots: list[Shot], qtbot: QtBot
+        self, notes_manager: NotesManager, sample_shots: list[Shot]
     ) -> None:
         """notes_changed signal should be emitted when note is set."""
         shot = sample_shots[0]
-
-        with qtbot.waitSignal(notes_manager.notes_changed, timeout=1000):
-            notes_manager.set_note(shot, "New note")
+        signal_count: list[int] = []
+        notes_manager.notes_changed.connect(lambda: signal_count.append(1))
+        notes_manager.set_note(shot, "New note")
+        assert len(signal_count) == 1
 
     def test_notes_changed_signal_emitted_on_clear(
-        self, notes_manager: NotesManager, sample_shots: list[Shot], qtbot: QtBot
+        self, notes_manager: NotesManager, sample_shots: list[Shot]
     ) -> None:
         """notes_changed signal should be emitted on clear_notes."""
         shot = sample_shots[0]
         notes_manager.set_note(shot, "Note")
-
-        with qtbot.waitSignal(notes_manager.notes_changed, timeout=1000):
-            notes_manager.clear_notes()
+        signal_count: list[int] = []
+        notes_manager.notes_changed.connect(lambda: signal_count.append(1))
+        notes_manager.clear_notes()
+        assert len(signal_count) == 1
 
     def test_no_signal_when_note_unchanged(
-        self, notes_manager: NotesManager, sample_shots: list[Shot], qtbot: QtBot
+        self, notes_manager: NotesManager, sample_shots: list[Shot]
     ) -> None:
         """notes_changed should not be emitted if note is same."""
         shot = sample_shots[0]
@@ -389,5 +373,4 @@ class TestSignals:
 
         notes_manager.set_note(shot, "Test note")  # Same note
 
-        qtbot.wait(50)
         assert len(signal_received) == 0, "Signal should not be emitted for unchanged note"

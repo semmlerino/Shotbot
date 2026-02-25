@@ -67,7 +67,6 @@ class ModernButton(QPushButton):
 
     def _setup_style(self) -> None:
         """Apply modern styling based on variant."""
-
         if self.variant == "primary":
             self.setObjectName("primaryButton")
         elif self.variant == "success":

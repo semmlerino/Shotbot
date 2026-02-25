@@ -43,6 +43,7 @@ class MayaLatestFinder(VersionHandlingMixin):
 
         Returns:
             Path to the latest Maya scene file, or None if not found or cancelled
+
         """
         if not workspace_path:
             self.logger.debug("No workspace path provided")
@@ -143,6 +144,7 @@ class MayaLatestFinder(VersionHandlingMixin):
 
         Returns:
             List of all Maya scene files found (empty if cancelled)
+
         """
         if not workspace_path:
             return []

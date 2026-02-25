@@ -54,6 +54,7 @@ class ScrubEventFilter(QObject):
         Args:
             view: The QListView to track mouse events on
             parent: Parent QObject
+
         """
         super().__init__(parent)
         self._view: QListView = view
@@ -81,6 +82,7 @@ class ScrubEventFilter(QObject):
 
         Returns:
             True if event was handled, False to pass to next filter
+
         """
         # Guard against access to deleted C++ objects during teardown
         if not isValid(self._view):
@@ -107,6 +109,7 @@ class ScrubEventFilter(QObject):
 
         Args:
             event: Mouse event
+
         """
         pos = event.position().toPoint()
         index = self._view.indexAt(pos)
@@ -141,6 +144,7 @@ class ScrubEventFilter(QObject):
         Args:
             index: Index of the item being hovered
             rect: Visual rect of the item
+
         """
         # If already scrubbing a different item, end that scrub first
         if self._is_scrubbing and self._current_index is not None:
@@ -225,6 +229,7 @@ class ScrubEventFilter(QObject):
 
         Returns:
             Ratio from 0.0 (left edge) to 1.0 (right edge)
+
         """
         if rect.width() <= 0:
             return 0.5
@@ -241,6 +246,7 @@ class ScrubEventFilter(QObject):
 
         Returns:
             True if actively scrubbing
+
         """
         return self._is_scrubbing
 
@@ -250,6 +256,7 @@ class ScrubEventFilter(QObject):
 
         Returns:
             Current index or None if not scrubbing
+
         """
         return self._current_index
 

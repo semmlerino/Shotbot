@@ -47,6 +47,7 @@ Examples:
 Thread Safety:
     Configuration values are read-only after import and safe for concurrent
     access. Runtime modifications should be avoided in production environments.
+
 """
 
 # Standard library imports

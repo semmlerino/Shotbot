@@ -363,29 +363,18 @@ class TestGetWorkspaceFromPath:
 
     def test_extract_workspace(self, monkeypatch) -> None:
         """Test extracting workspace from full path."""
-        # Import config and patch it directly to avoid environment pollution issues
-        import sys
-        # Force clean import
-        if "config" in sys.modules:
-            del sys.modules["config"]
-        from config import (
-            Config,
-        )
+        # Patch both references used by FinderUtils without reloading modules.
+        # Deleting/reimporting modules leaks global state into later tests.
+        import finder_utils
+        from config import Config
 
-        # Set up test SHOWS_ROOT
         test_shows_root = "/tmp/mock_vfx/shows"
         monkeypatch.setattr(Config, "SHOWS_ROOT", test_shows_root)
-
-        # Also clean up finder_utils to ensure it uses the patched Config
-        if "finder_utils" in sys.modules:
-            del sys.modules["finder_utils"]
-        from finder_utils import (
-            FinderUtils,
-        )
+        monkeypatch.setattr(finder_utils.Config, "SHOWS_ROOT", test_shows_root)
 
         # Follow VFX naming convention: {sequence}_{shot}
         path = f"{test_shows_root}/test/shots/010/010_0010/user/john/maya/scenes/file.ma"
-        workspace = FinderUtils.get_workspace_from_path(path)
+        workspace = finder_utils.FinderUtils.get_workspace_from_path(path)
         assert workspace == f"{test_shows_root}/test/shots/010/010_0010"
 
     @pytest.mark.parametrize(

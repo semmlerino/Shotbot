@@ -10,6 +10,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 # Standard library imports
 from datetime import UTC
 from pathlib import Path
+from typing import Protocol
 from unittest.mock import MagicMock, patch
 
 # Third-party imports
@@ -22,7 +23,6 @@ from pytestqt.qtbot import QtBot
 # from main_window import MainWindow
 # from shot_model import Shot
 from config import Config
-from typing import Protocol
 
 
 class TestProcessPoolType(Protocol):

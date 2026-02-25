@@ -51,6 +51,7 @@ class ThumbnailFinders:
 
         Returns:
             Path to first frame of best available plate, or None if not found
+
         """
         # Build base path to turnover plates
         shot_dir = f"{sequence}_{shot}"
@@ -198,6 +199,7 @@ class ThumbnailFinders:
 
         Returns:
             Path to first matching EXR file, or None if not found
+
         """
         # Build path to publish directory
         shot_dir = f"{sequence}_{shot}"
@@ -264,6 +266,7 @@ class ThumbnailFinders:
 
         Returns:
             Path to first JPEG file found, or None if not found
+
         """
         # Build base path to mm/default directory
         shot_dir = f"{sequence}_{shot}"
@@ -350,6 +353,7 @@ class ThumbnailFinders:
 
         Returns:
             Path to first JPEG found in any user workspace, or None
+
         """
         shot_dir = f"{sequence}_{shot}"
         shot_path = PathBuilders.build_path(shows_root, show, "shots", sequence, shot_dir)
@@ -460,6 +464,7 @@ class ThumbnailFinders:
 
         Returns:
             Path to first JPEG file from latest editorial cutref version, or None if not found
+
         """
         # Build base path to editorial cutref directory
         shot_dir = f"{sequence}_{shot}"

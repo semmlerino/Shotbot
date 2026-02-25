@@ -58,6 +58,7 @@ class NotesManager(LoggingMixin, QObject):
         Args:
             cache_manager: Cache manager for persistence
             parent: Optional parent QObject
+
         """
         super().__init__(parent)
         self._cache_manager = cache_manager
@@ -164,6 +165,7 @@ class NotesManager(LoggingMixin, QObject):
 
         Returns:
             Tuple of (show, sequence, shot) for uniqueness
+
         """
         return (shot.show, shot.sequence, shot.shot)
 
@@ -175,6 +177,7 @@ class NotesManager(LoggingMixin, QObject):
 
         Returns:
             Note text, or empty string if no note
+
         """
         return self._notes_by_key.get(self._get_key(shot), "")
 
@@ -187,6 +190,7 @@ class NotesManager(LoggingMixin, QObject):
         Args:
             shot: Shot to set note for
             note: Note text (empty string removes note)
+
         """
         key = self._get_key(shot)
         old_note = self._notes_by_key.get(key, "")
@@ -211,6 +215,7 @@ class NotesManager(LoggingMixin, QObject):
 
         Returns:
             True if shot has a note
+
         """
         key = self._get_key(shot)
         note = self._notes_by_key.get(key, "")
@@ -224,6 +229,7 @@ class NotesManager(LoggingMixin, QObject):
 
         Returns:
             True if shot has a note
+
         """
         key = self._key_from_path(workspace_path)
         if not key:
@@ -239,6 +245,7 @@ class NotesManager(LoggingMixin, QObject):
 
         Returns:
             Note text, or empty string if no note
+
         """
         key = self._key_from_path(workspace_path)
         if not key:
@@ -251,6 +258,7 @@ class NotesManager(LoggingMixin, QObject):
         Args:
             workspace_path: Full workspace path
             note: Note text (empty string removes note)
+
         """
         key = self._key_from_path(workspace_path)
         if not key:
@@ -277,6 +285,7 @@ class NotesManager(LoggingMixin, QObject):
 
         Returns:
             Tuple key or None if path can't be parsed
+
         """
         from pathlib import Path as PathLib
 
@@ -301,6 +310,7 @@ class NotesManager(LoggingMixin, QObject):
 
         Returns:
             Number of shots with notes
+
         """
         return len(self._notes_by_key)
 

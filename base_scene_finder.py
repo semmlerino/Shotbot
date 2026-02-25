@@ -38,6 +38,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             List of paths to search for scene files
+
         """
         raise NotImplementedError
 
@@ -47,6 +48,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             List of file extensions (e.g., ['.ma', '.mb'])
+
         """
         raise NotImplementedError
 
@@ -67,6 +69,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             Path to the latest scene file, or None if not found
+
         """
         # Validate workspace
         workspace = self._validate_workspace(workspace_path)
@@ -104,6 +107,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             List of paths to all scene files, sorted by version
+
         """
         # Validate workspace
         workspace = self._validate_workspace(workspace_path)
@@ -127,6 +131,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             Path object if valid, None otherwise
+
         """
         if not workspace_path:
             self.logger.debug("No workspace path provided")
@@ -152,6 +157,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             List of (path, version) tuples
+
         """
         scene_files: list[tuple[Path, int]] = []
 
@@ -186,6 +192,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             List of all scene file paths
+
         """
         all_files: set[Path] = set()  # Use set to avoid duplicates
 
@@ -221,6 +228,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             List of (path, version) tuples
+
         """
         versioned_files: list[tuple[Path, int]] = []
 
@@ -255,6 +263,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             List with autosave files removed
+
         """
         return [f for f in files if "autosave" not in f.name.lower()]
 
@@ -271,6 +280,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             List of files matching the pattern
+
         """
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
@@ -285,6 +295,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
 
         Returns:
             Dictionary mapping username to list of files
+
         """
         user_files: dict[str, list[Path]] = {}
 

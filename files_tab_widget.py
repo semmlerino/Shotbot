@@ -46,6 +46,7 @@ class FileTableModel(QAbstractTableModel):
 
         Args:
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         self._files: list[SceneFile] = []
@@ -56,6 +57,7 @@ class FileTableModel(QAbstractTableModel):
 
         Args:
             files: List of scene files to display
+
         """
         self.beginResetModel()
         self._files = list(files)
@@ -69,6 +71,7 @@ class FileTableModel(QAbstractTableModel):
 
         Returns:
             SceneFile at that row or None if out of bounds
+
         """
         if 0 <= row < len(self._files):
             return self._files[row]
@@ -79,6 +82,7 @@ class FileTableModel(QAbstractTableModel):
 
         Args:
             file: The file to mark as default, or None to clear
+
         """
         old_default = self._current_default
         self._current_default = file
@@ -92,6 +96,7 @@ class FileTableModel(QAbstractTableModel):
 
         Args:
             file: The file whose row needs refresh, or None
+
         """
         if file is None:
             return
@@ -184,6 +189,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
     Attributes:
         file_selected: Signal(SceneFile) - emitted on single click
         file_open_requested: Signal(SceneFile) - emitted on double-click
+
     """
 
     file_selected = Signal(object)  # SceneFile
@@ -194,6 +200,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
 
         Args:
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         self._tables: dict[FileType, QTableView] = {}
@@ -258,6 +265,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
 
         Returns:
             Configured QTableView
+
         """
         table = QTableView()
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -318,6 +326,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
 
         Returns:
             Display name string
+
         """
         display_names = {
             FileType.THREEDE: "3DE",
@@ -332,6 +341,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
         Args:
             file_type: The file type of the clicked table
             index: The clicked model index
+
         """
         model = self._models.get(file_type)
         if model:
@@ -345,6 +355,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
         Args:
             file_type: The file type of the clicked table
             index: The clicked model index
+
         """
         model = self._models.get(file_type)
         if model:
@@ -357,6 +368,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
 
         Args:
             files_by_type: Dict mapping FileType to list of SceneFiles
+
         """
         for file_type, files in files_by_type.items():
             model = self._models.get(file_type)
@@ -387,6 +399,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
 
         Returns:
             Total number of files
+
         """
         total = 0
         for model in self._models.values():
@@ -398,6 +411,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
 
         Returns:
             Selected SceneFile or None
+
         """
         # Get current tab's table
         current_idx = self._tab_widget.currentIndex()
@@ -418,6 +432,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
 
         Args:
             file_type: The file type tab to show
+
         """
         idx = self._tab_indices.get(file_type)
         if idx is not None:
@@ -429,6 +444,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
         Args:
             file_type: The file type (tab) to update
             file: The file to mark as default, or None to clear
+
         """
         model = self._models.get(file_type)
         if model:

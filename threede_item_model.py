@@ -44,6 +44,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         Args:
             cache_manager: Optional cache manager for thumbnails
             parent: Optional parent QObject
+
         """
         super().__init__(cache_manager, parent)
 
@@ -68,6 +69,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Returns:
             Scene's full name
+
         """
         return item.full_name
 
@@ -80,6 +82,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Returns:
             Formatted tooltip with scene details
+
         """
         tooltip = f"Scene: {item.shot}\n"
         tooltip += f"User: {item.user}\n"
@@ -96,6 +99,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Returns:
             Data for the role or None
+
         """
         # ThreeDEScene-specific roles using Qt.ItemDataRole.UserRole offsets
         from PySide6.QtCore import Qt
@@ -140,6 +144,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             scenes: List of ThreeDEScene objects
             reset: If True, perform full model reset (default).
                    If False, incremental update (for future optimization)
+
         """
         # Apply sorting before setting items
         sorted_scenes = self._apply_sort(scenes)
@@ -161,6 +166,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Returns:
             Sorted list of scenes
+
         """
         if self._sort_order == "name":
             return sorted(scenes, key=lambda s: s.full_name.lower())
@@ -172,6 +178,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Args:
             order: Sort order ("name" or "date")
+
         """
         if order not in ("name", "date"):
             self.logger.warning(f"Invalid sort order '{order}', ignoring")
@@ -194,6 +201,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Returns:
             Current sort order ("name" or "date")
+
         """
         return self._sort_order
 
@@ -205,6 +213,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         Args:
             threede_scene_model: Model to get filtered scenes from
             show: Show name to filter by or None for all shows
+
         """
         # Set filter on the model
         threede_scene_model.set_show_filter(show)
@@ -228,6 +237,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Returns:
             ThreeDEScene object or None if invalid
+
         """
         return self.get_item_at_index(index)
 
@@ -236,6 +246,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Args:
             loading: Whether loading is in progress
+
         """
         self._is_loading = loading
         if loading:
@@ -249,6 +260,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         Args:
             current: Current item being loaded
             total: Total items to load
+
         """
         self.loading_progress.emit(current, total)
 
@@ -257,6 +269,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Args:
             index: Index to select
+
         """
         # Convert to QPersistentModelIndex for proper comparison
         persistent_index = QPersistentModelIndex(index)
@@ -288,6 +301,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Returns:
             List of ThreeDEScene objects
+
         """
         return self._items
 
@@ -297,6 +311,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Returns:
             True if loading, False otherwise
+
         """
         return self._is_loading
 

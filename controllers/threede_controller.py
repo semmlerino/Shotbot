@@ -103,6 +103,7 @@ class ThreeDEController(LoggingMixin):
         logger: Logger instance for this controller
         _threede_worker: Current background worker thread (if any)
         _worker_mutex: Mutex for thread-safe worker access
+
     """
 
     def __init__(self, window: ThreeDETarget) -> None:
@@ -110,6 +111,7 @@ class ThreeDEController(LoggingMixin):
 
         Args:
             window: MainWindow implementing ThreeDETarget protocol
+
         """
         super().__init__()
         self.window: ThreeDETarget = window
@@ -377,6 +379,7 @@ class ThreeDEController(LoggingMixin):
             percentage: Completion percentage (0.0-100.0)
             description: Progress description
             eta: Estimated time to completion
+
         """
         # Check if we're closing to avoid accessing deleted widgets
         if self.window.closing:
@@ -394,6 +397,7 @@ class ThreeDEController(LoggingMixin):
 
         Args:
             scenes: List of discovered ThreeDEScene objects
+
         """
         self.log_discovered_scenes(scenes)
 
@@ -421,6 +425,7 @@ class ThreeDEController(LoggingMixin):
 
         Args:
             error_message: Error message from worker
+
         """
         # Check if we're closing to avoid double-finish during shutdown
         if self.window.closing:
@@ -456,6 +461,7 @@ class ThreeDEController(LoggingMixin):
 
         Args:
             scene_batch: List of ThreeDEScene objects in this batch
+
         """
         if scene_batch:
             # Don't directly add to model - let on_discovery_finished handle deduplication
@@ -478,6 +484,7 @@ class ThreeDEController(LoggingMixin):
             current_shot: Current shot being processed
             total_shots: Total number of shots
             status: Current status message
+
         """
         # This provides more frequent updates than the main progress signal
         # Useful for showing which specific shot/user is being scanned
@@ -762,6 +769,7 @@ class ThreeDEController(LoggingMixin):
             model: The data model to pass to the item model
             show: Show name to filter by, or empty string for all shows
             tab_name: Human-readable tab name for logging
+
         """
         # Convert empty string back to None for the model
         show_filter = show if show else None
@@ -785,6 +793,7 @@ class ThreeDEController(LoggingMixin):
 
         Args:
             worker: The worker thread to connect signals from
+
         """
         # Connect enhanced worker signals using safe_connect method for proper cleanup
         _ = worker.safe_connect(
@@ -835,6 +844,7 @@ class ThreeDEController(LoggingMixin):
 
         Args:
             worker: The worker thread to disconnect signals from
+
         """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)

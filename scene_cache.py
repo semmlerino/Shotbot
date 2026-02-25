@@ -46,6 +46,7 @@ class SceneCacheEntry:
             scenes: List of discovered scenes
             timestamp: Creation timestamp
             ttl_seconds: Time-to-live in seconds
+
         """
         super().__init__()
         self.scenes = scenes
@@ -86,6 +87,7 @@ class SceneCache(LoggingMixin):
         Args:
             default_ttl: Default TTL for cache entries in seconds (30 min)
             max_entries: Maximum number of cache entries before LRU eviction
+
         """
         super().__init__()
         self.default_ttl = default_ttl
@@ -114,6 +116,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             Cache key string
+
         """
         if shot and sequence:
             return f"{show}/{sequence}/{shot}"
@@ -133,6 +136,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             List of scenes if cached and valid, None otherwise
+
         """
         key = self._make_key(show, sequence, shot)
 
@@ -161,6 +165,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             List of all scenes in show if cached and valid, None otherwise
+
         """
         key = self._make_key(show)
 
@@ -198,6 +203,7 @@ class SceneCache(LoggingMixin):
             shot: Shot name
             scenes: List of scenes to cache
             ttl: Custom TTL in seconds (uses default if None)
+
         """
         key = self._make_key(show, sequence, shot)
         ttl = ttl or self.default_ttl
@@ -221,6 +227,7 @@ class SceneCache(LoggingMixin):
             show: Show name
             scenes: List of all scenes in show
             ttl: Custom TTL in seconds (uses default if None)
+
         """
         key = self._make_key(show)
         ttl = ttl or self.default_ttl
@@ -247,6 +254,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             True if entry was invalidated, False if not found
+
         """
         key = self._make_key(show, sequence, shot)
 
@@ -266,6 +274,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             Number of entries invalidated
+
         """
         invalidated = 0
 
@@ -300,6 +309,7 @@ class SceneCache(LoggingMixin):
             show: Show name
             sequence: Sequence name (optional)
             shot: Shot name (optional)
+
         """
         try:
             if shot and sequence:
@@ -332,6 +342,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             Number of entries removed
+
         """
         removed = 0
 
@@ -356,6 +367,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             Dictionary with cache statistics
+
         """
         with self.lock:
             total_requests = self.stats["hits"] + self.stats["misses"]
@@ -386,6 +398,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             Number of entries cleared
+
         """
         with self.lock:
             count = len(self.cache)
@@ -400,6 +413,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             List of cache keys
+
         """
         with self.lock:
             return list(self.cache.keys())
@@ -412,6 +426,7 @@ class SceneCache(LoggingMixin):
 
         Returns:
             Dictionary with entry information or None if not found
+
         """
         with self.lock:
             entry = self.cache.get(key)

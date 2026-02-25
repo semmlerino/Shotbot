@@ -42,6 +42,7 @@ class ThreadSignalTester:
 
         Returns:
             Signal handler function
+
         """
 
         def handler(*args) -> None:
@@ -70,6 +71,7 @@ class ThreadSignalTester:
 
         Returns:
             True if lifecycle completed successfully
+
         """
         # Wait for thread to finish
         with self.qtbot.waitSignal(worker.finished, timeout=timeout_ms):
@@ -87,6 +89,7 @@ class ThreadSignalTester:
         Args:
             signals: List of signals to wait for in order
             timeout_ms: Timeout for each signal
+
         """
         try:
             for signal in signals:
@@ -114,6 +117,7 @@ def wait_for_thread_state(
 
     Returns:
         True if state reached, False if timeout
+
     """
     start_time = time.time()
 
@@ -134,6 +138,7 @@ def ensure_qt_events_processed(qtbot: QtBot, cycles: int = 3) -> None:
     Args:
         qtbot: pytest-qt bot
         cycles: Number of event processing cycles
+
     """
     for _ in range(cycles):
         qtbot.wait(1)  # Minimal event processing per cycle
@@ -164,6 +169,7 @@ class WorkerTestFramework:
 
         Returns:
             Dictionary with test results and captured data
+
         """
         results = {
             "signals_captured": [],

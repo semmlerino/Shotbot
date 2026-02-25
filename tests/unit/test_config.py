@@ -26,6 +26,7 @@ Examples:
 
     Check if config is valid before release:
         >>> pytest tests/unit/test_config.py -v --tb=short
+
 """
 
 from __future__ import annotations

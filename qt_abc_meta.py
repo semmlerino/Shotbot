@@ -21,4 +21,5 @@ class QABCMeta(type(QObject), ABCMeta):  # pyright: ignore[reportGeneralTypeIssu
             @abstractmethod
             def my_method(self):
                 pass
+
     """

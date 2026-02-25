@@ -38,8 +38,7 @@ class NukeLaunchHandler(LoggingMixin):
         options: dict[str, bool],
         selected_plate: str | None = None,
     ) -> tuple[str, list[str]]:
-        """
-        Prepare Nuke command with all options.
+        """Prepare Nuke command with all options.
 
         Args:
             shot: Current shot context
@@ -51,6 +50,7 @@ class NukeLaunchHandler(LoggingMixin):
 
         Returns:
             Tuple of (command, log_messages)
+
         """
         log_messages: list[str] = []
         command = base_command
@@ -90,6 +90,7 @@ class NukeLaunchHandler(LoggingMixin):
 
         Returns:
             Tuple of (updated_command, log_messages)
+
         """
         log_messages: list[str] = []
 
@@ -173,6 +174,7 @@ class NukeLaunchHandler(LoggingMixin):
 
         Returns:
             Path to created script or None if failed
+
         """
         # Validate plate selection
         if not selected_plate:
@@ -192,6 +194,7 @@ class NukeLaunchHandler(LoggingMixin):
 
         Returns:
             String containing bash export statements for environment fixes
+
         """
         if not Config.NUKE_FIX_OCIO_CRASH:
             return ""

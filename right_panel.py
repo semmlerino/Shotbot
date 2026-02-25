@@ -57,6 +57,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         Args:
             settings_manager: Optional settings manager for persisting UI state
             parent: Optional parent widget
+
         """
         super().__init__(parent)
         self._settings_manager = settings_manager
@@ -150,6 +151,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         Args:
             app_name: Name of the app to launch
             base_options: Options from the DCC section
+
         """
         # Create mutable options dict that can hold SceneFile
         options: dict[str, Any] = dict(base_options)
@@ -169,6 +171,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         Args:
             app_name: The DCC app name (e.g., "3de", "nuke", "maya")
             scene_file: The selected scene file
+
         """
         self._selected_files[app_name] = scene_file
 
@@ -182,6 +185,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             shot: The shot to display, or None to clear
             discover_files: If True, discover files synchronously (default).
                           If False, skip file discovery (caller will provide files via set_files).
+
         """
         # Clear file selections when shot changes (files are shot-specific)
         if shot != self._current_shot:
@@ -219,6 +223,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         Args:
             files_by_type: Dict mapping FileType to list of SceneFiles
+
         """
         # Map FileType to app names
         file_type_to_app = {
@@ -259,6 +264,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         Args:
             shot: The current shot
+
         """
         try:
             from user_sequence_finder import UserSequenceFinder
@@ -297,6 +303,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         Args:
             plates: List of plate names (e.g., ['FG01', 'BG01'])
+
         """
         self._dcc_accordion.set_available_plates(plates)
 
@@ -307,6 +314,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         Args:
             pending: True if async search is in progress
+
         """
         self._dcc_accordion.set_search_pending(pending)
 
@@ -315,6 +323,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         Args:
             app_name: The DCC app name (e.g., "3de", "nuke")
+
         """
         self._dcc_accordion.set_section_expanded(app_name, True)
 
@@ -323,6 +332,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         Args:
             app_name: The DCC app name
+
         """
         self._dcc_accordion.set_section_expanded(app_name, False)
 
@@ -334,6 +344,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         Returns:
             Options dict or None if not found
+
         """
         return self._dcc_accordion.get_options(app_name)
 
@@ -345,6 +356,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         Returns:
             Selected SceneFile or None
+
         """
         return self._dcc_accordion.get_selected_file(app_name)
 
@@ -357,6 +369,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         Returns:
             True if shortcut was handled, False otherwise
+
         """
         if self._current_shot is None:
             return False

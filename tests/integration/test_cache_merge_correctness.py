@@ -26,6 +26,12 @@ from cache_manager import CacheManager, SceneMergeResult, ShotMergeResult
 from type_definitions import Shot, ShotDict, ThreeDESceneDict
 
 
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.legacy,
+]
+
+
 # ==============================================================================
 # Test Data Factories
 # ==============================================================================

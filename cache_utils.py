@@ -37,6 +37,7 @@ def is_expired(timestamp: float, ttl_seconds: float) -> bool:
 
     Returns:
         True if the entry has expired
+
     """
     return time.time() - timestamp >= ttl_seconds
 
@@ -53,6 +54,7 @@ def find_expired_keys(
 
     Returns:
         List of expired keys (can be used to delete entries)
+
     """
     return [key for key, (_, timestamp) in cache.items() if is_expired(timestamp, ttl_seconds)]
 
@@ -98,6 +100,7 @@ class CacheStatsMixin:
 
         Args:
             count: Number of entries evicted (default 1)
+
         """
         self._cache_stats["evictions"] += count
 
@@ -110,6 +113,7 @@ class CacheStatsMixin:
 
         Returns:
             Dictionary with hits, misses, evictions, total_requests, hit_rate_percent
+
         """
         total = self._cache_stats["hits"] + self._cache_stats["misses"]
         hit_rate = (self._cache_stats["hits"] / total * 100) if total > 0 else 0.0

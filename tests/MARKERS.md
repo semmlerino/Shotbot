@@ -15,6 +15,9 @@ This document describes all custom pytest markers used in the Shotbot test suite
 | `@pytest.mark.allow_main_thread` | Allow main thread pool calls | Tests that intentionally call from main thread |
 | `@pytest.mark.enforce_thread_guard` | Enable main-thread rejection | Contract testing for thread boundaries |
 | `@pytest.mark.persistent_cache` | Skip disk cache clearing | Tests for cache loading/migration |
+| `@pytest.mark.legacy` | Exclude from default runs | Historical or overlapping coverage suites |
+| `@pytest.mark.performance_like` | Exclude from default runs | Timing-sensitive behavioral checks |
+| `@pytest.mark.tutorial` | Exclude from default runs | Reference/example tests |
 | `@pytest.mark.allow_dialogs` | Suppress dialog detection | Tests where dialogs are expected |
 | `@pytest.mark.thread_leak_ok` | Suppress thread leak failure | Tests with expected thread leaks |
 | `@pytest.mark.enforce_unique_connections` | Enforce UniqueConnection | Signal connection contract tests |
@@ -208,6 +211,24 @@ def test_cache_migration(pre_populated_cache):
     manager = CacheManager()
     # Cache files are preserved, not cleared
 ```
+
+---
+
+### `@pytest.mark.legacy`
+
+Mark lower-signal or duplicate historical suites that should not run in default CI/local quick runs.
+
+---
+
+### `@pytest.mark.performance_like`
+
+Mark tests with timing-sensitive thresholds or scenario-level performance checks.
+
+---
+
+### `@pytest.mark.tutorial`
+
+Mark educational/reference tests that demonstrate patterns but are not primary regression protection.
 
 ---
 

@@ -45,6 +45,7 @@ class SynchronizationHelpers:
         Example:
             # Instead of: time.sleep(0.1)
             # Use: wait_for_condition(lambda: widget.isVisible(), timeout_ms=100)
+
         """
         start_time = time.perf_counter()
         timeout_sec = timeout_ms / 1000.0
@@ -76,6 +77,7 @@ class SynchronizationHelpers:
         Example:
             # Instead of: time.sleep(0.1)  # Wait for file deletion
             # Use: wait_for_file_operation(path, "not_exists", 100)
+
         """
         conditions = {
             "exists": lambda: file_path.exists(),
@@ -112,6 +114,7 @@ class SynchronizationHelpers:
         Example:
             # Instead of: model.refresh(); time.sleep(0.5)
             # Use: wait_for_qt_signal(qtbot, model.refreshed, 500, model.refresh)
+
         """
         if trigger:
             with qtbot.waitSignal(signal, timeout=timeout_ms) as blocker:
@@ -132,6 +135,7 @@ class SynchronizationHelpers:
         Example:
             # Instead of: time.sleep(0.01)  # Let UI update
             # Use: process_qt_events(qapp, 10)
+
         """
         loop = QEventLoop()
         QTimer.singleShot(duration_ms, loop.quit)
@@ -158,6 +162,7 @@ class SynchronizationHelpers:
             finally:
                 thread.quit()
                 thread.wait(1000)
+
         """
         initial_count = threading.active_count()
 
@@ -187,6 +192,7 @@ class SynchronizationHelpers:
         Example:
             # Instead of: cache_thumbnail(); time.sleep(0.1)
             # Use: cache_thumbnail(); wait_for_cache_operation(manager, "thumbnail_exists", show=...)
+
         """
         if operation == "thumbnail_exists":
             show = kwargs.get("show")
@@ -224,6 +230,7 @@ class SynchronizationHelpers:
         Example:
             # Instead of: launch_process(); time.sleep(0.5)
             # Use: key = launch_process(); wait_for_process_completion(manager, key, 500)
+
         """
         return SynchronizationHelpers.wait_for_condition(
             lambda: not process_manager.is_process_active(process_key),
@@ -247,6 +254,7 @@ class SynchronizationHelpers:
         Example:
             # Instead of: del large_object; time.sleep(0.1); gc.collect()
             # Use: del large_object; wait_for_memory_cleanup(100, 1000)
+
         """
         process = psutil.Process(os.getpid())
         threshold_bytes = threshold_mb * 1024 * 1024
@@ -271,6 +279,7 @@ class SynchronizationHelpers:
         Example:
             # Instead of: time.sleep(0.01)  # Simulate work
             # Use: simulate_work_without_sleep(10)
+
         """
         # Use busy-wait with yield to simulate work without blocking
         start = time.perf_counter()
@@ -290,6 +299,7 @@ class SynchronizationHelpers:
             waiter.add_signal(model.finished)
             model.start_operation()
             waiter.wait_for_all(timeout_ms=1000)
+
         """
         return AsyncWaiter(qtbot)
 

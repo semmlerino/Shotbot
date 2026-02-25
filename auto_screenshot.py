@@ -15,6 +15,7 @@ def capture_shotbot_window() -> Path | None:
 
     Returns:
         Path to the saved screenshot, or None if capture failed.
+
     """
     app_instance = QApplication.instance()
     if not app_instance or not isinstance(app_instance, QApplication):

@@ -12,14 +12,13 @@ Or import and call:
     update_context_from_current_file()
 """
 
-import os
 
 
 def update_context_from_current_file():
     """Update SGTK context based on the currently open Maya scene."""
     try:
         import sgtk
-        import maya.cmds as cmds
+        from maya import cmds
     except ImportError as e:
         print(f"Error importing: {e}")
         return False
@@ -64,10 +63,9 @@ def update_context_from_current_file():
                 print(f"  {name}")
 
             return True
-        else:
-            print("Could not determine task from file path")
-            print("File may not match SGTK templates")
-            return False
+        print("Could not determine task from file path")
+        print("File may not match SGTK templates")
+        return False
 
     except Exception as e:
         print(f"Error getting context from path: {e}")

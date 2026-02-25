@@ -32,6 +32,7 @@ pytestmark = [
     pytest.mark.thread_safety,
     pytest.mark.qt,
     pytest.mark.slow,
+    pytest.mark.legacy,
 ]
 
 
@@ -511,15 +512,19 @@ class TestSimpleThreadingIntegration:
     """Simple threading integration tests."""
 
     @pytest.mark.timeout(5)
-    def test_basic_worker_integration(self, qtbot) -> None:
+    def test_basic_worker_integration(self) -> None:
         """Test basic worker integration without cache."""
         worker = SimpleTestWorker(work_steps=2)
 
         try:
             worker.start()
 
-            # Wait for worker to start work
-            qtbot.waitUntil(lambda: worker.work_started, timeout=1000)
+            # Wait for worker to start work without nested Qt wait loops.
+            deadline = time.perf_counter() + 1.0
+            while time.perf_counter() < deadline and not worker.work_started:
+                QApplication.processEvents()
+                time.sleep(0.001)
+            QApplication.processEvents()
 
             if worker.isRunning():
                 worker.request_stop()
@@ -535,14 +540,14 @@ class TestSimpleThreadingIntegration:
                 if worker.isRunning():
                     worker.request_stop()
                     if not worker.wait(1000):
-                        worker.terminate()
-                        worker.wait(100)
+                        worker.safe_terminate()
+                        worker.wait(500)
 
                 # Schedule for deletion (let Qt handle signal cleanup)
                 worker.deleteLater()
 
             # Process Qt events to ensure cleanup is executed
-            qtbot.wait(1)
+            QApplication.processEvents()
 
 
 if __name__ == "__main__":

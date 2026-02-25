@@ -57,6 +57,7 @@ class HasAvailableShows(Protocol):
 
         Returns:
             List of show name strings
+
         """
         ...
 
@@ -97,6 +98,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             parent: Optional parent widget
+
         """
         super().__init__(parent)
 
@@ -273,6 +275,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             index: Model index to repaint
+
         """
         if index.isValid():
             # Request repaint of this specific item
@@ -283,6 +286,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             index: Model index where scrub started
+
         """
         self.logger.debug(f"Scrub started on row {index.row()}")
 
@@ -291,6 +295,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             index: Model index where scrub ended
+
         """
         self.logger.debug(f"Scrub ended on row {index.row()}")
         # Ensure item is repainted to show normal thumbnail
@@ -306,6 +311,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             layout: The main vertical layout
+
         """
 
     def _add_toolbar_widgets(self, _layout: QHBoxLayout) -> None:
@@ -315,6 +321,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             layout: The toolbar horizontal layout
+
         """
 
     def _create_delegate(self) -> BaseThumbnailDelegate:
@@ -324,6 +331,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Returns:
             The delegate instance
+
         """
         raise NotImplementedError
 
@@ -334,6 +342,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             index: The clicked model index
+
         """
         raise NotImplementedError
 
@@ -344,6 +353,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             index: The double-clicked model index
+
         """
         raise NotImplementedError
 
@@ -354,6 +364,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             size: New thumbnail size
+
         """
         self._thumbnail_size = size
         self.size_label.setText(f"{size}px")
@@ -375,6 +386,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             show_text: Selected show name or "All Shows"
+
         """
         # Convert "All Shows" to empty string for the signal
         show_filter = "" if show_text == "All Shows" else show_text
@@ -386,6 +398,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             text: Filter text from QLineEdit
+
         """
         self.text_filter_requested.emit(text)
         self.logger.debug(f"Text filter changed: '{text}'")
@@ -440,6 +453,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         Args:
             start: Start row index
             end: End row index (exclusive)
+
         """
         # Default implementation - subclasses should override
         # to call their model's set_visible_range or similar
@@ -452,6 +466,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Returns:
             Current thumbnail size in pixels
+
         """
         return self._thumbnail_size
 
@@ -464,6 +479,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             shows: Either list of show names or object with get_available_shows() method
+
         """
         # Handle case where subclass passes a protocol object
         if not isinstance(shows, list):
@@ -497,6 +513,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             event: Wheel event
+
         """
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             delta = event.angleDelta().y()
@@ -524,6 +541,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Returns:
             True if event was handled, False to pass it on
+
         """
         if obj is self.list_view and event.type() == QEvent.Type.KeyPress:
             key_event = QKeyEvent(event)  # type: ignore[arg-type]
@@ -552,6 +570,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         Args:
             event: Key event
+
         """
         # Application launch shortcuts (common to all views)
         key_map = {

@@ -1,18 +1,21 @@
 # Shotbot Complexity Hotspots - Detailed Analysis
 
+> **Note**: Line numbers in this document are approximate and may drift as code evolves. Use symbol names for navigation.
+> **Last Updated**: December 2025
+
 ## Overview
 
 Shotbot has 3 central complexity hotspots that require careful attention during modifications. This document provides line-by-line analysis of these critical components.
 
 ---
 
-## 1. MainWindow (main_window.py:176-1559)
+## 1. MainWindow (main_window.py)
 
 ### Complexity Profile
-- **Total LOC**: 1,563 (including docstrings)
-- **Methods**: 49 (26 public signals/slots, 23 private methods)
+- **Total LOC**: 1,800 (including docstrings)
+- **Methods**: 62
 - **Signal Connections**: 15+
-- **Instance Variables**: 35
+- **Instance Variables**: 35+
 - **Complexity Score**: ⚠️⚠️⚠️ CRITICAL
 
 ### Key Methods Breakdown
@@ -186,17 +189,17 @@ OUTGOING: 15+
 3. `TabCoordinator` - Handles tab switching logic
 
 **After Refactoring**:
-- MainWindow LOC: 1,563 → 1,100
-- Methods: 49 → 30
+- MainWindow LOC: 1,800 → ~1,300
+- Methods: 62 → ~40
 - Testability: Improved (each coordinator testable independently)
 
 ---
 
-## 2. CacheManager (cache_manager.py:55-1151)
+## 2. CacheManager (cache_manager.py)
 
 ### Complexity Profile
-- **Total LOC**: 1,151 (including docstrings)
-- **Methods**: 35+
+- **Total LOC**: 1,544 (including docstrings)
+- **Methods**: 49
 - **Cache Types**: 4 (shots, previous shots, 3DE scenes, thumbnails)
 - **Thread Safety**: QMutex protecting all shared state
 - **Complexity Score**: ⚠️⚠️ HIGH
@@ -406,10 +409,11 @@ os.replace(tmp.name, target_file)  # Atomic
 
 ---
 
-## 3. ProcessPoolManager (process_pool_manager.py:198-652)
+## 3. ProcessPoolManager (process_pool_manager.py)
 
 ### Complexity Profile
-- **Total LOC**: 746
+- **Total LOC**: 1,073
+- **Methods**: 26
 - **Pattern**: Singleton with thread-safe double-checked locking
 - **Key Components**: ThreadPoolExecutor, CommandCache, SessionPool management
 - **Complexity Score**: ⚠️⚠️ HIGH
@@ -650,13 +654,13 @@ Worker Thread (background loader)
 
 ## Summary Table
 
-| Component | LOC | Hotspot | Issue | Impact |
-|-----------|-----|---------|-------|--------|
-| **MainWindow** | 1,563 | Central orchestrator | Too many responsibilities | Hard to test, modify |
-| **CacheManager** | 1,151 | Multi-strategy caching | Multiple lock holders | Potential contention |
-| **ProcessPoolManager** | 746 | Session management | Singleton complexity | Difficult to reset |
+| Component | LOC | Methods | Hotspot | Issue |
+|-----------|-----|---------|---------|-------|
+| **MainWindow** | 1,800 | 62 | Central orchestrator | Too many responsibilities |
+| **CacheManager** | 1,544 | 49 | Multi-strategy caching | Multiple lock holders |
+| **ProcessPoolManager** | 1,073 | 26 | Session management | Singleton complexity |
 
-**Total Complexity**: 3,460 LOC (7.4% of codebase) = 50% of complexity
+**Total Complexity**: 4,417 LOC (7.3% of 60K codebase) = core orchestration layer
 
 ---
 

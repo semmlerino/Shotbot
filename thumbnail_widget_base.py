@@ -65,6 +65,7 @@ class FolderOpenerWorker(QRunnable):
 
         Args:
             folder_path: Path to the folder to open
+
         """
         super().__init__()
         self.folder_path: str = folder_path
@@ -367,6 +368,7 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
 
         Returns:
             Thumbnail size in pixels
+
         """
         return self._thumbnail_size
 
@@ -610,6 +612,7 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
 
         Args:
             error_msg: Error message to display
+
         """
         logger.error(f"Failed to open folder: {error_msg}")
         # Could emit a signal here to show error in UI if needed

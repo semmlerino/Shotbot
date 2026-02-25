@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-UI Update Manager for PyMPEG
+"""UI Update Manager for PyMPEG
 Implements efficient UI updates with dirty flags and batching
 """
 
