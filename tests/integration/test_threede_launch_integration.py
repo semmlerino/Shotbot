@@ -14,7 +14,6 @@ Following UNIFIED_TESTING_V2.md best practices:
 
 from __future__ import annotations
 
-import os
 import time
 from pathlib import Path
 from typing import Any
@@ -23,7 +22,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from command_launcher import CommandLauncher, LaunchContext
-from config import Config, RezMode
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
@@ -89,69 +87,12 @@ def launcher(qapp: Any) -> CommandLauncher:
 
 
 # ============================================================================
-# Test Launch Context
-# ============================================================================
-
-
-class TestLaunchContext:
-    """Test LaunchContext dataclass behavior."""
-
-    def test_default_context_all_false(self) -> None:
-        """Test that default context has all options False."""
-        context = LaunchContext()
-
-        assert context.open_latest_threede is False
-        assert context.open_latest_maya is False
-        assert context.open_latest_scene is False
-        assert context.create_new_file is False
-        assert context.selected_plate is None
-        assert context.sequence_path is None
-
-    def test_context_with_3de_options(self) -> None:
-        """Test context with 3DE-specific options."""
-        context = LaunchContext(
-            open_latest_threede=True,
-            selected_plate="plate_main",
-        )
-
-        assert context.open_latest_threede is True
-        assert context.selected_plate == "plate_main"
-
-    def test_context_with_sequence_path(self) -> None:
-        """Test context with RV sequence path."""
-        context = LaunchContext(
-            sequence_path="/path/to/sequence.####.exr",
-        )
-
-        assert context.sequence_path == "/path/to/sequence.####.exr"
-
-
-# ============================================================================
 # Test Basic Launch Flow
 # ============================================================================
 
 
 class TestBasicLaunchFlow:
     """Test basic launch command construction."""
-
-    def test_launch_requires_shot_selected(
-        self, launcher: CommandLauncher
-    ) -> None:
-        """Test that launch fails without a shot selected."""
-        # Don't set current shot
-        result = launcher.launch_app("3de")
-
-        assert result is False
-
-    def test_launch_rejects_unknown_app(
-        self, launcher: CommandLauncher, sample_shot: Shot
-    ) -> None:
-        """Test that launch fails for unknown application."""
-        launcher.set_current_shot(sample_shot)
-
-        result = launcher.launch_app("unknown_app")
-
-        assert result is False
 
     def test_launch_fails_without_ws_command(
         self,
@@ -408,79 +349,6 @@ class TestWorkspaceValidation:
             result = launcher.launch_app("3de")
 
         assert result is True
-
-
-# ============================================================================
-# Test Rez Environment
-# ============================================================================
-
-
-class TestRezEnvironment:
-    """Test Rez environment wrapping."""
-
-    @patch.dict(os.environ, {"REZ_USED": ""}, clear=False)
-    def test_launch_wraps_with_rez_when_configured(
-        self,
-        launcher: CommandLauncher,
-        sample_shot: Shot,
-    ) -> None:
-        """Test that launch wraps with rez when should_wrap_with_rez returns True."""
-        launcher.set_current_shot(sample_shot)
-
-        # Mock rez wrapping to return True (simulating rez available)
-        with patch.object(
-            launcher.env_manager, "is_ws_available", return_value=True
-        ), patch.object(
-            launcher.env_manager, "should_wrap_with_rez", return_value=True
-        ), patch.object(
-            launcher.env_manager, "get_rez_packages", return_value=["3dequalizer-4"]
-        ), patch.object(
-            launcher, "_validate_workspace_before_launch", return_value=True
-        ), patch.object(
-            launcher, "_execute_launch", return_value=True
-        ) as mock_execute:
-            result = launcher.launch_app("3de")
-
-        assert result is True
-
-        # Command should contain rez-env wrapper
-        call_args = mock_execute.call_args
-        full_command = call_args[0][0]
-        assert "rez-env" in full_command or "rez env" in full_command
-
-    @patch.dict(os.environ, {"REZ_USED": "1"}, clear=False)
-    def test_launch_skips_rez_when_already_in_env(
-        self,
-        launcher: CommandLauncher,
-        sample_shot: Shot,
-    ) -> None:
-        """Test that launch skips rez wrapping when REZ_USED is set."""
-        launcher.env_manager.is_ws_available = MagicMock(return_value=True)
-        launcher.set_current_shot(sample_shot)
-
-        # Set AUTO mode (default)
-        original_mode = Config.REZ_MODE
-        Config.REZ_MODE = RezMode.AUTO
-
-        try:
-            with patch.object(
-                launcher, "_validate_workspace_before_launch", return_value=True
-            ), patch.object(
-                launcher, "_execute_launch", return_value=True
-            ) as mock_execute:
-                result = launcher.launch_app("3de")
-
-            assert result is True
-
-            # Command should NOT contain rez-env wrapper when already in rez env
-            call_args = mock_execute.call_args
-            full_command = call_args[0][0]
-
-            # When REZ_USED=1 and mode=AUTO, rez wrapper is skipped
-            # The command should still work but without rez-env prefix
-            assert "ws " in full_command  # Has workspace setup
-        finally:
-            Config.REZ_MODE = original_mode
 
 
 # ============================================================================

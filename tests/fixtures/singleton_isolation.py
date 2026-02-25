@@ -137,12 +137,17 @@ def _clear_disk_cache_files() -> None:
     if not cache_path.exists():
         return
 
-    # Known cache files and directories
+    # Known cache files and directories (including .lock sidecar files from
+    # filelock-style atomic writes used by CacheManager)
     known_files = {
         "shots.json",
         "previous_shots.json",
         "threede_scenes.json",
         "migrated_shots.json",
+        "shots.json.lock",
+        "previous_shots.json.lock",
+        "threede_scenes.json.lock",
+        "migrated_shots.json.lock",
     }
     known_dirs = {"production", "thumbnails"}
 
