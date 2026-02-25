@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 from filesystem_scanner import DirectoryCache
 
 # Import the refactored components
-from scene_discovery_coordinator import RefactoredThreeDESceneFinder
+from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
 
 if TYPE_CHECKING:
@@ -72,8 +72,8 @@ class OptimizedThreeDESceneFinder:
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Find all scenes for a specific shot using refactored architecture."""
-        finder = RefactoredThreeDESceneFinder()
-        return finder.find_scenes_for_shot(
+        coordinator = SceneDiscoveryCoordinator()
+        return coordinator.find_scenes_for_shot(
             shot_workspace_path, show, sequence, shot, excluded_users
         )
 
@@ -83,7 +83,7 @@ class OptimizedThreeDESceneFinder:
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Find all scenes across shows using refactored architecture."""
-        return RefactoredThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient(
+        return SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient(
             user_shots, excluded_users
         )
 
@@ -95,19 +95,8 @@ class OptimizedThreeDESceneFinder:
         cancel_flag: Callable[[], bool] | None = None,
     ) -> list[ThreeDEScene]:
         """Find all scenes across shows using parallel refactored architecture."""
-        return RefactoredThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
+        return SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
             user_shots, excluded_users, progress_callback, cancel_flag
-        )
-
-    @staticmethod
-    def find_all_scenes_in_shows_efficient(
-        user_shots: list[Shot],
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Find all scenes across shows using refactored architecture."""
-        # Delegate to the truly efficient implementation
-        return OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient(
-            user_shots, excluded_users
         )
 
     @staticmethod
@@ -250,7 +239,6 @@ class OptimizedThreeDESceneFinder:
             Tuple of (scene_batch, current_shot, total_shots, status_message)
         """
         # Local application imports
-        from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
         coordinator = SceneDiscoveryCoordinator(strategy_type="progressive")
 

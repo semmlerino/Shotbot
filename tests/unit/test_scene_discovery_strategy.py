@@ -10,22 +10,15 @@ Tests cover:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
 from scene_discovery_strategy import (
     LocalFileSystemStrategy,
-    NetworkAwareStrategy,
-    ParallelFileSystemStrategy,
     ProgressiveDiscoveryStrategy,
     create_discovery_strategy,
 )
-
-
-if TYPE_CHECKING:
-    from threede_scene_model import ThreeDEScene
 
 
 # ==============================================================================
@@ -49,26 +42,12 @@ class TestCreateDiscoveryStrategy:
         assert isinstance(strategy, LocalFileSystemStrategy)
         assert strategy.get_strategy_name() == "LocalFileSystemStrategy"
 
-    def test_creates_parallel_strategy(self) -> None:
-        """Creates ParallelFileSystemStrategy."""
-        strategy = create_discovery_strategy("parallel")
-
-        assert isinstance(strategy, ParallelFileSystemStrategy)
-        assert strategy.get_strategy_name() == "ParallelFileSystemStrategy"
-
     def test_creates_progressive_strategy(self) -> None:
         """Creates ProgressiveDiscoveryStrategy."""
         strategy = create_discovery_strategy("progressive")
 
         assert isinstance(strategy, ProgressiveDiscoveryStrategy)
         assert strategy.get_strategy_name() == "ProgressiveDiscoveryStrategy"
-
-    def test_creates_network_strategy(self) -> None:
-        """Creates NetworkAwareStrategy."""
-        strategy = create_discovery_strategy("network")
-
-        assert isinstance(strategy, NetworkAwareStrategy)
-        assert strategy.get_strategy_name() == "NetworkAwareStrategy"
 
     def test_raises_on_invalid_strategy_type(self) -> None:
         """Raises ValueError for unknown strategy type."""
@@ -82,9 +61,7 @@ class TestCreateDiscoveryStrategy:
 
         error_msg = str(exc_info.value)
         assert "local" in error_msg
-        assert "parallel" in error_msg
         assert "progressive" in error_msg
-        assert "network" in error_msg
 
 
 # ==============================================================================
@@ -104,9 +81,7 @@ class TestStrategyNames:
         ("strategy_type", "expected_name"),
         [
             ("local", "LocalFileSystemStrategy"),
-            ("parallel", "ParallelFileSystemStrategy"),
             ("progressive", "ProgressiveDiscoveryStrategy"),
-            ("network", "NetworkAwareStrategy"),
         ],
     )
     def test_strategy_name_matches_class(
@@ -161,26 +136,6 @@ class TestLocalFileSystemStrategyBehavior:
 
         assert result == []
 
-    def test_returns_cached_scenes_when_available(self) -> None:
-        """Returns cached scenes without rescanning."""
-        strategy = LocalFileSystemStrategy()
-
-        # Mock the cache to return cached data
-        mock_scenes: list[ThreeDEScene] = []  # Empty list simulating cached data
-        strategy.cache.get_scenes_for_shot = MagicMock(return_value=mock_scenes)
-
-        result = strategy.find_scenes_for_shot(
-            shot_workspace_path="/shows/test/shots/seq01/seq01_0010",
-            show="testshow",
-            sequence="seq01",
-            shot="0010",
-        )
-
-        assert result == mock_scenes
-        strategy.cache.get_scenes_for_shot.assert_called_once_with(
-            "testshow", "seq01", "0010"
-        )
-
     def test_returns_empty_for_nonexistent_show_path(self) -> None:
         """Returns empty list when show path doesn't exist."""
         strategy = LocalFileSystemStrategy()
@@ -188,30 +143,6 @@ class TestLocalFileSystemStrategyBehavior:
         result = strategy.find_all_scenes_in_show(
             show_root="/nonexistent/path",
             show="testshow",
-        )
-
-        assert result == []
-
-
-# ==============================================================================
-# ParallelFileSystemStrategy Behavior Tests
-# ==============================================================================
-
-
-class TestParallelFileSystemStrategyBehavior:
-    """Tests for ParallelFileSystemStrategy behavior."""
-
-    def test_delegates_single_shot_to_local_strategy(self) -> None:
-        """Single shot discovery delegates to LocalFileSystemStrategy."""
-        strategy = ParallelFileSystemStrategy()
-
-        # For single shots, parallel provides no benefit
-        # Should internally use LocalFileSystemStrategy
-        result = strategy.find_scenes_for_shot(
-            shot_workspace_path="",  # Empty path should return empty
-            show="testshow",
-            sequence="seq01",
-            shot="0010",
         )
 
         assert result == []
@@ -277,39 +208,6 @@ class TestProgressiveDiscoveryStrategyBehavior:
 
 
 # ==============================================================================
-# NetworkAwareStrategy Behavior Tests
-# ==============================================================================
-
-
-class TestNetworkAwareStrategyBehavior:
-    """Tests for NetworkAwareStrategy behavior."""
-
-    def test_delegates_to_local_strategy_for_shots(self) -> None:
-        """Shot discovery delegates to LocalFileSystemStrategy for now."""
-        strategy = NetworkAwareStrategy()
-
-        result = strategy.find_scenes_for_shot(
-            shot_workspace_path="",  # Empty path should return empty
-            show="testshow",
-            sequence="seq01",
-            shot="0010",
-        )
-
-        assert result == []
-
-    def test_delegates_to_local_strategy_for_shows(self) -> None:
-        """Show discovery delegates to LocalFileSystemStrategy for now."""
-        strategy = NetworkAwareStrategy()
-
-        result = strategy.find_all_scenes_in_show(
-            show_root="/nonexistent/path",
-            show="testshow",
-        )
-
-        assert result == []
-
-
-# ==============================================================================
 # Integration with VFX Directory Structure
 # ==============================================================================
 
@@ -329,9 +227,6 @@ class TestVFXDirectoryIntegration:
         # Create a .3de file
         threede_file = user_dir / "scene_v001.3de"
         threede_file.write_text("# 3DE scene file")
-
-        # Clear any cached data
-        strategy.cache.get_scenes_for_shot = MagicMock(return_value=None)
 
         # Mock scanner to return file pairs
         strategy.scanner.find_3de_files_progressive = MagicMock(
@@ -361,9 +256,6 @@ class TestVFXDirectoryIntegration:
         shot_workspace = tmp_path / "shows" / "testshow" / "shots" / "seq01" / "seq01_0010"
         user_dir = shot_workspace / "user"
         user_dir.mkdir(parents=True)
-
-        # Clear cache
-        strategy.cache.get_scenes_for_shot = MagicMock(return_value=None)
 
         # Mock scanner with excluded users
         strategy.scanner.find_3de_files_progressive = MagicMock(return_value=[])

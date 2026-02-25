@@ -56,10 +56,10 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         """Initialize scene discovery coordinator.
 
         Args:
-            strategy_type: Discovery strategy to use ("local", "parallel", "progressive", "network")
+            strategy_type: Discovery strategy to use ("local", "progressive")
             enable_caching: Whether to enable result caching
             cache_ttl: Cache TTL in seconds
-            **strategy_kwargs: Additional arguments for strategy initialization (num_workers, network_timeout)
+            **strategy_kwargs: Additional arguments for strategy initialization
 
         """
         super().__init__()
@@ -297,15 +297,12 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             self.logger.error(f"Error in progressive scene discovery: {e}")
             yield [], 0, 0, f"Error: {e}"
 
-    # Hook methods that can be overridden by subclasses
+    # Hook methods
 
     def _validate_shot_input(
         self, shot_workspace_path: str, show: str, sequence: str, shot: str
     ) -> bool:
-        """Validate input parameters for shot discovery.
-
-        This is a hook method that can be overridden by subclasses.
-        """
+        """Validate input parameters for shot discovery."""
         # Local application imports
         from utils import ValidationUtils
 
@@ -322,10 +319,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
     def _validate_and_filter_scenes(
         self, scenes: list[ThreeDEScene]
     ) -> list[ThreeDEScene]:
-        """Validate and filter discovered scenes.
-
-        This is a hook method that can be overridden by subclasses.
-        """
+        """Validate and filter discovered scenes."""
         valid_scenes: list[ThreeDEScene] = []
 
         for scene in scenes:
@@ -337,10 +331,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         return valid_scenes
 
     def _is_valid_scene(self, scene: ThreeDEScene) -> bool:
-        """Check if a scene is valid.
-
-        This is a hook method that can be overridden by subclasses.
-        """
+        """Check if a scene is valid."""
         # Basic validation
         if not scene.scene_path:
             return False
@@ -349,10 +340,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         return self.scanner.verify_scene_exists(scene.scene_path)
 
     def _extract_show_information(self, user_shots: list[Shot]) -> dict[str, set[str]]:
-        """Extract show roots and show names from user shots.
-
-        This is a hook method that can be overridden by subclasses.
-        """
+        """Extract show roots and show names from user shots."""
         # Standard library imports
         from pathlib import Path
 
@@ -449,8 +437,8 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         """Switch to a different discovery strategy.
 
         Args:
-            strategy_type: New strategy type
-            **strategy_kwargs: Additional arguments for strategy initialization (num_workers, network_timeout)
+            strategy_type: New strategy type ("local", "progressive")
+            **strategy_kwargs: Additional arguments for strategy initialization
 
         """
         # Lazy import to break circular dependency
@@ -460,87 +448,21 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         self.strategy = create_discovery_strategy(strategy_type, **strategy_kwargs)
         self.logger.info(f"Switched strategy from {old_strategy} to {strategy_type}")
 
-    def warm_cache(
-        self, show: str, sequence: str | None = None, shot: str | None = None
-    ) -> None:
-        """Pre-populate cache with scenes.
-
-        Args:
-            show: Show name
-            sequence: Sequence name (optional)
-            shot: Shot name (optional)
-
-        """
-        if not self.enable_caching or not self.cache:
-            self.logger.warning("Caching is disabled, cannot warm cache")
-            return
-
-        def cache_warmer(_show: str, _sequence: str, _shot: str) -> list[ThreeDEScene]:
-            """Cache warmer function for the scene cache."""
-            # This would need to be implemented to discover scenes
-            # For now, return empty list
-            return []
-
-        self.cache.warm_cache(cache_warmer, show, sequence, shot)
-
     def get_strategy_name(self) -> str:
         """Get the name of the current discovery strategy."""
         return self.strategy.get_strategy_name()
-
-
-# Backward compatibility interface
-@final
-class RefactoredThreeDESceneFinder:
-    """Backward compatible interface to the refactored scene finder.
-
-    This class maintains the same interface as the original monolithic
-    ThreeDESceneFinder while using the new component-based architecture.
-    """
-
-    def __init__(self, strategy_type: str = "local") -> None:
-        """Initialize with backward compatible defaults."""
-        super().__init__()
-        self._coordinator = SceneDiscoveryCoordinator(
-            strategy_type=strategy_type,
-            enable_caching=True,
-            cache_ttl=1800,  # 30 minutes
-        )
-
-    # Delegate instance methods to the coordinator
-    def find_scenes_for_shot(
-        self,
-        shot_workspace_path: str,
-        show: str,
-        sequence: str,
-        shot: str,
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Find scenes for a shot using coordinator."""
-        return self._coordinator.find_scenes_for_shot(
-            shot_workspace_path, show, sequence, shot, excluded_users
-        )
-
-    def find_all_scenes_in_shows(
-        self, user_shots: list[Shot], excluded_users: set[str] | None = None
-    ) -> list[ThreeDEScene]:
-        """Find all scenes in shows using coordinator."""
-        return self._coordinator.find_all_scenes_in_shows(user_shots, excluded_users)
-
-    def get_strategy_name(self) -> str:
-        """Get strategy name from coordinator."""
-        return self._coordinator.get_strategy_name()
-
-    def get_statistics(self) -> dict[str, int]:
-        """Get statistics from coordinator."""
-        return self._coordinator.get_statistics()
 
     @staticmethod
     def find_all_scenes_in_shows_truly_efficient(
         user_shots: list[Shot],
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
-        """Static method for backward compatibility with efficient discovery."""
-        coordinator = RefactoredThreeDESceneFinder(strategy_type="local")
+        """Find all scenes across shows using the local strategy."""
+        coordinator = SceneDiscoveryCoordinator(
+            strategy_type="local",
+            enable_caching=True,
+            cache_ttl=1800,
+        )
         return coordinator.find_all_scenes_in_shows(user_shots, excluded_users)
 
     @staticmethod
@@ -550,7 +472,7 @@ class RefactoredThreeDESceneFinder:
         progress_callback: Callable[[int, str], None] | None = None,
         cancel_flag: Callable[[], bool] | None = None,
     ) -> list[ThreeDEScene]:
-        """Static method for backward compatibility with parallel discovery.
+        """Find all scenes across shows using parallel discovery.
 
         Provides parallel scene discovery with progress and cancellation support.
         """

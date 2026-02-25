@@ -128,12 +128,6 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Find scenes for a shot using local filesystem scanning."""
-        # Check cache first
-        cached_scenes = self.cache.get_scenes_for_shot(show, sequence, shot)
-        if cached_scenes is not None:
-            self.logger.debug(f"Using cached scenes for {show}/{sequence}/{shot}")
-            return cached_scenes
-
         scenes: list[ThreeDEScene] = []
 
         try:
@@ -205,9 +199,6 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                     publish_dir, show, sequence, shot, shot_workspace_path
                 )
                 scenes.extend(publish_scenes)
-
-            # Cache the results
-            self.cache.cache_scenes_for_shot(show, sequence, shot, scenes)
 
             self.logger.info(
                 f"Found {len(scenes)} total scenes for {show}/{sequence}/{shot}"
@@ -329,108 +320,6 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
 
         except Exception as e:
             self.logger.debug(f"Error scanning publish directory: {e}")
-
-        return scenes
-
-
-@final
-class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
-    """Parallel filesystem-based scene discovery strategy.
-
-    Uses multi-threaded scanning for improved performance on large shows.
-    Provides progress callbacks and cancellation support.
-    """
-
-    num_workers: int | None
-
-    def __init__(self, num_workers: int | None = None) -> None:
-        """Initialize parallel strategy.
-
-        Args:
-            num_workers: Number of parallel workers (uses config default if None)
-
-        """
-        super().__init__()
-        self.num_workers = num_workers
-
-    @override
-    def find_scenes_for_shot(
-        self,
-        shot_workspace_path: str,
-        show: str,
-        sequence: str,
-        shot: str,
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Find scenes for a shot (delegates to local strategy for single shots)."""
-        # For single shots, parallel processing doesn't provide much benefit
-        # Delegate to local strategy
-        local_strategy = LocalFileSystemStrategy()
-        return local_strategy.find_scenes_for_shot(
-            shot_workspace_path, show, sequence, shot, excluded_users
-        )
-
-    @override
-    def find_all_scenes_in_show(
-        self,
-        show_root: str,
-        show: str,
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Find all scenes in a show using parallel scanning."""
-        # Check cache first
-        cached_scenes = self.cache.get_scenes_for_show(show)
-        if cached_scenes is not None:
-            self.logger.debug(f"Using cached scenes for show {show}")
-            return cached_scenes
-
-        scenes: list[ThreeDEScene] = []
-
-        try:
-            # Standard library imports
-            from pathlib import Path
-
-            show_path = Path(show_root) / show
-            if not show_path.exists():
-                self.logger.warning(f"Show path does not exist: {show_path}")
-                return []
-
-            # Use parallel search for efficiency - for now delegate to targeted search
-            # TODO: Implement parallel version in filesystem_scanner
-            file_results = self.scanner.find_all_3de_files_in_show_targeted(
-                show_root, show, excluded_users
-            )
-
-            self.logger.info(
-                f"Found {len(file_results)} .3de files in {show} (parallel)"
-            )
-
-            # Convert to ThreeDEScene objects
-            for file_path, show_name, sequence, shot_name, user, plate in file_results:
-                workspace_path = (
-                    show_path / "shots" / sequence / f"{sequence}_{shot_name}"
-                )
-
-                scene = self.parser.create_scene_from_file_info(
-                    file_path,
-                    show_name,
-                    sequence,
-                    shot_name,
-                    user,
-                    plate,
-                    str(workspace_path),
-                )
-                scenes.append(scene)
-
-            # Cache the results
-            self.cache.cache_scenes_for_show(show, scenes)
-
-            self.logger.info(
-                f"Found {len(scenes)} total scenes in show {show} (parallel)"
-            )
-
-        except Exception as e:
-            self.logger.error(f"Error finding scenes in show {show} (parallel): {e}")
 
         return scenes
 
@@ -570,81 +459,22 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
             yield [], 0, 0, f"Error: {e}"
 
 
-@final
-class NetworkAwareStrategy(SceneDiscoveryStrategy):
-    """Network-aware scene discovery strategy.
-
-    This strategy can handle network-mounted filesystems and provides
-    appropriate timeouts and retry logic for network operations.
-    """
-
-    network_timeout: int
-
-    def __init__(self, network_timeout: int = 30) -> None:
-        """Initialize network-aware strategy.
-
-        Args:
-            network_timeout: Timeout for network operations in seconds
-
-        """
-        super().__init__()
-        self.network_timeout = network_timeout
-
-    @override
-    def find_scenes_for_shot(
-        self,
-        shot_workspace_path: str,
-        show: str,
-        sequence: str,
-        shot: str,
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Find scenes for a shot with network awareness."""
-        # For now, delegate to local strategy
-        # In the future, this could include network-specific optimizations
-        local_strategy = LocalFileSystemStrategy()
-        return local_strategy.find_scenes_for_shot(
-            shot_workspace_path, show, sequence, shot, excluded_users
-        )
-
-    @override
-    def find_all_scenes_in_show(
-        self,
-        show_root: str,
-        show: str,
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Find all scenes in show with network awareness."""
-        # For now, delegate to local strategy
-        # In the future, this could include network-specific optimizations
-        local_strategy = LocalFileSystemStrategy()
-        return local_strategy.find_all_scenes_in_show(show_root, show, excluded_users)
-
-
 class StrategyKwargs(TypedDict, total=False):
     """Type-safe kwargs for strategy creation.
 
-    Attributes:
-        num_workers: Number of parallel workers (for ParallelFileSystemStrategy)
-        network_timeout: Timeout for network operations in seconds (for NetworkAwareStrategy)
-
+    Currently unused but retained for call-site compatibility.
     """
-
-    num_workers: int | None
-    network_timeout: int
 
 
 # Factory function for creating strategies
 def create_discovery_strategy(
-    strategy_type: str = "local", **kwargs: Unpack[StrategyKwargs]
+    strategy_type: str = "local", **_kwargs: Unpack[StrategyKwargs]
 ) -> SceneDiscoveryStrategy:
     """Create a scene discovery strategy.
 
     Args:
-        strategy_type: Type of strategy ("local", "parallel", "progressive", "network")
-        **kwargs: Additional arguments for strategy initialization (see StrategyKwargs)
-            - num_workers: Number of parallel workers (for "parallel")
-            - network_timeout: Timeout for network operations (for "network")
+        strategy_type: Type of strategy ("local", "progressive")
+        **_kwargs: Accepted but unused (retained for call-site compatibility)
 
     Returns:
         SceneDiscoveryStrategy instance
@@ -653,21 +483,12 @@ def create_discovery_strategy(
         ValueError: If strategy_type is not recognized
 
     """
-    # Create strategy based on type with appropriate kwargs
     if strategy_type == "local":
         return LocalFileSystemStrategy()
-    if strategy_type == "parallel":
-        num_workers = kwargs.get("num_workers")
-        return ParallelFileSystemStrategy(num_workers=num_workers)
     if strategy_type == "progressive":
         return ProgressiveDiscoveryStrategy()
-    if strategy_type == "network":
-        network_timeout = kwargs.get("network_timeout", 30)
-        return NetworkAwareStrategy(network_timeout=network_timeout)
     msg = (
         f"Unknown strategy type: {strategy_type}. "
-         f"Available: local, parallel, progressive, network"
+        f"Available: local, progressive"
     )
-    raise ValueError(
-        msg
-    )
+    raise ValueError(msg)

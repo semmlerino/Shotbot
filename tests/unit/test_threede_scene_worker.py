@@ -145,7 +145,7 @@ class TestThreeDESceneFinder:
         return cls._class_estimate_result
 
     @classmethod
-    def find_all_scenes_in_shows_efficient(
+    def find_all_scenes_in_shows_truly_efficient(
         cls, _user_shots: list[Shot], _excluded_users: set[str]
     ) -> list[ThreeDEScene]:
         """Efficient scene finding test double (class method version)."""
