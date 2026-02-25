@@ -1,5 +1,5 @@
-Post-commit hook executed at Tue Feb 24 22:04:20 GMT 2026
-Commit: dcf67781535870bff2cdf85a0eb5712e707e8d96
+Post-commit hook executed at Wed Feb 25 01:30:07 GMT 2026
+Commit: a25200d057b7ec341e605783baed1d97d21d72ba
 Branch: master
 Author: Gabriel H <gabrhas@gmail.com>
-Message: docs: slim CLAUDE.md from 745 to 149 lines
+Message: refactor: fix test infrastructure anti-patterns across 14 files

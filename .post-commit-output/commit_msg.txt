@@ -1,1 +1,1 @@
-docs: slim CLAUDE.md from 745 to 149 lines
+refactor: fix test infrastructure anti-patterns across 14 files

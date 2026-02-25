@@ -30,7 +30,7 @@ from threede_scene_model import ThreeDEScene
 
 
 if TYPE_CHECKING:
-    from type_definitions import ShotDict, ThreeDESceneDict
+    from type_definitions import ShotDict
 
 pytestmark = [
     pytest.mark.unit,

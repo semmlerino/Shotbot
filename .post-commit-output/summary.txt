@@ -4,15 +4,15 @@ Post-Commit Hook Summary
 Output directory: /mnt/c/CustomScripts/Python/shotbot/.post-commit-output
 Files created:
 drwxrwxrwx 1 gabri gabri   512 Feb 24 17:14 .
-drwxrwxrwx 1 gabri gabri   512 Feb 24 22:04 ..
--rwxrwxrwx 1 gabri gabri     0 Feb 24 22:04 background-startup.log
--rwxrwxrwx 1 gabri gabri    66 Feb 24 22:04 bundle-push.log
--rwxrwxrwx 1 gabri gabri   358 Feb 24 22:04 bundle.txt
--rwxrwxrwx 1 gabri gabri    43 Feb 24 22:04 commit_msg.txt
--rwxrwxrwx 1 gabri gabri     7 Feb 24 22:04 current_branch.txt
--rwxrwxrwx 1 gabri gabri    41 Feb 24 22:04 current_commit.txt
--rwxrwxrwx 1 gabri gabri   147 Feb 24 22:04 import-test.txt
--rwxrwxrwx 1 gabri gabri   212 Feb 24 22:04 info.txt
--rwxrwxrwx 1 gabri gabri   532 Feb 24 22:04 ruff-check.txt
--rwxrwxrwx 1 gabri gabri   140 Feb 24 22:04 summary.txt
--rwxrwxrwx 1 gabri gabri 22969 Feb 24 22:04 type-check.txt
+drwxrwxrwx 1 gabri gabri   512 Feb 25 01:30 ..
+-rwxrwxrwx 1 gabri gabri     0 Feb 25 01:30 background-startup.log
+-rwxrwxrwx 1 gabri gabri    66 Feb 25 01:30 bundle-push.log
+-rwxrwxrwx 1 gabri gabri   359 Feb 25 01:30 bundle.txt
+-rwxrwxrwx 1 gabri gabri    64 Feb 25 01:30 commit_msg.txt
+-rwxrwxrwx 1 gabri gabri     7 Feb 25 01:30 current_branch.txt
+-rwxrwxrwx 1 gabri gabri    41 Feb 25 01:30 current_commit.txt
+-rwxrwxrwx 1 gabri gabri   147 Feb 25 01:30 import-test.txt
+-rwxrwxrwx 1 gabri gabri   233 Feb 25 01:30 info.txt
+-rwxrwxrwx 1 gabri gabri   532 Feb 25 01:30 ruff-check.txt
+-rwxrwxrwx 1 gabri gabri   140 Feb 25 01:30 summary.txt
+-rwxrwxrwx 1 gabri gabri 22969 Feb 25 01:30 type-check.txt
