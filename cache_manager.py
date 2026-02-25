@@ -52,11 +52,12 @@ from typing import TYPE_CHECKING, ClassVar, NamedTuple, Protocol, TypeAlias, cas
 
 # Third-party imports
 from PIL import Image
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, QRunnable, Qt, Signal
 
 # Local application imports
 from exceptions import ThumbnailError
 from logging_mixin import LoggingMixin
+from typing_compat import override
 
 
 if TYPE_CHECKING:
@@ -189,21 +190,49 @@ def _scene_to_dict(scene: object) -> ThreeDESceneDict:
     return cast("_HasToDict", scene).to_dict()
 
 
-# Backward compatibility exports from old cache system
 @final
-class ThumbnailCacheResult:
-    """Stub for backward compatibility - no longer used in simplified implementation."""
+class ThumbnailCacheLoaderSignals(QObject):
+    """Signals for ThumbnailCacheLoader."""
 
-    def __init__(self) -> None:
+    loaded = Signal(str, str, str, Path)  # show, sequence, shot, cache_path
+    failed = Signal(str, str, str, str)  # show, sequence, shot, error_message
+
+
+@final
+class ThumbnailCacheLoader(QRunnable):
+    """Background thumbnail cache loader — caches a source thumbnail via CacheManager."""
+
+    def __init__(
+        self,
+        cache_manager: CacheManager,
+        source_path: Path | str,
+        show: str,
+        sequence: str,
+        shot: str,
+    ) -> None:
         super().__init__()
-        self.future = None
-        self.path = None
-        self.is_complete = False
+        self.cache_manager = cache_manager
+        self.source_path = source_path
+        self.show = show
+        self.sequence = sequence
+        self.shot = shot
+        self.signals = ThumbnailCacheLoaderSignals()
+        self.setAutoDelete(True)
 
-
-@final
-class ThumbnailCacheLoader:
-    """Stub for backward compatibility - no longer used in simplified implementation."""
+    @override
+    def run(self) -> None:
+        try:
+            result = self.cache_manager.cache_thumbnail(
+                self.source_path, self.show, self.sequence, self.shot
+            )
+            if result:
+                self.signals.loaded.emit(self.show, self.sequence, self.shot, result)
+            else:
+                self.signals.failed.emit(
+                    self.show, self.sequence, self.shot, "cache_thumbnail returned None"
+                )
+        except Exception as e:
+            self.signals.failed.emit(self.show, self.sequence, self.shot, str(e))
 
 
 @final
@@ -458,8 +487,6 @@ class CacheManager(LoggingMixin, QObject):
         show: str,
         sequence: str,
         shot: str,
-        _wait: bool = True,
-        _timeout: float | None = None,
     ) -> Path | None:
         """Cache a thumbnail from source path.
 
@@ -471,8 +498,6 @@ class CacheManager(LoggingMixin, QObject):
             show: Show name
             sequence: Sequence name
             shot: Shot name
-            _wait: Ignored in simplified implementation (always synchronous)
-            _timeout: Ignored in simplified implementation
 
         Returns:
             Path to cached thumbnail or None on error
@@ -1386,46 +1411,6 @@ class CacheManager(LoggingMixin, QObject):
         """
         self._cache_ttl = timedelta(minutes=expiry_minutes)
         self.logger.debug(f"Cache TTL set to {expiry_minutes} minutes")
-
-    # ========================================================================
-    # Stub Methods (for backward compatibility, no-ops in simple implementation)
-    # ========================================================================
-
-    def clear_failed_attempts(self, _cache_key: str | None = None) -> None:
-        """Clear failed attempts (no-op in simple implementation).
-
-        Args:
-            cache_key: Ignored
-
-        """
-        # No failure tracking in simple implementation
-
-    def get_failed_attempts_status(self) -> dict[str, dict[str, object]]:
-        """Get failed attempts status (always empty in simple implementation).
-
-        Returns:
-            Empty dictionary
-
-        """
-        return {}
-
-    def set_memory_limit(self, _max_memory_mb: int) -> None:
-        """Set memory limit (no-op in simple implementation).
-
-        Args:
-            max_memory_mb: Ignored
-
-        """
-        # No memory management in simple implementation
-
-    def get_failure_status(self) -> dict[str, object]:
-        """Get failure status (always empty in simple implementation).
-
-        Returns:
-            Empty dictionary
-
-        """
-        return {}
 
     # ========================================================================
     # Internal Helper Methods

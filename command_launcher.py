@@ -391,6 +391,9 @@ maya.cmds.evalDeferred(_shotbot_update_context)
     # Counter for consecutive verification timeouts (used to avoid cache reset on first timeout)
     _consecutive_timeout_count: int = 0
     _TIMEOUT_THRESHOLD_FOR_CACHE_RESET: int = 3
+    # Maximum command length (bytes) - gnome-terminal buffer is ~8KB, be conservative
+    # Linux ARG_MAX is ~131KB but terminal emulators have smaller buffers
+    MAX_COMMAND_LENGTH: int = 8000
 
     def _on_app_verification_timeout(self, app_name: str) -> None:
         """Handle app verification timeout from ProcessExecutor.
@@ -983,8 +986,6 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                     command = f"{command} {safe_sequence_path}"
                     timestamp = self.timestamp
                     # Extract just the filename for cleaner logging
-                    from pathlib import Path
-
                     seq_name = Path(context.sequence_path).name
                     self.command_executed.emit(
                         timestamp,
@@ -1380,10 +1381,6 @@ maya.cmds.evalDeferred(_shotbot_update_context)
     # Methods removed - now using launch components:
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
     # - _verify_spawn() → self.process_executor._verify_spawn(process, app_name)
-
-    # Maximum command length (bytes) - gnome-terminal buffer is ~8KB, be conservative
-    # Linux ARG_MAX is ~131KB but terminal emulators have smaller buffers
-    MAX_COMMAND_LENGTH: int = 8000
 
     def _validate_workspace_before_launch(
         self, workspace_path: str, app_name: str

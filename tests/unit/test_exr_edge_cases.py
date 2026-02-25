@@ -70,8 +70,7 @@ class TestCorruptedFiles:
 
         # Should not crash, return None
         result = cache_manager.cache_thumbnail(
-            bad_exr, show="test", sequence="seq", shot="0010", _wait=True
-        )
+            bad_exr, show="test", sequence="seq", shot="0010"        )
 
         assert result is None or isinstance(result, Path)
 
@@ -87,8 +86,7 @@ class TestCorruptedFiles:
         # Cache manager should handle empty file
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         cached = cache_manager.cache_thumbnail(
-            empty_jpg, show="test", sequence="seq", shot="0010", _wait=True
-        )
+            empty_jpg, show="test", sequence="seq", shot="0010"        )
 
         # Should handle gracefully (return None or empty cache)
         assert cached is None or cached.stat().st_size == 0
@@ -103,8 +101,7 @@ class TestCorruptedFiles:
 
         # Test behavior: should handle gracefully without crashing
         result = cache_manager.cache_thumbnail(
-            truncated, show="test", sequence="seq", shot="0010", _wait=True
-        )
+            truncated, show="test", sequence="seq", shot="0010"        )
 
         # Should return None for corrupted file, not crash
         assert result is None
@@ -174,8 +171,7 @@ class TestPermissionErrors:
 
             # Should handle gracefully, possibly with in-memory fallback
             result = cache_manager.cache_thumbnail(
-                test_exr, show="test", sequence="seq", shot="0010", _wait=True
-            )
+                test_exr, show="test", sequence="seq", shot="0010"            )
 
             # Should not crash, might return None
             assert result is None or isinstance(result, Path)
@@ -234,8 +230,7 @@ class TestUnusualFormats:
         # Cache manager should handle symlink
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         cached = cache_manager.cache_thumbnail(
-            link_jpg, show="test", sequence="seq", shot="0010", _wait=True
-        )
+            link_jpg, show="test", sequence="seq", shot="0010"        )
 
         # Should process the linked file
         assert cached is None or isinstance(cached, Path)
@@ -301,13 +296,11 @@ class TestConcurrentEdgeCases:
                 mock_open.side_effect = FileNotFoundError()
 
                 result = cache_manager.cache_thumbnail(
-                    exr_file, show="test", sequence="seq", shot="0010", _wait=True
-                )
+                    exr_file, show="test", sequence="seq", shot="0010"                )
         else:
             # Skip Image mocking if PIL not available
             result = cache_manager.cache_thumbnail(
-                exr_file, show="test", sequence="seq", shot="0010", _wait=True
-            )
+                exr_file, show="test", sequence="seq", shot="0010"            )
 
         delete_thread.join()
 
@@ -334,8 +327,7 @@ class TestConcurrentEdgeCases:
 
         # Process file (will change during processing)
         result = cache_manager.cache_thumbnail(
-            exr_file, show="test", sequence="seq", shot="0010", _wait=True
-        )
+            exr_file, show="test", sequence="seq", shot="0010"        )
 
         modify_thread.join()
 

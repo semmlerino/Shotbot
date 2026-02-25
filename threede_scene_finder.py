@@ -294,9 +294,6 @@ class OptimizedThreeDESceneFinder:
             yield scenes, current_shot, total_shots, status
 
 
-# Backward compatibility aliases
-ThreeDESceneFinderOptimized = OptimizedThreeDESceneFinder
-
 # Logger for compatibility
 logger = logging.getLogger(__name__)
 

@@ -19,6 +19,7 @@ import selectors
 import subprocess
 import threading
 import time
+import traceback
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, cast, final
@@ -159,8 +160,6 @@ class FileSystemScanner(LoggingMixin):
 
     # Workload size thresholds for strategy selection
     SMALL_WORKLOAD_THRESHOLD = 100  # Use Python-only below this
-    MEDIUM_WORKLOAD_THRESHOLD = 1000  # Use optimized find above this
-    CONCURRENT_THRESHOLD = 2000  # Use concurrent processing above this
 
     # Common excluded directories
     EXCLUDED_DIRS: ClassVar[set[str]] = {
@@ -180,9 +179,6 @@ class FileSystemScanner(LoggingMixin):
     def __init__(self) -> None:
         """Initialize FileSystemScanner."""
         super().__init__()
-        # Standard library imports
-        import threading
-
         # Lazy imports to avoid circular dependencies - imported at runtime
         self._fs_coordinator: FilesystemCoordinator | None = None
         self.parser: SceneParser | None = None
@@ -834,9 +830,6 @@ class FileSystemScanner(LoggingMixin):
             List of tuples: (file_path, show, sequence, shot, user, plate)
 
         """
-        # Standard library imports
-        import traceback
-
         # Thread-safe lazy import to avoid circular dependency
         # Uses double-check locking pattern for concurrent ThreadPoolExecutor usage
         if self.parser is None:

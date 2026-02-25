@@ -561,7 +561,6 @@ class RefactoredThreeDESceneFinder:
         # Local application imports
         from config import Config
         from filesystem_scanner import FileSystemScanner
-        from scene_parser import SceneParser
 
         # Check for early cancellation
         if cancel_flag and cancel_flag():
@@ -590,7 +589,6 @@ class RefactoredThreeDESceneFinder:
 
         all_scenes: list[ThreeDEScene] = []
         scanner = FileSystemScanner()
-        _ = SceneParser()
 
         # Import necessary modules for parallel processing
         # Standard library imports

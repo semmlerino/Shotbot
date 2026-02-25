@@ -226,11 +226,6 @@ class SettingsController(LoggingMixin):
     def apply_cache_settings(self) -> None:
         """Apply cache settings from settings manager."""
         try:
-            # Apply cache memory limit
-            max_memory = self.window.settings_manager.get_max_cache_memory_mb()
-            if hasattr(self.window.cache_manager, "set_memory_limit"):
-                self.window.cache_manager.set_memory_limit(max_memory)
-
             # Apply cache expiry
             expiry_minutes = self.window.settings_manager.get_cache_expiry_minutes()
             if hasattr(self.window.cache_manager, "set_expiry_minutes"):

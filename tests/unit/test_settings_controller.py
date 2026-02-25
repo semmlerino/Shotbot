@@ -167,11 +167,7 @@ class CacheManagerDouble:
     __test__ = False
 
     def __init__(self) -> None:
-        self._memory_limit: int | None = None
         self._expiry_minutes: int | None = None
-
-    def set_memory_limit(self, limit: int) -> None:
-        self._memory_limit = limit
 
     def set_expiry_minutes(self, minutes: int) -> None:
         self._expiry_minutes = minutes
@@ -431,16 +427,6 @@ class TestSaveSettings:
 
 class TestApplySettings:
     """Test applying settings functionality."""
-
-    def test_apply_cache_settings_sets_memory_limit(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that apply_cache_settings sets memory limit."""
-        window_double.settings_manager._max_cache_memory_mb = 1024
-
-        controller.apply_cache_settings()
-
-        assert window_double.cache_manager._memory_limit == 1024
 
     def test_apply_cache_settings_sets_expiry(
         self, controller: SettingsController, window_double: SettingsTargetDouble
