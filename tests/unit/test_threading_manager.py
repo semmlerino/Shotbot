@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import contextlib
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch  # Mock kept for boundary checks on external deps
 
 import pytest
 from PySide6.QtCore import QThread, Signal
@@ -35,10 +35,23 @@ if TYPE_CHECKING:
 
 
 class MockWorker(QThread):
-    """Mock QThread worker for testing."""
+    """Real QThread subclass used as a test double for ThreeDESceneWorker.
 
+    Provides real Qt signals matching ThreeDESceneWorker's interface so tests
+    can connect signals and emit them to verify manager reactions without
+    relying on Mock.connect() call assertions.
+
+    Attributes:
+        _stopped: Set to True when stop() is called.
+        _paused: Toggled by pause() / resume().
+        _force_running: When not None, overrides isRunning() for tests that
+            need precise control over the "worker is running" state without
+            actually spinning a thread.
+    """
+
+    # Match ThreeDESceneWorker signal signatures exactly
     started = Signal()
-    progress_update = Signal(int, int, str)
+    progress = Signal(int, int, float, str, str)  # current, total, pct, description, eta
     batch_ready = Signal(list)
     finished = Signal(list)
     error = Signal(str)
@@ -49,55 +62,39 @@ class MockWorker(QThread):
         super().__init__()
         self._stopped = False
         self._paused = False
+        self._force_running: bool | None = None
+
+    def isRunning(self) -> bool:
+        """Return forced value if set, otherwise delegate to QThread."""
+        if self._force_running is not None:
+            return self._force_running
+        return super().isRunning()
 
     def run(self) -> None:
-        """Mock run method."""
+        """Minimal run method — returns immediately so threads don't linger."""
 
     def stop(self) -> None:
-        """Mock stop method."""
+        """Record stop request without blocking."""
         self._stopped = True
 
     def pause(self) -> None:
-        """Mock pause method."""
+        """Record pause request."""
         self._paused = True
 
     def resume(self) -> None:
-        """Mock resume method."""
+        """Record resume request."""
         self._paused = False
 
 
 @pytest.fixture
-def mock_threede_worker() -> Mock:
-    """Create mock ThreeDESceneWorker with correct signal names."""
-    worker = Mock(spec=QThread)
+def mock_threede_worker() -> MockWorker:
+    """Create a real MockWorker (QThread subclass) to stand in for ThreeDESceneWorker.
 
-    # Mock signals with connect methods (match actual ThreeDESceneWorker signals)
-    worker.started = Mock()
-    worker.started.connect = Mock()
-    worker.progress = Mock()  # Changed from progress_update
-    worker.progress.connect = Mock()
-    worker.batch_ready = Mock()
-    worker.batch_ready.connect = Mock()
-    worker.finished = Mock()
-    worker.finished.connect = Mock()
-    worker.error = Mock()
-    worker.error.connect = Mock()
-    worker.paused = Mock()
-    worker.paused.connect = Mock()
-    worker.resumed = Mock()
-    worker.resumed.connect = Mock()
-
-    # Mock QThread methods
-    worker.start = Mock()
-    worker.stop = Mock()
-    worker.pause = Mock()
-    worker.resume = Mock()
-    worker.wait = Mock(return_value=True)
-    worker.isRunning = Mock(return_value=True)
-    worker.isFinished = Mock(return_value=False)
-    worker.deleteLater = Mock()
-
-    return worker
+    Using a real QThread subclass with real Qt signals lets tests emit those
+    signals and verify that ThreadingManager reacted correctly, rather than
+    asserting that .connect() was called (an implementation detail).
+    """
+    return MockWorker()
 
 
 @pytest.fixture
@@ -169,7 +166,7 @@ class TestThreeDEDiscoveryLifecycle:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test starting discovery creates and configures worker."""
         with patch(
@@ -182,14 +179,15 @@ class TestThreeDEDiscoveryLifecycle:
             assert result is True
             assert threading_manager._threede_discovery_active is True
             assert threading_manager._current_threede_worker is mock_threede_worker
-            mock_threede_worker.start.assert_called_once()
+            # Behavior: worker was registered in the manager's tracking dict
+            assert "threede_discovery" in threading_manager._workers
 
     def test_start_discovery_rejects_concurrent_start(
         self,
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test starting discovery while already running returns False."""
         with patch(
@@ -212,9 +210,15 @@ class TestThreeDEDiscoveryLifecycle:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
+        qtbot: QtBot,
     ) -> None:
-        """Test discovery worker signals are connected to manager signals."""
+        """Test discovery worker signals are wired to manager output signals.
+
+        Emits each MockWorker signal and verifies the manager forwards it
+        through the corresponding ThreadingManager signal — proving connection
+        without inspecting .connect() call counts.
+        """
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
         ):
@@ -222,21 +226,48 @@ class TestThreeDEDiscoveryLifecycle:
                 mock_threede_model, mock_shot_model
             )
 
-            # Verify signal connections (match actual signal names)
-            mock_threede_worker.started.connect.assert_called()
-            mock_threede_worker.progress.connect.assert_called()  # Changed from progress_update
-            mock_threede_worker.batch_ready.connect.assert_called()
-            mock_threede_worker.finished.connect.assert_called()
-            mock_threede_worker.error.connect.assert_called()
-            mock_threede_worker.paused.connect.assert_called()
-            mock_threede_worker.resumed.connect.assert_called()
+        # started → threede_discovery_started
+        with qtbot.waitSignal(threading_manager.threede_discovery_started, timeout=1000):
+            mock_threede_worker.started.emit()
+
+        # progress → threede_discovery_progress (mapped through _on_progress_update)
+        with qtbot.waitSignal(threading_manager.threede_discovery_progress, timeout=1000):
+            mock_threede_worker.progress.emit(1, 10, 10.0, "scanning", "~5s")
+
+        # batch_ready → threede_discovery_batch_ready
+        with qtbot.waitSignal(
+            threading_manager.threede_discovery_batch_ready, timeout=1000
+        ):
+            mock_threede_worker.batch_ready.emit([])
+
+        # finished → threede_discovery_finished (via _on_threede_discovery_finished)
+        with qtbot.waitSignal(
+            threading_manager.threede_discovery_finished, timeout=1000
+        ):
+            # Re-arm the active flag so the slot fires correctly
+            threading_manager._threede_discovery_active = True
+            mock_threede_worker.finished.emit([])
+
+        # error → threede_discovery_error (via _on_threede_discovery_error)
+        # Reset active flag so the error slot runs
+        threading_manager._threede_discovery_active = True
+        with qtbot.waitSignal(threading_manager.threede_discovery_error, timeout=1000):
+            mock_threede_worker.error.emit("test error")
+
+        # paused → threede_discovery_paused
+        with qtbot.waitSignal(threading_manager.threede_discovery_paused, timeout=1000):
+            mock_threede_worker.paused.emit()
+
+        # resumed → threede_discovery_resumed
+        with qtbot.waitSignal(threading_manager.threede_discovery_resumed, timeout=1000):
+            mock_threede_worker.resumed.emit()
 
     def test_is_discovery_active_reflects_state(
         self,
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test is_threede_discovery_active reflects current state."""
         with patch(
@@ -255,7 +286,7 @@ class TestThreeDEDiscoveryLifecycle:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
         qtbot: QtBot,
     ) -> None:
         """Test discovery finished callback updates active state."""
@@ -280,7 +311,7 @@ class TestThreeDEDiscoveryLifecycle:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
         qtbot: QtBot,
     ) -> None:
         """Test discovery error callback updates active state."""
@@ -313,7 +344,7 @@ class TestThreeDEDiscoveryControl:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test pausing active discovery succeeds."""
         with patch(
@@ -326,7 +357,8 @@ class TestThreeDEDiscoveryControl:
             result = threading_manager.pause_threede_discovery()
 
             assert result is True
-            mock_threede_worker.pause.assert_called_once()
+            # Behavior: MockWorker.pause() set the _paused flag
+            assert mock_threede_worker._paused is True
 
     def test_pause_discovery_when_not_active(
         self, threading_manager: ThreadingManager
@@ -341,7 +373,7 @@ class TestThreeDEDiscoveryControl:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test resuming paused discovery succeeds."""
         with patch(
@@ -355,7 +387,8 @@ class TestThreeDEDiscoveryControl:
             result = threading_manager.resume_threede_discovery()
 
             assert result is True
-            mock_threede_worker.resume.assert_called_once()
+            # Behavior: MockWorker.resume() cleared the _paused flag
+            assert mock_threede_worker._paused is False
 
     def test_resume_discovery_when_not_active(
         self, threading_manager: ThreadingManager
@@ -370,7 +403,7 @@ class TestThreeDEDiscoveryControl:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test stopping active discovery succeeds."""
         with patch(
@@ -383,7 +416,8 @@ class TestThreeDEDiscoveryControl:
             result = threading_manager.stop_threede_discovery()
 
             assert result is True
-            mock_threede_worker.stop.assert_called_once()
+            # Behavior: MockWorker.stop() set the _stopped flag
+            assert mock_threede_worker._stopped is True
             assert threading_manager._threede_discovery_active is False
 
     def test_stop_discovery_when_not_active(
@@ -610,7 +644,7 @@ class TestCleanupAndShutdown:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test start_threede_discovery cleans up existing running worker."""
         # Start first worker
@@ -621,29 +655,14 @@ class TestCleanupAndShutdown:
                 mock_threede_model, mock_shot_model
             )
 
-        # Simulate worker running
-        mock_threede_worker.isRunning.return_value = True
+        # Force isRunning() to True so the non-blocking cleanup path triggers
+        mock_threede_worker._force_running = True
         first_worker = mock_threede_worker
 
-        # Create new mock for second worker
-        second_worker = Mock()
-        second_worker.start = Mock()
-        second_worker.started = Mock()
-        second_worker.started.connect = Mock()
-        second_worker.progress = Mock()
-        second_worker.progress.connect = Mock()
-        second_worker.batch_ready = Mock()
-        second_worker.batch_ready.connect = Mock()
-        second_worker.finished = Mock()
-        second_worker.finished.connect = Mock()
-        second_worker.error = Mock()
-        second_worker.error.connect = Mock()
-        second_worker.paused = Mock()
-        second_worker.paused.connect = Mock()
-        second_worker.resumed = Mock()
-        second_worker.resumed.connect = Mock()
+        # Second worker uses another MockWorker so its real signals work correctly
+        second_worker = MockWorker()
 
-        # Start second worker - should cleanup first worker
+        # Start second worker — should trigger cleanup of first worker
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=second_worker
         ):
@@ -656,22 +675,24 @@ class TestCleanupAndShutdown:
         # Process Qt events for non-blocking cleanup
         process_qt_events()
 
-        # Verify first worker cleanup was initiated (non-blocking approach)
-        # New implementation uses signals instead of blocking wait()
-        first_worker.stop.assert_called()
-        # finished.connect(deleteLater) is called for cleanup
-        first_worker.finished.connect.assert_called()
+        # Behavior: stop() was called on the old worker
+        assert first_worker._stopped is True
+        # Behavior: a cleanup timer was registered (non-blocking path was taken)
+        # The timer may have already fired and removed itself, but the stop flag
+        # confirms the cleanup sequence was initiated correctly.
+        # Alternatively: the manager no longer holds first_worker as current
+        assert threading_manager._current_threede_worker is second_worker
 
     def test_start_discovery_handles_cleanup_timeout(
         self,
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test start_threede_discovery handles worker timeout gracefully."""
-        mock_threede_worker.wait.return_value = False  # Timeout
-        mock_threede_worker.isRunning.return_value = True
+        # Force isRunning() to True so the non-blocking cleanup path triggers
+        mock_threede_worker._force_running = True
 
         # Start first worker
         with patch(
@@ -683,25 +704,10 @@ class TestCleanupAndShutdown:
 
         first_worker = mock_threede_worker
 
-        # Create new mock for second worker
-        second_worker = Mock()
-        second_worker.start = Mock()
-        second_worker.started = Mock()
-        second_worker.started.connect = Mock()
-        second_worker.progress = Mock()
-        second_worker.progress.connect = Mock()
-        second_worker.batch_ready = Mock()
-        second_worker.batch_ready.connect = Mock()
-        second_worker.finished = Mock()
-        second_worker.finished.connect = Mock()
-        second_worker.error = Mock()
-        second_worker.error.connect = Mock()
-        second_worker.paused = Mock()
-        second_worker.paused.connect = Mock()
-        second_worker.resumed = Mock()
-        second_worker.resumed.connect = Mock()
+        # Second worker uses another MockWorker so its real signals work correctly
+        second_worker = MockWorker()
 
-        # Should not raise exception even if first worker times out
+        # Should not raise exception even when old worker reports running
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=second_worker
         ):
@@ -714,9 +720,10 @@ class TestCleanupAndShutdown:
         # Process Qt events for non-blocking cleanup
         process_qt_events()
 
-        # Verify first worker cleanup was initiated (non-blocking approach)
-        # With new signal-based cleanup, finished.connect(deleteLater) is used
-        first_worker.finished.connect.assert_called()
+        # Behavior: stop() was called on the old worker to initiate cleanup
+        assert first_worker._stopped is True
+        # Behavior: new worker is now active — cleanup did not prevent start
+        assert threading_manager._current_threede_worker is second_worker
 
     def test_shutdown_all_threads_stops_all_workers(
         self, threading_manager: ThreadingManager
@@ -767,7 +774,7 @@ class TestCleanupAndShutdown:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test shutdown clears 3DE worker state."""
         with patch(
@@ -811,7 +818,7 @@ class TestThreadSafety:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test start_discovery protects state with mutex."""
         with patch(
@@ -874,7 +881,7 @@ class TestEdgeCasesAndErrorHandling:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test removing 3DE discovery worker clears special state."""
         with patch(
@@ -894,7 +901,7 @@ class TestEdgeCasesAndErrorHandling:
         threading_manager: ThreadingManager,
         mock_threede_model: Mock,
         mock_shot_model: Mock,
-        mock_threede_worker: Mock,
+        mock_threede_worker: MockWorker,
     ) -> None:
         """Test starting discovery cleans up any existing worker."""
         old_worker = Mock(spec=QThread)
