@@ -34,8 +34,8 @@ Single-user tool on an isolated VFX server. Do NOT flag security issues (`shell=
 - **Dev location**: `~/projects/shotbot` (Linux filesystem, ~7.5x faster than `/mnt/c`)
 - **Production**: `/nethome/gabriel-h/Python/Shotbot/` (remote VFX server)
 - **Deployment**: Encoded bundle via `encoded-releases` branch — see [docs/DEPLOYMENT_SYSTEM.md](./docs/DEPLOYMENT_SYSTEM.md)
-- **Dependencies**: Python 3.11+, PySide6, Pillow, psutil
-- **Install**: `~/.local/bin/uv pip install -r requirements.txt`
+- **Dependencies**: Python 3.11+, PySide6, psutil
+- **Install**: `~/.local/bin/uv sync`
 
 ## Development Commands
 
