@@ -16,7 +16,6 @@ from dcc_section import (
     CheckboxConfig,
     DCCConfig,
     DCCSection,
-    get_default_config,
 )
 from tests.test_helpers import process_qt_events
 
@@ -82,17 +81,6 @@ class TestDCCConfigDefaults:
         assert "maya" in names
         assert "rv" in names
 
-    def test_get_default_config_found(self) -> None:
-        """Can retrieve default config by name."""
-        config = get_default_config("nuke")
-        assert config is not None
-        assert config.name == "nuke"
-        assert config.display_name == "Nuke"
-
-    def test_get_default_config_not_found(self) -> None:
-        """Returns None for unknown config name."""
-        config = get_default_config("unknown")
-        assert config is None
 
 
 class TestDCCSectionInit:

@@ -60,9 +60,6 @@ except ImportError:
 
 HAS_DEBUG_UTILS = _has_debug_utils
 
-# Note: fcntl is not currently used, setting HAS_FCNTL to False
-HAS_FCNTL = False
-
 # Enable verbose debug logging if environment variable is set
 DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
     "1",

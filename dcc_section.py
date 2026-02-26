@@ -140,14 +140,6 @@ DEFAULT_DCC_CONFIGS = [
 ]
 
 
-def get_default_config(name: str) -> DCCConfig | None:
-    """Get default config for a DCC by name."""
-    for config in DEFAULT_DCC_CONFIGS:
-        if config.name == name:
-            return config
-    return None
-
-
 @final
 class DCCSection(QtWidgetMixin, QWidget):
     """Collapsible DCC section with launch options.
