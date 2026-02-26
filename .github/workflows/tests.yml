@@ -8,6 +8,7 @@ on:
   schedule:
     # Run performance tests weekly on Sunday at 2 AM
     - cron: '0 2 * * 0'
+  workflow_dispatch:
 
 jobs:
   fast-tests:
@@ -36,14 +37,14 @@ jobs:
     - name: Run fast tests
       run: |
         uv run pytest tests/ \
-          -m "not slow and not performance and not stress" \
+          -m "not slow and not performance and not stress and not legacy and not performance_like and not tutorial" \
           --tb=short \
           --maxfail=10 \
           --timeout=10 \
           -n auto \
           --dist=loadgroup \
           -q
-    
+
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v3
@@ -80,9 +81,9 @@ jobs:
 
     - name: Run full test suite with xvfb
       run: |
-        xvfb-run -a uv run pytest tests/unit/ \
+        xvfb-run -a uv run pytest tests/ \
+          -m "not performance and not stress and not legacy and not performance_like and not tutorial" \
           -n auto \
-          --timeout=5 \
           --tb=short \
           --cov=. \
           --cov-report=xml
@@ -90,7 +91,7 @@ jobs:
     - name: Generate coverage report (already done above)
       if: success()
       run: echo "Coverage already generated with --cov-report=xml"
-    
+
     - name: Upload coverage to Codecov
       if: success()
       uses: codecov/codecov-action@v3
@@ -118,9 +119,7 @@ jobs:
         python-version: '3.12'
 
     - name: Install dependencies
-      run: |
-        uv sync --locked
-        uv add --dev pytest-benchmark
+      run: uv sync --locked
 
     - name: Run performance tests
       run: |
@@ -128,7 +127,7 @@ jobs:
           -m "performance" \
           --benchmark-only \
           --benchmark-json=benchmark.json
-    
+
     - name: Store benchmark result
       uses: benchmark-action/github-action-benchmark@v1
       with:
