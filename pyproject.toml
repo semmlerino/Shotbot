@@ -27,8 +27,8 @@ dev = [
     # Development
     "ruff~=0.14.0",
     "basedpyright~=1.32.0",
-    "vulture>=2.14",
     "deptry~=0.23.0",
+    "skylos>=3.4.3",
 ]
 
 [tool.basedpyright]
@@ -388,19 +388,63 @@ extend_exclude = [
 # shiboken6 is a transitive dep from PySide6, but we import it directly for type checks
 DEP003 = ["shiboken6"]
 
-[tool.vulture]
-min_confidence = 80
-paths = ["."]
-ignore_names = ["checked", "exc_type", "exc_val", "exc_tb", "w", "h", "second"]
-exclude = [
-    ".git",
-    ".venv",
-    "venv",
-    "test_venv",
-    "__pycache__",
-    ".pytest_cache",
-    ".ruff_cache",
-    "tests",
-    "docs",
-    "archive",
+
+[tool.skylos]
+# Whitelist: patterns for dynamic dispatch Skylos can't trace
+[tool.skylos.whitelist]
+names = [
+    # Qt signal/slot targets (connected via signal.connect(obj.method))
+    "on_*",
+    "_on_*",
+    # Qt virtual overrides called by the C++ framework
+    "eventFilter",
+    "contextMenuEvent",
+    "sizeHint",
+    "paint",
+    "closeEvent",
+    "resizeEvent",
+    "keyPressEvent",
+    "mousePressEvent",
+    "mouseReleaseEvent",
+    "mouseMoveEvent",
+    "wheelEvent",
+    "showEvent",
+    "hideEvent",
+    "run",             # QRunnable.run() / QThread.run()
+    "do_work",         # ThreadSafeWorker.do_work() — called by base class run()
+    "data",            # QAbstractItemModel.data()
+    "rowCount",        # QAbstractItemModel.rowCount()
+    "columnCount",     # QAbstractItemModel.columnCount()
+    "headerData",      # QAbstractItemModel.headerData()
+    "flags",           # QAbstractItemModel.flags()
+    # Qt delegate overrides
+    "get_theme",       # BaseThumbnailDelegate template method
+    "get_item_data",   # BaseThumbnailDelegate template method
+    # Qt model/view data role methods (template pattern in base classes)
+    "get_display_role_data",
+    "get_tooltip_data",
+    "get_custom_role_data",
+]
+
+# Documented whitelist: methods called through indirection with reasons
+[tool.skylos.whitelist.documented]
+"should_exclude" = "Called via instance attribute in bundle_app.py"
+"closing" = "Protocol field annotation, accessed via self.window.closing"
+"settings_manager" = "Protocol field annotation, accessed via self.window.settings_manager"
+"threede_scene_model" = "Protocol field annotation, accessed via self.window.threede_scene_model"
+
+# Per-file overrides for classes accessed via multi-hop attribute chains
+# (self.window.settings_manager.method(), self.cache_manager.method(), etc.)
+# Skylos can't trace through 2+ levels of attribute indirection.
+# Note: whitelist patterns match against simple_name (bare method name, no class prefix).
+[tool.skylos.overrides."settings_manager.py"]
+whitelist = ["get_*", "set_*", "is_*", "has_*", "import_*", "export_*", "reset_*"]
+
+[tool.skylos.overrides."cache_manager.py"]
+whitelist = ["get_*", "set_*", "has_*", "cache_*", "clear_*", "invalidate_*", "ensure_*", "merge_*", "shutdown"]
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
 ]
