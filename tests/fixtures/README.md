@@ -39,15 +39,16 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 
 Use `SubprocessMock` from `subprocess_mocking.py` via the `subprocess_mock` fixture.
 
-- **Strict-by-default**: Any unpatched `subprocess.run()`, `subprocess.Popen()`, or `subprocess.check_output()` call raises `RuntimeError`
+- **Strict-by-default**: Any unpatched `subprocess.run()`, `subprocess.Popen()`, or `subprocess.check_output()` call raises `AssertionError`
 - Catches accidental real subprocess calls
-- Configure expected commands via `subprocess_mock.set_result()` or `subprocess_mock.set_popen_result()`
+- Configure expected commands via `subprocess_mock.set_output(stdout, stderr="")`, `subprocess_mock.set_return_code(code)`, `subprocess_mock.set_exception(exc)`, `subprocess_mock.reset()`
 
 ```python
 def test_launcher_builds_command(subprocess_mock):
-    subprocess_mock.set_result("nuke", returncode=0, stdout="OK")
+    subprocess_mock.set_output(b"OK")
+    subprocess_mock.set_return_code(0)
     launcher.launch()
-    assert subprocess_mock.call_count == 1
+    assert len(subprocess_mock.calls) == 1
 ```
 
 ### Integration Tests: `TestSubprocess` / `PopenDouble` (injection)
