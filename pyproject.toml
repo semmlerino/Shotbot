@@ -4,6 +4,7 @@ version = "0.0.0"  # Placeholder - actual versioning via git tags
 requires-python = ">=3.11"
 dependencies = [
     "PySide6~=6.10.0",
+    "pillow>=12.1.1",
     "psutil~=7.1.0",
     "typing-extensions~=4.15.0",
 ]
@@ -21,7 +22,6 @@ dev = [
     "pytest-xdist~=3.8.0",
     "pytest-timeout~=2.4.0",
     "pytest-randomly~=3.16.0",
-    "pytest-benchmark~=5.1.0",
     "hypothesis~=6.100.0",
     "time-machine~=2.18.0",
     # Development
@@ -267,7 +267,7 @@ addopts = [
     "--strict-markers",     # Fail on unknown markers
     "--strict-config",      # Fail on unknown config options
     "-ra",                  # Show all test summary info
-    "-m", "not legacy and not performance_like and not tutorial",  # Default high-signal suite
+    "-m", "not legacy",  # Default high-signal suite
     "--durations=20",       # Show slowest 20 tests
     "--randomly-seed=last", # Reproduce last run's order (use --randomly-seed=<N> for specific seed)
     "--tb=short",
@@ -309,6 +309,7 @@ markers = [
     "fast: Tests under 100ms",
     "stress: Stress tests that exercise system under heavy load",
     "concurrency: Tests for thread safety and concurrent/threading behavior",
+    "thread_safety: Tests for thread safety and concurrent/threading behavior",
     "regression: Regression tests for specific bugs",
     "flaky: Tests that may fail intermittently (should be investigated and fixed)",
     "critical: Critical/high priority tests",
@@ -322,11 +323,10 @@ markers = [
     "thread_leak_ok: Allow thread leaks in this test (opt-out from FAIL_ON_THREAD_LEAK)",
     "persistent_cache: Skip disk cache clearing for tests that need pre-seeded cache files",
     "legacy: Lower-signal or duplicate historical coverage (excluded from default runs)",
-    "performance_like: Timing-sensitive behavior checks excluded from default runs",
-    "tutorial: Educational/reference tests excluded from default runs",
     "gui_mainwindow: Tests requiring main window GUI",
     "qt_heavy: Qt-intensive tests",
     "integration_unsafe: Potentially unsafe integration tests",
+    "integration_safe: Integration tests safe to run in all environments",
     "skip_if_parallel: Skip when running in parallel mode due to Qt state pollution",
     "allow_dialogs: Suppress strict dialog failure for a test",
     "real_timing: Bypass short-wait patch for timing-sensitive tests",
