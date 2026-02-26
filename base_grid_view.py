@@ -304,7 +304,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
     # Template methods for subclasses to override
 
-    def _add_top_widgets(self, _layout: QVBoxLayout) -> None:
+    def _add_top_widgets(self, layout: QVBoxLayout) -> None:
         """Add widgets at the top of the layout.
 
         Override in subclasses to add headers, loading bars, etc.
@@ -314,7 +314,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         """
 
-    def _add_toolbar_widgets(self, _layout: QHBoxLayout) -> None:
+    def _add_toolbar_widgets(self, layout: QHBoxLayout) -> None:
         """Add additional widgets to the toolbar.
 
         Override in subclasses to add buttons, labels, etc.
@@ -445,7 +445,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         if first_index.isValid() and last_index.isValid():
             self._handle_visible_range_update(first_index.row(), last_index.row() + 1)
 
-    def _handle_visible_range_update(self, _start: int, _end: int) -> None:
+    def _handle_visible_range_update(self, start: int, end: int) -> None:
         """Handle the visible range update.
 
         Override in subclasses to update their specific models.

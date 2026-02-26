@@ -18,7 +18,7 @@ import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -269,9 +269,7 @@ class SystemDiagnostics(LoggingMixin):
 
             process = psutil.Process()
             mem_info = process.memory_info()
-            rss_bytes = cast(
-                "int", mem_info.rss
-            )  # psutil returns int, cast for type checker
+            rss_bytes = mem_info.rss
             info["memory"] = {
                 "rss_mb": rss_bytes / 1024 / 1024,
                 "percent": process.memory_percent(),

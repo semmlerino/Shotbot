@@ -244,7 +244,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         # Progress tracking
         self._progress_calculator = ProgressCalculator()
-        self._last_progress_time = 0
+        self._last_progress_time = 0.0
         self._all_scenes: list[ThreeDEScene] = []
         self._files_processed = 0
         # Progress reporter will be created in do_work() to prevent race condition

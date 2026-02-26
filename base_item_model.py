@@ -1012,7 +1012,7 @@ class BaseItemModel(
             Config.DEFAULT_THUMBNAIL_SIZE + 40,
         )
 
-    def get_custom_role_data(self, _item: T, _role: int) -> object | None:
+    def get_custom_role_data(self, item: T, role: int) -> object | None:
         """Handle model-specific custom roles.
 
         Args:
