@@ -280,9 +280,9 @@ class TestConcurrentEdgeCases:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         def delete_file() -> None:
-            app = QCoreApplication.instance()
-            if app:
-                process_qt_events(app, 10)  # Process events instead of sleep
+            import time
+
+            time.sleep(0.01)  # Sleep instead of processing Qt events in a background thread
             if exr_file.exists():
                 exr_file.unlink()
 
@@ -316,9 +316,9 @@ class TestConcurrentEdgeCases:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         def modify_file() -> None:
-            app = QCoreApplication.instance()
-            if app:
-                process_qt_events(app, 10)  # Process events instead of sleep
+            import time
+
+            time.sleep(0.01)  # Sleep instead of processing Qt events in a background thread
             if exr_file.exists():
                 # Change file content
                 exr_file.write_bytes(b"MODIFIED" + b"y" * 2048)

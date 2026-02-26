@@ -5,6 +5,7 @@
 # Third-party imports
 import pytest
 
+
 # Markers are registered in pyproject.toml [tool.pytest.ini_options] markers
 
 
