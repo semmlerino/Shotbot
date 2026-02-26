@@ -247,7 +247,7 @@ line-ending = "auto"
 [tool.pytest.ini_options]
 # Test discovery
 testpaths = ["tests"]
-norecursedirs = ["tests/manual", "tests/performance", ".git", ".venv", "archive"]
+norecursedirs = ["tests/manual", "tests/performance", ".git", ".venv", "archive", ".hypothesis"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -277,7 +277,7 @@ addopts = [
     # Serial execution by default for Qt stability and leak detection
     # Override with `pytest tests/ -n 2` for faster development
     # Override with `pytest tests/ -n auto` for maximum parallelism
-    # Note: -n 0 is invalid; serial mode = omit -n entirely (xdist still loads but doesn't parallelize)
+    # Note: -n 0 runs serial via xdist (same as omitting -n but xdist still loads)
 ]
 
 # Timeout configuration (2 minutes per test to catch hanging tests)
@@ -324,6 +324,12 @@ markers = [
     "legacy: Lower-signal or duplicate historical coverage (excluded from default runs)",
     "performance_like: Timing-sensitive behavior checks excluded from default runs",
     "tutorial: Educational/reference tests excluded from default runs",
+    "gui_mainwindow: Tests requiring main window GUI",
+    "qt_heavy: Qt-intensive tests",
+    "integration_unsafe: Potentially unsafe integration tests",
+    "skip_if_parallel: Skip when running in parallel mode due to Qt state pollution",
+    "allow_dialogs: Suppress strict dialog failure for a test",
+    "real_timing: Bypass short-wait patch for timing-sensitive tests",
 ]
 
 # Coverage configuration
