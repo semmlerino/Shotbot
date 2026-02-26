@@ -225,13 +225,13 @@ class TestThreeDEWorkerWorkflow:
         # Connect signals
         worker.progress.connect(on_progress)
         worker.error.connect(on_error)
-        worker.finished.connect(on_finished)
+        worker.discovery_finished.connect(on_finished)
 
         # Track signal handlers for proper cleanup
         signal_handlers = [
             (worker.progress, on_progress),
             (worker.error, on_error),
-            (worker.finished, on_finished),
+            (worker.discovery_finished, on_finished),
         ]
 
         try:
@@ -247,7 +247,7 @@ class TestThreeDEWorkerWorkflow:
                 timeout = 60000
 
             # Following Signal Testing Pattern (lines 375-387): waitSignal BEFORE action
-            with qtbot.waitSignal(worker.finished, timeout=timeout) as blocker:
+            with qtbot.waitSignal(worker.discovery_finished, timeout=timeout) as blocker:
                 worker.start()
 
             # Verify workflow completed successfully
@@ -310,16 +310,16 @@ class TestThreeDEWorkerWorkflow:
             return track_signal("error", msg)
 
         # Connect signals and track for cleanup
-        worker.started.connect(started_wrapper)
+        worker.worker_discovery_started.connect(started_wrapper)
         worker.progress.connect(progress_wrapper)
-        worker.finished.connect(finished_wrapper)
+        worker.discovery_finished.connect(finished_wrapper)
         worker.error.connect(error_wrapper)
 
         # Track signal handlers for proper cleanup
         signal_handlers = [
-            (worker.started, started_wrapper),
+            (worker.worker_discovery_started, started_wrapper),
             (worker.progress, progress_wrapper),
-            (worker.finished, finished_wrapper),
+            (worker.discovery_finished, finished_wrapper),
             (worker.error, error_wrapper),
         ]
 
@@ -335,7 +335,7 @@ class TestThreeDEWorkerWorkflow:
                 timeout = 30000
 
             # Use qtbot.waitSignal with extended timeout
-            with qtbot.waitSignal(worker.finished, timeout=timeout):
+            with qtbot.waitSignal(worker.discovery_finished, timeout=timeout):
                 worker.start()
 
             # Wait for thread to fully terminate before accessing signal data

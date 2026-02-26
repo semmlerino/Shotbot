@@ -594,7 +594,6 @@ class FakePreviousShotsWorker(QObject):
 
     # Real Qt signals for proper integration
     started = Signal()
-    shot_found = Signal(dict)
     scan_progress = Signal(int, int, str)
     scan_finished = Signal(list)
     error_occurred = Signal(str)
@@ -626,13 +625,6 @@ class FakePreviousShotsWorker(QObject):
             if self.should_stop_flag:
                 break
 
-            shot_dict = {
-                "show": shot.show,
-                "sequence": shot.sequence,
-                "shot": shot.shot,
-                "workspace_path": shot.workspace_path,
-            }
-            self.shot_found.emit(shot_dict)
             self.scan_progress.emit(
                 i + 1, len(self.shots_to_find), f"Processing {shot.shot}"
             )

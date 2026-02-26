@@ -138,13 +138,13 @@ def cleanup_qthread_properly(
 
             # Track signal connections for cleanup
             signal_handlers = [
-                (worker.started, on_started),
-                (worker.finished, on_finished),
+                (worker.worker_discovery_started, on_started),
+                (worker.discovery_finished, on_finished),
                 (worker.progress, on_progress),
             ]
 
             try:
-                with qtbot.waitSignal(worker.finished):
+                with qtbot.waitSignal(worker.discovery_finished):
                     worker.start()
 
                 # Test logic...

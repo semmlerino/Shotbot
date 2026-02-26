@@ -1,5 +1,5 @@
-Post-commit hook executed at Wed Feb 25 01:30:07 GMT 2026
-Commit: a25200d057b7ec341e605783baed1d97d21d72ba
+Post-commit hook executed at Thu Feb 26 01:39:04 GMT 2026
+Commit: f4a87c7cca3c36fcf84427e86a172291adc8603d
 Branch: master
 Author: Gabriel H <gabrhas@gmail.com>
-Message: refactor: fix test infrastructure anti-patterns across 14 files
+Message: cleanup: simplify test suite — fix no-ops, remove dupes, parametrize

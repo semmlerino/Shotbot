@@ -603,8 +603,8 @@ class TestGetShotDetails:
         assert details["workspace_path"] == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010"
         assert details["user_path"] == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
         assert (
-            details["status"] == "approved"
-        )  # TargetedShotsFinder always returns approved
+            details["status"] == "unknown"
+        )  # no approved/user dirs → _get_shot_status returns unknown
 
     def test_get_details_with_existing_user_dir(self, tmp_path: Path) -> None:
         """Test details when user directory exists."""

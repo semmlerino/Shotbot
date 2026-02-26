@@ -7,7 +7,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any, Protocol
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject
 
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
@@ -47,10 +47,6 @@ class RefreshOrchestrator(QObject, LoggingMixin):
     with proper progress indication and notifications.
     """
 
-    # Signals
-    refresh_started: Signal = Signal(int)  # tab_index
-    refresh_finished: Signal = Signal(int, bool)  # tab_index, success
-
     def __init__(self, main_window: RefreshOrchestratorMainWindowProtocol) -> None:
         """Initialize refresh orchestrator.
 
@@ -78,8 +74,6 @@ class RefreshOrchestrator(QObject, LoggingMixin):
             index: Tab index (0=My Shots, 1=Other 3DE, 2=Previous)
 
         """
-        self.refresh_started.emit(index)
-
         if index == 0:  # My Shots tab
             self._refresh_shots()
         elif index == 1:  # Other 3DE tab
@@ -121,10 +115,8 @@ class RefreshOrchestrator(QObject, LoggingMixin):
             and self.main_window.threede_controller
         ):
             self.main_window.threede_controller.refresh_threede_scenes()
-            self.refresh_finished.emit(1, True)
         else:
             self.logger.warning("3DE controller not available for refresh")
-            self.refresh_finished.emit(1, False)
 
     def _refresh_previous(self) -> None:
         """Refresh Previous Shots."""
@@ -133,10 +125,8 @@ class RefreshOrchestrator(QObject, LoggingMixin):
             and self.main_window.previous_shots_model
         ):
             self.main_window.previous_shots_model.refresh_shots()
-            self.refresh_finished.emit(2, True)
         else:
             self.logger.warning("Previous shots model not available for refresh")
-            self.refresh_finished.emit(2, False)
 
     def handle_shots_loaded(self, shots: list[Shot]) -> None:
         """Handle shots loaded signal from model.
@@ -214,9 +204,6 @@ class RefreshOrchestrator(QObject, LoggingMixin):
                 "Unable to retrieve shot data from the workspace.",
                 "Make sure the 'ws -sg' command is available and you're in a valid workspace.",
             )
-
-        # Emit refresh_finished for shots tab (index 0) now that async is complete
-        self.refresh_finished.emit(0, success)
 
     def trigger_previous_shots_refresh(self, shots: list[Shot]) -> None:
         """Trigger previous shots refresh only after shots are loaded.

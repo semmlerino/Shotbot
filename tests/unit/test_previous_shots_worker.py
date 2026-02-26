@@ -205,7 +205,6 @@ class TestPreviousShotsWorkerWorkflow:
         # Python callbacks DO need event loop - avoid them in this test
         error_spy = QSignalSpy(worker.error_occurred)
         finished_spy = QSignalSpy(worker.scan_finished)
-        shot_found_spy = QSignalSpy(worker.shot_found)
 
         # Start worker
         worker.start()
@@ -228,10 +227,6 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Verify no error was emitted
         assert error_spy.count() == 0, f"Unexpected error: {error_spy.at(0) if error_spy.count() > 0 else 'N/A'}"
-
-        # Verify shot_found was called for each shot (excluding active ones)
-        # 3 found shots - 0 matching active shots = 3 approved shots
-        assert shot_found_spy.count() == 3, f"Expected 3 shot_found signals, got {shot_found_spy.count()}"
 
     @pytest.fixture
     def empty_shows_root(self, tmp_path: Path) -> Path:
@@ -258,7 +253,6 @@ class TestPreviousShotsWorkerWorkflow:
         )
 
         scan_finished_spy = QSignalSpy(worker.scan_finished)
-        shot_found_spy = QSignalSpy(worker.shot_found)
 
         # Replace finder with base class that uses Path.rglob()
         from previous_shots_finder import PreviousShotsFinder
@@ -274,7 +268,6 @@ class TestPreviousShotsWorkerWorkflow:
 
             # Should complete successfully with no results
             assert scan_finished_spy.count() == 1
-            assert shot_found_spy.count() == 0
 
             final_result = scan_finished_spy.at(0)[0]
             assert len(final_result) == 0
@@ -423,7 +416,6 @@ class TestPreviousShotsWorkerWorkflow:
             shows_root=single_shot_shows_root,
         )
 
-        shot_found_spy = QSignalSpy(worker.shot_found)
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses Path.rglob()
@@ -438,26 +430,11 @@ class TestPreviousShotsWorkerWorkflow:
             finished = worker.wait(5000)
             assert finished, "Worker did not finish within timeout"
 
-            # Verify shot_found signal data structure
-            assert shot_found_spy.count() == 1
-            shot_dict = shot_found_spy.at(0)[0]
-
-            required_keys = {"show", "sequence", "shot", "workspace_path"}
-            assert set(shot_dict.keys()) == required_keys
-            assert shot_dict["show"] == "different_show"
-            assert shot_dict["sequence"] == "testseq"
-            assert shot_dict["shot"] == "testshot"
-            # Workspace path is in tmp directory, not Config.SHOWS_ROOT
-            assert shot_dict["workspace_path"].endswith(
-                "different_show/shots/testseq/testseq_testshot"
-            )
-
             # Verify scan_finished signal data structure
             assert scan_finished_spy.count() == 1
             final_shots = scan_finished_spy.at(0)[0]
             assert isinstance(final_shots, list)
             assert len(final_shots) == 1
-            assert final_shots[0] == shot_dict
 
         finally:
             # Proper QThread cleanup to prevent segfaults from Qt C++ object accumulation
@@ -561,7 +538,6 @@ class TestPreviousShotsWorkerIntegration:
             args=[], returncode=0, stdout="\n".join(find_output) + "\n"
         )
 
-        shot_found_spy = QSignalSpy(worker.shot_found)
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses subprocess.run for testing
@@ -592,9 +568,6 @@ class TestPreviousShotsWorkerIntegration:
 
         # Should find 5 user shots minus 1 active shot = 4 approved shots
         assert len(final_shots) == 4
-
-        # Verify individual shot signals were emitted
-        assert shot_found_spy.count() == 4
 
 
 # Performance tests removed to prevent test suite timeout

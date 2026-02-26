@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 # Local application imports
 from config import Config, ThreadingConfig
 from process_pool_manager import CancellableSubprocess
-from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
+from shot_finder_base import FindShotsKwargs, ShotFinderBase
 from shot_model import Shot
 from typing_compat import override
 
@@ -359,89 +359,6 @@ class TargetedShotsFinder(ShotFinderBase):
 
         self._report_progress(100, 100, "Targeted search complete")
         return approved_shots
-
-    @override
-    def get_shot_details(self, shot: Shot) -> ShotDetailsDict:
-        """Get additional details about a shot.
-
-        Args:
-            shot: Shot to get details for
-
-        Returns:
-            Dictionary with shot details including paths and metadata
-
-        """
-        details: ShotDetailsDict = {
-            "show": shot.show,
-            "sequence": shot.sequence,
-            "shot": shot.shot,
-            "workspace_path": shot.workspace_path,
-            "user_path": f"{shot.workspace_path}{self.user_path_pattern}",
-            "status": "approved",  # These are all approved shots
-        }
-
-        # Check if user directory still exists
-        user_dir = Path(details["user_path"])
-        details["user_dir_exists"] = str(user_dir.exists())
-
-        # Check for common VFX work files
-        if user_dir.exists():
-            details["has_3de"] = str(any(user_dir.rglob("*.3de")))
-            details["has_nuke"] = str(any(user_dir.rglob("*.nk")))
-            details["has_maya"] = str(any(user_dir.rglob("*.m[ab]")))
-
-            # Look for thumbnails using same approach as Shot class
-            thumbnail_path = self._find_thumbnail_for_shot(shot)
-            if thumbnail_path:
-                details["thumbnail_path"] = str(thumbnail_path)
-
-        return details
-
-    @override
-    def _find_thumbnail_for_shot(self, shot: Shot) -> Path | None:
-        """Find thumbnail for a shot using same logic as Shot class.
-
-        Args:
-            shot: Shot object to find thumbnail for
-
-        Returns:
-            Path to thumbnail or None if not found
-
-        """
-        # Local application imports
-        from config import Config
-        from thumbnail_finders import ThumbnailFinders
-        from utils import FileUtils
-
-        try:
-            # Try editorial thumbnail first
-            editorial_dir = Path(shot.workspace_path) / "publish" / "editorial"
-            if editorial_dir.exists():
-                thumbnail = FileUtils.get_first_image_file(editorial_dir)
-                if thumbnail:
-                    return thumbnail
-
-            # Fall back to turnover plate thumbnails
-            thumbnail = ThumbnailFinders.find_turnover_plate_thumbnail(
-                Config.SHOWS_ROOT,
-                shot.show,
-                shot.sequence,
-                shot.shot,
-            )
-            if thumbnail:
-                return thumbnail
-
-            # Third fallback: any EXR with 1001 in publish folder
-            return ThumbnailFinders.find_any_publish_thumbnail(
-                Config.SHOWS_ROOT,
-                shot.show,
-                shot.sequence,
-                shot.shot,
-            )
-
-        except Exception as e:
-            self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
-            return None
 
     @override
     def _get_shot_status(self, shot: Shot) -> str:

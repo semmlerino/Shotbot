@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, cast, final
 # Local application imports
 from config import Config, ThreadingConfig
 from process_pool_manager import CancellableSubprocess
-from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
+from shot_finder_base import FindShotsKwargs, ShotFinderBase
 from shot_model import Shot
 from typing_compat import override
 
@@ -45,10 +45,6 @@ class PreviousShotsFinder(ShotFinderBase):
         # Made flexible to work with any shows root (not just Config.SHOWS_ROOT)
         # Captures: workspace_path, show, sequence, shot_dir
         self._shot_pattern: re.Pattern[str] = re.compile(
-            r"(.*?/shows/([^/]+)/shots/([^/]+)/([^/]+))(?:/|$)"
-        )
-        # Fallback pattern for non-standard naming
-        self._shot_pattern_fallback: re.Pattern[str] = re.compile(
             r"(.*?/shows/([^/]+)/shots/([^/]+)/([^/]+))(?:/|$)"
         )
         self.logger.debug(f"PreviousShotsFinder initialized for user: {self.username}")
@@ -134,21 +130,7 @@ class PreviousShotsFinder(ShotFinderBase):
                 self.logger.debug(f"Non-standard shot naming: {shot_dir}")
                 return None
         else:
-            # Fallback for non-standard naming
-            match = self._shot_pattern_fallback.search(path)
-            if match:
-                # Extract workspace path, show, sequence, and shot directory
-                workspace_path, show, sequence, shot_dir = match.groups()
-
-                # Extract shot number from directory name
-                if shot_dir.startswith(f"{sequence}_"):
-                    shot = shot_dir[len(sequence) + 1 :]  # +1 for underscore
-                else:
-                    # Non-standard naming, skip
-                    self.logger.debug(f"Non-standard shot naming: {shot_dir}")
-                    return None
-            else:
-                return None
+            return None
 
         # Validate shot is not empty
         if not shot:
@@ -220,38 +202,6 @@ class PreviousShotsFinder(ShotFinderBase):
 
         all_user_shots = self.find_user_shots(shows_root)
         return self.filter_approved_shots(all_user_shots, active_shots)
-
-    @override
-    def get_shot_details(self, shot: Shot) -> ShotDetailsDict:
-        """Get additional details about an approved shot.
-
-        Args:
-            shot: Shot to get details for.
-
-        Returns:
-            Dictionary with shot details including paths and metadata.
-
-        """
-        details: ShotDetailsDict = {
-            "show": shot.show,
-            "sequence": shot.sequence,
-            "shot": shot.shot,
-            "workspace_path": shot.workspace_path,
-            "user_path": f"{shot.workspace_path}{self.user_path_pattern}",
-            "status": "approved",  # These are all approved shots
-        }
-
-        # Check if user directory still exists
-        user_dir = Path(details["user_path"])
-        details["user_dir_exists"] = str(user_dir.exists())
-
-        # Check for common VFX work files
-        if user_dir.exists():
-            details["has_3de"] = str(any(user_dir.rglob("*.3de")))
-            details["has_nuke"] = str(any(user_dir.rglob("*.nk")))
-            details["has_maya"] = str(any(user_dir.rglob("*.m[ab]")))
-
-        return details
 
     @override
     def _get_shot_status(self, shot: Shot) -> str:

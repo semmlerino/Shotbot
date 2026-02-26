@@ -129,38 +129,6 @@ def test_headless_app_creation() -> None:
         app.quit()
 
 
-def test_headless_main_window() -> None:
-    """Test HeadlessMainWindow."""
-    logger.info("=" * 50)
-    logger.info("Testing HeadlessMainWindow")
-    logger.info("=" * 50)
-
-    # Local application imports
-    from headless_mode import (
-        HeadlessMainWindow,
-    )
-
-    # Create headless window
-    window = HeadlessMainWindow()
-
-    # Test that it has core components
-    assert hasattr(window, "cache_manager"), "Should have cache manager"
-    assert hasattr(window, "shot_model"), "Should have shot model"
-    logger.info("✅ HeadlessMainWindow has core components")
-
-    # Test mock methods work
-    window.show()  # Should not error
-    window.close()  # Should not error
-    window.resize(800, 600)  # Should not error
-    window.setWindowTitle("Test")  # Should not error
-    logger.info("✅ Mock UI methods work without error")
-
-    # Test shot operations
-    shots = window.get_shots()
-    assert isinstance(shots, list), "Should return list of shots"
-    logger.info(f"✅ Returns {len(shots)} shots")
-
-
 def test_headless_shotbot_command() -> None:
     """Test running shotbot with --headless flag."""
     logger.info("=" * 50)

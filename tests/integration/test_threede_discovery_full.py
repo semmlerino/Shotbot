@@ -250,11 +250,11 @@ class TestThreeDEDiscoveryIntegration:
             def on_finished(scenes) -> None:
                 results.extend(scenes)
 
-            worker.finished.connect(on_finished)
+            worker.discovery_finished.connect(on_finished)
 
             # Track signal handlers for proper cleanup
             signal_handlers = [
-                (worker.finished, on_finished),
+                (worker.discovery_finished, on_finished),
             ]
 
             try:

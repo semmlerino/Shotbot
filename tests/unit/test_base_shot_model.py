@@ -265,37 +265,6 @@ class TestShotManagement:
         assert found is None
 
 
-class TestShotSelection:
-    """Test shot selection with signal emission."""
-
-    def test_select_shot_emits_signal(self, cache_manager: CacheManager) -> None:
-        """Test select_shot emits signal."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
-
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        spy = QSignalSpy(model.shot_selected)
-
-        model.select_shot(shot)
-
-        assert spy.count() == 1
-        assert spy.at(0)[0] is shot
-        assert model.get_selected_shot() is shot
-
-    def test_select_none_clears_selection(self, cache_manager: CacheManager) -> None:
-        """Test selecting None clears selection."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
-
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.select_shot(shot)
-
-        spy = QSignalSpy(model.shot_selected)
-        model.select_shot(None)
-
-        assert spy.count() == 1
-        assert spy.at(0)[0] is None
-        assert model.get_selected_shot() is None
-
-
 class TestFiltering:
     """Test show and text filtering."""
 

@@ -131,18 +131,6 @@ def test_refresh_current_tab_gets_current_index(
         mock_refresh.assert_called_once_with(1)
 
 
-def test_refresh_tab_emits_refresh_started(
-    orchestrator: RefreshOrchestrator, qtbot: QtBot
-) -> None:
-    """Test refresh_tab emits refresh_started signal."""
-    with qtbot.waitSignal(orchestrator.refresh_started) as blocker, patch.object(
-        orchestrator, "_refresh_shots"
-    ):
-        orchestrator.refresh_tab(0)
-
-    assert blocker.args == [0]
-
-
 @pytest.mark.parametrize(
     ("tab_index", "handler_name"),
     [
@@ -181,38 +169,6 @@ def test_refresh_tab_ignores_invalid_index(
 
 
 # ============================================================================
-# Shot Refresh Signal Tests
-# ============================================================================
-
-
-def test_handle_refresh_finished_emits_signal_on_success(
-    orchestrator: RefreshOrchestrator,
-    mock_main_window: Mock,
-    qtbot: QtBot,
-) -> None:
-    """Test handle_refresh_finished emits refresh_finished with success=True."""
-    mock_main_window.shot_model.shots = []
-
-    with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator.handle_refresh_finished(success=True, has_changes=False)
-
-    assert blocker.args == [0, True]
-
-
-@pytest.mark.allow_dialogs
-def test_handle_refresh_finished_emits_signal_on_failure(
-    orchestrator: RefreshOrchestrator,
-    mock_main_window: Mock,
-    qtbot: QtBot,
-) -> None:
-    """Test handle_refresh_finished emits refresh_finished with success=False."""
-    with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator.handle_refresh_finished(success=False, has_changes=False)
-
-    assert blocker.args == [0, False]
-
-
-# ============================================================================
 # 3DE Refresh Tests
 # ============================================================================
 
@@ -224,35 +180,6 @@ def test_refresh_threede_calls_controller_when_available(
     orchestrator._refresh_threede()
 
     mock_main_window.threede_controller.refresh_threede_scenes.assert_called_once()
-
-
-def test_refresh_threede_emits_success_when_controller_available(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
-) -> None:
-    """Test _refresh_threede emits success when controller available."""
-    with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator._refresh_threede()
-
-    assert blocker.args == [1, True]
-
-
-@pytest.mark.parametrize("controller_state", ["missing", "none"])
-def test_refresh_threede_emits_failure_when_controller_unavailable(
-    orchestrator: RefreshOrchestrator,
-    mock_main_window: Mock,
-    qtbot: QtBot,
-    controller_state: str,
-) -> None:
-    """Test _refresh_threede emits failure when controller is unavailable."""
-    if controller_state == "missing":
-        del mock_main_window.threede_controller
-    else:
-        mock_main_window.threede_controller = None
-
-    with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator._refresh_threede()
-
-    assert blocker.args == [1, False]
 
 
 # ============================================================================
@@ -267,35 +194,6 @@ def test_refresh_previous_calls_model_when_available(
     orchestrator._refresh_previous()
 
     mock_main_window.previous_shots_model.refresh_shots.assert_called_once()
-
-
-def test_refresh_previous_emits_success_when_model_available(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
-) -> None:
-    """Test _refresh_previous emits success when model available."""
-    with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator._refresh_previous()
-
-    assert blocker.args == [2, True]
-
-
-@pytest.mark.parametrize("model_state", ["missing", "none"])
-def test_refresh_previous_emits_failure_when_model_unavailable(
-    orchestrator: RefreshOrchestrator,
-    mock_main_window: Mock,
-    qtbot: QtBot,
-    model_state: str,
-) -> None:
-    """Test _refresh_previous emits failure when model is unavailable."""
-    if model_state == "missing":
-        del mock_main_window.previous_shots_model
-    else:
-        mock_main_window.previous_shots_model = None
-
-    with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator._refresh_previous()
-
-    assert blocker.args == [2, False]
 
 
 # ============================================================================

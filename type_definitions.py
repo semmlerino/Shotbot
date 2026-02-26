@@ -12,9 +12,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, NamedTuple, NotRequired, TypedDict, cast
 
-# Third-party imports
-from PySide6.QtCore import Signal
-
 
 # ==============================================================================
 # TypedDict Definitions for Data Structures
@@ -270,100 +267,8 @@ class ThumbnailInfoDict(TypedDict, total=False):
 
 
 # ==============================================================================
-# Type Aliases for Common Patterns
-# ==============================================================================
-
-# Path types
-PathLike = str | Path
-# Removed: Path = PathLike | None (was shadowing pathlib.Path import)
-# Use PathLike | None directly where needed
-
-# Qt types
-SignalType = Signal
-# Removed: Signal = Signal | None (circular reference)
-# Use Signal | None directly where needed
-
-# Shot identifiers
-ShotTuple = "tuple[str, str, str]"  # (show, sequence, shot)
-ShotPathTuple = "tuple[str, str, str, str]"  # (workspace_path, show, sequence, shot)
-
-# Command types
-CommandList = list[str]
-CommandDict = dict[str, str | list[str] | dict[str, str]]
-
-# Cache keys
-CacheKey = str
-# Cache data can be various types of serializable data
-CacheData = (
-    dict[str, str | int | float | bool | None] | list[dict[str, str]] | str | bytes
-)
-
-# Time types
-Timestamp = float
-Duration = float
-
-# ==============================================================================
-# Configuration Type Definitions
-# ==============================================================================
-
-
-class AppSettingsDict(TypedDict, total=False):
-    """Application settings dictionary."""
-
-    shows_root: str
-    username: str
-    excluded_users: list[str]
-    cache_dir: str
-    cache_ttl_minutes: int
-    max_memory_mb: int
-    thumbnail_size: int
-    max_concurrent_processes: int
-    command_whitelist: list[str]
-    debug_mode: bool
-    auto_refresh: bool
-    refresh_interval: int
-
-
-class WindowGeometryDict(TypedDict):
-    """Window geometry settings."""
-
-    x: int
-    y: int
-    width: int
-    height: int
-    maximized: bool
-    splitter_sizes: list[int]
-
-
-# ==============================================================================
-# Error Types
-# ==============================================================================
-
-
-class ErrorInfoDict(TypedDict):
-    """Error information dictionary."""
-
-    type: str
-    message: str
-    traceback: str | None
-    timestamp: float
-    context: dict[str, str | int | float | bool] | None
-
-
-# ==============================================================================
 # Test Type Definitions
 # ==============================================================================
-
-
-class TestResultDict(TypedDict):
-    """Test result information."""
-
-    test_name: str
-    passed: bool
-    duration: float
-    error: str | None
-    stdout: str | None
-    stderr: str | None
 
 
 class PerformanceMetricsDict(TypedDict):
@@ -386,112 +291,6 @@ class PerformanceMetricsDict(TypedDict):
     cache_miss_count: int
     loading_in_progress: bool
     session_warmed: bool
-
-
-class ValidationResultDict(TypedDict, total=False):
-    """Result of cache validation operations.
-
-    All fields except 'valid' are optional to allow for partial updates
-    and error conditions.
-    """
-
-    valid: bool
-    issues_found: int
-    issues_fixed: int
-    orphaned_files: int
-    missing_files: int
-    size_mismatches: int
-    memory_usage_corrected: bool
-    details: list[str]
-    error: str | None  # Added for error handling in validate_cache line 106
-
-
-class CacheDataDict(TypedDict):
-    """Cache data structure for storing shots or scenes."""
-
-    timestamp: str
-    version: str
-    count: int
-    data: list[ShotDict] | list[ThreeDESceneDict]
-    metadata: dict[str, str | int | float | bool] | None
-
-
-class CacheInfoDict(TypedDict):
-    """Detailed cache information for debugging."""
-
-    cache_file: str
-    exists: bool
-    size_bytes: int
-    modified_time: str | None
-    is_expired: bool
-    entry_count: int
-    last_update: str | None
-    metadata: dict[str, str | int | float | bool] | None
-
-
-class MemoryStatsDict(TypedDict):
-    """Memory usage statistics from memory manager."""
-
-    current_usage: int
-    limit: int
-    usage_percentage: float
-    item_count: int
-    oldest_item: str | None
-    newest_item: str | None
-    evictions_performed: int
-
-
-class FailureInfoDict(TypedDict):
-    """Information about a failed thumbnail attempt."""
-
-    path: str
-    attempts: int
-    last_attempt: str
-    next_retry: str
-    backoff_minutes: int
-    error: str | None
-
-
-class CacheEfficiencyDict(TypedDict):
-    """Cache efficiency analysis results."""
-
-    total_files: int
-    total_size_mb: float
-    average_file_size_kb: float
-    oldest_file: str | None
-    newest_file: str | None
-    access_patterns: dict[str, int]
-    recommended_actions: list[str]
-
-
-# ==============================================================================
-# Types consolidated from shotbot_types.py
-# ==============================================================================
-
-
-class ThreeDESceneData(TypedDict):
-    """Type definition for 3DE scene data dictionary.
-
-    Note: This differs from ThreeDESceneDict by having different fields
-    (plate, scene_path instead of filepath, etc.)
-    """
-
-    show: str
-    sequence: str
-    shot: str
-    workspace_path: str
-    user: str
-    plate: str
-    scene_path: str
-
-
-class CacheEntry(TypedDict):
-    """Type definition for cache entry data."""
-
-    value: object  # Generic cached value (use object instead of Any)
-    timestamp: float
-    access_count: int
-    size_bytes: int | None
 
 
 # ==============================================================================

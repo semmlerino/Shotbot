@@ -797,7 +797,7 @@ class ThreeDEController(LoggingMixin):
         """
         # Connect enhanced worker signals using safe_connect method for proper cleanup
         _ = worker.safe_connect(
-            worker.started,
+            worker.worker_discovery_started,
             self.on_discovery_started,  # pyright: ignore[reportAny]
             Qt.ConnectionType.QueuedConnection,
         )
@@ -817,7 +817,7 @@ class ThreeDEController(LoggingMixin):
             Qt.ConnectionType.QueuedConnection,
         )
         _ = worker.safe_connect(
-            worker.finished,
+            worker.discovery_finished,
             self.on_discovery_finished,  # pyright: ignore[reportAny]
             Qt.ConnectionType.QueuedConnection,
         )
@@ -849,11 +849,11 @@ class ThreeDEController(LoggingMixin):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             signals_to_disconnect = [
-                worker.started,
+                worker.worker_discovery_started,
                 worker.batch_ready,
                 worker.progress,
                 worker.scan_progress,
-                worker.finished,
+                worker.discovery_finished,
                 worker.error,
                 worker.paused,
                 worker.resumed,

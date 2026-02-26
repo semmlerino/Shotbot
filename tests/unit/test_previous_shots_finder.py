@@ -313,7 +313,7 @@ class TestPreviousShotsFinder:
         assert details["shot"] == "0010"
         assert details["workspace_path"] == shot.workspace_path
         assert details["user_path"] == f"{shot.workspace_path}/user/testuser"
-        assert details["status"] == "approved"
+        assert details["status"] == "completed"  # no approved dir → falls back to completed
 
     def test_get_shot_details_with_real_directory(self, finder, tmp_path) -> None:
         """Test getting shot details with real user directory.

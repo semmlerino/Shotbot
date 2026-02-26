@@ -54,11 +54,6 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
     refresh_started: Signal = Signal()
     refresh_finished: Signal = Signal(bool, bool)  # success, has_changes
     error_occurred: Signal = Signal(str)  # Error message
-    # NOTE: This signal is emitted by select_shot() but is NOT part of the
-    # main click→selection flow. The actual selection chain uses the VIEW's
-    # shot_selected signal (in shot_grid_view.py / ShotSelectionController).
-    # This model-level signal exists for programmatic selection only.
-    shot_selected: Signal = Signal(object)  # Shot object
     cache_updated: Signal = Signal()
 
     def __init__(
@@ -299,16 +294,6 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         """
         return len(self.shots)
-
-    def select_shot(self, shot: Shot | None) -> None:
-        """Select a shot and emit signal.
-
-        Args:
-            shot: Shot to select or None to clear selection
-
-        """
-        self._selected_shot = shot
-        self.shot_selected.emit(shot)
 
     def get_selected_shot(self) -> Shot | None:
         """Get currently selected shot.

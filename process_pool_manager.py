@@ -49,16 +49,9 @@ if TYPE_CHECKING:
     # Local application imports
     from type_definitions import PerformanceMetricsDict
 
-# Import debug utilities
-try:
-    # Local application imports
-    from debug_utils import setup_enhanced_debugging
+# Local application imports
+from debug_utils import setup_enhanced_debugging
 
-    _has_debug_utils = True
-except ImportError:
-    _has_debug_utils = False
-
-HAS_DEBUG_UTILS = _has_debug_utils
 
 # Enable verbose debug logging if environment variable is set
 DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
@@ -71,11 +64,7 @@ if DEBUG_VERBOSE:
     logger.setLevel(logging.DEBUG)
     logger.info("VERBOSE DEBUG MODE ENABLED for ProcessPoolManager")
 
-# Setup enhanced debugging if available
-if HAS_DEBUG_UTILS:
-    from debug_utils import setup_enhanced_debugging
-
-    setup_enhanced_debugging()
+setup_enhanced_debugging()
 
 
 @dataclass

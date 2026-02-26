@@ -194,7 +194,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
     """
 
     # Enhanced signals specific to 3DE discovery
-    started = Signal()  # Emitted when discovery starts
+    worker_discovery_started = Signal()  # Emitted when discovery starts
     batch_ready = Signal(list)  # Emitted with each batch of scenes
     progress = Signal(
         int,
@@ -204,7 +204,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         str,
     )  # (current, total, percentage, description, eta)
     scan_progress = Signal(int, int, str)  # Emitted during individual shot scanning
-    finished = Signal(list)  # Emitted with complete list of scenes
+    discovery_finished = Signal(list)  # Emitted with complete list of scenes
     error = Signal(str)  # Emitted when an error occurs
     paused = Signal()  # Emitted when worker is paused
     resumed = Signal()  # Emitted when worker resumes
@@ -372,7 +372,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 f"Worker finishing, emitting finished signal with {len(scenes_to_emit)} scenes"
             )
 
-        self.finished.emit(scenes_to_emit)
+        self.discovery_finished.emit(scenes_to_emit)
         return True
 
     def _handle_progress_update(self, files_found: int, status: str) -> None:
@@ -453,7 +453,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             )
 
             # Emit started signal (specific discovery mode will be logged by sub-methods)
-            self.started.emit()
+            self.worker_discovery_started.emit()
 
             if not self.shots:
                 self.logger.warning("No shots provided for 3DE scene discovery")

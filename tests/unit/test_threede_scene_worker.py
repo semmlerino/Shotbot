@@ -330,13 +330,13 @@ class TestThreeDESceneWorker:
         def finished_handler(scenes):
             return finished_scenes.append(scenes)
 
-        worker.started.connect(started_handler)
-        worker.finished.connect(finished_handler)
+        worker.worker_discovery_started.connect(started_handler)
+        worker.discovery_finished.connect(finished_handler)
 
         # Track signal handlers for proper cleanup
         signal_handlers = [
-            (worker.started, started_handler),
-            (worker.finished, finished_handler),
+            (worker.worker_discovery_started, started_handler),
+            (worker.discovery_finished, finished_handler),
         ]
 
         try:
@@ -419,14 +419,14 @@ class TestThreeDESceneWorker:
             def progress_handler(*args):
                 return progress_updates.append(args)
 
-            worker.started.connect(started_handler)
-            worker.finished.connect(finished_handler)
+            worker.worker_discovery_started.connect(started_handler)
+            worker.discovery_finished.connect(finished_handler)
             worker.progress.connect(progress_handler)
 
             # Track signal handlers for proper cleanup
             signal_handlers = [
-                (worker.started, started_handler),
-                (worker.finished, finished_handler),
+                (worker.worker_discovery_started, started_handler),
+                (worker.discovery_finished, finished_handler),
                 (worker.progress, progress_handler),
             ]
 
@@ -497,12 +497,12 @@ class TestThreeDESceneWorker:
                 return finished_scenes.append(scenes)
 
             worker.error.connect(error_handler)
-            worker.finished.connect(finished_handler)
+            worker.discovery_finished.connect(finished_handler)
 
             # Track signal handlers for proper cleanup
             signal_handlers = [
                 (worker.error, error_handler),
-                (worker.finished, finished_handler),
+                (worker.discovery_finished, finished_handler),
             ]
 
             try:
@@ -579,11 +579,11 @@ class TestThreeDESceneWorkerIntegration:
 
         def finished_handler(scenes):
             return finished_scenes.append(scenes)
-        worker.finished.connect(finished_handler)
+        worker.discovery_finished.connect(finished_handler)
 
         # Track signal handlers for proper cleanup
         signal_handlers = [
-            (worker.finished, finished_handler),
+            (worker.discovery_finished, finished_handler),
         ]
 
         try:

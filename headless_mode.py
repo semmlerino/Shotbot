@@ -8,7 +8,6 @@ enabling automated testing in CI/CD pipelines and headless servers.
 from __future__ import annotations
 
 # Standard library imports
-import logging
 import os
 import sys
 from pathlib import Path
@@ -27,9 +26,6 @@ if TYPE_CHECKING:
 
     # Third-party imports
     from PySide6.QtWidgets import QApplication
-
-    # Local application imports
-    from shot_model import Shot
 
 # Module-level logger for static methods
 logger = get_module_logger(__name__)
@@ -261,104 +257,3 @@ class HeadlessMode:
         wrapper.__doc__ = func.__doc__
         return wrapper
 
-
-class HeadlessMainWindow:
-    """Minimal MainWindow for headless testing.
-
-    This provides a simplified MainWindow that can run without a display,
-    useful for testing core functionality without UI.
-    """
-
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        """Initialize headless main window."""
-        super().__init__()
-        # Local application imports
-        from cache_manager import CacheManager
-        from mock_workspace_pool import create_mock_pool_from_filesystem
-        from shot_model import ShotModel
-
-        # Create mock pool for headless testing
-        mock_pool = create_mock_pool_from_filesystem()
-
-        # Create core components
-        self.cache_manager: CacheManager = CacheManager()
-        self.shot_model: ShotModel = ShotModel(self.cache_manager, process_pool=mock_pool)
-
-        # Mock UI methods
-        self.show: Callable[[], None] = lambda: None
-        self.close: Callable[[], None] = lambda: None
-        self.resize: Callable[[int, int], None] = lambda _w, _h: None
-        self.setWindowTitle: Callable[[str], None] = lambda _title: None
-
-        logger.info("HeadlessMainWindow initialized")
-
-    def refresh_shots(self) -> bool:
-        """Refresh shot list.
-
-        Returns:
-            True if successful
-
-        """
-        success, _ = self.shot_model.refresh_shots()
-        return success
-
-    def get_shots(self) -> list[Shot]:
-        """Get current shots.
-
-        Returns:
-            List of shots
-
-        """
-        # Local application imports
-
-        return self.shot_model.shots
-
-
-def run_headless_app() -> bool:
-    """Run the application in headless mode for testing."""
-    # Third-party imports
-    from PySide6.QtCore import QTimer
-
-    # Configure headless mode
-    HeadlessMode.configure_qt_for_headless()
-
-    # Create headless application
-    app = HeadlessMode.create_headless_application()
-
-    # Create headless main window
-    window = HeadlessMainWindow()
-
-    # Run basic operations
-    logger.info("Running headless application...")
-
-    # Refresh shots
-    if window.refresh_shots():
-        shots = window.get_shots()
-        logger.info(f"Loaded {len(shots)} shots in headless mode")
-        for shot in shots[:3]:  # Show first 3
-            logger.info(f"  - {shot}")
-
-    # Exit after a short delay
-    QTimer.singleShot(100, app.quit)
-
-    # Run event loop briefly
-    return app.exec() == 0
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Set up logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
-
-    # Check headless detection
-    if HeadlessMode.is_headless_environment():
-        logger.info("🖥️  Headless environment detected")
-    else:
-        logger.info("🖥️  Display environment detected")
-
-    # Try running headless
-    if "--run" in sys.argv:
-        sys.exit(0 if run_headless_app() else 1)

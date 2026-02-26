@@ -34,9 +34,7 @@ logger = get_module_logger(__name__)
 # Debug levels from environment
 DEBUG_LEVEL = os.environ.get("SHOTBOT_DEBUG_LEVEL", "0")
 DEBUG_TIMING = "1" in DEBUG_LEVEL or "t" in DEBUG_LEVEL.lower()
-DEBUG_IO = "2" in DEBUG_LEVEL or "i" in DEBUG_LEVEL.lower()
 DEBUG_STATE = "3" in DEBUG_LEVEL or "s" in DEBUG_LEVEL.lower()
-DEBUG_TRACE = "4" in DEBUG_LEVEL or "x" in DEBUG_LEVEL.lower()
 DEBUG_ALL = DEBUG_LEVEL.lower() in ("all", "9", "verbose")
 DEBUG_VERBOSE = (
     os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in ("1", "true", "yes")
@@ -309,78 +307,6 @@ class SystemDiagnostics(LoggingMixin):
         logger.info("=" * 60 + "\n")
 
 
-class IOBufferInspector(LoggingMixin):
-    """Inspect and debug I/O buffers."""
-
-    @staticmethod
-    def inspect(data: str, context: str, session_id: str = "") -> None:
-        """Inspect buffer contents.
-
-        Args:
-            data: Buffer data to inspect
-            context: Context description
-            session_id: Optional session identifier
-
-        """
-        if not (DEBUG_IO or DEBUG_ALL):
-            return
-
-        if not data:
-            logger.debug(f"[{session_id}] Buffer {context}: <empty>")
-            return
-
-        lines = data.count("\n")
-        non_printable = sum(1 for c in data if ord(c) < 32 and c not in "\n\r\t")
-
-        logger.debug(
-            f"[{session_id}] Buffer {context}: "
-             f"{len(data)} bytes, {lines} lines, {non_printable} non-printable"
-        )
-
-        # Show preview of data
-        if DEBUG_VERBOSE:
-            # First 100 chars
-            preview = data[:100].encode("unicode_escape").decode("ascii")
-            logger.debug(f"[{session_id}] └─ Preview: {preview}")
-
-            # Show any markers or special strings
-            if "SHOTBOT_INIT" in data:
-                logger.debug(f"[{session_id}] └─ Contains initialization marker")
-            if "error" in data.lower():
-                logger.debug(f"[{session_id}] └─ Contains error message")
-
-
-class CommandTracer(LoggingMixin):
-    """Trace command execution."""
-
-    @staticmethod
-    def trace(command: str, session_id: str = "") -> None:
-        """Trace command execution.
-
-        Args:
-            command: Command being executed
-            session_id: Optional session identifier
-
-        """
-        if not (DEBUG_TRACE or DEBUG_ALL):
-            return
-
-        # Truncate long commands
-        cmd_preview = command[:200] + "..." if len(command) > 200 else command
-
-        logger.debug(f"[{session_id}] EXEC: {cmd_preview}")
-
-        # Analyze command
-        if DEBUG_VERBOSE:
-            if "ws" in command:
-                logger.debug(f"[{session_id}] └─ Workspace command detected")
-            if "|" in command:
-                pipes = command.count("|")
-                logger.debug(f"[{session_id}] └─ Pipeline with {pipes} pipe(s)")
-            if "&&" in command or ";" in command:
-                logger.debug(f"[{session_id}] └─ Compound command")
-
-
 class DeadlockDetector(LoggingMixin):
     """Detect potential deadlocks."""
 
@@ -440,53 +366,14 @@ class DeadlockDetector(LoggingMixin):
                 )
 
 
-# Global instances
-timing_profiler = TimingProfiler("global")
-state_tracker = ProcessStateTracker()
-deadlock_detector = DeadlockDetector()
-
-
 def setup_enhanced_debugging() -> None:
     """Setup enhanced debugging based on environment variables."""
     if DEBUG_VERBOSE or DEBUG_ALL:
         logger.info("Enhanced debugging enabled")
         logger.info(f"Debug level: {DEBUG_LEVEL}")
         logger.info(f"  Timing: {DEBUG_TIMING}")
-        logger.info(f"  I/O: {DEBUG_IO}")
         logger.info(f"  State: {DEBUG_STATE}")
-        logger.info(f"  Trace: {DEBUG_TRACE}")
 
         # Log system info if verbose
         if DEBUG_ALL:
             SystemDiagnostics.log_system_info()
-
-
-# Usage examples in docstring
-"""
-Usage Examples:
-
-# Enable all debugging
-export SHOTBOT_DEBUG_LEVEL=all
-
-# Enable specific debugging
-export SHOTBOT_DEBUG_LEVEL=13  # Timing + State
-export SHOTBOT_DEBUG_LEVEL=t   # Timing only
-export SHOTBOT_DEBUG_LEVEL=tsx  # Timing + State + Trace
-
-# In code:
-from debug_utils import timing_profiler, state_tracker, CommandTracer
-from logging_mixin import LoggingMixin
-
-# Time an operation
-with timing_profiler.measure("database_query"):
-    result = perform_query()
-
-# Track state transitions
-state_tracker.transition("session_1", "EXECUTING", "Running ws command")
-
-# Trace commands
-CommandTracer.trace("ws -sg | grep pattern", "session_1")
-
-# Get timing report
-timing_profiler.log_report()
-"""

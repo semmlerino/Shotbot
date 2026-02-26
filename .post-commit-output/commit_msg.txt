@@ -1,1 +1,1 @@
-refactor: fix test infrastructure anti-patterns across 14 files
+cleanup: simplify test suite — fix no-ops, remove dupes, parametrize

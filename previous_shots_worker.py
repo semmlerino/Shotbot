@@ -31,8 +31,6 @@ class PreviousShotsWorker(ThreadSafeWorker):
     """
 
     # Signals
-    started = Signal()  # Emitted when scan starts
-    shot_found = Signal(dict)  # Emitted for each shot found
     scan_progress = Signal(int, int, str)  # current, total, current_operation
     scan_finished = Signal(list)  # List of all shots found
     error_occurred = Signal(str)  # Error message
@@ -98,9 +96,6 @@ class PreviousShotsWorker(ThreadSafeWorker):
         self.logger.info("Starting previous shots scan")
         start_time = time.time()
 
-        # Emit started signal - base class already emits worker_started
-        self.started.emit()
-
         try:
             # Emit initial progress
             self.scan_progress.emit(0, 100, "Initializing scan...")
@@ -115,12 +110,6 @@ class PreviousShotsWorker(ThreadSafeWorker):
                 approved_shots = self._finder.find_approved_shots_targeted(
                     self._active_shots, self._shows_root
                 )
-
-                # Emit individual shots as found for UI updates
-                for shot in approved_shots:
-                    if self.should_stop():
-                        break
-                    self.shot_found.emit(shot.to_dict())
 
                 signals_already_emitted = True  # Signals emitted in targeted search
 
@@ -142,8 +131,6 @@ class PreviousShotsWorker(ThreadSafeWorker):
                         if self.should_stop():
                             break
                         all_user_shots.append(shot)
-                        # Emit individual shot as it's found
-                        self.shot_found.emit(shot.to_dict())
 
                     signals_already_emitted = True  # Signals emitted in parallel search
 
@@ -167,10 +154,8 @@ class PreviousShotsWorker(ThreadSafeWorker):
             shot_dicts: list[dict[str, str]] = []
             total_shots = len(approved_shots)
 
-            # Only emit shot_found signals if they haven't been emitted already
-            # This fixes the double emission bug
+            # Build shot_dicts for final emission
             if not signals_already_emitted:
-                self.logger.debug("Emitting shot_found signals for individual shots")
                 for i, shot in enumerate(approved_shots):
                     if self.should_stop():
                         break
@@ -188,11 +173,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
                         "workspace_path": shot.workspace_path,
                     }
                     shot_dicts.append(shot_dict)
-                    self.shot_found.emit(shot_dict)
             else:
-                self.logger.debug(
-                    "Skipping shot_found emission - signals already emitted"
-                )
                 # Still need to build shot_dicts for final emission
                 for shot in approved_shots:
                     shot_dict = {

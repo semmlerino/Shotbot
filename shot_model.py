@@ -758,26 +758,6 @@ class ShotModel(BaseShotModel):
             self.refresh_finished.emit(False, False)
             return RefreshResult(success=False, has_changes=False)
 
-    def select_shot_by_name(self, full_name: str) -> bool:
-        """Select a shot by its full name.
-
-        Args:
-            full_name: Full shot name (e.g., "show_seq_shot")
-
-        Returns:
-            True if shot was found and selected, False otherwise
-
-        """
-        shot = self.find_shot_by_name(full_name)
-        if shot:
-            self.select_shot(shot)
-            return True
-        return False
-
-    def clear_selection(self) -> None:
-        """Clear the current shot selection."""
-        self.select_shot(None)
-
     # ================================================================
     # Test-Specific Accessor Methods
     # ================================================================
