@@ -7,7 +7,7 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 | Module | Autouse | Key Fixtures | Purpose |
 |--------|---------|-------------|---------|
 | `temp_directories.py` | No | `temp_shows_root`, `temp_cache_dir`, `cache_manager` | Temporary paths and cache instances |
-| `test_doubles.py` | No | `TestProcessPool`, `test_process_pool`, `make_test_launcher` | Test doubles for system boundaries |
+| `test_doubles.py` | No | `TestProcessPool`, `test_process_pool`, `make_test_launcher` | Convenience re-export of `cache_doubles.py`, `model_doubles.py`, `integration_doubles.py`, `signal_doubles.py`, `process_doubles.py` — import from either |
 | `subprocess_mocking.py` | Yes | `mock_process_pool_manager`, `mock_subprocess_popen`, `subprocess_mock` | Global subprocess interception; `subprocess_mock` for controllable error paths |
 | `qt_safety.py` | Yes | `suppress_qmessagebox`, `prevent_qapp_exit` | Prevent modal dialogs and app-exit from blocking tests |
 | `qt_cleanup.py` | Qt tests only | `qt_cleanup` | Clears Qt event queue, QThreadPool, QPixmapCache between tests |

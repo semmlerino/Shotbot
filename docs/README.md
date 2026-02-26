@@ -15,7 +15,7 @@ This index separates active documentation from historical artifacts.
 - `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md` - Launcher behavior and BlueBolt shell environment
 - `docs/THREADING_ARCHITECTURE.md` - Threading model and guardrails
 - `docs/SIGNAL_ROUTING.md` - MainWindow signal-routing invariants and change checklist
-- `segfault.md` - Crash triage runbook
+- `../segfault.md` - Crash triage runbook
 
 ## Module-Scoped Reference Docs
 

@@ -29,6 +29,12 @@ All hook output is written to `.post-commit-output/`:
 - `import-test.txt`
 - `type-check.txt`
 - `ruff-check.txt`
+- `summary.txt`
+- `commit_msg.txt`
+- `current_commit.txt`
+- `current_branch.txt`
+- `info.txt`
+- `background-startup.log`
 
 ## Manual Operations
 

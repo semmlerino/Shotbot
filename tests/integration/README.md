@@ -11,8 +11,8 @@
 
 ```bash
 # Run all integration tests
-~/.local/bin/uv run pytest tests/integration/ -v
+uv run pytest tests/integration/ -v
 
 # Run in parallel with Qt-safe grouping
-~/.local/bin/uv run pytest tests/integration/ -n auto --dist=loadgroup
+uv run pytest tests/integration/ -n auto --dist=loadgroup
 ```

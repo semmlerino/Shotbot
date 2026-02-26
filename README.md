@@ -53,6 +53,9 @@ uv run basedpyright
 
 # default test suite (parallel, Qt-safe)
 uv run pytest tests/ -n auto --dist=loadgroup
+
+# tests: serial (for debugging)
+uv run pytest tests/
 ```
 
 For full testing policy and troubleshooting, see `UNIFIED_TESTING_V2.md`.

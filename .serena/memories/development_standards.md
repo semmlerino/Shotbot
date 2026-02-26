@@ -35,10 +35,3 @@ from typing import override
 
 ---
 
-## Architecture Patterns Summary
-
-- **Distinct Data Sources**: Each tab has own model stack
-- **Generic Base Classes**: `BaseItemModel[T]` for 70-80% code reuse
-- **Worker Pattern**: QThread for background operations
-- **Dependency Injection**: Factory pattern for testability
-- **Singleton**: ProcessPoolManager for subprocess management

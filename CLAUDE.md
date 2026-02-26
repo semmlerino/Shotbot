@@ -22,30 +22,14 @@ Prioritize correctness, maintainability, performance, and Qt thread safety.
 
 ## Development Environment
 
-- Preferred dev location: `~/projects/shotbot` (Linux filesystem)
+- Preferred dev location: `/mnt/c/CustomScripts/Python/shotbot`
 - Production target: `/nethome/gabriel-h/Python/Shotbot/`
 - Deployment path: encoded bundle flow on `encoded-releases` branch
 - Dependencies and toolchain are defined in `pyproject.toml`
 
 ## Development Commands
 
-```bash
-# run app
-uv run python shotbot.py
-
-# lint and format
-uv run ruff check .
-uv run ruff format .
-
-# type checking
-uv run basedpyright
-
-# tests: default (parallel, Qt-safe)
-uv run pytest tests/ -n auto --dist=loadgroup
-
-# tests: serial loop
-uv run pytest tests/
-```
+See `README.md` for development commands.
 
 ## Non-Negotiable Rules
 

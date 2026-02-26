@@ -35,8 +35,8 @@ Generic infrastructure:
 - **RefreshOrchestrator** — Periodic refresh coordination
 
 ### 5. INFRASTRUCTURE (Support)
-- **Mixins**: LoggingMixin, ErrorHandlingMixin, QtWidgetMixin, ProgressReportingMixin, VersionMixin
-- **Configuration**: Config, SettingsManager, EnvironmentConfig
+- **Mixins**: LoggingMixin, ErrorHandlingMixin, QtWidgetMixin, ProgressReportingMixin, VersionHandlingMixin
+- **Configuration**: Config, SettingsManager, EnvironmentManager
 - **Managers**: NotificationManager, ProgressManager, FilesystemCoordinator
 - **Threading**: ThreadSafeWorker, signal/slot coordination, ThreeDEController
 

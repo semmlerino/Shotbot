@@ -154,9 +154,8 @@ Work through in order:
 
 2. **Run 20x to confirm flakiness:**
    ```bash
-   uv run pytest path/to/test.py::test_name --count=20
+   for i in {1..20}; do uv run pytest path/to/test.py::test_name -x || break; done
    ```
-   (Requires `pytest-repeat`: `uv add pytest-repeat --dev`)
 
 3. **Disable parallel:**
    ```bash

@@ -51,4 +51,4 @@ ws <show> <seq> <shot> && env | grep -E '^(SHOW|SEQUENCE|SHOT|WORKSPACE|REZ_)'
 ## Integration Notes
 
 - `ProcessPoolManager` supports launcher workflows by handling subprocess-heavy paths.
-- Maya/SGTK context handling behavior is launcher-specific and should be validated in integration tests after refactors.
+- Maya/SGTK context handling behavior is launcher-specific and should be validated in integration tests after refactors. For SGTK env var context and integration detail, see the `BLUEBOLT_VFX_ENVIRONMENT` Serena memory.
