@@ -3,7 +3,8 @@
 ## Quick Start
 
 ```bash
-uv run pytest tests/ -n auto --dist=loadgroup   # Full parallel (recommended)
+uv run pytest tests/ -n auto --dist=loadgroup   # Default suite, parallel (recommended)
+uv run pytest tests/ tests/performance/ -m "" -n auto --dist=loadgroup   # Comprehensive (includes legacy + performance tests)
 uv run pytest tests/                             # Serial (quick loop)
 uv run pytest tests/ -k "test_cache" -v          # Subset
 uv run pytest --lf                               # Re-run last failed

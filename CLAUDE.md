@@ -52,7 +52,7 @@ Single-user tool on an isolated VFX server. Do NOT flag security issues (`shell=
 # Tests (serial — quick local loop)
 ~/.local/bin/uv run pytest tests/
 
-# Tests (parallel — full regression, recommended before deployment)
+# Tests (parallel — default suite, recommended before deployment)
 ~/.local/bin/uv run pytest tests/ -n auto --dist=loadgroup
 ```
 
@@ -130,8 +130,11 @@ def __init__(self, cache_manager: CacheManager | None = None, parent: QWidget | 
 **See [UNIFIED_TESTING_V2.md](./UNIFIED_TESTING_V2.md) for comprehensive testing guidance** (Qt hygiene rules, isolation patterns, debugging workflows).
 
 ```bash
-# Full regression (Qt-safe parallel)
+# Default suite (Qt-safe parallel)
 ~/.local/bin/uv run pytest tests/ -n auto --dist=loadgroup
+
+# Comprehensive (includes legacy + performance tests)
+~/.local/bin/uv run pytest tests/ tests/performance/ -m "" -n auto --dist=loadgroup
 
 # Serial (quick local loop)
 ~/.local/bin/uv run pytest tests/

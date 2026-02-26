@@ -6,7 +6,6 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 
 | Module | Autouse | Key Fixtures | Purpose |
 |--------|---------|-------------|---------|
-| `determinism.py` | No | `stable_random_seed` | Reproducible random seed control |
 | `temp_directories.py` | No | `temp_shows_root`, `temp_cache_dir`, `cache_manager` | Temporary paths and cache instances |
 | `test_doubles.py` | No | `TestProcessPool`, `test_process_pool`, `make_test_launcher` | Test doubles for system boundaries |
 | `subprocess_mocking.py` | Yes | `mock_process_pool_manager`, `mock_subprocess_popen`, `subprocess_mock` | Global subprocess interception; `subprocess_mock` for controllable error paths |
@@ -39,13 +38,13 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 
 Use `SubprocessMock` from `subprocess_mocking.py` via the `subprocess_mock` fixture.
 
-- **Strict-by-default**: Any unpatched `subprocess.run()`, `subprocess.Popen()`, or `subprocess.check_output()` call raises `AssertionError`
+- **Strict-by-default**: Any unpatched `subprocess.run()` or `subprocess.Popen()` call raises `AssertionError`
 - Catches accidental real subprocess calls
 - Configure expected commands via `subprocess_mock.set_output(stdout, stderr="")`, `subprocess_mock.set_return_code(code)`, `subprocess_mock.set_exception(exc)`, `subprocess_mock.reset()`
 
 ```python
 def test_launcher_builds_command(subprocess_mock):
-    subprocess_mock.set_output(b"OK")
+    subprocess_mock.set_output("OK")
     subprocess_mock.set_return_code(0)
     launcher.launch()
     assert len(subprocess_mock.calls) == 1

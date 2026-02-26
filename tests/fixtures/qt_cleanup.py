@@ -63,7 +63,7 @@ _EXPECTED_THREAD_PREFIXES: frozenset[str] = frozenset({
     "pytest_timeout",    # pytest-timeout watchdog thread
     "QDBusConnection",   # Qt D-Bus integration thread
     "PoolThread-",       # QThreadPool internal threads (expected to drain)
-    "Thread-",           # Generic Python threads (check daemon flag separately)
+    # Thread- daemon threads are allowed at the detection site, not here
     "pydevd.",           # PyCharm/debugger threads
     "Dummy-",            # Threading module dummy threads
 })
@@ -268,7 +268,11 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
                 thread_info = f"{t.name} (daemon={t.daemon})"
                 all_surviving.append(thread_info)
                 # Only flag unexpected threads as leaks
-                if not _is_expected_thread(t.name):
+                # Thread- daemon threads are expected (stdlib creates these)
+                is_expected = _is_expected_thread(t.name) or (
+                    t.name.startswith("Thread-") and t.daemon
+                )
+                if not is_expected:
                     unexpected_threads.append(thread_info)
 
             # Only report leak if there are UNEXPECTED threads

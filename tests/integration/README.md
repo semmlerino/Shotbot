@@ -1,6 +1,6 @@
 # Integration Tests
 
-22 integration test files covering:
+13 integration test files covering:
 - async and cross-component workflows
 - cache correctness and recovery
 - subprocess/process-pool real behavior
@@ -16,5 +16,3 @@
 # Run in parallel with Qt-safe grouping
 ~/.local/bin/uv run pytest tests/integration/ -n auto --dist=loadgroup
 ```
-
-See `tests/RUN_INTEGRATION_TESTS.md` for the current file inventory and category filters.

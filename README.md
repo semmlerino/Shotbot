@@ -184,8 +184,11 @@ Settings are managed via Qt's QSettings system, stored at `~/.config/ShotBot/Sho
 ### Testing
 
 ```bash
-# Full regression (parallel, Qt-safe)
+# Default suite (parallel, Qt-safe)
 ~/.local/bin/uv run pytest tests/ -n auto --dist=loadgroup
+
+# Comprehensive (includes legacy + performance tests)
+~/.local/bin/uv run pytest tests/ tests/performance/ -m "" -n auto --dist=loadgroup
 
 # Serial run (useful when iterating on a single suite)
 ~/.local/bin/uv run pytest tests/

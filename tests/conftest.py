@@ -9,7 +9,7 @@ Fixture modules are loaded via pytest_plugins for better organization.
 ARCHITECTURE OVERVIEW
 =====================
 This module implements sophisticated test infrastructure for a PySide6/Qt application
-with 3,500+ tests running in parallel via pytest-xdist. The design addresses several
+with ~2,700 tests running in parallel via pytest-xdist. The design addresses several
 Qt-specific challenges that cause hard-to-diagnose crashes.
 
 KEY DESIGN DECISIONS
