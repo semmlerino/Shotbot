@@ -643,37 +643,39 @@ class TestKeyboardShortcuts:
 class TestListViewConfiguration:
     """Test QListView configuration."""
 
-    def test_list_view_icon_mode(self, grid_view: ConcreteGridView) -> None:
-        """Test list view is in icon mode for grid display."""
-        from PySide6.QtWidgets import QListView
-        assert grid_view.list_view.viewMode() == QListView.ViewMode.IconMode
+    @pytest.mark.parametrize(
+        ("method_name", "expected"),
+        [
+            ("viewMode", "QListView.ViewMode.IconMode"),
+            ("resizeMode", "QListView.ResizeMode.Adjust"),
+            ("uniformItemSizes", True),
+            ("spacing", Config.THUMBNAIL_SPACING),
+            ("selectionMode", "QAbstractItemView.SelectionMode.SingleSelection"),
+        ],
+        ids=["IconMode", "ResizeMode", "UniformItemSizes", "Spacing", "SingleSelection"],
+    )
+    def test_list_view_property(
+        self, grid_view: ConcreteGridView, method_name: str, expected: object
+    ) -> None:
+        """Test QListView property is configured correctly."""
+        from PySide6.QtWidgets import QAbstractItemView, QListView
 
-    def test_list_view_resize_mode(self, grid_view: ConcreteGridView) -> None:
-        """Test list view resize mode is set to Adjust."""
-        from PySide6.QtWidgets import QListView
-        assert grid_view.list_view.resizeMode() == QListView.ResizeMode.Adjust
+        # Resolve string sentinels to actual Qt enum values
+        _enum_map: dict[str, object] = {
+            "QListView.ViewMode.IconMode": QListView.ViewMode.IconMode,
+            "QListView.ResizeMode.Adjust": QListView.ResizeMode.Adjust,
+            "QAbstractItemView.SelectionMode.SingleSelection": QAbstractItemView.SelectionMode.SingleSelection,
+        }
+        expected_value = _enum_map.get(expected, expected)  # type: ignore[arg-type]
+
+        actual = getattr(grid_view.list_view, method_name)()
+        assert actual == expected_value
 
     def test_list_view_batched_layout(self, grid_view: ConcreteGridView) -> None:
         """Test list view uses batched layout for performance."""
         from PySide6.QtWidgets import QListView
         assert grid_view.list_view.layoutMode() == QListView.LayoutMode.Batched
         assert grid_view.list_view.batchSize() == 20
-
-    def test_list_view_uniform_item_sizes(self, grid_view: ConcreteGridView) -> None:
-        """Test list view has uniform item sizes enabled."""
-        assert grid_view.list_view.uniformItemSizes() is True
-
-    def test_list_view_spacing(self, grid_view: ConcreteGridView) -> None:
-        """Test list view spacing matches config."""
-        assert grid_view.list_view.spacing() == Config.THUMBNAIL_SPACING
-
-    def test_list_view_single_selection(self, grid_view: ConcreteGridView) -> None:
-        """Test list view uses single selection mode."""
-        from PySide6.QtWidgets import QAbstractItemView
-        assert (
-            grid_view.list_view.selectionMode()
-            == QAbstractItemView.SelectionMode.SingleSelection
-        )
 
     def test_list_view_pixel_scrolling(self, grid_view: ConcreteGridView) -> None:
         """Test list view uses pixel-based scrolling."""
@@ -728,7 +730,7 @@ class TestVisibilityTracking:
         process_qt_events()
 
         # Should have recorded a visible range update
-        assert len(grid_view.visible_range_updates) >= 0  # May be empty if view not visible
+        assert len(grid_view.visible_range_updates) >= 1
 
     def test_update_visible_range_no_model(
         self, qtbot: QtBot, grid_view: ConcreteGridView

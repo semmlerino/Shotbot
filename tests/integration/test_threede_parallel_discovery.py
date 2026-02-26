@@ -375,6 +375,6 @@ class TestParallelDiscoveryIntegration:
         # Verify results from both discoveries
         for scenes, progress_updates in results.values():
             assert isinstance(scenes, list)
-            assert len(scenes) >= 0  # May be 0 if no scenes found
-            assert len(progress_updates) >= 0  # Should have some progress
+            assert len(scenes) >= 1
+            assert len(progress_updates) >= 1
 

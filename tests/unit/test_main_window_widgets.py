@@ -89,7 +89,6 @@ class TestMainWindowInitialization:
         # Window should be created
         assert window is not None
         assert isinstance(window, QMainWindow)
-        assert hasattr(window, "cache_manager")
         assert window.cache_manager is not None
 
     def test_window_properties(self, main_window: MainWindow) -> None:
@@ -279,47 +278,6 @@ class TestMainWindowSignalConnections:
         process_qt_events()
         return window
 
-    def test_shot_model_connections(self, connected_window: MainWindow) -> None:
-        """Test shot model exists and has basic functionality."""
-        window = connected_window
-
-        # Window should have shot models
-        if hasattr(window, "shot_model"):
-            shot_model = window.shot_model
-
-            # Shot model should have basic methods (not Qt signals)
-            assert hasattr(shot_model, "refresh_shots")
-            assert hasattr(shot_model, "get_shots")
-
-    def test_launcher_manager_connections(self, connected_window: MainWindow) -> None:
-        """Test launcher manager exists and has basic functionality."""
-        window = connected_window
-
-        # Window should have launcher manager
-        if hasattr(window, "launcher_manager"):
-            launcher_manager = window.launcher_manager
-            assert launcher_manager is not None
-
-            # Launcher manager should have basic methods (check actual method names)
-            assert hasattr(launcher_manager, "list_launchers")
-            assert hasattr(launcher_manager, "create_launcher")
-            # Check that it's a QObject (signals are dynamic attributes)
-            assert hasattr(launcher_manager, "deleteLater")  # QObject method
-
-    def test_threede_scene_worker_connections(
-        self, connected_window: MainWindow
-    ) -> None:
-        """Test 3DE scene worker signal connections."""
-        window = connected_window
-
-        # Window should manage 3DE worker
-        if hasattr(window, "threede_worker"):
-            worker = window.threede_worker
-
-            # Worker should have completion signals
-            assert hasattr(worker, "scan_finished")
-
-
 class TestMainWindowKeyboardShortcuts:
     """Test keyboard shortcuts and accessibility."""
 
@@ -362,9 +320,6 @@ class TestMainWindowKeyboardShortcuts:
         # The key press should be processed without crashing the window
         assert window.isVisible()
         assert not window.isMinimized()
-
-        # Verify keyboard handling infrastructure exists
-        assert hasattr(window, "keyPressEvent")
 
     def test_escape_key_handling(
         self, qtbot: QtBot, shortcut_window: MainWindow
@@ -561,9 +516,8 @@ class TestMainWindowIntegration:
         assert window.cache_manager == real_cache_manager
 
         # Components should use the same cache manager
-        if hasattr(window, "shot_model"):
-            # Shot model should use the cache manager
-            assert hasattr(window.shot_model, "cache_manager")
+        # Shot model should use the cache manager
+        assert hasattr(window.shot_model, "cache_manager")
 
     def test_status_updates(self, qtbot: QtBot, integrated_window: MainWindow) -> None:
         """Test status bar receives updates from components."""

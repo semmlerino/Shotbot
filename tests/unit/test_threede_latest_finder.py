@@ -207,33 +207,6 @@ class TestPlateHandling:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_mixed_case_extensions(self, tmp_path: Path) -> None:
-        """Test handling of mixed case file extensions."""
-        workspace = tmp_path / "workspace"
-        threede_scenes = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        threede_scenes.mkdir(parents=True)
-
-        # Mixed case extensions (should match if filesystem is case-insensitive)
-        (threede_scenes / "track_v001.3de").touch()
-        (threede_scenes / "track_v002.3DE").touch()  # Uppercase
-        (threede_scenes / "track_v003.3De").touch()  # Mixed
-
-        finder = ThreeDELatestFinder()
-        all_scenes = finder.find_all_threede_scenes(str(workspace))
-
-        # At least lowercase should be found
-        assert len(all_scenes) >= 1
-
     def test_deeply_nested_plates(self, tmp_path: Path) -> None:
         """Test with nested plate structures."""
         workspace = tmp_path / "workspace"

@@ -253,6 +253,7 @@ class TestThreeDESceneModel:
         assert hasattr(model, "scenes")
         assert isinstance(model.scenes, list)
 
+    @pytest.mark.real_subprocess
     def test_refresh_scenes_with_real_files(
         self,
         cache_manager: CacheManager,
@@ -313,7 +314,7 @@ class TestThreeDESceneModel:
         # Test actual discovery results
         assert success is True
         scenes = model.scenes  # Access scenes directly
-        assert len(scenes) >= 0  # May or may not find scenes depending on setup
+        assert len(scenes) == len(scenes_created)
 
         # Verify scenes are real
         for scene in scenes:

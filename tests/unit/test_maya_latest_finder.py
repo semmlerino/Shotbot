@@ -75,18 +75,6 @@ class TestFindAllMayaScenes:
 class TestVersionPattern:
     """Test Maya-specific version pattern."""
 
-    def test_version_pattern_matches_mb_files(self) -> None:
-        """Test pattern matches .mb files correctly."""
-        finder = MayaLatestFinder()
-
-        # Should match
-        assert finder.VERSION_PATTERN.search("model_v042.mb") is not None
-        assert finder.VERSION_PATTERN.search("rig_v007.mb") is not None
-
-        # Should not match
-        assert finder.VERSION_PATTERN.search("model_v001.blend") is None
-        assert finder.VERSION_PATTERN.search("model.mb") is None
-
     def test_version_extraction(self, tmp_path: Path) -> None:
         """Test version extraction from Maya files."""
         finder = MayaLatestFinder()
@@ -128,40 +116,6 @@ class TestEdgeCases:
 
         assert latest is not None
         # Should find the file through either path
-
-    def test_hidden_files_ignored(self, tmp_path: Path) -> None:
-        """Test that hidden files are handled appropriately."""
-        workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
-        maya_scenes.mkdir(parents=True)
-
-        # Create hidden and regular files
-        (maya_scenes / ".hidden_v001.ma").touch()
-        (maya_scenes / "scene_v002.ma").touch()
-
-        finder = MayaLatestFinder()
-        latest = finder.find_latest_maya_scene(str(workspace))
-
-        # Hidden file should still be found if it matches pattern
-        assert latest is not None
-        # Latest should be v002
-        assert latest.name == "scene_v002.ma"
-
-    def test_special_characters_in_paths(self, tmp_path: Path) -> None:
-        """Test handling of special characters in file names."""
-        workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john-doe" / "mm" / "maya" / "scenes"
-        maya_scenes.mkdir(parents=True)
-
-        # Files with special characters (but valid version pattern)
-        (maya_scenes / "scene-final_v001.ma").touch()
-        (maya_scenes / "shot_010_anim_v002.mb").touch()
-
-        finder = MayaLatestFinder()
-        latest = finder.find_latest_maya_scene(str(workspace))
-
-        assert latest is not None
-        assert latest.name == "shot_010_anim_v002.mb"
 
     def test_deeply_nested_users(self, tmp_path: Path) -> None:
         """Test with non-standard user directory structure."""

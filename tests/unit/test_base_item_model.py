@@ -125,27 +125,44 @@ class TestRowCount:
 class TestDataMethod:
     """Test data() method for various roles."""
 
-    def test_display_role(self, qapp: QApplication) -> None:
-        """Test DisplayRole returns correct data."""
+    @pytest.mark.parametrize(
+        ("role", "expected"),
+        [
+            (Qt.ItemDataRole.DisplayRole, "seq01_0010"),
+            (Qt.ItemDataRole.ToolTipRole, "TEST/seq01/0010"),
+            (BaseItemRole.ObjectRole, None),  # sentinel: identity check below
+            (BaseItemRole.ShowRole, "TEST"),
+            (BaseItemRole.SequenceRole, "seq01"),
+            (BaseItemRole.FullNameRole, "seq01_0010"),
+            (BaseItemRole.WorkspacePathRole, f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
+            (BaseItemRole.LoadingStateRole, "idle"),
+            (BaseItemRole.IsSelectedRole, False),
+        ],
+        ids=[
+            "DisplayRole",
+            "TooltipRole",
+            "ObjectRole",
+            "ShowRole",
+            "SequenceRole",
+            "FullNameRole",
+            "WorkspacePathRole",
+            "LoadingStateRole",
+            "IsSelectedRole",
+        ],
+    )
+    def test_role_data(self, qapp: QApplication, role: object, expected: object) -> None:
+        """Test data() returns correct value for each role."""
         model = ConcreteTestModel()
         shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         model.set_items([shot])
 
         index = model.index(0, 0)
-        data = model.data(index, Qt.ItemDataRole.DisplayRole)
+        data = model.data(index, role)  # type: ignore[arg-type]
 
-        assert data == "seq01_0010"
-
-    def test_tooltip_role(self, qapp: QApplication) -> None:
-        """Test ToolTipRole returns correct data."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        index = model.index(0, 0)
-        data = model.data(index, Qt.ItemDataRole.ToolTipRole)
-
-        assert data == "TEST/seq01/0010"
+        if role is BaseItemRole.ObjectRole:
+            assert data is shot
+        else:
+            assert data == expected
 
     def test_size_hint_role(self, qapp: QApplication) -> None:
         """Test SizeHintRole returns QSize."""
@@ -159,83 +176,6 @@ class TestDataMethod:
         assert isinstance(data, QSize)
         assert data.width() > 0
         assert data.height() > 0
-
-    def test_object_role(self, qapp: QApplication) -> None:
-        """Test ObjectRole returns the item object."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        index = model.index(0, 0)
-        data = model.data(index, BaseItemRole.ObjectRole)
-
-        assert data is shot
-
-    def test_show_role(self, qapp: QApplication) -> None:
-        """Test ShowRole returns show name."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        index = model.index(0, 0)
-        data = model.data(index, BaseItemRole.ShowRole)
-
-        assert data == "TEST"
-
-    def test_sequence_role(self, qapp: QApplication) -> None:
-        """Test SequenceRole returns sequence name."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        index = model.index(0, 0)
-        data = model.data(index, BaseItemRole.SequenceRole)
-
-        assert data == "seq01"
-
-    def test_full_name_role(self, qapp: QApplication) -> None:
-        """Test FullNameRole returns full name."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        index = model.index(0, 0)
-        data = model.data(index, BaseItemRole.FullNameRole)
-
-        assert data == "seq01_0010"
-
-    def test_workspace_path_role(self, qapp: QApplication) -> None:
-        """Test WorkspacePathRole returns workspace path."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        index = model.index(0, 0)
-        data = model.data(index, BaseItemRole.WorkspacePathRole)
-
-        assert data == f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
-
-    def test_loading_state_role(self, qapp: QApplication) -> None:
-        """Test LoadingStateRole returns loading state."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        index = model.index(0, 0)
-        data = model.data(index, BaseItemRole.LoadingStateRole)
-
-        assert data == "idle"
-
-    def test_is_selected_role_false(self, qapp: QApplication) -> None:
-        """Test IsSelectedRole returns False when not selected."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        index = model.index(0, 0)
-        data = model.data(index, BaseItemRole.IsSelectedRole)
-
-        assert data is False
 
     def test_invalid_index(self, qapp: QApplication) -> None:
         """Test data() returns None for invalid index."""

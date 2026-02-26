@@ -97,7 +97,6 @@ class TestShotGridView:
         # Verify view is properly initialized
         assert view is not None
         assert view.model == shot_item_model  # Property access, not method call
-        assert hasattr(view, "_delegate")
 
         # View should have items from model
         model = view.model
@@ -163,10 +162,6 @@ class TestShotGridView:
         # View should have proper size
         assert view.size().isValid()
         assert view.minimumSize().isValid()
-
-        # View should handle updates
-        assert hasattr(view, "update")
-        assert callable(view.update)
 
 
 class TestShotGridIntegration:

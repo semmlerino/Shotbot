@@ -420,11 +420,14 @@ class TestPerformance:
             excluded_users=set(),
         )
 
-        # Should find real scenes without crashing
-        assert len(scenes) >= 0
-        # Verify TestFileSystem tracked operations
-        stats = fs.get_operation_stats()
-        assert stats["files_created"] > 0
+        # Should find exactly the valid user scene, not scenes from excluded dirs
+        assert len(scenes) == 1
+        assert all(
+            ".git" not in str(s.scene_path)
+            and "__pycache__" not in str(s.scene_path)
+            and "node_modules" not in str(s.scene_path)
+            for s in scenes
+        )
 
 
 @pytest.mark.unit

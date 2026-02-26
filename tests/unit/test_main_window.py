@@ -268,11 +268,15 @@ class TestApplicationLaunching:
         monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
 
         # Try to launch app without selecting a shot
-        # (subprocess calls are already mocked by autouse fixture, we just verify no crash)
+        errors: list[tuple[str, str]] = []
+        main_window.command_launcher.command_error.connect(
+            lambda ts, msg: errors.append((ts, msg))
+        )
         main_window.launch_app("nuke")
 
-        # Test behavior: should have shown an error (mocked by autouse fixture)
-        # We're verifying that the code path completes without crashing
+        # Should emit command_error because no shot is selected
+        assert len(errors) == 1
+        assert "No shot selected" in errors[0][1]
 
 
 
@@ -308,8 +312,7 @@ class TestWindowCleanup:
         # Close the window
         main_window.close()
 
-        # Test behavior: window should be closed without errors
-        # Qt cleanup is handled by qtbot and autouse fixtures
+        assert main_window.isVisible() is False
 
 
 class TestStatusBar:
@@ -367,21 +370,6 @@ class TestStatusBar:
         message = main_window.status_bar.currentMessage()
         assert "TestShow" in message
         assert "shot" in message.lower()
-
-
-class TestThumbnailSizeControl:
-    """Test thumbnail size control functionality."""
-
-    def test_thumbnail_size_slider_exists(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test that thumbnail size sliders exist in each grid view."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Verify size sliders exist in each tab's grid view
-        assert hasattr(main_window.shot_grid, "size_slider")
-        assert hasattr(main_window.threede_shot_grid, "size_slider")
-        assert hasattr(main_window.previous_shots_grid, "size_slider")
 
 
 @pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread

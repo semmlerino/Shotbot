@@ -450,9 +450,8 @@ class TestThreeDESceneWorker:
                         isinstance(scene, ThreeDEScene) for scene in discovered_scenes
                     )
 
-                # Verify test double was called through progressive interface
-                # (Progressive path doesn't call find_scenes_calls directly)
-                assert len(test_finder.progressive_calls) >= 0  # May be called
+                # Verify progress updates were received from progressive discovery
+                assert len(progress_updates) >= 1
 
             finally:
                 # Use proper cleanup to prevent Qt C++ object accumulation
