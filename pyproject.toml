@@ -1,13 +1,33 @@
-# Minimal project metadata - just enough for uv/PEP 621 compliance
-# Not an installable package: no [build-system], no dependencies list
 [project]
 name = "shotbot"
 version = "0.0.0"  # Placeholder - actual versioning via git tags
 requires-python = ">=3.11"
+dependencies = [
+    "PySide6~=6.10.0",
+    "psutil~=7.1.0",
+    "typing-extensions~=4.15.0",
+]
 
-# Explicit "do not package" signal for uv - just manage deps, don't build/install
 [tool.uv]
 package = false
+
+[dependency-groups]
+dev = [
+    # Testing
+    "pytest~=8.4.0",
+    "pytest-qt~=4.5.0",
+    "pytest-mock~=3.15.0",
+    "pytest-cov~=7.0.0",
+    "pytest-xdist~=3.8.0",
+    "pytest-timeout~=2.4.0",
+    "pytest-randomly~=3.16.0",
+    "pytest-benchmark~=5.1.0",
+    "hypothesis~=6.100.0",
+    "time-machine~=2.18.0",
+    # Development
+    "ruff~=0.14.0",
+    "basedpyright~=1.32.0",
+]
 
 [tool.basedpyright]
 # Check all Python files in the project (no include list = check everything)

@@ -1,4 +1,4 @@
-# Core dependencies
+# Generated from pyproject.toml — edit there, then run: uv export --no-hashes > requirements.txt
 PySide6~=6.10.0
 psutil~=7.1.0
 typing-extensions~=4.15.0
@@ -10,9 +10,10 @@ pytest-mock~=3.15.0
 pytest-cov~=7.0.0
 pytest-xdist~=3.8.0
 pytest-timeout~=2.4.0
-pytest-randomly~=3.16.0  # Randomize test order to surface hidden coupling
+pytest-randomly~=3.16.0
+pytest-benchmark~=5.1.0
 hypothesis~=6.100.0
-time-machine~=2.18.0  # Fast deterministic time testing
+time-machine~=2.18.0
 
 # Development dependencies
 ruff~=0.14.0
