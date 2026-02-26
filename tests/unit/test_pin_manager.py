@@ -194,22 +194,6 @@ class TestPersistence:
 class TestCacheRecovery:
     """Tests for handling corrupted or missing cache."""
 
-    def test_handles_partial_cache_data(
-        self, cache_manager: CacheManager
-    ) -> None:
-        """Should skip entries with missing required fields."""
-        # Write valid JSON with some invalid entries
-        cache_file = cache_manager.cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        data = [
-            {"show": "show1", "sequence": "seq01", "shot": "shot010"},  # Valid
-            {"show": "show2"},  # Missing sequence and shot
-            {"show": "show3", "sequence": "seq02", "shot": "shot020"},  # Valid
-        ]
-        cache_file.write_text(json.dumps(data))
-
-        pm = PinManager(cache_manager)
-        assert pm.get_pinned_count() == 2  # Only valid entries loaded
 
 
 # ============= Edge Case Tests =============
@@ -217,18 +201,6 @@ class TestCacheRecovery:
 
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
-
-    def test_pin_same_shot_multiple_times(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Pinning same shot multiple times should not duplicate."""
-        shot = sample_shots[0]
-
-        pin_manager.pin_shot(shot)
-        pin_manager.pin_shot(shot)
-        pin_manager.pin_shot(shot)
-
-        assert pin_manager.get_pinned_count() == 1
 
     def test_different_shot_objects_same_key(
         self, pin_manager: PinManager

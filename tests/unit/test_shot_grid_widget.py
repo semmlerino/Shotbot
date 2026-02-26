@@ -30,11 +30,12 @@ from typing import TYPE_CHECKING
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtTest import QSignalSpy, QTest
+from PySide6.QtTest import QTest
 
 from config import Config
 
 # Local application imports
+from shot_grid_delegate import ShotGridDelegate
 from shot_grid_view import ShotGridView  # Modern Model/View
 
 # from shot_grid import ShotGrid  # Module deleted during Model/View migration
@@ -102,75 +103,12 @@ class TestShotGridView:
         model = view.model
         assert model.rowCount() == 3  # Test shots count
 
-    def test_selection_model_exists(self, shot_grid_view: ShotGridView) -> None:
-        """Test view has proper selection model."""
-        view = shot_grid_view
-
-        # Test that the list view (which handles selection) exists
-        assert hasattr(view, "list_view")
-        assert view.list_view is not None
-
-        # Test selection model through list view
-        selection_model = view.list_view.selectionModel()
-        assert selection_model is not None
-        assert hasattr(selection_model, "selectionChanged")
-
-    def test_mouse_selection_behavior(self, qtbot: QtBot, shot_grid_view: ShotGridView) -> None:
-        """Test mouse selection in Model/View grid."""
-        view = shot_grid_view
-        model = view.model
-
-        if model.rowCount() > 0:
-            # Set up signal spy for selection changes
-            selection_model = view.list_view.selectionModel()
-            selection_spy = QSignalSpy(selection_model.selectionChanged)
-
-            # Get first item index
-            first_index = model.index(0, 0)
-            assert first_index.isValid()
-
-            # Simulate mouse click on first item
-            rect = view.list_view.visualRect(first_index)
-            if rect.isValid():
-                QTest.mouseClick(
-                    view.list_view.viewport(),
-                    Qt.MouseButton.LeftButton,
-                    Qt.KeyboardModifier.NoModifier,
-                    rect.center(),
-                )
-
-            # Verify selection changed (may be 0 if item not visible or already selected)
-            assert selection_spy.count() >= 0
-
-            # Check if item can be selected (visual feedback test)
-            current_selection = selection_model.selectedIndexes()
-            # Selection may be empty if view isn't fully initialized
-            assert isinstance(current_selection, list)
-
     def test_view_delegate_exists(self, shot_grid_view: ShotGridView) -> None:
-        """Test view has custom delegate for rendering."""
+        """Test view uses our custom ShotGridDelegate for rendering."""
         view = shot_grid_view
 
-        # View should have a delegate for custom rendering
         delegate = view.list_view.itemDelegate()
-        assert delegate is not None
-
-        # Delegate should handle painting and sizing
-        assert hasattr(delegate, "paint") or hasattr(delegate, "sizeHint")
-
-    def test_view_scroll_behavior(self, qtbot: QtBot, shot_grid_view: ShotGridView) -> None:
-        """Test view handles scrolling properly."""
-        view = shot_grid_view
-
-        # List view should be scrollable
-        assert hasattr(view.list_view, "verticalScrollBar")
-        assert hasattr(view.list_view, "horizontalScrollBar")
-
-        # Scroll bars should exist
-        v_scroll = view.list_view.verticalScrollBar()
-        h_scroll = view.list_view.horizontalScrollBar()
-        assert v_scroll is not None
-        assert h_scroll is not None
+        assert isinstance(delegate, ShotGridDelegate)
 
     def test_keyboard_navigation(self, qtbot: QtBot, shot_grid_view: ShotGridView) -> None:
         """Test keyboard navigation in Model/View."""
@@ -294,9 +232,6 @@ class TestShotGridIntegration:
                     first_index, selection_model.SelectionFlag.Select
                 )
 
-                # Verify selection
-                selected = selection_model.selectedIndexes()
-                assert len(selected) >= 0  # May be empty if view not visible
 
     def test_integration_resize_handling(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
         """Test integrated view handles resize correctly."""

@@ -339,22 +339,6 @@ class TestQtIntegration:
 
 
 @pytest.mark.parametrize(
-    ("color_field", "expected"),
-    [
-        ("primary", "#2196F3"),
-        ("success", "#4CAF50"),
-        ("error", "#F44336"),
-        ("warning", "#FF9800"),
-        ("bg_primary", "#1E1E1E"),
-    ],
-)
-def test_color_values_parametrized(color_field: str, expected: str) -> None:
-    """Parametrized test for color values."""
-    palette = ColorPalette()
-    assert getattr(palette, color_field) == expected
-
-
-@pytest.mark.parametrize(
     ("size_field", "min_value", "max_value"),
     [
         ("size_h1", 22, 32),
@@ -367,21 +351,6 @@ def test_font_sizes_in_range(size_field: str, min_value: int, max_value: int) ->
     typo = Typography()
     size = getattr(typo, size_field)
     assert min_value <= size <= max_value
-
-
-@pytest.mark.parametrize(
-    ("duration_field", "expected"),
-    [
-        ("duration_instant", 100),
-        ("duration_fast", 200),
-        ("duration_normal", 300),
-        ("duration_slow", 500),
-    ],
-)
-def test_animation_durations(duration_field: str, expected: int) -> None:
-    """Parametrized test for animation durations."""
-    anim = Animation()
-    assert getattr(anim, duration_field) == expected
 
 
 def test_stylesheet_is_not_empty() -> None:

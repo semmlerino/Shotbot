@@ -90,12 +90,6 @@ def _set_current_state(state: _SubprocessMockState | None) -> None:
     _thread_local.state = state
 
 
-def _set_permissive_mode(enabled: bool) -> None:
-    """Set permissive mode for current test."""
-    state = _get_current_state()
-    state.permissive_mode = enabled
-
-
 def _set_subprocess_mock_active(active: bool) -> None:
     """Set subprocess_mock fixture state for current test."""
     state = _get_current_state()

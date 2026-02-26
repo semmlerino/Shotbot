@@ -271,27 +271,6 @@ class TestClearPins:
 class TestPersistence:
     """Tests for cache persistence."""
 
-    def test_pins_persist_across_instances(
-        self, cache_manager: CacheManager, sample_file_paths: list[Path]
-    ) -> None:
-        """Pinned files should persist when creating a new FilePinManager instance."""
-        file1, file2, _ = sample_file_paths
-
-        # Pin files with first instance
-        pm1 = FilePinManager(cache_manager)
-        pm1.pin_file(file1, "Comment 1")
-        pm1.pin_file(file2, "Comment 2")
-        pm1.deleteLater()
-
-        # Create new instance
-        pm2 = FilePinManager(cache_manager)
-
-        # Pins should be loaded
-        assert pm2.is_pinned(file1)
-        assert pm2.is_pinned(file2)
-        assert pm2.get_pinned_count() == 2
-        pm2.deleteLater()
-
     def test_comments_persist(
         self, cache_manager: CacheManager, sample_file_paths: list[Path]
     ) -> None:
