@@ -38,8 +38,8 @@ from PySide6.QtWidgets import (
 from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 from resizable_frame import ResizableFrame
+from runnable_tracker import FolderOpenerWorker
 from scene_file import FileType, ImageSequence, SceneFile
-from thumbnail_widget_base import FolderOpenerWorker
 
 
 @final

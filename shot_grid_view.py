@@ -35,10 +35,10 @@ from PySide6.QtWidgets import (
 # Local application imports
 from base_grid_view import BaseGridView, HasAvailableShows
 from base_item_model import BaseItemRole
+from runnable_tracker import FolderOpenerWorker
 from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotItemModel
 from shot_model import Shot
-from thumbnail_widget_base import FolderOpenerWorker
 from typing_compat import override
 
 

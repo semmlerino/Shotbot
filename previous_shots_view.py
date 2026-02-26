@@ -41,8 +41,8 @@ from base_grid_view import BaseGridView
 from base_item_model import BaseItemRole
 from design_system import design_system
 from progress_manager import ProgressManager, update_progress
+from runnable_tracker import FolderOpenerWorker
 from shot_grid_delegate import ShotGridDelegate
-from thumbnail_widget_base import FolderOpenerWorker
 from typing_compat import override
 
 

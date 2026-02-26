@@ -38,8 +38,8 @@ from PySide6.QtWidgets import (
 
 # Local application imports
 from base_grid_view import BaseGridView
+from runnable_tracker import FolderOpenerWorker
 from threede_grid_delegate import ThreeDEGridDelegate
-from thumbnail_widget_base import FolderOpenerWorker
 from typing_compat import override
 
 

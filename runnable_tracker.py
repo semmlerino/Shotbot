@@ -4,14 +4,19 @@ This module provides a singleton tracker for QRunnable instances to ensure
 proper cleanup and prevent memory leaks from untracked thread pool tasks.
 """
 # Standard library imports
+import contextlib
 import logging
+import subprocess
+import sys
 import threading
 import weakref
 from collections.abc import Mapping
+from pathlib import Path
 from typing import ClassVar, final
 
 # Third-party imports
-from PySide6.QtCore import QRunnable, QThreadPool
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 
 from singleton_mixin import SingletonMixin
 from typing_compat import override
@@ -267,3 +272,105 @@ def unregister_runnable(runnable: QRunnable) -> None:
 def cleanup_all_runnables() -> None:
     """Convenience function to cleanup all runnables via the global tracker."""
     QRunnableTracker().cleanup_all()
+
+
+class FolderOpenerSignals(QObject):
+    """Signals for the folder opener worker."""
+
+    error: Signal = Signal(str)
+    success: Signal = Signal()
+
+
+class FolderOpenerWorker(QRunnable):
+    """Worker to open folders in a non-blocking way."""
+
+    def __init__(self, folder_path: str) -> None:
+        """Initialize the worker.
+
+        Args:
+            folder_path: Path to the folder to open
+
+        """
+        super().__init__()
+        self.folder_path: str = folder_path
+        self.signals: FolderOpenerSignals = FolderOpenerSignals()
+
+    @override
+    def run(self) -> None:
+        """Open the folder using the appropriate method for the platform."""
+        tracker = get_tracker()
+        metadata = {
+            "type": "FolderOpenerWorker",
+            "folder_path": self.folder_path,
+        }
+        tracker.register(self, metadata)
+
+        try:
+            # Ensure we have a proper absolute path
+            folder_path = self.folder_path
+            if not folder_path.startswith("/"):
+                folder_path = "/" + folder_path
+
+            # Check if path exists
+            if not Path(folder_path).exists():
+                # Safe signal emission
+                if hasattr(self, "signals") and self.signals:
+                    with contextlib.suppress(RuntimeError):
+                        self.signals.error.emit(f"Path does not exist: {folder_path}")
+                return
+
+            # Try Qt method first (cross-platform)
+            url = QUrl()
+            url.setScheme("file")
+            url.setPath(folder_path)
+
+            logger.debug(f"Opening folder: {folder_path} with URL: {url.toString()}")
+
+            # Use QDesktopServices but with proper error handling
+            success = QDesktopServices.openUrl(url)
+
+            if not success:
+                # Fallback to system-specific commands
+                logger.debug("QDesktopServices failed, trying system command")
+
+                if sys.platform == "darwin":  # macOS
+                    _ = subprocess.run(["open", folder_path], check=True)
+                elif sys.platform == "win32":  # Windows
+                    _ = subprocess.run(["explorer", folder_path], check=True)
+                else:  # Linux/Unix
+                    # Try xdg-open first, then alternatives
+                    try:
+                        _ = subprocess.run(["xdg-open", folder_path], check=True)
+                    except (subprocess.CalledProcessError, FileNotFoundError):
+                        # Try gio as fallback
+                        _ = subprocess.run(["gio", "open", folder_path], check=True)
+
+            # Safe signal emission
+            if hasattr(self, "signals") and self.signals:
+                with contextlib.suppress(RuntimeError):
+                    self.signals.success.emit()
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Failed to open folder: {e}"
+            logger.error(error_msg)
+            # Safe signal emission
+            if hasattr(self, "signals") and self.signals:
+                with contextlib.suppress(RuntimeError):
+                    self.signals.error.emit(error_msg)
+        except FileNotFoundError as e:
+            error_msg = f"File manager not found: {e}"
+            logger.error(error_msg)
+            # Safe signal emission
+            if hasattr(self, "signals") and self.signals:
+                with contextlib.suppress(RuntimeError):
+                    self.signals.error.emit(error_msg)
+        except Exception as e:
+            error_msg = f"Unexpected error opening folder: {e}"
+            logger.error(error_msg)
+            # Safe signal emission
+            if hasattr(self, "signals") and self.signals:
+                with contextlib.suppress(RuntimeError):
+                    self.signals.error.emit(error_msg)
+        finally:
+            # Always unregister from tracker when done
+            tracker.unregister(self)
