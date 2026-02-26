@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/process_pool_manager_optimized.py
-# hypothesis_version: 6.137.1
-
-[0.01, 100, 300, 600, 1000, '-i', '/bin/bash', '60-75%', '<<<END>>>', 'Timeout', 'async_executions', 'average_response_ms', 'cache_hit_rate', 'cache_hits', 'cache_misses', 'cache_size', 'date', 'direct_executions', 'echo', 'hit_rate', 'hits', 'hostname', 'ls', 'misses', 'performance_gain', 'pwd', 'size', 'subprocess_calls', 'total_time_ms', 'whoami', 'ws']

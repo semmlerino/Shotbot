@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/command_launcher_qprocess.py
-# hypothesis_version: 6.137.1
-
-[100, 300000, '%H:%M:%S', 'No shot selected', 'Process timeout', 'nuke']

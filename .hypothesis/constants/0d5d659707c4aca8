@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/targeted_shot_finder.py
-# hypothesis_version: 6.137.1
-
-[100, '*.3de', '*.m[ab]', '*.nk', '-maxdepth', '-path', '-type', '4', 'USER', '[./\\\\]', '^[a-zA-Z0-9_-]+$', '_', 'approved', 'd', 'editorial', 'find', 'has_3de', 'has_maya', 'has_nuke', 'publish', 'sequence', 'shot', 'shots', 'show', 'status', 'thumbnail_path', 'user_dir_exists', 'user_path', 'workspace_path']

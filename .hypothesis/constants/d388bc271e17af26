@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/command_launcher.py
-# hypothesis_version: 6.137.1
-
-[' && ', '$(', '$((', '${', '%H:%M:%S', '&&', '--', '-c', '-e', '-i', '.', '../', '/..', '/bin/bash', '3de', ';', '<', '>', '>&', '>>', 'No shot selected', 'OCIO fallback', 'REZ_USED', '\\.', '`', 'bash', 'clarisse', 'direct', 'gnome-terminal', 'houdini', 'katana', 'konsole', 'mari', 'maya', 'nuke', 'rez', 'rv', 'unset OCIO', 'utf-8', 'which', 'xterm', '|', '||', '~/.']

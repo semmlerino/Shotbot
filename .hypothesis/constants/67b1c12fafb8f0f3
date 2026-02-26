@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/debug_utils.py
-# hypothesis_version: 6.140.2
-
-[1.0, 2.0, 5.0, 100, 200, 1024, '&&', '-a', '...', '/proc/self/fd', '0', '1', '2', '3', '4', '9', ':', ';', '=', 'DEAD', 'DRAINING', 'ERROR', 'EXECUTING', 'INIT', 'N/A', 'PATH', 'READING', 'READY', 'RESTARTING', 'SHOTBOT_DEBUG_LEVEL', 'SHOTBOT_INIT', 'STARTING', 'System Diagnostics', 'UNKNOWN', 'USER', 'WAITING_MARKER', 'all', 'ascii', 'average', 'count', 'cwd', 'default', 'error', 'fd_count', 'global', 'hostname', 'i', 'int', 'last', 'max', 'memory', 'min', 'percent', 'pid', 'platform', 'posix', 'python', 'python_executable', 'rss_mb', 's', 't', 'timestamp', 'total', 'true', 'ulimit', 'ulimits', 'unicode_escape', 'unknown', 'user', 'verbose', 'ws', 'x', 'yes', '|']

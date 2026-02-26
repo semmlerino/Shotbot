@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache/threede_cache.py
-# hypothesis_version: 6.137.1
-
-['1970-01-01', 'age_seconds', 'cached_at', 'empty', 'exists', 'expired', 'expiry_minutes', 'full', 'metadata', 'scan_type', 'scene_count', 'scenes', 'timestamp', 'valid']

@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache/storage_backend.py
-# hypothesis_version: 6.137.1
-
-[0.01, 5.0, 1024, '*', '*.jpeg', '*.jpg', '*.json', '*.png', '.lock', 'actual_file_count', 'actual_total_size_mb', 'cache_directory', 'details', 'directory_exists', 'error', 'file_types', 'invalid_files', 'is_item_tracked', 'issues_fixed', 'issues_found', 'memory_stats', 'missing_files', 'orphaned_files', 'shotbot_cache_', 'size_mismatches', 'structure_issues', 'subdirectories', 'track_item', 'utf-8', 'valid', 'validate_tracking', 'w', 'win32']

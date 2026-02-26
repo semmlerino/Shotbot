@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/thread_safe_worker.py
-# hypothesis_version: 6.140.2
-
-[' (forced)', 'CREATED', 'DELETED', 'ERROR', 'RUNNING', 'STARTING', 'STOPPED', 'STOPPING', 'State error', 'ThreadSafeWorker']

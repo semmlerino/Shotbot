@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/threede_latest_finder.py
-# hypothesis_version: 6.137.1
-
-['*.3de', '3de', '_v(\\d{3})\\.3de$', 'mm', 'mm-default', 'scene', 'scenes', 'user']

@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/output_buffer.py
-# hypothesis_version: 6.140.2
-
-[0.1, 1.5, 2.0, 250, 500, 1000, 3600, 'elapsed_sec', 'fps', 'fps=\\s*(\\d+)', 'frame', 'frame=\\s*(\\d+)', 'has_data']

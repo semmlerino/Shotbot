@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/finder_utils.py
-# hypothesis_version: 6.137.1
-
-['3de', '[./\\\\]', '^[a-zA-Z0-9_-]+$', '_v(\\d{3})', 'mm', 'mm-default', 'scene', 'scenes', 'user']

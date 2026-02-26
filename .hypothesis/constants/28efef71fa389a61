@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/maya_latest_finder_refactored.py
-# hypothesis_version: 6.137.1
-
-['.ma', '.mb', '_v(\\d{3})\\.(ma|mb)$', 'maya', 'scenes']

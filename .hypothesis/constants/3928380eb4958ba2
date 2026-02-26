@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_finder_base.py
-# hypothesis_version: 6.137.1
-
-['*.3de', '*.m[ab]', '*.nk', '1', 'SHOTBOT_MOCK', 'USER', 'editorial', 'gabriel-h', 'has_3de', 'has_maya', 'has_nuke', 'publish', 'sequence', 'shot', 'show', 'status', 'thumbnail_path', 'true', 'user_dir_exists', 'user_path', 'workspace_path', 'yes']

@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/exceptions.py
-# hypothesis_version: 6.137.1
-
-[', ', 'CACHE_ERROR', 'LAUNCHER_ERROR', 'SECURITY_ERROR', 'SHOTBOT_ERROR', 'THUMBNAIL_ERROR', 'WORKSPACE_ERROR', 'attempted_command', 'cache_file', 'cache_key', 'command', 'exit_code', 'image_path', 'launcher_command', 'launcher_name', 'operation', 'reason', 'thumbnail_path', 'violation_type', 'workspace_path']

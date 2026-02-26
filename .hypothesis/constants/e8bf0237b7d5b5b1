@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/persistent_bash_session.py
-# hypothesis_version: 6.137.1
-
-[0.001, 0.01, 0.1, 0.2, 2.0, 5.0, 4096, '-i', '/bin/bash', '1', 'EXECUTING', 'PS1', 'PS2', 'READY', 'Running command', 'SHOTBOT_INIT_', 'STARTING', 'Session initialized', 'TERM', 'WAITING_MARKER', '\\]777;[^\\x07\\n]*', '\\x1b[>=]', '\\x1b\\([B0UK]', 'alive', 'commands_executed', 'dumb', 'idle_seconds', 'select', 'session_id', 'set_blocking', 'true', 'uptime_seconds', 'workspace_1', 'workspace_2', 'yes']

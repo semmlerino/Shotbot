@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/design_system.py
-# hypothesis_version: 6.140.2
-
-[1.2, 1.5, 1.75, 100, 200, 300, 400, 500, 600, '#00838F', '#00ACC1', '#00BCD4', '#03A9F4', '#0D47A1', '#1976D2', '#1E1E1E', '#2196F3', '#252525', '#2A2A2A', '#2D2D2D', '#333333', '#3D3D3D', '#404040', '#4CAF50', '#707070', '#808080', '#B0B0B0', '#F44336', '#FF9800', '#FFFFFF', '50%', 'background-color', 'border', 'border-radius', 'box-shadow', 'button', 'card', 'color', 'danger', 'default', 'elevated', 'font-weight', 'none', 'padding', 'primary', 'rgba(0, 0, 0, 0.5)', 'secondary', 'success', 'transparent', 'white']

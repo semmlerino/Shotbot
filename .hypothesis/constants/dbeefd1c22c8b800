@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache_config.py
-# hypothesis_version: 6.137.1
-
-[1024, '\nCache Info:', '*', '.shotbot', '/tests/', '1', '=', 'CI', 'GITHUB_ACTIONS', 'GITLAB_CI', 'SHOTBOT_HEADLESS', 'SHOTBOT_MOCK', 'SHOTBOT_TEST_MODE', '\\tests\\', '__main__', '_called_from_test', 'cache', 'cache_directory', 'cache_mock', 'cache_test', 'exists', 'file_count', 'is_headless_mode', 'is_mock_mode', 'is_test_mode', 'mock', 'pytest', 'size_mb', 'true', 'unittest', 'yes']

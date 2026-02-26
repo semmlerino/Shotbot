@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/threede_scene_model.py
-# hypothesis_version: 6.137.1
-
-['Path | None', 'bg01', 'fg01', 'plate', 'scene_path', 'sequence', 'shot', 'show', 'user', 'workspace_path']

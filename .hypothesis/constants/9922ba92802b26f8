@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache_manager.py
-# hypothesis_version: 6.137.1
-
-[0.0, 1024, 'CacheManager', 'ThumbnailCacheLoader', 'ThumbnailCacheResult', 'details', 'int', 'invalid_entries', 'issues_fixed', 'issues_found', 'max_mb', 'missing_files', 'orphaned_files', 'previous_shots', 'previous_shots.json', 'sequence', 'shot', 'shots.json', 'show', 'size_mismatches', 'source_path', 'threede_scenes.json', 'thumbnail_count', 'thumbnails', 'total_bytes', 'total_mb', 'tracked_items', 'usage_percent', 'valid']

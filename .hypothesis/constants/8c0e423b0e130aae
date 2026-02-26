@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/scene_discovery_coordinator.py
-# hypothesis_version: 6.137.1
-
-[0.5, 100, 1800, '/shows', 'average_age_seconds', 'cache_hits', 'cache_misses', 'errors', 'hit_rate_percent', 'local', 'scene_discovery', 'scenes_discovered', 'shots', 'show_discovery', 'shows']

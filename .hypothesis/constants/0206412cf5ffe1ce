@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher/worker.py
-# hypothesis_version: 6.137.1
-
-[1.0, '/', '2>&1.*>/dev/null.*rm', '3de', '3de4', '3dequalizer', '\\$\\([^)]*\\)', '\\$\\{[^}]*\\}', '`[^`]*`', 'houdini', 'hython', 'katana', 'mari', 'maya', 'mayapy', 'nuke', 'nuke_i', 'nukex', 'publish', 'publish_standalone', 'python', 'python3', 'rv', 'rvpkg']

@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/scene_parser.py
-# hypothesis_version: 6.137.1
-
-['.3de', '3de', '^[\\w]+_v\\d{3}$', '^[bf]g\\d{2}$', '^comp_?\\d+$', '^plate_?\\d+$', '^sc\\d+$', '^shot_?\\d+$', '_', 'data', 'exports', 'files', 'matchmove', 'mm', 'publish', 'scene', 'scenes', 'shots', 'tracking', 'unknown', 'user', 'wip', 'work']

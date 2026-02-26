@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_media_detector.py
-# hypothesis_version: 6.137.1
-
-[480, 640, 1001, 1100, 2304, 4312, 4320, 8192, '####', '%04d', '(\\d{4})', '[^\\w\\-_]', '_', 'alexa', 'colorspace', 'first_frame', 'height', 'last_frame', 'lin_', 'linear', 'log', 'logc', 'logc3ei800', 'raw_flag', 'rec709', 'sRGB', 'srgb', 'width']

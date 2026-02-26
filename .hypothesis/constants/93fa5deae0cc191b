@@ -1,4 +1,0 @@
-# file: /home/gabrielh/projects/shotbot/controllers/threede_controller.py
-# hypothesis_version: 6.143.1
-
-[200, 500, 1000, '3DE Discovery Error', '3DE Scenes', '3de', 'No Scene Selected', 'Recovery Failed', 'Scan Error', 'disconnect', 'ignore', 'is_zombie', 'pytest']

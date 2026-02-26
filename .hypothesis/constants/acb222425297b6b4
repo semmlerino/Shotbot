@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/utils.py
-# hypothesis_version: 6.137.1
-
-[0.0, 250, 256, 500, 1024, 2500, 5000, 99999, '(v\\d{3})', '.', '.exr', '1001', 'BG', 'Directory', 'FG', 'File', 'LOGNAME', 'Path', 'Plate base path', 'Publish directory', 'Search directory', 'Shot directory', 'Thumbnail directory', 'Turnover plate base', 'USER', 'USERNAME', 'Version search path', '\\.(\\d{4})\\.exr$', '^v(\\d{3})$', 'exr', 'input_plate', 'path_cache_size', 'plate', 'publish', 'sequence', 'shot', 'shots', 'show', 'turnover', 'user', 'v001', 'version_cache_size']

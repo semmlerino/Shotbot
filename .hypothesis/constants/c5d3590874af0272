@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/previous_shots_finder.py
-# hypothesis_version: 6.137.1
-
-[100, 120, '*.3de', '*.m[ab]', '*.nk', '-maxdepth', '-path', '-type', '.', '6', '8', 'Discovering shows...', 'Scan complete', 'active_shots', 'approved', 'completed', 'd', 'find', 'has_3de', 'has_maya', 'has_nuke', 'matchmove', 'publish', 'sequence', 'shot', 'shots', 'show', 'shows_root', 'status', 'user_dir_exists', 'user_path', 'workspace_path']

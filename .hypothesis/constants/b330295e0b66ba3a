@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/persistent_terminal_manager.py
-# hypothesis_version: 6.137.1
-
-[b'\n', 0.2, 0.5, 1.5, 384, '--', '--title', '-e', '-i', '-title', 'CLEAR_TERMINAL', 'EXIT_TERMINAL', 'ShotBot Terminal', 'ascii', 'bash', 'fifo_path', 'gnome-terminal', 'konsole', 'utf-8', 'wb', 'x-terminal-emulator', 'xterm']

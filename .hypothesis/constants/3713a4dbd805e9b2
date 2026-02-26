@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher/__init__.py
-# hypothesis_version: 6.137.1
-
-['1.0.0', 'CustomLauncher', 'LauncherEnvironment', 'LauncherRepository', 'LauncherTerminal', 'LauncherValidation', 'LauncherValidator', 'LauncherWorker', 'ProcessInfo']

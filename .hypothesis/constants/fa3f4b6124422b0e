@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_launch_handler.py
-# hypothesis_version: 6.137.1
-
-[' && ', '.', '\\.', 'create_new_file', 'direct', 'include_raw_plate', 'include_undistortion', 'open_latest_scene', 'unset OCIO', 'utf-8']

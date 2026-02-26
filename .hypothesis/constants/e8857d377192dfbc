@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache_config_unified.py
-# hypothesis_version: 6.137.1
-
-[1024, 'expiry_minutes', 'expiry_seconds', 'memory_limit_bytes', 'memory_limit_mb']

@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/simple_nuke_launcher.py
-# hypothesis_version: 6.140.2
-
-['.py', 'Opening empty Nuke', 'USER', '_v(\\d{3})\\.nk$', 'gabriel-h', 'mm', 'nuke', 'nuke_create_', 'scripts', 'unknown', 'user', 'w']

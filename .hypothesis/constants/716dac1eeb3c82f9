@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/threading_manager.py
-# hypothesis_version: 6.140.2
-
-[2000, 3000, 5000, 'finished', 'object', 'ready', 'request_stop', 'running', 'stop', 'threede_discovery']

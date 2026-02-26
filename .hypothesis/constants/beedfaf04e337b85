@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/memory_aware_cache.py
-# hypothesis_version: 6.137.1
-
-[0.0, 0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 1.0, 5.0, 60.0, 70.0, 85.0, 95.0, 100.0, 3600.0, 10000.0, 1024, 'MemoryAwareEviction', '_cache', 'access_count', 'available_mb', 'cache_stats', 'clear', 'critical', 'current_memory', 'entries_evicted', 'eviction_runs', 'get', 'get_stats', 'high', 'inf', 'invalidate', 'last_access', 'last_eviction', 'memory_freed_mb', 'moderate', 'normal', 'percent_used', 'pressure_level', 'process_mb', 'put', 'size_bytes', 'timestamp', 'used_mb']

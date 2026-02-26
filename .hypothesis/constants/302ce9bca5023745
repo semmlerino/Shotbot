@@ -1,4 +1,0 @@
-# file: /home/gabrielh/projects/shotbot/threede_recovery.py
-# hypothesis_version: 6.143.1
-
-['%Y%m%d_%H%M%S', '**/*_crashsave*.3de', '*_crashsave*.3de', '_crashsave', '_v', '_v(\\d{3})\\.3de$']

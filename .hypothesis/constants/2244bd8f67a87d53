@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py
-# hypothesis_version: 6.137.1
-
-[100, 350, 360, 500, 840, 1000, 3000, '%H:%M:%S', '&About', '&Exit', '&File', '&Help', '&Keyboard Shortcuts', '&Refresh Shots', '&Tools', '&View', '3', '3DE Discovery Error', '3de', 'Command Log', 'Ctrl+L', 'Custom &Launchers', 'Custom Launchers', 'Error', 'Failed to load shots', 'Keyboard Shortcuts', 'Launch Applications', 'M', 'My Shots', 'N', 'No Context', 'No custom launchers', 'Other 3DE scenes', 'P', 'R', 'Ready', 'Refreshing shots...', 'active_tab', 'ascii', 'custom', 'customLauncherButton', 'customLaunchersLabel', 'geometry', 'include_raw_plate', 'include_undistortion', 'isFinished', 'last_shot', 'maya', 'nuke', 'publish', 'r', 'rv', 'shutdown', 'splitter', 'stop', 'terminate', 'thumbnail_size', 'w', 'wait']

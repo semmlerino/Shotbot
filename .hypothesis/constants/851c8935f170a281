@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_script_generator.py
-# hypothesis_version: 6.137.1
-
-[-200, 480, 640, 1001, 1100, 2304, 4312, 4320, 8192, ' {', '#', '####', '%04d', '(\\d{4})', '.nk', '/', 'Crop', 'Dot', 'Expression', 'LensDistortion', 'NoOp', 'Reformat', 'Root {', 'Switch', 'UVTile2', '[^\\w\\-_]', '\\', '_', 'alexa', 'define_window_layout', 'false', 'inputs 0', 'inputs 1', 'lin_', 'linear', 'log', 'logc', 'logc3ei800', 'r', 'rec709', 'sRGB', 'srgb', 'true', 'utf-8', 'version', 'w', 'ypos', 'ypos\\s+', 'ypos\\s+(-?\\d+)', '{', '}']

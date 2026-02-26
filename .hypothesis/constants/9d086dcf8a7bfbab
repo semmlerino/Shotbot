@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/utils.py
-# hypothesis_version: 6.140.2
-
-[0.0, 250, 256, 500, 1024, 2500, 5000, 99999, '(v\\d{3})', '*', '.', '.*', '.exr', '.jpeg', '.jpg', '1', '1001', 'BG', 'COMP', 'Directory', 'EL', 'FG', 'File', 'JPEG base path', 'LOGNAME', 'MM default path', 'PL', 'Path', 'Plate base path', 'SHOTBOT_MOCK', 'Search directory', 'Turnover plate base', 'USER', 'USERNAME', 'User directory', 'Version search path', '\\.', '\\.(\\d{4})\\.exr$', '^(BG)\\d+$', '^(COMP)\\d+$', '^(EL)\\d+$', '^(FG)\\d+$', '^(PL)\\d+$', '^v(\\d{3})$', 'cutref', 'default', 'editorial', 'exr', 'gabriel-h', 'input_plate', 'jpeg', 'jpg', 'mm', 'mm-default', 'nuke', 'outputs', 'path_cache_size', 'plate', 'publish', 'scene', 'sequence', 'shot', 'shots', 'show', 'true', 'turnover', 'undistort', 'undistorted_plate', 'user', 'v(\\\\d{3})', 'v001', 'v\\.\\*', 'version_cache_size', 'yes']

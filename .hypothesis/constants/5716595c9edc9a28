@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/filesystem_coordinator.py
-# hypothesis_version: 6.137.1
-
-[0.0, 300, 'cache_hits', 'cache_misses', 'cached_directories', 'hit_rate', 'total_requests', 'ttl_seconds']

@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache/unified_cache.py
-# hypothesis_version: 6.137.1
-
-['1970-01-01', 'Shot', 'T', 'ThreeDEScene', 'age_seconds', 'cached_at', 'exists', 'expired', 'expiry_minutes', 'metadata', 'scene_count', 'scenes', 'shot_count', 'shots', 'timestamp', 'valid']

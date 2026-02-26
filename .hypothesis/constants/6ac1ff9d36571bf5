@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/nuke_undistortion_parser.py
-# hypothesis_version: 6.140.2
-
-[-200, ' name ', '# ', '#!', '(\\s+name\\s+)([^\\s]+)', 'Exiting Python block', 'Root {', '[^a-zA-Z0-9_]', '_', 'class ', 'def ', 'define_window_layout', 'from ', 'import ', 'push', 'push 0', 'python {', 'set cut_paste_input', 'utf-8', 'version ', 'ypos', 'ypos\\s+(-?\\d+)', '{', '}']

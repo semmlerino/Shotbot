@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher/validator.py
-# hypothesis_version: 6.137.1
-
-[100, '&&\\s*rm\\s', '&&\\s*su\\s', '&&\\s*sudo\\s', ', ', '/etc/passwd', '/etc/shadow', ';\\s*rm\\s', ';\\s*su\\s', ';\\s*sudo\\s', '> /dev/sda', 'HOME', 'Name cannot be empty', 'SHOTBOT_VERSION', 'USER', '\\$\\(rm\\s', '\\brm\\s+-rf\\s+/', '\\brm\\s+.*\\*', '\\|\\s*rm\\s', '`rm\\s', 'bash', 'conda', 'dd if=', 'del /s', 'fdisk', 'format c:', 'full_name', 'mkfs.', 'rez', 'rm -rf', 'rm /', 'sequence', 'shot', 'show', 'sudo rm', 'which', 'workspace_path']

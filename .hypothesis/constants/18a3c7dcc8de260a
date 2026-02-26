@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache/cache_validator.py
-# hypothesis_version: 6.137.1
-
-[100, 1024, '*', '*.jpg', 'actual_total_size_mb', 'average_file_size_kb', 'average_item_kb', 'cache_hit_potential', 'details', 'directory_exists', 'error', 'invalid_files', 'issues_fixed', 'issues_found', 'memory_stats', 'missing_files', 'orphaned_files', 'recommendations', 'show_directories', 'size_mismatches', 'structure_issues', 'thumbnails_directory', 'unknown', 'usage_percent', 'valid']

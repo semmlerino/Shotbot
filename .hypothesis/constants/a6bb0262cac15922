@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/memory_safe_cache.py
-# hypothesis_version: 6.137.1
-
-[0.1, 0.75, 100, 200, 500, 1000, 1024, 1800, 10000, 30000, 60000, 'Cache cleared', 'Pixmap cache cleared', 'T', 'alive_weak_refs', 'cleanup', 'close', 'evictions', 'expired', 'hit_rate', 'hits', 'memory_mb', 'misses', 'process_rss_mb', 'process_vms_mb', 'size', 'system_available_mb', 'system_percent', 'system_total_mb', 'under_pressure', 'weak_refs']

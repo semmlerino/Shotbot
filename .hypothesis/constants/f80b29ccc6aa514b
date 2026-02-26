@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/thread_safe_manager.py
-# hypothesis_version: 6.137.1
-
-[5.0, 30.0, 100, 300, 1000, 5000, 'T', '_is_owned', 'acquire', 'average_runtime', 'collection', 'completed', 'failed', 'pending', 'process_state', 'processes', 'release', 'running', 'starting', 'stopped', 'stopping', 'total']

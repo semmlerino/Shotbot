@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/run_tests.py
-# hypothesis_version: 6.137.1
-
-['--cov', '--cov-report=html', '--cov=.', '--tb=short', '-p', '-v', 'DEBUG_TESTS', 'no:xvfb', 'tests/']

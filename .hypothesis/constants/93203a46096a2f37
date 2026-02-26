@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/utils.py
-# hypothesis_version: 6.137.1
-
-[30.0, 100, 256, 1000, 1024, '(v\\d{3})', '.', 'Directory', 'File', 'LOGNAME', 'Path', 'Plate base path', 'Search directory', 'USER', 'USERNAME', 'Version search path', '^v(\\d{3})$', 'path_cache_size', 'sequence', 'shot', 'shots', 'show', 'user', 'version_cache_size']

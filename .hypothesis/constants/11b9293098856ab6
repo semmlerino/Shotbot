@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/cache/failure_tracker.py
-# hypothesis_version: 6.137.1
-
-[120, 'attempts', 'error', 'next_retry', 'source_path', 'timestamp']

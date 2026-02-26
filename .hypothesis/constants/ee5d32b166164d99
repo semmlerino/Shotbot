@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/controllers/settings_controller.py
-# hypothesis_version: 6.137.1
-
-[360, 840, 'Export Error', 'Export Settings', 'Export Success', 'Import Error', 'Import Settings', 'Import Success', 'Reset Layout', 'UI settings applied', 'main', 'set_expiry_minutes', 'set_memory_limit', 'size_slider']

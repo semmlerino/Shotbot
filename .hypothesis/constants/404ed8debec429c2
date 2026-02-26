@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/type_definitions.py
-# hypothesis_version: 6.140.2
-
-[100, 5000, 'Path | None', 'T', 'error', 'finished', 'running', 'sequence', 'shot', 'show', 'tuple[str, str, str]', 'workspace_path']

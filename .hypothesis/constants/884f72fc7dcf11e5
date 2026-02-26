@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher/process_manager.py
-# hypothesis_version: 6.137.1
-
-[1000, 2000, 5000, 'Unknown', 'command', 'key', 'launcher_id', 'launcher_name', 'pid', 'running', 'start_time', 'subprocess', 'timestamp', 'type', 'worker']

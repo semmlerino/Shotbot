@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/config.py
-# hypothesis_version: 6.137.1
-
-[100, 200, 400, 512, 600, 800, 1000, 1200, 2048, 4096, 5000, 10000, '#444444', '.3de', '.exr', '.jpeg', '.jpg', '.nk', '.nknc', '.png', '.shotbot', '.tif', '.tiff', '/shows', '1.0.0', '1920x1080', '3DE_SCENE_PATH', '3de', 'BG01', 'BG02', 'FG01', 'FG02', 'MATCHMOVE_SCENE_PATH', 'MM_SCENE_PATH', 'ShotBot', 'TDE_SCENE_PATH', 'THREEDE_SCENE_PATH', '^[\\w]+_v\\d{3}$', '^[bf]g\\d{2}$', '^cam_?\\d+$', '^comp_?\\d+$', '^elem_?\\d+$', '^plate_?\\d+$', '^roto_?\\d+$', '^sc\\d+$', '^shot_?\\d+$', '^tk\\d+$', '_dev', 'aces', 'archive', 'bg01', 'cutref', 'editorial', 'exports', 'fg01', 'gabriel-h', 'input_plate', 'jpg', 'lin_rec709', 'lin_sgamut3cine', 'matchmove', 'maya', 'mm', 'mm-default', 'nuke', 'nuke_lens_distortion', 'old', 'plate', 'publish', 'publish_standalone', 'rec709', 'rv', 'scene', 'scenes', 'settings.json', 'srgb', 'temp', 'test', 'tmp', 'turnover', 'user', 'v001']

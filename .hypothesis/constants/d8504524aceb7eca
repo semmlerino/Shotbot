@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/launcher/models.py
-# hypothesis_version: 6.137.1
-
-['&&\\s*rm\\s', ';\\s*rm\\s', ';\\s*su\\s', ';\\s*sudo\\s', 'CustomLauncher', '\\$\\(rm\\s', '\\|\\s*rm\\s', '`rm\\s', 'bash', 'custom', 'environment', 'terminal', 'validation']

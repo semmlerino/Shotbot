@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/runnable_tracker.py
-# hypothesis_version: 6.137.1
-
-[0.1, 1000.0, 5000, 30000, 'QRunnableTracker', 'auto_delete', 'current_active', 'peak_concurrent', 'total_completed', 'total_registered', 'type']

@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/qt_widget_mixin.py
-# hypothesis_version: 6.140.2
-
-[100, 800, 1200, 60000, '-', 'Callable[[], None]', 'Callable[[], QStyle]', 'Callable[[], bool]', 'Ctrl+C', 'Ctrl+V', 'Ctrl+W', 'F5', 'Processing...', 'QWidget', 'Unsaved Changes', '_auto_save_timer', '_geometry_key', '_progress_bar', '_progress_timer', '_refresh_timer', '_update_timer', 'addAction', 'cancel', 'close', 'closeEvent', 'copy', 'delete', 'handle_dropped_files', 'has_unsaved_changes', 'int', 'keyPressEvent', 'move', 'open', 'paste', 'refresh', 'resize', 'restoreGeometry', 'save', 'saveGeometry', 'save_state', 'setAcceptDrops', 'stop', 'style', 'text/plain', 'text/uri-list']

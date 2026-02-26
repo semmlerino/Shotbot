@@ -1,4 +1,0 @@
-# file: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/progressive_scanner.py
-# hypothesis_version: 6.137.1
-
-[0.0, 1.0, 100, 1000, '*.3DE', '*.3de', 'cancelled', 'completed', 'error', 'file_name', 'idle', 'modified_time', 'path', 'paused', 'scanning', 'size_bytes', 'unknown', 'user']
