@@ -5,15 +5,7 @@
 # Third-party imports
 import pytest
 
-
-def pytest_configure(config: pytest.Config) -> None:
-    """Configure custom pytest markers."""
-    config.addinivalue_line(
-        "markers",
-        "performance: mark test as a performance benchmark",
-    )
-    config.addinivalue_line("markers", "stress: mark test as a stress test")
-    config.addinivalue_line("markers", "integration: mark test as an integration test")
+# Markers are registered in pyproject.toml [tool.pytest.ini_options] markers
 
 
 def pytest_collection_modifyitems(

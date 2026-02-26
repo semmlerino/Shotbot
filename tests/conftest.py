@@ -618,43 +618,7 @@ def pytest_configure(config: pytest.Config) -> None:
             f"  pytest                            (serial, no -n flag)\n"
         )
 
-    config.addinivalue_line("markers", "unit: mark test as a unit test")
-    config.addinivalue_line("markers", "integration: mark test as an integration test")
-    config.addinivalue_line("markers", "slow: mark test as slow running")
-    config.addinivalue_line("markers", "qt: mark test as requiring Qt")
-    config.addinivalue_line("markers", "performance: mark test as testing performance")
-    config.addinivalue_line("markers", "gui_mainwindow: mark test as requiring main window GUI")
-    config.addinivalue_line("markers", "qt_heavy: mark test as Qt-intensive")
-    config.addinivalue_line("markers", "integration_unsafe: mark test as potentially unsafe integration test")
-    config.addinivalue_line(
-        "markers",
-        "permissive_process_pool: allow TestProcessPool without set_outputs() (use sparingly)",
-    )
-    config.addinivalue_line(
-        "markers",
-        "skip_if_parallel: skip test when running in parallel mode due to Qt state pollution",
-    )
-    config.addinivalue_line(
-        "markers",
-        "enforce_unique_connections: enforce UniqueConnection for signal.connect() in this test",
-    )
-    config.addinivalue_line(
-        "markers",
-        "real_subprocess: execute test with real subprocess (bypasses autouse mocks)",
-    )
-    config.addinivalue_line(
-        "markers",
-        "permissive_subprocess: allow subprocess calls without subprocess_mock (DEPRECATED)",
-    )
-    config.addinivalue_line(
-        "markers",
-        "allow_dialogs: allow dialogs without explicit expect_dialog/expect_no_dialogs fixture",
-    )
-    config.addinivalue_line(
-        "markers",
-        "real_timing: bypass short-wait patch for timing-sensitive tests "
-        "(NOTE: patch only intercepts waits ≤1ms; waits ≥2ms always use real timing)",
-    )
+    # Markers are registered in pyproject.toml [tool.pytest.ini_options] markers
 
     # FAIL-FAST: Verify all registered singletons have reset() methods
     # This catches cases where new singletons are added without proper reset support
