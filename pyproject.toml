@@ -390,40 +390,26 @@ DEP003 = ["shiboken6"]
 
 
 [tool.skylos]
-# Whitelist: patterns for dynamic dispatch Skylos can't trace
+# Trace-first approach: generate .skylos_trace via scripts/generate_skylos_trace.py
+# then run: uv run skylos . --table --exclude-folder tests
+# The trace handles most Qt virtual dispatch, signal/slot, and multi-hop attribute FPs.
+# These whitelists cover patterns the trace can't capture (C++ -> Python calls
+# that don't fire sys.setprofile, and methods only triggered by user interaction).
+
 [tool.skylos.whitelist]
 names = [
     # Qt signal/slot targets (connected via signal.connect(obj.method))
     "on_*",
     "_on_*",
-    # Qt virtual overrides called by the C++ framework
-    "eventFilter",
+    # QRunnable.run() / QThread.run() — invoked by QThreadPool from C++
+    "run",
+    # ThreadSafeWorker.do_work() — called by base class run()
+    "do_work",
+    # Qt event handlers — only triggered by user interaction, not testable
     "contextMenuEvent",
-    "sizeHint",
-    "paint",
-    "closeEvent",
-    "resizeEvent",
-    "keyPressEvent",
-    "mousePressEvent",
-    "mouseReleaseEvent",
-    "mouseMoveEvent",
-    "wheelEvent",
-    "showEvent",
-    "hideEvent",
-    "run",             # QRunnable.run() / QThread.run()
-    "do_work",         # ThreadSafeWorker.do_work() — called by base class run()
-    "data",            # QAbstractItemModel.data()
-    "rowCount",        # QAbstractItemModel.rowCount()
-    "columnCount",     # QAbstractItemModel.columnCount()
-    "headerData",      # QAbstractItemModel.headerData()
-    "flags",           # QAbstractItemModel.flags()
-    # Qt delegate overrides
-    "get_theme",       # BaseThumbnailDelegate template method
-    "get_item_data",   # BaseThumbnailDelegate template method
-    # Qt model/view data role methods (template pattern in base classes)
-    "get_display_role_data",
+    # Qt delegate/model template methods — called from base class via super()
+    "get_item_data",
     "get_tooltip_data",
-    "get_custom_role_data",
 ]
 
 # Documented whitelist: methods called through indirection with reasons
@@ -433,15 +419,6 @@ names = [
 "settings_manager" = "Protocol field annotation, accessed via self.window.settings_manager"
 "threede_scene_model" = "Protocol field annotation, accessed via self.window.threede_scene_model"
 
-# Per-file overrides for classes accessed via multi-hop attribute chains
-# (self.window.settings_manager.method(), self.cache_manager.method(), etc.)
-# Skylos can't trace through 2+ levels of attribute indirection.
-# Note: whitelist patterns match against simple_name (bare method name, no class prefix).
-[tool.skylos.overrides."settings_manager.py"]
-whitelist = ["get_*", "set_*", "is_*", "has_*", "import_*", "export_*", "reset_*"]
-
-[tool.skylos.overrides."cache_manager.py"]
-whitelist = ["get_*", "set_*", "has_*", "cache_*", "clear_*", "invalidate_*", "ensure_*", "merge_*", "shutdown"]
 
 [tool.pyrefly]
 project-includes = [
