@@ -56,6 +56,10 @@ uv run pytest tests/ -n auto --dist=loadgroup
 
 # tests: serial (for debugging)
 uv run pytest tests/
+
+# dead code detection (generate trace first, then analyze)
+uv run python scripts/generate_skylos_trace.py
+uv run skylos . --table --exclude-folder tests
 ```
 
 For full testing policy and troubleshooting, see `UNIFIED_TESTING_V2.md`.
