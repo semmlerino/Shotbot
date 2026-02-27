@@ -5,6 +5,8 @@ from __future__ import annotations
 # Standard library imports
 import os
 import re
+import subprocess
+import tempfile
 import threading
 import time
 from functools import lru_cache
@@ -79,11 +81,6 @@ class CacheIsolation:
     Note: This uses the path cache from path_validators module.
     The cache is managed through public functions to avoid accessing private variables.
     """
-
-    def __init__(self) -> None:
-        super().__init__()
-        # We no longer save/restore cache state - we just clear and reset
-        # This is simpler and avoids accessing private variables
 
     def __enter__(self) -> CacheIsolation:
         """Enter context with isolated cache."""
@@ -511,18 +508,11 @@ class FileUtils:
             for ext in Config.THUMBNAIL_FALLBACK_EXTENSIONS:
                 files = FileUtils.find_files_by_extension(directory, ext, limit=1)
                 if files:
-                    # Check file size before returning
                     file_path = files[0]
-                    max_size_mb = getattr(Config, "THUMBNAIL_MAX_DIRECT_SIZE_MB", 10)
-                    if FileUtils.validate_file_size(file_path, max_size_mb):
-                        logger.debug(
-                            f"Using fallback {ext} file as thumbnail: {file_path.name}",
-                        )
-                        return file_path
                     logger.debug(
-                        f"Fallback {ext} file too large for direct loading: {file_path.name}",
+                        f"Using fallback {ext} file as thumbnail: {file_path.name}",
                     )
-                    # Still return it - let cache_manager handle resizing
+                    # Return regardless of size — cache_manager handles resizing
                     return file_path
 
         return None
@@ -563,6 +553,25 @@ class FileUtils:
         except OSError as e:
             logger.warning(f"Error checking file size for {path_obj}: {e}")
             return False
+
+
+def _make_temp_jpeg(prefix: str) -> Path:
+    """Create a named temporary JPEG file and return its path.
+
+    Opens and immediately closes the OS file descriptor so the path can be
+    passed to external tools (FFmpeg, oiiotool) that need to write to it
+    themselves.
+
+    Args:
+        prefix: Filename prefix for the temp file (e.g., "shotbot_thumb_")
+
+    Returns:
+        Path to the newly created (empty) temporary JPEG file
+
+    """
+    temp_fd, temp_path = tempfile.mkstemp(suffix=".jpg", prefix=prefix)
+    os.close(temp_fd)
+    return Path(temp_path)
 
 
 class ImageUtils:
@@ -670,8 +679,6 @@ class ImageUtils:
             Path to the extracted JPEG frame, or None if extraction failed
 
         """
-        import subprocess
-        import tempfile
 
         if not mov_path.exists() or not mov_path.is_file():
             logger.debug(f"MOV file does not exist: {mov_path}")
@@ -679,11 +686,7 @@ class ImageUtils:
 
         # Create output path if not provided
         if output_path is None:
-            # Create temp file with .jpg extension
-            temp_fd, temp_path = tempfile.mkstemp(suffix=".jpg", prefix="shotbot_thumb_")
-            import os
-            os.close(temp_fd)  # Close the file descriptor
-            output_path = Path(temp_path)
+            output_path = _make_temp_jpeg("shotbot_thumb_")
 
         try:
             # Extract frame #5 using FFmpeg (frame numbering is 0-indexed, so frame 4 = 5th frame)
@@ -758,8 +761,6 @@ class ImageUtils:
             Path to the extracted JPEG frame, or None if extraction failed
 
         """
-        import subprocess
-        import tempfile
 
         if not mov_path.exists() or not mov_path.is_file():
             logger.debug(f"MOV file does not exist: {mov_path}")
@@ -767,10 +768,7 @@ class ImageUtils:
 
         # Create output path if not provided
         if output_path is None:
-            temp_fd, temp_path = tempfile.mkstemp(suffix=".jpg", prefix="shotbot_scrub_")
-            import os
-            os.close(temp_fd)
-            output_path = Path(temp_path)
+            output_path = _make_temp_jpeg("shotbot_scrub_")
 
         try:
             # -ss BEFORE -i for fast seeking (critical for performance)
@@ -834,8 +832,6 @@ class ImageUtils:
             Path to the converted JPEG frame, or None if conversion failed
 
         """
-        import subprocess
-        import tempfile
 
         if not exr_path.exists() or not exr_path.is_file():
             logger.debug(f"EXR file does not exist: {exr_path}")
@@ -843,10 +839,7 @@ class ImageUtils:
 
         # Create output path if not provided
         if output_path is None:
-            temp_fd, temp_path = tempfile.mkstemp(suffix=".jpg", prefix="shotbot_scrub_")
-            import os
-            os.close(temp_fd)
-            output_path = Path(temp_path)
+            output_path = _make_temp_jpeg("shotbot_scrub_")
 
         try:
             # oiiotool command:
@@ -896,7 +889,6 @@ class ImageUtils:
             Duration in seconds, or None if unable to determine
 
         """
-        import subprocess
 
         if not mov_path.exists():
             return None

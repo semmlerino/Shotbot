@@ -61,7 +61,7 @@ class OptimizedThreeDESceneFinder:
     @classmethod
     def refresh_cache(cls) -> int:
         """Manually refresh the directory cache."""
-        return cls._dir_cache.refresh_cache()
+        return cls._dir_cache.clear_cache()
 
     @staticmethod
     def find_scenes_for_shot(
@@ -101,14 +101,14 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def quick_3de_exists_check_optimized(
-        base_paths: list[str], timeout_seconds: int = 15
+        base_paths: list[str],
     ) -> bool:
         """Quick check for .3de file existence using refactored scanner."""
         # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
-        return scanner.quick_3de_exists_check(base_paths, timeout_seconds)
+        return scanner.quick_3de_exists_check(base_paths)
 
     @staticmethod
     def verify_scene_exists(scene_path: Path) -> bool:

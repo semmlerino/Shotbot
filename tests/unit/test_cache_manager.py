@@ -499,7 +499,7 @@ class TestCacheManagement:
         # Should not raise exception
         manager.clear_cache()
 
-    def test_get_memory_usage_calculates_correctly(
+    def test_get_disk_usage_calculates_correctly(
         self,
         cache_manager: CacheManager,
         test_image_jpg: Path,
@@ -507,25 +507,25 @@ class TestCacheManagement:
     ) -> None:
         """Test memory usage calculation."""
         # Get initial usage (should be minimal)
-        initial_usage = cache_manager.get_memory_usage()
+        initial_usage = cache_manager.get_disk_usage()
 
         # Add some cached data
         cache_manager.cache_shots(sample_shots)
         cache_manager.cache_thumbnail(test_image_jpg, "show", "seq", "shot")
 
         # Verify usage increased
-        final_usage = cache_manager.get_memory_usage()
+        final_usage = cache_manager.get_disk_usage()
         assert final_usage["total_mb"] > initial_usage["total_mb"]
         assert final_usage["file_count"] > initial_usage["file_count"]
         assert final_usage["total_mb"] > 0
 
-    def test_get_memory_usage_handles_empty_cache(self, tmp_path: Path) -> None:
+    def test_get_disk_usage_handles_empty_cache(self, tmp_path: Path) -> None:
         """Test memory usage with empty cache."""
         cache_dir = tmp_path / "empty_cache"
         cache_dir.mkdir()
 
         manager = CacheManager(cache_dir=cache_dir)
-        usage = manager.get_memory_usage()
+        usage = manager.get_disk_usage()
 
         assert usage["total_mb"] == 0  # Empty cache should report 0 MB
         assert usage["file_count"] == 0
@@ -942,11 +942,11 @@ class TestCacheIntegration:
         test_image_jpg: Path,
     ) -> None:
         """Test memory usage calculation includes all cached data."""
-        initial = cache_manager.get_memory_usage()
+        initial = cache_manager.get_disk_usage()
 
         # Add shots
         cache_manager.cache_shots(sample_shots)
-        after_shots = cache_manager.get_memory_usage()
+        after_shots = cache_manager.get_disk_usage()
         assert after_shots["total_mb"] > initial["total_mb"]
 
         # Add thumbnails
@@ -955,12 +955,12 @@ class TestCacheIntegration:
                 test_image_jpg, "show", f"seq{i}", f"shot{i:03d}"
             )
 
-        after_thumbs = cache_manager.get_memory_usage()
+        after_thumbs = cache_manager.get_disk_usage()
         assert after_thumbs["total_mb"] > after_shots["total_mb"]
 
         # Clear cache
         cache_manager.clear_cache()
-        after_clear = cache_manager.get_memory_usage()
+        after_clear = cache_manager.get_disk_usage()
         assert after_clear["total_mb"] < after_thumbs["total_mb"]
 
 

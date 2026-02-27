@@ -215,15 +215,8 @@ class TestThreadSafety:
             model._thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
             model._loading_states[str(test_scenes[0].scene_path)] = "loaded"
 
-        # Verify timer exists
-        assert hasattr(model, "_thumbnail_timer")
-        assert model._thumbnail_timer is not None
-
         # Call cleanup
         model.cleanup()
-
-        # Timer should be stopped
-        assert not model._thumbnail_timer.isActive()
 
     def test_reset_during_loading(
         self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene], qtbot: QtBot
@@ -253,8 +246,6 @@ class TestThreadSafety:
         # Model should handle gracefully
         assert model.rowCount() == 1
         assert len(model.scenes) == 1
-        # Timer should have been restarted
-        assert model._thumbnail_timer is not None
 
     def test_selection_changes_during_loading(
         self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene], qtbot: QtBot

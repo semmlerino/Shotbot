@@ -3,8 +3,6 @@
 This module handles efficient filesystem scanning operations for finding .3de files
 with various optimization strategies including caching, subprocess fallback, and
 progressive discovery.
-
-Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
 # pyright: reportImportCycles=false
 # Import cycles are broken at runtime through lazy imports in scene_discovery_coordinator.py
@@ -135,18 +133,6 @@ class DirectoryCache(LoggingMixin):
             self.stats["evictions"] += count
             return count
 
-    def refresh_cache(self) -> int:
-        """Manually refresh the cache by clearing all entries.
-
-        This forces fresh filesystem lookups on next access.
-
-        Returns:
-            Number of entries cleared
-
-        """
-        return self.clear_cache()
-
-
 @final
 class FileSystemScanner(LoggingMixin):
     """Efficient filesystem scanner for .3de files with multiple optimization strategies.
@@ -160,6 +146,10 @@ class FileSystemScanner(LoggingMixin):
 
     # Workload size thresholds for strategy selection
     SMALL_WORKLOAD_THRESHOLD = 100  # Use Python-only below this
+
+    # Maximum recursion depth for _quick_scan. Deep enough to reach .3de files
+    # in typical VFX directory structures without traversing the whole tree.
+    _MAX_QUICK_SCAN_DEPTH: int = 10
 
     # Common excluded directories
     EXCLUDED_DIRS: ClassVar[set[str]] = {
@@ -203,16 +193,6 @@ class FileSystemScanner(LoggingMixin):
             Number of entries cleared.
         """
         return cls._dir_cache.clear_cache()
-
-    @classmethod
-    def refresh_cache(cls) -> int:
-        """Manually refresh the directory cache.
-
-        Returns:
-            Number of cache entries cleared
-
-        """
-        return cls._dir_cache.refresh_cache()
 
     def get_directory_listing_cached(self, path: Path) -> list[tuple[str, bool, bool]]:
         """Get directory listing with caching using FilesystemCoordinator.
@@ -370,10 +350,11 @@ class FileSystemScanner(LoggingMixin):
     def find_3de_files_progressive(
         self, user_dir: Path, excluded_users: set[str] | None
     ) -> list[tuple[str, Path]]:
-        """Progressive discovery that starts with Python method and adapts based on findings.
+        """Adaptive discovery that picks a strategy once based on workload size.
 
         This method eliminates the need for workload estimation by using adaptive discovery.
-        It starts with the Python approach and switches strategies if needed.
+        It reads the user count from cache and selects either the Python or subprocess
+        approach for the entire scan — it does not switch mid-scan.
 
         Args:
             user_dir: User directory to search
@@ -411,7 +392,7 @@ class FileSystemScanner(LoggingMixin):
         return files
 
     def quick_3de_exists_check(
-        self, base_paths: list[str], _timeout_seconds: int = 15
+        self, base_paths: list[str]
     ) -> bool:
         """Optimized quick check for .3de file existence."""
         for base_path in base_paths:
@@ -419,33 +400,7 @@ class FileSystemScanner(LoggingMixin):
                 continue
 
             try:
-                base_path_obj = Path(base_path)
-
-                # Use os.scandir for efficient directory traversal
-                def quick_scan(path: Path, depth: int = 0) -> bool:
-                    if depth > 10:  # Reasonable depth limit
-                        return False
-
-                    try:
-                        with os.scandir(path) as entries:
-                            for entry in entries:
-                                if (
-                                    entry.is_file()
-                                    and entry.name.lower().endswith(".3de")
-                                ) or (
-                                    (
-                                        entry.is_dir()
-                                        and entry.name not in self.EXCLUDED_DIRS
-                                    )
-                                    and quick_scan(Path(entry.path), depth + 1)
-                                ):
-                                    return True
-                    except (OSError, PermissionError):
-                        pass
-
-                    return False
-
-                if quick_scan(base_path_obj):
+                if self._quick_scan(Path(base_path)):
                     self.logger.debug(f"Quick check found .3de files in {base_path}")
                     return True
 
@@ -454,6 +409,36 @@ class FileSystemScanner(LoggingMixin):
                 continue
 
         self.logger.debug("Quick check found no .3de files")
+        return False
+
+    def _quick_scan(self, path: Path, depth: int = 0) -> bool:
+        """Recursively scan for any .3de file within path up to _MAX_QUICK_SCAN_DEPTH.
+
+        Args:
+            path: Directory to scan.
+            depth: Current recursion depth (starts at 0).
+
+        Returns:
+            True if at least one .3de file is found, False otherwise.
+
+        """
+        if depth > self._MAX_QUICK_SCAN_DEPTH:
+            return False
+
+        try:
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    if entry.is_file() and entry.name.lower().endswith(".3de"):
+                        return True
+                    if (
+                        entry.is_dir()
+                        and entry.name not in self.EXCLUDED_DIRS
+                        and self._quick_scan(Path(entry.path), depth + 1)
+                    ):
+                        return True
+        except (OSError, PermissionError):
+            pass
+
         return False
 
     def verify_scene_exists(self, scene_path: Path | None) -> bool:
@@ -466,7 +451,7 @@ class FileSystemScanner(LoggingMixin):
             return (
                 scene_path.is_file()
                 and os.access(scene_path, os.R_OK)
-                and scene_path.suffix.lower() in [".3de"]
+                and scene_path.suffix.lower() == ".3de"
             )
         except Exception:
             return False
@@ -894,13 +879,9 @@ class FileSystemScanner(LoggingMixin):
                         shot_dir = dir_path.parent.parent.name
                         sequence = dir_path.parent.parent.parent.name
 
-                        # Extract shot number — must match scene_parser.py logic exactly
-                        if shot_dir.startswith(f"{sequence}_"):
-                            shot = shot_dir[len(sequence) + 1:]
-                        else:
-                            # CRITICAL FIX: Fallback logic (must match scene_parser.py:156-159)
-                            shot_parts = shot_dir.rsplit("_", 1)
-                            shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
+                        # Delegate to SceneParser.extract_shot_name for single source of truth
+                        from scene_parser import SceneParser
+                        shot = SceneParser.extract_shot_name(sequence, shot_dir)
 
                         if shot:
                             shots_with_published_mm.add((sequence, shot))
@@ -926,6 +907,11 @@ class FileSystemScanner(LoggingMixin):
         user_timed_out: bool,
     ) -> list[tuple[Path, str, str, str, str, str]]:
         """Filter user results to only those from shots with published matchmove.
+
+        When no published MM directories are found (either because the show has
+        none yet, or because the publish-search failed), the filter falls back to
+        returning all user files unfiltered. This avoids hiding valid user work
+        in early-stage shows where the publish step hasn't happened yet.
 
         Returns:
             Filtered list, or all user results if no published shots were found.
@@ -961,7 +947,6 @@ class FileSystemScanner(LoggingMixin):
             "=== COMPLETED find_all_3de_files_in_show_targeted (optimized) ==="
         )
         self.logger.info(f"  Found {file_count} .3de files in {elapsed:.2f}s")
-        self.logger.info(f"  Parsed {file_count} valid scenes")
         self.logger.info(f"  Unique shots with 3DE files: {len(unique_shots)}")
 
         if unique_shots:
@@ -988,10 +973,12 @@ class FileSystemScanner(LoggingMixin):
         excluded_users: set[str] | None = None,
         cancel_flag: Callable[[], bool] | None = None,
     ) -> list[tuple[Path, str, str, str, str, str]]:
-        """Find all .3de files using a single efficient search.
+        """Find all .3de files using a dual-search strategy.
 
-        Uses a single find command to locate all .3de files in user and publish
-        directories, avoiding unnecessary iteration through empty shot directories.
+        Uses two find commands: one for user directories to collect 3DE files,
+        and one for publish/mm directories to determine which shots have
+        published matchmove. Results are intersected so only user files from
+        shots with published MM are returned.
 
         Args:
             show_root: Root path for shows (e.g., '/shows')

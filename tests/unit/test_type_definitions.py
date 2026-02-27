@@ -386,7 +386,7 @@ class TestCacheProtocolCompliance:
         assert hasattr(CacheManager, "cache_shots")
         assert hasattr(CacheManager, "get_cached_shots")
         assert hasattr(CacheManager, "clear_cache")
-        assert hasattr(CacheManager, "get_memory_usage")
+        assert hasattr(CacheManager, "get_disk_usage")
 
         # Verify method signatures by getting type hints
         # (This is a structural check - runtime protocol compliance)
@@ -396,7 +396,7 @@ class TestCacheProtocolCompliance:
         assert callable(cache.cache_shots)
         assert callable(cache.get_cached_shots)
         assert callable(cache.clear_cache)
-        assert callable(cache.get_memory_usage)
+        assert callable(cache.get_disk_usage)
 
 
 # ==============================================================================

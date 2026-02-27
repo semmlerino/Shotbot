@@ -128,6 +128,11 @@ from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 logger = get_module_logger(__name__)
 
 
+def _is_mock_mode() -> bool:
+    """Return True if SHOTBOT_MOCK environment variable is set to a truthy value."""
+    return os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes")
+
+
 class SessionWarmer(ThreadSafeWorker):
     """Background thread for pre-warming bash sessions without blocking UI.
 
@@ -178,9 +183,22 @@ class SessionWarmer(ThreadSafeWorker):
             logger.warning(f"Session pre-warming failed (non-critical): {e}")
 
 
+# Tab index constants for the main tab widget
+TAB_MY_SHOTS = 0
+TAB_OTHER_3DE = 1
+TAB_PREVIOUS = 2
+
+
 @final
 class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
-    """Main application window."""
+    """Main application window and primary controller.
+
+    Orchestrates the three-tab interface (My Shots, Other 3DE, Previous Shots),
+    owns the DCC section panel (RightPanelWidget), and delegates user actions to
+    ``command_launcher``. Signal routing follows a controller/delegate pattern:
+    shot-grid signals connect to ``ShotSelectionController``, 3DE signals to
+    ``ThreeDEController``, and launch signals to ``CommandLauncher``.
+    """
 
     def __init__(
         self,
@@ -232,14 +250,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Initialize shot_model attribute (will be set later based on feature flag)
 
         # Create process pool based on mock mode
-        # Check for mock mode from environment variable
-        is_mock_mode = os.environ.get("SHOTBOT_MOCK", "").lower() in (
-            "1",
-            "true",
-            "yes",
-        )
         self._process_pool: ProcessPoolInterface
-        if is_mock_mode:
+        if _is_mock_mode():
             # Local application imports
             from mock_workspace_pool import create_mock_pool_from_filesystem
 
@@ -377,15 +389,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _setup_ui(self) -> None:
         """Set up the main UI."""
-        # Check if we're in mock mode
-        is_mock_mode = os.environ.get("SHOTBOT_MOCK", "").lower() in (
-            "1",
-            "true",
-            "yes",
-        )
-
         # Set window title with mock indicator if applicable
-        if is_mock_mode:
+        if _is_mock_mode():
             self.setWindowTitle(
                 f"{Config.APP_NAME} v{Config.APP_VERSION} - 🧪 MOCK MODE"
             )
@@ -486,7 +491,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.setStatusBar(self.status_bar)
 
         # Add mock mode indicator to status bar if in mock mode
-        if is_mock_mode:
+        if _is_mock_mode():
             mock_label = QLabel("🧪 MOCK MODE ACTIVE")
             mock_label.setStyleSheet("""
                 QLabel {
@@ -648,10 +653,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
         # Handle app launch with scene context (signal emits app_name, scene)
-        def handle_threede_launch(app_name: str, scene: ThreeDEScene) -> None:
-            self._launch_app_with_scene_context(app_name, scene)
-
-        _ = self.threede_shot_grid.app_launch_requested.connect(handle_threede_launch)
+        _ = self.threede_shot_grid.app_launch_requested.connect(
+            self._launch_app_with_scene_context
+        )
 
         # 3DE show filter - handled by controller
         # Controller handles show filter in its own signal setup
@@ -708,7 +712,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # My Shots tab always sorts by name - no user-configurable sort order
 
     def _initial_load(self) -> None:
-        """Initial shot loading - instant from cache or async."""
+        """Initial shot loading — instant from cache or deferred to background.
+
+        Decision table:
+            cached shots + cached scenes  → display both, schedule background refresh
+            cached shots only             → display shots, schedule background refresh
+            cached scenes only            → display scenes, no shot refresh scheduled
+            no cache                      → show "Loading…" status; background refresh
+                                            already in progress from initialize_async()
+        """
         # Pre-warm bash sessions in background to avoid first-command delay
         # Skip in test environment to avoid threading issues
         if not os.environ.get("PYTEST_CURRENT_TEST"):
@@ -740,10 +752,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 )
 
             # Restore last selected shot if available
-            if hasattr(self, "_last_selected_shot_name") and isinstance(
-                self._last_selected_shot_name,
-                str,
-            ):
+            if isinstance(self._last_selected_shot_name, str):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
                     self.shot_grid.select_shot_by_name(shot.full_name)
@@ -891,9 +900,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _on_background_load_finished(self) -> None:
         """Handle background load finished signal from model.
 
-        Clears the loading status (completion handled by shots_loaded/shots_changed).
+        Intentionally empty: completion status is handled by the shots_loaded /
+        shots_changed signals via RefreshOrchestrator.  The signal connection is
+        kept so subclasses can override this hook if needed.
         """
-        # Status update handled by shots_loaded signal via RefreshOrchestrator
+        pass  # noqa: PIE790  # intentional hook for subclass override
 
     def _trigger_previous_shots_refresh(self, shots: list[Shot]) -> None:
         """Trigger previous shots refresh only after shots are loaded.
@@ -940,12 +951,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             index: Index of the newly selected tab
 
         """
-        if index == 0:  # My Shots tab
+        if index == TAB_MY_SHOTS:
             # Get the current selection from My Shots
             selected_shot = self.shot_grid.selected_shot
             self.shot_selection_controller.on_shot_selected(selected_shot)
 
-        elif index == 1:  # Other 3DE scenes tab
+        elif index == TAB_OTHER_3DE:
             # Get the current selection from 3DE scenes
             selected_scene = self.threede_shot_grid.selected_scene
             if selected_scene:
@@ -957,7 +968,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 self.command_launcher.set_current_shot(None)
                 self.right_panel.set_shot(None)
 
-        elif index == 2:  # Previous Shots tab
+        elif index == TAB_PREVIOUS:
             # Get the current selection from Previous Shots
             selected_shot = self.previous_shots_grid.selected_shot
             self.shot_selection_controller.on_shot_selected(selected_shot)
@@ -972,16 +983,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             index: Index of the currently selected tab (0=My Shots, 1=Other 3DE, 2=Previous)
 
         """
-        # Define distinct colors for each tab (main and darker variant)
-        # Note: Colors are defined for future dynamic styling but currently unused
-        tab_colors = {
-            0: ("#2196F3", "#1976D2"),  # Blue - My Shots
-            1: ("#00BCD4", "#00ACC1"),  # Cyan - Other 3DE scenes
-            2: ("#9C27B0", "#7B1FA2"),  # Purple - Previous Shots
-        }
-
-        _ = tab_colors.get(index, ("#2196F3", "#1976D2"))  # Reserved for future styling
-
         # Professional tab design: muted colors, subtle accents, proper proportions
         # Qt supports :first, :middle, :last (NOT :nth-child)
         tab_stylesheet = """

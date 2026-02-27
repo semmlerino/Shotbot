@@ -674,8 +674,15 @@ class DCCSection(QtWidgetMixin, QWidget):
     def set_search_pending(self, pending: bool) -> None:
         """Set whether an async file search is in progress.
 
-        When pending is True, the launch button will show "Scanning..." text
-        and remain disabled until the search completes.
+        When *pending* is ``True``, the launch button shows "Scanning…" text
+        to indicate background work is happening.  When *pending* becomes
+        ``False``, the button is reset to its normal state.
+
+        No-op case: if ``_launch_in_progress`` is ``False`` at the time this
+        method is called, neither branch takes effect.  This is intentional —
+        the button state is only modified mid-launch so that normal idle state
+        is not disrupted by stale search-complete notifications that arrive
+        after the user has already cancelled or never started a launch.
 
         Args:
             pending: True if async search is in progress
@@ -932,6 +939,24 @@ class DCCSection(QtWidgetMixin, QWidget):
                 # Emit signal
                 self.file_selected.emit(file)
 
+    def _select_and_launch_file(self, file: SceneFile) -> None:
+        """Select *file* as current and immediately emit a launch signal.
+
+        Shared implementation used by double-click and context-menu launch paths.
+        Updates selection state, notifies listeners via ``file_selected``, then
+        emits ``launch_requested`` so the parent can launch the DCC app.
+
+        Args:
+            file: SceneFile to select and launch.
+
+        """
+        self._current_selected_file = file
+        if self._file_model is not None:
+            self._file_model.set_current_default(file)
+        self.file_selected.emit(file)
+        options = self.get_options()
+        self.launch_requested.emit(self.config.name, options)
+
     def _on_file_double_clicked(self, index: QModelIndex) -> None:
         """Handle file row double-click - launch immediately.
 
@@ -948,14 +973,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         if file is None:
             return
 
-        # Update selection state (same as single click)
-        self._current_selected_file = file
-        self._file_model.set_current_default(file)
-        self.file_selected.emit(file)
-
-        # Emit launch signal - parent retrieves file via get_selected_file()
-        options = self.get_options()
-        self.launch_requested.emit(self.config.name, options)
+        self._select_and_launch_file(file)
 
     def _show_file_context_menu(self, pos: QPoint) -> None:
         """Show context menu for file table.
@@ -1003,15 +1021,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             file: SceneFile to launch
 
         """
-        # Update selection state
-        self._current_selected_file = file
-        if self._file_model is not None:
-            self._file_model.set_current_default(file)
-        self.file_selected.emit(file)
-
-        # Emit launch signal - parent retrieves file via get_selected_file()
-        options = self.get_options()
-        self.launch_requested.emit(self.config.name, options)
+        self._select_and_launch_file(file)
 
     def _open_file_folder(self, file: SceneFile) -> None:
         """Open the containing folder for a file.
@@ -1349,18 +1359,42 @@ class DCCSection(QtWidgetMixin, QWidget):
 
     # --- Height Persistence Methods ---
 
+    _DEFAULT_PANEL_HEIGHT: int = 120
+
+    def _get_stored_height(self, key: str) -> int:
+        """Read a panel height from settings, falling back to ``_DEFAULT_PANEL_HEIGHT``.
+
+        Args:
+            key: QSettings key path (e.g. ``"ui/table_height/3de"``).
+
+        Returns:
+            Stored integer height, or ``_DEFAULT_PANEL_HEIGHT`` if unset or wrong type.
+
+        """
+        if self._settings_manager is None:
+            return self._DEFAULT_PANEL_HEIGHT
+        value = self._settings_manager.settings.value(key, self._DEFAULT_PANEL_HEIGHT, type=int)
+        return value if isinstance(value, int) else self._DEFAULT_PANEL_HEIGHT
+
+    def _save_height(self, key: str, value: int) -> None:
+        """Persist a panel height to settings.
+
+        Args:
+            key: QSettings key path.
+            value: Height in pixels to store.
+
+        """
+        if self._settings_manager is not None:
+            self._settings_manager.settings.setValue(key, value)
+
     def _get_stored_table_height(self) -> int:
         """Get stored table height from settings.
 
         Returns:
-            Stored height or default of 120.
+            Stored height or default of ``_DEFAULT_PANEL_HEIGHT``.
 
         """
-        if self._settings_manager is None:
-            return 120
-        key = f"ui/table_height/{self.config.name}"
-        value = self._settings_manager.settings.value(key, 120, type=int)
-        return value if isinstance(value, int) else 120
+        return self._get_stored_height(f"ui/table_height/{self.config.name}")
 
     def _on_table_height_changed(self, height: int) -> None:
         """Save new table height to settings.
@@ -1369,9 +1403,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             height: The new height value.
 
         """
-        if self._settings_manager is not None:
-            key = f"ui/table_height/{self.config.name}"
-            self._settings_manager.settings.setValue(key, height)
+        self._save_height(f"ui/table_height/{self.config.name}", height)
 
     def _get_stored_sequence_height(self, title: str) -> int:
         """Get stored sequence list height from settings.
@@ -1380,14 +1412,10 @@ class DCCSection(QtWidgetMixin, QWidget):
             title: The sequence subsection title (e.g., "Maya Playblasts").
 
         Returns:
-            Stored height or default of 120.
+            Stored height or default of ``_DEFAULT_PANEL_HEIGHT``.
 
         """
-        if self._settings_manager is None:
-            return 120
-        key = f"ui/table_height/{self.config.name}/{title}"
-        value = self._settings_manager.settings.value(key, 120, type=int)
-        return value if isinstance(value, int) else 120
+        return self._get_stored_height(f"ui/table_height/{self.config.name}/{title}")
 
     def _on_sequence_height_changed(self, title: str, height: int) -> None:
         """Save new sequence list height to settings.
@@ -1397,6 +1425,4 @@ class DCCSection(QtWidgetMixin, QWidget):
             height: The new height value.
 
         """
-        if self._settings_manager is not None:
-            key = f"ui/table_height/{self.config.name}/{title}"
-            self._settings_manager.settings.setValue(key, height)
+        self._save_height(f"ui/table_height/{self.config.name}/{title}", height)

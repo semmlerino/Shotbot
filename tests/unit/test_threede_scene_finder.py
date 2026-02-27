@@ -336,7 +336,6 @@ class TestPerformance:
         start = time.time()
         result = ThreeDESceneFinder.quick_3de_exists_check_optimized(
             [shot_path],
-            timeout_seconds=1,
         )
         elapsed = time.time() - start
 

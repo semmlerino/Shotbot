@@ -551,15 +551,8 @@ class TestCleanup:
         """Test cleanup properly releases resources."""
         shot_item_model.set_shots(test_shots)
 
-        # Verify timer exists
-        assert hasattr(shot_item_model, "_thumbnail_timer")
-        assert shot_item_model._thumbnail_timer is not None
-
         # Call cleanup
         shot_item_model.cleanup()
-
-        # Timer should be stopped
-        assert not shot_item_model._thumbnail_timer.isActive()
 
         # Caches should be cleared
         assert len(shot_item_model._thumbnail_cache) == 0

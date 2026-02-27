@@ -14,6 +14,7 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
+import gc
 import hashlib
 import logging
 import os
@@ -25,7 +26,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Final, cast, final
+from typing import TYPE_CHECKING, ClassVar, Final, NamedTuple, cast, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -211,9 +212,23 @@ class CancellableSubprocess:
             self._process.kill()
 
 
+class _CacheEntry(NamedTuple):
+    """Single entry in CommandCache._cache."""
+
+    result: str
+    timestamp: float
+    ttl: int
+    command_hash: str  # Original command string for pattern-based invalidation
+
+
 @final
 class CommandCache:
-    """TTL-based cache for command results with LRU eviction."""
+    """TTL-based cache for command results with LRU eviction.
+
+    Warning: CommandCache tracks cache hits/misses independently of
+    ProcessMetrics. Both counters are updated on every cache access, so they
+    may diverge if one is reset or inspected in isolation. See 4.12.
+    """
 
     MAX_CACHE_SIZE: Final[int] = 500  # Maximum entries before LRU eviction
 
@@ -225,10 +240,7 @@ class CommandCache:
 
         """
         super().__init__()
-        self._cache: dict[
-            str,
-            tuple[str, float, int, str],
-        ] = {}  # key -> (result, timestamp, ttl, original_command)
+        self._cache: dict[str, _CacheEntry] = {}
         self._lock = QMutex()  # Use Qt mutex for consistency
         self._default_ttl = default_ttl
         self._hits = 0
@@ -248,11 +260,11 @@ class CommandCache:
 
         with QMutexLocker(self._lock):
             if key in self._cache:
-                result, timestamp, ttl, _ = self._cache[key]
-                if time.time() - timestamp < ttl:
+                entry = self._cache[key]
+                if time.time() - entry.timestamp < entry.ttl:
                     self._hits += 1
                     logger.debug(f"Cache hit for command: {command[:50]}...")
-                    return result
+                    return entry.result
                 del self._cache[key]
 
             self._misses += 1
@@ -273,7 +285,7 @@ class CommandCache:
         key = self._make_key(command)
 
         with QMutexLocker(self._lock):
-            self._cache[key] = (result, time.time(), ttl, command)
+            self._cache[key] = _CacheEntry(result, time.time(), ttl, command)
             self._cleanup_expired()
 
     def invalidate(self, pattern: str | None = None) -> None:
@@ -288,10 +300,9 @@ class CommandCache:
                 self._cache.clear()
                 logger.info("Cleared entire command cache")
             else:
-                # Check the original command (4th element in tuple) for pattern
                 keys_to_remove: list[str] = []
-                for key, value in self._cache.items():
-                    if len(value) >= 4 and pattern in value[3]:
+                for key, entry in self._cache.items():
+                    if pattern in entry.command_hash:
                         keys_to_remove.append(key)
                 for key in keys_to_remove:
                     del self._cache[key]
@@ -337,8 +348,8 @@ class CommandCache:
         # Remove expired entries
         expired = [
             key
-            for key, (_, timestamp, ttl, _) in self._cache.items()
-            if current_time - timestamp >= ttl
+            for key, entry in self._cache.items()
+            if current_time - entry.timestamp >= entry.ttl
         ]
         for key in expired:
             del self._cache[key]
@@ -351,7 +362,7 @@ class CommandCache:
             # Sort by timestamp (oldest first) and evict excess entries
             entries_by_age = sorted(
                 self._cache.items(),
-                key=lambda x: x[1][1],  # Sort by timestamp (index 1 in tuple)
+                key=lambda x: x[1].timestamp,
             )
             excess_count = len(self._cache) - self.MAX_CACHE_SIZE
             for key, _ in entries_by_age[:excess_count]:
@@ -493,7 +504,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             subprocess.TimeoutExpired: If command exceeds timeout
 
         """
-        # CRITICAL BUG FIX #29: Check shutdown flag before executing
+        # Check shutdown flag before executing
         # Without this check, commands submitted after shutdown() cause RuntimeError
         with QMutexLocker(self._mutex):
             if self._shutdown_requested:
@@ -662,9 +673,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             future = self._executor.submit(
                 self._execute_with_session_pool,
                 cmd,
-                cache_ttl,
-                session_type,
-                timeout,  # Pass timeout to subprocess
+                timeout,
             )
             futures[future] = cmd
 
@@ -690,8 +699,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
     def _execute_with_session_pool(
         self,
         command: str,
-        _cache_ttl: int,
-        _session_type: str,
         timeout: float | None = None,
     ) -> str:
         """Execute command using session pool for true parallelism.
@@ -700,8 +707,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Args:
             command: Command to execute
-            cache_ttl: Cache time-to-live
-            session_type: Type of session pool
             timeout: Command timeout in seconds (default: ThreadingConfig.SUBPROCESS_TIMEOUT)
 
         Returns:
@@ -880,7 +885,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         except Exception as e:
             self.logger.error(f"Error during ProcessPoolManager executor shutdown: {e}")
 
-        # Stage 3: Clean up any remaining resources
+        # Stage 2: Clean up any remaining resources
         try:
             # Clear caches (note: _cache is the actual attribute, not _command_cache)
             if hasattr(self, "_cache"):
@@ -894,11 +899,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
         except Exception as e:
             self.logger.warning(f"Error during resource cleanup: {e}")
 
-        # Stage 5: Force garbage collection to clean up circular references
+        # Stage 3: Force garbage collection to clean up circular references
         try:
-            # Standard library imports
-            import gc
-
             _ = gc.collect()
         except Exception as e:
             self.logger.debug(f"Error during garbage collection: {e}")
@@ -965,7 +967,14 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
 @final
 class ProcessMetrics:
-    """Track process optimization metrics."""
+    """Track process optimization metrics.
+
+    Warning: ProcessMetrics tracks cache_hits and cache_misses independently of
+    CommandCache._hits/_misses. Both are updated on every cache access in
+    ProcessPoolManager, so they should agree — but they can diverge if one is
+    reset (e.g., via CommandCache.invalidate()) without resetting the other, or
+    if a subclass overrides only one tracking site. See also CommandCache.
+    """
 
     def __init__(self) -> None:
         """Initialize process metrics tracking."""

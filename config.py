@@ -228,6 +228,8 @@ class Config:
 
     # VFX pipeline settings
     DEFAULT_USERNAME: str = "gabriel-h"  # Default username for pipeline paths
+    # Production scripts directory — used for PYTHON_CUSTOM_SCRIPTS_3DE4 and NUKE_PATH exports
+    SCRIPTS_DIR: str = "/nethome/gabriel-h/Python/Shotbot/scripts"
 
     # File extensions
     # Thumbnail discovery strategy

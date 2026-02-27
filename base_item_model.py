@@ -138,6 +138,8 @@ class BaseItemRole(IntEnum):
     ObjectRole = Qt.ItemDataRole.UserRole + 1
     ShowRole = Qt.ItemDataRole.UserRole + 2
     SequenceRole = Qt.ItemDataRole.UserRole + 3
+    # UserRole + 4 is intentionally skipped — reserved to avoid collisions with
+    # subclass roles that may have historically used this slot.
     FullNameRole = Qt.ItemDataRole.UserRole + 5
     WorkspacePathRole = Qt.ItemDataRole.UserRole + 6
     ThumbnailPathRole = Qt.ItemDataRole.UserRole + 7
@@ -225,11 +227,6 @@ class BaseItemModel(
         # Selection tracking
         self._selected_index: QPersistentModelIndex = QPersistentModelIndex()
         self._selected_item: T | None = None
-
-        # Lazy loading timer for thumbnails
-        self._thumbnail_timer: QTimer = QTimer(self)  # Parent ensures automatic cleanup
-        _ = self._thumbnail_timer.timeout.connect(self._load_visible_thumbnails)
-        self._thumbnail_timer.setInterval(100)  # 100ms delay
 
         # Track visible range for lazy loading
         self._visible_start: int = 0
@@ -484,14 +481,6 @@ class BaseItemModel(
             )
             self._load_thumbnail_async(row, item)
 
-        # Stop timer if no more loading needed
-        with QMutexLocker(self._cache_mutex):
-            all_loaded = all(
-                self._items[i].full_name in self._thumbnail_cache
-                for i in range(start, end)
-            )
-        if all_loaded:
-            self._thumbnail_timer.stop()
 
     def _load_thumbnail_async(self, row: int, item: T) -> None:
         """Start async thumbnail loading for an item using QThreadPool.
@@ -512,90 +501,48 @@ class BaseItemModel(
 
         thumbnail_path = item.get_thumbnail_path()
         if thumbnail_path and thumbnail_path.exists():
-            # Use cache manager for proper thumbnail handling
-            if self._cache_manager:
-                # Check if already loading (prevent duplicate loads)
-                with QMutexLocker(self._pending_loads_mutex):
-                    if item.full_name in self._pending_loads:
-                        return
-                    self._pending_loads.add(item.full_name)
+            # Check if already loading (prevent duplicate loads)
+            with QMutexLocker(self._pending_loads_mutex):
+                if item.full_name in self._pending_loads:
+                    return
+                self._pending_loads.add(item.full_name)
 
-                # Create runnable for background processing
-                runnable = ThumbnailLoaderRunnable(
-                    item.full_name,
-                    thumbnail_path,
-                    item.show,
-                    item.sequence,
-                    item.shot,
-                    self._cache_manager,
-                )
+            # Create runnable for background processing
+            runnable = ThumbnailLoaderRunnable(
+                item.full_name,
+                thumbnail_path,
+                item.show,
+                item.sequence,
+                item.shot,
+                self._cache_manager,
+            )
 
-                # Store runnable reference to prevent deletion before callback
-                # (Required because setAutoDelete(False) - we manage lifetime)
-                with QMutexLocker(self._pending_loads_mutex):
-                    self._active_runnables[item.full_name] = runnable
+            # Store runnable reference to prevent deletion before callback
+            # (Required because setAutoDelete(False) - we manage lifetime)
+            with QMutexLocker(self._pending_loads_mutex):
+                self._active_runnables[item.full_name] = runnable
 
-                # Connect signals with QueuedConnection for thread safety
-                # Use typed closures to capture row value at connection time
-                def on_finished(
-                    name: str, path: Path, captured_row: int = row
-                ) -> None:
-                    self._on_thumbnail_loaded(name, path, captured_row)
+            # Connect signals with QueuedConnection for thread safety
+            # Use typed closures to capture row value at connection time
+            def on_finished(
+                name: str, path: Path, captured_row: int = row
+            ) -> None:
+                self._on_thumbnail_loaded(name, path, captured_row)
 
-                def on_failed(name: str, captured_row: int = row) -> None:
-                    self._on_thumbnail_failed(name, captured_row)
+            def on_failed(name: str, captured_row: int = row) -> None:
+                self._on_thumbnail_failed(name, captured_row)
 
-                _ = runnable.signals.finished.connect(
-                    on_finished,
-                    Qt.ConnectionType.QueuedConnection,
-                )
-                _ = runnable.signals.failed.connect(
-                    on_failed,
-                    Qt.ConnectionType.QueuedConnection,
-                )
+            _ = runnable.signals.finished.connect(
+                on_finished,
+                Qt.ConnectionType.QueuedConnection,
+            )
+            _ = runnable.signals.failed.connect(
+                on_failed,
+                Qt.ConnectionType.QueuedConnection,
+            )
 
-                # Submit to thread pool (non-blocking)
-                self._thumbnail_pool.start(runnable)
-            else:
-                # Fallback without cache manager - only load lightweight formats
-                suffix_lower = thumbnail_path.suffix.lower()
-                if suffix_lower in Config.THUMBNAIL_EXTENSIONS:
-                    # Use QImage for thread-safe loading
-                    image = QImage(str(thumbnail_path))
-                    if not image.isNull():
-                        # Scale to thumbnail size
-                        scaled_image = image.scaled(
-                            Config.DEFAULT_THUMBNAIL_SIZE,
-                            Config.DEFAULT_THUMBNAIL_SIZE,
-                            Qt.AspectRatioMode.KeepAspectRatio,
-                            Qt.TransformationMode.SmoothTransformation,
-                        )
-                        # Store QImage directly (thread-safe)
-                        with QMutexLocker(self._cache_mutex):
-                            self._thumbnail_cache[item.full_name] = scaled_image
-                            self._loading_states[item.full_name] = "loaded"
-
-                        # Schedule batched view update
-                        self._schedule_data_changed(
-                            row,
-                            [
-                                BaseItemRole.ThumbnailPixmapRole,
-                                BaseItemRole.LoadingStateRole,
-                                Qt.ItemDataRole.DecorationRole,
-                            ],
-                        )
-                        self.thumbnail_loaded.emit(row)
-                    else:
-                        with QMutexLocker(self._cache_mutex):
-                            self._loading_states[item.full_name] = "failed"
-                        self._schedule_data_changed(row, [BaseItemRole.LoadingStateRole])
-                else:
-                    self.logger.debug(
-                        f"Cannot load {suffix_lower} file without cache manager: {thumbnail_path}"
-                    )
-                    with QMutexLocker(self._cache_mutex):
-                        self._loading_states[item.full_name] = "failed"
-                    self._schedule_data_changed(row, [BaseItemRole.LoadingStateRole])
+            # Submit to thread pool (non-blocking)
+            self._thumbnail_pool.start(runnable)
         else:
             with QMutexLocker(self._cache_mutex):
                 self._loading_states[item.full_name] = "failed"
@@ -636,8 +583,7 @@ class BaseItemModel(
                 return
 
         # Load pixmap from cached file and update view (main thread - safe)
-        index = self.index(row, 0)
-        self._load_cached_pixmap(cached_path, row, item, index)
+        self._load_cached_pixmap(cached_path, row, item)
 
     def _on_thumbnail_failed(self, full_name: str, row: int) -> None:
         """Handle failed thumbnail load from background thread.
@@ -664,7 +610,7 @@ class BaseItemModel(
             self._schedule_data_changed(row, [BaseItemRole.LoadingStateRole])
 
     def _load_cached_pixmap(
-        self, cached_path: Path, row: int, item: T, _index: QModelIndex
+        self, cached_path: Path, row: int, item: T
     ) -> None:
         """Load pixmap from cached path (main thread only)."""
         # Load the cached JPEG as QPixmap
@@ -818,11 +764,13 @@ class BaseItemModel(
         return None
 
     def get_selected_item(self) -> T | None:
-        """Get currently selected item (thread-safe).
+        """Get currently selected item.
 
-        Note: Selection changes only occur on main thread (user clicks),
-        but this getter may be called from background threads for analytics,
-        logging, or future features.
+        Note: This getter acquires _cache_mutex for the read, but writes to
+        _selected_item (via setData) happen on the main thread without a lock.
+        The mutex here protects against torn reads from background threads, but
+        does not provide full write-side protection — callers must not rely on
+        this as a fully thread-safe operation.
 
         Returns:
             Selected item or None
@@ -843,10 +791,6 @@ class BaseItemModel(
 
     def clear_thumbnail_cache(self) -> None:
         """Clear the thumbnail cache to free memory."""
-        # Stop thumbnail loading timer to prevent reloading
-        if self._thumbnail_timer.isActive():
-            self._thumbnail_timer.stop()
-
         with QMutexLocker(self._cache_mutex):
             self._thumbnail_cache.clear()
             self._pixmap_cache.clear()
@@ -890,9 +834,6 @@ class BaseItemModel(
             )
 
         # CRITICAL: Stop timers FIRST (prevents callback races)
-        if self._thumbnail_timer.isActive():
-            self._thumbnail_timer.stop()
-
         if self._thumbnail_debounce_timer.isActive():
             self._thumbnail_debounce_timer.stop()
 
@@ -970,7 +911,6 @@ class BaseItemModel(
             # Schedule immediate thumbnail load for initial visible items only
             self.logger.debug(f"Scheduling thumbnail load timer for {initial_load_count} items (total: {len(self._items)})")
             QTimer.singleShot(100, self._do_load_visible_thumbnails)
-            self.logger.debug("Timer scheduled successfully")
 
     # ============= Abstract methods for subclasses =============
 

@@ -207,8 +207,6 @@ class InjectableProcessPoolManager(ProcessPoolManager):
     def _execute_with_session_pool(
         self,
         command: str,
-        cache_ttl: int,
-        session_type: str,
         timeout: float | None = None,
     ) -> str:
         """Override to use test session for batch execution."""
@@ -232,7 +230,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 
             return result
         # Use parent implementation
-        return super()._execute_with_session_pool(command, cache_ttl, session_type, timeout)
+        return super()._execute_with_session_pool(command, timeout)
 
     def _get_bash_session(self, session_type: str):
         """Override to return injected test session when available."""

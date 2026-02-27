@@ -64,6 +64,29 @@ class SceneParser(LoggingMixin):
         """Initialize SceneParser."""
         super().__init__()
 
+    @staticmethod
+    def extract_shot_name(sequence: str, shot_dir: str) -> str:
+        """Extract the shot identifier from a shot directory name.
+
+        Shot directories follow the convention ``{sequence}_{shot}``.
+        This method strips the sequence prefix to yield just the shot token.
+        If the directory does not start with the expected prefix, it falls back
+        to splitting on the last underscore.
+
+        Args:
+            sequence: Sequence name (e.g. "SQ010").
+            shot_dir: Shot directory name (e.g. "SQ010_0010").
+
+        Returns:
+            Shot identifier string (e.g. "0010"), or the full ``shot_dir``
+            if no underscore is found.
+
+        """
+        if shot_dir.startswith(f"{sequence}_"):
+            return shot_dir[len(sequence) + 1:]  # +1 for the underscore
+        shot_parts = shot_dir.rsplit("_", 1)
+        return shot_parts[1] if len(shot_parts) == 2 else shot_dir
+
     def extract_plate_from_path(self, file_path: Path, user_path: Path) -> str:
         """Optimized plate extraction with fast path lookup.
 
@@ -151,14 +174,7 @@ class SceneParser(LoggingMixin):
 
             # Extract shot number from directory name to match ws -sg parsing
             # The shot directory format is {sequence}_{shot}
-            if shot_dir.startswith(f"{sequence}_"):
-                # Remove the sequence prefix to get the shot number
-                shot = shot_dir[len(sequence) + 1 :]  # +1 for the underscore
-            else:
-                # Fallback: use the last part after underscore
-                shot_parts = shot_dir.rsplit("_", 1)
-                # No underscore found, use whole name as shot
-                shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
+            shot = SceneParser.extract_shot_name(sequence, shot_dir)
 
             # Validate shot is not empty
             if not shot:

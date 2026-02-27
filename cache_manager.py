@@ -45,6 +45,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -332,7 +333,7 @@ class CacheManager(LoggingMixin, QObject):
         cache_dir_str = str(self.cache_dir)
         if cache_dir_str not in CacheManager._initialized_cache_dirs:
             CacheManager._initialized_cache_dirs.add(cache_dir_str)
-            self.logger.debug(f"SimpleCacheManager initialized: {self.cache_dir}")
+            self.logger.debug(f"CacheManager initialized: {self.cache_dir}")
 
     def _ensure_cache_dirs(self) -> None:
         """Ensure cache directories exist."""
@@ -427,7 +428,6 @@ class CacheManager(LoggingMixin, QObject):
             Tuple of (size, mtime) or None if file doesn't exist or is inaccessible
 
         """
-        import time
 
         path_str = str(path)
         current_time = time.time()
@@ -569,6 +569,9 @@ class CacheManager(LoggingMixin, QObject):
     def _process_standard_thumbnail(self, source: Path, output: Path) -> Path:
         """Process standard image formats to thumbnail.
 
+        Falls back to MOV frame extraction when PIL cannot read the source
+        (e.g., EXR files). Raises ThumbnailError if both paths fail.
+
         Args:
             source: Source image path
             output: Output thumbnail path
@@ -594,47 +597,66 @@ class CacheManager(LoggingMixin, QObject):
 
             # Try MOV fallback if PIL can't read the image (e.g., EXR files)
             self.logger.debug(f"Attempting MOV fallback for {source.name}")
-
-            from file_discovery import FileDiscovery
-            from utils import (
-                ImageUtils,
-            )
-
-            mov_path = FileDiscovery.find_mov_file_for_path(source)
-            if mov_path:
-                self.logger.debug(f"Found MOV file for fallback: {mov_path.name}")
-                extracted_frame = ImageUtils.extract_frame_from_mov(mov_path)
-
-                try:
-                    if extracted_frame and extracted_frame.exists():
-                        self.logger.info(f"Successfully extracted frame from MOV: {mov_path.name}")
-
-                        # Process the extracted JPEG frame
-                        try:
-                            temp_path = output.with_suffix(".tmp")
-                            with Image.open(extracted_frame) as img:
-                                img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
-                                img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
-                            # Atomic rename to final path
-                            _ = temp_path.replace(output)
-                            self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
-                            return output
-                        except Exception as fallback_error:
-                            self.logger.error(f"Failed to process MOV fallback frame: {fallback_error}")
-                    else:
-                        self.logger.debug("MOV frame extraction failed")
-                finally:
-                    # Always clean up extracted frame temp file
-                    if extracted_frame and extracted_frame.exists():
-                        with contextlib.suppress(Exception):
-                            extracted_frame.unlink()
-            else:
-                self.logger.debug(f"No MOV file found for fallback: {source}")
+            fallback_result = self._try_mov_fallback(source, output)
+            if fallback_result is not None:
+                return fallback_result
 
             # If MOV fallback didn't work, raise original error
             self.logger.error(f"PIL thumbnail processing failed and MOV fallback unavailable: {e}")
             msg = f"Failed to process thumbnail: {e}"
             raise ThumbnailError(msg) from e
+
+    def _try_mov_fallback(self, source: Path, output: Path) -> Path | None:
+        """Attempt to create a thumbnail via MOV frame extraction.
+
+        Used as a fallback when PIL cannot read the source image directly
+        (e.g., EXR files). Looks for a sibling MOV file, extracts one frame,
+        then processes that frame into a JPEG thumbnail.
+
+        Args:
+            source: Original source image path (used to locate a sibling MOV)
+            output: Desired thumbnail output path
+
+        Returns:
+            Path to the created thumbnail on success, or None on any failure
+
+        """
+        from file_discovery import FileDiscovery
+        from utils import ImageUtils
+
+        mov_path = FileDiscovery.find_mov_file_for_path(source)
+        if not mov_path:
+            self.logger.debug(f"No MOV file found for fallback: {source}")
+            return None
+
+        self.logger.debug(f"Found MOV file for fallback: {mov_path.name}")
+        extracted_frame = ImageUtils.extract_frame_from_mov(mov_path)
+
+        try:
+            if not (extracted_frame and extracted_frame.exists()):
+                self.logger.debug("MOV frame extraction failed")
+                return None
+
+            self.logger.info(f"Successfully extracted frame from MOV: {mov_path.name}")
+
+            # Process the extracted JPEG frame
+            try:
+                temp_path = output.with_suffix(".tmp")
+                with Image.open(extracted_frame) as img:
+                    img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
+                    img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
+                # Atomic rename to final path
+                _ = temp_path.replace(output)
+                self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
+                return output
+            except Exception as fallback_error:
+                self.logger.error(f"Failed to process MOV fallback frame: {fallback_error}")
+                return None
+        finally:
+            # Always clean up extracted frame temp file
+            if extracted_frame and extracted_frame.exists():
+                with contextlib.suppress(Exception):
+                    extracted_frame.unlink()
 
     def cache_thumbnail_direct(
         self,
@@ -704,7 +726,10 @@ class CacheManager(LoggingMixin, QObject):
     # ========================================================================
 
     def get_cached_shots(self) -> list[ShotDict] | None:
-        """Get cached shot list if valid.
+        """Get cached shot list if valid (subject to TTL expiry).
+
+        Returns None when the cache file is absent or older than the configured
+        TTL (default 30 minutes). Use get_persistent_shots() to bypass expiry.
 
         Returns:
             List of shot dictionaries or None if not cached/expired
@@ -749,8 +774,9 @@ class CacheManager(LoggingMixin, QObject):
     def get_persistent_shots(self) -> list[ShotDict] | None:
         """Get My Shots cache without TTL expiration.
 
-        Similar to get_persistent_previous_shots() but for active shots.
-        Enables incremental caching by preserving shot history.
+        Unlike get_cached_shots(), this method ignores TTL and returns whatever
+        is on disk, surviving until explicitly invalidated. Enables incremental
+        caching by preserving shot history across refresh cycles.
 
         Returns:
             List of shot dictionaries or None if not cached
@@ -839,7 +865,11 @@ class CacheManager(LoggingMixin, QObject):
         return write_success
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
-        """Get cached previous/approved shot list if valid.
+        """Get cached previous/approved shot list if valid (subject to TTL expiry).
+
+        Returns None when the cache file is absent or older than the configured
+        TTL. Use get_persistent_previous_shots() to bypass TTL and retrieve
+        whatever is on disk regardless of age.
 
         Returns:
             List of shot dictionaries or None if not cached/expired
@@ -851,9 +881,9 @@ class CacheManager(LoggingMixin, QObject):
     def get_persistent_previous_shots(self) -> list[ShotDict] | None:
         """Get cached previous/approved shot list without TTL expiration.
 
-        This method returns the cached previous shots regardless of age,
-        implementing persistent incremental caching where shots accumulate
-        over time without expiration.
+        Unlike get_cached_previous_shots(), this method ignores TTL and returns
+        whatever is on disk, surviving until explicitly invalidated. Implements
+        persistent incremental caching where shots accumulate over time.
 
         Returns:
             List of shot dictionaries or None if not cached
@@ -880,8 +910,9 @@ class CacheManager(LoggingMixin, QObject):
     ) -> tuple[list[_D], list[_D], dict[tuple[str, str, str], _D], set[tuple[str, str, str]]]:
         """Build lookup structures shared by merge_shots_incremental and merge_scenes_incremental.
 
-        Acquires the caller's lock externally is NOT done here — callers should
-        pass already-copied sequences. This helper operates purely on local data.
+        Lock acquisition is NOT done here — callers are responsible for holding
+        the lock and passing already-copied sequences. This helper operates
+        purely on local data.
 
         Args:
             cached: Previously cached items (objects or dicts), or None
@@ -1298,6 +1329,11 @@ class CacheManager(LoggingMixin, QObject):
     def cache_data(self, key: str, data: object) -> None:
         """Cache generic data with a key.
 
+        Special case: the ``"previous_shots"`` key is routed through
+        cache_previous_shots(), which persists the data to
+        ``previous_shots.json`` on disk and does not apply a TTL.
+        All other keys are written to ``<key>.json`` in the cache directory.
+
         Args:
             key: Cache key identifier
             data: Data to cache
@@ -1318,6 +1354,11 @@ class CacheManager(LoggingMixin, QObject):
     def get_cached_data(self, key: str) -> object | None:
         """Get cached generic data by key.
 
+        Special case: the ``"previous_shots"`` key is routed through
+        get_cached_previous_shots(), which applies TTL checking against the
+        persistent ``previous_shots.json`` file. All other keys read from
+        ``<key>.json`` with the standard TTL check.
+
         Args:
             key: Cache key identifier
 
@@ -1332,6 +1373,10 @@ class CacheManager(LoggingMixin, QObject):
 
     def clear_cached_data(self, key: str) -> None:
         """Clear cached generic data by key.
+
+        Special case: the ``"previous_shots"`` key deletes the persistent
+        ``previous_shots.json`` file directly. All other keys delete
+        ``<key>.json`` from the cache directory.
 
         Args:
             key: Cache key identifier
@@ -1385,8 +1430,11 @@ class CacheManager(LoggingMixin, QObject):
             except Exception as e:
                 self.logger.error(f"Failed to clear cache: {e}")
 
-    def get_memory_usage(self) -> dict[str, float | int | str]:
-        """Get cache memory usage statistics.
+    def get_disk_usage(self) -> dict[str, float | int | str]:
+        """Get cache disk usage statistics.
+
+        Scans the thumbnail directory and JSON cache files to report total
+        bytes consumed on disk. Does not measure RAM or process memory.
 
         Returns:
             Dictionary with cache size information
@@ -1423,7 +1471,7 @@ class CacheManager(LoggingMixin, QObject):
             }
 
         except Exception as e:
-            self.logger.error(f"Failed to get memory usage: {e}")
+            self.logger.error(f"Failed to get disk usage: {e}")
             return {"total_mb": 0.0, "file_count": 0, "thumbnail_count": 0}
 
     # ========================================================================
@@ -1481,7 +1529,7 @@ class CacheManager(LoggingMixin, QObject):
                     return None
 
             # Read JSON - returns JSONValue which we validate at runtime
-            with Path(cache_file).open(encoding="utf-8") as f:
+            with cache_file.open(encoding="utf-8") as f:
                 raw_data: JSONValue = cast("JSONValue", json.load(f))
 
             # Validate structure through runtime checks and type narrowing

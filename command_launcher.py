@@ -36,10 +36,6 @@ if TYPE_CHECKING:
     # Local application imports
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
-else:
-    # Import at runtime to avoid circular imports
-    # Local application imports
-    pass
 
 
 @dataclass(frozen=True)
@@ -65,6 +61,17 @@ class LaunchContext:
     create_new_file: bool = False
     selected_plate: str | None = None
     sequence_path: str | None = None  # Image sequence path for RV
+
+
+# Number of consecutive verification timeouts before resetting terminal cache.
+# A single timeout is normal (VFX apps boot slowly); repeated failures indicate
+# a broken terminal/environment.
+_TIMEOUT_THRESHOLD_FOR_CACHE_RESET: int = 3
+
+# Named sentinels for _build_app_command return values.
+# Using named constants avoids magic (None, bool) tuples at each return site.
+ASYNC_IN_PROGRESS: tuple[None, bool] = (None, True)
+LAUNCH_ERROR: tuple[None, bool] = (None, False)
 
 
 @final
@@ -178,6 +185,10 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         self._pending_app_name: str | None = None
         self._pending_context: LaunchContext | None = None
         self._pending_command: str | None = None
+
+        # Counter for consecutive verification timeouts; reset on success.
+        # See _on_app_verification_timeout and _TIMEOUT_THRESHOLD_FOR_CACHE_RESET.
+        self._consecutive_timeout_count: int = 0
 
         # Initialize launch components
         self.env_manager = EnvironmentManager()
@@ -310,6 +321,52 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             f"{base_command} -file {file_path} -c {shlex.quote(mel_bootstrap)}"
         )
 
+    def _append_scene_to_command(
+        self, app_name: str, command: str, scene_path: Path
+    ) -> str | None:
+        """Append a scene file to a launch command, returning the updated command.
+
+        Validates the scene path and builds the app-specific command fragment.
+        Emits an error signal and returns None if the path is invalid.
+
+        Args:
+            app_name: Application name ("3de" or "maya").
+            command: Base command string to append to.
+            scene_path: Validated scene file path to append.
+
+        Returns:
+            Updated command string, or None if path validation failed.
+
+        """
+        try:
+            safe_scene_path = CommandBuilder.validate_path(str(scene_path))
+        except ValueError as e:
+            self._emit_error(
+                f"Cannot launch {app_name.upper()}: Invalid scene path '{scene_path}': {e!s}"
+            )
+            return None
+
+        if app_name == "3de":
+            updated = f"{command} -open {safe_scene_path}"
+            self.command_executed.emit(
+                self.timestamp,
+                f"Opening latest 3DE scene: {scene_path.name}",
+            )
+            return updated
+
+        if app_name == "maya":
+            updated = self._build_maya_context_command(command, safe_scene_path)
+            updated = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {updated}"
+            self.command_executed.emit(
+                self.timestamp,
+                f"Opening latest Maya scene: {scene_path.name}",
+            )
+            return updated
+
+        # Unsupported app — caller should not reach this path
+        self.logger.warning(f"_append_scene_to_command called for unsupported app: {app_name}")
+        return command
+
     def cleanup(self) -> None:
         """Disconnect signals and cleanup resources.
 
@@ -388,9 +445,6 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         """
         self._emit_error(f"[{operation}] {error_message}")
 
-    # Counter for consecutive verification timeouts (used to avoid cache reset on first timeout)
-    _consecutive_timeout_count: int = 0
-    _TIMEOUT_THRESHOLD_FOR_CACHE_RESET: int = 3
     # Maximum command length (bytes) - gnome-terminal buffer is ~8KB, be conservative
     # Linux ARG_MAX is ~131KB but terminal emulators have smaller buffers
     MAX_COMMAND_LENGTH: int = 8000
@@ -408,7 +462,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         """
         self._consecutive_timeout_count += 1
 
-        if self._consecutive_timeout_count >= self._TIMEOUT_THRESHOLD_FOR_CACHE_RESET:
+        if self._consecutive_timeout_count >= _TIMEOUT_THRESHOLD_FOR_CACHE_RESET:
             # Multiple consecutive timeouts suggest terminal detection issue
             self.env_manager.reset_cache()
             self._consecutive_timeout_count = 0
@@ -490,7 +544,23 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         self.logger.debug(f"Started async file search for {app_name}")
 
     def _on_async_search_complete(self, success: bool) -> None:
-        """Handle async file search completion.
+        """Handle async file search completion (Qt slot, QueuedConnection).
+
+        This is the second half of the async launch lifecycle initiated by
+        _start_async_file_search. It is connected to
+        LatestFileFinderWorker.search_complete and called on the main thread
+        via QueuedConnection after the worker thread finishes.
+
+        Pending state when this fires:
+          - self._pending_worker   — the worker that just completed
+          - self._pending_app_name — "3de" or "maya"
+          - self._pending_context  — original LaunchContext
+          - self._pending_command  — base command built before async started
+
+        Cleanup: this method always clears the pending worker and emits
+        launch_ready to hide the UI spinner regardless of success. On
+        success it delegates to _continue_launch_after_search; on failure
+        it clears all pending state and returns without launching.
 
         Args:
             success: Whether the search completed successfully
@@ -534,11 +604,21 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         maya_result: Path | None,
         threede_result: Path | None,
     ) -> None:
-        """Continue launch flow after async file search completes.
+        """Finish the launch sequence after an async file search succeeds.
+
+        Called from _on_async_search_complete only when success=True. By the
+        time this runs, the pending worker has already been cleaned up and the
+        UI spinner hidden.
+
+        This method consumes and clears the remaining pending state
+        (app_name, context, command), then calls _append_scene_to_command to
+        build the final command and _finish_launch to execute it. If any
+        pending state is missing (shouldn't happen in normal flow), it logs an
+        error and returns without launching.
 
         Args:
-            maya_result: Found Maya scene path (or None)
-            threede_result: Found 3DE scene path (or None)
+            maya_result: Latest Maya scene found by the worker, or None.
+            threede_result: Latest 3DE scene found by the worker, or None.
 
         """
         app_name = self._pending_app_name
@@ -556,18 +636,10 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
         # Add scene path to command based on results
         if app_name == "3de" and threede_result:
-            try:
-                safe_scene_path = CommandBuilder.validate_path(str(threede_result))
-                command = f"{command} -open {safe_scene_path}"
-                self.command_executed.emit(
-                    self.timestamp,
-                    f"Opening latest 3DE scene: {threede_result.name}",
-                )
-            except ValueError as e:
-                self._emit_error(
-                    f"Cannot launch 3DE: Invalid scene path '{threede_result}': {e!s}"
-                )
+            updated = self._append_scene_to_command(app_name, command, threede_result)
+            if updated is None:
                 return
+            command = updated
         elif app_name == "3de" and context.open_latest_threede:
             self.command_executed.emit(
                 self.timestamp,
@@ -575,20 +647,10 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             )
 
         if app_name == "maya" and maya_result:
-            try:
-                safe_scene_path = CommandBuilder.validate_path(str(maya_result))
-                # Apply bootstrap script and SGTK context
-                command = self._build_maya_context_command(command, safe_scene_path)
-                command = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {command}"
-                self.command_executed.emit(
-                    self.timestamp,
-                    f"Opening latest Maya scene: {maya_result.name}",
-                )
-            except ValueError as e:
-                self._emit_error(
-                    f"Cannot launch Maya: Invalid scene path '{maya_result}': {e!s}"
-                )
+            updated = self._append_scene_to_command(app_name, command, maya_result)
+            if updated is None:
                 return
+            command = updated
         elif app_name == "maya" and context.open_latest_maya:
             self.command_executed.emit(
                 self.timestamp,
@@ -833,7 +895,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                 self.command_executed.emit(timestamp, msg)
             if not command:
                 self._emit_error("Nuke launch aborted - see log messages above")
-                return None, False
+                return LAUNCH_ERROR
 
         # Handle 3DE/Maya with latest scene file (async-aware)
         needs_file_search = (
@@ -871,20 +933,10 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             if cache_hit:
                 # Use cached result - add scene path to command
                 if app_name == "3de" and threede_cached:
-                    try:
-                        safe_scene_path = CommandBuilder.validate_path(
-                            str(threede_cached)
-                        )
-                        command = f"{command} -open {safe_scene_path}"
-                        self.command_executed.emit(
-                            self.timestamp,
-                            f"Opening latest 3DE scene: {threede_cached.name}",
-                        )
-                    except ValueError as e:
-                        self._emit_error(
-                            f"Cannot launch 3DE: Invalid scene path '{threede_cached}': {e!s}"
-                        )
-                        return None, False
+                    updated = self._append_scene_to_command(app_name, command, threede_cached)
+                    if updated is None:
+                        return LAUNCH_ERROR
+                    command = updated
                 elif app_name == "3de" and context.open_latest_threede:
                     self.command_executed.emit(
                         self.timestamp,
@@ -892,22 +944,10 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                     )
 
                 if app_name == "maya" and maya_cached:
-                    try:
-                        safe_scene_path = CommandBuilder.validate_path(
-                            str(maya_cached)
-                        )
-                        # Apply bootstrap script and SGTK context
-                        command = self._build_maya_context_command(command, safe_scene_path)
-                        command = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {command}"
-                        self.command_executed.emit(
-                            self.timestamp,
-                            f"Opening latest Maya scene: {maya_cached.name}",
-                        )
-                    except ValueError as e:
-                        self._emit_error(
-                            f"Cannot launch Maya: Invalid scene path '{maya_cached}': {e!s}"
-                        )
-                        return None, False
+                    updated = self._append_scene_to_command(app_name, command, maya_cached)
+                    if updated is None:
+                        return LAUNCH_ERROR
+                    command = updated
                 elif app_name == "maya" and context.open_latest_maya:
                     self.command_executed.emit(
                         self.timestamp,
@@ -917,7 +957,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                 # Cache miss - start async search and return
                 # Launch will continue when search completes
                 self._start_async_file_search(app_name, context, command)
-                return None, True  # Async launch in progress
+                return ASYNC_IN_PROGRESS
 
         # Handle RV with default settings and optional sequence path
         if app_name == "rv":
@@ -937,7 +977,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                     self._emit_error(
                         f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"
                     )
-                    return None, False
+                    return LAUNCH_ERROR
 
         return command, False
 
@@ -1059,9 +1099,8 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                 # 3DE: Set PYTHON_CUSTOM_SCRIPTS_3DE4 to include our startup script
                 # The 3de_sgtk_context_callback.py registers a project open callback
                 # that updates SGTK context with Task/Step, triggering full app loading
-                scripts_dir = "/nethome/gabriel-h/Python/Shotbot/scripts"
                 tde_scripts_export = (
-                    f"export PYTHON_CUSTOM_SCRIPTS_3DE4={scripts_dir}:"
+                    f"export PYTHON_CUSTOM_SCRIPTS_3DE4={Config.SCRIPTS_DIR}:"
                     "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
                 )
                 command = f"{tde_scripts_export}{command} -open {safe_file_path}"
@@ -1076,8 +1115,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
                 # Nuke: Set NUKE_PATH to include our scripts dir for init.py
                 # The init.py registers an onScriptLoad callback that updates context
                 # SGTK_FILE_TO_OPEN is already set, init.py will check for it
-                scripts_dir = "/nethome/gabriel-h/Python/Shotbot/scripts"
-                nuke_path_export = f"export NUKE_PATH={scripts_dir}:$NUKE_PATH && "
+                nuke_path_export = f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
                 command = f"{nuke_path_export}{command} {safe_file_path}"
             else:
                 # Other apps: just pass file path
