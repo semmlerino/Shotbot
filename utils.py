@@ -364,13 +364,10 @@ class VersionUtils:
 
         # Convert pattern to regex, replacing * with appropriate patterns
         # Handle patterns like "shot_*_v*.nk" -> "shot_.*_v(\d{3})\.nk"
-        # Standard library imports
-        import re
-
         regex_pattern = pattern.replace(".", r"\.")  # Escape dots
-        regex_pattern = regex_pattern.replace("*", ".*")  # Replace wildcards
-        # Replace v* with v(\d{3}) to capture version numbers
-        regex_pattern = re.sub(r"v\.\*", r"v(\\d{3})", regex_pattern)
+        # Replace v* with version capture BEFORE generic wildcard replacement
+        regex_pattern = regex_pattern.replace("v*", r"v(\d{3})")
+        regex_pattern = regex_pattern.replace("*", ".*")  # Replace remaining wildcards
 
         try:
             version_regex = re.compile(regex_pattern)

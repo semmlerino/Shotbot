@@ -130,7 +130,7 @@ class SceneMergeResult(NamedTuple):
 
     updated_scenes: list[ThreeDESceneDict]  # All scenes (kept + new)
     new_scenes: list[ThreeDESceneDict]  # Just new additions
-    removed_scenes: list[ThreeDESceneDict]  # No longer in fresh data (but retained)
+    stale_scenes: list[ThreeDESceneDict]  # In cache but not in current scan (retained within retention window)
     has_changes: bool  # Any changes detected
     pruned_count: int = 0  # Scenes removed due to age-based pruning
 
@@ -1093,7 +1093,7 @@ class CacheManager(LoggingMixin, QObject):
 
         # Process cached scenes not in fresh (apply age-based pruning)
         removed_keys = set(cached_by_key.keys()) - fresh_keys
-        removed_scenes: list[ThreeDESceneDict] = []
+        stale_scenes: list[ThreeDESceneDict] = []
 
         for key in removed_keys:
             cached_scene = cached_by_key[key]
@@ -1102,19 +1102,19 @@ class CacheManager(LoggingMixin, QObject):
             if scene_last_seen >= cutoff:
                 # Within retention window - keep it
                 updated_by_key[key] = cached_scene
-                removed_scenes.append(cached_scene)  # Track as "not in fresh"
+                stale_scenes.append(cached_scene)  # Track as "not in fresh"
             else:
                 # Too old - prune it
                 pruned_count += 1
 
         # All scenes (kept + updated + new)
         updated_scenes = list(updated_by_key.values())
-        has_changes = bool(new_scenes or removed_scenes or pruned_count > 0)
+        has_changes = bool(new_scenes or stale_scenes or pruned_count > 0)
 
         return SceneMergeResult(
             updated_scenes=updated_scenes,
             new_scenes=new_scenes,
-            removed_scenes=removed_scenes,
+            stale_scenes=stale_scenes,
             has_changes=has_changes,
             pruned_count=pruned_count,
         )

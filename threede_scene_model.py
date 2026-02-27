@@ -266,7 +266,7 @@ class ThreeDESceneModel:
                     # Log merge statistics
                     if merge_result.has_changes:
                         logger.info(
-                            f"3DE scene merge: {len(merge_result.new_scenes)} new, {len(merge_result.removed_scenes)} not found (kept in cache), {len(merge_result.updated_scenes)} total"
+                            f"3DE scene merge: {len(merge_result.new_scenes)} new, {len(merge_result.stale_scenes)} not found (kept in cache), {len(merge_result.updated_scenes)} total"
                         )
 
                     # Convert merged dicts back to ThreeDEScene objects

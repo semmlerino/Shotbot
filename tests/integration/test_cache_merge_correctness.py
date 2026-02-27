@@ -294,7 +294,7 @@ class TestSceneMergeCorrectness:
 
         # Scenes with recent last_seen should be kept
         assert len(result.updated_scenes) == 2
-        assert len(result.removed_scenes) == 2  # Tracked as "not in fresh"
+        assert len(result.stale_scenes) == 2  # Tracked as "not in fresh"
 
     def test_merge_prunes_old_scenes(self, cache_manager: CacheManager) -> None:
         """Merge prunes scenes not seen within max_age_days."""

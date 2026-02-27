@@ -792,10 +792,14 @@ class ProcessPoolManager(LoggingMixin, QObject):
             "cache_hits": int(metrics.get("cache_hits", 0)),
             "cache_misses": int(metrics.get("cache_misses", 0)),
             "cache_hit_rate": float(metrics.get("cache_hit_rate", 0.0)),
-            "cache_hit_count": int(metrics.get("cache_hit_count", 0)),
-            "cache_miss_count": int(metrics.get("cache_miss_count", 0)),
-            "loading_in_progress": bool(metrics.get("loading_in_progress", False)),
-            "session_warmed": bool(metrics.get("session_warmed", False)),
+            # cache_hit_count/cache_miss_count mirror cache_hits/cache_misses at this
+            # level — ProcessPoolManager does not maintain separate session counters.
+            "cache_hit_count": int(metrics.get("cache_hits", 0)),
+            "cache_miss_count": int(metrics.get("cache_misses", 0)),
+            # loading_in_progress and session_warmed are OptimizedShotModel-level
+            # state not tracked by ProcessPoolManager; always False/False here.
+            "loading_in_progress": False,
+            "session_warmed": False,
         }
 
         return result

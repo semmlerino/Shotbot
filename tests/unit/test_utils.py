@@ -550,6 +550,31 @@ class TestVersionUtils:
         # Cache should be cleaned
         assert len(VersionUtils._version_cache) <= 250
 
+    def test_get_next_version_number_with_existing_files(self, tmp_path: Path) -> None:
+        """Test that get_next_version_number correctly reads existing version files."""
+        # Create files matching the pattern
+        (tmp_path / "shot_abc_v001.nk").touch()
+        (tmp_path / "shot_abc_v002.nk").touch()
+
+        result = VersionUtils.get_next_version_number(tmp_path, "shot_*_v*.nk")
+
+        assert result == 3, f"Expected 3 (next after v002) but got {result}"
+
+    def test_get_next_version_number_no_matching_files(self, tmp_path: Path) -> None:
+        """Test that get_next_version_number returns 1 when no files match."""
+        # Directory exists but has no matching files
+        (tmp_path / "unrelated_file.txt").touch()
+
+        result = VersionUtils.get_next_version_number(tmp_path, "shot_*_v*.nk")
+
+        assert result == 1, f"Expected 1 (no existing versions) but got {result}"
+
+    def test_get_next_version_number_nonexistent_directory(self) -> None:
+        """Test that get_next_version_number returns 1 for a non-existent directory."""
+        result = VersionUtils.get_next_version_number("/nonexistent/path", "shot_*_v*.nk")
+
+        assert result == 1, f"Expected 1 (nonexistent dir) but got {result}"
+
 
 class TestValidationUtils:
     """Test ValidationUtils functionality."""
