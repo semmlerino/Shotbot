@@ -330,16 +330,7 @@ class TestCrossTabSynchronization:
             plate="PLATE01",
             scene_path=Path("/test/scene.3de"),
         )
-        if window.threede_controller is not None:
-            window.threede_controller.on_scene_selected(scene)
-        else:
-            shot = Shot(
-                show=scene.show,
-                sequence=scene.sequence,
-                shot=scene.shot,
-                workspace_path=scene.workspace_path,
-            )
-            window.right_panel.set_shot(shot)
+        window.threede_controller.on_scene_selected(scene)
 
         current_shot = window.right_panel._current_shot
         assert current_shot is not None
@@ -882,7 +873,7 @@ class TestUserWorkflows:
 
         all_shots = [shot_1, shot_2]
         main_window.shot_model.shots = all_shots
-        main_window._on_shots_changed(all_shots)
+        main_window.refresh_orchestrator.handle_shots_changed(all_shots)
 
         qtbot.waitUntil(
             lambda: main_window.shot_item_model.rowCount() > 0,

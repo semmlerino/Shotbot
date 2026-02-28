@@ -33,23 +33,12 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QByteArray, QSize
-    from PySide6.QtWidgets import QSlider, QSplitter, QTabWidget
+    from PySide6.QtWidgets import QSplitter, QTabWidget
 
     # Local application imports
     from cache_manager import CacheManager
     from settings_dialog import SettingsDialog
     from settings_manager import SettingsManager
-
-
-class GridWidget(Protocol):
-    """Protocol for grid widgets that have size sliders.
-
-    This protocol defines the minimal interface required from grid view widgets
-    for settings management. All grid views inherit from BaseGridView which
-    provides the size_slider attribute.
-    """
-
-    size_slider: QSlider  # QSlider for thumbnail size control
 
 
 class SettingsTarget(Protocol):
@@ -79,9 +68,10 @@ class SettingsTarget(Protocol):
     cache_manager: CacheManager
     splitter: QSplitter
     tab_widget: QTabWidget
-    shot_grid: GridWidget  # Grid widgets with size_slider attribute
-    threede_shot_grid: GridWidget
-    previous_shots_grid: GridWidget
+
+    # Thumbnail size access methods
+    def set_thumbnail_size(self, size: int) -> None: ...
+    def get_thumbnail_size(self) -> int: ...
 
     # Settings dialog reference
     settings_dialog: SettingsDialog | None
@@ -141,12 +131,7 @@ class SettingsController(LoggingMixin):
 
             # Apply thumbnail size
             thumbnail_size = self.window.settings_manager.get_thumbnail_size()
-            self.window.shot_grid.size_slider.setValue(thumbnail_size)
-            self.window.threede_shot_grid.size_slider.setValue(thumbnail_size)
-            self.window.previous_shots_grid.size_slider.setValue(thumbnail_size)
-
-            # Apply UI preferences
-            self.apply_ui_settings()
+            self.window.set_thumbnail_size(thumbnail_size)
 
             # Apply cache settings
             self.apply_cache_settings()
@@ -198,7 +183,7 @@ class SettingsController(LoggingMixin):
 
             # Save thumbnail size
             self.window.settings_manager.set_thumbnail_size(
-                self.window.shot_grid.size_slider.value()
+                self.window.get_thumbnail_size()
             )
 
             # Sync to disk
@@ -208,12 +193,6 @@ class SettingsController(LoggingMixin):
 
         except Exception as e:
             self.logger.error(f"Error saving settings: {e}")
-
-    def apply_ui_settings(self) -> None:
-        """Apply UI settings from settings manager."""
-        # Dead settings removed: grid_columns, show_tooltips, dark_theme
-        # These were never implemented and just confused users
-        self.logger.debug("UI settings applied")
 
     def apply_cache_settings(self) -> None:
         """Apply cache settings from settings manager."""
@@ -253,14 +232,11 @@ class SettingsController(LoggingMixin):
     def on_settings_applied(self) -> None:
         """Handle settings being applied from preferences dialog."""
         # Reload and apply all settings
-        self.apply_ui_settings()
         self.apply_cache_settings()
 
         # Update thumbnail sizes in grids
         thumbnail_size = self.window.settings_manager.get_thumbnail_size()
-        self.window.shot_grid.size_slider.setValue(thumbnail_size)
-        self.window.threede_shot_grid.size_slider.setValue(thumbnail_size)
-        self.window.previous_shots_grid.size_slider.setValue(thumbnail_size)
+        self.window.set_thumbnail_size(thumbnail_size)
 
         self.logger.info("Settings applied successfully")
 
@@ -280,7 +256,6 @@ class SettingsController(LoggingMixin):
         if file_path:
             if self.window.settings_manager.import_settings(file_path):
                 # Reload settings
-                self.apply_ui_settings()
                 self.apply_cache_settings()
                 _ = QMessageBox.information(
                     parent_widget,

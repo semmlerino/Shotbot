@@ -73,19 +73,19 @@ class ThumbnailSizeManager(LoggingMixin):
     def _setup_signals(self) -> None:
         """Connect size slider signals from all grid views."""
         _ = self.window.shot_grid.size_slider.valueChanged.connect(
-            self._sync_thumbnail_sizes
+            self.sync_thumbnail_sizes
         )
         _ = self.window.threede_shot_grid.size_slider.valueChanged.connect(
-            self._sync_thumbnail_sizes
+            self.sync_thumbnail_sizes
         )
         _ = self.window.previous_shots_grid.size_slider.valueChanged.connect(
-            self._sync_thumbnail_sizes
+            self.sync_thumbnail_sizes
         )
 
         self.logger.debug("ThumbnailSizeManager signals connected")
 
     @Slot(int)
-    def _sync_thumbnail_sizes(self, value: int) -> None:
+    def sync_thumbnail_sizes(self, value: int) -> None:
         """Synchronize thumbnail sizes between all tabs.
 
         Uses signal blocking instead of disconnection to prevent race conditions.
@@ -140,7 +140,7 @@ class ThumbnailSizeManager(LoggingMixin):
 
         new_size = min(current + 20, Config.MAX_THUMBNAIL_SIZE)
 
-        # Setting the slider value triggers _sync_thumbnail_sizes via signal
+        # Setting the slider value triggers sync_thumbnail_sizes via signal
         if tab_index == 0:
             self.window.shot_grid.size_slider.setValue(new_size)
         elif tab_index == 1:
@@ -164,7 +164,7 @@ class ThumbnailSizeManager(LoggingMixin):
 
         new_size = max(current - 20, Config.MIN_THUMBNAIL_SIZE)
 
-        # Setting the slider value triggers _sync_thumbnail_sizes via signal
+        # Setting the slider value triggers sync_thumbnail_sizes via signal
         if tab_index == 0:
             self.window.shot_grid.size_slider.setValue(new_size)
         elif tab_index == 1:

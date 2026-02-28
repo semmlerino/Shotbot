@@ -25,6 +25,7 @@ from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
     Qt,
+    Signal,
     Slot,
 )
 
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     # Local application imports
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
+    from controllers.filter_coordinator import FilterableItemModel
 
     # Local type imports
     from right_panel import RightPanelWidget
@@ -80,9 +82,8 @@ class ThreeDETarget(Protocol):
     def update_status(self, message: str) -> None: ...
     def launch_app(self, app_name: str) -> None: ...
 
-    # State tracking
-    @property
-    def closing(self) -> bool: ...
+    # Signals (Signal is a Qt descriptor; pyright can't resolve its methods)
+    closing_started: Signal  # pyright: ignore[reportAny]
 
 
 class ThreeDEController(LoggingMixin):
@@ -120,6 +121,9 @@ class ThreeDEController(LoggingMixin):
         self._threede_worker: ThreeDESceneWorker | None = None
         self._worker_mutex: QMutex = QMutex()
 
+        # Shutdown state - set to True when closing_started signal is received
+        self._closing: bool = False
+
         # Progress operation tracking for cleanup
         self._current_progress_operation: ProgressOperation | None = None
 
@@ -132,6 +136,9 @@ class ThreeDEController(LoggingMixin):
 
     def _setup_signals(self) -> None:
         """Connect UI signals to controller slots."""
+        # Connect MainWindow lifecycle signal to track shutdown state
+        _ = self.window.closing_started.connect(self._on_closing)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
+
         # Connect 3DE grid view signals for scene interaction
         grid = self.window.threede_shot_grid
 
@@ -153,6 +160,11 @@ class ThreeDEController(LoggingMixin):
 
         self.logger.debug("ThreeDEController signals connected")
 
+    @Slot()  # pyright: ignore[reportAny]
+    def _on_closing(self) -> None:
+        """Handle MainWindow closing_started signal to set local shutdown flag."""
+        self._closing = True
+
     # ============================================================================
     # Public Interface Methods
     # ============================================================================
@@ -168,7 +180,7 @@ class ThreeDEController(LoggingMixin):
         5. Start the background discovery process to update cache
         """
         # First check if we're closing without holding mutex
-        if self.window.closing:
+        if self._closing:
             self.logger.debug("Ignoring refresh request during shutdown")
             return
 
@@ -205,7 +217,7 @@ class ThreeDEController(LoggingMixin):
 
             if scenes:
                 # Update model immediately
-                self.window.threede_scene_model.scenes = scenes
+                self.window.threede_scene_model.set_scenes(scenes)
                 self.update_ui()
                 self.logger.info(
                     f"🚀 Loaded {len(scenes)} cached 3DE scenes immediately (scanning for updates in background)"
@@ -217,7 +229,7 @@ class ThreeDEController(LoggingMixin):
         # Use mutex only for critical section
         with QMutexLocker(self._worker_mutex):
             # Double-check closing state with mutex held
-            if self.window.closing:
+            if self._closing:
                 return
 
             # Check existing worker state
@@ -254,13 +266,13 @@ class ThreeDEController(LoggingMixin):
                     self._threede_worker = None
 
         # Check once more if closing (could have changed while stopping worker)
-        if self.window.closing:
+        if self._closing:
             return
 
         # Now create new worker with mutex protection
         with QMutexLocker(self._worker_mutex):
             # Final check before creating new worker
-            if self.window.closing or self._threede_worker:
+            if self._closing or self._threede_worker:
                 return
 
             # Show loading state
@@ -356,7 +368,7 @@ class ThreeDEController(LoggingMixin):
     def on_discovery_started(self) -> None:
         """Handle 3DE discovery worker started signal."""
         # Check if we're closing to avoid accessing deleted widgets
-        if self.window.closing:
+        if self._closing:
             return
 
         # Start progress for 3DE discovery and store reference for cleanup
@@ -382,7 +394,7 @@ class ThreeDEController(LoggingMixin):
 
         """
         # Check if we're closing to avoid accessing deleted widgets
-        if self.window.closing:
+        if self._closing:
             return
 
         # Update progress operation if active
@@ -402,7 +414,7 @@ class ThreeDEController(LoggingMixin):
         self.log_discovered_scenes(scenes)
 
         # Check if we're closing to avoid accessing deleted widgets
-        if self.window.closing:
+        if self._closing:
             return
 
         # Finish progress operation and hide loading state
@@ -428,7 +440,7 @@ class ThreeDEController(LoggingMixin):
 
         """
         # Check if we're closing to avoid double-finish during shutdown
-        if self.window.closing:
+        if self._closing:
             return
 
         # Finish progress operation with error
@@ -690,7 +702,7 @@ class ThreeDEController(LoggingMixin):
     def update_scenes_with_changes(self, scenes: list[ThreeDEScene]) -> None:
         """Update model and UI when scene changes are detected."""
         # Update the model with new scenes (deduplication happens in model)
-        self.window.threede_scene_model.scenes = (
+        self.window.threede_scene_model.set_scenes(
             self.window.threede_scene_model.deduplicate_scenes_by_shot(scenes)
         )
         self.logger.info(
@@ -760,7 +772,7 @@ class ThreeDEController(LoggingMixin):
         )
 
     def _apply_show_filter(
-        self, item_model: object, model: object, show: str, tab_name: str
+        self, item_model: FilterableItemModel, model: object, show: str, tab_name: str
     ) -> None:
         """Generic show filter handler for all tabs.
 
@@ -775,10 +787,7 @@ class ThreeDEController(LoggingMixin):
         show_filter = show if show else None
 
         # Apply filter to item model
-        # NOTE: item_model uses object type for polymorphism across different item models
-        # All item models (ShotItemModel, ThreeDEItemModel, PreviousShotsItemModel)
-        # implement set_show_filter with their specific model types
-        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        item_model.set_show_filter(model, show_filter)
 
         self.logger.info(
             f"Applied {tab_name} show filter: {show if show else 'All Shows'}"

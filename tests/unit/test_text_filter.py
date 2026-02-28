@@ -103,7 +103,7 @@ class TestThreeDESceneModelTextFiltering:
         self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
     ) -> None:
         """Test filtering 3DE scenes by text."""
-        threede_scene_model.scenes = test_scenes
+        threede_scene_model.set_scenes(test_scenes)
 
         # Filter to "dm"
         threede_scene_model.set_text_filter("dm")
@@ -121,7 +121,7 @@ class TestThreeDESceneModelTextFiltering:
         self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
     ) -> None:
         """Test combining show and text filters for 3DE scenes."""
-        threede_scene_model.scenes = test_scenes
+        threede_scene_model.set_scenes(test_scenes)
 
         # Both filters: show1 AND dm
         threede_scene_model.set_show_filter("show1")

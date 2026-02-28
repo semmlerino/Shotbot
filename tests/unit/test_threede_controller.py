@@ -81,6 +81,9 @@ class ThreeDESceneModelDouble:
     def scenes(self, value: list[ThreeDEScene]) -> None:
         self._scenes = value
 
+    def set_scenes(self, scenes: list[ThreeDEScene]) -> None:
+        self._scenes = scenes
+
     def deduplicate_scenes_by_shot(
         self, scenes: list[ThreeDEScene]
     ) -> list[ThreeDEScene]:
@@ -226,8 +229,8 @@ class ThreeDETargetDouble:
     __test__ = False
 
     def __init__(self) -> None:
-        # Closing state
-        self._closing = False
+        # Lifecycle signal (replaces closing property)
+        self.closing_started = SignalDouble()
 
         # Managers (create first since models may reference them)
         self.cache_manager = CacheManagerDouble()
@@ -248,10 +251,6 @@ class ThreeDETargetDouble:
         # Window state tracking
         self._window_title: str = ""
         self._status_messages: list[str] = []
-
-    @property
-    def closing(self) -> bool:
-        return self._closing
 
     def setWindowTitle(self, title: str) -> None:
         self._window_title = title
@@ -513,7 +512,7 @@ class TestDiscoveryCallbacks:
         reset_progress_manager: None,
     ) -> None:
         """Test that discovery finish is skipped when window is closing."""
-        window_double._closing = True
+        controller._closing = True
         window_double.threede_item_model._loading_state = True
 
         # Progress manager should not be touched when closing
@@ -781,7 +780,7 @@ class TestRefreshGuards:
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
         """Test that refresh is skipped when window is closing."""
-        window_double._closing = True
+        controller._closing = True
 
         # Should return early without creating worker
         with patch.object(controller, "_setup_worker_signals") as mock_setup:

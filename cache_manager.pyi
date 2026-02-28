@@ -27,8 +27,9 @@ class SceneMergeResult(NamedTuple):
 
     updated_scenes: list[ThreeDESceneDict]  # All scenes (kept + new)
     new_scenes: list[ThreeDESceneDict]  # Just new additions
-    removed_scenes: list[ThreeDESceneDict]  # No longer in fresh data
+    stale_scenes: list[ThreeDESceneDict]  # In cache but not in current scan (retained within retention window)
     has_changes: bool  # Any changes detected
+    pruned_count: int = 0
 
 class CacheManager(QObject):
     """Manages caching of shot data and thumbnails with thread safety and memory monitoring."""

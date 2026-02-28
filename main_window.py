@@ -52,7 +52,7 @@ import time
 from typing import TYPE_CHECKING, Any, cast, final
 
 # Third-party imports
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -116,7 +116,7 @@ from scene_file import SceneFile
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
-from shot_model import Shot, ShotModel
+from shot_model import ShotModel
 from thread_safe_worker import ThreadSafeWorker
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
@@ -199,6 +199,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     shot-grid signals connect to ``ShotSelectionController``, 3DE signals to
     ``ThreeDEController``, and launch signals to ``CommandLauncher``.
     """
+
+    # Lifecycle signal: emitted when the window begins closing, before widgets
+    # are torn down.  Controllers listen to this instead of polling a flag.
+    closing_started: Signal = Signal()
 
     def __init__(
         self,
@@ -631,11 +635,25 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _connect_signals(self) -> None:
         """Connect signals."""
-        # Connect to shot model signals for reactive updates
-        _ = self.shot_model.shots_loaded.connect(self._on_shots_loaded)
-        _ = self.shot_model.shots_changed.connect(self._on_shots_changed)
-        _ = self.shot_model.refresh_started.connect(self._on_refresh_started)
-        _ = self.shot_model.refresh_finished.connect(self._on_refresh_finished)
+        # Connect shot model signals directly to RefreshOrchestrator (no proxy)
+        _ = self.shot_model.shots_loaded.connect(
+            self.refresh_orchestrator.handle_shots_loaded
+        )
+        _ = self.shot_model.shots_loaded.connect(
+            self.refresh_orchestrator.trigger_previous_shots_refresh
+        )
+        _ = self.shot_model.shots_changed.connect(
+            self.refresh_orchestrator.handle_shots_changed
+        )
+        _ = self.shot_model.shots_changed.connect(
+            self.refresh_orchestrator.trigger_previous_shots_refresh
+        )
+        _ = self.shot_model.refresh_started.connect(
+            self.refresh_orchestrator.handle_refresh_started
+        )
+        _ = self.shot_model.refresh_finished.connect(
+            self.refresh_orchestrator.handle_refresh_finished
+        )
         _ = self.shot_model.error_occurred.connect(self._on_shot_error)
         # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
         _ = self.shot_model.cache_updated.connect(self._on_cache_updated)
@@ -800,9 +818,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         # Previous shots now only refresh on explicit user action via "Refresh" button
         #
-        # NOTE: Previous shots refresh is now triggered by _on_shots_loaded and
-        # _on_shots_changed handlers rather than separate signal connections.
-        # This prevents double-refresh and keeps signal handling centralized.
+        # NOTE: Previous shots refresh is triggered by shots_loaded/shots_changed
+        # signals connected directly to RefreshOrchestrator.trigger_previous_shots_refresh.
 
         # If shots are already loaded from cache, trigger refresh immediately
         if self.shot_model.shots:
@@ -841,45 +858,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Delegate to RefreshOrchestrator
         self.refresh_orchestrator.refresh_shot_display()
 
-    def _on_shots_loaded(self, shots: list[Shot]) -> None:
-        """Handle shots loaded signal from model.
-
-        Args:
-            shots: List of loaded Shot objects
-
-        """
-        # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator.handle_shots_loaded(shots)
-        # Also trigger previous shots refresh (consolidated from duplicate connection)
-        self._trigger_previous_shots_refresh(shots)
-
-    def _on_shots_changed(self, shots: list[Shot]) -> None:
-        """Handle shots changed signal from model.
-
-        Args:
-            shots: List of updated Shot objects
-
-        """
-        # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator.handle_shots_changed(shots)
-        # Also trigger previous shots refresh (consolidated from duplicate connection)
-        self._trigger_previous_shots_refresh(shots)
-
-    def _on_refresh_started(self) -> None:
-        """Handle refresh started signal from model."""
-        # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator.handle_refresh_started()
-
-    def _on_refresh_finished(self, success: bool, has_changes: bool) -> None:
-        """Handle refresh finished signal from model.
-
-        Args:
-            success: Whether the refresh was successful
-            has_changes: Whether the shot list changed
-
-        """
-        # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator.handle_refresh_finished(success, has_changes)
 
     def _on_shot_error(self, error_msg: str) -> None:
         """Handle error signal from model.
@@ -919,20 +897,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         kept so subclasses can override this hook if needed.
         """
         pass  # noqa: PIE790  # intentional hook for subclass override
-
-    def _trigger_previous_shots_refresh(self, shots: list[Shot]) -> None:
-        """Trigger previous shots refresh only after shots are loaded.
-
-        This method is connected to the shot model's shots_loaded signal to ensure
-        that previous shots scanning only starts when active shots are available.
-        This prevents the "No target shows found" warning.
-
-        Args:
-            shots: The loaded shots (from signal)
-
-        """
-        # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator.trigger_previous_shots_refresh(shots)
 
 
     def _on_cache_updated(self) -> None:
@@ -1274,6 +1238,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         size = self.size()
         return (size.width(), size.height())
 
+    def set_thumbnail_size(self, size: int) -> None:
+        """Set thumbnail size across all grid tabs via ThumbnailSizeManager."""
+        self.thumbnail_size_manager.sync_thumbnail_sizes(size)
+
+    def get_thumbnail_size(self) -> int:
+        """Get current thumbnail size from the shot grid slider."""
+        return self.shot_grid.size_slider.value()
+
     @property
     def closing(self) -> bool:
         """Public property to check if the window is closing."""
@@ -1281,7 +1253,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     @closing.setter
     def closing(self, value: bool) -> None:
-        """Set the closing state."""
+        """Set the closing state and emit closing_started if transitioning to True."""
+        if value and not self._closing:
+            self.closing_started.emit()
         self._closing = value
 
     @property

@@ -348,8 +348,8 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # Stop timers - wrap in try/except since C++ object may already be deleted
         if hasattr(self, "_thumbnail_timer"):
             try:
-                self._thumbnail_timer.stop()
-                self._thumbnail_timer.deleteLater()
+                self._thumbnail_timer.stop()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self._thumbnail_timer.deleteLater()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
             except RuntimeError:
                 pass  # Timer already deleted at C++ level
 

@@ -226,6 +226,14 @@ class SettingsTargetDouble:
     def get_window_size(self) -> QSize:
         return self._size
 
+    def set_thumbnail_size(self, size: int) -> None:
+        self.shot_grid.size_slider.setValue(size)
+        self.threede_shot_grid.size_slider.setValue(size)
+        self.previous_shots_grid.size_slider.setValue(size)
+
+    def get_thumbnail_size(self) -> int:
+        return self.shot_grid.size_slider.value()
+
 
 # ============================================================================
 # Fixtures

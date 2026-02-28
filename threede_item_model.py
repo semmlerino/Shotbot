@@ -321,8 +321,8 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         """Clean up resources before deletion."""
         # Stop timers
         if hasattr(self, "_thumbnail_timer"):
-            self._thumbnail_timer.stop()
-            self._thumbnail_timer.deleteLater()
+            self._thumbnail_timer.stop()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            self._thumbnail_timer.deleteLater()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 
         if hasattr(self, "_thumbnail_debounce_timer"):
             self._thumbnail_debounce_timer.stop()

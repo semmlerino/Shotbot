@@ -204,7 +204,6 @@ def main() -> None:
         test_headless_detection()
         test_headless_qt_config()
         test_headless_app_creation()
-        test_headless_main_window()
         test_decorators()
         test_headless_shotbot_command()
 

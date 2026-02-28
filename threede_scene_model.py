@@ -212,6 +212,18 @@ class ThreeDESceneModel:
             return len(self.scenes) > 0
         return False
 
+    def set_scenes(self, scenes: list[ThreeDEScene]) -> None:
+        """Replace the current scene list.
+
+        Prefer this over direct ``self.scenes = ...`` assignment so that
+        future validation or notification logic has a single entry point.
+
+        Args:
+            scenes: New list of 3DE scenes.
+
+        """
+        self.scenes = scenes
+
     def refresh_scenes(self, shots: list[Shot]) -> tuple[bool, bool]:
         """Refresh 3DE scenes with persistent incremental merge strategy.
 

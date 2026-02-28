@@ -921,7 +921,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             self._files_header_btn.setText(f"{indicator}  Files ({self._files_count})")
 
     def _on_file_clicked(self, index: QModelIndex) -> None:
-        """Handle file row click.
+        """Handle file row click — select but don't launch.
 
         Args:
             index: The clicked model index
@@ -930,14 +930,23 @@ class DCCSection(QtWidgetMixin, QWidget):
         if self._file_model is not None:
             file = self._file_model.get_file(index.row())
             if file is not None:
-                # Track selected file
-                self._current_selected_file = file
-                # Update launch description
+                self._select_file(file)
                 self._update_launch_button_from_file(file)
-                # Mark this file as current default
-                self._file_model.set_current_default(file)
-                # Emit signal
-                self.file_selected.emit(file)
+
+    def _select_file(self, file: SceneFile) -> None:
+        """Set *file* as the current selection and notify listeners.
+
+        Shared by single-click (select only) and double-click/context-menu
+        (select + launch) paths. This ensures selection state stays consistent.
+
+        Args:
+            file: SceneFile to select.
+
+        """
+        self._current_selected_file = file
+        if self._file_model is not None:
+            self._file_model.set_current_default(file)
+        self.file_selected.emit(file)
 
     def _select_and_launch_file(self, file: SceneFile) -> None:
         """Select *file* as current and immediately emit a launch signal.
@@ -950,10 +959,8 @@ class DCCSection(QtWidgetMixin, QWidget):
             file: SceneFile to select and launch.
 
         """
-        self._current_selected_file = file
-        if self._file_model is not None:
-            self._file_model.set_current_default(file)
-        self.file_selected.emit(file)
+        self._select_file(file)
+        self._update_launch_button_from_file(file)
         options = self.get_options()
         self.launch_requested.emit(self.config.name, options)
 
