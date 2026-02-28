@@ -1,0 +1,621 @@
+"""Tests for DCC launcher error paths not covered by test_command_launcher.py.
+
+Covers:
+- ProcessExecutor.verify_spawn signal emission when process crashes immediately
+- ProcessExecutor.execute_in_new_terminal with PermissionError and OSError
+- _validate_workspace_before_launch edge cases (nonexistent path, file not dir, permissions)
+- Invalid/dangerous scene paths in launch_app_with_scene
+- Invalid/dangerous workspace paths in _finish_launch
+- Unknown app_name in launch_app and launch_app_with_scene
+- Two timeouts then success: counter resets and cache is NOT reset at the second timeout
+- ProcessVerifier._is_gui_app and _extract_app_name edge cases
+- ProcessVerifier.cleanup_old_pid_files with missing directory
+- ProcessExecutor cleanup while timers are pending
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from command_launcher import CommandLauncher
+from config import Config
+from launch.process_executor import ProcessExecutor
+from launch.process_verifier import ProcessVerifier
+from shot_model import Shot
+from tests.fixtures.process_doubles import PopenDouble
+from tests.test_helpers import process_qt_events
+from threede_scene_model import ThreeDEScene
+
+
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+]
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+
+# ---------------------------------------------------------------------------
+# Shared fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def ensure_qt_cleanup(qtbot: QtBot) -> None:
+    """Flush Qt event queue after every test."""
+    yield
+    process_qt_events()
+
+
+@pytest.fixture(autouse=True)
+def stable_terminal_detection(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default all tests to a known terminal; individual tests override as needed."""
+    monkeypatch.setattr(
+        "command_launcher.EnvironmentManager.detect_terminal",
+        lambda _self: "gnome-terminal",
+    )
+
+
+@pytest.fixture
+def launcher(monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
+    """CommandLauncher with ws-available stub."""
+    from launch import EnvironmentManager
+
+    monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
+    return CommandLauncher()
+
+
+@pytest.fixture
+def test_shot(tmp_path: Path) -> Shot:
+    """A Shot whose workspace_path actually exists on disk."""
+    ws = tmp_path / "shows" / "TEST" / "shots" / "seq01" / "seq01_0010"
+    ws.mkdir(parents=True)
+    return Shot("TEST", "seq01", "0010", str(ws))
+
+
+@pytest.fixture
+def test_scene(tmp_path: Path) -> ThreeDEScene:
+    """A ThreeDEScene with a valid workspace and a real-looking scene path."""
+    import time
+
+    ws = tmp_path / "shows" / "TEST" / "shots" / "seq01" / "seq01_0010"
+    ws.mkdir(parents=True)
+    scene_file = ws / "3de" / "artist_plate_v001.3de"
+    scene_file.parent.mkdir(parents=True, exist_ok=True)
+    scene_file.write_text("fake scene")
+    return ThreeDEScene(
+        show="TEST",
+        sequence="seq01",
+        shot="0010",
+        workspace_path=str(ws),
+        user="artist",
+        plate="plate_v001",
+        scene_path=scene_file,
+        modified_time=time.time(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# ProcessExecutor.verify_spawn — process crashes immediately
+# ---------------------------------------------------------------------------
+
+
+class TestVerifySpawnCrash:
+    """Tests for ProcessExecutor.verify_spawn when the process exits immediately."""
+
+    @pytest.mark.allow_dialogs  # verify_spawn shows an error notification dialog
+    def test_verify_spawn_crashed_process_emits_execution_error(
+        self, qtbot: QtBot
+    ) -> None:
+        """verify_spawn emits execution_error when process has already exited."""
+        executor = ProcessExecutor(Config)
+        error_emissions: list[tuple[str, str]] = []
+        executor.execution_error.connect(
+            lambda ts, msg: error_emissions.append((ts, msg))
+        )
+
+        # A PopenDouble with returncode=1 and _terminated=True so poll() returns 1
+        crashed_process = PopenDouble(args=["3de"], returncode=1)
+        crashed_process._terminated = True
+
+        executor.verify_spawn(crashed_process, "3de")
+        process_qt_events()
+
+        assert len(error_emissions) == 1
+        _ts, msg = error_emissions[0]
+        assert "3de" in msg
+        assert "crashed" in msg.lower() or "exit code" in msg.lower()
+
+        executor.cleanup()
+
+    @pytest.mark.allow_dialogs  # verify_spawn shows an error notification dialog
+    def test_verify_spawn_crashed_process_emits_execution_completed_with_false(
+        self, qtbot: QtBot
+    ) -> None:
+        """verify_spawn emits execution_completed(False, ...) when process crashed."""
+        executor = ProcessExecutor(Config)
+        completed_emissions: list[tuple[bool, str]] = []
+        executor.execution_completed.connect(
+            lambda ok, msg: completed_emissions.append((ok, msg))
+        )
+
+        crashed_process = PopenDouble(args=["maya"], returncode=127)
+        crashed_process._terminated = True
+
+        executor.verify_spawn(crashed_process, "maya")
+        process_qt_events()
+
+        assert len(completed_emissions) == 1
+        success, _msg = completed_emissions[0]
+        assert success is False
+
+        executor.cleanup()
+
+    def test_verify_spawn_running_process_emits_progress(
+        self, qtbot: QtBot
+    ) -> None:
+        """verify_spawn emits execution_progress when process is still running."""
+        executor = ProcessExecutor(Config)
+        progress_emissions: list[tuple[str, str]] = []
+        executor.execution_progress.connect(
+            lambda ts, msg: progress_emissions.append((ts, msg))
+        )
+
+        # PopenDouble with no returncode set and _terminated=False → poll() returns None
+        running_process = PopenDouble(args=["nuke"], returncode=0)
+        # Override poll to return None (still running) regardless of _terminated state
+        running_process.poll = lambda: None  # type: ignore[method-assign]
+
+        executor.verify_spawn(running_process, "nuke")
+        process_qt_events()
+
+        assert len(progress_emissions) == 1
+        _ts, msg = progress_emissions[0]
+        assert "nuke" in msg.lower()
+        assert "started" in msg.lower() or "pid" in msg.lower()
+
+        executor.cleanup()
+
+
+# ---------------------------------------------------------------------------
+# ProcessExecutor.execute_in_new_terminal — OS-level errors
+# ---------------------------------------------------------------------------
+
+
+class TestExecuteInNewTerminalErrors:
+    """Tests for OS-level errors during process spawning."""
+
+    def test_permission_error_returns_none(self, qtbot: QtBot) -> None:
+        """PermissionError during Popen returns None (does not propagate)."""
+        executor = ProcessExecutor(Config)
+
+        with patch("launch.process_executor.subprocess.Popen") as mock_popen:
+            mock_popen.side_effect = PermissionError("permission denied")
+            result = executor.execute_in_new_terminal(
+                "echo hello", "3de", terminal="gnome-terminal"
+            )
+
+        assert result is None
+        executor.cleanup()
+
+    def test_os_error_returns_none(self, qtbot: QtBot) -> None:
+        """Generic OSError during Popen returns None (does not propagate)."""
+        executor = ProcessExecutor(Config)
+
+        with patch("launch.process_executor.subprocess.Popen") as mock_popen:
+            mock_popen.side_effect = OSError("no such device")
+            result = executor.execute_in_new_terminal(
+                "echo hello", "maya", terminal="xterm"
+            )
+
+        assert result is None
+        executor.cleanup()
+
+    def test_file_not_found_returns_none(self, qtbot: QtBot) -> None:
+        """FileNotFoundError during Popen returns None (terminal binary missing)."""
+        executor = ProcessExecutor(Config)
+
+        with patch("launch.process_executor.subprocess.Popen") as mock_popen:
+            mock_popen.side_effect = FileNotFoundError("No such file: gnome-terminal")
+            result = executor.execute_in_new_terminal(
+                "nuke -x", "nuke", terminal="gnome-terminal"
+            )
+
+        assert result is None
+        executor.cleanup()
+
+
+# ---------------------------------------------------------------------------
+# _validate_workspace_before_launch — path edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestValidateWorkspaceBeforeLaunch:
+    """Tests for workspace pre-flight validation."""
+
+    def test_nonexistent_workspace_emits_error_and_returns_false(
+        self,
+        launcher: CommandLauncher,
+        qtbot: QtBot,
+    ) -> None:
+        """Launch is blocked when workspace directory does not exist."""
+        errors: list[str] = []
+        launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
+
+        result = launcher._validate_workspace_before_launch(
+            "/nonexistent/path/that/does/not/exist", "3de"
+        )
+
+        assert result is False
+        assert len(errors) == 1
+        assert "does not exist" in errors[0]
+        assert "3de" in errors[0]
+
+    def test_file_instead_of_directory_emits_error_and_returns_false(
+        self,
+        launcher: CommandLauncher,
+        tmp_path: Path,
+        qtbot: QtBot,
+    ) -> None:
+        """Launch is blocked when workspace_path points to a file, not a directory."""
+        file_path = tmp_path / "not_a_dir.txt"
+        file_path.write_text("I am a file")
+        errors: list[str] = []
+        launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
+
+        result = launcher._validate_workspace_before_launch(str(file_path), "nuke")
+
+        assert result is False
+        assert len(errors) == 1
+        assert "not a directory" in errors[0]
+        assert "nuke" in errors[0]
+
+    def test_no_read_permission_emits_error_and_returns_false(
+        self,
+        launcher: CommandLauncher,
+        tmp_path: Path,
+        qtbot: QtBot,
+    ) -> None:
+        """Launch is blocked when workspace is not readable/executable."""
+        restricted = tmp_path / "restricted_ws"
+        restricted.mkdir()
+        os.chmod(restricted, 0o000)
+
+        errors: list[str] = []
+        launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
+
+        try:
+            result = launcher._validate_workspace_before_launch(str(restricted), "maya")
+        finally:
+            os.chmod(restricted, 0o755)  # restore so tmp_path can clean up
+
+        # Only meaningful as a non-root user; root always passes permission checks
+        if os.getuid() != 0:
+            assert result is False
+            assert len(errors) == 1
+            assert "permission" in errors[0].lower()
+            assert "maya" in errors[0]
+
+    def test_valid_workspace_returns_true(
+        self,
+        launcher: CommandLauncher,
+        tmp_path: Path,
+    ) -> None:
+        """Validation passes for a real, readable directory."""
+        ws = tmp_path / "valid_ws"
+        ws.mkdir()
+
+        result = launcher._validate_workspace_before_launch(str(ws), "3de")
+
+        assert result is True
+
+
+# ---------------------------------------------------------------------------
+# launch_app — no shot context and unknown app
+# ---------------------------------------------------------------------------
+
+
+class TestLaunchAppGuardClauses:
+    """Tests for early-exit guard clauses in launch_app."""
+
+    def test_launch_app_without_shot_emits_error_and_returns_false(
+        self,
+        launcher: CommandLauncher,
+        qtbot: QtBot,
+    ) -> None:
+        """launch_app returns False immediately when no shot is selected."""
+        errors: list[str] = []
+        launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
+
+        result = launcher.launch_app("3de")
+
+        assert result is False
+        assert any("no shot" in e.lower() or "no shot selected" in e.lower() for e in errors)
+
+    def test_launch_app_unknown_app_emits_error_and_returns_false(
+        self,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
+        """launch_app returns False for an app name not in Config.APPS."""
+        launcher.set_current_shot(test_shot)
+        errors: list[str] = []
+        launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
+
+        result = launcher.launch_app("blender_xyz_unknown")
+
+        assert result is False
+        assert any("unknown application" in e.lower() for e in errors)
+
+    def test_launch_app_with_scene_unknown_app_emits_error(
+        self,
+        launcher: CommandLauncher,
+        test_scene: ThreeDEScene,
+        qtbot: QtBot,
+    ) -> None:
+        """launch_app_with_scene returns False for unknown app names."""
+        errors: list[str] = []
+        launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
+
+        result = launcher.launch_app_with_scene("blender_xyz_unknown", test_scene)
+
+        assert result is False
+        assert any("unknown application" in e.lower() for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# Invalid scene paths in launch_app_with_scene
+# ---------------------------------------------------------------------------
+
+
+class TestInvalidScenePaths:
+    """Tests for malformed or dangerous scene paths."""
+
+    @pytest.mark.parametrize(
+        "bad_path",
+        [
+            "/shows/TEST/shots/seq01/sh0010/3de/scene.3de; rm -rf /",
+            "/shows/TEST/shots/seq01/sh0010/3de/scene.3de && evil",
+            "/shows/TEST/shots/seq01/sh0010/3de/scene.3de | cat /etc/passwd",
+        ],
+        ids=["semicolon-injection", "double-ampersand-injection", "pipe-injection"],
+    )
+    def test_scene_path_with_shell_injection_characters_blocked(
+        self,
+        launcher: CommandLauncher,
+        tmp_path: Path,
+        bad_path: str,
+        qtbot: QtBot,
+    ) -> None:
+        """launch_app_with_scene rejects paths containing shell meta-characters."""
+        import time
+
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        scene = ThreeDEScene(
+            show="TEST",
+            sequence="seq01",
+            shot="0010",
+            workspace_path=str(ws),
+            user="artist",
+            plate="plate_v001",
+            scene_path=Path(bad_path),
+            modified_time=time.time(),
+        )
+        errors: list[str] = []
+        launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
+
+        result = launcher.launch_app_with_scene("3de", scene)
+
+        assert result is False
+        assert len(errors) >= 1
+        assert any("invalid" in e.lower() or "scene path" in e.lower() for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# Invalid workspace path in _finish_launch
+# ---------------------------------------------------------------------------
+
+
+class TestInvalidWorkspacePathInFinishLaunch:
+    """Tests for dangerous workspace paths caught during command construction."""
+
+    def test_workspace_path_with_shell_injection_blocked(
+        self,
+        launcher: CommandLauncher,
+        qtbot: QtBot,
+    ) -> None:
+        """_finish_launch rejects workspace paths containing shell meta-characters."""
+        errors: list[str] = []
+        launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
+
+        # Pass a dangerous workspace path directly to _finish_launch
+        # (bypassing the workspace existence check via a patched validator)
+        with patch.object(
+            CommandLauncher,
+            "_validate_workspace_before_launch",
+            return_value=True,
+        ):
+            # The path itself contains a dangerous character
+            result = launcher._finish_launch(
+                "3de",
+                "3de",
+                workspace_path="/shows/TEST/shots/seq01/0010; malicious_command",
+            )
+
+        assert result is False
+        assert len(errors) >= 1
+        assert any("invalid" in e.lower() or "workspace" in e.lower() for e in errors)
+
+    def test_empty_workspace_path_with_no_shot_blocked(
+        self,
+        launcher: CommandLauncher,
+        qtbot: QtBot,
+    ) -> None:
+        """_finish_launch returns False when workspace_path is None and no shot is set."""
+        errors: list[str] = []
+        launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
+
+        result = launcher._finish_launch("3de", "3de", workspace_path=None)
+
+        assert result is False
+        assert len(errors) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Consecutive timeout → success: counter reset behaviour
+# ---------------------------------------------------------------------------
+
+
+class TestConsecutiveTimeoutThenSuccess:
+    """Tests for timeout counter edge cases not covered by test_command_launcher.py."""
+
+    @pytest.fixture
+    def timeout_launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
+        """CommandLauncher with env manager cache stub for reset tracking."""
+        from launch import EnvironmentManager
+
+        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
+        return CommandLauncher()
+
+    def test_two_timeouts_do_not_reset_cache(
+        self, timeout_launcher: CommandLauncher
+    ) -> None:
+        """Two consecutive timeouts do not trigger a cache reset (threshold is 3)."""
+        reset_calls: list[None] = []
+        timeout_launcher.env_manager.reset_cache = lambda: reset_calls.append(None)  # type: ignore[method-assign]
+
+        timeout_launcher._consecutive_timeout_count = 0
+        timeout_launcher._on_app_verification_timeout("maya")
+        timeout_launcher._on_app_verification_timeout("maya")
+
+        assert timeout_launcher._consecutive_timeout_count == 2
+        assert len(reset_calls) == 0
+
+    def test_verified_after_two_timeouts_resets_counter_to_zero(
+        self, timeout_launcher: CommandLauncher
+    ) -> None:
+        """Successful verification after 2 timeouts brings counter to 0."""
+        timeout_launcher._consecutive_timeout_count = 2
+        timeout_launcher._on_app_verified("maya", 55555)
+
+        assert timeout_launcher._consecutive_timeout_count == 0
+
+    def test_timeout_after_success_starts_fresh_count(
+        self, timeout_launcher: CommandLauncher
+    ) -> None:
+        """A timeout that follows a success counts as 1, not accumulated."""
+        reset_calls: list[None] = []
+        timeout_launcher.env_manager.reset_cache = lambda: reset_calls.append(None)  # type: ignore[method-assign]
+
+        # Simulate 2 timeouts, then a success, then 1 more timeout
+        timeout_launcher._consecutive_timeout_count = 2
+        timeout_launcher._on_app_verified("3de", 12345)
+        assert timeout_launcher._consecutive_timeout_count == 0
+
+        timeout_launcher._on_app_verification_timeout("3de")
+        assert timeout_launcher._consecutive_timeout_count == 1
+        # Only 1 timeout since reset — should NOT have triggered cache reset
+        assert len(reset_calls) == 0
+
+
+# ---------------------------------------------------------------------------
+# ProcessVerifier edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestProcessVerifierEdgeCases:
+    """Tests for ProcessVerifier helper methods."""
+
+    def test_is_gui_app_rejects_false_positive_rv_in_path(self) -> None:
+        """ProcessVerifier does not flag '/srv/data/render' as an rv launch."""
+        verifier = ProcessVerifier(MagicMock())
+        # "rv" appears inside "/srv/" — should NOT match as a GUI app
+        assert verifier._is_gui_app("ws /srv/data && launch_script") is False
+
+    def test_is_gui_app_accepts_rv_as_standalone_word(self) -> None:
+        """ProcessVerifier recognises 'rv' as a standalone word."""
+        verifier = ProcessVerifier(MagicMock())
+        assert verifier._is_gui_app("ws /shows/TEST/shots/seq01/0010 && rv") is True
+
+    def test_is_gui_app_accepts_nuke(self) -> None:
+        """ProcessVerifier recognises a nuke launch command."""
+        verifier = ProcessVerifier(MagicMock())
+        assert verifier._is_gui_app("ws /shows/TEST && nuke -x /shows/TEST/comp.nk") is True
+
+    def test_extract_app_name_returns_none_for_unknown_command(self) -> None:
+        """_extract_app_name returns None for commands not matching known GUI apps."""
+        verifier = ProcessVerifier(MagicMock())
+        result = verifier._extract_app_name("ls /shows/TEST")
+        assert result is None
+
+    def test_extract_app_name_extracts_3de(self) -> None:
+        """_extract_app_name correctly extracts '3de' from a launch command."""
+        verifier = ProcessVerifier(MagicMock())
+        result = verifier._extract_app_name("ws /shows/TEST && 3de -open /path/scene.3de")
+        assert result == "3de"
+
+    def test_cleanup_old_pid_files_handles_missing_directory(self) -> None:
+        """cleanup_old_pid_files does not raise when PID directory does not exist."""
+        with patch.object(ProcessVerifier, "PID_FILE_DIR", "/tmp/nonexistent_shotbot_test_pids_xyz"):
+            # Should complete without error
+            ProcessVerifier.cleanup_old_pid_files()
+
+    def test_wait_for_process_non_gui_command_returns_true_immediately(
+        self, tmp_path: Path
+    ) -> None:
+        """wait_for_process skips verification for non-GUI commands."""
+        verifier = ProcessVerifier(MagicMock())
+        success, msg = verifier.wait_for_process("ls /shows/TEST", timeout_sec=0.1)
+        assert success is True
+        assert "non-gui" in msg.lower() or "no verification" in msg.lower()
+
+    def test_verify_process_exists_returns_false_for_impossible_pid(self) -> None:
+        """_verify_process_exists returns False for a PID that cannot exist."""
+        verifier = ProcessVerifier(MagicMock())
+        # PID 0 is the idle process on Linux and is not a user process;
+        # psutil.pid_exists(0) is True on Linux, so use a very high invalid PID instead
+        # that almost certainly doesn't exist.
+        result = verifier._verify_process_exists(999999999)
+        assert result is False
+
+
+# ---------------------------------------------------------------------------
+# ProcessExecutor cleanup while timers pending
+# ---------------------------------------------------------------------------
+
+
+class TestProcessExecutorCleanup:
+    """Tests for ProcessExecutor cleanup behaviour."""
+
+    def test_cleanup_cancels_pending_timers(self, qtbot: QtBot) -> None:
+        """cleanup() empties the pending timer list so no stale callbacks fire."""
+        executor = ProcessExecutor(Config)
+
+        # Simulate a running process so a timer is created
+        running_popen = PopenDouble(args=["3de"], returncode=0)
+        running_popen.poll = lambda: None  # type: ignore[method-assign]
+
+        with patch("launch.process_executor.subprocess.Popen", return_value=running_popen):
+            executor.execute_in_new_terminal(
+                "echo hello", "3de", terminal="gnome-terminal"
+            )
+
+        assert len(executor._pending_timers) > 0
+
+        executor.cleanup()
+
+        assert len(executor._pending_timers) == 0
+
+    def test_cleanup_idempotent_on_double_call(self, qtbot: QtBot) -> None:
+        """Calling cleanup() twice does not raise."""
+        executor = ProcessExecutor(Config)
+        executor.cleanup()
+        executor.cleanup()  # should not raise
