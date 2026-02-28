@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
-from PySide6.QtGui import QColor, QImage
+from PIL import Image
 
 # Local application imports
 from cache_manager import CacheManager
@@ -86,21 +86,19 @@ def sample_3de_scenes() -> list[ThreeDEScene]:
 
 @pytest.fixture
 def test_image_jpg(tmp_path: Path) -> Path:
-    """Create a real JPEG test image."""
+    """Create a real JPEG test image using PIL (avoids QImage C++ state issues)."""
     image_path = tmp_path / "test_source.jpg"
-    image = QImage(512, 512, QImage.Format.Format_RGB32)
-    image.fill(QColor(100, 150, 200))  # Blue-ish
-    image.save(str(image_path), "JPEG", quality=90)
+    img = Image.new("RGB", (512, 512), color=(100, 150, 200))
+    img.save(str(image_path), "JPEG", quality=90)
     return image_path
 
 
 @pytest.fixture
 def test_image_png(tmp_path: Path) -> Path:
-    """Create a real PNG test image."""
+    """Create a real PNG test image using PIL (avoids QImage C++ state issues)."""
     image_path = tmp_path / "test_source.png"
-    image = QImage(1024, 1024, QImage.Format.Format_ARGB32)
-    image.fill(QColor(255, 100, 50, 200))  # Orange with alpha
-    image.save(str(image_path), "PNG")
+    img = Image.new("RGBA", (1024, 1024), color=(255, 100, 50, 200))
+    img.save(str(image_path), "PNG")
     return image_path
 
 
@@ -262,9 +260,9 @@ class TestThumbnailCaching:
         assert result.exists()
         assert result.suffix == ".jpg"
 
-        thumb = QImage(str(result))
-        assert thumb.width() <= 256
-        assert thumb.height() <= 256
+        thumb = Image.open(result)
+        assert thumb.width <= 256
+        assert thumb.height <= 256
 
     def test_get_cached_thumbnail_returns_valid_path(
         self, cache_manager: CacheManager, test_image_jpg: Path
@@ -843,12 +841,21 @@ class TestShotMigration:
         assert len(migrated) == 2
 
     def test_migration_no_signal_on_empty(
-        self, cache_manager: CacheManager, qtbot
+        self, cache_manager: CacheManager
     ) -> None:
         """No signal emitted for empty migration."""
-        # Signal should NOT be emitted
-        with qtbot.assertNotEmitted(cache_manager.shots_migrated, wait=100):
+        signal_emitted = False
+
+        def _on_migrated(*_args: object) -> None:
+            nonlocal signal_emitted
+            signal_emitted = True
+
+        cache_manager.shots_migrated.connect(_on_migrated)
+        try:
             cache_manager.migrate_shots_to_previous([])
+            assert not signal_emitted, "shots_migrated should not emit for empty list"
+        finally:
+            cache_manager.shots_migrated.disconnect(_on_migrated)
 
     def test_migration_large_batch(self, cache_manager: CacheManager) -> None:
         """Migration handles large batches efficiently."""

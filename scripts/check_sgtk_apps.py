@@ -4,7 +4,7 @@
 Run this BEFORE and AFTER using SG File Open to see what changes.
 
 In Maya Script Editor (Python):
-    exec(open('/nethome/gabriel-h/Python/Shotbot/scripts/check_sgtk_apps.py').read())
+    exec(open(os.environ.get('SHOTBOT_SCRIPTS_DIR', str(Path.home() / 'Python/Shotbot/scripts')) + '/check_sgtk_apps.py').read())
 """
 
 

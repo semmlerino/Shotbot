@@ -5,7 +5,7 @@ This derives the full context (including Task/Step) from the file path,
 which causes SGTK to load the full set of apps (publish, loader, etc.)
 
 Run in Maya Script Editor after file is loaded:
-    exec(open('/nethome/gabriel-h/Python/Shotbot/scripts/sgtk_context_from_file.py').read())
+    exec(open(os.environ.get('SHOTBOT_SCRIPTS_DIR', str(Path.home() / 'Python/Shotbot/scripts')) + '/sgtk_context_from_file.py').read())
 
 Or import and call:
     from sgtk_context_from_file import update_context_from_current_file

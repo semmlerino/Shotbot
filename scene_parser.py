@@ -134,7 +134,11 @@ class SceneParser(LoggingMixin):
             return parent_name
 
         except Exception:
-            # Error handling: use parent directory
+            self.logger.warning(
+                f"Failed to extract sequence name from {file_path}; "
+                f"falling back to parent dir name",
+                exc_info=True,
+            )
             return file_path.parent.name
 
     def parse_3de_file_path(

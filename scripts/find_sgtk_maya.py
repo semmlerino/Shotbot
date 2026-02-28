@@ -2,7 +2,7 @@
 """Run this INSIDE Maya to find SGTK configuration.
 
 In Maya Script Editor (Python tab), run:
-    exec(open('/nethome/gabriel-h/Python/Shotbot/scripts/find_sgtk_maya.py').read())
+    exec(open(os.environ.get('SHOTBOT_SCRIPTS_DIR', str(Path.home() / 'Python/Shotbot/scripts')) + '/find_sgtk_maya.py').read())
 """
 
 import os

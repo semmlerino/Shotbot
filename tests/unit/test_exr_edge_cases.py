@@ -341,18 +341,14 @@ class TestResourceExhaustion:
 
     def test_cache_cleanup_under_pressure(self, tmp_path) -> None:
         """Cache should clean up when cleared (simplified cache system)."""
-        from PySide6.QtGui import (
-            QColor,
-            QImage,
-        )
+        from PIL import Image
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
-        # Create a real test image
+        # Create a real test image using PIL (avoids QImage C++ state issues)
         test_image = tmp_path / "test.jpg"
-        image = QImage(256, 256, QImage.Format.Format_RGB32)
-        image.fill(QColor(100, 100, 100))
-        image.save(str(test_image), "JPEG")
+        img = Image.new("RGB", (256, 256), color=(100, 100, 100))
+        img.save(str(test_image), "JPEG")
 
         # Cache some thumbnails
         for i in range(10):

@@ -454,6 +454,10 @@ class FileSystemScanner(LoggingMixin):
                 and scene_path.suffix.lower() == ".3de"
             )
         except Exception:
+            self.logger.warning(
+                f"Exception checking scene existence for {scene_path}; treating as missing",
+                exc_info=True,
+            )
             return False
 
     def discover_all_shots_in_show(

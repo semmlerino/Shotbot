@@ -36,11 +36,14 @@ from PySide6.QtGui import QIcon, QImage, QPixmap
 # Local application imports
 from cache_manager import CacheManager
 from config import Config
-from logging_mixin import LoggingMixin
+from logging_mixin import LoggingMixin, get_module_logger
 from protocols import SceneDataProtocol
 from qt_abc_meta import QABCMeta
 from typing_compat import override
 
+
+# Module-level logger for non-LoggingMixin classes in this module
+_logger = get_module_logger(__name__)
 
 # Type variable for the data items (Shot or ThreeDEScene)
 T = TypeVar("T", bound=SceneDataProtocol)
@@ -122,6 +125,7 @@ class ThumbnailLoaderRunnable(QRunnable):
             else:
                 self.signals.failed.emit(self.full_name)
         except Exception:
+            _logger.exception(f"Thumbnail cache failed for {self.full_name!r}")
             self.signals.failed.emit(self.full_name)
 
 

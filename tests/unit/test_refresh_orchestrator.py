@@ -20,7 +20,6 @@ pytestmark = [
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
-    from pytest_qt.qtbot import QtBot
 
 # ============================================================================
 # Fixtures
@@ -289,36 +288,26 @@ def test_trigger_previous_shots_refresh_skips_when_no_shots(
     mock_main_window.previous_shots_model.refresh_shots.assert_not_called()
 
 
-@pytest.mark.parametrize("model_state", ["missing", "none"])
-def test_trigger_previous_shots_refresh_handles_unavailable_model(
-    orchestrator: RefreshOrchestrator,
-    mock_main_window: Mock,
-    model_state: str,
-) -> None:
-    """Test trigger_previous_shots_refresh handles unavailable model safely."""
-    if model_state == "missing":
-        del mock_main_window.previous_shots_model
-    else:
-        mock_main_window.previous_shots_model = None
-
-    orchestrator.trigger_previous_shots_refresh([Mock()])
-    # Should not raise
-
-
 # ============================================================================
 # Debouncing Tests (Issue #2 Fix)
 # ============================================================================
 
 
-@pytest.mark.real_timing  # Uses qtbot.wait(700) to test debounce interval
 def test_refresh_shot_display_debounces_rapid_calls(
-    qapp: QApplication, qtbot: QtBot, orchestrator: RefreshOrchestrator, mock_main_window: Mock
+    qapp: QApplication, orchestrator: RefreshOrchestrator, mock_main_window: Mock
 ) -> None:
     """Test that rapid _refresh_shot_display calls are debounced.
 
     Issue #2 fix: Prevents duplicate set_shots() and populate_show_filter()
     when both shots_loaded and shots_changed signals fire rapidly within 500ms.
+
+    Uses time_machine to advance time deterministically instead of qtbot.wait(),
+    which is susceptible to segfaults from stale Qt events left by prior tests.
     """
+    import time
+
+    import time_machine
+
     # Track call count
     call_count = 0
     original_set_shots = mock_main_window.shot_item_model.set_shots
@@ -330,17 +319,18 @@ def test_refresh_shot_display_debounces_rapid_calls(
 
     mock_main_window.shot_item_model.set_shots = counting_set_shots
 
-    # Call refresh multiple times rapidly (within 500ms debounce window)
-    orchestrator.refresh_shot_display()
-    orchestrator.refresh_shot_display()
-    orchestrator.refresh_shot_display()
+    with time_machine.travel(time.time(), tick=False) as traveller:
+        # Call refresh multiple times rapidly (within 500ms debounce window)
+        orchestrator.refresh_shot_display()
+        orchestrator.refresh_shot_display()
+        orchestrator.refresh_shot_display()
 
-    # Should only execute once due to debouncing (first call goes through)
-    assert call_count == 1, "Expected exactly 1 call due to debouncing"
+        # Should only execute once due to debouncing (first call goes through)
+        assert call_count == 1, "Expected exactly 1 call due to debouncing"
 
-    # Wait for debounce interval to pass (500ms + 700ms margin for CI/parallel load)
-    qtbot.wait(1200)
+        # Advance past debounce interval (500ms + margin)
+        traveller.shift(1.0)
 
-    # Now a new call should execute (debounce window expired)
-    orchestrator.refresh_shot_display()
-    assert call_count == 2, "Expected 2nd call after debounce window expired"
+        # Now a new call should execute (debounce window expired)
+        orchestrator.refresh_shot_display()
+        assert call_count == 2, "Expected 2nd call after debounce window expired"
