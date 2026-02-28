@@ -403,7 +403,7 @@ class TestPublicAPIRecovery:
             (
                 "shots",
                 cache_manager.shots_cache_file,
-                cache_manager.get_cached_shots,
+                cache_manager.get_shots_with_ttl,
                 "invalid json {{{",
             ),
             (
@@ -431,11 +431,11 @@ class TestPublicAPIRecovery:
         cache_manager.cache_shots(shots)
 
         # Should be readable now
-        result = cache_manager.get_cached_shots()
+        result = cache_manager.get_shots_with_ttl()
         assert result is not None
         assert len(result) == 1
 
-    def test_get_cached_shots_accepts_legacy_shots_wrapper(
+    def test_get_shots_with_ttl_accepts_legacy_shots_wrapper(
         self, cache_manager: CacheManager
     ) -> None:
         """Legacy {'shots': [...]} payloads are still readable for compatibility."""
@@ -445,7 +445,7 @@ class TestPublicAPIRecovery:
         }
         cache_manager.shots_cache_file.write_text(json.dumps(legacy_payload))
 
-        result = cache_manager.get_cached_shots()
+        result = cache_manager.get_shots_with_ttl()
         assert result is not None
         assert len(result) == 1
         assert result[0]["shot"] == "0010"
@@ -462,7 +462,7 @@ class TestPublicAPIRecovery:
         assert (
             not cache_manager.shots_cache_file.exists()
             or cache_manager.shots_cache_file.stat().st_size == 0
-            or cache_manager.get_cached_shots() is None
+            or cache_manager.get_shots_with_ttl() is None
         )
 
 

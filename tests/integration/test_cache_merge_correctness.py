@@ -106,7 +106,7 @@ class TestShotMergeCorrectness:
             make_shot_dict(shot="0020"),
         ]
 
-        result = cache_manager.merge_shots_incremental(None, fresh)
+        result = cache_manager.update_shots_cache(None, fresh)
 
         assert len(result.updated_shots) == 2
         assert len(result.new_shots) == 2
@@ -120,7 +120,7 @@ class TestShotMergeCorrectness:
             make_shot_dict(shot="0020"),
         ]
 
-        result = cache_manager.merge_shots_incremental(cached, [])
+        result = cache_manager.update_shots_cache(cached, [])
 
         assert len(result.updated_shots) == 0
         assert len(result.new_shots) == 0
@@ -134,7 +134,7 @@ class TestShotMergeCorrectness:
             make_shot_dict(shot="0020"),
         ]
 
-        result = cache_manager.merge_shots_incremental(shots, shots)
+        result = cache_manager.update_shots_cache(shots, shots)
 
         assert len(result.updated_shots) == 2
         assert len(result.new_shots) == 0
@@ -149,7 +149,7 @@ class TestShotMergeCorrectness:
             make_shot_dict(shot="0020"),  # New shot
         ]
 
-        result = cache_manager.merge_shots_incremental(cached, fresh)
+        result = cache_manager.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 2
         assert len(result.new_shots) == 1
@@ -164,7 +164,7 @@ class TestShotMergeCorrectness:
         ]
         fresh = [make_shot_dict(shot="0010")]  # 0020 removed
 
-        result = cache_manager.merge_shots_incremental(cached, fresh)
+        result = cache_manager.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 1
         assert len(result.removed_shots) == 1
@@ -177,7 +177,7 @@ class TestShotMergeCorrectness:
         cached = [make_shot_dict(show="showA", sequence="sq01", shot="0010")]
         fresh = [make_shot_dict(show="showA", sequence="sq01", shot="0010")]
 
-        result = cache_manager.merge_shots_incremental(cached, fresh)
+        result = cache_manager.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 1  # Not 2
 
@@ -189,7 +189,7 @@ class TestShotMergeCorrectness:
             make_shot_dict(show="showB", shot="0010"),  # Different show, same shot name
         ]
 
-        result = cache_manager.merge_shots_incremental(cached, fresh)
+        result = cache_manager.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 2  # Both kept
         assert len(result.new_shots) == 1  # showB shot is new
@@ -203,7 +203,7 @@ class TestShotMergeCorrectness:
             make_shot_dict(sequence="sq02", shot="0010"),  # Same shot, different seq
         ]
 
-        result = cache_manager.merge_shots_incremental(None, fresh)
+        result = cache_manager.update_shots_cache(None, fresh)
 
         assert len(result.updated_shots) == 2
 
@@ -215,7 +215,7 @@ class TestShotMergeCorrectness:
         cached = [make_shot_dict(shot="0010", discovered_at=old_time)]
         fresh = [make_shot_dict(shot="0010", discovered_at=new_time)]
 
-        result = cache_manager.merge_shots_incremental(cached, fresh)
+        result = cache_manager.update_shots_cache(cached, fresh)
 
         # Fresh data should be used
         assert result.updated_shots[0]["discovered_at"] == new_time
@@ -245,7 +245,7 @@ class TestShotMergeCorrectness:
             ),
         ]
 
-        result = cache_manager.merge_shots_incremental(cached, fresh)
+        result = cache_manager.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 2
         assert len(result.new_shots) == 1
@@ -393,7 +393,7 @@ class TestMergeThreadSafety:
     def test_concurrent_shot_merge_no_crash(
         self, cache_manager: CacheManager
     ) -> None:
-        """Multiple threads calling merge_shots_incremental don't crash."""
+        """Multiple threads calling update_shots_cache don't crash."""
         errors: list[Exception] = []
         results: list[ShotMergeResult] = []
         lock = threading.Lock()
@@ -405,7 +405,7 @@ class TestMergeThreadSafety:
                     make_shot_dict(shot=f"{thread_id:04d}"),
                     make_shot_dict(shot=f"{thread_id + 100:04d}"),
                 ]
-                result = cache_manager.merge_shots_incremental(cached, fresh)
+                result = cache_manager.update_shots_cache(cached, fresh)
                 with lock:
                     results.append(result)
             except Exception as e:
@@ -459,7 +459,7 @@ class TestMergeThreadSafety:
                 for _ in range(20):
                     cached = [make_shot_dict(shot="0010")]
                     fresh = [make_shot_dict(shot="0010"), make_shot_dict(shot="0020")]
-                    cache_manager.merge_shots_incremental(cached, fresh)
+                    cache_manager.update_shots_cache(cached, fresh)
             except Exception as e:
                 with lock:
                     errors.append(e)
@@ -510,7 +510,7 @@ class TestMergeEdgeCases:
         cached = [make_shot_dict(shot=f"{i:04d}") for i in range(500)]
         fresh = [make_shot_dict(shot=f"{i:04d}") for i in range(100, 600)]
 
-        result = cache_manager.merge_shots_incremental(cached, fresh)
+        result = cache_manager.update_shots_cache(cached, fresh)
 
         # 500 fresh shots total
         assert len(result.updated_shots) == 500
@@ -533,7 +533,7 @@ class TestMergeEdgeCases:
             make_shot_dict(shot="0010", discovered_at=2.0),  # Duplicate
         ]
 
-        result = cache_manager.merge_shots_incremental(None, fresh)
+        result = cache_manager.update_shots_cache(None, fresh)
 
         # Implementation iterates fresh directly, so duplicates are preserved
         # This is expected - deduplication should happen before merge
@@ -553,7 +553,7 @@ class TestMergeEdgeCases:
             )
         ]
 
-        result = cache_manager.merge_shots_incremental(None, fresh)
+        result = cache_manager.update_shots_cache(None, fresh)
 
         shot = result.updated_shots[0]
         assert shot["show"] == "myshow"
@@ -586,7 +586,7 @@ class TestMergeEdgeCases:
 
     def test_merge_empty_both_lists(self, cache_manager: CacheManager) -> None:
         """Merge with both empty lists returns empty result."""
-        result = cache_manager.merge_shots_incremental([], [])
+        result = cache_manager.update_shots_cache([], [])
 
         assert len(result.updated_shots) == 0
         assert len(result.new_shots) == 0
@@ -597,7 +597,7 @@ class TestMergeEdgeCases:
         """Merge handles None cached list gracefully."""
         fresh = [make_shot_dict(shot="0010")]
 
-        result = cache_manager.merge_shots_incremental(None, fresh)
+        result = cache_manager.update_shots_cache(None, fresh)
 
         assert len(result.updated_shots) == 1
         assert len(result.new_shots) == 1
@@ -630,7 +630,7 @@ class TestMergeResultCorrectness:
             make_shot_dict(shot="0030"),
         ]
 
-        result = cache_manager.merge_shots_incremental(cached, fresh)
+        result = cache_manager.update_shots_cache(cached, fresh)
 
         # Invariant: updated_shots = fresh shots (all fresh data)
         assert len(result.updated_shots) == len(fresh)
@@ -680,15 +680,15 @@ class TestMergeResultCorrectness:
         shots = [make_shot_dict(shot="0010")]
 
         # No changes - same data
-        result1 = cache_manager.merge_shots_incremental(shots, shots)
+        result1 = cache_manager.update_shots_cache(shots, shots)
         assert result1.has_changes is False
 
         # Has changes - new shot
-        result2 = cache_manager.merge_shots_incremental(
+        result2 = cache_manager.update_shots_cache(
             shots, [*shots, make_shot_dict(shot="0020")]
         )
         assert result2.has_changes is True
 
         # Has changes - shot removed
-        result3 = cache_manager.merge_shots_incremental(shots, [])
+        result3 = cache_manager.update_shots_cache(shots, [])
         assert result3.has_changes is True

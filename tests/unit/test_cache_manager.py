@@ -143,13 +143,13 @@ class TestCacheManagerInitialization:
 class TestJSONCacheOperations:
     """Test JSON cache read/write operations with TTL validation."""
 
-    def test_get_cached_shots_returns_data(
+    def test_get_shots_with_ttl_returns_data(
         self, cache_manager: CacheManager, sample_shots: list[Shot]
     ) -> None:
         """Test retrieving cached shots returns correct data."""
         cache_manager.cache_shots(sample_shots)
 
-        cached = cache_manager.get_cached_shots()
+        cached = cache_manager.get_shots_with_ttl()
 
         assert cached is not None
         assert len(cached) == len(sample_shots)
@@ -158,14 +158,14 @@ class TestJSONCacheOperations:
         assert cached[0]["sequence"] == "seq01"
         assert cached[0]["shot"] == "shot010"
 
-    def test_get_cached_shots_respects_ttl(
+    def test_get_shots_with_ttl_respects_ttl(
         self, cache_manager: CacheManager, sample_shots: list[Shot]
     ) -> None:
         """Test TTL expiration invalidates cache."""
         cache_manager.cache_shots(sample_shots)
 
         # Verify cache is valid initially
-        cached = cache_manager.get_cached_shots()
+        cached = cache_manager.get_shots_with_ttl()
         assert cached is not None
 
         # Manually expire the cache by modifying file timestamp
@@ -177,7 +177,7 @@ class TestJSONCacheOperations:
         os.utime(cache_file, (old_time, old_time))
 
         # Cache should now be expired
-        expired = cache_manager.get_cached_shots()
+        expired = cache_manager.get_shots_with_ttl()
         assert expired is None
 
     def test_get_cached_threede_scenes_returns_data(
@@ -217,7 +217,7 @@ class TestJSONCacheOperations:
         """Test caching empty list is handled correctly."""
         cache_manager.cache_shots([])
 
-        cached = cache_manager.get_cached_shots()
+        cached = cache_manager.get_shots_with_ttl()
         assert cached == []
 
     def test_cache_overwrites_existing_data(
@@ -226,12 +226,12 @@ class TestJSONCacheOperations:
         """Test caching new data overwrites old data."""
         # Cache initial data
         cache_manager.cache_shots(sample_shots[:2])
-        cached1 = cache_manager.get_cached_shots()
+        cached1 = cache_manager.get_shots_with_ttl()
         assert len(cached1) == 2
 
         # Overwrite with different data
         cache_manager.cache_shots(sample_shots)
-        cached2 = cache_manager.get_cached_shots()
+        cached2 = cache_manager.get_shots_with_ttl()
         assert len(cached2) == 3
 
 
@@ -392,7 +392,7 @@ class TestThreadSafety:
                     for i in range(10)
                 ]
                 cache_manager.cache_shots(shots)
-                cached = cache_manager.get_cached_shots()
+                cached = cache_manager.get_shots_with_ttl()
                 results_queue.put(cached is not None)
         else:
             def worker(thread_id: int) -> None:  # type: ignore[misc]
@@ -435,7 +435,7 @@ class TestThreadSafety:
         def read_operation() -> None:
             """Concurrent read operations."""
             for _ in range(10):
-                _ = cache_manager.get_cached_shots()
+                _ = cache_manager.get_shots_with_ttl()
                 # Result might be None if cleared, that's OK
                 read_queue.put(True)
 
@@ -555,7 +555,7 @@ class TestErrorHandling:
         # Should handle corrupt image gracefully
         assert result is None
 
-    def test_get_cached_shots_with_corrupt_json(
+    def test_get_shots_with_ttl_with_corrupt_json(
         self, cache_manager: CacheManager
     ) -> None:
         """Test retrieving shots with corrupt JSON file."""
@@ -563,12 +563,12 @@ class TestErrorHandling:
         cache_manager.shots_cache_file.parent.mkdir(parents=True, exist_ok=True)
         cache_manager.shots_cache_file.write_text("INVALID JSON{{{")
 
-        result = cache_manager.get_cached_shots()
+        result = cache_manager.get_shots_with_ttl()
 
         # Should return None for corrupt JSON
         assert result is None
 
-    def test_get_cached_shots_with_missing_keys(
+    def test_get_shots_with_ttl_with_missing_keys(
         self, cache_manager: CacheManager
     ) -> None:
         """Test retrieving shots with malformed JSON structure."""
@@ -576,7 +576,7 @@ class TestErrorHandling:
         cache_manager.shots_cache_file.parent.mkdir(parents=True, exist_ok=True)
         cache_manager.shots_cache_file.write_text('{"wrong_key": []}')
 
-        result = cache_manager.get_cached_shots()
+        result = cache_manager.get_shots_with_ttl()
 
         # Should handle gracefully
         # Implementation may return [] or None, either is acceptable
@@ -720,15 +720,15 @@ class TestPersistentPreviousShotsCache:
 class TestShotMigration:
     """Test Phase 2: Shot migration from My Shots to Previous Shots (v2.3)."""
 
-    def test_get_migrated_shots_empty_cache(self, cache_manager: CacheManager) -> None:
-        """get_migrated_shots() returns None for empty cache."""
-        result = cache_manager.get_migrated_shots()
+    def test_get_shots_archive_empty_cache(self, cache_manager: CacheManager) -> None:
+        """get_shots_archive() returns None for empty cache."""
+        result = cache_manager.get_shots_archive()
         assert result is None
 
     def test_migrate_empty_list_is_noop(self, cache_manager: CacheManager) -> None:
         """Migrating empty list is a no-op."""
-        cache_manager.migrate_shots_to_previous([])
-        result = cache_manager.get_migrated_shots()
+        cache_manager.archive_shots_as_previous([])
+        result = cache_manager.get_shots_archive()
         assert result is None
 
     def test_first_migration_creates_file_and_emits_signal(
@@ -743,11 +743,11 @@ class TestShotMigration:
         with qtbot.waitSignal(
             cache_manager.shots_migrated, timeout=1000
         ) as signal_blocker:
-            cache_manager.migrate_shots_to_previous(shots)
+            cache_manager.archive_shots_as_previous(shots)
 
         # Verify file created and content correct
         assert cache_manager.migrated_shots_cache_file.exists()
-        migrated = cache_manager.get_migrated_shots()
+        migrated = cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 2
         assert migrated[0]["shot"] in ("shot010", "shot020")
@@ -760,17 +760,17 @@ class TestShotMigration:
         """Subsequent migrations merge with existing."""
         # First migration
         batch1 = [Shot("show1", "seq01", "shot010", "/p1")]
-        cache_manager.migrate_shots_to_previous(batch1)
+        cache_manager.archive_shots_as_previous(batch1)
 
         # Second migration (different shots)
         batch2 = [
             Shot("show1", "seq01", "shot020", "/p2"),
             Shot("show1", "seq02", "shot030", "/p3"),
         ]
-        cache_manager.migrate_shots_to_previous(batch2)
+        cache_manager.archive_shots_as_previous(batch2)
 
         # Verify merged
-        migrated = cache_manager.get_migrated_shots()
+        migrated = cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 3  # All three shots present
 
@@ -780,14 +780,14 @@ class TestShotMigration:
         """Migration deduplicates using (show, sequence, shot) key."""
         # First migration
         shot1 = Shot("show1", "seq01", "shot010", "/old/path")
-        cache_manager.migrate_shots_to_previous([shot1])
+        cache_manager.archive_shots_as_previous([shot1])
 
         # Second migration with same shot but different path
         shot2 = Shot("show1", "seq01", "shot010", "/new/path")
-        cache_manager.migrate_shots_to_previous([shot2])
+        cache_manager.archive_shots_as_previous([shot2])
 
         # Verify only one shot, latest path
-        migrated = cache_manager.get_migrated_shots()
+        migrated = cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 1
         assert migrated[0]["workspace_path"] == "/new/path"
@@ -800,9 +800,9 @@ class TestShotMigration:
             Shot("show1", "seq01", "shot010", "/show1/path"),
             Shot("show2", "seq01", "shot010", "/show2/path"),  # Same seq_shot, different show
         ]
-        cache_manager.migrate_shots_to_previous(shots)
+        cache_manager.archive_shots_as_previous(shots)
 
-        migrated = cache_manager.get_migrated_shots()
+        migrated = cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 2  # Both preserved
 
@@ -810,7 +810,7 @@ class TestShotMigration:
         assert shows == {"show1", "show2"}
 
     def test_migrate_accepts_shot_dicts(self, cache_manager: CacheManager) -> None:
-        """migrate_shots_to_previous() accepts ShotDict input."""
+        """archive_shots_as_previous() accepts ShotDict input."""
         shot_dicts: list[ShotDict] = [
             {
                 "show": "show1",
@@ -819,14 +819,14 @@ class TestShotMigration:
                 "workspace_path": "/p1",
             }
         ]
-        cache_manager.migrate_shots_to_previous(shot_dicts)
+        cache_manager.archive_shots_as_previous(shot_dicts)
 
-        migrated = cache_manager.get_migrated_shots()
+        migrated = cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 1
 
     def test_migrate_mixed_shot_and_dict(self, cache_manager: CacheManager) -> None:
-        """migrate_shots_to_previous() handles mixed Shot and ShotDict."""
+        """archive_shots_as_previous() handles mixed Shot and ShotDict."""
         shot_obj = Shot("show1", "seq01", "shot010", "/p1")
         shot_dict: ShotDict = {
             "show": "show1",
@@ -834,9 +834,9 @@ class TestShotMigration:
             "shot": "shot020",
             "workspace_path": "/p2",
         }
-        cache_manager.migrate_shots_to_previous([shot_obj, shot_dict])
+        cache_manager.archive_shots_as_previous([shot_obj, shot_dict])
 
-        migrated = cache_manager.get_migrated_shots()
+        migrated = cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 2
 
@@ -852,7 +852,7 @@ class TestShotMigration:
 
         cache_manager.shots_migrated.connect(_on_migrated)
         try:
-            cache_manager.migrate_shots_to_previous([])
+            cache_manager.archive_shots_as_previous([])
             assert not signal_emitted, "shots_migrated should not emit for empty list"
         finally:
             cache_manager.shots_migrated.disconnect(_on_migrated)
@@ -863,9 +863,9 @@ class TestShotMigration:
         large_batch = [
             Shot("show1", "seq01", f"shot{i:04d}", f"/p{i}") for i in range(100)
         ]
-        cache_manager.migrate_shots_to_previous(large_batch)
+        cache_manager.archive_shots_as_previous(large_batch)
 
-        migrated = cache_manager.get_migrated_shots()
+        migrated = cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 100
 
@@ -877,14 +877,14 @@ class TestShotMigration:
 
         def migrate_batch(batch_id: int) -> None:
             shots = [Shot("show1", "seq01", f"shot{batch_id:03d}", f"/p{batch_id}")]
-            cache_manager.migrate_shots_to_previous(shots)
+            cache_manager.archive_shots_as_previous(shots)
 
         # Migrate 10 shots concurrently
         with ThreadPoolExecutor(max_workers=5) as executor:
             list(executor.map(migrate_batch, range(10)))
 
         # Verify all 10 shots present (no corruption)
-        migrated = cache_manager.get_migrated_shots()
+        migrated = cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 10
 
@@ -901,7 +901,7 @@ class TestCacheIntegration:
         """Test complete workflow: cache shots, then thumbnails."""
         # Step 1: Cache shot data
         cache_manager.cache_shots(sample_shots)
-        cached_shots = cache_manager.get_cached_shots()
+        cached_shots = cache_manager.get_shots_with_ttl()
         assert len(cached_shots) == 3
 
         # Step 2: Cache thumbnails for shots
@@ -936,7 +936,7 @@ class TestCacheIntegration:
         manager2 = CacheManager(cache_dir=cache_dir)
 
         # Verify data persisted
-        cached_shots = manager2.get_cached_shots()
+        cached_shots = manager2.get_shots_with_ttl()
         assert len(cached_shots) == 3
 
         cached_thumb = manager2.get_cached_thumbnail("show", "seq", "shot")
@@ -1039,11 +1039,11 @@ class TestCacheWriteFailureSignals:
         mock_write_failure: bool,
         expected_result: bool,
     ) -> None:
-        """migrate_shots_to_previous returns correct bool for success, failure, and empty."""
+        """archive_shots_as_previous returns correct bool for success, failure, and empty."""
         if mock_write_failure:
             mocker.patch.object(cache_manager, "_write_json_cache", return_value=False)
 
-        result = cache_manager.migrate_shots_to_previous(shots_input)
+        result = cache_manager.archive_shots_as_previous(shots_input)
         assert result is expected_result
 
     def test_migrate_emits_write_failed_on_error(
@@ -1061,7 +1061,7 @@ class TestCacheWriteFailureSignals:
         )
 
         shots = [Shot("show1", "seq01", "0010", "/path")]
-        cache_manager.migrate_shots_to_previous(shots)
+        cache_manager.archive_shots_as_previous(shots)
 
         assert "failed:migrated_shots" in signals_received
         assert "migrated" not in signals_received
@@ -1106,7 +1106,7 @@ class TestCacheManagerWithPathCache:
 
         clear_all_caches()
 
-        cached = manager.get_cached_shots()
+        cached = manager.get_shots_with_ttl()
         assert cached is not None
         assert len(cached) == 1
         assert cached[0]["shot"] == "SH0010"

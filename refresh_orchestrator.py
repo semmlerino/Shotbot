@@ -15,6 +15,7 @@ from progress_manager import ProgressConfig, ProgressManager, ProgressType
 
 
 if TYPE_CHECKING:
+    from controllers.threede_controller import ThreeDEController
     from shot_model import Shot
 
 
@@ -28,7 +29,7 @@ class RefreshOrchestratorMainWindowProtocol(Protocol):
 
     tab_widget: Any
     shot_model: Any
-    threede_controller: Any
+    threede_controller: ThreeDEController
     previous_shots_model: Any
     shot_item_model: Any
     shot_grid: Any
@@ -57,9 +58,15 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         super().__init__()
         LoggingMixin.__init__(self)
         self.main_window: RefreshOrchestratorMainWindowProtocol = main_window
-        self._last_refresh_time: float = 0.0  # Debounce duplicate display refreshes
-        self._refresh_debounce_interval: float = 0.5  # 500ms debounce window
-        self._shots_refresh_in_progress: bool = False  # Track async refresh state
+        # Two-layer refresh guard:
+        # 1. Time-based debounce: prevents rapid-fire display refreshes when
+        #    cached shots arrive followed immediately by fresh shots (< 500ms).
+        # 2. In-progress flag: prevents overlapping async ws -sg subprocess
+        #    calls (the flag stays True from _refresh_shots until
+        #    handle_refresh_finished completes).
+        self._last_refresh_time: float = 0.0
+        self._refresh_debounce_interval: float = 0.5  # seconds
+        self._shots_refresh_in_progress: bool = False
         self.logger.debug("RefreshOrchestrator initialized")
 
     def refresh_current_tab(self) -> None:
@@ -110,23 +117,11 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
     def _refresh_threede(self) -> None:
         """Refresh Other 3DE scenes."""
-        if (
-            hasattr(self.main_window, "threede_controller")
-            and self.main_window.threede_controller
-        ):
-            self.main_window.threede_controller.refresh_threede_scenes()
-        else:
-            self.logger.warning("3DE controller not available for refresh")
+        self.main_window.threede_controller.refresh_threede_scenes()
 
     def _refresh_previous(self) -> None:
         """Refresh Previous Shots."""
-        if (
-            hasattr(self.main_window, "previous_shots_model")
-            and self.main_window.previous_shots_model
-        ):
-            self.main_window.previous_shots_model.refresh_shots()
-        else:
-            self.logger.warning("Previous shots model not available for refresh")
+        self.main_window.previous_shots_model.refresh_shots()
 
     def handle_shots_loaded(self, shots: list[Shot]) -> None:
         """Handle shots loaded signal from model.
@@ -192,10 +187,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
                     self.main_window.shot_grid.select_shot_by_name(shot.full_name)
 
             # Also refresh 3DE scenes when shots are refreshed
-            if self.main_window.shot_model.shots and (
-                hasattr(self.main_window, "threede_controller")
-                and self.main_window.threede_controller
-            ):
+            if self.main_window.shot_model.shots:
                 self.main_window.threede_controller.refresh_threede_scenes()
         else:
             self._update_status("Failed to refresh shots")
@@ -219,11 +211,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
             self.logger.info(
                 f"Triggering previous shots refresh after loading {len(shots)} active shots"
             )
-            if (
-                hasattr(self.main_window, "previous_shots_model")
-                and self.main_window.previous_shots_model
-            ):
-                self.main_window.previous_shots_model.refresh_shots()
+            self.main_window.previous_shots_model.refresh_shots()
         else:
             self.logger.debug("No active shots loaded, skipping previous shots refresh")
 
@@ -241,14 +229,11 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         self._last_refresh_time = now
 
         # Always use Model/View implementation
-        if hasattr(self.main_window, "shot_item_model") and hasattr(
-            self.main_window, "shot_grid"
-        ):
-            self.main_window.shot_item_model.set_shots(
-                self.main_window.shot_model.shots
-            )
-            # Populate show filter with available shows
-            self.main_window.shot_grid.populate_show_filter(self.main_window.shot_model)
+        self.main_window.shot_item_model.set_shots(
+            self.main_window.shot_model.shots
+        )
+        # Populate show filter with available shows
+        self.main_window.shot_grid.populate_show_filter(self.main_window.shot_model)
 
     def _update_status(self, message: str) -> None:
         """Update the status bar with a message.
@@ -257,5 +242,4 @@ class RefreshOrchestrator(QObject, LoggingMixin):
             message: The status message to display
 
         """
-        if hasattr(self.main_window, "update_status"):
-            self.main_window.update_status(message)
+        self.main_window.update_status(message)

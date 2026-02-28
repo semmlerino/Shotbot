@@ -279,7 +279,7 @@ class TestCacheManager(QObject):
         self.cache_updated.emit()
         return True
 
-    def get_cached_shots(self) -> list[TestShot]:
+    def get_shots_with_ttl(self) -> list[TestShot]:
         """Get cached shots."""
         return self._cached_shots.copy()
 
@@ -299,7 +299,7 @@ class TestCacheManager(QObject):
             self._cached_previous_shots.copy() if self._cached_previous_shots else None
         )
 
-    def get_persistent_shots(self) -> list[dict[str, Any]] | None:
+    def get_shots_no_ttl(self) -> list[dict[str, Any]] | None:
         """Get My Shots cache without TTL expiration.
 
         Similar to get_persistent_previous_shots() but for active shots.
@@ -342,7 +342,7 @@ class TestCacheManager(QObject):
         # but for now we only need previous_shots support
         self.cache_updated.emit()
 
-    def get_migrated_shots(self) -> list[dict[str, Any]] | None:
+    def get_shots_archive(self) -> list[dict[str, Any]] | None:
         """Get shots that were migrated from My Shots.
 
         Returns:

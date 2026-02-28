@@ -419,7 +419,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 "list[ShotDict]",
                 self._cache_manager.get_persistent_previous_shots() or [],  # type: ignore[attr-defined]
             )
-            migrated_data: list[ShotDict] = self._cache_manager.get_migrated_shots() or []
+            migrated_data: list[ShotDict] = self._cache_manager.get_shots_archive() or []
 
             # Merge with deduplication using composite key
             shots_by_key: dict[tuple[str, str, str], ShotDict] = {}

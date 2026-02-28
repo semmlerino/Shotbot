@@ -205,6 +205,20 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         cache_manager: CacheManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
+        # === Initialization Order (do not reorder) ===
+        # 1. Thread/app safety checks (lines below)
+        # 2. super().__init__() — QMainWindow + LoggingMixin
+        # 3. Infrastructure: ProcessPool, CacheManager, PinManager, NotesManager,
+        #    FilePinManager, CleanupManager, RefreshOrchestrator, SettingsManager
+        # 4. Models: ThreeDEItemModel, ShotModel (+ async init), ThreeDESceneModel,
+        #    PreviousShotsModel, CommandLauncher
+        # 5. _setup_ui() — MUST precede controller init (controllers reference widgets)
+        # 6. Controllers: ThreeDEController, ShotSelectionController,
+        #    FilterCoordinator, ThumbnailSizeManager
+        # 7. _setup_menu(), _setup_accessibility(), _connect_signals()
+        # 8. settings_controller.load_settings(), _restore_sort_orders()
+        # 9. _initial_load() — deferred data loading with QTimer scheduling
+
         # Ensure we're in the main thread for Qt widget creation
         # Third-party imports
         from PySide6.QtCore import QCoreApplication, QThread
@@ -263,7 +277,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.logger.info("Using ProcessPoolManager for process execution")
 
         # Create single cache manager for the application
-        self.cache_manager = cache_manager or CacheManager()
+        self.cache_manager = cache_manager or CacheManager(
+            on_cleared=lambda: ProcessPoolManager.get_instance().invalidate_cache()
+        )
 
         # Create pin manager for tracking pinned shots
         self.pin_manager = PinManager(self.cache_manager)
@@ -312,7 +328,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 )
             else:
                 # Check if cache exists but expired
-                persistent_cache = self.cache_manager.get_persistent_shots()
+                persistent_cache = self.cache_manager.get_shots_no_ttl()
                 if persistent_cache:
                     self.logger.debug(
                         f"Model initialized: cache expired ({len(persistent_cache)} shots), "
@@ -344,15 +360,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._setup_ui()
 
         # Initialize 3DE controller after UI widgets are created
-        # Skip controller in test environment to avoid threading issues
-        if os.environ.get("PYTEST_CURRENT_TEST"):
-            self.logger.info("Skipping ThreeDEController in test environment")
-            self.threede_controller = None
-        else:
-            self.logger.info("Using ThreeDEController for 3DE scene management")
-            # MainWindow implements ThreeDETarget protocol functionally at runtime
-            # QMainWindow position-only params differ from Protocol
-            self.threede_controller = ThreeDEController(self)  # pyright: ignore[reportArgumentType]
+        # MainWindow implements ThreeDETarget protocol functionally at runtime
+        # QMainWindow position-only params differ from Protocol
+        self.threede_controller = ThreeDEController(self)  # pyright: ignore[reportArgumentType]
 
         # Initialize shot selection controller after UI widgets are created
         # MainWindow implements ShotSelectionTarget protocol functionally at runtime
@@ -722,13 +732,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                                             already in progress from initialize_async()
         """
         # Pre-warm bash sessions in background to avoid first-command delay
-        # Skip in test environment to avoid threading issues
-        if not os.environ.get("PYTEST_CURRENT_TEST"):
+        # Only warm real process pools (test doubles don't spawn subprocesses)
+        if isinstance(self._process_pool, ProcessPoolManager):
             self._session_warmer = SessionWarmer(self._process_pool)
             self._session_warmer.start()
             self.logger.debug("SessionWarmer started")
-        else:
-            self._session_warmer = None
 
         has_cached_shots = bool(self.shot_model.shots)
         has_cached_scenes = bool(self.threede_scene_model.scenes)
@@ -771,11 +779,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                      f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
                 ),
             )
-            # Schedule background refresh for fresh data (non-blocking)
+            # 500ms delay: let Qt finish painting the cached-shot grid before
+            # spawning the subprocess that fetches fresh data from `ws -sg`.
             QTimer.singleShot(500, self._refresh_shots)
         elif has_cached_shots:
             self._update_status(f"Loaded {len(self.shot_model.shots)} shots from cache")
-            # Schedule background refresh for fresh data (non-blocking)
+            # 500ms delay: same rationale as above — paint first, refresh second.
             QTimer.singleShot(500, self._refresh_shots)
         elif has_cached_scenes:
             self._update_status(
@@ -800,6 +809,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.logger.info(
                 "Shots already loaded from cache, triggering previous shots refresh immediately"
             )
+            # 100ms delay: yield to the event loop so the main shot grid
+            # finishes its layout pass before the previous-shots refresh
+            # triggers another model update.
             QTimer.singleShot(100, self.previous_shots_model.refresh_shots)
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
@@ -809,6 +821,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             if not self.cache_manager.has_valid_threede_cache():
                 self.logger.debug("3DE cache invalid/expired - starting discovery")
                 if self.threede_controller:
+                    # 100ms delay: same rationale — yield for layout, then
+                    # kick off 3DE filesystem scan in background.
                     QTimer.singleShot(
                         100, self.threede_controller.refresh_threede_scenes
                     )

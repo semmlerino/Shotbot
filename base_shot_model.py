@@ -109,7 +109,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
             Shot,
         )
 
-        cached_data = self.cache_manager.get_cached_shots()
+        cached_data = self.cache_manager.get_shots_with_ttl()
         if cached_data:
             try:
                 # Type annotation to help the type checker understand ShotDict compatibility
@@ -141,7 +141,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
             Dict mapping workspace_path → (frame_start, frame_end)
 
         """
-        cached_shots = self.cache_manager.get_cached_shots()
+        cached_shots = self.cache_manager.get_shots_with_ttl()
         lookup: dict[str, tuple[int, int]] = {}
         if cached_shots:
             for shot in cached_shots:

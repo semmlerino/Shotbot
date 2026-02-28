@@ -384,7 +384,7 @@ class TestCacheProtocolCompliance:
 
         # Check that all protocol methods exist with correct signatures
         assert hasattr(CacheManager, "cache_shots")
-        assert hasattr(CacheManager, "get_cached_shots")
+        assert hasattr(CacheManager, "get_shots_with_ttl")
         assert hasattr(CacheManager, "clear_cache")
         assert hasattr(CacheManager, "get_disk_usage")
 
@@ -394,7 +394,7 @@ class TestCacheProtocolCompliance:
         cache_path.mkdir(parents=True, exist_ok=True)
         cache = CacheManager(cache_dir=cache_path)
         assert callable(cache.cache_shots)
-        assert callable(cache.get_cached_shots)
+        assert callable(cache.get_shots_with_ttl)
         assert callable(cache.clear_cache)
         assert callable(cache.get_disk_usage)
 

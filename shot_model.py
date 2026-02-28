@@ -215,7 +215,7 @@ class ShotModel(BaseShotModel):
         self.logger.debug("ShotModel.initialize_async() starting")
 
         # Step 1: Load cached shots immediately (< 1ms)
-        cached_shots = self.cache_manager.get_cached_shots()
+        cached_shots = self.cache_manager.get_shots_with_ttl()
         cache_loaded = False
 
         if cached_shots:
@@ -236,7 +236,7 @@ class ShotModel(BaseShotModel):
         if not cache_loaded:
             self._cache_miss_count += 1
             # Check if cache file exists but is expired
-            persistent_cache = self.cache_manager.get_persistent_shots()
+            persistent_cache = self.cache_manager.get_shots_no_ttl()
             if persistent_cache:
                 self.logger.info(
                     f"Cache expired ({len(persistent_cache)} shots exist), "
@@ -333,7 +333,7 @@ class ShotModel(BaseShotModel):
 
         """
         # Load cache
-        cached_dicts = self.cache_manager.get_persistent_shots() or []
+        cached_dicts = self.cache_manager.get_shots_no_ttl() or []
         fresh_dicts = [s.to_dict() for s in fresh_shots]
 
         # Log the data sources for clarity (sync path has different message)
@@ -347,7 +347,7 @@ class ShotModel(BaseShotModel):
 
         # Merge with corruption recovery
         try:
-            merge_result = self.cache_manager.merge_shots_incremental(
+            merge_result = self.cache_manager.update_shots_cache(
                 cached_dicts, fresh_dicts
             )
         except (KeyError, TypeError, ValueError) as e:
@@ -374,7 +374,7 @@ class ShotModel(BaseShotModel):
 
         # Migrate removed shots
         if merge_result.removed_shots:
-            migration_success = self.cache_manager.migrate_shots_to_previous(
+            migration_success = self.cache_manager.archive_shots_as_previous(
                 merge_result.removed_shots
             )
             if migration_success:

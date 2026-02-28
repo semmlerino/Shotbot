@@ -37,6 +37,7 @@ See `README.md` for development commands.
 2. Use `--dist=loadgroup` for whole-suite parallel test runs.
 3. New singletons should use `SingletonMixin` and be registered in `tests/fixtures/singleton_registry.py`.
 4. Use `process_qt_events()` for Qt event flushing in tests (not tiny real-time waits).
+5. `except Exception` that does not re-raise **must** call `logger.exception()` or `logger.error(..., exc_info=True)`. Silent swallowing hides production bugs.
 
 ## Canonical References
 

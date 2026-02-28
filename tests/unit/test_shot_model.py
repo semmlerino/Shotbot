@@ -429,7 +429,7 @@ class TestShotModelMergeErrorHandling:
         ]
 
         # Mock: Cache merge throws corruption error
-        mock_merge = mocker.patch.object(cache_manager, "merge_shots_incremental")
+        mock_merge = mocker.patch.object(cache_manager, "update_shots_cache")
         mock_merge.side_effect = KeyError("corrupted_field")
 
         # Action: Process merge should recover
@@ -466,12 +466,12 @@ class TestShotModelMergeErrorHandling:
             has_changes=True,
         )
         mocker.patch.object(
-            cache_manager, "merge_shots_incremental", return_value=mock_merge_result
+            cache_manager, "update_shots_cache", return_value=mock_merge_result
         )
 
         # Mock: Migration returns False (disk full, permissions, etc.)
         mock_migrate = mocker.patch.object(
-            cache_manager, "migrate_shots_to_previous", return_value=False
+            cache_manager, "archive_shots_as_previous", return_value=False
         )
 
         # Action: Should complete despite migration failure
@@ -511,7 +511,7 @@ class TestShotModelMergeErrorHandling:
             has_changes=True,
         )
         mocker.patch.object(
-            cache_manager, "merge_shots_incremental", return_value=mock_merge_result
+            cache_manager, "update_shots_cache", return_value=mock_merge_result
         )
 
         # Setup signal spies - shots_changed fires when there are new shots added

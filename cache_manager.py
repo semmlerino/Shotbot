@@ -281,12 +281,14 @@ class CacheManager(LoggingMixin, QObject):
         self,
         cache_dir: Path | None = None,
         settings_manager: object | None = None,  # Ignored for simplicity
+        on_cleared: Callable[[], None] | None = None,
     ) -> None:
         """Initialize simplified cache manager.
 
         Args:
             cache_dir: Cache directory path. If None, uses mode-appropriate default
             settings_manager: Ignored in simplified implementation
+            on_cleared: Optional callback invoked after cache is cleared
 
         """
         super().__init__()
@@ -296,6 +298,9 @@ class CacheManager(LoggingMixin, QObject):
 
         # Stat result cache with LRU eviction: {path_str: (size, mtime, cache_time)}
         self._stat_cache: OrderedDict[str, tuple[int, float, float]] = OrderedDict()
+
+        # Callback for post-clear actions (e.g. invalidating process pool cache)
+        self._on_cleared = on_cleared
 
         # Setup cache directory
         if cache_dir is None:
@@ -725,11 +730,11 @@ class CacheManager(LoggingMixin, QObject):
     # Shot Data Caching Methods
     # ========================================================================
 
-    def get_cached_shots(self) -> list[ShotDict] | None:
+    def get_shots_with_ttl(self) -> list[ShotDict] | None:
         """Get cached shot list if valid (subject to TTL expiry).
 
         Returns None when the cache file is absent or older than the configured
-        TTL (default 30 minutes). Use get_persistent_shots() to bypass expiry.
+        TTL (default 30 minutes). Use get_shots_no_ttl() to bypass expiry.
 
         Returns:
             List of shot dictionaries or None if not cached/expired
@@ -738,7 +743,7 @@ class CacheManager(LoggingMixin, QObject):
         result = self._read_json_cache(self.shots_cache_file)
         return cast("list[ShotDict] | None", result)
 
-    def _cache_shot_list(
+    def _write_shots_to_cache(
         self,
         shots: Sequence[Shot] | Sequence[ShotDict],
         cache_file: Path,
@@ -769,12 +774,12 @@ class CacheManager(LoggingMixin, QObject):
             shots: Sequence of Shot objects or shot dictionaries
 
         """
-        self._cache_shot_list(shots, self.shots_cache_file, "shots")
+        self._write_shots_to_cache(shots, self.shots_cache_file, "shots")
 
-    def get_persistent_shots(self) -> list[ShotDict] | None:
+    def get_shots_no_ttl(self) -> list[ShotDict] | None:
         """Get My Shots cache without TTL expiration.
 
-        Unlike get_cached_shots(), this method ignores TTL and returns whatever
+        Unlike get_shots_with_ttl(), this method ignores TTL and returns whatever
         is on disk, surviving until explicitly invalidated. Enables incremental
         caching by preserving shot history across refresh cycles.
 
@@ -785,7 +790,7 @@ class CacheManager(LoggingMixin, QObject):
         result = self._read_json_cache(self.shots_cache_file, check_ttl=False)
         return cast("list[ShotDict] | None", result)
 
-    def get_migrated_shots(self) -> list[ShotDict] | None:
+    def get_shots_archive(self) -> list[ShotDict] | None:
         """Get shots that were migrated from My Shots.
 
         Returns persistent cache without TTL. These are shots that
@@ -798,7 +803,7 @@ class CacheManager(LoggingMixin, QObject):
         result = self._read_json_cache(self.migrated_shots_cache_file, check_ttl=False)
         return cast("list[ShotDict] | None", result)
 
-    def migrate_shots_to_previous(self, shots: list[Shot | ShotDict]) -> bool:
+    def archive_shots_as_previous(self, shots: list[Shot | ShotDict]) -> bool:
         """Move removed shots to Previous Shots migration cache.
 
         Merges with existing migrated shots (deduplicates by composite key).
@@ -827,7 +832,7 @@ class CacheManager(LoggingMixin, QObject):
         # QMutex protects against concurrent threads within this process
         with self._file_lock(self.migrated_shots_cache_file), QMutexLocker(self._lock):
             # Read existing shots
-            existing = self.get_migrated_shots() or []
+            existing = self.get_shots_archive() or []
 
             # Merge and deduplicate
             shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
@@ -899,7 +904,7 @@ class CacheManager(LoggingMixin, QObject):
             shots: Sequence of Shot objects or shot dictionaries
 
         """
-        self._cache_shot_list(shots, self.previous_shots_cache_file, "previous_shots")
+        self._write_shots_to_cache(shots, self.previous_shots_cache_file, "previous_shots")
 
     @staticmethod
     def _build_merge_lookups(
@@ -908,7 +913,7 @@ class CacheManager(LoggingMixin, QObject):
         to_dict_fn: Callable[[object], _D],
         get_key_fn: Callable[[_D], tuple[str, str, str]],
     ) -> tuple[list[_D], list[_D], dict[tuple[str, str, str], _D], set[tuple[str, str, str]]]:
-        """Build lookup structures shared by merge_shots_incremental and merge_scenes_incremental.
+        """Build lookup structures shared by update_shots_cache and merge_scenes_incremental.
 
         Lock acquisition is NOT done here — callers are responsible for holding
         the lock and passing already-copied sequences. This helper operates
@@ -932,7 +937,7 @@ class CacheManager(LoggingMixin, QObject):
         fresh_keys = {get_key_fn(item) for item in fresh_dicts}
         return cached_dicts, fresh_dicts, cached_by_key, fresh_keys
 
-    def merge_shots_incremental(
+    def update_shots_cache(
         self,
         cached: list[Shot | ShotDict] | None,
         fresh: list[Shot | ShotDict],
@@ -1418,14 +1423,9 @@ class CacheManager(LoggingMixin, QObject):
                 self.logger.info("Cache cleared successfully")
                 self.cache_updated.emit()
 
-                # Also invalidate ProcessPoolManager's in-memory command cache
-                # to prevent stale workspace command output after cache clear
-                try:
-                    from process_pool_manager import ProcessPoolManager
-                    pool = ProcessPoolManager.get_instance()
-                    pool.invalidate_cache()
-                except Exception:
-                    self.logger.debug("ProcessPoolManager cache invalidation skipped")
+                # Invoke post-clear callback (e.g. invalidate ProcessPoolManager cache)
+                if self._on_cleared:
+                    self._on_cleared()
 
             except Exception as e:
                 self.logger.error(f"Failed to clear cache: {e}")

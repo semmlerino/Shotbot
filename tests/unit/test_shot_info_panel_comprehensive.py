@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 # Third-party imports
 import pytest
+from PIL import Image
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QImage
 
@@ -45,12 +46,11 @@ class TestInfoPanelPixmapLoader:
     @pytest.fixture
     def temp_image_file(self, tmp_path: Path, qapp: QApplication) -> Path:
         """Create temporary image file for testing."""
-        # Create a simple test image
-        image = QImage(100, 100, QImage.Format.Format_RGB32)
-        image.fill(0xFF0000)  # Red image
-
+        # Use PIL instead of QImage to avoid C++ segfaults from Qt event loop
+        # contamination in ordering-dependent test runs.
         image_path = tmp_path / "test_image.jpg"
-        image.save(str(image_path), "JPEG")
+        img = Image.new("RGB", (100, 100), color=(255, 0, 0))
+        img.save(str(image_path), "JPEG")
         return image_path
 
     @pytest.fixture
@@ -134,11 +134,10 @@ class TestInfoPanelPixmapLoader:
     ) -> None:
         """Test integration with ImageUtils dimension validation."""
         # Create oversized image that should trigger validation failure
-        large_image = QImage(8000, 8000, QImage.Format.Format_RGB32)
-        large_image.fill(0x00FF00)  # Green image
-
+        # Use PIL to avoid C++ segfaults from Qt event loop contamination
         large_image_path = tmp_path / "large_image.jpg"
-        large_image.save(str(large_image_path), "JPEG")
+        img = Image.new("RGB", (8000, 8000), color=(0, 255, 0))
+        img.save(str(large_image_path), "JPEG")
 
         loaded_signals: list[QImage] = []
         failed_signals: list[bool] = []
@@ -250,11 +249,10 @@ class TestShotInfoPanelAsyncLoading:
         self, tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch
     ) -> Shot:
         """Create test shot with thumbnail."""
-        # Create test thumbnail
+        # Create test thumbnail (PIL avoids C++ segfaults from Qt state contamination)
         thumbnail_path = tmp_path / "thumbnail.jpg"
-        image = QImage(128, 128, QImage.Format.Format_RGB32)
-        image.fill(0x0000FF)  # Blue image
-        image.save(str(thumbnail_path), "JPEG")
+        img = Image.new("RGB", (128, 128), color=(0, 0, 255))
+        img.save(str(thumbnail_path), "JPEG")
 
         # Create shot that points to this thumbnail
         shot = Shot("test_show", "test_seq", "test_shot", str(tmp_path))
@@ -296,9 +294,9 @@ class TestShotInfoPanelAsyncLoading:
         thumbnail_paths: list[Path] = []
         for i in range(3):
             thumbnail_path = tmp_path / f"thumbnail_{i}.jpg"
-            image = QImage(64, 64, QImage.Format.Format_RGB32)
-            image.fill(0xFF0000 if i % 2 else 0x00FF00)  # Alternating colors
-            image.save(str(thumbnail_path), "JPEG")
+            color = (255, 0, 0) if i % 2 else (0, 255, 0)
+            img = Image.new("RGB", (64, 64), color=color)
+            img.save(str(thumbnail_path), "JPEG")
 
             shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
             shots.append(shot)

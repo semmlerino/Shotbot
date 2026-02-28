@@ -70,12 +70,12 @@ class TestIncrementalCachingWorkflow:
         assert len(shot_model_temp.shots) == 3, "Should have 3 shots"
 
         # Verify shots are cached persistently
-        cached = shot_model_temp.cache_manager.get_persistent_shots()
+        cached = shot_model_temp.cache_manager.get_shots_no_ttl()
         assert cached is not None, "Shots should be cached"
         assert len(cached) == 3, "Cache should have 3 shots"
 
         # Verify no migrated shots yet
-        migrated = shot_model_temp.cache_manager.get_migrated_shots()
+        migrated = shot_model_temp.cache_manager.get_shots_archive()
         assert migrated is None or len(migrated) == 0, "No migrations on first refresh"
 
     def test_second_refresh_no_changes(
@@ -104,7 +104,7 @@ class TestIncrementalCachingWorkflow:
         assert len(shot_model_temp.shots) == 3, "Should still have 3 shots"
 
         # Verify no migrations
-        migrated = shot_model_temp.cache_manager.get_migrated_shots()
+        migrated = shot_model_temp.cache_manager.get_shots_archive()
         assert migrated is None or len(migrated) == 0, "No shots should be migrated"
 
     def test_third_refresh_add_shots(
@@ -137,7 +137,7 @@ class TestIncrementalCachingWorkflow:
         assert len(shot_model_temp.shots) == 6, "Should have 6 shots total"
 
         # Verify new shots are in cache
-        cached = shot_model_temp.cache_manager.get_persistent_shots()
+        cached = shot_model_temp.cache_manager.get_shots_no_ttl()
         assert cached is not None
         assert len(cached) == 6, "Cache should have 6 shots"
 
@@ -184,7 +184,7 @@ class TestIncrementalCachingWorkflow:
         assert len(shot_model_temp.shots) == 3, "Should have 3 remaining shots"
 
         # Verify removed shots are migrated
-        migrated = shot_model_temp.cache_manager.get_migrated_shots()
+        migrated = shot_model_temp.cache_manager.get_shots_archive()
         assert migrated is not None, "Migrated cache should exist"
         assert len(migrated) == 3, "Should have 3 migrated shots"
 
@@ -226,7 +226,7 @@ class TestIncrementalCachingWorkflow:
         assert len(shot_model_temp.shots) == 0
 
         # Verify migration with deduplication
-        migrated = shot_model_temp.cache_manager.get_migrated_shots()
+        migrated = shot_model_temp.cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 3, "All 3 shots should be migrated"
 
@@ -244,7 +244,7 @@ class TestIncrementalCachingWorkflow:
         ), "Composite keys should preserve cross-show uniqueness"
 
         # Test duplicate migration prevention by migrating same shots again
-        shot_model_temp.cache_manager.migrate_shots_to_previous(
+        shot_model_temp.cache_manager.archive_shots_as_previous(
             [
                 {"show": "broken_eggs", "sequence": "sq0010", "shot": "0010", "workspace_path": "/test1"},
                 {"show": "gator", "sequence": "sq0010", "shot": "0010", "workspace_path": "/test2"},
@@ -252,7 +252,7 @@ class TestIncrementalCachingWorkflow:
         )
 
         # Verify still only 3 unique shots (duplicates not added)
-        migrated_final = shot_model_temp.cache_manager.get_migrated_shots()
+        migrated_final = shot_model_temp.cache_manager.get_shots_archive()
         assert migrated_final is not None
         assert len(migrated_final) == 3, "Deduplication should prevent duplicates"
 
@@ -286,11 +286,11 @@ class TestIncrementalCachingWorkflow:
         assert len(shot_model_temp.shots) == 429, "429 active shots"
 
         # Verify migration
-        migrated = shot_model_temp.cache_manager.get_migrated_shots()
+        migrated = shot_model_temp.cache_manager.get_shots_archive()
         assert migrated is not None
         assert len(migrated) == 3, "3 shots migrated"
 
         # Verify cache persistence
-        cached = shot_model_temp.cache_manager.get_persistent_shots()
+        cached = shot_model_temp.cache_manager.get_shots_no_ttl()
         assert cached is not None
         assert len(cached) == 429

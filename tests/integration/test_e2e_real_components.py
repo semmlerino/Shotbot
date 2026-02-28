@@ -96,7 +96,7 @@ class TestCacheManagerE2E:
         manager2 = CacheManager(cache_dir=real_cache_dir)
 
         # New manager should find cached shots
-        cached = manager2.get_cached_shots()
+        cached = manager2.get_shots_with_ttl()
         assert cached is not None
         assert len(cached) == 1
         assert cached[0]["show"] == "SURVIVALTEST"
@@ -116,7 +116,7 @@ class TestCacheManagerE2E:
         os.utime(cache_file, (old_time, old_time))
 
         # Cache should now be expired
-        cached = real_cache_manager.get_cached_shots()
+        cached = real_cache_manager.get_shots_with_ttl()
         assert cached is None, "Expired cache should return None"
 
     def test_previous_shots_cache_replacement(

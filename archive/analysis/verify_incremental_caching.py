@@ -87,7 +87,7 @@ def verify_initial_load() -> tuple[bool, CacheManager, Path]:
     print_status("Cache file created", cache_file_exists)
 
     # Verify shot count
-    cached = cache_manager.get_persistent_shots()
+    cached = cache_manager.get_shots_no_ttl()
     if cached is None:
         print_status("Initial shots cached", False, "Cache returned None")
         return False, cache_manager, cache_dir
@@ -98,7 +98,7 @@ def verify_initial_load() -> tuple[bool, CacheManager, Path]:
     )
 
     # Verify no migrations yet
-    migrated = cache_manager.get_migrated_shots()
+    migrated = cache_manager.get_shots_archive()
     no_migrations = migrated is None or len(migrated) == 0
     print_status("No migrations initially", no_migrations)
 
@@ -119,14 +119,14 @@ def verify_merge_no_changes(cache_manager: CacheManager) -> bool:
     print_header("Test 2: Merge No Changes (432 → 432)")
 
     # Load cached shots
-    cached = cache_manager.get_persistent_shots()
+    cached = cache_manager.get_shots_no_ttl()
     if cached is None:
         print_status("Load cached shots", False, "Cache returned None")
         return False
 
     # Merge with identical fresh data
     fresh = cached.copy()
-    result = cache_manager.merge_shots_incremental(cached, fresh)
+    result = cache_manager.update_shots_cache(cached, fresh)
 
     # Verify no changes detected
     no_changes = not result.has_changes
@@ -162,7 +162,7 @@ def verify_remove_shots(cache_manager: CacheManager) -> bool:
     print_header("Test 3: Remove 3 Shots (432 → 429)")
 
     # Load cached shots (432)
-    cached = cache_manager.get_persistent_shots()
+    cached = cache_manager.get_shots_no_ttl()
     if cached is None:
         print_status("Load cached shots", False, "Cache returned None")
         return False
@@ -171,7 +171,7 @@ def verify_remove_shots(cache_manager: CacheManager) -> bool:
     fresh = cached[:-3]  # 429 shots
 
     # Perform merge
-    result = cache_manager.merge_shots_incremental(cached, fresh)
+    result = cache_manager.update_shots_cache(cached, fresh)
 
     # Verify changes detected
     changes_detected = result.has_changes
@@ -196,10 +196,10 @@ def verify_remove_shots(cache_manager: CacheManager) -> bool:
     print_status("No new shots added", no_new)
 
     # Migrate removed shots
-    cache_manager.migrate_shots_to_previous(result.removed_shots)
+    cache_manager.archive_shots_as_previous(result.removed_shots)
 
     # Verify migration
-    migrated = cache_manager.get_migrated_shots()
+    migrated = cache_manager.get_shots_archive()
     migration_success = migrated is not None and len(migrated) == 3
     print_status(
         "Migration successful",
@@ -244,10 +244,10 @@ def verify_deduplication(cache_manager: CacheManager) -> bool:
     )  # Duplicate of shot1
 
     # Migrate all three
-    cache_manager.migrate_shots_to_previous([shot1, shot2, shot3])
+    cache_manager.archive_shots_as_previous([shot1, shot2, shot3])
 
     # Load migrated shots
-    migrated = cache_manager.get_migrated_shots()
+    migrated = cache_manager.get_shots_archive()
     if migrated is None:
         print_status("Load migrated shots", False, "Migration returned None")
         return False
@@ -297,7 +297,7 @@ def verify_performance(cache_manager: CacheManager) -> bool:
 
     # Benchmark merge operation
     start = time.time()
-    result = cache_manager.merge_shots_incremental(cached_dicts, fresh_dicts)
+    result = cache_manager.update_shots_cache(cached_dicts, fresh_dicts)
     elapsed_ms = (time.time() - start) * 1000
 
     # Verify performance requirement (<10ms)
