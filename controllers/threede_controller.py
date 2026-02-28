@@ -691,7 +691,7 @@ class ThreeDEController(LoggingMixin):
         """Update model and UI when scene changes are detected."""
         # Update the model with new scenes (deduplication happens in model)
         self.window.threede_scene_model.scenes = (
-            self.window.threede_scene_model._deduplicate_scenes_by_shot(scenes)  # pyright: ignore[reportPrivateUsage]
+            self.window.threede_scene_model.deduplicate_scenes_by_shot(scenes)
         )
         self.logger.info(
             f"🔧 After deduplication: {len(self.window.threede_scene_model.scenes)} scenes remain"

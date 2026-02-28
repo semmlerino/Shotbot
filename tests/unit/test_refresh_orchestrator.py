@@ -331,9 +331,9 @@ def test_refresh_shot_display_debounces_rapid_calls(
     mock_main_window.shot_item_model.set_shots = counting_set_shots
 
     # Call refresh multiple times rapidly (within 500ms debounce window)
-    orchestrator._refresh_shot_display()
-    orchestrator._refresh_shot_display()
-    orchestrator._refresh_shot_display()
+    orchestrator.refresh_shot_display()
+    orchestrator.refresh_shot_display()
+    orchestrator.refresh_shot_display()
 
     # Should only execute once due to debouncing (first call goes through)
     assert call_count == 1, "Expected exactly 1 call due to debouncing"
@@ -342,5 +342,5 @@ def test_refresh_shot_display_debounces_rapid_calls(
     qtbot.wait(1200)
 
     # Now a new call should execute (debounce window expired)
-    orchestrator._refresh_shot_display()
+    orchestrator.refresh_shot_display()
     assert call_count == 2, "Expected 2nd call after debounce window expired"

@@ -136,7 +136,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         """
         self.logger.info(f"Shots loaded signal received: {len(shots)} shots")
-        self._refresh_shot_display()
+        self.refresh_shot_display()
         self._update_status(f"Loaded {len(shots)} shots")
         NotificationManager.info(f"{len(shots)} shots loaded")
 
@@ -148,7 +148,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         """
         self.logger.info(f"Shots changed signal received: {len(shots)} shots")
-        self._refresh_shot_display()
+        self.refresh_shot_display()
         self._update_status(f"Shot list updated: {len(shots)} shots")
         NotificationManager.success(f"Refreshed {len(shots)} shots")
 
@@ -227,7 +227,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         else:
             self.logger.debug("No active shots loaded, skipping previous shots refresh")
 
-    def _refresh_shot_display(self) -> None:
+    def refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
         # Debounce rapid refresh calls (e.g., cached shots followed by fresh shots)
         now = time.time()

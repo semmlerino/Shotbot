@@ -491,7 +491,7 @@ class TestThreeDESceneModel:
         )
 
         # Deduplicate
-        deduplicated = model._deduplicate_scenes_by_shot(scenes)
+        deduplicated = model.deduplicate_scenes_by_shot(scenes)
 
         # Test behavior - one scene per shot
         assert len(deduplicated) == 2

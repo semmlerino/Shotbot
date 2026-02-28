@@ -179,6 +179,12 @@ class BaseItemModel(
     specific behavior for their data types.
     """
 
+    # Timing constants for thumbnail loading and batching
+    _THUMBNAIL_DEBOUNCE_MS: ClassVar[int] = 250
+    _BATCH_WINDOW_MS: ClassVar[int] = 10
+    _INITIAL_LOAD_COUNT: ClassVar[int] = 30
+    _INITIAL_LOAD_DELAY_MS: ClassVar[int] = 100
+
     # Common signals
     items_updated: Signal = Signal()  # Emitted when items list changes
     thumbnail_loaded: Signal = Signal(int)  # row index
@@ -236,14 +242,14 @@ class BaseItemModel(
         self._last_visible_range: tuple[int, int] = (-1, -1)
         self._thumbnail_debounce_timer: QTimer = QTimer(self)
         self._thumbnail_debounce_timer.setSingleShot(True)  # Critical: single-shot
-        self._thumbnail_debounce_timer.setInterval(250)  # 250ms debounce
+        self._thumbnail_debounce_timer.setInterval(self._THUMBNAIL_DEBOUNCE_MS)
         _ = self._thumbnail_debounce_timer.timeout.connect(self._do_load_visible_thumbnails)
 
         # Batch signal emission to reduce Qt event queue pressure
         self._pending_updates: dict[int, set[int]] = {}  # row -> set of role integers
         self._batch_timer: QTimer = QTimer(self)
         self._batch_timer.setSingleShot(True)
-        self._batch_timer.setInterval(10)  # 10ms batch window
+        self._batch_timer.setInterval(self._BATCH_WINDOW_MS)
         _ = self._batch_timer.timeout.connect(self._emit_batched_updates)
 
         self.logger.info(
@@ -904,13 +910,13 @@ class BaseItemModel(
 
         # CRITICAL: Trigger initial thumbnail load for visible items
         # Set visible range to a reasonable initial value (view will refine this on first paint)
-        # Use min(30, item_count) to avoid loading all thumbnails on startup
+        # Use min(INITIAL_LOAD_COUNT, item_count) to avoid loading all thumbnails on startup
         if self._items:
-            initial_load_count = min(30, len(self._items))
+            initial_load_count = min(self._INITIAL_LOAD_COUNT, len(self._items))
             self._visible_end = initial_load_count - 1
             # Schedule immediate thumbnail load for initial visible items only
             self.logger.debug(f"Scheduling thumbnail load timer for {initial_load_count} items (total: {len(self._items)})")
-            QTimer.singleShot(100, self._do_load_visible_thumbnails)
+            QTimer.singleShot(self._INITIAL_LOAD_DELAY_MS, self._do_load_visible_thumbnails)
 
     # ============= Abstract methods for subclasses =============
 

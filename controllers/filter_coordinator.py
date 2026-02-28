@@ -12,7 +12,7 @@ injection pattern established by SettingsController and ThreeDEController.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, final
+from typing import TYPE_CHECKING, Any, Protocol, final
 
 from PySide6.QtCore import Slot
 
@@ -29,6 +29,13 @@ if TYPE_CHECKING:
     from shot_grid_view import ShotGridView
     from shot_item_model import ShotItemModel
     from shot_model import ShotModel
+
+
+class FilterableItemModel(Protocol):
+    """Protocol for item models that support show filtering."""
+
+    def set_show_filter(self, __model: Any, __show_filter: str | None) -> None: ...
+    def rowCount(self) -> int: ...
 
 
 class FilterTarget(Protocol):
@@ -103,7 +110,7 @@ class FilterCoordinator(LoggingMixin):
         self.logger.debug("FilterCoordinator signals connected")
 
     def _apply_show_filter(
-        self, item_model: object, model: object, show: str, tab_name: str
+        self, item_model: FilterableItemModel, model: Any, show: str, tab_name: str
     ) -> None:
         """Generic show filter handler for all tabs.
 
@@ -119,10 +126,10 @@ class FilterCoordinator(LoggingMixin):
 
         # Apply filter to item model
         # Different item models have varying set_show_filter signatures
-        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        item_model.set_show_filter(model, show_filter)
 
         # Get filtered count for status
-        filtered_count = int(item_model.rowCount())  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
+        filtered_count = int(item_model.rowCount())
         filter_desc = show if show else "All Shows"
         self.window.status_bar.showMessage(
             f"{tab_name}: {filtered_count} shots ({filter_desc})", 2500

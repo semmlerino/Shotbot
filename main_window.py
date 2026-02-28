@@ -288,7 +288,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         design_system.set_ui_scale(saved_scale)
 
         # Store reference to settings dialog
-        self._settings_dialog: SettingsDialog | None = None
+        self.settings_dialog: SettingsDialog | None = None
 
         # Initialize settings controller (refactored from MainWindow methods)
         # MainWindow implements SettingsTarget protocol functionally at runtime
@@ -818,14 +818,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
         self.logger.debug("Refreshing shots via RefreshOrchestrator")
-        self.refresh_orchestrator._refresh_shots()  # pyright: ignore[reportPrivateUsage]
+        self.refresh_orchestrator.refresh_tab(0)
 
     # Note: Background refresh methods removed - now handled by reactive signals
 
     def _refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
         # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator._refresh_shot_display()  # pyright: ignore[reportPrivateUsage]
+        self.refresh_orchestrator.refresh_shot_display()
 
     def _on_shots_loaded(self, shots: list[Shot]) -> None:
         """Handle shots loaded signal from model.

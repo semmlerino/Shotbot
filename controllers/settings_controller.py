@@ -84,7 +84,7 @@ class SettingsTarget(Protocol):
     previous_shots_grid: GridWidget
 
     # Settings dialog reference
-    _settings_dialog: SettingsDialog | None
+    settings_dialog: SettingsDialog | None
 
 
 class SettingsController(LoggingMixin):
@@ -141,12 +141,9 @@ class SettingsController(LoggingMixin):
 
             # Apply thumbnail size
             thumbnail_size = self.window.settings_manager.get_thumbnail_size()
-            if hasattr(self.window.shot_grid, "size_slider"):
-                self.window.shot_grid.size_slider.setValue(thumbnail_size)
-            if hasattr(self.window.threede_shot_grid, "size_slider"):
-                self.window.threede_shot_grid.size_slider.setValue(thumbnail_size)
-            if hasattr(self.window.previous_shots_grid, "size_slider"):
-                self.window.previous_shots_grid.size_slider.setValue(thumbnail_size)
+            self.window.shot_grid.size_slider.setValue(thumbnail_size)
+            self.window.threede_shot_grid.size_slider.setValue(thumbnail_size)
+            self.window.previous_shots_grid.size_slider.setValue(thumbnail_size)
 
             # Apply UI preferences
             self.apply_ui_settings()
@@ -200,10 +197,9 @@ class SettingsController(LoggingMixin):
             )
 
             # Save thumbnail size
-            if hasattr(self.window.shot_grid, "size_slider"):
-                self.window.settings_manager.set_thumbnail_size(
-                    self.window.shot_grid.size_slider.value()
-                )
+            self.window.settings_manager.set_thumbnail_size(
+                self.window.shot_grid.size_slider.value()
+            )
 
             # Sync to disk
             self.window.settings_manager.sync()
@@ -215,13 +211,9 @@ class SettingsController(LoggingMixin):
 
     def apply_ui_settings(self) -> None:
         """Apply UI settings from settings manager."""
-        try:
-            # Dead settings removed: grid_columns, show_tooltips, dark_theme
-            # These were never implemented and just confused users
-            self.logger.debug("UI settings applied")
-
-        except Exception as e:
-            self.logger.error(f"Error applying UI settings: {e}")
+        # Dead settings removed: grid_columns, show_tooltips, dark_theme
+        # These were never implemented and just confused users
+        self.logger.debug("UI settings applied")
 
     def apply_cache_settings(self) -> None:
         """Apply cache settings from settings manager."""
@@ -241,23 +233,22 @@ class SettingsController(LoggingMixin):
         # Lazy import to avoid circular dependencies - only needed when showing dialog
         from settings_dialog import SettingsDialog
 
-        if self.window._settings_dialog is None:  # pyright: ignore[reportPrivateUsage]
+        if self.window.settings_dialog is None:
             # MainWindow implements both SettingsTarget and QWidget protocols
             # Cast through object first to satisfy type checker
             parent_widget = cast("QWidget", cast("object", self.window))
-            self.window._settings_dialog = SettingsDialog(  # pyright: ignore[reportPrivateUsage]
+            self.window.settings_dialog = SettingsDialog(
                 self.window.settings_manager,
                 parent_widget,
             )
-            _ = self.window._settings_dialog.settings_applied.connect(  # pyright: ignore[reportPrivateUsage]
+            _ = self.window.settings_dialog.settings_applied.connect(
                 self.on_settings_applied
             )
 
-        if self.window._settings_dialog is not None:  # pyright: ignore[reportPrivateUsage,reportUnnecessaryComparison]
-            self.window._settings_dialog.load_current_settings()  # pyright: ignore[reportPrivateUsage]
-            self.window._settings_dialog.show()  # pyright: ignore[reportPrivateUsage]
-            self.window._settings_dialog.raise_()  # pyright: ignore[reportPrivateUsage]
-            self.window._settings_dialog.activateWindow()  # pyright: ignore[reportPrivateUsage]
+        self.window.settings_dialog.load_current_settings()
+        self.window.settings_dialog.show()
+        self.window.settings_dialog.raise_()
+        self.window.settings_dialog.activateWindow()
 
     def on_settings_applied(self) -> None:
         """Handle settings being applied from preferences dialog."""
@@ -267,13 +258,9 @@ class SettingsController(LoggingMixin):
 
         # Update thumbnail sizes in grids
         thumbnail_size = self.window.settings_manager.get_thumbnail_size()
-        # GridWidget protocol guarantees size_slider exists
-        if hasattr(self.window.shot_grid, "size_slider"):
-            self.window.shot_grid.size_slider.setValue(thumbnail_size)
-        if hasattr(self.window.threede_shot_grid, "size_slider"):
-            self.window.threede_shot_grid.size_slider.setValue(thumbnail_size)
-        if hasattr(self.window.previous_shots_grid, "size_slider"):
-            self.window.previous_shots_grid.size_slider.setValue(thumbnail_size)
+        self.window.shot_grid.size_slider.setValue(thumbnail_size)
+        self.window.threede_shot_grid.size_slider.setValue(thumbnail_size)
+        self.window.previous_shots_grid.size_slider.setValue(thumbnail_size)
 
         self.logger.info("Settings applied successfully")
 

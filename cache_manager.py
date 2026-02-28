@@ -1425,7 +1425,7 @@ class CacheManager(LoggingMixin, QObject):
                     pool = ProcessPoolManager.get_instance()
                     pool.invalidate_cache()
                 except Exception:
-                    pass  # ProcessPoolManager may not be initialized yet
+                    self.logger.debug("ProcessPoolManager cache invalidation skipped")
 
             except Exception as e:
                 self.logger.error(f"Failed to clear cache: {e}")
@@ -1567,7 +1567,7 @@ class CacheManager(LoggingMixin, QObject):
             )
             return None
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, ValueError) as e:
             self.logger.error(f"Failed to read cache file {cache_file}: {e}")
             return None
 

@@ -81,7 +81,7 @@ class ThreeDESceneModelDouble:
     def scenes(self, value: list[ThreeDEScene]) -> None:
         self._scenes = value
 
-    def _deduplicate_scenes_by_shot(
+    def deduplicate_scenes_by_shot(
         self, scenes: list[ThreeDEScene]
     ) -> list[ThreeDEScene]:
         """Simple deduplication for testing."""

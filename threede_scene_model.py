@@ -281,7 +281,7 @@ class ThreeDESceneModel:
 
                 # Step 4: Apply deduplication AFTER merge (one scene per shot, best by mtime/plate)
                 if has_changes:
-                    self.scenes = self._deduplicate_scenes_by_shot(merged_scenes)
+                    self.scenes = self.deduplicate_scenes_by_shot(merged_scenes)
                     self.scenes.sort(key=lambda s: (s.full_name, s.user))
 
                 # Step 5: ALWAYS cache to persist (refreshes file timestamp)
@@ -374,7 +374,7 @@ class ThreeDESceneModel:
         )
         return scenes
 
-    def _deduplicate_scenes_by_shot(
+    def deduplicate_scenes_by_shot(
         self,
         scenes: list[ThreeDEScene],
     ) -> list[ThreeDEScene]:
