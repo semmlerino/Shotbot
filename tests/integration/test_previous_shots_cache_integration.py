@@ -38,10 +38,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 pytestmark = [
-    pytest.mark.unit,
+    pytest.mark.integration,
     pytest.mark.qt,
     pytest.mark.slow,
-    pytest.mark.legacy,
 ]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:

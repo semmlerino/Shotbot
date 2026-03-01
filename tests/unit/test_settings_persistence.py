@@ -19,6 +19,12 @@ from PySide6.QtCore import QByteArray, QSettings, QSize
 from config import Config
 from controllers.settings_controller import SettingsController
 from settings_manager import SettingsManager
+from tests.unit.test_settings_controller import (
+    CacheManagerDouble,
+    GridWidgetDouble,
+    SplitterDouble,
+    TabWidgetDouble,
+)
 
 
 pytestmark = [
@@ -56,67 +62,6 @@ def make_real_manager(tmp_path: Path, name: str = "test") -> SettingsManager:
 # ============================================================================
 
 
-class _SizeSliderDouble:
-    __test__ = False
-
-    def __init__(self) -> None:
-        self._value = 100
-
-    def setValue(self, value: int) -> None:
-        self._value = value
-
-    def value(self) -> int:
-        return self._value
-
-
-class _GridWidgetDouble:
-    __test__ = False
-
-    def __init__(self) -> None:
-        self.size_slider = _SizeSliderDouble()
-
-
-class _SplitterDouble:
-    __test__ = False
-
-    def __init__(self) -> None:
-        self._state = QByteArray(b"default_splitter")
-        self._sizes: list[int] = [700, 300]
-
-    def saveState(self) -> QByteArray:
-        return self._state
-
-    def restoreState(self, state: QByteArray) -> bool:
-        self._state = state
-        return True
-
-    def setSizes(self, sizes: list[int]) -> None:
-        self._sizes = sizes
-
-
-class _TabWidgetDouble:
-    __test__ = False
-
-    def __init__(self) -> None:
-        self._current_index = 0
-
-    def currentIndex(self) -> int:
-        return self._current_index
-
-    def setCurrentIndex(self, index: int) -> None:
-        self._current_index = index
-
-
-class _CacheManagerDouble:
-    __test__ = False
-
-    def __init__(self) -> None:
-        self._expiry_minutes: int | None = None
-
-    def set_expiry_minutes(self, minutes: int) -> None:
-        self._expiry_minutes = minutes
-
-
 class _WindowDouble:
     """SettingsTarget test double that holds a real SettingsManager."""
 
@@ -130,12 +75,12 @@ class _WindowDouble:
         self._show_maximized_called = False
 
         self.settings_manager = real_manager
-        self.cache_manager = _CacheManagerDouble()
-        self.splitter = _SplitterDouble()
-        self.tab_widget = _TabWidgetDouble()
-        self.shot_grid = _GridWidgetDouble()
-        self.threede_shot_grid = _GridWidgetDouble()
-        self.previous_shots_grid = _GridWidgetDouble()
+        self.cache_manager = CacheManagerDouble()
+        self.splitter = SplitterDouble()
+        self.tab_widget = TabWidgetDouble()
+        self.shot_grid = GridWidgetDouble()
+        self.threede_shot_grid = GridWidgetDouble()
+        self.previous_shots_grid = GridWidgetDouble()
         self.settings_dialog = None
 
     def restoreGeometry(self, geometry: QByteArray) -> bool:
@@ -339,11 +284,6 @@ class TestSimulatedCrash:
             def get_cache_expiry_minutes(self) -> int:
                 return 60
 
-        from tests.unit.test_settings_controller import (
-            CacheManagerDouble,
-            SplitterDouble,
-            TabWidgetDouble,
-        )
 
         class _BrokenWindow:
             __test__ = False

@@ -33,56 +33,6 @@ pytestmark = [
 ]
 
 
-@pytest.fixture(autouse=True)
-def reset_threede_singletons() -> None:
-    """Reset 3DE-related singletons to prevent cross-test contamination.
-
-    Resets:
-    - NotificationManager._instance (used for progress notifications)
-    - ProgressManager._instance (used for operation tracking)
-
-    NOTE: ProcessPoolManager is NOT reset here - it's handled by the autouse
-    mock_process_pool_manager fixture in conftest.py which provides a TestProcessPool.
-    Resetting it here would undo that mock and cause subprocess failures.
-    """
-    # Import here to avoid circular dependencies
-    from notification_manager import NotificationManager
-    from progress_manager import ProgressManager
-
-    # Reset NotificationManager
-    if NotificationManager._instance is not None:
-        try:
-            NotificationManager.cleanup()
-        except (RuntimeError, AttributeError):
-            pass
-        if hasattr(NotificationManager._instance, "_initialized"):
-            delattr(NotificationManager._instance, "_initialized")
-    NotificationManager._instance = None
-    NotificationManager._main_window = None
-    NotificationManager._status_bar = None
-    NotificationManager._active_toasts = []
-    NotificationManager._current_progress = None
-
-    # Reset ProgressManager
-    if ProgressManager._instance is not None:
-        try:
-            ProgressManager.clear_all_operations()
-        except (RuntimeError, AttributeError):
-            pass
-        if hasattr(ProgressManager._instance, "_initialized"):
-            delattr(ProgressManager._instance, "_initialized")
-    ProgressManager._instance = None
-    ProgressManager._operation_stack = []
-    ProgressManager._status_bar = None
-
-    yield
-
-    # Reset again after test (defense in depth)
-    # NOTE: ProcessPoolManager handled by autouse mock
-    NotificationManager._instance = None
-    ProgressManager._instance = None
-
-
 class TestParallelDiscoveryIntegration:
     """Integration tests for parallel 3DE discovery methods.
 

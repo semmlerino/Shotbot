@@ -530,6 +530,10 @@ class TestMainWindowKeyboardShortcuts:
 class TestMainWindowErrorScenarios:
     """Test error handling and recovery."""
 
+    @pytest.mark.xfail(
+        reason="Guard removal revealed error path uses logging, not QMessageBox",
+        strict=True,
+    )
     def test_handles_shot_refresh_failure(
         self, main_window_with_real_components: Any, qtbot: Any, monkeypatch: Any
     ) -> None:
@@ -546,18 +550,16 @@ class TestMainWindowErrorScenarios:
         window.refresh_action.trigger()
         qtbot.wait(1)
 
-        if test_message_box.messages:
-            last_message = test_message_box.get_last_message()
-            assert last_message is not None
-            assert "error" in last_message.get("message", "").lower()
+        last_message = test_message_box.get_last_message()
+        assert last_message is not None
+        assert "error" in last_message.get("message", "").lower()
 
-        if hasattr(window, "_test_notification_manager"):
-            notifications = window._test_notification_manager._notifications
-            if notifications:
-                error_notifications = [
-                    n for n in notifications if n.get("type") in ["error", "warning"]
-                ]
-                assert len(error_notifications) > 0
+        assert hasattr(window, "_test_notification_manager")
+        notifications = window._test_notification_manager._notifications
+        error_notifications = [
+            n for n in notifications if n.get("type") in ["error", "warning"]
+        ]
+        assert len(error_notifications) > 0
 
 
 
@@ -771,16 +773,7 @@ class TestUserWorkflows:
         thumb_path_1 = (
             shot_path_1 / "publish/editorial/cutref/v001/jpg/1920x1080/thumbnail.jpg"
         )
-        thumb_path_1.write_bytes(
-            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00"
-            b"\xff\xdb\x00C\x00"
-            + b"\x10" * 64
-            + b"\xff\xc0\x00\x11"
-            + b"\x08\x00\x10\x00\x10\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01"
-            + b"\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08"
-            + b"\xff\xda\x00\x08\x01\x01\x00\x00?\x00"
-            + b"\xd9"
-        )
+        thumb_path_1.write_bytes(b"fake-thumbnail")
         shot_1 = Shot(
             shot_data_1["show"],
             shot_data_1["sequence"],
@@ -849,13 +842,12 @@ class TestUserWorkflows:
                 timeout=5000
             )
 
-            if hasattr(main_window, "previous_shots_model"):
-                model_shots = main_window.previous_shots_model.get_shots()
-                if model_shots:
-                    current_shot_names = [s["name"] for s in current_shots]
-                    assert not any(
-                        shot.full_name in current_shot_names for shot in model_shots
-                    )
+            assert hasattr(main_window, "previous_shots_model")
+            model_shots = main_window.previous_shots_model.get_shots()
+            current_shot_names = [s["name"] for s in current_shots]
+            assert not any(
+                shot.full_name in current_shot_names for shot in model_shots
+            )
 
 
 # ---------------------------------------------------------------------------

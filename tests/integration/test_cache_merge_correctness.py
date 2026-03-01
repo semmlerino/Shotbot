@@ -28,7 +28,6 @@ from type_definitions import Shot, ShotDict, ThreeDESceneDict
 
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.legacy,
 ]
 
 

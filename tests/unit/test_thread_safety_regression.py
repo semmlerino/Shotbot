@@ -33,7 +33,6 @@ pytestmark = [
     pytest.mark.thread_safety,
     pytest.mark.qt,
     pytest.mark.slow,
-    pytest.mark.legacy,
 ]
 
 
