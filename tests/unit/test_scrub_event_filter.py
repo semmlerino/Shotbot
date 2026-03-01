@@ -95,9 +95,11 @@ class TestEventFiltering:
         viewport = mock_view.viewport()
 
         # Create mouse move event
+        pos = QPoint(100, 100).toPointF()
         event = QMouseEvent(
             QEvent.Type.MouseMove,
-            QPoint(100, 100).toPointF(),
+            pos,
+            pos,
             Qt.MouseButton.NoButton,
             Qt.MouseButton.NoButton,
             Qt.KeyboardModifier.NoModifier,
@@ -398,9 +400,11 @@ class TestHandleMouseMoveIntegration:
         scrub_filter._current_index = QModelIndex()
 
         # Create mouse event
+        pos = QPoint(100, 100).toPointF()
         event = QMouseEvent(
             QEvent.Type.MouseMove,
-            QPoint(100, 100).toPointF(),
+            pos,
+            pos,
             Qt.MouseButton.NoButton,
             Qt.MouseButton.NoButton,
             Qt.KeyboardModifier.NoModifier,

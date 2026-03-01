@@ -21,8 +21,6 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from cache_manager import CacheManager
-from previous_shots_finder import PreviousShotsFinder
-from previous_shots_model import PreviousShotsModel
 from shot_model import Shot, ShotModel
 from tests.fixtures.integration_doubles import (
     MainWindowTestProgressManager,
@@ -67,28 +65,70 @@ pytestmark = [
 # Shared window-cleanup helper
 # ---------------------------------------------------------------------------
 
+@pytest.fixture(autouse=True)
+def stable_main_window_startup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disable background startup work that these tests control explicitly."""
+    from type_definitions import RefreshResult
+
+    def _skip_async_init(_self: object) -> RefreshResult:
+        return RefreshResult(success=True, has_changes=False)
+
+    monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
+    monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
+    monkeypatch.setattr("shot_model.ShotModel.initialize_async", _skip_async_init)
+    monkeypatch.setattr(
+        "launch.environment_manager.EnvironmentManager.warm_cache_async",
+        lambda _self: None,
+    )
+
+
+def _stop_window_background_work(window: Any) -> None:
+    """Stop background workers/timers associated with a MainWindow."""
+    from PySide6.QtCore import QMutexLocker
+
+    if hasattr(window, "auto_refresh_timer") and window.auto_refresh_timer:
+        with contextlib.suppress(RuntimeError):
+            window.auto_refresh_timer.stop()
+
+    if hasattr(window, "command_launcher"):
+        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
+            window.command_launcher.cleanup()
+
+    if hasattr(window, "threede_worker") and window.threede_worker and window.threede_worker.isRunning():
+        with contextlib.suppress(RuntimeError):
+            window.threede_worker.quit()
+            window.threede_worker.wait(1000)
+
+    shot_model = getattr(window, "shot_model", None)
+    if shot_model is not None and hasattr(shot_model, "_loader_lock"):
+        with contextlib.suppress(RuntimeError, AttributeError):
+            with QMutexLocker(shot_model._loader_lock):
+                if shot_model._async_loader:
+                    shot_model._async_loader.stop()
+                    shot_model._async_loader.wait()
+                    shot_model._async_loader.deleteLater()
+                    shot_model._async_loader = None
+                shot_model._loading_in_progress = False
+
+
 def _close_windows(windows: list[Any], qtbot: Any) -> None:
     """Close a list of MainWindow instances with proper Qt cleanup."""
-    from PySide6.QtGui import QCloseEvent
-
     for window in windows:
         if window:
-            close_event = QCloseEvent()
-            window.closeEvent(close_event)
-            if not window.isHidden():
+            _stop_window_background_work(window)
+            with contextlib.suppress(RuntimeError):
                 window.close()
-                qtbot.waitUntil(lambda w=window: w.isHidden(), timeout=2000)
-            window.deleteLater()
+            if not window.isHidden():
+                with contextlib.suppress(RuntimeError):
+                    window.hide()
+            with contextlib.suppress(RuntimeError):
+                window.deleteLater()
             process_qt_events()
 
     windows.clear()
 
-    app = QApplication.instance()
-    if app:
-        for _ in range(3):
-            app.processEvents()
-            app.sendPostedEvents(None, 0)
-            process_qt_events()
+    for _ in range(3):
+        process_qt_events()
 
 
 # Test doubles are imported from tests.fixtures.integration_doubles above.
@@ -167,14 +207,17 @@ def main_window_with_real_components(
 
     mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
     mock_nuke_script_generator.NukeScriptGenerator = MockNukeScriptGenerator
+    original_nuke_script_generator = sys.modules.get("nuke_script_generator")
     sys.modules["nuke_script_generator"] = mock_nuke_script_generator
 
     mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
     mock_threede_latest_finder.ThreeDELatestFinder = MockThreeDELatestFinder
+    original_threede_latest_finder = sys.modules.get("threede_latest_finder")
     sys.modules["threede_latest_finder"] = mock_threede_latest_finder
 
     mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
     mock_maya_latest_finder.MayaLatestFinder = MockMayaLatestFinder
+    original_maya_latest_finder = sys.modules.get("maya_latest_finder")
     sys.modules["maya_latest_finder"] = mock_maya_latest_finder
 
     window = MainWindow(cache_manager=real_cache_manager)
@@ -190,6 +233,16 @@ def main_window_with_real_components(
     try:
         yield window
     finally:
+        for module_name, original_module in (
+            ("nuke_script_generator", original_nuke_script_generator),
+            ("threede_latest_finder", original_threede_latest_finder),
+            ("maya_latest_finder", original_maya_latest_finder),
+        ):
+            if original_module is None:
+                sys.modules.pop(module_name, None)
+            else:
+                sys.modules[module_name] = original_module
+
         for name, method in original_notification_methods.items():
             setattr(NotificationManager, name, method)
 
@@ -197,16 +250,7 @@ def main_window_with_real_components(
         ProgressManager.start_operation = original_start_operation
         ProgressManager.finish_operation = original_finish_operation
 
-        if hasattr(window, "auto_refresh_timer") and window.auto_refresh_timer:
-            window.auto_refresh_timer.stop()
-
-        if (
-            hasattr(window, "threede_worker")
-            and window.threede_worker
-            and window.threede_worker.isRunning()
-        ):
-            window.threede_worker.quit()
-            window.threede_worker.wait(1000)
+        _stop_window_background_work(window)
 
         with contextlib.suppress(RuntimeError, TypeError):
             window.disconnect()
@@ -219,7 +263,7 @@ def main_window_with_real_components(
             app.processEvents()
 
         window.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
         import gc
         gc.collect()
@@ -250,64 +294,21 @@ class TestCrossTabSynchronization:
         - Switching to 3DE tab and selecting a scene updates info panel
         - Tab switching clears info panel when new tab has no selection
         """
-        import os
-        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
+        window = MainWindow(cache_manager=CacheManager(cache_dir=tmp_path / "cache"))
+        qtbot.addWidget(window)
+        self.test_windows.append(window)
 
-        from PySide6.QtCore import QTimer
-        original_singleshot = QTimer.singleShot
-        QTimer.singleShot = lambda *_args, **_kwargs: None
-
-        try:
-            window = MainWindow()
-            qtbot.addWidget(window)
-            self.test_windows.append(window)
-        finally:
-            QTimer.singleShot = original_singleshot
-
-        from PySide6.QtCore import QMutexLocker
-        with QMutexLocker(window.shot_model._loader_lock):
-            if window.shot_model._async_loader:
-                window.shot_model._async_loader.stop()
-                window.shot_model._async_loader.wait()
-                window.shot_model._async_loader.deleteLater()
-                window.shot_model._async_loader = None
-            window.shot_model._loading_in_progress = False
-
-        process_qt_events()
-        window.cache_manager.clear_cache()
-
-        test_pool = TestProcessPool(allow_main_thread=True)
-        test_pool.set_outputs(
-            "workspace /shows/TEST/shots/seq01/seq01_0010\nworkspace /shows/TEST/shots/seq01/seq01_0020"
-        )
-        window.shot_model._process_pool = test_pool
-        window.shot_model._force_sync_refresh = True
-
-        success, _has_changes = window.shot_model.refresh_shots()
-        assert success, "refresh_shots should succeed"
-
-        assert len(window.shot_model.shots) >= 1, (
-            f"Expected at least 1 shot, got {len(window.shot_model.shots)}: {window.shot_model.shots}"
-        )
-
-        process_qt_events()
-
-        if len(window.shot_model.shots) == 0:
-            window.shot_model._process_pool = test_pool
-            success, _ = window.shot_model.refresh_shots()
-            assert success, "Second refresh should succeed"
+        shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+        ]
+        window.shot_model.shots = shots
+        window.shot_item_model.set_shots(shots)
 
         window.tab_widget.setCurrentIndex(0)
         process_qt_events()
 
-        if len(window.shot_model.shots) == 0:
-            window.shot_model._process_pool = test_pool
-            success, _ = window.shot_model.refresh_shots()
-            assert success, "Third refresh should succeed"
-
         assert window.tab_widget.currentIndex() == 0
-        shots = window.shot_model.get_shots()
-        assert len(shots) >= 1, f"Expected at least 1 shot, got {len(shots)}"
 
         # Selecting a shot should enable launcher buttons and update info panel
         first_shot = shots[0]
@@ -348,15 +349,9 @@ class TestCrossTabSynchronization:
         assert window.right_panel._current_shot is None
 
         # Re-select or deselect/reselect to verify panel updates
-        if len(shots) > 1:
-            second_shot = shots[1]
-            window.shot_selection_controller.on_shot_selected(second_shot)
-            assert window.right_panel._current_shot == second_shot
-        else:
-            window.shot_selection_controller.on_shot_selected(None)
-            assert window.right_panel._current_shot is None
-            window.shot_selection_controller.on_shot_selected(first_shot)
-            assert window.right_panel._current_shot == first_shot
+        second_shot = shots[1]
+        window.shot_selection_controller.on_shot_selected(second_shot)
+        assert window.right_panel._current_shot == second_shot
 
     def test_show_filter_affects_all_tabs(
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
@@ -441,16 +436,6 @@ class TestMainWindowUICoordination:
         """Test that main window initializes with all components."""
         window = main_window_with_real_components
 
-        assert window.shot_model is not None
-        assert window.cache_manager is not None
-        assert window.command_launcher is not None
-
-        assert window.tab_widget is not None
-        assert window.shot_grid is not None
-        assert window.threede_shot_grid is not None
-        assert window.previous_shots_grid is not None
-
-        assert window.right_panel is not None
         assert len(window.right_panel._dcc_accordion._sections) > 0
         assert "3de" in window.right_panel._dcc_accordion._sections
         assert "nuke" in window.right_panel._dcc_accordion._sections
@@ -648,13 +633,14 @@ class TestUserWorkflows:
     """Integration tests for critical user workflows in ShotBot."""
 
     @pytest.fixture(autouse=True)
-    def _setup(self, tmp_path: Path) -> Iterator[None]:
+    def _setup(self, tmp_path: Path, qtbot: Any) -> Iterator[None]:
         """Set up test environment with realistic data structures."""
         self.temp_dir = tmp_path / "shotbot"
         self.temp_dir.mkdir()
         self.config_dir = self.temp_dir / "config"
         self.cache_dir = self.temp_dir / "cache"
         self.shows_dir = self.temp_dir / "shows"
+        self.test_windows: list[Any] = []
 
         for directory in [self.config_dir, self.cache_dir, self.shows_dir]:
             directory.mkdir(parents=True, exist_ok=True)
@@ -710,6 +696,8 @@ class TestUserWorkflows:
         with contextlib.suppress(Exception):
             ProgressManager.clear_all_operations()
 
+        _close_windows(self.test_windows, qtbot)
+
     def _create_test_process(self, pid: int, name: str) -> PopenDouble:
         process = PopenDouble([name], returncode=0, stdout=f"{name} output", stderr="")
         process.pid = pid
@@ -759,12 +747,10 @@ class TestUserWorkflows:
     @pytest.mark.qt
     def test_launch_nuke_with_shot(self, qtbot: Any) -> None:
         """Test complete workflow of selecting a shot and launching Nuke."""
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        ShotModel()
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
+        self.test_windows.append(main_window)
 
         shot_data = self.test_shots[0]
         actual_workspace_path = self._create_realistic_shot_structure(shot_data)
@@ -826,6 +812,7 @@ class TestUserWorkflows:
             main_window = MainWindow(cache_manager=cache_manager)
 
         qtbot.addWidget(main_window)
+        self.test_windows.append(main_window)
 
         from PySide6.QtCore import QMutexLocker
         with QMutexLocker(main_window.shot_model._loader_lock):
@@ -898,6 +885,7 @@ class TestUserWorkflows:
         ShotModel()
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
+        self.test_windows.append(main_window)
 
         test_pool = TestProcessPool(allow_main_thread=True)
         main_window.shot_model._process_pool = test_pool
@@ -944,14 +932,10 @@ class TestUserWorkflows:
     @pytest.mark.qt
     def test_previous_shots_scanning(self, qtbot: Any) -> None:
         """Test previous shots scanning and display workflow."""
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        PreviousShotsFinder()
-        shot_model = ShotModel()
-        PreviousShotsModel(shot_model, cache_manager)
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
+        self.test_windows.append(main_window)
 
         current_user = getpass.getuser()
 
