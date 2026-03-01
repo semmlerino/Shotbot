@@ -59,7 +59,7 @@ uv run pytest tests/ -n auto --dist=loadgroup
 
 # dead code detection (generate trace first, then analyze)
 uv run python scripts/generate_skylos_trace.py
-uv run skylos . --table --exclude-folder tests
+uv run skylos . --table --exclude-folder tests --exclude-folder archive
 ```
 
 For the full Skylos workflow, including broader trace coverage (`--markexpr`), partial-trace handling, and whitelist guidance, see `docs/SKYLOS_DEAD_CODE_DETECTION.md`.

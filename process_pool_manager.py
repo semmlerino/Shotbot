@@ -610,7 +610,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             return result
 
         except Exception as e:
-            self.logger.error(f"Command execution failed: {e}")
+            self.logger.error(f"Command execution failed ({command[:80]!r}): {e}")
             raise
 
     def batch_execute(
@@ -635,6 +635,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
             Dictionary mapping commands to results (None for failed/timed-out commands)
 
         """
+        # Keep the public signature aligned with the protocol and mock implementation.
+        _ = session_type
         # CRITICAL BUG FIX #32: Check shutdown flag before executing batch commands
         with QMutexLocker(self._mutex):
             if self._shutdown_requested:

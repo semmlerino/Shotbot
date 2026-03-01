@@ -391,33 +391,27 @@ DEP003 = ["shiboken6"]
 
 [tool.skylos]
 # Trace-first approach: generate .skylos_trace via scripts/generate_skylos_trace.py
-# then run: uv run skylos . --table --exclude-folder tests
-# The trace handles most Qt virtual dispatch, signal/slot, and multi-hop attribute FPs.
-# These whitelists cover patterns the trace can't capture (C++ -> Python calls
-# that don't fire sys.setprofile, and methods only triggered by user interaction).
+# then run: uv run skylos . --table --exclude-folder tests --exclude-folder archive
+# The trace reduces dynamic false positives, but some indirect patterns still need
+# manual review or targeted whitelisting.
 
 [tool.skylos.whitelist]
 names = [
-    # Qt signal/slot targets (connected via signal.connect(obj.method))
+    # Broad callback patterns: keep these minimal because they are blind spots.
     "on_*",
     "_on_*",
-    # QRunnable.run() / QThread.run() — invoked by QThreadPool from C++
+    # Broad worker lifecycle name; review periodically.
     "run",
-    # ThreadSafeWorker.do_work() — called by base class run()
+    # Template-style worker hook.
     "do_work",
-    # Qt event handlers — only triggered by user interaction, not testable
+    # User-interaction-driven event handlers.
     "contextMenuEvent",
-    # Qt delegate/model template methods — called from base class via super()
+    # Template methods commonly reached through base-class orchestration.
     "get_item_data",
     "get_tooltip_data",
 ]
 
-# Documented whitelist: methods called through indirection with reasons
-[tool.skylos.whitelist.documented]
-"should_exclude" = "Called via instance attribute in bundle_app.py"
-"closing" = "Protocol field annotation, accessed via self.window.closing"
-"settings_manager" = "Protocol field annotation, accessed via self.window.settings_manager"
-"threede_scene_model" = "Protocol field annotation, accessed via self.window.threede_scene_model"
+# Prefer inline `# skylos: ignore` on exact lines for one-off exceptions.
 
 
 [tool.pyrefly]

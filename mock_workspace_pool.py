@@ -147,6 +147,8 @@ class MockWorkspacePool(LoggingMixin):
             Command output
 
         """
+        # Preserve signature compatibility with ProcessPoolManager.
+        _ = timeout, use_login_shell
         self.commands_executed.append(command)
 
         # Check cache first
@@ -188,6 +190,8 @@ class MockWorkspacePool(LoggingMixin):
             Command results
 
         """
+        # Preserve signature compatibility with ProcessPoolManagerProtocol.
+        _ = session_type
         results: dict[str, str | None] = {}
         for cmd in commands:
             try:

@@ -120,7 +120,7 @@ class NukeLaunchHandler(LoggingMixin):
                     f"No existing scripts found for {selected_plate}, creating v001..."
                 )
                 saved_path = self._create_new_workspace_script(
-                    shot, version=1, options=options, selected_plate=selected_plate
+                    shot, version=1, selected_plate=selected_plate
                 )
                 if saved_path:
                     command = f"{command} {shlex.quote(saved_path)}"
@@ -142,7 +142,7 @@ class NukeLaunchHandler(LoggingMixin):
             )
 
             saved_path = self._create_new_workspace_script(
-                shot, version=version, options=options, selected_plate=selected_plate
+                shot, version=version, selected_plate=selected_plate
             )
             if saved_path:
                 command = f"{command} {shlex.quote(saved_path)}"
@@ -158,7 +158,6 @@ class NukeLaunchHandler(LoggingMixin):
         self,
         shot: Shot,
         version: int,
-        options: dict[str, bool],
         selected_plate: str | None,
     ) -> str | None:
         """Create a new workspace script in plate directory.
@@ -166,7 +165,6 @@ class NukeLaunchHandler(LoggingMixin):
         Args:
             shot: Current shot context
             version: Version number for the script
-            options: Launch options
             selected_plate: Selected plate space (e.g., "FG01")
 
         Returns:

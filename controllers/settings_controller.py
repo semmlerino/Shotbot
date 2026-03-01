@@ -64,17 +64,17 @@ class SettingsTarget(Protocol):
     ) -> QSize | tuple[int, int]: ...  # Flexible return type for QSize or tuple
 
     # Widget references needed for settings
-    settings_manager: SettingsManager
-    cache_manager: CacheManager
-    splitter: QSplitter
-    tab_widget: QTabWidget
+    settings_manager: SettingsManager  # skylos: ignore
+    cache_manager: CacheManager  # skylos: ignore
+    splitter: QSplitter  # skylos: ignore
+    tab_widget: QTabWidget  # skylos: ignore
 
     # Thumbnail size access methods
     def set_thumbnail_size(self, size: int) -> None: ...
     def get_thumbnail_size(self) -> int: ...
 
     # Settings dialog reference
-    settings_dialog: SettingsDialog | None
+    settings_dialog: SettingsDialog | None  # skylos: ignore
 
 
 class SettingsController(LoggingMixin):

@@ -388,6 +388,7 @@ class PreviousShotsView(BaseGridView):
         """
         # Qt's selection model automatically handles the click
         # _on_selection_changed will be triggered with the full selection logic
+        _ = index
 
     @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def _on_item_double_clicked(self, index: QModelIndex) -> None:

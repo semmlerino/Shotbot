@@ -135,6 +135,8 @@ class ScrubPreviewManager(QObject):
             rect: Visual rectangle of the item
 
         """
+        # The signal includes geometry even though the current implementation only needs the index.
+        _ = rect
         if not index.isValid():
             logger.debug("start_scrub: invalid index")
             return

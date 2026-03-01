@@ -73,7 +73,7 @@ class GitIgnoreParser:
                 if stripped_line and not stripped_line.startswith("#"):
                     self.patterns.append(stripped_line)
 
-    def should_exclude(self, path: str, is_dir: bool = False) -> bool:
+    def should_exclude(self, path: str, is_dir: bool = False) -> bool:  # skylos: ignore
         """Check if a path should be excluded based on patterns.
 
         Args:

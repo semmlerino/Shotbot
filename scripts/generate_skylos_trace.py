@@ -1,47 +1,200 @@
 """Generate .skylos_trace by running tests with incremental trace saving.
 
-PySide6/shiboken segfaults when sys.setprofile() is active during certain
-C++ -> Python transitions (e.g., QImage.save()). Skylos's --trace flag sets
-the profile hook globally and only saves at exit via a finally block, but a
-segfault kills the process before finally runs — losing all trace data.
+Skylos's built-in ``--trace`` mode installs a process-wide profile hook and
+persists its trace data on process exit. In larger GUI-heavy or C-extension-
+heavy suites, a single crash or wedged process can lose the entire trace.
 
-This script works around the issue by:
-1. Running each test file in its own subprocess with the tracer active
-2. Each subprocess saves a partial trace file immediately in its finally block
-3. If a subprocess crashes (segfault), only that file's data is lost
-4. The main process merges all partial traces into .skylos_trace
+This wrapper reduces that risk by:
+1. Using pytest's own collection so tracing matches the real test suite
+2. Running each test file in its own subprocess with the tracer active
+3. Saving a per-file partial trace in each subprocess
+4. Merging the surviving partial traces into ``.skylos_trace``
+5. Failing non-zero by default when any file times out or crashes
 
 Usage:
     uv run python scripts/generate_skylos_trace.py
+    uv run python scripts/generate_skylos_trace.py --resume
+    uv run python scripts/generate_skylos_trace.py --per-file-timeout 0
+    uv run python scripts/generate_skylos_trace.py --markexpr "legacy or not legacy"
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 import sys
 import textwrap
+from dataclasses import dataclass
 from pathlib import Path
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 TRACE_DIR = PROJECT_ROOT / ".skylos_traces"
 FINAL_TRACE = PROJECT_ROOT / ".skylos_trace"
+FAILURE_MANIFEST = PROJECT_ROOT / ".skylos_trace_failures.json"
+DEFAULT_PYTEST_TARGET = "tests"
+DEFAULT_PER_FILE_TIMEOUT = 300.0
+OUTPUT_TAIL_LINES = 40
+OUTPUT_TAIL_CHARS = 4000
 
 
-def discover_test_files() -> list[Path]:
-    """Find all test files, excluding conftest and helpers."""
-    test_dirs = [PROJECT_ROOT / "tests" / "unit", PROJECT_ROOT / "tests" / "integration"]
-    files = []
-    for d in test_dirs:
-        if d.exists():
-            files.extend(sorted(d.glob("test_*.py")))
-    return files
+@dataclass(frozen=True)
+class ScriptOptions:
+    resume: bool
+    allow_partial: bool
+    per_file_timeout: float | None
+    markexpr: str | None
 
 
-def run_traced_test(test_file: Path, trace_output: Path) -> tuple[bool, int]:
+@dataclass(frozen=True)
+class TraceRunResult:
+    exit_code: int
+    traced_count: int | None
+    stdout_tail: str
+    stderr_tail: str
+
+
+def parse_args(argv: list[str]) -> ScriptOptions:
+    """Parse CLI options for trace generation."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate .skylos_trace by tracing each collected test file in its "
+            "own subprocess."
+        )
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Reuse existing per-file traces when they are still valid.",
+    )
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Exit 0 even if some test files time out or crash.",
+    )
+    parser.add_argument(
+        "--per-file-timeout",
+        type=float,
+        default=DEFAULT_PER_FILE_TIMEOUT,
+        help=(
+            "Kill a traced test-file subprocess after N seconds. Use 0 to disable "
+            f"the outer timeout (default: {DEFAULT_PER_FILE_TIMEOUT:g}s)."
+        ),
+    )
+    parser.add_argument(
+        "--markexpr",
+        help=(
+            "Override pytest's -m expression for collection and traced runs. "
+            'Example: --markexpr "legacy or not legacy" to include both default '
+            "and legacy tests."
+        ),
+    )
+
+    args = parser.parse_args(argv)
+    per_file_timeout = None if args.per_file_timeout <= 0 else args.per_file_timeout
+    return ScriptOptions(
+        resume=args.resume,
+        allow_partial=args.allow_partial,
+        per_file_timeout=per_file_timeout,
+        markexpr=args.markexpr,
+    )
+
+
+def pytest_run_args(markexpr: str | None) -> list[str]:
+    """Return pytest args used for each traced test-file run."""
+    if not markexpr:
+        return []
+    return ["-m", markexpr]
+
+
+def pytest_collect_args(markexpr: str | None) -> list[str]:
+    """Return pytest args used for collection."""
+    args = [DEFAULT_PYTEST_TARGET]
+    args.extend(pytest_run_args(markexpr))
+    return args
+
+
+def discover_test_files(markexpr: str | None) -> list[Path]:
+    """Use pytest's collector so tracing matches the real configured suite."""
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", *pytest_collect_args(markexpr)],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if result.returncode not in (0, 5):
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown collection error"
+        message = f"pytest collection failed: {detail}"
+        raise RuntimeError(message)
+
+    files: set[Path] = set()
+    for line in result.stdout.splitlines():
+        node_path = line.split("::", 1)[0].strip()
+        if not node_path.endswith(".py"):
+            continue
+        path = Path(node_path)
+        if not path.is_absolute():
+            path = PROJECT_ROOT / path
+        if path.is_file():
+            files.add(path.resolve())
+
+    if not files:
+        message = "pytest collection returned no test files"
+        raise RuntimeError(message)
+
+    return sorted(files)
+
+
+def trace_output_path(test_file: Path) -> Path:
+    """Return a collision-safe trace filename for a test file."""
+    rel = test_file.resolve().relative_to(PROJECT_ROOT)
+    slug = "__".join(rel.with_suffix("").parts)
+    return TRACE_DIR / f"{slug}.json"
+
+
+def read_trace_count(trace_output: Path) -> int | None:
+    """Return the traced-call count for a partial trace, or None if invalid."""
+    if not trace_output.exists():
+        return None
+
+    try:
+        data = json.loads(trace_output.read_text())
+    except json.JSONDecodeError:
+        return None
+
+    calls = data.get("calls")
+    if not isinstance(calls, list):
+        return None
+    return len(calls)
+
+
+def summarize_output(text: str | None) -> str:
+    """Return a readable tail of subprocess output for failure diagnostics."""
+    if not text:
+        return ""
+
+    lines = text.strip().splitlines()
+    if not lines:
+        return ""
+
+    tail = "\n".join(lines[-OUTPUT_TAIL_LINES:])
+    if len(tail) <= OUTPUT_TAIL_CHARS:
+        return tail
+    return tail[-OUTPUT_TAIL_CHARS:]
+
+
+def run_traced_test(
+    test_file: Path,
+    trace_output: Path,
+    per_file_timeout: float | None,
+    markexpr: str | None,
+) -> TraceRunResult:
     """Run a single test file with call tracing in a subprocess.
 
-    Returns (success, traced_count).
+    Returns exit status, trace count, and captured output tails.
     """
     script = textwrap.dedent(f"""\
 import os, sys
@@ -57,7 +210,7 @@ tracer.start()
 ret = 0
 try:
     import pytest
-    ret = pytest.main(["-q", "--tb=no", "--no-header", {str(test_file)!r}])
+    ret = pytest.main(["-q", "--tb=no", "--no-header", *{pytest_run_args(markexpr)!r}, {str(test_file)!r}])
 finally:
     tracer.stop()
     tracer.save({str(trace_output)!r})
@@ -70,16 +223,16 @@ sys.exit(ret)
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
-        timeout=15,
+        timeout=per_file_timeout,
+        check=False,
     )
 
-    if trace_output.exists():
-        try:
-            data = json.loads(trace_output.read_text())
-            return True, len(data.get("calls", []))
-        except (json.JSONDecodeError, KeyError):
-            return False, 0
-    return False, 0
+    return TraceRunResult(
+        exit_code=result.returncode,
+        traced_count=read_trace_count(trace_output),
+        stdout_tail=summarize_output(result.stdout),
+        stderr_tail=summarize_output(result.stderr),
+    )
 
 
 def merge_traces(trace_dir: Path, output: Path) -> int:
@@ -107,58 +260,166 @@ def merge_traces(trace_dir: Path, output: Path) -> int:
     return len(all_calls)
 
 
+def write_failure_manifest(failures: list[dict[str, object]]) -> None:
+    """Persist structured diagnostics for non-clean trace runs."""
+    if not failures:
+        FAILURE_MANIFEST.unlink(missing_ok=True)
+        return
+
+    FAILURE_MANIFEST.write_text(json.dumps(failures, indent=2))
+
+
 def main() -> None:
+    options = parse_args(sys.argv[1:])
     TRACE_DIR.mkdir(exist_ok=True)
 
-    skip_existing = "--resume" in sys.argv
+    try:
+        test_files = discover_test_files(options.markexpr)
+    except RuntimeError as exc:
+        print(exc, file=sys.stderr)
+        sys.exit(1)
 
-    if not skip_existing:
-        # Clean old partial traces
-        for old in TRACE_DIR.glob("*.json"):
+    expected_trace_files = {trace_output_path(test_file) for test_file in test_files}
+
+    for old in TRACE_DIR.glob("*.json"):
+        if not options.resume or old not in expected_trace_files:
             old.unlink()
 
-    test_files = discover_test_files()
-    print(f"Found {len(test_files)} test files")
+    timeout_label = (
+        "disabled"
+        if options.per_file_timeout is None
+        else f"{options.per_file_timeout:g}s"
+    )
+    print(f"Found {len(test_files)} test files (per-file timeout: {timeout_label})")
+    if options.markexpr:
+        print(f"Using pytest -m override: {options.markexpr}")
 
-    succeeded = 0
-    crashed = 0
+    passed = 0
+    failed = 0
+    errored = 0
+    timed_out = 0
     skipped = 0
-    total_traced = 0
+    failures: list[dict[str, object]] = []
 
     for i, test_file in enumerate(test_files, 1):
         rel = test_file.relative_to(PROJECT_ROOT)
-        trace_out = TRACE_DIR / f"{test_file.stem}.json"
+        trace_out = trace_output_path(test_file)
 
-        if skip_existing and trace_out.exists():
-            skipped += 1
-            succeeded += 1
-            continue
+        if options.resume and trace_out.exists():
+            existing_count = read_trace_count(trace_out)
+            if existing_count is not None:
+                print(f"  [{i}/{len(test_files)}] {rel} ... SKIP ({existing_count} calls)")
+                skipped += 1
+                continue
+            trace_out.unlink()
 
         print(f"  [{i}/{len(test_files)}] {rel} ... ", end="", flush=True)
 
         try:
-            ok, count = run_traced_test(test_file, trace_out)
-            if ok:
-                print(f"OK ({count} calls)")
-                succeeded += 1
-                total_traced += count
+            result = run_traced_test(
+                test_file,
+                trace_out,
+                options.per_file_timeout,
+                options.markexpr,
+            )
+            if result.traced_count is None:
+                if result.exit_code < 0:
+                    print(f"CRASHED (signal {-result.exit_code}, no trace data)")
+                else:
+                    print(f"NO TRACE (exit {result.exit_code})")
+                errored += 1
+                failures.append(
+                    {
+                        "file": str(rel),
+                        "status": "crashed_no_trace" if result.exit_code < 0 else "no_trace",
+                        "exit_code": result.exit_code,
+                        "signal": -result.exit_code if result.exit_code < 0 else None,
+                        "trace_output": str(trace_out),
+                        "had_trace": False,
+                        "traced_count": None,
+                        "stdout_tail": result.stdout_tail,
+                        "stderr_tail": result.stderr_tail,
+                    }
+                )
+            elif result.exit_code == 0:
+                print(f"OK ({result.traced_count} calls)")
+                passed += 1
+            elif result.exit_code == 1:
+                print(f"TESTS FAILED ({result.traced_count} calls)")
+                failed += 1
+                failures.append(
+                    {
+                        "file": str(rel),
+                        "status": "tests_failed",
+                        "exit_code": result.exit_code,
+                        "signal": None,
+                        "trace_output": str(trace_out),
+                        "had_trace": True,
+                        "traced_count": result.traced_count,
+                        "stdout_tail": result.stdout_tail,
+                        "stderr_tail": result.stderr_tail,
+                    }
+                )
             else:
-                print("CRASHED (no trace data)")
-                crashed += 1
-        except subprocess.TimeoutExpired:
+                print(f"PYTEST ERROR (exit {result.exit_code}, {result.traced_count} calls)")
+                errored += 1
+                failures.append(
+                    {
+                        "file": str(rel),
+                        "status": "pytest_error",
+                        "exit_code": result.exit_code,
+                        "signal": -result.exit_code if result.exit_code < 0 else None,
+                        "trace_output": str(trace_out),
+                        "had_trace": True,
+                        "traced_count": result.traced_count,
+                        "stdout_tail": result.stdout_tail,
+                        "stderr_tail": result.stderr_tail,
+                    }
+                )
+        except subprocess.TimeoutExpired as exc:
             print("TIMEOUT")
-            crashed += 1
+            timed_out += 1
+            timed_out_count = read_trace_count(trace_out)
+            failures.append(
+                {
+                    "file": str(rel),
+                    "status": "timeout",
+                    "exit_code": None,
+                    "signal": None,
+                    "trace_output": str(trace_out),
+                    "had_trace": timed_out_count is not None,
+                    "traced_count": timed_out_count,
+                    "stdout_tail": summarize_output(exc.stdout),
+                    "stderr_tail": summarize_output(exc.stderr),
+                }
+            )
 
     # Merge all partial traces
     unique_count = merge_traces(TRACE_DIR, FINAL_TRACE)
+    write_failure_manifest(failures)
 
-    print(f"\n--- Results ---")
+    print("\n--- Results ---")
     if skipped:
         print(f"  Skipped (cached): {skipped}")
-    print(f"  Test files:  {succeeded} OK, {crashed} crashed, {len(test_files)} total")
+    print(f"  Test files:  {passed} OK, {failed} test-failed, {errored} errored, {timed_out} timed out, {len(test_files)} total")
     print(f"  Traced calls: {unique_count} unique functions")
     print(f"  Output: {FINAL_TRACE}")
-    print(f"\nNow run: uv run skylos . --table --exclude-folder tests")
+    if failures:
+        print(f"  Failure log: {FAILURE_MANIFEST}")
+
+    incomplete = errored + timed_out
+    if incomplete:
+        detail = (
+            f"\nIncomplete trace: {incomplete} test files did not finish cleanly. "
+            "Use --allow-partial to keep the merged trace without failing the run."
+        )
+        if options.allow_partial:
+            print(detail)
+        else:
+            print(detail, file=sys.stderr)
+            sys.exit(1)
+
+    print("\nNow run: uv run skylos . --table --exclude-folder tests")
 
 
 if __name__ == "__main__":

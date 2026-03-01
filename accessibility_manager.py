@@ -45,20 +45,20 @@ class MainWindowProtocol(Protocol):
     def setTabOrder(self, first: QWidget, second: QWidget) -> None: ...
 
     # Menu actions (optional - checked with hasattr)
-    refresh_action: QAction | None
-    settings_action: QAction | None
-    exit_action: QAction | None
-    increase_size_action: QAction | None
-    decrease_size_action: QAction | None
-    reset_layout_action: QAction | None
-    shortcuts_action: QAction | None
-    about_action: QAction | None
+    refresh_action: QAction | None  # skylos: ignore
+    settings_action: QAction | None  # skylos: ignore
+    exit_action: QAction | None  # skylos: ignore
+    increase_size_action: QAction | None  # skylos: ignore
+    decrease_size_action: QAction | None  # skylos: ignore
+    reset_layout_action: QAction | None  # skylos: ignore
+    shortcuts_action: QAction | None  # skylos: ignore
+    about_action: QAction | None  # skylos: ignore
 
     # UI components (optional - checked with hasattr)
-    status_bar: QStatusBar | None
-    tab_widget: QTabWidget | None
-    shot_grid: GridWidget | None
-    app_buttons: dict[str, QPushButton] | None
+    status_bar: QStatusBar | None  # skylos: ignore
+    tab_widget: QTabWidget | None  # skylos: ignore
+    shot_grid: GridWidget | None  # skylos: ignore
+    app_buttons: dict[str, QPushButton] | None  # skylos: ignore
 
 
 class AccessibilityManager:
@@ -192,4 +192,3 @@ class AccessibilityManager:
         # Status bar tooltip
         if hasattr(window, "status_bar") and window.status_bar is not None:
             window.status_bar.setToolTip("Application status and messages")
-

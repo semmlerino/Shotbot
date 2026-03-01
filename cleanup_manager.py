@@ -20,14 +20,14 @@ class MainWindowProtocol(Protocol):
     without creating a circular dependency.
     """
 
-    closing: bool
-    threede_controller: Any
-    shot_selection_controller: Any
-    session_warmer: Any
-    cache_manager: Any
-    shot_model: Any
-    previous_shots_model: Any
-    previous_shots_item_model: Any
+    closing: bool  # skylos: ignore
+    threede_controller: Any  # skylos: ignore
+    shot_selection_controller: Any  # skylos: ignore
+    session_warmer: Any  # skylos: ignore
+    cache_manager: Any  # skylos: ignore
+    shot_model: Any  # skylos: ignore
+    previous_shots_model: Any  # skylos: ignore
+    previous_shots_item_model: Any  # skylos: ignore
     command_launcher: Any
 
 
@@ -102,10 +102,7 @@ class CleanupManager(QObject, LoggingMixin):
 
     def _cleanup_session_warmer(self) -> None:
         """Clean up the session warmer thread."""
-        if not (
-            hasattr(self.main_window, "session_warmer")
-            and self.main_window.session_warmer
-        ):
+        if not self.main_window.session_warmer:
             return
 
         warmer = self.main_window.session_warmer

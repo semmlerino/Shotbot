@@ -66,16 +66,16 @@ class ThreeDETarget(Protocol):
     """
 
     # Widget references needed for 3DE operations
-    threede_shot_grid: ThreeDEGridView
-    right_panel: RightPanelWidget
-    status_bar: QStatusBar
+    threede_shot_grid: ThreeDEGridView  # skylos: ignore
+    right_panel: RightPanelWidget  # skylos: ignore
+    status_bar: QStatusBar  # skylos: ignore
 
     # Model references for data access
-    shot_model: ShotModel
-    threede_scene_model: ThreeDESceneModel
-    threede_item_model: ThreeDEItemModel
-    cache_manager: CacheManager
-    command_launcher: CommandLauncher
+    shot_model: ShotModel  # skylos: ignore
+    threede_scene_model: ThreeDESceneModel  # skylos: ignore
+    threede_item_model: ThreeDEItemModel  # skylos: ignore
+    cache_manager: CacheManager  # skylos: ignore
+    command_launcher: CommandLauncher  # skylos: ignore
 
     # Required methods
     def setWindowTitle(self, title: str) -> None: ...
@@ -83,7 +83,7 @@ class ThreeDETarget(Protocol):
     def launch_app(self, app_name: str) -> None: ...
 
     # Signals (Signal is a Qt descriptor; pyright can't resolve its methods)
-    closing_started: Signal  # pyright: ignore[reportAny]
+    closing_started: Signal  # pyright: ignore[reportAny]  # skylos: ignore
 
 
 class ThreeDEController(LoggingMixin):
