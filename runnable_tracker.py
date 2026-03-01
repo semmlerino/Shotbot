@@ -39,26 +39,27 @@ class QRunnableTracker(SingletonMixin):
 
     def __init__(self) -> None:
         """Initialize the tracker (only once)."""
-        if self._is_initialized():
-            return
+        with type(self)._lock:
+            if self._is_initialized():
+                return
 
-        super().__init__()
+            super().__init__()
 
-        # Thread safety lock for all mutable state (use RLock for consistency with SingletonMixin)
-        self._data_lock = threading.Lock()
+            # Thread safety lock for all mutable state (use RLock for consistency with SingletonMixin)
+            self._data_lock = threading.Lock()
 
-        self._active_runnables: weakref.WeakSet[QRunnable] = weakref.WeakSet()
-        self._runnable_metadata: weakref.WeakKeyDictionary[
-            QRunnable, dict[str, object]
-        ] = weakref.WeakKeyDictionary()
-        self._stats = {
-            "total_registered": 0,
-            "total_completed": 0,
-            "peak_concurrent": 0,
-        }
+            self._active_runnables: weakref.WeakSet[QRunnable] = weakref.WeakSet()
+            self._runnable_metadata: weakref.WeakKeyDictionary[
+                QRunnable, dict[str, object]
+            ] = weakref.WeakKeyDictionary()
+            self._stats = {
+                "total_registered": 0,
+                "total_completed": 0,
+                "peak_concurrent": 0,
+            }
 
-        self._mark_initialized()
-        logger.debug("QRunnableTracker initialized")
+            self._mark_initialized()
+            logger.debug("QRunnableTracker initialized")
 
     def register(
         self, runnable: QRunnable, metadata: Mapping[str, object] | None = None

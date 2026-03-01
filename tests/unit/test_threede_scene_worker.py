@@ -343,8 +343,10 @@ class TestThreeDESceneWorker:
             # Start worker
             worker.start()
 
-            # Wait for completion
-            qtbot.waitUntil(lambda: not worker.isRunning(), timeout=2000)
+            # Wait for the worker thread directly, then flush queued signals.
+            _ = worker.wait(2000)
+            from tests.test_helpers import process_qt_events
+            process_qt_events()
 
             # Check signals were emitted (at least once)
             assert len(started_count) >= 1
@@ -434,8 +436,10 @@ class TestThreeDESceneWorker:
                 # Start worker
                 worker.start()
 
-                # Wait for completion
-                qtbot.waitUntil(lambda: len(finished_scenes) > 0, timeout=3000)
+                # Wait for the thread to finish, then flush queued signal delivery.
+                _ = worker.wait(3000)
+                from tests.test_helpers import process_qt_events
+                process_qt_events()
 
                 # Verify signals were emitted (may be >= 1 due to test setup)
                 assert len(started_count) >= 1
@@ -508,13 +512,12 @@ class TestThreeDESceneWorker:
             try:
                 worker.start()
 
-                # Wait for completion with try/except to ensure cleanup even on timeout
-                # Under high parallel load (16 workers), QThread exceptions can cause issues
-                with contextlib.suppress(Exception):
-                    qtbot.waitUntil(
-                        lambda: len(finished_scenes) > 0 or len(error_messages) > 0,
-                        timeout=3000,  # Increased timeout for parallel execution
-                    )
+                # Avoid nested Qt event loops here; they have been a segfault source
+                # under xdist load. Waiting on the thread and then flushing queued
+                # signals is sufficient for this contract test.
+                _ = worker.wait(3000)
+                from tests.test_helpers import process_qt_events
+                process_qt_events()
 
                 # Should have error or empty result (if we got here)
                 # Under parallel load, this assertion is best-effort
@@ -589,8 +592,10 @@ class TestThreeDESceneWorkerIntegration:
         try:
             worker.start()
 
-            # Wait for completion
-            qtbot.waitUntil(lambda: len(finished_scenes) > 0, timeout=5000)
+            # Wait for the worker to finish, then deliver any queued signals.
+            _ = worker.wait(5000)
+            from tests.test_helpers import process_qt_events
+            process_qt_events()
 
             # Check we found the scenes
             if len(finished_scenes) > 0:

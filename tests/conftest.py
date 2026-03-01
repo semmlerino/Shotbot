@@ -50,7 +50,8 @@ KEY DESIGN DECISIONS
 
 FIXTURE EXECUTION ORDER
 -----------------------
-For Qt tests, fixtures execute in this order:
+For Qt tests, fixtures execute in this order (Qt fixtures activated by
+_qt_auto_fixtures autouse dispatcher via request.getfixturevalue()):
 
   BEFORE TEST:
     1. reset_caches      (autouse)  → Clear in-memory and disk caches
@@ -259,6 +260,7 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
     from pytestqt.qtbot import QtBot
 
     original_wait = QtBot.wait
+    original_wait_until = QtBot.waitUntil
 
     # Auto-enable diagnostics in CI environments
     is_ci = (
@@ -289,11 +291,55 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
             return None
         return original_wait(self, timeout)
 
+    def _safe_wait_until(
+        self,
+        callback: object,
+        timeout: int = 5000,
+    ) -> None:
+        import time
+
+        from tests.test_helpers import process_qt_events
+
+        if not callable(callback):
+            return original_wait_until(self, callback, timeout=timeout)
+
+        # Honor @pytest.mark.real_timing - bypass patch entirely for timing-sensitive tests
+        if _current_test_item is not None:
+            if _current_test_item.get_closest_marker("real_timing"):
+                return original_wait_until(self, callback, timeout=timeout)
+
+        deadline = time.perf_counter() + max(timeout, 0) / 1000.0
+        last_assertion: AssertionError | None = None
+
+        while True:
+            try:
+                result = callback()
+            except AssertionError as exc:
+                last_assertion = exc
+            else:
+                if result is None or bool(result):
+                    # Preserve pytest-qt's practical behavior: once the condition
+                    # becomes true, flush one more round of queued Qt callbacks
+                    # before returning so signal-driven state has a chance to land.
+                    process_qt_events()
+                    return None
+
+            if time.perf_counter() >= deadline:
+                if last_assertion is not None:
+                    raise last_assertion
+                raise TimeoutError(f"waitUntil timed out in {timeout} milliseconds")
+
+            # Pump Qt events without entering pytest-qt's nested event loop.
+            process_qt_events()
+            time.sleep(0.01)
+
     QtBot.wait = _safe_wait  # type: ignore[assignment]
+    QtBot.waitUntil = _safe_wait_until  # type: ignore[assignment]
     try:
         yield
     finally:
         QtBot.wait = original_wait  # type: ignore[assignment]
+        QtBot.waitUntil = original_wait_until  # type: ignore[assignment]
 
 
 # ==============================================================================
@@ -326,6 +372,34 @@ import logging
 
 
 _conftest_logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(autouse=True)
+def _qt_auto_fixtures(request: pytest.FixtureRequest) -> None:
+    """Conditionally activate Qt cleanup fixtures for detected Qt tests.
+
+    Uses request.getfixturevalue() at runtime — the correct mechanism for
+    conditional fixture injection. Replaces the broken add_marker(usefixtures(...))
+    approach in pytest_collection_modifyitems which runs too late for fixture resolution.
+    """
+    fixtures = set(getattr(request.node, "fixturenames", ()) or ())
+    is_qt_test = (
+        request.node.get_closest_marker("qt") is not None
+        or bool(fixtures.intersection(_QT_FIXTURES))
+    )
+
+    if not is_qt_test and request.node.module is not None:
+        is_qt_test = _module_imports_pyside6(request.node.module)
+
+    if not is_qt_test:
+        for fixture_name in fixtures - _QT_FIXTURES:
+            if _fixture_uses_pyside6(request.node, fixture_name):
+                is_qt_test = True
+                break
+
+    if is_qt_test:
+        request.getfixturevalue("qt_cleanup")
+        request.getfixturevalue("cleanup_state_heavy")
 
 
 def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
@@ -515,9 +589,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     - Different modules can run in parallel on different workers
     - This balances stability (module isolation) with parallelism (multiple workers)
 
-    AUTO-FIXTURES (automatically applied to Qt tests):
-    - qt_cleanup: Handles Qt widget/state cleanup between tests
-    - cleanup_state_heavy: Handles singleton reset between tests
+    AUTO-FIXTURES:
+    Qt cleanup fixtures (qt_cleanup, cleanup_state_heavy) are now activated
+    by the _qt_auto_fixtures autouse dispatcher, not by this hook.
 
     MARKERS:
     - @pytest.mark.qt_heavy: Forces test onto single "qt_heavy" worker group
@@ -593,9 +667,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 group_name = f"qt_{module_name.split('.')[-1]}"
                 item.add_marker(pytest.mark.xdist_group(name=group_name))
 
-            # Auto-apply heavy cleanup fixtures to Qt tests
-            # (qt_cleanup handles Qt state, cleanup_state_heavy handles singletons)
-            item.add_marker(pytest.mark.usefixtures("qt_cleanup", "cleanup_state_heavy"))
 
 
 # ==============================================================================
@@ -701,32 +772,6 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     Only active when STRICT_CLEANUP or FAIL_ON_THREAD_LEAK is enabled
     (CI environments, GitHub Actions, or explicit env vars).
     """
-    # Final best-effort Qt drain before interpreter shutdown.
-    # This mitigates late segfaults from lingering QRunnable/QThreadPool work.
-    try:
-        from PySide6.QtCore import QCoreApplication, QEvent, QThreadPool
-        from PySide6.QtWidgets import QApplication
-
-        from runnable_tracker import get_tracker
-
-        tracker = get_tracker()
-        tracker.wait_for_all(timeout_ms=3000)
-        tracker.cleanup_all()
-        QThreadPool.globalInstance().waitForDone(3000)
-
-        app = QApplication.instance()
-        if app is not None:
-            for _ in range(3):
-                app.processEvents()
-            try:
-                QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
-            except (RuntimeError, SystemError):
-                pass
-            app.processEvents()
-    except Exception:
-        # Never fail session teardown due to best-effort stability cleanup.
-        pass
-
     from tests.fixtures.qt_cleanup import get_thread_leak_summary
 
     summary = get_thread_leak_summary()
@@ -744,41 +789,10 @@ def pytest_unconfigure(config: pytest.Config) -> None:
     """Final Qt teardown hook to avoid PySide shutdown-time segfaults."""
     global _GLOBAL_QAPP  # noqa: PLW0603
 
-    try:
-        from PySide6.QtCore import QCoreApplication, QEvent
-        from PySide6.QtWidgets import QApplication
-
-        app = QApplication.instance()
-        if app is not None:
-            try:
-                app.quit()
-            except (RuntimeError, SystemError):
-                pass
-            for _ in range(3):
-                try:
-                    app.processEvents()
-                except (RuntimeError, SystemError):
-                    break
-            try:
-                QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
-            except (RuntimeError, SystemError):
-                pass
-            try:
-                app.processEvents()
-            except (RuntimeError, SystemError):
-                pass
-
-            # Force C++ QApplication deletion before Python interpreter finalization.
-            try:
-                from shiboken6 import Shiboken
-
-                Shiboken.delete(app)
-            except Exception:
-                pass
-    except Exception:
-        pass
-    finally:
-        _GLOBAL_QAPP = None
+    # Keep this hook minimal. Per-test cleanup already drains Qt state; extra
+    # Qt API calls here can crash during interpreter teardown once C++ objects
+    # are partially finalized.
+    _GLOBAL_QAPP = None
 
 
 @pytest.hookimpl(trylast=True)

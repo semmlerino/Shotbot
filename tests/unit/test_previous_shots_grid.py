@@ -18,7 +18,7 @@ from __future__ import annotations
 
 # Standard library imports
 import contextlib
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -40,6 +40,7 @@ from tests.fixtures.test_doubles import (
     TestCacheManager,
     TestProgressManager,
 )
+from tests.test_helpers import SynchronizationHelpers, process_qt_events
 
 
 if TYPE_CHECKING:
@@ -63,6 +64,36 @@ def create_test_shots(count: int = 3) -> list[Shot]:
         create_test_shot("show1", "seq01", f"{(i + 1) * 10:04d}")
         for i in range(count)
     ]
+
+
+def _prepare_view_for_cleanup(view: PreviousShotsView) -> None:
+    """Detach the view from its model before dependent objects are deleted."""
+    with contextlib.suppress(RuntimeError):
+        view.list_view.setModel(None)
+        view._model = None
+        view._unified_model = None
+        view.close()
+
+
+def _schedule_delete_later(*objects: QObject) -> None:
+    """Queue QObject cleanup without forcing immediate event-loop re-entry."""
+    for obj in objects:
+        with contextlib.suppress(RuntimeError):
+            obj.deleteLater()
+
+
+def _wait_for_qt_condition(
+    condition: Callable[[], object], timeout_ms: int = 1000
+) -> None:
+    """Poll a Qt condition without entering pytest-qt nested wait loops."""
+
+    def _poll() -> bool:
+        process_qt_events()
+        return bool(condition())
+
+    assert SynchronizationHelpers.wait_for_condition(_poll, timeout_ms=timeout_ms), (
+        "Timed out waiting for Qt state to settle"
+    )
 
 
 class FakePreviousShotsModel(QObject):
@@ -116,9 +147,7 @@ class TestPreviousShotsView:
         # This ensures proper cleanup even if test fails
         yield model
         # Ensure cleanup happens
-        with contextlib.suppress(RuntimeError):
-            model.deleteLater()
-            qtbot.wait(1)
+        _schedule_delete_later(model)
 
     @pytest.fixture
     def test_cache_manager(self, tmp_path: Path) -> TestCacheManager:
@@ -148,9 +177,8 @@ class TestPreviousShotsView:
         view.show()
         qtbot.waitExposed(view)  # Wait for widget to be visible
         yield view
-        # Cleanup the item model manually
-        item_model.deleteLater()
-        qtbot.wait(1)
+        _prepare_view_for_cleanup(view)
+        _schedule_delete_later(item_model)
 
     def test_grid_initialization(
         self,
@@ -282,20 +310,22 @@ class TestPreviousShotsView:
         test_model.set_shots(test_shots)
 
         # Wait for parent widget to be visible first
-        qtbot.waitUntil(lambda: grid_widget.isVisible(), timeout=500)
+        _wait_for_qt_condition(lambda: grid_widget.isVisible(), timeout_ms=500)
 
         # Then check list_view visibility (uses list_view in Model/View architecture)
         # The list_view should be visible if parent is shown
         assert grid_widget.list_view is not None
 
         # Wait for model to update (QueuedConnection needs event loop processing)
-        qtbot.waitUntil(
+        _wait_for_qt_condition(
             lambda: grid_widget._model and grid_widget._model.rowCount() == 3,
-            timeout=1000,
+            timeout_ms=1000,
         )
 
         # Status should show shot count
-        qtbot.waitUntil(lambda: "3" in grid_widget._status_label.text(), timeout=1000)
+        _wait_for_qt_condition(
+            lambda: "3" in grid_widget._status_label.text(), timeout_ms=1000
+        )
 
     def test_thumbnail_signal_connections(
         self,
@@ -309,9 +339,9 @@ class TestPreviousShotsView:
         test_model.set_shots([shot])
 
         # Wait for model to have data
-        qtbot.waitUntil(
+        _wait_for_qt_condition(
             lambda: grid_widget._model and grid_widget._model.rowCount() > 0,
-            timeout=500,
+            timeout_ms=500,
         )
 
         # Set up signal spy on grid's shot_selected signal
@@ -343,9 +373,9 @@ class TestPreviousShotsView:
         test_model.set_shots([shot1, shot2])
 
         # Wait for model population
-        qtbot.waitUntil(
+        _wait_for_qt_condition(
             lambda: grid_widget._model and grid_widget._model.rowCount() == 2,
-            timeout=500,
+            timeout_ms=500,
         )
 
         # Set up signal spy
@@ -377,9 +407,9 @@ class TestPreviousShotsView:
         test_model.set_shots([shot])
 
         # Wait for model to have data
-        qtbot.waitUntil(
+        _wait_for_qt_condition(
             lambda: grid_widget._model and grid_widget._model.rowCount() > 0,
-            timeout=500,
+            timeout_ms=500,
         )
 
         # Set up signal spy
@@ -407,18 +437,18 @@ class TestPreviousShotsView:
         """Test clearing grid widgets properly."""
         # Add shots
         test_model.set_shots(create_test_shots(2))
-        qtbot.waitUntil(
+        _wait_for_qt_condition(
             lambda: grid_widget._model and grid_widget._model.rowCount() == 2,
-            timeout=1000,
+            timeout_ms=1000,
         )
 
         # Clear model
         test_model.set_shots([])
 
         # Wait for model to clear (QueuedConnection needs event loop processing)
-        qtbot.waitUntil(
+        _wait_for_qt_condition(
             lambda: grid_widget._model and grid_widget._model.rowCount() == 0,
-            timeout=1000,
+            timeout_ms=1000,
         )
 
         # Selection should be reset
@@ -438,9 +468,9 @@ class TestPreviousShotsView:
         test_model.set_shots(create_test_shots(6))
 
         # Wait for model population
-        qtbot.waitUntil(
+        _wait_for_qt_condition(
             lambda: grid_widget._model and grid_widget._model.rowCount() == 6,
-            timeout=500,
+            timeout_ms=500,
         )
 
         # Calculate expected columns based on widget width
@@ -491,9 +521,9 @@ class TestPreviousShotsView:
         test_model.set_shots([shot])
 
         # Wait for model to update
-        qtbot.waitUntil(
+        _wait_for_qt_condition(
             lambda: grid_widget._model and grid_widget._model.rowCount() == 1,
-            timeout=1000,
+            timeout_ms=1000,
         )
 
         # Select the shot using Qt's selection model
@@ -538,8 +568,8 @@ class TestPreviousShotsViewIntegration:
 
         # Cleanup
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
-        previous_model.deleteLater()
-        qtbot.wait(1)
+        _prepare_view_for_cleanup(view)
+        _schedule_delete_later(item_model, previous_model, shot_model)
 
     def test_integration_grid_creation(
         self, integration_grid: PreviousShotsView, qtbot: QtBot

@@ -9,7 +9,8 @@ Fixtures:
 
 Environment Variables:
     SHOTBOT_TEST_STRICT_CLEANUP: Set to "1" to fail on cleanup exceptions instead of swallowing them
-    SHOTBOT_TEST_FAIL_ON_THREAD_LEAK: Set to "1" to fail tests when thread leaks are detected
+    SHOTBOT_TEST_FAIL_ON_THREAD_LEAK: Enabled by default ("1"); set to "0" to disable
+    SHOTBOT_TEST_ALLOW_THREAD_LEAKS: Set to "1" to suppress thread leak failures
     CI: Auto-enables strict cleanup in CI environments
     GITHUB_ACTIONS: Auto-enables strict cleanup in GitHub Actions
 """
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time as _time
 from typing import TYPE_CHECKING
 
 import pytest
@@ -30,6 +32,8 @@ if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
 
 _logger = logging.getLogger(__name__)
+_REAL_MONOTONIC = _time.monotonic
+_REAL_SLEEP = _time.sleep
 
 # Strict mode fails on cleanup exceptions (useful for debugging)
 # Auto-enabled in CI environments to catch thread leaks early
@@ -112,7 +116,7 @@ def get_thread_leak_summary() -> str | None:
         lines.append(f"First 5 affected tests (of {len(_thread_leak_summary)}):")
         lines.extend(f"  - {leak['test']}" for leak in _thread_leak_summary[:5])
         lines.append("")
-        lines.append("Run with SHOTBOT_TEST_FAIL_ON_THREAD_LEAK=1 to fail on leaks.")
+        lines.append("Run with SHOTBOT_TEST_ALLOW_THREAD_LEAKS=1 to suppress thread leak failures.")
 
     lines.append("=" * 70)
     lines.append("")
@@ -136,11 +140,11 @@ def _is_expected_thread(thread_name: str) -> bool:
     return any(thread_name.startswith(prefix) for prefix in _EXPECTED_THREAD_PREFIXES)
 
 
-@pytest.fixture  # NOTE: No longer autouse - applied conditionally via conftest.py hook
+@pytest.fixture  # Not autouse — activated by _qt_auto_fixtures dispatcher
 def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[None]:
     """Ensure Qt state is clean between tests.
 
-    This autouse fixture implements proper Qt test hygiene to prevent
+    This fixture implements proper Qt test hygiene to prevent
     test-hygiene issues that cause crashes in large test suites:
 
     1. Flushes deferred deletes (deleteLater()) to prevent dangling signals/slots
@@ -163,10 +167,18 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
 
     """
     import threading
-    import time
 
     from PySide6.QtCore import QCoreApplication, QEvent, QThreadPool
     from PySide6.QtGui import QPixmapCache
+
+    def _has_unexpected_python_threads() -> bool:
+        for thread in threading.enumerate():
+            if thread.name == "MainThread":
+                continue
+            if _is_expected_thread(thread.name) or (thread.name.startswith("Thread-") and thread.daemon):
+                continue
+            return True
+        return False
 
     # Capture baseline thread counts BEFORE test
     # Used for leak detection after cleanup
@@ -216,21 +228,15 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
 
     # Also wait for any Python threading.Thread instances to complete
     # Some tests use threading.Thread in addition to QThreadPool
-    # Process Qt events while waiting to avoid deadlocks
-    if threading.active_count() > 1:
-        start_time = time.time()
+    # Use time.sleep() (not processEvents) to avoid C++ segfaults from
+    # delivering DeferredDelete events to already-destroyed Qt objects
+    # while threads are still active. The subsequent cleanup pass below
+    # handles event processing safely after all threads have completed.
+    if _has_unexpected_python_threads():
+        start_time = _REAL_MONOTONIC()
         timeout = 0.5
-        while threading.active_count() > 1 and (time.time() - start_time) < timeout:
-            # Process Qt events instead of sleeping to prevent deadlocks
-            # Wrap in try-except to prevent crashes from deleted Qt objects
-            try:
-                QCoreApplication.processEvents()
-                QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-            except (RuntimeError, SystemError) as e:
-                _logger.warning("Qt cleanup thread-wait exception (check for deleted Qt objects): %s", e)
-                if STRICT_CLEANUP:
-                    raise
-                break
+        while _has_unexpected_python_threads() and (_REAL_MONOTONIC() - start_time) < timeout:
+            _REAL_SLEEP(0.01)
 
     # Wrap event processing in try-except to prevent crashes from leaked objects
     try:

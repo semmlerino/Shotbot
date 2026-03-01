@@ -32,7 +32,6 @@ from PySide6.QtWidgets import (
 from cache_manager import CacheManager
 from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
-from runnable_tracker import get_tracker
 from scene_file import SceneFile
 from shot_files_panel import ShotFilesPanel
 from typing_compat import override
@@ -510,16 +509,11 @@ class InfoPanelPixmapLoader(QRunnable):
         # Use module-level logger since QRunnable can't inherit from LoggingMixin
         logger = logging.getLogger(__name__)
 
-        tracker = get_tracker()
-        metadata = {
-            "type": "InfoPanelPixmapLoader",
-            "path": str(self.path),
-        }
-        tracker.register(self, metadata)
-
         try:
             # Local application imports
             from config import Config
+            from PIL import Image
+            from PySide6.QtCore import QSize
 
             path_obj = Path(self.path) if isinstance(self.path, str) else self.path
 
@@ -528,35 +522,50 @@ class InfoPanelPixmapLoader(QRunnable):
                 self.signals.failed.emit()
                 return
 
-            # Load the image (using QImage for thread safety)
-            image = QImage(str(path_obj))
-            if image.isNull():
+            # Decode via Pillow first. Direct QImage(path) construction has proven
+            # crash-prone in worker threads on some Qt builds under parallel load.
+            try:
+                with Image.open(path_obj) as pil_image:
+                    pil_image.load()
+
+                    # Use utility for memory bounds checking (smaller limits for info panel)
+                    if ImageUtils.is_image_too_large_for_thumbnail(
+                        QSize(pil_image.width, pil_image.height),
+                        Config.MAX_INFO_PANEL_DIMENSION_PX,
+                    ):
+                        logger.warning(
+                            f"Image too large for info panel: {pil_image.width}x{pil_image.height}"
+                        )
+                        self.signals.failed.emit()
+                        return
+
+                    # Scale to appropriate size for info panel (larger than grid thumbnails)
+                    max_size = 256  # Info panel can be larger than grid thumbnails
+                    if pil_image.width > max_size or pil_image.height > max_size:
+                        resample = (
+                            Image.Resampling.LANCZOS
+                            if hasattr(Image, "Resampling")
+                            else Image.LANCZOS
+                        )
+                        pil_image.thumbnail((max_size, max_size), resample)
+
+                    rgba_image = pil_image.convert("RGBA")
+            except OSError:
                 logger.debug(f"Failed to load thumbnail: {self.path}")
                 self.signals.failed.emit()
                 return
 
-            # Use utility for memory bounds checking (smaller limits for info panel)
-            if ImageUtils.is_image_too_large_for_thumbnail(
-                image.size(), Config.MAX_INFO_PANEL_DIMENSION_PX
-            ):
-                logger.warning(f"Image too large for info panel: {image.size()}")
+            image = QImage(
+                rgba_image.tobytes(),
+                rgba_image.width,
+                rgba_image.height,
+                rgba_image.width * 4,
+                QImage.Format.Format_RGBA8888,
+            ).copy()
+            if image.isNull():
+                logger.warning(f"Failed to construct info panel image: {self.path}")
                 self.signals.failed.emit()
                 return
-
-            # Scale to appropriate size for info panel (larger than grid thumbnails)
-            max_size = 256  # Info panel can be larger than grid thumbnails
-            if image.width() > max_size or image.height() > max_size:
-                scaled = image.scaled(
-                    max_size,
-                    max_size,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                if scaled.isNull():
-                    logger.warning(f"Failed to scale thumbnail: {self.path}")
-                    self.signals.failed.emit()
-                    return
-                image = scaled
 
             if image.format() != QImage.Format.Format_ARGB32_Premultiplied:
                 image = image.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
@@ -570,9 +579,6 @@ class InfoPanelPixmapLoader(QRunnable):
         except Exception as e:
             logger.error(f"Error loading info panel thumbnail {self.path}: {e}")
             self.signals.failed.emit()
-        finally:
-            # Always unregister from tracker when done
-            tracker.unregister(self)
 
 
 class ThumbnailCacheRunnable(QRunnable):

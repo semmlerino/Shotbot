@@ -387,8 +387,11 @@ class ProcessExecutor(QObject):
         # Stop and clean up all pending timers
         for timer in self._pending_timers:
             try:
+                # These timers are parented to this QObject, so stopping them is
+                # sufficient here. Calling deleteLater() can queue a deferred
+                # delete that outlives the parent and triggers double-destruction
+                # during later Qt cleanup passes.
                 timer.stop()
-                timer.deleteLater()
             except RuntimeError:
                 pass  # Timer may already be deleted
         self._pending_timers.clear()
@@ -589,4 +592,3 @@ class ProcessExecutor(QObject):
             self.cleanup()
         except Exception:
             pass  # Ignore errors in destructor
-

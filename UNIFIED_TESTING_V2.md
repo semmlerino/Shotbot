@@ -87,7 +87,7 @@ def test_quiet_operation(expect_no_dialogs):
 
 **Subprocess calls fail by default** — `ProcessPoolManager` is a singleton; without global mocking, multiple xdist workers running real `ws -sg` commands crash at the C level and contend for singleton state.
 
-`subprocess_mocking.py` is `autouse=True`. It replaces `ProcessPoolManager` with `TestProcessPool` and patches `subprocess.Popen` globally for every test.
+`subprocess_mocking.py` is `autouse=True`. It replaces `ProcessPoolManager` with `TestProcessPool` and patches `subprocess.Popen` and `subprocess.run` globally for every test.
 
 **Controllable mock** — use `subprocess_mock` fixture for error paths:
 
@@ -188,7 +188,13 @@ Work through in order:
 | Full suite crashes | Module-level Qt app | Use `qapp` fixture only |
 | Data cleared during `qtbot.wait()` | Background loader | Stop background workers before waiting |
 
-Set `SHOTBOT_TEST_STRICT_CLEANUP=1` locally to enable thread leak detection.
+Thread leak detection is **on by default** (`SHOTBOT_TEST_FAIL_ON_THREAD_LEAK=1`).
+To suppress thread leak failures for quick local runs, set `SHOTBOT_TEST_ALLOW_THREAD_LEAKS=1`.
+`SHOTBOT_TEST_STRICT_CLEANUP=1` controls cleanup exception handling (not thread leaks).
+
+When a Qt or thread-heavy test repeatedly causes native crashes, prefer deleting a
+low-level stress test if it duplicates safer behavior coverage elsewhere. Do not
+keep crash-prone micro-tests just to preserve redundant coverage.
 
 ---
 

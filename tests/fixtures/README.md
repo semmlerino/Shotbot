@@ -10,7 +10,7 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 | `test_doubles.py` | No | `TestProcessPool`, `test_process_pool`, `make_test_launcher` | Convenience re-export of `cache_doubles.py`, `model_doubles.py`, `integration_doubles.py`, `signal_doubles.py`, `process_doubles.py` — import from either |
 | `subprocess_mocking.py` | Yes | `mock_process_pool_manager`, `mock_subprocess_popen`, `subprocess_mock` | Global subprocess interception; `subprocess_mock` for controllable error paths |
 | `qt_safety.py` | Yes | `suppress_qmessagebox`, `prevent_qapp_exit` | Prevent modal dialogs and app-exit from blocking tests |
-| `qt_cleanup.py` | Qt tests only | `qt_cleanup` | Clears Qt event queue, QThreadPool, QPixmapCache between tests |
+| `qt_cleanup.py` | Via `_qt_auto_fixtures` dispatcher | `qt_cleanup` | Clears Qt event queue, QThreadPool, QPixmapCache between tests |
 | `singleton_isolation.py` | Yes (lite) / Qt only (heavy) | `reset_caches`, `cleanup_state_heavy` | Resets singleton state; lite runs for all tests, heavy for Qt tests only |
 | `data_factories.py` | No | `make_test_shot`, `make_real_3de_file`, `sample_shot_data` | Factories for building test data objects |
 

@@ -206,6 +206,7 @@ class TestSingletonResetOrdering:
 class TestAppWideShutdown:
     """Tests for coordinated app-wide shutdown."""
 
+    @pytest.mark.skip_if_parallel
     def test_multiple_manager_shutdown_no_deadlock(self, qtbot: QtBot) -> None:
         """Shutting down multiple managers concurrently doesn't deadlock."""
         from process_pool_manager import ProcessPoolManager
@@ -291,5 +292,4 @@ class TestAppWideShutdown:
         assert "started" in active_operations
 
         ProcessPoolManager.reset()
-
 

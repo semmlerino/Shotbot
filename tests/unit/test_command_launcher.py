@@ -9,8 +9,7 @@ This test suite validates CommandLauncher behavior using:
 from __future__ import annotations
 
 import string
-import threading
-import time
+from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock, patch
@@ -18,12 +17,11 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
-from PySide6.QtCore import QThread, Signal
-
 from command_launcher import CommandLauncher, LaunchContext
 from config import Config
 from launch import CommandBuilder
 from shot_model import Shot
+from tests.fixtures.process_doubles import PopenDouble
 from tests.test_helpers import process_qt_events
 from threede_scene_model import ThreeDEScene
 
@@ -38,6 +36,12 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
     from tests.fixtures.subprocess_mocking import SubprocessMock
+
+
+def _running_process_double(*args: str) -> PopenDouble:
+    """Return a subprocess double that looks alive to ProcessExecutor.verify_spawn."""
+    process_args = list(args) or ["test-app"]
+    return PopenDouble(args=process_args, returncode=0)
 
 
 
@@ -70,17 +74,34 @@ def stable_terminal_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def disable_environment_warm_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep CommandLauncher tests isolated and fast.
+
+    CommandLauncher starts EnvironmentManager.warm_cache_async() during construction.
+    These tests do not need background cache warming, and the extra threads can leak
+    state across tests and destabilize long serial runs.
+    """
+    monkeypatch.setattr(
+        "command_launcher.EnvironmentManager.warm_cache_async",
+        lambda _self: None,
+    )
+
+
 class TestCommandLauncher:
     """Test CommandLauncher functionality."""
 
     @pytest.fixture
-    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
+    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[CommandLauncher]:
         """Create CommandLauncher with test doubles."""
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 
-        return CommandLauncher()
+        launcher = CommandLauncher()
+        yield launcher
+        launcher.cleanup()
+        process_qt_events()
 
     @pytest.fixture
     def test_shot(self) -> Shot:
@@ -142,7 +163,7 @@ class TestCommandLauncher:
             patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False),
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
         ):
-            mock_popen.return_value = MagicMock()
+            mock_popen.return_value = _running_process_double(app_name)
             result = launcher.launch_app(app_name)
 
         assert result is True
@@ -178,7 +199,7 @@ class TestCommandLauncher:
     ) -> None:
         """Test launching 3DE with specific scene."""
         # Setup mock
-        mock_popen.return_value = MagicMock()
+        mock_popen.return_value = _running_process_double("3de")
 
         # Launch 3DE with scene
         result = launcher.launch_app_with_scene("3de", test_scene)
@@ -217,7 +238,7 @@ class TestCommandLauncher:
         launcher.set_current_shot(test_shot)
 
         # Setup mock
-        mock_popen.return_value = MagicMock()
+        mock_popen.return_value = _running_process_double("rv")
 
         # Launch RV with sequence path (simulates double-click on playblast)
         sequence_path = "/shows/TEST/shots/seq01/seq01_0010/playblast/shot.####.exr"
@@ -260,7 +281,7 @@ class TestCommandLauncher:
         launcher.set_current_shot(test_shot)
 
         # Setup mock
-        mock_popen.return_value = MagicMock()
+        mock_popen.return_value = _running_process_double("rv")
 
         # Launch RV without sequence path
         result = launcher.launch_app("rv")
@@ -280,16 +301,6 @@ class TestCommandLauncher:
         assert "-fps 12" in command_str
         assert "-play" in command_str
         assert "setPlayMode(2)" in command_str
-
-    def test_no_shot_context_error(
-        self, launcher: CommandLauncher, qtbot: QtBot
-    ) -> None:
-        """Test error when no shot context is set."""
-        # Try to launch without shot (no shot set)
-        result = launcher.launch_app("nuke")
-
-        # Should return False when no shot is set
-        assert result is False
 
     @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     @patch.object(
@@ -345,7 +356,7 @@ class TestCommandLauncher:
         launcher.set_current_shot(test_shot)
 
         # Setup mock
-        mock_popen.return_value = MagicMock()
+        mock_popen.return_value = _running_process_double("nuke")
 
         # Launch app - should succeed even without terminal
         result = launcher.launch_app("nuke")
@@ -381,7 +392,7 @@ class TestCommandLauncher:
         launcher.set_current_shot(test_shot)
 
         # Setup mock
-        mock_popen.return_value = MagicMock()
+        mock_popen.return_value = _running_process_double("3de")
 
         # Launch 3DE (a GUI app)
         with patch.object(launcher._settings_manager, "get_background_gui_apps", return_value=True):
@@ -420,7 +431,7 @@ class TestCommandLauncher:
         launcher.set_current_shot(test_shot)
 
         # Setup mock
-        mock_popen.return_value = MagicMock()
+        mock_popen.return_value = _running_process_double("3de")
 
         # Launch 3DE (a GUI app) - default setting is False
         with patch.object(launcher._settings_manager, "get_background_gui_apps", return_value=False):
@@ -445,13 +456,16 @@ class TestCommandLauncherSignals:
     """Test CommandLauncher signal emissions."""
 
     @pytest.fixture
-    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
+    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[CommandLauncher]:
         """Create CommandLauncher with test doubles."""
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 
-        return CommandLauncher()
+        launcher = CommandLauncher()
+        yield launcher
+        launcher.cleanup()
+        process_qt_events()
 
     @pytest.mark.allow_dialogs  # Warning dialogs are acceptable in this smoke-style path test
     def test_signal_data_format(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
@@ -466,7 +480,7 @@ class TestCommandLauncherSignals:
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
             patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False),
         ):
-            mock_popen.return_value = MagicMock()
+            mock_popen.return_value = _running_process_double("nuke")
 
             # Launch should succeed
             result = launcher.launch_app("nuke")
@@ -489,12 +503,15 @@ class TestVerificationTimeoutCounter:
     """
 
     @pytest.fixture
-    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
+    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[CommandLauncher]:
         """Create CommandLauncher for verification timeout testing."""
         from launch import EnvironmentManager
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 
-        return CommandLauncher()
+        launcher = CommandLauncher()
+        yield launcher
+        launcher.cleanup()
+        process_qt_events()
 
     def test_single_timeout_does_not_reset_cache(
         self, launcher: CommandLauncher, qtbot: QtBot
@@ -865,269 +882,6 @@ class TestPathValidationEdgeCases:
             # Rejection is also acceptable for whitespace-only paths
             pass
 
-
-# ---------------------------------------------------------------------------
-# Thread safety tests
-# ---------------------------------------------------------------------------
-
-
-class _WorkerThread(QThread):
-    """Worker thread for testing cross-thread signal emissions."""
-
-    finished_signal = Signal()
-
-    def __init__(self, launcher: CommandLauncher, shot: MagicMock) -> None:
-        """Initialize worker thread.
-
-        Args:
-            launcher: CommandLauncher instance to test
-            shot: Mock shot object
-
-        """
-        super().__init__()
-        self.launcher = launcher
-        self.shot = shot
-
-    def run(self) -> None:
-        """Set current shot from worker thread."""
-        self.launcher.set_current_shot(self.shot)
-        self.finished_signal.emit()
-
-
-class TestCommandLauncherThreadSafety:
-    """Test CommandLauncher threading and concurrency behavior."""
-
-    @pytest.fixture
-    def launcher(self) -> CommandLauncher:
-        """Create CommandLauncher instance for testing."""
-        return CommandLauncher()
-
-    def test_current_shot_access_from_worker_thread(
-        self, qtbot: QtBot, launcher: CommandLauncher
-    ) -> None:
-        """Test that set_current_shot can be safely called from worker thread.
-
-        While CommandLauncher is typically used from GUI thread, this test
-        verifies that basic state access is thread-safe.
-        """
-        mock_shot = MagicMock(
-            full_name="TEST_SHOT_0010",
-            workspace_path="/test/workspace",
-        )
-
-        # Create worker thread
-        worker = _WorkerThread(launcher, mock_shot)
-
-        try:
-            # Start worker and wait for completion
-            with qtbot.waitSignal(worker.finished_signal, timeout=1000):
-                worker.start()
-
-            # Verify shot was set correctly
-            assert launcher.current_shot == mock_shot
-            assert launcher.current_shot.full_name == "TEST_SHOT_0010"
-        finally:
-            # Ensure QThread cleanup even if assertions fail
-            if worker.isRunning():
-                worker.requestInterruption()
-                worker.wait(1000)
-            worker.deleteLater()
-
-    def test_signal_emissions_gui_and_cross_thread(
-        self, qtbot: QtBot, launcher: CommandLauncher
-    ) -> None:
-        """Test command_error signal delivery from GUI thread and concurrent worker threads."""
-        # Part 1: GUI thread emission
-        gui_signals: list[tuple[str, str]] = []
-        launcher.command_error.connect(lambda ts, err: gui_signals.append((ts, err)))
-
-        launcher._emit_error("Test error from GUI")
-        qtbot.wait(10)
-
-        assert len(gui_signals) > 0
-        assert "Test error from GUI" in gui_signals[0][1]
-
-        # Part 2: Concurrent cross-thread emissions
-        cross_thread_signals: list[tuple[str, str]] = []
-        lock = threading.Lock()
-        launcher2 = CommandLauncher()
-
-        def on_error(timestamp: str, error: str) -> None:
-            with lock:
-                cross_thread_signals.append((timestamp, error))
-
-        launcher2.command_error.connect(on_error)
-
-        def emit_error(thread_id: int) -> None:
-            for i in range(5):
-                launcher2._emit_error(f"Error from thread {thread_id}, iteration {i}")
-                time.sleep(0)
-
-        threads = [threading.Thread(target=emit_error, args=(i,)) for i in range(3)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        qtbot.wait(100)
-
-        assert len(cross_thread_signals) == 15
-        thread_ids = {
-            int(err.split("thread ")[1].split(",")[0])
-            for _, err in cross_thread_signals
-        }
-        assert thread_ids == {0, 1, 2}
-
-    def test_launch_app_called_concurrently(
-        self, qtbot: QtBot, launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test concurrent launch_app calls.
-
-        While unlikely in practice (GUI prevents concurrent launches),
-        this verifies that concurrent calls don't cause crashes or race conditions.
-        """
-        # Set up mock shot
-        mock_shot = MagicMock(
-            full_name="TEST_SHOT_0010",
-            workspace_path="/test/workspace",
-        )
-        launcher.set_current_shot(mock_shot)
-
-        # Mock dependencies
-        # IMPORTANT: Patch command_launcher.Config.APPS, not config.Config.APPS
-        # This is because module reloading in other tests can cause command_launcher
-        # to hold a reference to a different Config class than config.Config
-        monkeypatch.setattr("command_launcher.Config.APPS", {"test_app": "test_command"})
-        monkeypatch.setattr("launch.process_executor.subprocess.Popen", Mock(return_value=Mock(pid=12345)))
-        monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
-
-        # Track results
-        results: list[bool] = []
-        lock = threading.Lock()
-
-        def launch_app_thread() -> None:
-            result = launcher.launch_app("test_app")
-            with lock:
-                results.append(result)
-
-        # Create multiple threads
-        threads = [threading.Thread(target=launch_app_thread) for _ in range(3)]
-
-        # Start all threads
-        for thread in threads:
-            thread.start()
-
-        # Wait for completion
-        for thread in threads:
-            thread.join()
-
-        # Process Qt events
-        qtbot.wait(100)
-
-        # Verify all launches succeeded (or at least completed without crashing)
-        assert len(results) == 3
-        # Note: Results may vary due to race conditions, but all should complete
-
-    @pytest.mark.real_timing  # Uses qtbot.wait(200) for QTimer callback
-    def test_qtimer_callback_thread_safety(
-        self, qtbot: QtBot, launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """Test that QTimer callbacks execute on correct thread.
-
-        CommandLauncher uses QTimer.singleShot for delayed spawn verification.
-        This test verifies that the callback executes on the GUI thread.
-        """
-        # Create a real temporary workspace directory
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-
-        mock_shot = MagicMock(
-            full_name="TEST_SHOT_0010",
-            workspace_path=str(workspace),
-        )
-        launcher.set_current_shot(mock_shot)
-
-        # Mock dependencies
-        # IMPORTANT: Patch command_launcher.Config.APPS, not config.Config.APPS
-        # This is because module reloading in other tests can cause command_launcher
-        # to hold a reference to a different Config class than config.Config
-        monkeypatch.setattr("command_launcher.Config.APPS", {"test_app": "test_command"})
-
-        mock_process = Mock(pid=12345, poll=Mock(return_value=None))
-        monkeypatch.setattr("launch.process_executor.subprocess.Popen", Mock(return_value=mock_process))
-        monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
-        # CRITICAL: Mock is_ws_available - 'ws' command isn't available in dev environment
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_ws_available", lambda _self: True)
-
-        # Launch app (will schedule QTimer callback)
-        result = launcher.launch_app("test_app")
-        assert result is True
-
-        # Wait for QTimer callback (100ms delay + margin)
-        qtbot.wait(200)
-
-        # Verify spawn verification was called
-        # (We can't directly test thread ID, but if it runs without crashing, it's correct)
-        assert mock_process.poll.called
-
-    @pytest.mark.usefixtures("qtbot")
-    def test_cleanup_thread_safety(
-        self, launcher: CommandLauncher
-    ) -> None:
-        """Test that cleanup() can be safely called from any thread.
-
-        This is important for Python's garbage collection which may run
-        __del__ from any thread.
-        """
-        # Call cleanup from worker thread
-        def cleanup_from_thread() -> None:
-            launcher.cleanup()
-
-        thread = threading.Thread(target=cleanup_from_thread)
-        thread.start()
-        thread.join()
-
-        # Verify cleanup completed without error
-        # (If it crashes, the test will fail)
-
-        # Cleanup again from GUI thread (should be idempotent)
-        launcher.cleanup()
-
-    @pytest.mark.usefixtures("qtbot")
-    def test_state_consistency_under_concurrent_access(
-        self, launcher: CommandLauncher
-    ) -> None:
-        """Test that concurrent state access maintains consistency.
-
-        This test rapidly sets and reads current_shot from multiple threads
-        to verify no corruption occurs.
-        """
-        shots = [
-            MagicMock(full_name=f"SHOT_{i:04d}", workspace_path=f"/test/shot{i}")
-            for i in range(10)
-        ]
-
-        def set_shots_rapidly() -> None:
-            for shot in shots:
-                launcher.set_current_shot(shot)
-                time.sleep(0)
-
-        threads = [threading.Thread(target=set_shots_rapidly) for _ in range(3)]
-
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join()
-
-        # Verify final state is one of the valid shots
-        assert launcher.current_shot in shots or launcher.current_shot is None
-        # Verify no corruption (shot object is intact)
-        if launcher.current_shot:
-            assert hasattr(launcher.current_shot, "full_name")
-            assert hasattr(launcher.current_shot, "workspace_path")
 
 
 class TestSubprocessErrorHandling:

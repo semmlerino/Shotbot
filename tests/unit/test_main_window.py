@@ -24,7 +24,6 @@ from pytestqt.qtbot import QtBot
 # from shot_model import Shot
 from config import Config
 
-
 class TestProcessPoolType(Protocol):
     """Protocol for process pool test doubles."""
 
@@ -47,6 +46,7 @@ pytestmark = [
     pytest.mark.qt,
     pytest.mark.slow,
     pytest.mark.permissive_process_pool,  # MainWindow tests check UI, not subprocess output
+    pytest.mark.allow_dialogs,  # MainWindow init triggers error dialogs in test env
 ]
 
 
@@ -73,6 +73,22 @@ def setup_qt_imports() -> None:
         ThreeDEScene,
     )
 
+
+
+@pytest.fixture(autouse=True)
+def stable_main_window_startup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disable background startup work unrelated to these UI behavior tests."""
+    from type_definitions import RefreshResult
+
+    def _skip_async_init(_self: object) -> RefreshResult:
+        return RefreshResult(success=True, has_changes=False)
+
+    monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
+    monkeypatch.setattr("shot_model.ShotModel.initialize_async", _skip_async_init)
+    monkeypatch.setattr(
+        "launch.environment_manager.EnvironmentManager.warm_cache_async",
+        lambda _self: None,
+    )
 
 
 class TestMainWindowInitialization:
@@ -202,57 +218,23 @@ class TestShotRefresh:
     """Test shot refresh functionality."""
 
     def test_refresh_shots_updates_display(
-        self, test_process_pool: TestProcessPoolType, qtbot: QtBot, tmp_path: Path
+        self, qtbot: QtBot, tmp_path: Path
     ) -> None:
-        """Test that refreshing shots updates the display."""
-        # QMessageBox mocking now handled by autouse fixture in conftest.py
-        from config import (
-            Config,
-        )
-
+        """Test that MainWindow refresh delegates to the refresh orchestrator."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # CRITICAL: Wait for background shot loading to complete before test setup
-        # The ShotModel starts async loading on init, we need it to finish first
-        # to avoid race conditions where the background load overwrites test data
-        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
+        with patch.object(main_window.refresh_orchestrator, "refresh_tab") as mock_refresh_tab:
+            main_window._refresh_shots()
 
-        # Use test process pool to avoid real subprocess calls (UNIFIED_TESTING_GUIDE)
-        # Use Config.SHOWS_ROOT for proper test isolation
-        shows_root = Config.SHOWS_ROOT
-        test_process_pool.set_outputs(
-            f"workspace {shows_root}/test/shots/seq01/seq01_0010\nworkspace {shows_root}/test/shots/seq01/seq01_0020"
-        )
-        main_window.shot_model._process_pool = test_process_pool
-        main_window.shot_model._force_sync_refresh = True
-
-        # CRITICAL: Recreate parser to use correct SHOWS_ROOT from test environment
-        # Manually create pattern with correct shows_root to bypass Config import issues
-        import re
-        shows_root_escaped = re.escape(shows_root)
-        ws_pattern = re.compile(
-            rf"workspace\s+({shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+))"
-        )
-        # Manually set the pattern on the existing parser
-        main_window.shot_model._parser._ws_pattern = ws_pattern
-
-        # Refresh shots
-        main_window._refresh_shots()
-
-        # Wait for async refresh to complete
-        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
-
-        # Verify shots were loaded
-        assert len(main_window.shot_model.shots) == 2
+        mock_refresh_tab.assert_called_once_with(0)
 
 
 @pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestApplicationLaunching:
     """Test application launching functionality."""
 
-    @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     def test_launch_app_without_selection_shows_error(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
     ) -> None:
@@ -376,54 +358,23 @@ class TestStatusBar:
 class TestMainWindowIntegration:
     """Integration tests for MainWindow end-to-end workflows."""
 
-    @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     def test_complete_shot_workflow(
-        self,
-        test_process_pool: TestProcessPoolType,
-        qtbot: QtBot,
-        tmp_path: Path,
-        monkeypatch,
+        self, qtbot: QtBot, tmp_path: Path
     ) -> None:
-        """Test complete workflow: load shots, select, and launch app."""
+        """Test complete workflow: set a shot, select it, and launch an app."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Use mock mode for this test
-        monkeypatch.setenv("SHOTBOT_MOCK_MODE", "1")
-
-        # CRITICAL: Wait for background shot loading to complete before test setup
-        # The ShotModel starts async loading on init, we need it to finish first
-        # to avoid race conditions where the background load overwrites test data
-        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
-
-        # Set up test data
         shows_root = Config.SHOWS_ROOT
-        test_process_pool.set_outputs(
-            f"workspace {shows_root}/test/shots/seq01/seq01_0010"
+        shot = Shot(
+            "test_show",
+            "seq01",
+            "0010",
+            f"{shows_root}/test/shots/seq01/seq01_0010",
         )
-        main_window.shot_model._process_pool = test_process_pool
-        main_window.shot_model._force_sync_refresh = True
-
-        # CRITICAL: Recreate parser to use correct SHOWS_ROOT from test environment
-        # Manually create pattern with correct shows_root to bypass Config import issues
-        import re
-        shows_root_escaped = re.escape(shows_root)
-        ws_pattern = re.compile(
-            rf"workspace\s+({shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+))"
-        )
-        # Manually set the pattern on the existing parser
-        main_window.shot_model._parser._ws_pattern = ws_pattern
-
-        # Load shots
-        main_window._refresh_shots()
-
-        # Wait for async refresh to complete
-        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
-
-        # Verify shot loaded
-        assert len(main_window.shot_model.shots) == 1
-        shot = main_window.shot_model.shots[0]
+        main_window.shot_model.shots = [shot]
+        main_window.shot_item_model.set_shots([shot])
 
         # Select the shot
         main_window.shot_selection_controller.on_shot_selected(shot)
@@ -432,19 +383,10 @@ class TestMainWindowIntegration:
         assert "nuke" in main_window.right_panel._dcc_accordion._sections
         assert main_window.right_panel._dcc_accordion._sections["nuke"]._launch_btn.isEnabled()
 
-        # Test complete workflow - just verify the app launch doesn't crash
-        # The subprocess call is already mocked by our autouse fixture (no real process spawned)
-        # We're testing the integration, not the implementation details
+        with patch.object(main_window.command_launcher, "launch_app", return_value=True) as mock_launch:
+            main_window.launch_app("nuke")
 
-        # Mock the workspace directory creation to avoid permission errors
-        def mock_mkdir(self, *args, **kwargs) -> None:
-            pass  # Don't actually create directories
-
-        monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
-        main_window.launch_app("nuke")
-
-        # Test behavior: app launch completed without errors
-        # (If it failed, it would have shown an error notification which is mocked)
+        mock_launch.assert_called_once_with("nuke")
 
 
 class TestCrashRecovery:

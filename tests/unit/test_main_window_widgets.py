@@ -67,6 +67,24 @@ def real_cache_manager(tmp_path: Path) -> CacheManager:
     return CacheManager(cache_dir=tmp_path / "test_cache")
 
 
+@pytest.fixture(autouse=True)
+def stable_main_window_startup(
+    monkeypatch: pytest.MonkeyPatch, expect_no_dialogs: object
+) -> None:
+    """Disable background startup work unrelated to widget behavior."""
+    from type_definitions import RefreshResult
+
+    def _skip_async_init(_self: object) -> RefreshResult:
+        return RefreshResult(success=True, has_changes=False)
+
+    monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
+    monkeypatch.setattr("shot_model.ShotModel.initialize_async", _skip_async_init)
+    monkeypatch.setattr(
+        "launch.environment_manager.EnvironmentManager.warm_cache_async",
+        lambda _self: None,
+    )
+
+
 class TestMainWindowInitialization:
     """Test MainWindow initialization and basic properties."""
 

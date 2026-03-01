@@ -614,6 +614,9 @@ class TestProcessExecutorCleanup:
 
         assert len(executor._pending_timers) == 0
 
+        executor.deleteLater()
+        process_qt_events()
+
     def test_cleanup_idempotent_on_double_call(self, qtbot: QtBot) -> None:
         """Calling cleanup() twice does not raise."""
         executor = ProcessExecutor(Config)
