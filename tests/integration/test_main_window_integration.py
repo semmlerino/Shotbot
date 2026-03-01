@@ -17,14 +17,13 @@ from unittest.mock import patch
 import pytest
 from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication
 
 from cache_manager import CacheManager
 from shot_model import Shot
 from tests.fixtures.integration_doubles import (
     MainWindowTestProgressManager,
     ProgressOperationDouble,
-    TestMessageBox,
     TestNotificationManager,
 )
 from tests.fixtures.test_doubles import (
@@ -530,31 +529,28 @@ class TestMainWindowKeyboardShortcuts:
 class TestMainWindowErrorScenarios:
     """Test error handling and recovery."""
 
-    @pytest.mark.xfail(
-        reason="Guard removal revealed error path uses logging, not QMessageBox",
-        strict=True,
-    )
     def test_handles_shot_refresh_failure(
-        self, main_window_with_real_components: Any, qtbot: Any, monkeypatch: Any
+        self, main_window_with_real_components: Any, qtbot: Any
     ) -> None:
-        """Test graceful handling of shot refresh failures."""
+        """Test graceful handling of shot refresh failures.
+
+        When refresh fails, the error propagates through:
+        1. ShotModel emits error_occurred → MainWindow updates status bar
+        2. ShotModel emits refresh_finished(False) → RefreshOrchestrator
+           updates status bar and records a NotificationManager error
+        """
         window = main_window_with_real_components
 
         test_pool = window._test_process_pool
         test_pool.set_should_fail(True, "Network error")
 
-        test_message_box = TestMessageBox()
-        monkeypatch.setattr(QMessageBox, "warning", test_message_box.warning)
-
+        window._test_notification_manager.clear()
         window.shot_model.invalidate_workspace_cache()
         window.refresh_action.trigger()
-        qtbot.wait(1)
 
-        last_message = test_message_box.get_last_message()
-        assert last_message is not None
-        assert "error" in last_message.get("message", "").lower()
+        status_text = window.status_bar.currentMessage()
+        assert "failed" in status_text.lower() or "error" in status_text.lower()
 
-        assert hasattr(window, "_test_notification_manager")
         notifications = window._test_notification_manager._notifications
         error_notifications = [
             n for n in notifications if n.get("type") in ["error", "warning"]
