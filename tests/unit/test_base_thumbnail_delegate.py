@@ -194,8 +194,8 @@ class TestDelegateInitialization:
 class TestThemeConfiguration:
     """Test DelegateTheme dataclass and customization."""
 
-    def test_default_theme_colors(self) -> None:
-        """Test default theme has expected colors."""
+    def test_default_theme_values(self) -> None:
+        """Test default theme has expected colors and dimensions."""
         theme = DelegateTheme()
 
         assert theme.bg_color == QColor("#2b2b2b")
@@ -206,10 +206,6 @@ class TestThemeConfiguration:
         assert theme.border_selected_color == QColor("#14ffec")
         assert theme.text_color == QColor("#ffffff")
         assert theme.text_selected_color == QColor("#14ffec")
-
-    def test_default_theme_dimensions(self) -> None:
-        """Test default theme has expected dimensions."""
-        theme = DelegateTheme()
 
         assert theme.text_height == 40
         assert theme.padding == 8
@@ -257,90 +253,44 @@ class TestThemeConfiguration:
 class TestSizeHint:
     """Test sizeHint() calculations."""
 
-    def test_size_hint_default_size(self, qtbot) -> None:
-        """Test size hint with default thumbnail size."""
-        view = QListView()
-        qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
+    @pytest.mark.parametrize(
+        ("thumbnail_size", "padding", "text_height"),
+        [
+            pytest.param(
+                Config.DEFAULT_THUMBNAIL_SIZE,
+                DelegateTheme().padding,
+                DelegateTheme().text_height,
+                id="default_size",
+            ),
+            pytest.param(500, DelegateTheme().padding, DelegateTheme().text_height, id="custom_thumbnail_size"),
+            pytest.param(Config.DEFAULT_THUMBNAIL_SIZE, 16, DelegateTheme().text_height, id="custom_padding"),
+            pytest.param(Config.DEFAULT_THUMBNAIL_SIZE, DelegateTheme().padding, 60, id="custom_text_height"),
+        ],
+    )
+    def test_size_hint_calculations(
+        self, thumbnail_size: int, padding: int, text_height: int
+    ) -> None:
+        """Test size hint calculations with varying thumbnail size, padding, and text height."""
+        default = DelegateTheme()
+        # Use a parentless delegate to avoid the update() bug when resizing
+        if thumbnail_size != Config.DEFAULT_THUMBNAIL_SIZE:
+            delegate = ConcreteThumbnailDelegate()
+            delegate.set_thumbnail_size(thumbnail_size)
+        elif padding != default.padding or text_height != default.text_height:
+            delegate = CustomThemeDelegate(DelegateTheme(padding=padding, text_height=text_height))
+        else:
+            delegate = ConcreteThumbnailDelegate()
 
         option = QStyleOptionViewItem()
         index = QModelIndex()
 
         size = delegate.sizeHint(option, index)
 
-        expected_width = Config.DEFAULT_THUMBNAIL_SIZE + 2 * delegate.theme.padding
-        # Height uses 16:9 aspect ratio for plate images
-        thumbnail_height = int(
-            Config.DEFAULT_THUMBNAIL_SIZE / Config.THUMBNAIL_ASPECT_RATIO
-        )
-        expected_height = (
-            thumbnail_height + delegate.theme.text_height + 2 * delegate.theme.padding
-        )
+        expected_width = thumbnail_size + 2 * padding
+        thumbnail_height = int(thumbnail_size / Config.THUMBNAIL_ASPECT_RATIO)
+        expected_height = thumbnail_height + text_height + 2 * padding
 
-        assert size == QSize(expected_width, expected_height)
-
-    def test_size_hint_custom_thumbnail_size(self) -> None:
-        """Test size hint after setting custom thumbnail size (no parent to avoid update() bug)."""
-        delegate = ConcreteThumbnailDelegate()  # No parent to avoid update() bug
-
-        custom_size = 500  # Use a value within valid range (400-1200)
-        delegate.set_thumbnail_size(custom_size)
-
-        option = QStyleOptionViewItem()
-        index = QModelIndex()
-
-        size = delegate.sizeHint(option, index)
-
-        expected_width = custom_size + 2 * delegate.theme.padding
-        # Height uses 16:9 aspect ratio for plate images
-        thumbnail_height = int(custom_size / Config.THUMBNAIL_ASPECT_RATIO)
-        expected_height = (
-            thumbnail_height + delegate.theme.text_height + 2 * delegate.theme.padding
-        )
-
-        assert size == QSize(expected_width, expected_height)
-
-    def test_size_hint_with_custom_padding(self, qtbot) -> None:
-        """Test size hint respects custom theme padding."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        custom_theme = DelegateTheme(padding=16)
-        delegate = CustomThemeDelegate(custom_theme, parent=view)
-
-        option = QStyleOptionViewItem()
-        index = QModelIndex()
-
-        size = delegate.sizeHint(option, index)
-
-        expected_width = Config.DEFAULT_THUMBNAIL_SIZE + 2 * 16
-        # Height uses 16:9 aspect ratio for plate images
-        thumbnail_height = int(
-            Config.DEFAULT_THUMBNAIL_SIZE / Config.THUMBNAIL_ASPECT_RATIO
-        )
-        expected_height = thumbnail_height + custom_theme.text_height + 2 * 16
-
-        assert size == QSize(expected_width, expected_height)
-
-    def test_size_hint_with_custom_text_height(self, qtbot) -> None:
-        """Test size hint respects custom text height."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        custom_theme = DelegateTheme(text_height=60)
-        delegate = CustomThemeDelegate(custom_theme, parent=view)
-
-        option = QStyleOptionViewItem()
-        index = QModelIndex()
-
-        size = delegate.sizeHint(option, index)
-
-        # Height uses 16:9 aspect ratio for plate images
-        thumbnail_height = int(
-            Config.DEFAULT_THUMBNAIL_SIZE / Config.THUMBNAIL_ASPECT_RATIO
-        )
-        expected_height = thumbnail_height + 60 + 2 * custom_theme.padding
-
+        assert size.width() == expected_width
         assert size.height() == expected_height
 
     def test_size_hint_with_persistent_model_index(self, qtbot) -> None:

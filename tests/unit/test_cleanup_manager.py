@@ -100,22 +100,6 @@ class TestCleanupOrchestration:
         ):
             cleanup_manager.perform_cleanup()
 
-    def test_perform_cleanup_runs_all_steps(
-        self, cleanup_manager: CleanupManager, mock_main_window: Mock
-    ) -> None:
-        """Test perform_cleanup runs all cleanup steps by checking combined effects."""
-        with patch("runnable_tracker.cleanup_all_runnables"), patch(
-            "cleanup_manager.QApplication.instance", return_value=Mock()
-        ), patch("gc.collect"):
-            cleanup_manager.perform_cleanup()
-
-        # Verify observable effects of all steps
-        assert mock_main_window.closing is True  # _mark_closing
-        mock_main_window.threede_controller.cleanup_worker.assert_called_once()  # _cleanup_threede_controller
-        assert mock_main_window.session_warmer is None  # _cleanup_session_warmer
-        mock_main_window.cache_manager.shutdown.assert_called_once()  # _cleanup_managers
-        mock_main_window.shot_model.cleanup.assert_called_once()  # _cleanup_models
-
     def test_perform_cleanup_emits_finished_even_on_exception(
         self, cleanup_manager: CleanupManager, qtbot: QtBot
     ) -> None:

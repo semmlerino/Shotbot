@@ -21,6 +21,7 @@ import pytest
 
 # Local application imports
 from shot_model import Shot
+from tests.integration.conftest import create_test_vfx_structure
 from threede_scene_finder import OptimizedThreeDESceneFinder
 
 
@@ -97,61 +98,12 @@ class TestParallelDiscoveryIntegration:
         self.temp_dir.mkdir()
         self.shows_root = self.temp_dir / "shows"
 
-    def _create_test_vfx_structure(self) -> tuple[Path, list[Shot]]:
-        """Create a realistic VFX directory structure for testing.
-
-        Returns:
-            Tuple of (shows_root_path, list_of_shots)
-
-        """
-        shows_root = self.temp_dir / "shows"
-
-        # Create multiple shows to test parallel processing
-        test_shots = []
-
-        for show_name in ["TESTSHOW", "ANOTHERSHOW"]:
-            show_dir = shows_root / show_name / "shots"
-
-            for seq_num in ["seq001", "seq002"]:
-                for shot_num in ["0010", "0020", "0030"]:
-                    shot_path = show_dir / seq_num / f"{seq_num}_{shot_num}"
-
-                    # Create user directories with 3DE files
-                    for user in ["artist1", "artist2", "supervisor"]:
-                        user_dir = shot_path / "user" / user
-
-                        # Create 3DE files in various locations
-                        # Standard 3DE directory
-                        threede_dir = user_dir / "3de" / "scenes"
-                        threede_dir.mkdir(parents=True, exist_ok=True)
-                        (
-                            threede_dir / f"{show_name}_{seq_num}_{shot_num}_BG01.3de"
-                        ).write_text("# 3DE Scene\nversion 1.0")
-
-                        # Nested 3DE files (realistic production structure)
-                        nested_dir = user_dir / "matchmove" / "3de" / "FG01"
-                        nested_dir.mkdir(parents=True, exist_ok=True)
-                        (nested_dir / "fg_track_v001.3de").write_text(
-                            "# 3DE Scene\nversion 1.0"
-                        )
-
-                    # Create Shot object for this shot
-                    shot = Shot(
-                        show=show_name,
-                        sequence=seq_num,
-                        shot=shot_num,
-                        workspace_path=str(shot_path),
-                    )
-                    test_shots.append(shot)
-
-        return shows_root, test_shots
-
     def test_find_all_3de_files_in_show_parallel_production_pattern(self) -> None:
         """Test the exact method that failed in production with progress_interval parameter.
 
         This test would have caught the ThreadSafeProgressTracker parameter bug.
         """
-        shows_root, _ = self._create_test_vfx_structure()
+        shows_root, _ = create_test_vfx_structure(self.shows_root)
 
         # Track progress updates
         progress_updates = []
@@ -196,7 +148,7 @@ class TestParallelDiscoveryIntegration:
         This tests the method that actually calls find_all_3de_files_in_show_parallel
         and caused the production failure.
         """
-        _shows_root, test_shots = self._create_test_vfx_structure()
+        _shows_root, test_shots = create_test_vfx_structure(self.shows_root)
 
         # Track progress updates like the worker does
         progress_updates = []
@@ -235,7 +187,7 @@ class TestParallelDiscoveryIntegration:
 
     def test_parallel_discovery_with_cancellation(self) -> None:
         """Test that cancellation works correctly during parallel discovery."""
-        _shows_root, test_shots = self._create_test_vfx_structure()
+        _shows_root, test_shots = create_test_vfx_structure(self.shows_root)
 
         progress_updates = []
         cancel_after_updates = 2
@@ -264,7 +216,7 @@ class TestParallelDiscoveryIntegration:
     def test_parallel_discovery_error_handling(self) -> None:
         """Test error handling in parallel discovery with invalid paths."""
         # Mix of valid and invalid paths
-        _shows_root, valid_shots = self._create_test_vfx_structure()
+        _shows_root, valid_shots = create_test_vfx_structure(self.shows_root)
 
         # Add invalid shots that don't exist
         invalid_shots = [
@@ -295,7 +247,7 @@ class TestParallelDiscoveryIntegration:
 
     def test_config_based_progress_interval_handling(self) -> None:
         """Test that progress_interval from config is handled correctly internally."""
-        shows_root, _ = self._create_test_vfx_structure()
+        shows_root, _ = create_test_vfx_structure(self.shows_root)
 
         progress_updates = []
 
@@ -319,7 +271,7 @@ class TestParallelDiscoveryIntegration:
         # Standard library imports
         import threading
 
-        _shows_root, test_shots = self._create_test_vfx_structure()
+        _shows_root, test_shots = create_test_vfx_structure(self.shows_root)
 
         results = {}
         errors = {}

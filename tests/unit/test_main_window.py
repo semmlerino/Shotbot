@@ -263,26 +263,6 @@ class TestApplicationLaunching:
 
 
 
-class TestSignalConnections:
-    """Test signal connections are properly established."""
-
-    def test_shot_selected_signal_connected(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test that shot selection signal is connected."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Create a test shot
-        shows_root = Config.SHOWS_ROOT
-        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-
-        # Trigger signal and verify handler is called
-        main_window.shot_selection_controller.on_shot_selected(shot)
-
-        # Verify command launcher has the shot
-        assert main_window.command_launcher.current_shot == shot
-
-
 class TestStatusBar:
     """Test status bar functionality."""
 

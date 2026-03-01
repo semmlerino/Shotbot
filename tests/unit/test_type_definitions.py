@@ -85,39 +85,29 @@ class TestShotDataclass:
 
         assert shot.full_name == "101_ABC_0010_v2"
 
-    def test_shot_equality_by_value(self) -> None:
-        """Two shots with same values are equal."""
-        shot1 = Shot(
+    def test_shot_equality_semantics(self) -> None:
+        """Shots with same values are equal; shots with different values are not."""
+        base = Shot(
             show="testshow",
             sequence="sq010",
             shot="0010",
             workspace_path="/shows/testshow/shots/sq010/sq010_0010",
         )
-        shot2 = Shot(
+        same = Shot(
             show="testshow",
             sequence="sq010",
             shot="0010",
             workspace_path="/shows/testshow/shots/sq010/sq010_0010",
         )
-
-        assert shot1 == shot2
-
-    def test_shot_inequality_by_different_values(self) -> None:
-        """Two shots with different values are not equal."""
-        shot1 = Shot(
-            show="testshow",
-            sequence="sq010",
-            shot="0010",
-            workspace_path="/shows/testshow/shots/sq010/sq010_0010",
-        )
-        shot2 = Shot(
+        different = Shot(
             show="testshow",
             sequence="sq010",
             shot="0020",  # Different shot
             workspace_path="/shows/testshow/shots/sq010/sq010_0020",
         )
 
-        assert shot1 != shot2
+        assert base == same
+        assert base != different
 
 @pytest.mark.unit
 class TestShotSerialization:

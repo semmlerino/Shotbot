@@ -160,58 +160,51 @@ def cleanup_qt_state(qtbot: QtBot):
 class TestBaseGridViewInitialization:
     """Test BaseGridView initialization and UI setup."""
 
-    def test_init_creates_size_slider(self, grid_view: ConcreteGridView) -> None:
-        """Test that initialization creates thumbnail size slider."""
-        assert hasattr(grid_view, "size_slider")
-        assert grid_view.size_slider is not None
-        assert grid_view.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE
-        assert grid_view.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE
-        assert grid_view.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE
-
-    def test_init_creates_size_label(self, grid_view: ConcreteGridView) -> None:
-        """Test that initialization creates thumbnail size label."""
-        assert hasattr(grid_view, "size_label")
-        assert grid_view.size_label is not None
-        expected_text = f"{Config.DEFAULT_THUMBNAIL_SIZE}px"
-        assert grid_view.size_label.text() == expected_text
-
-    def test_init_creates_show_combo(self, grid_view: ConcreteGridView) -> None:
-        """Test that initialization creates show filter combo box."""
-        assert hasattr(grid_view, "show_combo")
-        assert grid_view.show_combo is not None
-        assert grid_view.show_combo.count() == 1  # "All Shows" default
-        assert grid_view.show_combo.currentText() == "All Shows"
-
-    def test_init_creates_text_filter(self, grid_view: ConcreteGridView) -> None:
-        """Test that initialization creates text filter input."""
-        assert hasattr(grid_view, "text_filter_input")
-        assert grid_view.text_filter_input is not None
-        assert grid_view.text_filter_input.placeholderText() == "Filter..."
-        assert grid_view.text_filter_input.isClearButtonEnabled()
-
-    def test_init_creates_list_view(self, grid_view: ConcreteGridView) -> None:
-        """Test that initialization creates QListView."""
-        assert hasattr(grid_view, "list_view")
-        assert grid_view.list_view is not None
-        # Check list view configuration
+    def test_initialization_creates_all_ui_components(self, grid_view: ConcreteGridView) -> None:
+        """Test that initialization creates all expected UI components with correct configuration."""
         from PySide6.QtWidgets import QListView
-        assert grid_view.list_view.viewMode() == QListView.ViewMode.IconMode
 
-    def test_init_creates_delegate(self, grid_view: ConcreteGridView) -> None:
-        """Test that initialization creates delegate via template method."""
-        assert hasattr(grid_view, "_delegate")
-        assert grid_view._delegate is not None
-        assert isinstance(grid_view._delegate, MockDelegate)
+        # size_slider
+        assert hasattr(grid_view, "size_slider"), "size_slider attribute missing"
+        assert grid_view.size_slider is not None, "size_slider is None"
+        assert grid_view.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE, "size_slider minimum incorrect"
+        assert grid_view.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE, "size_slider maximum incorrect"
+        assert grid_view.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE, "size_slider default value incorrect"
 
-    def test_init_calls_template_methods(self, grid_view: ConcreteGridView) -> None:
-        """Test that initialization calls template methods for customization."""
-        assert grid_view.toolbar_widget_added is True
-        assert grid_view.top_widget_added is True
+        # size_label
+        assert hasattr(grid_view, "size_label"), "size_label attribute missing"
+        assert grid_view.size_label is not None, "size_label is None"
+        assert grid_view.size_label.text() == f"{Config.DEFAULT_THUMBNAIL_SIZE}px", "size_label text incorrect"
 
-    def test_init_sets_focus_policy(self, grid_view: ConcreteGridView) -> None:
-        """Test that initialization sets focus policy."""
-        assert grid_view.focusPolicy() == Qt.FocusPolicy.StrongFocus
-        assert grid_view.list_view.focusPolicy() == Qt.FocusPolicy.StrongFocus
+        # show_combo
+        assert hasattr(grid_view, "show_combo"), "show_combo attribute missing"
+        assert grid_view.show_combo is not None, "show_combo is None"
+        assert grid_view.show_combo.count() == 1, "show_combo should have one item ('All Shows') by default"
+        assert grid_view.show_combo.currentText() == "All Shows", "show_combo default text incorrect"
+
+        # text_filter_input
+        assert hasattr(grid_view, "text_filter_input"), "text_filter_input attribute missing"
+        assert grid_view.text_filter_input is not None, "text_filter_input is None"
+        assert grid_view.text_filter_input.placeholderText() == "Filter...", "text_filter_input placeholder incorrect"
+        assert grid_view.text_filter_input.isClearButtonEnabled(), "text_filter_input clear button not enabled"
+
+        # list_view
+        assert hasattr(grid_view, "list_view"), "list_view attribute missing"
+        assert grid_view.list_view is not None, "list_view is None"
+        assert grid_view.list_view.viewMode() == QListView.ViewMode.IconMode, "list_view not in IconMode"
+
+        # delegate
+        assert hasattr(grid_view, "_delegate"), "_delegate attribute missing"
+        assert grid_view._delegate is not None, "_delegate is None"
+        assert isinstance(grid_view._delegate, MockDelegate), "_delegate is not a MockDelegate"
+
+        # template methods
+        assert grid_view.toolbar_widget_added is True, "_add_toolbar_widgets() was not called"
+        assert grid_view.top_widget_added is True, "_add_top_widgets() was not called"
+
+        # focus policy
+        assert grid_view.focusPolicy() == Qt.FocusPolicy.StrongFocus, "grid_view focus policy incorrect"
+        assert grid_view.list_view.focusPolicy() == Qt.FocusPolicy.StrongFocus, "list_view focus policy incorrect"
 
     def test_thumbnail_size_property(self, grid_view: ConcreteGridView) -> None:
         """Test thumbnail_size property returns current size."""

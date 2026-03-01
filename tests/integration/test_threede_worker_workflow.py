@@ -51,7 +51,7 @@ from pathlib import Path
 import pytest
 
 # Local application imports
-from shot_model import Shot
+from tests.integration.conftest import create_test_vfx_structure
 from threede_scene_worker import ThreeDESceneWorker
 
 
@@ -149,40 +149,6 @@ class TestThreeDEWorkerWorkflow:
         self.temp_dir.mkdir()
         self.shows_root = self.temp_dir / "shows"
 
-    def _create_test_vfx_structure(self) -> list[Shot]:
-        """Create test VFX structure and return list of shots."""
-        test_shots = []
-
-        for show_name in ["TESTSHOW", "DEMO"]:
-            show_dir = self.shows_root / show_name / "shots"
-
-            for seq_num in range(1, 3):  # seq001, seq002
-                seq_name = f"seq{seq_num:03d}"
-                for shot_num in [10, 20, 30]:  # 0010, 0020, 0030
-                    shot_name = f"{shot_num:04d}"
-                    shot_path = show_dir / seq_name / f"{seq_name}_{shot_name}"
-
-                    # Create user directories with 3DE files
-                    for user in ["artist1", "artist2"]:
-                        for subdir in ["3de/scenes", "matchmove/3de", "tracking"]:
-                            work_dir = shot_path / "user" / user / subdir
-                            work_dir.mkdir(parents=True, exist_ok=True)
-
-                            # Create 3DE files
-                            scene_file = (
-                                work_dir
-                                / f"{show_name}_{seq_name}_{shot_name}_BG01.3de"
-                            )
-                            scene_file.write_text(
-                                f"# 3DE Scene\nversion 1.0\nshow: {show_name}"
-                            )
-
-                    # Create Shot object
-                    shot = Shot(show_name, seq_name, shot_name, str(shot_path))
-                    test_shots.append(shot)
-
-        return test_shots
-
     def test_worker_full_production_workflow(self, qtbot) -> None:
         """Test complete worker workflow as triggered by user - would catch parameter bug.
 
@@ -194,7 +160,11 @@ class TestThreeDEWorkerWorkflow:
         """
         from tests.test_helpers import cleanup_qthread_properly
 
-        test_shots = self._create_test_vfx_structure()
+        _, test_shots = create_test_vfx_structure(
+            self.shows_root,
+            show_names=["TESTSHOW", "DEMO"],
+            users=["artist1", "artist2"],
+        )
 
         # Create worker - real component, not mock (UNIFIED_TESTING_GUIDE line 52)
         # ThreeDESceneWorker requires shots parameter in constructor
@@ -279,7 +249,11 @@ class TestThreeDEWorkerWorkflow:
         from tests.test_helpers import cleanup_qthread_properly
 
         # Create larger structure to generate more signals
-        test_shots = self._create_test_vfx_structure()
+        _, test_shots = create_test_vfx_structure(
+            self.shows_root,
+            show_names=["TESTSHOW", "DEMO"],
+            users=["artist1", "artist2"],
+        )
 
         worker = ThreeDESceneWorker(
             shots=test_shots,
