@@ -51,16 +51,22 @@ uv run ruff format .
 # type checking
 uv run basedpyright
 
-# default test suite (parallel, Qt-safe)
-uv run pytest tests/ -n auto --dist=loadgroup
-
-# tests: serial (for debugging)
+# primary test suite (serial, primary CI gate)
 uv run pytest tests/
+
+# parallel isolation check (secondary CI gate)
+uv run pytest tests/ -n auto --dist=loadgroup
 
 # dead code detection (generate trace first, then analyze)
 uv run python scripts/generate_skylos_trace.py
 uv run skylos . --table --exclude-folder tests
 ```
+
+For the full Skylos workflow, including broader trace coverage (`--markexpr`), partial-trace handling, and whitelist guidance, see `docs/SKYLOS_DEAD_CODE_DETECTION.md`.
+
+Test policy: serial is the default local run and the main correctness gate in CI.
+Parallel is retained as a secondary isolation check for shared-state and teardown bugs,
+not because it is dramatically faster.
 
 For full testing policy and troubleshooting, see `UNIFIED_TESTING_V2.md`.
 

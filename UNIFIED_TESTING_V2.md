@@ -3,13 +3,18 @@
 ## Quick Start
 
 ```bash
-uv run pytest tests/ -n auto --dist=loadgroup   # Default suite, parallel (recommended)
+uv run pytest tests/                             # Default suite, serial (primary gate)
+uv run pytest tests/ -n auto --dist=loadgroup   # Parallel isolation check (secondary gate)
 uv run pytest tests/ tests/performance/ -m "" -n auto --dist=loadgroup   # Comprehensive (includes legacy + performance tests)
-uv run pytest tests/                             # Serial (quick loop)
 uv run pytest tests/ -k "test_cache" -v          # Subset
 uv run pytest --lf                               # Re-run last failed
 uv run pytest -m "not performance"               # Skip perf tests
 ```
+
+CI policy:
+- Serial is the primary correctness gate and the default expectation for local runs.
+- Parallel is retained as a secondary isolation check for shared-state, teardown, and xdist grouping bugs.
+- A test that only fails in parallel is still a real failure unless it is intentionally excluded with a documented reason.
 
 ---
 
@@ -114,6 +119,10 @@ def test_real_echo():
 ---
 
 ## Parallel Execution (xdist)
+
+Parallel runs are a **secondary validation mode**, not the primary gate. Keep them
+because they catch isolation bugs that serial runs can miss, not because they are
+necessarily much faster.
 
 **Always use `--dist=loadgroup`** — `--dist=worksteal` ignores `xdist_group` markers and causes Qt fixture serialization failures. Using wrong dist mode with `-n` raises `UsageError`.
 

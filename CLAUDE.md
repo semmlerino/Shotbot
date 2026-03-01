@@ -31,13 +31,18 @@ Prioritize correctness, maintainability, performance, and Qt thread safety.
 
 See `README.md` for development commands.
 
+Testing policy:
+- `uv run pytest tests/` is the default local run and the primary correctness gate.
+- `uv run pytest tests/ -n auto --dist=loadgroup` is a secondary isolation check for shared-state and teardown bugs.
+
 ## Non-Negotiable Rules
 
 1. Qt widget constructors must accept `parent: QWidget | None = None` and call `super().__init__(parent)`.
-2. Use `--dist=loadgroup` for whole-suite parallel test runs.
-3. New singletons should use `SingletonMixin` and be registered in `tests/fixtures/singleton_registry.py`.
-4. Use `process_qt_events()` for Qt event flushing in tests (not tiny real-time waits).
-5. `except Exception` that does not re-raise **must** call `logger.exception()` or `logger.error(..., exc_info=True)`. Silent swallowing hides production bugs.
+2. Use serial `uv run pytest tests/` as the default test run; use parallel only as a secondary validation pass.
+3. Use `--dist=loadgroup` for whole-suite parallel test runs.
+4. New singletons should use `SingletonMixin` and be registered in `tests/fixtures/singleton_registry.py`.
+5. Use `process_qt_events()` for Qt event flushing in tests (not tiny real-time waits).
+6. `except Exception` that does not re-raise **must** call `logger.exception()` or `logger.error(..., exc_info=True)`. Silent swallowing hides production bugs.
 
 ## Canonical References
 

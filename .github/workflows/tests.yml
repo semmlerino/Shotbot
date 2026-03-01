@@ -6,13 +6,13 @@ on:
   pull_request:
     branches: [ main, develop ]
   schedule:
-    # Run performance tests weekly on Sunday at 2 AM
+    # Run the standard CI test stack weekly to catch regressions
     - cron: '0 2 * * 0'
   workflow_dispatch:
 
 jobs:
-  fast-tests:
-    name: Fast Tests
+  compatibility-smoke:
+    name: Compatibility Smoke
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -34,28 +34,84 @@ jobs:
     - name: Install dependencies
       run: uv sync --locked
 
-    - name: Run fast tests
+    - name: Run compatibility smoke tests
       run: |
         uv run pytest tests/ \
-          -m "not slow and not performance and not stress and not legacy and not performance_like and not tutorial" \
+          -m "not slow and not performance and not legacy" \
           --tb=short \
           --maxfail=10 \
           --timeout=10 \
-          -n auto \
-          --dist=loadgroup \
           -q
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: test-results-fast-${{ matrix.python-version }}
+        name: test-results-compat-${{ matrix.python-version }}
         path: .pytest_cache/
 
-  full-tests:
-    name: Full Test Suite
+  serial-primary:
+    name: Primary Serial Gate
     runs-on: ubuntu-latest
-    needs: fast-tests
+    needs: compatibility-smoke
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: uv sync --locked
+
+    - name: Run primary serial suite
+      run: |
+        uv run pytest tests/ \
+          --tb=short \
+          --maxfail=1 \
+          -q
+
+  parallel-isolation:
+    name: Parallel Isolation Check
+    runs-on: ubuntu-latest
+    needs: serial-primary
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: uv sync --locked
+
+    - name: Run parallel isolation suite
+      run: |
+        uv run pytest tests/ \
+          -n auto \
+          --dist=loadgroup \
+          --tb=short \
+          --maxfail=1 \
+          -q
+
+  coverage-tests:
+    name: Coverage Report (Main Only)
+    runs-on: ubuntu-latest
+    needs: parallel-isolation
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
@@ -79,11 +135,12 @@ jobs:
     - name: Install Python dependencies
       run: uv sync --locked
 
-    - name: Run full test suite with xvfb
+    - name: Run coverage suite with xvfb
       run: |
         xvfb-run -a uv run pytest tests/ \
-          -m "not performance and not stress and not legacy and not performance_like and not tutorial" \
+          -m "not performance and not legacy" \
           -n auto \
+          --dist=loadgroup \
           --tb=short \
           --cov=. \
           --cov-report=xml
@@ -99,4 +156,3 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
-
