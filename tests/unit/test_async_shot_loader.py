@@ -74,11 +74,6 @@ class TestAsyncShotLoader:
             loader.quit()
             loader.wait(1000)
 
-    def test_loader_signals_exist(self, loader) -> None:
-        """Test that AsyncShotLoader has required signals."""
-        assert hasattr(loader, "shots_loaded")
-        assert hasattr(loader, "load_failed")
-
     def test_successful_shot_loading_signal_emission(self, loader, qtbot) -> None:
         """Test shots_loaded signal is emitted with correct data."""
         # Use QSignalSpy to verify signal emission

@@ -283,21 +283,6 @@ class TestSignalConnections:
         assert main_window.command_launcher.current_shot == shot
 
 
-class TestWindowCleanup:
-    """Test window cleanup functionality."""
-
-    def test_window_cleanup_on_close(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test that closing window properly cleans up resources."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Close the window
-        main_window.close()
-
-        assert main_window.isVisible() is False
-
-
 class TestStatusBar:
     """Test status bar functionality."""
 

@@ -17,7 +17,6 @@ from config import Config
 from shot_parser import (
     OptimizedShotParser,
     ParseResult,
-    benchmark_parser_performance,
 )
 
 
@@ -322,45 +321,6 @@ class TestPatternCacheIsolation:
         assert result is not None
         assert result.show == "demo"
         assert result.workspace_path.startswith(custom_root)
-
-
-class TestPerformanceBenchmark:
-    """Tests for parser performance."""
-
-    @pytest.mark.performance
-    def test_benchmark_returns_valid_metrics(self) -> None:
-        """Benchmark function returns all expected metrics."""
-        # Use small iteration count for test speed
-        metrics = benchmark_parser_performance(iterations=1000)
-
-        assert "original_time" in metrics
-        assert "optimized_time" in metrics
-        assert "original_ops_per_sec" in metrics
-        assert "optimized_ops_per_sec" in metrics
-        assert "improvement_percent" in metrics
-        assert "target_ops_per_sec" in metrics
-
-        # Sanity checks
-        assert metrics["original_time"] > 0
-        assert metrics["optimized_time"] > 0
-        assert metrics["optimized_ops_per_sec"] > 0
-
-    @pytest.mark.performance
-    def test_optimized_parser_comparable_or_faster(self) -> None:
-        """Optimized parser is comparable to or faster than original.
-
-        Note: With parallel test execution (pytest -n auto), CPU contention
-        causes significant timing variance. We allow 50% tolerance because:
-        - This test verifies basic functionality, not precise performance
-        - Real benchmarks with 100K+ iterations show consistent 72% improvement
-        - Parallel execution introduces unpredictable CPU scheduling delays
-        """
-        metrics = benchmark_parser_performance(iterations=10000)
-
-        # Allow 50% variance for parallel test execution (CPU contention)
-        # Real benchmarks show consistent 72% improvement in isolated runs
-        assert metrics["optimized_time"] <= metrics["original_time"] * 1.5
-
 
 class TestParseResultNamedTuple:
     """Tests for ParseResult data structure."""

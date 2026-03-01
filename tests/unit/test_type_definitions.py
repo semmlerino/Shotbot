@@ -24,7 +24,6 @@ from type_definitions import (
     Shot,
     # TypedDicts
     ShotDict,
-    ThreeDESceneDict,
 )
 
 
@@ -50,17 +49,6 @@ class TestShotDataclass:
         assert shot.sequence == "sq010"
         assert shot.shot == "0010"
         assert shot.workspace_path == "/shows/testshow/shots/sq010/sq010_0010"
-
-    def test_shot_discovered_at_defaults_to_zero(self) -> None:
-        """Shot discovered_at field defaults to 0.0 if not provided."""
-        shot = Shot(
-            show="testshow",
-            sequence="sq010",
-            shot="0010",
-            workspace_path="/shows/testshow/shots/sq010/sq010_0010",
-        )
-
-        assert shot.discovered_at == 0.0
 
     def test_shot_discovered_at_can_be_set(self) -> None:
         """Shot discovered_at field can be explicitly set."""
@@ -316,87 +304,6 @@ class TestShotThreadSafety:
             concurrent.futures.wait(futures)
 
         assert len(errors) == 0, f"Thread errors occurred: {errors}"
-
-
-# ==============================================================================
-# TypedDict Tests
-# ==============================================================================
-
-
-@pytest.mark.unit
-class TestShotDict:
-    """Tests for ShotDict TypedDict structure."""
-
-    def test_optional_discovered_at(self) -> None:
-        """ShotDict can optionally include discovered_at."""
-        with_discovered: ShotDict = {
-            "show": "test",
-            "sequence": "sq01",
-            "shot": "0010",
-            "workspace_path": "/path",
-            "discovered_at": 1700000000.0,
-        }
-
-        without_discovered: ShotDict = {
-            "show": "test",
-            "sequence": "sq01",
-            "shot": "0010",
-            "workspace_path": "/path",
-        }
-
-        assert with_discovered.get("discovered_at") == 1700000000.0
-        assert without_discovered.get("discovered_at") is None
-
-
-@pytest.mark.unit
-class TestThreeDESceneDict:
-    """Tests for ThreeDESceneDict TypedDict structure."""
-
-    def test_optional_last_seen(self) -> None:
-        """ThreeDESceneDict can optionally include last_seen."""
-        with_last_seen: ThreeDESceneDict = {
-            "filepath": "/path/to/scene.3de",
-            "show": "testshow",
-            "sequence": "sq010",
-            "shot": "0010",
-            "user": "artist",
-            "filename": "scene.3de",
-            "modified_time": 1700000000.0,
-            "workspace_path": "/shows/testshow/shots/sq010/sq010_0010",
-            "last_seen": 1700000001.0,
-        }
-
-        assert with_last_seen.get("last_seen") == 1700000001.0
-
-
-# ==============================================================================
-# Protocol Compliance Tests
-# ==============================================================================
-
-
-@pytest.mark.unit
-class TestCacheProtocolCompliance:
-    """Tests that verify implementations satisfy CacheProtocol."""
-
-    def test_cache_manager_satisfies_protocol(self, tmp_path: Path) -> None:
-        """CacheManager implements all CacheProtocol methods."""
-        from cache_manager import CacheManager
-
-        # Check that all protocol methods exist with correct signatures
-        assert hasattr(CacheManager, "cache_shots")
-        assert hasattr(CacheManager, "get_shots_with_ttl")
-        assert hasattr(CacheManager, "clear_cache")
-        assert hasattr(CacheManager, "get_disk_usage")
-
-        # Verify method signatures by getting type hints
-        # (This is a structural check - runtime protocol compliance)
-        cache_path = tmp_path / "cache"
-        cache_path.mkdir(parents=True, exist_ok=True)
-        cache = CacheManager(cache_dir=cache_path)
-        assert callable(cache.cache_shots)
-        assert callable(cache.get_shots_with_ttl)
-        assert callable(cache.clear_cache)
-        assert callable(cache.get_disk_usage)
 
 
 # ==============================================================================

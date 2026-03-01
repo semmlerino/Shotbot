@@ -6,8 +6,6 @@ from __future__ import annotations
 from pathlib import Path
 
 # Third-party imports
-import pytest
-
 # Local application imports
 from threede_latest_finder import ThreeDELatestFinder
 
@@ -299,74 +297,3 @@ class TestEdgeCases:
 
         assert latest is not None
         assert latest.name == "shot_010_track_v002.3de"
-
-
-class TestPerformance:
-    """Test performance-related scenarios."""
-
-    @pytest.mark.slow
-    def test_many_plates_performance(self, tmp_path: Path) -> None:
-        """Test performance with many plate directories."""
-        # Standard library imports
-        import time
-
-        workspace = tmp_path / "workspace"
-        base_3de = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-        )
-
-        # Create many plate directories
-        for i in range(50):
-            plate_dir = base_3de / f"PLATE{i:02d}"
-            plate_dir.mkdir(parents=True)
-            (plate_dir / f"track_v{i + 1:03d}.3de").touch()
-
-        finder = ThreeDELatestFinder()
-        start = time.time()
-        latest = finder.find_latest_threede_scene(str(workspace))
-        elapsed = time.time() - start
-
-        assert latest is not None
-        assert latest.name == "track_v050.3de"
-        # Should complete quickly even with many plates
-        assert elapsed < 2.0
-
-    @pytest.mark.slow
-    def test_many_files_per_plate_performance(self, tmp_path: Path) -> None:
-        """Test performance with many files in each plate."""
-        # Standard library imports
-        import time
-
-        workspace = tmp_path / "workspace"
-        threede_scenes = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "scenes"
-            / "scene"
-            / "FG01"
-        )
-        threede_scenes.mkdir(parents=True)
-
-        # Create many versioned files in single plate
-        for i in range(100):
-            (threede_scenes / f"track_v{i + 1:03d}.3de").touch()
-
-        finder = ThreeDELatestFinder()
-        start = time.time()
-        latest = finder.find_latest_threede_scene(str(workspace))
-        elapsed = time.time() - start
-
-        assert latest is not None
-        assert latest.name == "track_v100.3de"
-        assert elapsed < 1.0

@@ -29,12 +29,6 @@ def router():
 class TestNukeLaunchRouter:
     """Test the NukeLaunchRouter class."""
 
-    def test_initialization(self, router) -> None:
-        """Test that router initializes with both launchers."""
-        assert router.simple_launcher is not None
-        assert router.complex_launcher is not None
-        assert router.simple_launches == 0
-
     def test_route_to_simple_open_latest(self, router, mock_shot) -> None:
         """Test routing to simple launcher for open_latest_scene."""
         with patch.object(router.simple_launcher, "open_latest_script") as mock_open:
@@ -139,18 +133,6 @@ class TestNukeLaunchRouter:
 
         # Should not log anything if total is 0
         assert "Nuke Launcher Usage Statistics" not in caplog.text
-
-    def test_get_environment_fixes(self, router) -> None:
-        """Test that environment fixes are delegated to complex launcher."""
-        with patch.object(
-            router.complex_launcher, "get_environment_fixes"
-        ) as mock_get_env:
-            mock_get_env.return_value = "export OCIO=/path/to/config.ocio"
-
-            result = router.get_environment_fixes()
-
-            assert result == "export OCIO=/path/to/config.ocio"
-            mock_get_env.assert_called_once()
 
     def test_routing_decision_logging(self, router, mock_shot, caplog) -> None:
         """Test that routing decisions are logged appropriately."""

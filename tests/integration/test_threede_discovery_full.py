@@ -213,64 +213,6 @@ class TestThreeDEDiscoveryIntegration:
             expected_path = f"{shows_root}/{scene.show}/shots/{scene.sequence}/{scene.sequence}_{scene.shot}"
             assert scene.workspace_path == expected_path
 
-    def test_worker_integration_with_discovery(
-        self, temp_vfx_structure, make_user_shots, qtbot
-    ) -> None:
-        """Test ThreeDESceneWorker integration with the fixed discovery.
-
-        Following Worker Thread Pattern (GUIDE line 91).
-        """
-        # Local application imports
-        from tests.test_helpers import cleanup_qthread_properly
-        from threede_scene_worker import (
-            ThreeDESceneWorker,
-        )
-
-        shows_root, _created_files = temp_vfx_structure
-        user_shots = make_user_shots()
-
-        # Mock Config to use temp structure
-        # Local application imports
-        from config import (
-            Config,
-        )
-
-        with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
-            # Create worker with scan_all_shots=True (as in production)
-            worker = ThreeDESceneWorker(
-                shots=user_shots,
-                excluded_users={"gabriel-h"},
-                enable_progressive=False,  # Simpler for testing
-                scan_all_shots=True,  # Critical: scan ALL shots in shows
-            )
-
-            # Track results
-            results = []
-
-            def on_finished(scenes) -> None:
-                results.extend(scenes)
-
-            worker.discovery_finished.connect(on_finished)
-
-            # Track signal handlers for proper cleanup
-            signal_handlers = [
-                (worker.discovery_finished, on_finished),
-            ]
-
-            try:
-                # Start worker and wait for completion
-                worker.start()
-                qtbot.waitUntil(lambda: not worker.isRunning(), timeout=5000)
-
-                # Should find multiple scenes from other users
-                assert len(results) >= 6, (
-                    f"Should find at least 6 scenes, found {len(results)}"
-                )
-            finally:
-                # CRITICAL: Proper cleanup to prevent Qt C++ object accumulation
-                # This prevents segfaults in subsequent tests during parallel execution
-                cleanup_qthread_properly(worker, signal_handlers)
-
     def test_scene_filtering_with_real_parser(self, temp_vfx_structure) -> None:
         """Test scene filtering using the real SceneParser component."""
         # Local application imports

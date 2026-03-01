@@ -37,6 +37,11 @@ class TestBuildPath:
         with pytest.raises(ValueError, match="cannot be empty"):
             PathBuilders.build_path("", "segment")
 
+    def test_raises_on_none_base_path(self) -> None:
+        """None base_path raises ValueError."""
+        with pytest.raises(ValueError, match="cannot be empty"):
+            PathBuilders.build_path(None, "segment")  # type: ignore[arg-type]
+
     def test_skips_empty_segments_with_warning(
         self,
         caplog: pytest.LogCaptureFixture,

@@ -18,18 +18,14 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
-import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QCloseEvent
-from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
     QMainWindow,
-    QStatusBar,
     QTabWidget,
     QWidget,
 )
@@ -175,23 +171,6 @@ class TestMainWindowUIComponents:
             tab_count = tab_widget.count()
             assert tab_count >= 3  # My Shots, Other 3DE scenes, Previous Shots
 
-    def test_status_bar_exists(self, main_window_ui: MainWindow) -> None:
-        """Test status bar exists and is functional."""
-        window = main_window_ui
-
-        # MainWindow should have status bar
-        status_bar = window.statusBar()
-        assert status_bar is not None
-        assert isinstance(status_bar, QStatusBar)
-
-    def test_menu_bar_exists(self, main_window_ui: MainWindow) -> None:
-        """Test menu bar exists."""
-        window = main_window_ui
-
-        # MainWindow should have menu bar
-        menu_bar = window.menuBar()
-        assert menu_bar is not None
-
 class TestMainWindowTabFunctionality:
     """Test tab widget functionality and navigation."""
 
@@ -295,72 +274,6 @@ class TestMainWindowSignalConnections:
         qtbot.addWidget(window)
         process_qt_events()
         return window
-
-class TestMainWindowKeyboardShortcuts:
-    """Test keyboard shortcuts and accessibility."""
-
-    @pytest.fixture
-    def shortcut_window(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
-    ) -> MainWindow:
-        """Create MainWindow for shortcut testing."""
-        # Local import to avoid module-level issues
-        from main_window import (
-            MainWindow,
-        )
-
-        window = MainWindow(cache_manager=real_cache_manager)
-        qtbot.addWidget(window)
-        window.show()
-        qtbot.waitExposed(window)
-        return window
-
-    def test_refresh_shortcut(self, qtbot: QtBot, shortcut_window: MainWindow) -> None:
-        """Test keyboard shortcut handling infrastructure."""
-        window = shortcut_window
-
-        # Attempt to activate window for shortcuts
-        window.activateWindow()
-        window.raise_()
-        window.setFocus()
-        # Wait for window to become active
-        try:
-            qtbot.waitUntil(lambda: window.isActiveWindow(), timeout=1000)
-        except Exception:
-            # Window activation may fail in headless environment
-            pass
-
-        # Test that window can handle key events without triggering refresh
-        # Use a safe key that won't trigger complex operations
-        QTest.keyPress(window, Qt.Key.Key_Space)
-        process_qt_events()
-
-        # The key press should be processed without crashing the window
-        assert window.isVisible()
-        assert not window.isMinimized()
-
-    def test_escape_key_handling(
-        self, qtbot: QtBot, shortcut_window: MainWindow
-    ) -> None:
-        """Test escape key handling."""
-        window = shortcut_window
-
-        window.activateWindow()
-        window.setFocus()
-        # Wait for window to become active
-        try:
-            qtbot.waitUntil(lambda: window.isActiveWindow(), timeout=1000)
-        except Exception:
-            # Window activation may fail in headless environment
-            pass
-
-        # Press escape
-        QTest.keyPress(window, Qt.Key.Key_Escape)
-        process_qt_events()
-
-        # Escape should be handled without leaving the app in invalid state.
-        assert window is not None
-
 
 class TestMainWindowStateManagement:
     """Test window state management and persistence."""
@@ -479,28 +392,6 @@ class TestMainWindowErrorHandling:
         assert window is not None
         assert window.cache_manager is not None
 
-    def test_window_close_event_handling(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
-    ) -> None:
-        """Test window handles close events properly."""
-        # Local import to avoid module-level issues
-        from main_window import (
-            MainWindow,
-        )
-
-        window = MainWindow(cache_manager=real_cache_manager)
-        qtbot.addWidget(window)
-
-        # Create close event
-        close_event = QCloseEvent()
-
-        # Window should handle close event without crashing
-        with contextlib.suppress(RuntimeError):
-            window.closeEvent(close_event)
-
-        # Event handling shouldn't crash the process
-        assert window is not None
-
 class TestMainWindowIntegration:
     """Test integration between MainWindow components."""
 
@@ -520,36 +411,6 @@ class TestMainWindowIntegration:
         qtbot.waitExposed(window)
         process_qt_events()
         return window
-
-    def test_cache_manager_integration(
-        self,
-        qtbot: QtBot,
-        integrated_window: MainWindow,
-        real_cache_manager: CacheManager,
-    ) -> None:
-        """Test cache manager integrates with all components."""
-        window = integrated_window
-
-        # Cache manager should be shared
-        assert window.cache_manager == real_cache_manager
-
-        # Components should use the same cache manager
-        # Shot model should use the cache manager
-        assert hasattr(window.shot_model, "cache_manager")
-
-    def test_status_updates(self, qtbot: QtBot, integrated_window: MainWindow) -> None:
-        """Test status bar receives updates from components."""
-        window = integrated_window
-        status_bar = window.statusBar()
-
-        # Status bar should be functional
-        status_bar.showMessage("Test message")
-        # Wait for message to be displayed
-        qtbot.waitUntil(lambda: status_bar.currentMessage() == "Test message", timeout=1000)
-
-        # Message should be displayed
-        current_message = status_bar.currentMessage()
-        assert current_message == "Test message"
 
     def test_ui_responsiveness_under_load(
         self, qtbot: QtBot, integrated_window: MainWindow

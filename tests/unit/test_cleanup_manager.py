@@ -82,12 +82,6 @@ class TestCleanupManagerInitialization:
         """Test manager initializes with correct reference."""
         assert cleanup_manager.main_window is mock_main_window
 
-    def test_initialization_sets_up_logging(
-        self, cleanup_manager: CleanupManager
-    ) -> None:
-        """Test initialization sets up logging."""
-        assert hasattr(cleanup_manager, "logger")
-
 
 # =============================================================================
 # Cleanup Orchestration Tests

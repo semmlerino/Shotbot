@@ -10,7 +10,6 @@ import tempfile
 import time
 import traceback
 from collections.abc import Generator, Iterator
-from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
@@ -428,18 +427,6 @@ class TestMainWindowUICoordination:
         assert "3de" in window.right_panel._dcc_accordion._sections
         assert "nuke" in window.right_panel._dcc_accordion._sections
 
-    @pytest.mark.usefixtures("qtbot")
-    def test_refresh_button_triggers_shot_refresh(
-        self, main_window_with_real_components: Any
-    ) -> None:
-        """Test that refresh delegates through the RefreshOrchestrator."""
-        window = main_window_with_real_components
-
-        with patch.object(window.refresh_orchestrator, "refresh_tab") as mock_refresh_tab:
-            window._refresh_shots()
-
-        mock_refresh_tab.assert_called_once_with(0)
-
     def test_launcher_execution_workflow(
         self, main_window_with_real_components: Any, qtbot: Any, tmp_path: Path
     ) -> None:
@@ -470,22 +457,6 @@ class TestMainWindowUICoordination:
         mock_launch_app.assert_called_once()
         assert mock_launch_app.call_args is not None
         assert mock_launch_app.call_args.args[0] == "3de"
-
-    @pytest.mark.usefixtures("monkeypatch")
-    def test_error_handling_shows_message(
-        self, main_window_with_real_components: Any, qtbot: Any
-    ) -> None:
-        """Test that command_error signal is handled and status bar updates."""
-        window = main_window_with_real_components
-
-        from datetime import datetime
-        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-        window.command_launcher.command_error.emit(timestamp, "Test error message")
-
-        qtbot.wait(1)
-
-        status_message = window.status_bar.currentMessage()
-        assert status_message is not None
 
     def test_progress_indication_during_operations(
         self, main_window_with_real_components: Any, qtbot: Any

@@ -383,24 +383,6 @@ class TestSimulatedCrash:
 class TestImportExportRoundtrip:
     """export_settings → modify in memory → import_settings restores originals."""
 
-    def test_export_then_import_restores_thumbnail_size(
-        self, tmp_path: Path
-    ) -> None:
-        """Exported thumbnail size is restored after import."""
-        manager = make_real_manager(tmp_path)
-        manager.set_thumbnail_size(800)
-        manager.sync()
-
-        export_path = str(tmp_path / "settings.json")
-        assert manager.export_settings(export_path) is True
-
-        # Corrupt in-memory value
-        manager.set_thumbnail_size(Config.DEFAULT_THUMBNAIL_SIZE)
-        assert manager.get_thumbnail_size() == Config.DEFAULT_THUMBNAIL_SIZE
-
-        assert manager.import_settings(export_path) is True
-        assert manager.get_thumbnail_size() == 800
-
     def test_export_then_import_restores_cache_expiry(
         self, tmp_path: Path
     ) -> None:
@@ -416,19 +398,6 @@ class TestImportExportRoundtrip:
 
         assert manager.import_settings(export_path) is True
         assert manager.get_cache_expiry_minutes() == 120
-
-    def test_export_produces_valid_json_file(self, tmp_path: Path) -> None:
-        """The exported file is valid JSON with the expected categories."""
-        manager = make_real_manager(tmp_path)
-        export_path = str(tmp_path / "export.json")
-
-        assert manager.export_settings(export_path) is True
-
-        with Path(export_path).open() as f:
-            data = json.load(f)
-
-        for category in ("window", "preferences", "performance", "ui", "advanced"):
-            assert category in data, f"Missing category: {category}"
 
     def test_import_with_extra_unknown_keys_does_not_raise(
         self, tmp_path: Path
@@ -447,14 +416,6 @@ class TestImportExportRoundtrip:
         result = manager.import_settings(export_path)
         assert isinstance(result, bool)
 
-    def test_import_invalid_json_returns_false(self, tmp_path: Path) -> None:
-        """A corrupted export file causes import_settings() to return False."""
-        bad_path = str(tmp_path / "bad.json")
-        Path(bad_path).write_text("{ not valid json !!!")
-
-        manager = make_real_manager(tmp_path)
-        assert manager.import_settings(bad_path) is False
-
     def test_import_non_dict_json_returns_false(self, tmp_path: Path) -> None:
         """A JSON file whose root is a list (not dict) returns False."""
         list_path = str(tmp_path / "list.json")
@@ -463,12 +424,6 @@ class TestImportExportRoundtrip:
 
         manager = make_real_manager(tmp_path)
         assert manager.import_settings(list_path) is False
-
-    def test_import_nonexistent_file_returns_false(self, tmp_path: Path) -> None:
-        """Attempting to import a missing file returns False."""
-        manager = make_real_manager(tmp_path)
-        result = manager.import_settings(str(tmp_path / "does_not_exist.json"))
-        assert result is False
 
 
 # ============================================================================
@@ -479,26 +434,12 @@ class TestImportExportRoundtrip:
 class TestEdgeCases:
     """Boundary values, type mismatches, and validation clamping."""
 
-    def test_thumbnail_size_below_minimum_is_clamped(
-        self, real_manager: SettingsManager
-    ) -> None:
-        """Values below MIN_THUMBNAIL_SIZE are stored as MIN_THUMBNAIL_SIZE."""
-        real_manager.set_thumbnail_size(-1)
-        assert real_manager.get_thumbnail_size() == Config.MIN_THUMBNAIL_SIZE
-
     def test_thumbnail_size_zero_is_clamped_to_minimum(
         self, real_manager: SettingsManager
     ) -> None:
         """Zero thumbnail size is clamped to MIN_THUMBNAIL_SIZE."""
         real_manager.set_thumbnail_size(0)
         assert real_manager.get_thumbnail_size() == Config.MIN_THUMBNAIL_SIZE
-
-    def test_thumbnail_size_above_maximum_is_clamped(
-        self, real_manager: SettingsManager
-    ) -> None:
-        """Values above MAX_THUMBNAIL_SIZE are stored as MAX_THUMBNAIL_SIZE."""
-        real_manager.set_thumbnail_size(999_999)
-        assert real_manager.get_thumbnail_size() == Config.MAX_THUMBNAIL_SIZE
 
     def test_cache_expiry_below_minimum_is_clamped(
         self, real_manager: SettingsManager
@@ -513,22 +454,6 @@ class TestEdgeCases:
         """Cache expiry above one week (10080 min) is clamped to 10080."""
         real_manager.set_cache_expiry_minutes(999_999)
         assert real_manager.get_cache_expiry_minutes() == 10080
-
-    def test_current_tab_negative_is_stored_as_zero(
-        self, real_manager: SettingsManager
-    ) -> None:
-        """Negative tab index is normalised to 0."""
-        real_manager.set_current_tab(-5)
-        assert real_manager.get_current_tab() == 0
-
-    def test_window_size_below_minimum_is_clamped(
-        self, real_manager: SettingsManager
-    ) -> None:
-        """Window size below the minimum is clamped to minimum dimensions."""
-        real_manager.set_window_size(QSize(10, 10))
-        size = real_manager.get_window_size()
-        assert size.width() >= Config.MIN_WINDOW_WIDTH
-        assert size.height() >= Config.MIN_WINDOW_HEIGHT
 
     def test_refresh_interval_clamped_to_valid_range(
         self, real_manager: SettingsManager

@@ -308,10 +308,4 @@ class TestClassInheritance:
         assert obj._extract_version("file.v001.ma") == 1  # Fallback pattern
         assert obj._extract_version("file_ver001.ma") == 1  # Another fallback
 
-    def test_mixin_with_logging(self) -> None:
-        """Test that mixin includes logging."""
-        obj = ConcreteVersionClass()
-        assert hasattr(obj, "logger")
-        assert obj.logger is not None
-
 
