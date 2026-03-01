@@ -1,5 +1,0 @@
-Post-commit hook executed at Thu Feb 26 01:39:04 GMT 2026
-Commit: f4a87c7cca3c36fcf84427e86a172291adc8603d
-Branch: master
-Author: Gabriel H <gabrhas@gmail.com>
-Message: cleanup: simplify test suite — fix no-ops, remove dupes, parametrize

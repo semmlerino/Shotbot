@@ -1,4 +1,0 @@
-Testing critical imports...
-✓ process_pool_manager imports successfully
-✓ shot_model imports successfully
-✓ main_window imports successfully

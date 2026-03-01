@@ -1,3 +1,0 @@
-Running ruff linting...
-All checks passed!
-✓ No linting issues found
