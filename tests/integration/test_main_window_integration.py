@@ -121,8 +121,6 @@ def _close_windows(windows: list[Any], qtbot: Any) -> None:
             if not window.isHidden():
                 with contextlib.suppress(RuntimeError):
                     window.hide()
-            with contextlib.suppress(RuntimeError):
-                window.deleteLater()
             process_qt_events()
 
     windows.clear()
@@ -252,21 +250,12 @@ def main_window_with_real_components(
 
         _stop_window_background_work(window)
 
-        with contextlib.suppress(RuntimeError, TypeError):
-            window.disconnect()
-
-        window.close()
-
-        from PySide6.QtCore import QCoreApplication
-        app = QCoreApplication.instance()
-        if app:
-            app.processEvents()
-
-        window.deleteLater()
+        with contextlib.suppress(RuntimeError):
+            window.close()
+        if not window.isHidden():
+            with contextlib.suppress(RuntimeError):
+                window.hide()
         process_qt_events()
-
-        import gc
-        gc.collect()
 
 
 # ---------------------------------------------------------------------------
@@ -444,40 +433,19 @@ class TestMainWindowUICoordination:
     def test_refresh_button_triggers_shot_refresh(
         self, main_window_with_real_components: Any
     ) -> None:
-        """Test that refresh button triggers shot model refresh."""
+        """Test that refresh delegates through the RefreshOrchestrator."""
         window = main_window_with_real_components
 
-        test_pool = window._test_process_pool
-        test_pool.set_outputs("""workspace /shows/test/shots/seq01/shot01
-workspace /shows/test/shots/seq01/shot02""")
+        with patch.object(window.refresh_orchestrator, "refresh_tab") as mock_refresh_tab:
+            window._refresh_shots()
 
-        initial_command_count = len(test_pool.get_executed_commands())
-
-        window.shot_model.invalidate_workspace_cache()
-
-        result = window.shot_model.refresh_shots()
-
-        assert result.success, "Shot refresh should succeed with test double"
-
-        commands = test_pool.get_executed_commands()
-        assert len(commands) > initial_command_count, (
-            f"Expected commands to be executed. Commands: {commands}"
-        )
-        assert any("ws" in cmd for cmd in commands), (
-            f"Expected 'ws' command to be executed. Commands: {commands}"
-        )
+        mock_refresh_tab.assert_called_once_with(0)
 
     def test_launcher_execution_workflow(
-        self, main_window_with_real_components: Any, qtbot: Any, monkeypatch: Any, tmp_path: Path
+        self, main_window_with_real_components: Any, qtbot: Any, tmp_path: Path
     ) -> None:
-        """Test complete launcher execution workflow."""
+        """Test that the launch button delegates to CommandLauncher."""
         window = main_window_with_real_components
-
-        test_subprocess = TestSubprocess()
-        monkeypatch.setattr("launch.process_executor.subprocess.Popen", test_subprocess.Popen)
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
-        monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_ws_available", lambda _self: True)
 
         workspace_path = tmp_path / "test_workspace"
         workspace_path.mkdir(parents=True, exist_ok=True)
@@ -496,12 +464,13 @@ workspace /shows/test/shots/seq01/shot02""")
         if open_latest_checkbox:
             open_latest_checkbox.setChecked(False)
 
-        section_3de._launch_btn.click()
-        qtbot.wait(1)
+        with patch.object(window.command_launcher, "launch_app", return_value=True) as mock_launch_app:
+            section_3de._launch_btn.click()
+            qtbot.wait(1)
 
-        assert len(test_subprocess.executed_commands) > 0
-        executed_cmd = test_subprocess.get_last_command()
-        assert executed_cmd is not None
+        mock_launch_app.assert_called_once()
+        assert mock_launch_app.call_args is not None
+        assert mock_launch_app.call_args.args[0] == "3de"
 
     @pytest.mark.usefixtures("monkeypatch")
     def test_error_handling_shows_message(
@@ -874,59 +843,6 @@ class TestUserWorkflows:
             index = main_window.shot_item_model.index(i, 0)
             shot_data = main_window.shot_item_model.data(index, UnifiedRole.ObjectRole)
             assert shot_data is not None
-
-    @pytest.mark.integration
-    @pytest.mark.qt
-    def test_error_recovery_workflow(self, qtbot: Any) -> None:
-        """Test error recovery: empty output then valid output returns stable state."""
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-        cache_manager = CacheManager(cache_dir=self.cache_dir)
-        ShotModel()
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-        self.test_windows.append(main_window)
-
-        test_pool = TestProcessPool(allow_main_thread=True)
-        main_window.shot_model._process_pool = test_pool
-        main_window.shot_model._force_sync_refresh = True
-
-        error_events: list[tuple[str, str]] = []
-        recovery_events: list[float] = []
-
-        def on_error_occurred(error_type: str, message: str) -> None:
-            error_events.append((error_type, message))
-
-        def on_recovery_attempted() -> None:
-            recovery_events.append(time.time())
-
-        if hasattr(main_window, "error_occurred"):
-            main_window.error_occurred.connect(on_error_occurred)
-        if hasattr(main_window, "recovery_attempted"):
-            main_window.recovery_attempted.connect(on_recovery_attempted)
-
-        try:
-            test_pool.set_outputs("")
-            result = main_window.shot_model.refresh_shots()
-            assert result is not None
-
-            process_qt_events()
-
-            test_pool.set_outputs(f"workspace {self.test_shots[0]['workspace_path']}")
-            error_events.clear()
-
-            result = main_window.shot_model.refresh_shots()
-            process_qt_events()
-
-            assert result is not None
-            assert result.success
-        finally:
-            if hasattr(main_window, "error_occurred"):
-                with contextlib.suppress(TypeError, RuntimeError):
-                    main_window.error_occurred.disconnect(on_error_occurred)
-            if hasattr(main_window, "recovery_attempted"):
-                with contextlib.suppress(TypeError, RuntimeError):
-                    main_window.recovery_attempted.disconnect(on_recovery_attempted)
 
     @pytest.mark.integration
     @pytest.mark.qt

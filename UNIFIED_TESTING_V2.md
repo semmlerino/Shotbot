@@ -38,6 +38,11 @@ def test_widget(qtbot):
     qtbot.addWidget(widget)  # Required — Qt owns cleanup
 ```
 
+Once a widget is registered with `qtbot`, do not manually `deleteLater()` it in
+test teardown. Stop any background work, close/hide the widget if needed, and
+let `qtbot` own destruction. Mixing both cleanup paths can produce shutdown-only
+segfaults after otherwise green test runs.
+
 ### Qt resources need try/finally
 
 ```python
@@ -204,6 +209,12 @@ To suppress thread leak failures for quick local runs, set `SHOTBOT_TEST_ALLOW_T
 When a Qt or thread-heavy test repeatedly causes native crashes, prefer deleting a
 low-level stress test if it duplicates safer behavior coverage elsewhere. Do not
 keep crash-prone micro-tests just to preserve redundant coverage.
+
+For `MainWindow` and other UI integration tests, keep assertions at the
+orchestration boundary whenever deeper behavior already has dedicated coverage.
+Prefer verifying delegation (for example, button -> controller/orchestrator)
+instead of re-running full `refresh_shots()` or real launch pipelines inside a
+UI wiring test.
 
 ---
 
