@@ -21,7 +21,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from cache_manager import CacheManager
-from shot_model import Shot, ShotModel
+from shot_model import Shot
 from tests.fixtures.integration_doubles import (
     MainWindowTestProgressManager,
     ProgressOperationDouble,
@@ -101,8 +101,7 @@ def _stop_window_background_work(window: Any) -> None:
 
     shot_model = getattr(window, "shot_model", None)
     if shot_model is not None and hasattr(shot_model, "_loader_lock"):
-        with contextlib.suppress(RuntimeError, AttributeError):
-            with QMutexLocker(shot_model._loader_lock):
+        with contextlib.suppress(RuntimeError, AttributeError), QMutexLocker(shot_model._loader_lock):
                 if shot_model._async_loader:
                     shot_model._async_loader.stop()
                     shot_model._async_loader.wait()

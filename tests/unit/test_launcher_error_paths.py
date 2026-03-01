@@ -285,7 +285,7 @@ class TestValidateWorkspaceBeforeLaunch:
         """Launch is blocked when workspace is not readable/executable."""
         restricted = tmp_path / "restricted_ws"
         restricted.mkdir()
-        os.chmod(restricted, 0o000)
+        restricted.chmod(0o000)
 
         errors: list[str] = []
         launcher.command_error.connect(lambda _ts, msg: errors.append(msg))
@@ -293,7 +293,7 @@ class TestValidateWorkspaceBeforeLaunch:
         try:
             result = launcher._validate_workspace_before_launch(str(restricted), "maya")
         finally:
-            os.chmod(restricted, 0o755)  # restore so tmp_path can clean up
+            restricted.chmod(0o755)  # restore so tmp_path can clean up
 
         # Only meaningful as a non-root user; root always passes permission checks
         if os.getuid() != 0:

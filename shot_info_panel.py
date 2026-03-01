@@ -511,9 +511,10 @@ class InfoPanelPixmapLoader(QRunnable):
 
         try:
             # Local application imports
-            from config import Config
             from PIL import Image
             from PySide6.QtCore import QSize
+
+            from config import Config
 
             path_obj = Path(self.path) if isinstance(self.path, str) else self.path
 
@@ -526,7 +527,7 @@ class InfoPanelPixmapLoader(QRunnable):
             # crash-prone in worker threads on some Qt builds under parallel load.
             try:
                 with Image.open(path_obj) as pil_image:
-                    pil_image.load()
+                    _ = pil_image.load()
 
                     # Use utility for memory bounds checking (smaller limits for info panel)
                     if ImageUtils.is_image_too_large_for_thumbnail(
@@ -542,12 +543,7 @@ class InfoPanelPixmapLoader(QRunnable):
                     # Scale to appropriate size for info panel (larger than grid thumbnails)
                     max_size = 256  # Info panel can be larger than grid thumbnails
                     if pil_image.width > max_size or pil_image.height > max_size:
-                        resample = (
-                            Image.Resampling.LANCZOS
-                            if hasattr(Image, "Resampling")
-                            else Image.LANCZOS
-                        )
-                        pil_image.thumbnail((max_size, max_size), resample)
+                        pil_image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
 
                     rgba_image = pil_image.convert("RGBA")
             except OSError:

@@ -424,7 +424,7 @@ class TestImportExportRoundtrip:
 
         assert manager.export_settings(export_path) is True
 
-        with open(export_path) as f:
+        with Path(export_path).open() as f:
             data = json.load(f)
 
         for category in ("window", "preferences", "performance", "ui", "advanced"):
@@ -439,7 +439,7 @@ class TestImportExportRoundtrip:
             "preferences": {"thumbnail_size": 500, "unknown_future_key": "ignored"},
             "new_unknown_category": {"key": "value"},
         }
-        with open(export_path, "w") as f:
+        with Path(export_path).open("w") as f:
             json.dump(data, f)
 
         manager = make_real_manager(tmp_path)
@@ -458,7 +458,7 @@ class TestImportExportRoundtrip:
     def test_import_non_dict_json_returns_false(self, tmp_path: Path) -> None:
         """A JSON file whose root is a list (not dict) returns False."""
         list_path = str(tmp_path / "list.json")
-        with open(list_path, "w") as f:
+        with Path(list_path).open("w") as f:
             json.dump([1, 2, 3], f)
 
         manager = make_real_manager(tmp_path)
