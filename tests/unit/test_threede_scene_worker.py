@@ -14,7 +14,6 @@ UNIFIED_TESTING_GUIDE COMPLIANCE:
 from __future__ import annotations
 
 # Standard library imports
-import contextlib
 import time
 from collections.abc import Callable
 from pathlib import Path

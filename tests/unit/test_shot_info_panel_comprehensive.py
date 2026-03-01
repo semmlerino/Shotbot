@@ -17,6 +17,8 @@ from unittest.mock import patch
 # Third-party imports
 import pytest
 from PIL import Image
+
+
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot

@@ -11,10 +11,12 @@ Fixtures:
     suppress_qmessagebox: Auto-dismiss modal dialogs (autouse), returns DialogRecorder
     prevent_qapp_exit: Prevent QApplication exit/quit calls (autouse)
     expect_dialog: Assert at least one dialog shown (opt-in)
+    expect_no_dialogs: Assert no dialogs shown (opt-in)
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -295,5 +297,17 @@ def expect_dialog(suppress_qmessagebox: DialogRecorder):
     """
     yield suppress_qmessagebox
     assert suppress_qmessagebox.calls, "Expected at least one dialog but none were shown"
+
+
+@pytest.fixture
+def expect_no_dialogs(suppress_qmessagebox: DialogRecorder) -> Iterator[DialogRecorder]:
+    """Explicitly assert no dialogs are shown during this test.
+
+    Satisfies the 'has_explicit_handling' check in suppress_qmessagebox,
+    suppressing the fallback guidance message. Asserts on teardown that
+    no dialogs were recorded.
+    """
+    yield suppress_qmessagebox
+    suppress_qmessagebox.assert_not_shown()
 
 

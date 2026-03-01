@@ -12,11 +12,12 @@ import string
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
+
 from command_launcher import CommandLauncher, LaunchContext
 from config import Config
 from launch import CommandBuilder

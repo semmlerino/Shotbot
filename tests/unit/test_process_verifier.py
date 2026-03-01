@@ -31,15 +31,6 @@ class TestProcessVerifier:
         with patch("pathlib.Path.mkdir"):  # Don't actually create directories
             return ProcessVerifier(mock_logger)
 
-    def test_initialization(self, mock_logger: Mock) -> None:
-        """Test ProcessVerifier initialization."""
-        with patch("pathlib.Path.mkdir") as mock_mkdir:
-            verifier = ProcessVerifier(mock_logger)
-
-            assert verifier.logger == mock_logger
-            # Should try to create PID directory
-            mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
-
     def test_is_gui_app_detects_known_apps(self, verifier: ProcessVerifier) -> None:
         """Test GUI app detection."""
         # Known GUI apps

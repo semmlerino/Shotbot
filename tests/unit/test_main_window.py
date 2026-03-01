@@ -24,6 +24,7 @@ from pytestqt.qtbot import QtBot
 # from shot_model import Shot
 from config import Config
 
+
 class TestProcessPoolType(Protocol):
     """Protocol for process pool test doubles."""
 

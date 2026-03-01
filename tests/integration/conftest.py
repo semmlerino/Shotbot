@@ -19,6 +19,6 @@ def pytest_collection_modifyitems(
             item.add_marker(pytest.mark.integration)
 
 
-# NOTE: Singleton isolation is now handled by the root conftest.py via
-# tests/fixtures/singleton_isolation.py (cleanup_state fixture, autouse=True)
-# The redundant integration_test_isolation fixture was removed.
+# NOTE: Singleton isolation is handled by reset_caches autouse fixture +
+# _qt_auto_fixtures dispatcher (activates qt_cleanup and cleanup_state_heavy
+# for detected Qt tests). See tests/conftest.py.
