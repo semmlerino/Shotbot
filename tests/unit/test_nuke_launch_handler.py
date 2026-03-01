@@ -142,8 +142,7 @@ class TestNukeLaunchHandler:
         ) as mock_create:
             mock_create.return_value = "/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"
 
-            options = {}
-            result = nuke_handler._create_new_workspace_script(mock_shot, 1, options, "FG01")
+            result = nuke_handler._create_new_workspace_script(mock_shot, 1, "FG01")
 
             assert result == "/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"
             mock_create.assert_called_once_with(
