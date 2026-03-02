@@ -10,6 +10,8 @@ the thread pool for parallel execution, not session reuse. Caching provides
 the primary performance benefit by avoiding repeated shell invocations.
 """
 
+# See: docs/THREADING_ARCHITECTURE.md
+
 from __future__ import annotations
 
 # Standard library imports

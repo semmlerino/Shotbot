@@ -28,15 +28,16 @@ from utils import ValidationUtils
 
 
 class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
-    """Abstract base class for shot models with shared functionality.
+    """Abstract base for ShotModel with shared signals, cache access, and filtering.
 
-    This base class provides common signals, shot parsing logic, caching,
-    and performance metrics collection that is shared between ShotModel
-    and OptimizedShotModel implementations.
+    Provides signals (shots_loaded, shots_changed, refresh_finished, error_occurred)
+    that subclasses emit for shot lifecycle events. Manages shot caching and filtering
+    to reduce duplication across implementations.
 
-    Subclasses must implement:
-        - load_shots(): Method to load shots (sync or async)
-        - refresh_strategy(): How to refresh the shot list
+    Circular Import Rationale:
+        This base module is separate from shot_model.py to allow other modules
+        (like refresh_orchestrator.py) to reference the base type via TYPE_CHECKING
+        without importing the full ShotModel implementation, breaking circular deps.
     """
 
     # Common Qt signals

@@ -50,6 +50,15 @@ class RefreshOrchestrator(QObject, LoggingMixin):
     This class extracts the refresh coordination logic from MainWindow,
     handling refresh operations for shots, 3DE scenes, and previous shots
     with proper progress indication and notifications.
+
+    Debounce/In-Progress Guard:
+        The _refresh_in_progress flag prevents overlapping async refreshes while
+        ShotModel is loading. Time-based debounce (500ms) deduplicates rapid
+        display updates when cached shots arrive before fresh data.
+
+    Delegation:
+        Coordinates shot_model, threede_controller, and previous_shots_model
+        refresh operations, routing results through signal handlers and UI updates.
     """
 
     def __init__(self, main_window: RefreshOrchestratorMainWindowProtocol) -> None:

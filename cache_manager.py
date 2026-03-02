@@ -288,7 +288,9 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             cache_dir: Cache directory path. If None, uses mode-appropriate default
             settings_manager: Ignored in simplified implementation
-            on_cleared: Optional callback invoked after cache is cleared
+            on_cleared: Optional callback invoked after cache is cleared.
+                       Used to invalidate downstream caches (e.g., ProcessPoolManager's
+                       command cache) when the cache is cleared.
 
         """
         super().__init__()
@@ -1423,7 +1425,9 @@ class CacheManager(LoggingMixin, QObject):
                 self.logger.info("Cache cleared successfully")
                 self.cache_updated.emit()
 
-                # Invoke post-clear callback (e.g. invalidate ProcessPoolManager cache)
+                # Invoke post-clear callback chain: when cache is cleared, trigger
+                # process pool command cache invalidation via MainWindow.__init__:
+                # on_cleared=lambda: ProcessPoolManager.get_instance().invalidate_cache()
                 if self._on_cleared:
                     self._on_cleared()
 

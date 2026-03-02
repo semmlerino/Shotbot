@@ -86,6 +86,13 @@ class CleanupManager(QObject, LoggingMixin):
 
         This is the primary entry point for cleanup operations,
         called by MainWindow.cleanup() and MainWindow.closeEvent().
+
+        Cleanup ordering:
+            1. Mark window as closing (_mark_closing)
+            2. Controllers (threede_controller, shot_selection_controller)
+            3. Session warmer thread (_cleanup_session_warmer)
+            4. Managers (command_launcher, cache_manager)
+            5. Models (shot_model, previous_shots_model, previous_shots_item_model)
         """
         self.cleanup_started.emit()
         self.logger.debug("Starting MainWindow cleanup sequence")

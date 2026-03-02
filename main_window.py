@@ -204,6 +204,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     # are torn down.  Controllers listen to this instead of polling a flag.
     closing_started: Signal = Signal()
 
+    # Timer delays for UI paint and event loop yields (milliseconds)
+    _PAINT_YIELD_MS: int = 500  # Delay to let Qt paint initial UI before refresh
+    _EVENT_LOOP_YIELD_MS: int = 100  # Delay to yield to event loop between operations
+
     def __init__(
         self,
         cache_manager: CacheManager | None = None,
@@ -801,13 +805,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                      f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
                 ),
             )
-            # 500ms delay: let Qt finish painting the cached-shot grid before
+            # Delay: let Qt finish painting the cached-shot grid before
             # spawning the subprocess that fetches fresh data from `ws -sg`.
-            QTimer.singleShot(500, self._refresh_shots)
+            QTimer.singleShot(self._PAINT_YIELD_MS, self._refresh_shots)
         elif has_cached_shots:
             self.update_status(f"Loaded {len(self.shot_model.shots)} shots from cache")
-            # 500ms delay: same rationale as above — paint first, refresh second.
-            QTimer.singleShot(500, self._refresh_shots)
+            # Delay: same rationale as above — paint first, refresh second.
+            QTimer.singleShot(self._PAINT_YIELD_MS, self._refresh_shots)
         elif has_cached_scenes:
             self.update_status(
                 f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache",
@@ -830,10 +834,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.logger.info(
                 "Shots already loaded from cache, triggering previous shots refresh immediately"
             )
-            # 100ms delay: yield to the event loop so the main shot grid
+            # Delay: yield to the event loop so the main shot grid
             # finishes its layout pass before the previous-shots refresh
             # triggers another model update.
-            QTimer.singleShot(100, self.previous_shots_model.refresh_shots)
+            QTimer.singleShot(self._EVENT_LOOP_YIELD_MS, self.previous_shots_model.refresh_shots)
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
         # This avoids unnecessary scans when we already know there are no scenes

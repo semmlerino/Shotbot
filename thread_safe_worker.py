@@ -1,5 +1,7 @@
 """Thread-safe base class for Qt workers with proper lifecycle management."""
 
+# See: docs/THREADING_ARCHITECTURE.md
+
 from __future__ import annotations
 
 # Standard library imports
