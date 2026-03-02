@@ -468,7 +468,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
 
         self.command_launcher = CommandLauncher(
-            parent=self, settings_manager=self.settings_manager
+            parent=self,
+            settings_manager=self.settings_manager,
+            cache_manager=self.cache_manager,
         )
 
         self._closing = False  # Track shutdown state

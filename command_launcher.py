@@ -161,12 +161,15 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         self,
         parent: QObject | None = None,
         settings_manager: SettingsManager | None = None,
+        cache_manager: CacheManager | None = None,
     ) -> None:
         """Initialize CommandLauncher with optional dependencies.
 
         Args:
             parent: Optional parent QObject for proper Qt ownership
             settings_manager: Optional SettingsManager for configuration.
+                If not provided, creates a new instance.
+            cache_manager: Optional CacheManager for file caching.
                 If not provided, creates a new instance.
 
         """
@@ -178,7 +181,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         self._signal_connections: list[QMetaObject.Connection] = []
 
         # Cache manager for latest files
-        self._cache_manager: CacheManager = CacheManager()
+        self._cache_manager = cache_manager or CacheManager()
 
         # Async file search state
         self._pending_worker: LatestFileFinderWorker | None = None

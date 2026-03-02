@@ -504,7 +504,7 @@ class FileSystemScanner(LoggingMixin):
                     yield [], current_shot_idx, total_shots, status_msg
 
             except Exception:
-                self.logger.warning(f"Error scanning shot {workspace_path}", exc_info=True)
+                self.logger.error(f"Error scanning shot {workspace_path}", exc_info=True)
                 # Yield empty batch to maintain progress
                 yield [], current_shot_idx, total_shots, f"Error: {status_msg}"
 

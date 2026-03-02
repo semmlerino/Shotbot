@@ -156,7 +156,7 @@ class TestPermissionErrors:
             restricted_dir.chmod(stat.S_IRWXU)
 
     def test_cache_dir_not_writable(self, tmp_path) -> None:
-        """Cache directory without write permission should fallback."""
+        """Cache directory without write permission raises OSError on init."""
         cache_dir = tmp_path / "readonly_cache"
         cache_dir.mkdir()
 
@@ -165,17 +165,9 @@ class TestPermissionErrors:
             cache_dir.chmod(stat.S_IREAD | stat.S_IEXEC)
 
         try:
-            cache_manager = CacheManager(cache_dir=cache_dir)
-
-            test_exr = tmp_path / "test.exr"
-            test_exr.write_bytes(b"EXR")
-
-            # Should handle gracefully, possibly with in-memory fallback
-            result = cache_manager.cache_thumbnail(
-                test_exr, show="test", sequence="seq", shot="0010"            )
-
-            # Should not crash, might return None
-            assert result is None or isinstance(result, Path)
+            # _ensure_cache_dirs re-raises OSError so callers can detect failure
+            with pytest.raises(OSError):
+                CacheManager(cache_dir=cache_dir)
         finally:
             if os.name != "nt":
                 cache_dir.chmod(stat.S_IRWXU)

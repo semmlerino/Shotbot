@@ -361,6 +361,7 @@ class CacheManager(LoggingMixin, QObject):
             self.logger.debug(f"Ensured cache directory: {self.cache_dir}")
         except OSError:
             self.logger.exception("Failed to create cache directories")
+            raise
 
     def ensure_cache_directory(self) -> bool:
         """Ensure cache directory exists.
