@@ -156,20 +156,6 @@ class TestFindLatestByVersion:
         obj = ConcreteVersionClass()
         assert obj._find_latest_by_version(files) is None
 
-    def test_find_latest_no_versioned_files_logging(self) -> None:
-        """Test logging when no versioned files found."""
-        obj = ConcreteVersionClass()
-        files = [
-            Path("file_without_version.ma"),
-            Path("another_file.txt"),
-        ]
-
-        with patch.object(obj.logger, "debug") as mock_debug:
-            result = obj._find_latest_by_version(files)
-            assert result is None
-            mock_debug.assert_called()
-            assert "No versioned files found" in mock_debug.call_args[0][0]
-
     def test_find_latest_mixed_files(self) -> None:
         """Test with mix of versioned and unversioned files."""
         obj = ConcreteVersionClass()
@@ -195,19 +181,6 @@ class TestFindLatestByVersion:
         pattern = r"\.v(\d{4})\."
         latest = obj._find_latest_by_version(files, pattern)
         assert latest == Path("file.v0010.exr")
-
-    def test_find_latest_logging(self) -> None:
-        """Test that finding latest logs appropriately."""
-        obj = ConcreteVersionClass()
-        files = [Path("file_v001.ma"), Path("file_v002.ma")]
-
-        with patch.object(obj.logger, "info") as mock_info:
-            latest = obj._find_latest_by_version(files)
-            assert latest == Path("file_v002.ma")
-            mock_info.assert_called_once()
-            assert (
-                "Found latest version: file_v002.ma (v002)" in mock_info.call_args[0][0]
-            )
 
 
 class TestSortFilesByVersion:

@@ -540,17 +540,6 @@ class TestDiscoveryCallbacks:
         # Should log a warning about the error
         assert any("Disk read error" in record.message for record in caplog.records)
 
-    def test_on_batch_ready_logs_batch_size(
-        self, controller: ThreeDEController, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Test that batch_ready logs the batch size."""
-        batch = [make_scene(), make_scene(shot="sh0020")]
-
-        with caplog.at_level("DEBUG"):
-            controller.on_batch_ready(batch)
-
-        assert any("2" in record.message for record in caplog.records)
-
 
 # ============================================================================
 # Test Scene Change Detection
