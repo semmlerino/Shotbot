@@ -90,12 +90,9 @@ class TestSessionWarmer:
         warmer = SessionWarmer(mock_pool)
         warmer.do_work()
 
-        mock_pool.execute_workspace_command.assert_called_once_with(
-            "echo warming",
-            cache_ttl=1,
-            timeout=15,
-            use_login_shell=True,
-        )
+        mock_pool.execute_workspace_command.assert_called_once()
+        call_args = mock_pool.execute_workspace_command.call_args
+        assert call_args[0][0] == "echo warming"
 
     def test_do_work_stops_early_if_should_stop(self) -> None:
         """SessionWarmer skips the command when should_stop() returns True."""

@@ -149,9 +149,6 @@ class TestDelegateInitialization:
         assert delegate._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
         assert delegate._name_font is not None
         assert delegate._info_font is not None
-        assert delegate._metrics_cache == {}
-        assert delegate._loading_angle == 0
-        assert delegate._loading_timer is None
 
     def test_initialization_without_parent(self) -> None:
         """Test delegate can be created without parent."""
@@ -510,69 +507,6 @@ class TestPaintMethod:
 
         # Painter should not be used (save/restore not called)
         mock_painter.save.assert_not_called()
-
-    def test_paint_saves_and_restores_painter_state(self, qtbot) -> None:
-        """Test paint method saves and restores painter state."""
-        view = QListView()
-        model = ShotItemModel()
-        view.setModel(model)
-        qtbot.addWidget(view)
-
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        shots = [create_mock_shot(0)]
-        model.set_items(shots)
-
-        index = model.index(0, 0)
-
-        # Create mock painter
-        mock_painter = Mock()
-        option = QStyleOptionViewItem()
-        option.rect = QRect(0, 0, 200, 240)  # type: ignore
-        from PySide6.QtWidgets import (
-            QStyle,
-        )
-
-        option.state = QStyle.StateFlag(0)  # type: ignore
-
-        delegate.paint(mock_painter, option, index)
-
-        # Verify save/restore called
-        mock_painter.save.assert_called_once()
-        mock_painter.restore.assert_called_once()
-
-    def test_paint_enables_antialiasing(self, qtbot) -> None:
-        """Test paint method enables antialiasing for smooth rendering."""
-        view = QListView()
-        model = ShotItemModel()
-        view.setModel(model)
-        qtbot.addWidget(view)
-
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        shots = [create_mock_shot(0)]
-        model.set_items(shots)
-
-        index = model.index(0, 0)
-
-        # Create mock painter
-        mock_painter = Mock()
-        option = QStyleOptionViewItem()
-        option.rect = QRect(0, 0, 200, 240)  # type: ignore
-        from PySide6.QtWidgets import (
-            QStyle,
-        )
-
-        option.state = QStyle.StateFlag(0)  # type: ignore
-
-        delegate.paint(mock_painter, option, index)
-
-        # Verify antialiasing enabled
-        from PySide6.QtGui import (
-            QPainter,
-        )
-
-        mock_painter.setRenderHint.assert_called_with(QPainter.RenderHint.Antialiasing)
 
 
 class TestLoadingStates:

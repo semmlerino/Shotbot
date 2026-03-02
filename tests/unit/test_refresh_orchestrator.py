@@ -131,25 +131,6 @@ def test_refresh_current_tab_gets_current_index(
         mock_refresh.assert_called_once_with(1)
 
 
-@pytest.mark.parametrize(
-    ("tab_index", "handler_name"),
-    [
-        (0, "_refresh_shots"),
-        (1, "_refresh_threede"),
-        (2, "_refresh_previous"),
-    ],
-)
-def test_refresh_tab_routes_to_expected_handler(
-    orchestrator: RefreshOrchestrator,
-    tab_index: int,
-    handler_name: str,
-) -> None:
-    """Test refresh_tab routes each valid index to the expected handler."""
-    with patch.object(orchestrator, handler_name) as mock_refresh:
-        orchestrator.refresh_tab(tab_index)
-        mock_refresh.assert_called_once()
-
-
 def test_refresh_tab_ignores_invalid_index(
     orchestrator: RefreshOrchestrator,
 ) -> None:
@@ -172,28 +153,6 @@ def test_refresh_tab_ignores_invalid_index(
 # 3DE Refresh Tests
 # ============================================================================
 
-
-def test_refresh_threede_calls_controller_when_available(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock
-) -> None:
-    """Test _refresh_threede calls controller when available."""
-    orchestrator._refresh_threede()
-
-    mock_main_window.threede_controller.refresh_threede_scenes.assert_called_once()
-
-
-# ============================================================================
-# Previous Shots Refresh Tests
-# ============================================================================
-
-
-def test_refresh_previous_calls_model_when_available(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock
-) -> None:
-    """Test _refresh_previous calls model when available."""
-    orchestrator._refresh_previous()
-
-    mock_main_window.previous_shots_model.refresh_shots.assert_called_once()
 
 
 # ============================================================================

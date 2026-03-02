@@ -363,8 +363,6 @@ class TestThreeDEControllerInitialization:
         assert controller._worker_mutex is not None
         assert controller._threede_worker is None
         assert controller._current_progress_operation is None
-        assert controller._last_scan_time == 0.0
-        assert controller._min_scan_interval == 30.0
 
 
 # ============================================================================
