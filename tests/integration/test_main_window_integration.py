@@ -82,7 +82,6 @@ def stable_main_window_startup(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _stop_window_background_work(window: Any) -> None:
     """Stop background workers/timers associated with a MainWindow."""
-    from PySide6.QtCore import QMutexLocker
 
     if hasattr(window, "auto_refresh_timer") and window.auto_refresh_timer:
         with contextlib.suppress(RuntimeError):
@@ -98,14 +97,9 @@ def _stop_window_background_work(window: Any) -> None:
             window.threede_worker.wait(1000)
 
     shot_model = getattr(window, "shot_model", None)
-    if shot_model is not None and hasattr(shot_model, "_loader_lock"):
-        with contextlib.suppress(RuntimeError, AttributeError), QMutexLocker(shot_model._loader_lock):
-                if shot_model._async_loader:
-                    shot_model._async_loader.stop()
-                    shot_model._async_loader.wait()
-                    shot_model._async_loader.deleteLater()
-                    shot_model._async_loader = None
-                shot_model._loading_in_progress = False
+    if shot_model is not None:
+        with contextlib.suppress(RuntimeError, AttributeError):
+            shot_model.cleanup()
 
 
 def _close_windows(windows: list[Any], qtbot: Any) -> None:

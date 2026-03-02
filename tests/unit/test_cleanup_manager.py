@@ -117,6 +117,7 @@ class TestCleanupOrchestration:
 # =============================================================================
 
 
+@pytest.mark.integration
 class TestCleanupIntegration:
     """Test complete cleanup workflows."""
 

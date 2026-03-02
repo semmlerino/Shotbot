@@ -226,20 +226,15 @@ class TestSimpleNukeLauncher:
         assert command == "nuke"
         assert any("error" in msg.lower() for msg in messages)
 
-    def test_script_naming_pattern(self, simple_launcher, mock_shot) -> None:
-        """Test that script naming follows the expected pattern."""
-        # The pattern should be: {shot}_mm-default_{plate}_scene_v{version:03d}.nk
-        expected_pattern = "TEST_0010_mm-default_FG01_scene_v*.nk"
-        # This is validated by the implementation, just checking the pattern format
-        assert "_mm-default_" in expected_pattern
-        assert "_scene_v" in expected_pattern
-        assert ".nk" in expected_pattern
-
     @patch.dict("os.environ", {"USER": "testuser"})
     def test_startup_script_contains_cleanup(
         self, simple_launcher, mock_shot, tmp_path
     ) -> None:
         """Test that generated startup script cleans itself up after execution.
+
+        Tests via the public open_latest_script API. When no scripts exist in the
+        internally-constructed script_dir, open_latest_script delegates to
+        _create_script_via_nuke_api, which writes a temp startup script.
 
         This prevents /tmp from being littered with nuke_create_*.py files.
         """
@@ -248,13 +243,11 @@ class TestSimpleNukeLauncher:
         mock_shot.show = "myshow"
         mock_shot.sequence = "sq010"
         mock_shot.shot = "sh0010"
+        mock_shot.workspace_path = str(tmp_path)
+        mock_shot.full_name = "TEST_0010"
 
-        # Call the internal method that generates the startup script
-        command = simple_launcher._create_script_via_nuke_api(
-            mock_shot,
-            plate="FG01",
-            script_dir=tmp_path / "scripts",
-            version=1,
+        command, log_messages = simple_launcher.open_latest_script(
+            mock_shot, "FG01", create_if_missing=True
         )
 
         # Extract temp script path from command (format: "nuke '/tmp/nuke_create_*.py'")

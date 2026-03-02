@@ -295,13 +295,9 @@ class TestNukeEnvironmentFixes:
 class TestLoggingRedirection:
     """Tests for logging redirection."""
 
-    @patch("pathlib.Path.mkdir")
-    @patch("pathlib.Path.home")
-    def test_logging_added_successfully(
-        self, mock_home: MagicMock, mock_mkdir: MagicMock
-    ) -> None:
+    def test_logging_added_successfully(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Test that logging redirection is added successfully with pipefail."""
-        mock_home.return_value = Path("/home/user")
+        monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
         command = "nuke"
 
         result = CommandBuilder.add_logging(command)
@@ -309,16 +305,14 @@ class TestLoggingRedirection:
         # Result should include pipefail for exit code preservation
         assert result.startswith("set -o pipefail; nuke 2>&1 | tee -a ")
         assert ".shotbot/logs/dispatcher.out" in result
-        mock_mkdir.assert_called_once()
+        assert str(tmp_path) in result
 
-    @patch("pathlib.Path.mkdir")
-    @patch("pathlib.Path.home")
     def test_logging_graceful_degradation_on_oserror(
-        self, mock_home: MagicMock, mock_mkdir: MagicMock
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """Test graceful degradation when logging directory creation fails."""
-        mock_home.return_value = Path("/home/user")
-        mock_mkdir.side_effect = OSError("Permission denied")
+        monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
+        monkeypatch.setattr(Path, "mkdir", lambda *a, **kw: (_ for _ in ()).throw(OSError("Permission denied")))
         command = "nuke"
 
         result = CommandBuilder.add_logging(command)
@@ -326,14 +320,12 @@ class TestLoggingRedirection:
         # Should return original command without logging
         assert result == "nuke"
 
-    @patch("pathlib.Path.mkdir")
-    @patch("pathlib.Path.home")
     def test_logging_graceful_degradation_on_permission_error(
-        self, mock_home: MagicMock, mock_mkdir: MagicMock
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """Test graceful degradation when permission is denied."""
-        mock_home.return_value = Path("/home/user")
-        mock_mkdir.side_effect = PermissionError("Access denied")
+        monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
+        monkeypatch.setattr(Path, "mkdir", lambda *a, **kw: (_ for _ in ()).throw(PermissionError("Access denied")))
         command = "nuke"
 
         result = CommandBuilder.add_logging(command)
@@ -341,13 +333,10 @@ class TestLoggingRedirection:
         # Should return original command without logging
         assert result == "nuke"
 
-    @patch("pathlib.Path.mkdir")
-    @patch("pathlib.Path.home")
-    def test_logging_handles_spaces_in_path(
-        self, mock_home: MagicMock, mock_mkdir: MagicMock
-    ) -> None:
+    def test_logging_handles_spaces_in_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that logging handles spaces in log file path."""
-        mock_home.return_value = Path("/home/user with spaces")
+        monkeypatch.setattr("launch.command_builder.Path.home", lambda: Path("/home/user with spaces"))
+        monkeypatch.setattr(Path, "mkdir", lambda *a, **kw: None)
         command = "nuke"
 
         result = CommandBuilder.add_logging(command)
