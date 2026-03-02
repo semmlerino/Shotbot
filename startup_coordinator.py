@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, final
+from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import QTimer
 
@@ -24,7 +24,10 @@ if TYPE_CHECKING:
     from previous_shots_model import PreviousShotsModel
     from protocols import ProcessPoolInterface
     from refresh_orchestrator import RefreshOrchestrator
+    from shot_grid_view import ShotGridView
     from shot_model import ShotModel
+    from threede_grid_view import ThreeDEGridView
+    from threede_item_model import ThreeDEItemModel
     from threede_scene_model import ThreeDESceneModel
 
 logger = logging.getLogger(__name__)
@@ -103,14 +106,14 @@ class StartupCoordinator:
         *,
         shot_model: ShotModel,
         threede_scene_model: ThreeDESceneModel,
-        threede_item_model: Any,
+        threede_item_model: ThreeDEItemModel,
         previous_shots_model: PreviousShotsModel,
         cache_manager: CacheManager,
         refresh_orchestrator: RefreshOrchestrator,
         process_pool: ProcessPoolInterface,
         threede_controller: ThreeDEController | None,
-        shot_grid: Any,
-        threede_shot_grid: Any,
+        shot_grid: ShotGridView,
+        threede_shot_grid: ThreeDEGridView,
         update_status: Callable[[str], None],
         last_selected_shot_name: str | None,
         refresh_shots: Callable[[], None],
@@ -121,14 +124,14 @@ class StartupCoordinator:
         Args:
             shot_model: The shot data model.
             threede_scene_model: The 3DE scene data model.
-            threede_item_model: The 3DE item model (Qt model, Any-typed to avoid import).
+            threede_item_model: The 3DE Qt item model.
             previous_shots_model: The previous shots model.
             cache_manager: The cache manager for validating 3DE cache.
             refresh_orchestrator: The refresh orchestrator for triggering refreshes.
             process_pool: The process pool interface for session warming.
             threede_controller: The 3DE controller, or None if unavailable.
-            shot_grid: The shot grid view (Any-typed to avoid Qt widget import).
-            threede_shot_grid: The 3DE shot grid view (Any-typed to avoid Qt widget import).
+            shot_grid: The shot grid view widget.
+            threede_shot_grid: The 3DE shot grid view widget.
             update_status: Callable to update the status bar message.
             last_selected_shot_name: Name of the last selected shot to restore, or None.
             refresh_shots: Callable to trigger a shot refresh.

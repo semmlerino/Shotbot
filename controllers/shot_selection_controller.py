@@ -13,7 +13,7 @@ injection pattern established by SettingsController and ThreeDEController.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, cast, final
+from typing import TYPE_CHECKING, Protocol, cast, final
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from right_panel import RightPanelWidget
     from scene_file import FileType, SceneFile
     from shot_grid_view import ShotGridView
+    from shot_model import Shot
     from threede_grid_view import ThreeDEGridView
 
 
@@ -81,11 +82,11 @@ class ShotDiscoveryWorker(QRunnable):
     UI freezes during shot selection.
     """
 
-    shot: Any  # Shot type at runtime
+    shot: Shot
     signals: ShotDiscoverySignals
     _cancelled: bool
 
-    def __init__(self, shot: Any) -> None:
+    def __init__(self, shot: Shot) -> None:
         """Initialize discovery worker.
 
         Args:
@@ -191,7 +192,7 @@ class ShotSelectionController(LoggingMixin):
         self.logger.debug("ShotSelectionController cleaned up")
 
     @Slot(object)
-    def on_shot_selected(self, shot: Any) -> None:
+    def on_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selection or deselection.
 
         Args:
@@ -244,7 +245,7 @@ class ShotSelectionController(LoggingMixin):
             QThreadPool.globalInstance().start(self._discovery_worker)
 
     @Slot(object)
-    def on_shot_double_clicked(self, _shot: Any) -> None:
+    def on_shot_double_clicked(self, _shot: Shot) -> None:
         """Handle shot double click - launch default app."""
         _ = self.window.command_launcher.launch_app(Config.DEFAULT_APP)
 
