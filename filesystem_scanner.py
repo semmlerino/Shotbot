@@ -942,7 +942,10 @@ class FileSystemScanner(LoggingMixin):
                 find_cmd_publish_dirs, cancel_flag
             )
             if shots_with_mm is None:
-                # Scan failed or cancelled — pass empty set + flag
+                # Distinguish cancelled vs failed
+                if cancel_flag and cancel_flag():
+                    return []  # User cancelled — abort immediately
+                # Actual failure — fall through to unfiltered
                 results = self._filter_to_published_shots(
                     user_results, set(), user_timed_out, publish_scan_failed=True
                 )

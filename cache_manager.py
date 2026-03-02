@@ -267,20 +267,18 @@ class ThumbnailCacheLoader(QRunnable):
 class CacheManager(LoggingMixin, QObject):
     """Simplified cache manager for local VFX tool.
 
-    Provides same public API as CacheManager but with simpler implementation.
-
     Thread Safety:
-    This class uses two synchronization mechanisms:
-    1. QMutex (self._lock) - For in-process thread safety
-    2. File locks (_file_lock) - For cross-process safety (opt-in)
+    - QMutex (self._lock): Guards in-process state (latest_files_cache,
+      cache_latest_file read-modify-write). Used by most methods.
+    - File locks (_file_lock): Opt-in cross-process safety for JSON cache
+      files. Currently used only by _read_json_cache, _write_json_cache,
+      and clear_cache. Other write paths (cache_shots, cache_threede_scenes)
+      do NOT use file locks — cross-process safety is not guaranteed there.
 
-    Lock Ordering Contract:
-    When both locks are needed, ALWAYS acquire file lock BEFORE QMutex:
+    Lock Ordering Contract (when both are needed):
         with self._file_lock(file), QMutexLocker(self._lock):
             ...
-    This prevents deadlocks between threads/processes. Violating this order
-    can cause deadlock if one thread holds QMutex waiting for file lock while
-    another process holds file lock waiting for QMutex.
+    Acquire file lock BEFORE QMutex to prevent deadlocks.
     """
 
     # Signals - maintain backward compatibility

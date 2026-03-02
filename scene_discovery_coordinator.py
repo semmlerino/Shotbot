@@ -137,10 +137,15 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             if not self._validate_shot_input(shot_workspace_path, show, sequence, shot):
                 return []
 
+            # Normalize excluded_users for cache key
+            frozen_excluded = frozenset(excluded_users) if excluded_users else None
+
             # Step 2: Check cache (if enabled)
             if self.enable_caching and self.cache:
                 cached_result = self.cache.get_scenes_for_shot(
-                    show, sequence, shot, shot_workspace_path=shot_workspace_path
+                    show, sequence, shot,
+                    shot_workspace_path=shot_workspace_path,
+                    excluded_users=frozen_excluded,
                 )
                 if cached_result is not None:
                     self.stats["cache_hits"] += 1
@@ -164,6 +169,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                 self.cache.cache_scenes_for_shot(
                     show, sequence, shot, valid_scenes,
                     shot_workspace_path=shot_workspace_path,
+                    excluded_users=frozen_excluded,
                 )
 
             # Step 6: Update statistics and return results

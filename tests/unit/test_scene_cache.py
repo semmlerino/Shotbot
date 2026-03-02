@@ -262,7 +262,21 @@ class TestSceneCacheBasicOperations:
         assert cache._make_shot_key("show", "seq", "shot") == "show/seq/shot"
         assert (
             cache._make_shot_key("show", "seq", "shot", shot_workspace_path="/ws/a")
-            == "show/seq/shot:/ws/a"
+            == "show/seq/shot:/ws/a:"
+        )
+        assert (
+            cache._make_shot_key(
+                "show", "seq", "shot", excluded_users=frozenset({"b", "a"})
+            )
+            == "show/seq/shot::a,b"
+        )
+        assert (
+            cache._make_shot_key(
+                "show", "seq", "shot",
+                shot_workspace_path="/ws/a",
+                excluded_users=frozenset({"x"}),
+            )
+            == "show/seq/shot:/ws/a:x"
         )
 
     def test_make_show_key_formats_correctly(self, cache: SceneCache) -> None:
@@ -872,3 +886,32 @@ class TestSceneCacheKeyDiscrimination:
         # Verify stats show a hit
         stats = cache.get_cache_stats()
         assert stats["hits"] >= 1
+
+    def test_same_shot_different_exclusions_different_entries(self) -> None:
+        """Same shot with different excluded users should yield different cache entries."""
+        cache = SceneCache(default_ttl=300)
+        scene_a = create_mock_scene("show", "seq", "shot", "userA")
+        scene_b = create_mock_scene("show", "seq", "shot", "userB")
+
+        cache.cache_scenes_for_shot(
+            "show", "seq", "shot", [scene_a],  # type: ignore[list-item]
+            excluded_users=frozenset({"admin"}),
+        )
+        cache.cache_scenes_for_shot(
+            "show", "seq", "shot", [scene_b],  # type: ignore[list-item]
+            excluded_users=frozenset({"admin", "bot"}),
+        )
+
+        result_a = cache.get_scenes_for_shot(
+            "show", "seq", "shot", excluded_users=frozenset({"admin"})
+        )
+        result_b = cache.get_scenes_for_shot(
+            "show", "seq", "shot", excluded_users=frozenset({"admin", "bot"})
+        )
+
+        assert result_a is not None
+        assert result_b is not None
+        assert len(result_a) == 1
+        assert len(result_b) == 1
+        assert result_a[0].user == "userA"  # type: ignore[union-attr]
+        assert result_b[0].user == "userB"  # type: ignore[union-attr]

@@ -110,6 +110,7 @@ class SceneCache(LoggingMixin):
         sequence: str,
         shot: str,
         shot_workspace_path: str | None = None,
+        excluded_users: frozenset[str] | None = None,
     ) -> str:
         """Create cache key for shot-level lookups.
 
@@ -118,14 +119,16 @@ class SceneCache(LoggingMixin):
             sequence: Sequence name
             shot: Shot name
             shot_workspace_path: Optional workspace path for disambiguation
+            excluded_users: Optional frozen set of excluded users
 
         Returns:
             Cache key string
 
         """
         base = f"{show}/{sequence}/{shot}"
-        if shot_workspace_path:
-            return f"{base}:{shot_workspace_path}"
+        if shot_workspace_path or excluded_users:
+            users_str = ",".join(sorted(excluded_users)) if excluded_users else ""
+            return f"{base}:{shot_workspace_path or ''}:{users_str}"
         return base
 
     def _make_show_key(
@@ -156,6 +159,7 @@ class SceneCache(LoggingMixin):
         sequence: str,
         shot: str,
         shot_workspace_path: str | None = None,
+        excluded_users: frozenset[str] | None = None,
     ) -> list[ThreeDEScene] | None:
         """Get cached scenes for a specific shot.
 
@@ -164,12 +168,13 @@ class SceneCache(LoggingMixin):
             sequence: Sequence name
             shot: Shot name
             shot_workspace_path: Optional workspace path for disambiguation
+            excluded_users: Optional frozen set of excluded users
 
         Returns:
             List of scenes if cached and valid, None otherwise
 
         """
-        key = self._make_shot_key(show, sequence, shot, shot_workspace_path)
+        key = self._make_shot_key(show, sequence, shot, shot_workspace_path, excluded_users)
 
         with self.lock:
             entry = self.cache.get(key)
@@ -233,6 +238,7 @@ class SceneCache(LoggingMixin):
         scenes: list[ThreeDEScene],
         ttl: int | None = None,
         shot_workspace_path: str | None = None,
+        excluded_users: frozenset[str] | None = None,
     ) -> None:
         """Cache scenes for a specific shot.
 
@@ -243,9 +249,10 @@ class SceneCache(LoggingMixin):
             scenes: List of scenes to cache
             ttl: Custom TTL in seconds (uses default if None)
             shot_workspace_path: Optional workspace path for disambiguation
+            excluded_users: Optional frozen set of excluded users
 
         """
-        key = self._make_shot_key(show, sequence, shot, shot_workspace_path)
+        key = self._make_shot_key(show, sequence, shot, shot_workspace_path, excluded_users)
         ttl = ttl or self.default_ttl
 
         with self.lock:
@@ -297,6 +304,7 @@ class SceneCache(LoggingMixin):
         sequence: str,
         shot: str,
         shot_workspace_path: str | None = None,
+        excluded_users: frozenset[str] | None = None,
     ) -> bool:
         """Invalidate cached scenes for a specific shot.
 
@@ -305,12 +313,13 @@ class SceneCache(LoggingMixin):
             sequence: Sequence name
             shot: Shot name
             shot_workspace_path: Optional workspace path for disambiguation
+            excluded_users: Optional frozen set of excluded users
 
         Returns:
             True if entry was invalidated, False if not found
 
         """
-        key = self._make_shot_key(show, sequence, shot, shot_workspace_path)
+        key = self._make_shot_key(show, sequence, shot, shot_workspace_path, excluded_users)
 
         with self.lock:
             if key in self.cache:
