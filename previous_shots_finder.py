@@ -298,19 +298,19 @@ class ParallelShotsFinder(PreviousShotsFinder):
         # Use FilesystemCoordinator for cached directory listing
         contents = self._fs_coordinator.get_directory_listing(shows_root)
 
-        for entry in contents:
+        for name, is_dir, _ in contents:
             if self._stop_requested:
                 break
 
-            if entry.is_dir() and not entry.name.startswith("."):
+            if is_dir and not name.startswith("."):
                 # Check if it looks like a show directory
-                show_path = entry
-                shots_dir = show_path / "shots"
+                show_path = shows_root / name
 
                 # Use coordinator to check if shots dir exists (will be cached)
-                shots_contents = self._fs_coordinator.get_directory_listing(show_path)
+                show_contents = self._fs_coordinator.get_directory_listing(show_path)
                 has_shots = any(
-                    item.name == "shots" and item.is_dir() for item in shots_contents
+                    item_name == "shots" and item_is_dir
+                    for item_name, item_is_dir, _ in show_contents
                 )
 
                 if has_shots:
@@ -321,7 +321,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         )
 
         # Share discovered paths with other workers
-        discovered = {shows_root: contents}
+        discovered: dict[Path, list[tuple[str, bool, bool]]] = {shows_root: contents}
         for show in shows:
             # Pre-cache the shots directory listing for other workers
             shots_dir = show / "shots"

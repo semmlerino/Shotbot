@@ -146,11 +146,11 @@ class TestDirectoryCaching:
 
         # Should have 3 files + 1 subdir
         assert len(listing) == 4
-        # Check files are Path objects
-        assert all(isinstance(p, Path) for p in listing)
+        # Check entries are (name, is_dir, is_file) tuples
+        assert all(isinstance(t, tuple) and len(t) == 3 for t in listing)
         # Check expected files exist
-        assert any(p.name == "file_0.txt" for p in listing)
-        assert any(p.name == "subdir_0" for p in listing)
+        assert any(name == "file_0.txt" for name, _, _ in listing)
+        assert any(name == "subdir_0" for name, _, _ in listing)
 
     def test_cache_hit_performance(
         self,
@@ -218,7 +218,7 @@ class TestDirectoryCaching:
         # Get new listing
         listing2 = coordinator.get_directory_listing(test_dir)
         assert len(listing2) == 3
-        assert any(p.name == "new_file.txt" for p in listing2)
+        assert any(name == "new_file.txt" for name, _, _ in listing2)
 
     def test_cache_ttl_expiration(
         self,
@@ -292,7 +292,7 @@ class TestSharedCaching:
         listing1 = coord1.get_directory_listing(test_dir)
 
         # Track if other models hit cache (mock scandir to detect)
-        with patch("os.scandir") as mock_scandir:
+        with patch("filesystem_coordinator.os.scandir") as mock_scandir:
             # Other models should use cache, not scan
             listing2 = coord2.get_directory_listing(test_dir)
             listing3 = coord3.get_directory_listing(test_dir)
@@ -361,7 +361,7 @@ class TestCacheInvalidation:
         assert (
             len(new_listing1) == 5
         )  # 2 original files + 2 default subdirs + 1 new file
-        assert any(p.name == "new.txt" for p in new_listing1)
+        assert any(name == "new.txt" for name, _, _ in new_listing1)
         assert len(cached_listing2) == 5  # Still cached (3 files + 2 default subdirs)
 
         # Verify cache stats show the rescan
@@ -411,10 +411,10 @@ class TestCacheInvalidation:
         dir1 = make_test_directory(name="dir1", file_count=3, subdirs=0)  # Only files
         dir2 = make_test_directory(name="dir2", file_count=2, subdirs=0)  # Only files
 
-        # Simulate a worker discovering paths
+        # Simulate a worker discovering paths (using tuple format)
         discovered_paths = {
-            dir1: list(dir1.iterdir()),
-            dir2: list(dir2.iterdir()),
+            dir1: [(e.name, e.is_dir(), e.is_file()) for e in dir1.iterdir()],
+            dir2: [(e.name, e.is_dir(), e.is_file()) for e in dir2.iterdir()],
         }
 
         # Share discovered paths
@@ -557,7 +557,8 @@ class TestErrorHandling:
 
         # Mock OSError for permission denied
         with patch(
-            "pathlib.Path.iterdir", side_effect=PermissionError("Access denied")
+            "filesystem_coordinator.os.scandir",
+            side_effect=PermissionError("Access denied"),
         ):
             listing = coordinator.get_directory_listing(restricted_dir)
 
@@ -603,4 +604,4 @@ class TestErrorHandling:
         # Should follow symlinks
         listing = coordinator.get_directory_listing(link_dir)
         assert len(listing) == 1
-        assert listing[0].name == "file.txt"
+        assert listing[0][0] == "file.txt"

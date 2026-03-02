@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import ClassVar
@@ -33,8 +34,8 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         super().__init__()
 
-        # Cache: path -> (listing, timestamp)
-        self._directory_cache: dict[Path, tuple[list[Path], float]] = {}
+        # Cache: path -> (listing as (name, is_dir, is_file) tuples, timestamp)
+        self._directory_cache: dict[Path, tuple[list[tuple[str, bool, bool]], float]] = {}
         self._ttl_seconds: int = 300  # 5 minutes TTL for cached listings
         self._cache_hits: int = 0
         self._cache_misses: int = 0
@@ -44,17 +45,18 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
             f"FilesystemCoordinator initialized with {self._ttl_seconds}s TTL"
         )
 
-    def get_directory_listing(self, path: Path) -> list[Path]:
+    def get_directory_listing(self, path: Path) -> list[tuple[str, bool, bool]]:
         """Get cached directory listing or scan if needed.
 
-        This method provides cached directory contents with TTL-based expiration.
-        If the cache is valid, it returns immediately without filesystem access.
+        Uses os.scandir() to capture stat info during traversal, avoiding
+        redundant stat() syscalls on cached entries. The scan runs inside
+        the lock to prevent thundering-herd redundant I/O on cold caches.
 
         Args:
             path: Directory path to list
 
         Returns:
-            List of Path objects in the directory
+            List of (name, is_dir, is_file) tuples for each entry
 
         """
         now = time.time()
@@ -71,26 +73,28 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
                     )
                     return listing.copy()  # Return copy to prevent mutation
 
-        # Cache miss or expired - scan directory
-        self._cache_misses += 1
-        self.logger.debug(f"Cache miss for {path.name}, scanning...")
+            # Cache miss or expired - scan directory inside lock to prevent
+            # thundering herd (multiple threads scanning the same cold path)
+            self._cache_misses += 1
+            self.logger.debug(f"Cache miss for {path.name}, scanning...")
 
-        try:
-            listing = list(path.iterdir())
+            try:
+                listing = [
+                    (entry.name, entry.is_dir(), entry.is_file())
+                    for entry in os.scandir(path)
+                ]
 
-            # Update cache
-            with self._lock:
                 self._directory_cache[path] = (listing, now)
 
-            self.logger.debug(
-                f"Cached {len(listing)} items from {path.name} "
-                 f"(hit rate: {self._get_hit_rate():.1%})"
-            )
-            return listing
+                self.logger.debug(
+                    f"Cached {len(listing)} items from {path.name} "
+                     f"(hit rate: {self._get_hit_rate():.1%})"
+                )
+                return listing
 
-        except (OSError, PermissionError) as e:
-            self.logger.debug(f"Failed to list directory {path}: {e}")
-            return []
+            except (OSError, PermissionError) as e:
+                self.logger.debug(f"Failed to list directory {path}: {e}")
+                return []
 
     def find_files_with_extension(
         self, path: Path, extension: str, recursive: bool = False
@@ -111,16 +115,16 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
         """
         results: list[Path] = []
 
-        # Get cached listing
+        # Get cached listing (tuples of name, is_dir, is_file)
         contents = self.get_directory_listing(path)
 
-        for item in contents:
-            if item.is_file() and item.suffix == extension:
-                results.append(item)
-            elif recursive and item.is_dir():
+        for name, is_dir, is_file in contents:
+            if is_file and Path(name).suffix == extension:
+                results.append(path / name)
+            elif recursive and is_dir:
                 # Recursive search
                 results.extend(
-                    self.find_files_with_extension(item, extension, recursive=True)
+                    self.find_files_with_extension(path / name, extension, recursive=True)
                 )
 
         return results
@@ -153,14 +157,16 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
             self.logger.info(f"Cleared {count} cached directory listings")
             return count
 
-    def share_discovered_paths(self, paths: dict[Path, list[Path]]) -> None:
+    def share_discovered_paths(
+        self, paths: dict[Path, list[tuple[str, bool, bool]]]
+    ) -> None:
         """Share discovered paths from one worker with others.
 
         This allows workers to populate the cache with their discoveries,
         benefiting other workers that might scan the same directories.
 
         Args:
-            paths: Dictionary of directory -> contents mappings
+            paths: Dictionary of directory -> contents mappings (tuples of name, is_dir, is_file)
 
         """
         now = time.time()

@@ -72,9 +72,8 @@ class FileSystemScanner(LoggingMixin):
         self._fs_coordinator: FilesystemCoordinator | None = None
         self.parser: SceneParser | None = None
 
-        # Thread-safe lazy initialization locks (for concurrent ThreadPoolExecutor usage)
+        # Thread-safe lazy initialization lock for SceneParser (not a singleton)
         self._parser_lock = threading.Lock()
-        self._fs_coordinator_lock = threading.Lock()
 
     @classmethod
     def get_cache_stats(cls) -> dict[str, int | float]:
@@ -100,32 +99,15 @@ class FileSystemScanner(LoggingMixin):
 
         Returns list of tuples: (name, is_dir, is_file)
         """
-        # Thread-safe lazy import to avoid circular dependency
-        # Uses double-check locking pattern for concurrent ThreadPoolExecutor usage
+        # Thread-safe lazy init — FilesystemCoordinator is a SingletonMixin
+        # so its __new__ already serializes; no external lock needed.
         if self._fs_coordinator is None:
-            with self._fs_coordinator_lock:
-                # Double-check: another thread might have initialized while waiting for lock
-                if self._fs_coordinator is None:
-                    from filesystem_coordinator import FilesystemCoordinator
+            from filesystem_coordinator import FilesystemCoordinator
 
-                    self._fs_coordinator = FilesystemCoordinator()
+            self._fs_coordinator = FilesystemCoordinator()
 
-        # Use FilesystemCoordinator for shared caching across workers
-        raw_listing = self._fs_coordinator.get_directory_listing(path)
-
-        # Convert Path objects to the expected tuple format
-        listing: list[tuple[str, bool, bool]] = []
-        for item in raw_listing:
-            try:
-                # Determine if directory or file
-                is_dir = item.is_dir()
-                is_file = item.is_file()
-                listing.append((item.name, is_dir, is_file))
-            except (OSError, PermissionError):
-                # Skip items we can't stat
-                continue
-
-        return listing
+        # FilesystemCoordinator already returns (name, is_dir, is_file) tuples
+        return self._fs_coordinator.get_directory_listing(path)
 
     def find_3de_files_python_optimized(
         self, user_dir: Path, excluded_users: set[str] | None
@@ -153,18 +135,20 @@ class FileSystemScanner(LoggingMixin):
                         f"Searching for .3de files in user directory: {user_path}"
                     )
 
-                    # Use rglob for finding .3de files (proven fastest in profiling)
+                    # Single rglob pass — filter by extension case-insensitively
+                    # to avoid traversing the directory tree twice
                     try:
-                        # Process both extensions efficiently
                         found_count = 0
-                        for ext in ("*.3de", "*.3DE"):
-                            for threede_file in user_path.rglob(ext):
-                                if threede_file.is_file():
-                                    files.append((entry_name, threede_file))
-                                    found_count += 1
-                                    self.logger.debug(
-                                        f"Found .3de file: {threede_file}"
-                                    )
+                        for threede_file in user_path.rglob("*"):
+                            if (
+                                threede_file.suffix.lower() == ".3de"
+                                and threede_file.is_file()
+                            ):
+                                files.append((entry_name, threede_file))
+                                found_count += 1
+                                self.logger.debug(
+                                    f"Found .3de file: {threede_file}"
+                                )
 
                         if found_count > 0:
                             self.logger.info(
@@ -992,9 +976,9 @@ class FileSystemScanner(LoggingMixin):
         file_count = 0
 
         try:
-            # Search for .3de files in user directories
-            for pattern in ["*/*/user/**/*.3de", "*/*/user/**/*.3DE"]:
-                for threede_file in shots_dir.glob(pattern):
+            # Single glob pass for all files under user dirs, filter by extension
+            for threede_file in shots_dir.glob("*/*/user/**/*"):
+                if threede_file.suffix.lower() == ".3de":
                     file_count += 1
                     parsed = self.parser.parse_3de_file_path(
                         threede_file, show_path, show, excluded_users
