@@ -257,11 +257,22 @@ class TestSceneCacheBasicOperations:
         assert result is not None
         assert len(result) == len(mock_scenes)
 
-    def test_make_key_formats_correctly(self, cache: SceneCache) -> None:
-        """_make_key creates correct key format."""
-        assert cache._make_key("show") == "show"
-        assert cache._make_key("show", "seq") == "show/seq"
-        assert cache._make_key("show", "seq", "shot") == "show/seq/shot"
+    def test_make_shot_key_formats_correctly(self, cache: SceneCache) -> None:
+        """_make_shot_key creates correct key format."""
+        assert cache._make_shot_key("show", "seq", "shot") == "show/seq/shot"
+        assert (
+            cache._make_shot_key("show", "seq", "shot", shot_workspace_path="/ws/a")
+            == "show/seq/shot:/ws/a"
+        )
+
+    def test_make_show_key_formats_correctly(self, cache: SceneCache) -> None:
+        """_make_show_key creates correct key format."""
+        assert cache._make_show_key("show") == "show"
+        assert cache._make_show_key("show", show_root="/root") == "show:/root:"
+        assert (
+            cache._make_show_key("show", excluded_users=frozenset({"b", "a"}))
+            == "show::a,b"
+        )
 
 
 # ==============================================================================
@@ -764,3 +775,100 @@ class TestSceneCacheUtilities:
         """get_cache_info() returns None for non-existent key."""
         info = cache.get_cache_info("nonexistent")
         assert info is None
+
+
+# ==============================================================================
+# Key Discrimination Tests
+# ==============================================================================
+
+
+def create_mock_scene(show: str, sequence: str, shot: str, user: str) -> MockThreeDEScene:
+    """Create a MockThreeDEScene with the given attributes."""
+    return MockThreeDEScene(
+        show=show,
+        sequence=sequence,
+        shot=shot,
+        user=user,
+        scene_path=Path(f"/shows/{show}/shots/{sequence}/{sequence}_{shot}/{user}/scene.3de"),
+        modified_time=time.time(),
+    )
+
+
+class TestSceneCacheKeyDiscrimination:
+    """Test that cache keys discriminate on all inputs that affect results."""
+
+    def test_same_shot_different_workspace_different_entries(self) -> None:
+        """Same shot with different workspace paths should yield different cache entries."""
+        cache = SceneCache(default_ttl=300)
+        scene_a = create_mock_scene("show", "seq", "shot", "userA")
+        scene_b = create_mock_scene("show", "seq", "shot", "userB")
+
+        cache.cache_scenes_for_shot(
+            "show", "seq", "shot", [scene_a],  # type: ignore[list-item]
+            shot_workspace_path="/workspace/a",
+        )
+        cache.cache_scenes_for_shot(
+            "show", "seq", "shot", [scene_b],  # type: ignore[list-item]
+            shot_workspace_path="/workspace/b",
+        )
+
+        result_a = cache.get_scenes_for_shot(
+            "show", "seq", "shot", shot_workspace_path="/workspace/a"
+        )
+        result_b = cache.get_scenes_for_shot(
+            "show", "seq", "shot", shot_workspace_path="/workspace/b"
+        )
+
+        assert result_a is not None
+        assert result_b is not None
+        assert len(result_a) == 1
+        assert len(result_b) == 1
+        assert result_a[0].user == "userA"  # type: ignore[union-attr]
+        assert result_b[0].user == "userB"  # type: ignore[union-attr]
+
+    def test_same_show_different_exclusions_different_entries(self) -> None:
+        """Same show with different excluded users should yield different cache entries."""
+        cache = SceneCache(default_ttl=300)
+        scene_all = create_mock_scene("show", "seq", "shot", "userA")
+        scene_filtered = create_mock_scene("show", "seq", "shot", "userB")
+
+        cache.cache_scenes_for_show(
+            "show", [scene_all],  # type: ignore[list-item]
+            excluded_users=frozenset({"admin"}),
+        )
+        cache.cache_scenes_for_show(
+            "show", [scene_filtered],  # type: ignore[list-item]
+            excluded_users=frozenset({"admin", "bot"}),
+        )
+
+        result_admin = cache.get_scenes_for_show(
+            "show", excluded_users=frozenset({"admin"})
+        )
+        result_both = cache.get_scenes_for_show(
+            "show", excluded_users=frozenset({"admin", "bot"})
+        )
+
+        assert result_admin is not None
+        assert result_both is not None
+        assert result_admin[0].user == "userA"  # type: ignore[union-attr]
+        assert result_both[0].user == "userB"  # type: ignore[union-attr]
+
+    def test_same_inputs_cache_hit(self) -> None:
+        """Same inputs should produce a cache hit."""
+        cache = SceneCache(default_ttl=300)
+        scene = create_mock_scene("show", "seq", "shot", "userA")
+
+        cache.cache_scenes_for_shot(
+            "show", "seq", "shot", [scene],  # type: ignore[list-item]
+            shot_workspace_path="/workspace/a",
+        )
+
+        result = cache.get_scenes_for_shot(
+            "show", "seq", "shot", shot_workspace_path="/workspace/a"
+        )
+        assert result is not None
+        assert len(result) == 1
+
+        # Verify stats show a hit
+        stats = cache.get_cache_stats()
+        assert stats["hits"] >= 1

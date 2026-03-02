@@ -799,6 +799,7 @@ class FileSystemScanner(LoggingMixin):
 
         except Exception:
             self.logger.warning("Error finding publish/mm directories", exc_info=True)
+            return None
 
         return shots_with_published_mm
 
@@ -807,6 +808,7 @@ class FileSystemScanner(LoggingMixin):
         user_results: list[tuple[Path, str, str, str, str, str]],
         shots_with_published_mm: set[tuple[str, str]],
         user_timed_out: bool,
+        publish_scan_failed: bool = False,
     ) -> list[tuple[Path, str, str, str, str, str]]:
         """Filter user results to only those from shots with published matchmove.
 
@@ -831,7 +833,12 @@ class FileSystemScanner(LoggingMixin):
             )
             return results
 
-        self.logger.info("No publish/mm directories found - showing all user files")
+        if publish_scan_failed:
+            self.logger.info(
+                "Publish/mm scan failed - showing all user files unfiltered"
+            )
+        else:
+            self.logger.info("No publish/mm directories found - showing all user files")
         return user_results
 
     def _log_scan_summary(
@@ -934,12 +941,15 @@ class FileSystemScanner(LoggingMixin):
             shots_with_mm = self._find_shots_with_published_mm(
                 find_cmd_publish_dirs, cancel_flag
             )
-            if shots_with_mm is None:  # cancelled
-                return []
-
-            results = self._filter_to_published_shots(
-                user_results, shots_with_mm, user_timed_out
-            )
+            if shots_with_mm is None:
+                # Scan failed or cancelled — pass empty set + flag
+                results = self._filter_to_published_shots(
+                    user_results, set(), user_timed_out, publish_scan_failed=True
+                )
+            else:
+                results = self._filter_to_published_shots(
+                    user_results, shots_with_mm, user_timed_out
+                )
 
             if not results:
                 self.logger.info(
@@ -981,16 +991,6 @@ class FileSystemScanner(LoggingMixin):
         try:
             # Search for .3de files in user directories
             for pattern in ["*/*/user/**/*.3de", "*/*/user/**/*.3DE"]:
-                for threede_file in shots_dir.glob(pattern):
-                    file_count += 1
-                    parsed = self.parser.parse_3de_file_path(
-                        threede_file, show_path, show, excluded_users
-                    )
-                    if parsed:
-                        results.append(parsed)
-
-            # Search for .3de files in publish directories
-            for pattern in ["*/*/publish/**/*.3de", "*/*/publish/**/*.3DE"]:
                 for threede_file in shots_dir.glob(pattern):
                     file_count += 1
                     parsed = self.parser.parse_3de_file_path(

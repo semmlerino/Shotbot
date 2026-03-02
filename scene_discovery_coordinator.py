@@ -139,7 +139,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
             # Step 2: Check cache (if enabled)
             if self.enable_caching and self.cache:
-                cached_result = self.cache.get_scenes_for_shot(show, sequence, shot)
+                cached_result = self.cache.get_scenes_for_shot(
+                    show, sequence, shot, shot_workspace_path=shot_workspace_path
+                )
                 if cached_result is not None:
                     self.stats["cache_hits"] += 1
                     self.logger.debug(f"Cache hit for {show}/{sequence}/{shot}")
@@ -159,7 +161,10 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
             # Step 5: Update cache (if enabled)
             if self.enable_caching and self.cache:
-                self.cache.cache_scenes_for_shot(show, sequence, shot, valid_scenes)
+                self.cache.cache_scenes_for_shot(
+                    show, sequence, shot, valid_scenes,
+                    shot_workspace_path=shot_workspace_path,
+                )
 
             # Step 6: Update statistics and return results
             self.stats["scenes_discovered"] += len(valid_scenes)
@@ -204,11 +209,14 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
             # Process each show
             for show_root, shows in show_info.items():
+                excluded_frozen = frozenset(excluded_users) if excluded_users else None
                 for show in shows:
                     with self.logger.context(operation="show_discovery", show=show):
                         # Check cache first (if enabled)
                         if self.enable_caching and self.cache:
-                            cached_result = self.cache.get_scenes_for_show(show)
+                            cached_result = self.cache.get_scenes_for_show(
+                                show, show_root=show_root, excluded_users=excluded_frozen
+                            )
                             if cached_result is not None:
                                 self.stats["cache_hits"] += 1
                                 self.logger.debug(f"Cache hit for show {show}")
@@ -226,7 +234,10 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
                         # Update cache (if enabled)
                         if self.enable_caching and self.cache:
-                            self.cache.cache_scenes_for_show(show, valid_scenes)
+                            self.cache.cache_scenes_for_show(
+                                show, valid_scenes,
+                                show_root=show_root, excluded_users=excluded_frozen,
+                            )
 
                         all_scenes.extend(valid_scenes)
                         self.stats["scenes_discovered"] += len(valid_scenes)
@@ -413,7 +424,13 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             return self.cache.clear_cache()
         return 0
 
-    def invalidate_shot(self, show: str, sequence: str, shot: str) -> bool:
+    def invalidate_shot(
+        self,
+        show: str,
+        sequence: str,
+        shot: str,
+        shot_workspace_path: str | None = None,
+    ) -> bool:
         """Invalidate cached results for a specific shot.
 
         Returns:
@@ -421,7 +438,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         """
         if self.enable_caching and self.cache:
-            return self.cache.invalidate_shot(show, sequence, shot)
+            return self.cache.invalidate_shot(
+                show, sequence, shot, shot_workspace_path=shot_workspace_path
+            )
         return False
 
     def invalidate_show(self, show: str) -> int:

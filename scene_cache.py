@@ -104,28 +104,58 @@ class SceneCache(LoggingMixin):
             "cache_warmings": 0,
         }
 
-    def _make_key(
-        self, show: str, sequence: str | None = None, shot: str | None = None
+    def _make_shot_key(
+        self,
+        show: str,
+        sequence: str,
+        shot: str,
+        shot_workspace_path: str | None = None,
     ) -> str:
-        """Create cache key from shot components.
+        """Create cache key for shot-level lookups.
 
         Args:
             show: Show name
-            sequence: Sequence name (optional for show-level caching)
-            shot: Shot name (optional for sequence-level caching)
+            sequence: Sequence name
+            shot: Shot name
+            shot_workspace_path: Optional workspace path for disambiguation
 
         Returns:
             Cache key string
 
         """
-        if shot and sequence:
-            return f"{show}/{sequence}/{shot}"
-        if sequence:
-            return f"{show}/{sequence}"
+        base = f"{show}/{sequence}/{shot}"
+        if shot_workspace_path:
+            return f"{base}:{shot_workspace_path}"
+        return base
+
+    def _make_show_key(
+        self,
+        show: str,
+        show_root: str | None = None,
+        excluded_users: frozenset[str] | None = None,
+    ) -> str:
+        """Create cache key for show-level lookups.
+
+        Args:
+            show: Show name
+            show_root: Optional show root path for disambiguation
+            excluded_users: Optional frozen set of excluded users
+
+        Returns:
+            Cache key string
+
+        """
+        if show_root is not None or excluded_users is not None:
+            users_str = ",".join(sorted(excluded_users)) if excluded_users else ""
+            return f"{show}:{show_root or ''}:{users_str}"
         return show
 
     def get_scenes_for_shot(
-        self, show: str, sequence: str, shot: str
+        self,
+        show: str,
+        sequence: str,
+        shot: str,
+        shot_workspace_path: str | None = None,
     ) -> list[ThreeDEScene] | None:
         """Get cached scenes for a specific shot.
 
@@ -133,12 +163,13 @@ class SceneCache(LoggingMixin):
             show: Show name
             sequence: Sequence name
             shot: Shot name
+            shot_workspace_path: Optional workspace path for disambiguation
 
         Returns:
             List of scenes if cached and valid, None otherwise
 
         """
-        key = self._make_key(show, sequence, shot)
+        key = self._make_shot_key(show, sequence, shot, shot_workspace_path)
 
         with self.lock:
             entry = self.cache.get(key)
@@ -157,17 +188,24 @@ class SceneCache(LoggingMixin):
             self.stats["misses"] += 1
             return None
 
-    def get_scenes_for_show(self, show: str) -> list[ThreeDEScene] | None:
+    def get_scenes_for_show(
+        self,
+        show: str,
+        show_root: str | None = None,
+        excluded_users: frozenset[str] | None = None,
+    ) -> list[ThreeDEScene] | None:
         """Get cached scenes for an entire show.
 
         Args:
             show: Show name
+            show_root: Optional show root path for disambiguation
+            excluded_users: Optional frozen set of excluded users
 
         Returns:
             List of all scenes in show if cached and valid, None otherwise
 
         """
-        key = self._make_key(show)
+        key = self._make_show_key(show, show_root, excluded_users)
 
         with self.lock:
             entry = self.cache.get(key)
@@ -194,6 +232,7 @@ class SceneCache(LoggingMixin):
         shot: str,
         scenes: list[ThreeDEScene],
         ttl: int | None = None,
+        shot_workspace_path: str | None = None,
     ) -> None:
         """Cache scenes for a specific shot.
 
@@ -203,9 +242,10 @@ class SceneCache(LoggingMixin):
             shot: Shot name
             scenes: List of scenes to cache
             ttl: Custom TTL in seconds (uses default if None)
+            shot_workspace_path: Optional workspace path for disambiguation
 
         """
-        key = self._make_key(show, sequence, shot)
+        key = self._make_shot_key(show, sequence, shot, shot_workspace_path)
         ttl = ttl or self.default_ttl
 
         with self.lock:
@@ -219,7 +259,12 @@ class SceneCache(LoggingMixin):
             self.logger.debug(f"Cached {len(scenes)} scenes for {key} (TTL: {ttl}s)")
 
     def cache_scenes_for_show(
-        self, show: str, scenes: list[ThreeDEScene], ttl: int | None = None
+        self,
+        show: str,
+        scenes: list[ThreeDEScene],
+        ttl: int | None = None,
+        show_root: str | None = None,
+        excluded_users: frozenset[str] | None = None,
     ) -> None:
         """Cache scenes for an entire show.
 
@@ -227,9 +272,11 @@ class SceneCache(LoggingMixin):
             show: Show name
             scenes: List of all scenes in show
             ttl: Custom TTL in seconds (uses default if None)
+            show_root: Optional show root path for disambiguation
+            excluded_users: Optional frozen set of excluded users
 
         """
-        key = self._make_key(show)
+        key = self._make_show_key(show, show_root, excluded_users)
         ttl = ttl or self.default_ttl
 
         with self.lock:
@@ -244,19 +291,26 @@ class SceneCache(LoggingMixin):
                 f"Cached {len(scenes)} scenes for show {key} (TTL: {ttl}s)"
             )
 
-    def invalidate_shot(self, show: str, sequence: str, shot: str) -> bool:
+    def invalidate_shot(
+        self,
+        show: str,
+        sequence: str,
+        shot: str,
+        shot_workspace_path: str | None = None,
+    ) -> bool:
         """Invalidate cached scenes for a specific shot.
 
         Args:
             show: Show name
             sequence: Sequence name
             shot: Shot name
+            shot_workspace_path: Optional workspace path for disambiguation
 
         Returns:
             True if entry was invalidated, False if not found
 
         """
-        key = self._make_key(show, sequence, shot)
+        key = self._make_shot_key(show, sequence, shot, shot_workspace_path)
 
         with self.lock:
             if key in self.cache:
@@ -279,9 +333,10 @@ class SceneCache(LoggingMixin):
         invalidated = 0
 
         with self.lock:
-            # Find all keys that start with the show name
+            # Find all keys that start with the show name (both old and new formats)
             keys_to_remove = [
-                key for key in self.cache if key.startswith(f"{show}/") or key == show
+                key for key in self.cache
+                if key.startswith((f"{show}/", f"{show}:")) or key == show
             ]
 
             for key in keys_to_remove:
@@ -289,9 +344,7 @@ class SceneCache(LoggingMixin):
                 invalidated += 1
 
             self.stats["invalidations"] += invalidated
-            self.logger.debug(
-                f"Invalidated {invalidated} cache entries for show {show}"
-            )
+            self.logger.debug(f"Invalidated {invalidated} cache entries for show {show}")
 
         return invalidated
 

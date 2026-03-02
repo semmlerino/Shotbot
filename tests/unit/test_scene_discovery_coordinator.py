@@ -69,28 +69,28 @@ class SceneCacheDouble:
         self._cleared = False
 
     def get_scenes_for_shot(
-        self, show: str, sequence: str, shot: str
+        self, show: str, sequence: str, shot: str, **kwargs: object
     ) -> list[ThreeDEScene] | None:
         """Get cached scenes for a shot."""
         key = (show, sequence, shot)
         return self._shot_cache.get(key)
 
     def cache_scenes_for_shot(
-        self, show: str, sequence: str, shot: str, scenes: list[ThreeDEScene]
+        self, show: str, sequence: str, shot: str, scenes: list[ThreeDEScene], **kwargs: object
     ) -> None:
         """Cache scenes for a shot."""
         key = (show, sequence, shot)
         self._shot_cache[key] = scenes
 
-    def get_scenes_for_show(self, show: str) -> list[ThreeDEScene] | None:
+    def get_scenes_for_show(self, show: str, **kwargs: object) -> list[ThreeDEScene] | None:
         """Get cached scenes for a show."""
         return self._show_cache.get(show)
 
-    def cache_scenes_for_show(self, show: str, scenes: list[ThreeDEScene]) -> None:
+    def cache_scenes_for_show(self, show: str, scenes: list[ThreeDEScene], **kwargs: object) -> None:
         """Cache scenes for a show."""
         self._show_cache[show] = scenes
 
-    def invalidate_shot(self, show: str, sequence: str, shot: str) -> bool:
+    def invalidate_shot(self, show: str, sequence: str, shot: str, **kwargs: object) -> bool:
         """Invalidate cached scenes for a shot."""
         key = (show, sequence, shot)
         if key in self._shot_cache:
