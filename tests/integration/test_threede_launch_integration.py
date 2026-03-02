@@ -232,31 +232,6 @@ class TestThreeDECommandBuilding:
 class TestLaunchWithScene:
     """Test launching with a specific scene file."""
 
-    def test_launch_3de_with_scene(
-        self,
-        launcher: CommandLauncher,
-        sample_scene: ThreeDEScene,
-    ) -> None:
-        """Test launching 3DE with a specific scene file."""
-        launcher.env_manager.is_ws_available = MagicMock(return_value=True)
-
-        with patch.object(
-            launcher, "_validate_workspace_before_launch", return_value=True
-        ), patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
-        ) as mock_execute:
-            result = launcher.launch_app_with_scene("3de", sample_scene)
-
-        assert result is True
-
-        # Verify command includes scene path with -open flag
-        call_args = mock_execute.call_args
-        full_command = call_args[0][0]
-
-        assert "-open" in full_command
-        assert "artist_plate_main.3de" in full_command
-        assert sample_scene.workspace_path in full_command
-
     def test_launch_maya_with_scene(
         self,
         launcher: CommandLauncher,

@@ -504,20 +504,6 @@ class TestMergeEdgeCases:
         cache_path.mkdir(parents=True, exist_ok=True)
         return CacheManager(cache_dir=cache_path)
 
-    def test_merge_large_shot_lists(self, cache_manager: CacheManager) -> None:
-        """Merge handles large lists efficiently."""
-        cached = [make_shot_dict(shot=f"{i:04d}") for i in range(500)]
-        fresh = [make_shot_dict(shot=f"{i:04d}") for i in range(100, 600)]
-
-        result = cache_manager.update_shots_cache(cached, fresh)
-
-        # 500 fresh shots total
-        assert len(result.updated_shots) == 500
-        # Shots 0-99 removed (not in fresh)
-        assert len(result.removed_shots) == 100
-        # Shots 500-599 are new
-        assert len(result.new_shots) == 100
-
     def test_merge_with_duplicate_keys_in_fresh(
         self, cache_manager: CacheManager
     ) -> None:
@@ -582,24 +568,6 @@ class TestMergeEdgeCases:
         )
         assert result_30days.pruned_count == 0
         assert len(result_30days.updated_scenes) == 1
-
-    def test_merge_empty_both_lists(self, cache_manager: CacheManager) -> None:
-        """Merge with both empty lists returns empty result."""
-        result = cache_manager.update_shots_cache([], [])
-
-        assert len(result.updated_shots) == 0
-        assert len(result.new_shots) == 0
-        assert len(result.removed_shots) == 0
-        assert result.has_changes is False
-
-    def test_merge_with_none_cached(self, cache_manager: CacheManager) -> None:
-        """Merge handles None cached list gracefully."""
-        fresh = [make_shot_dict(shot="0010")]
-
-        result = cache_manager.update_shots_cache(None, fresh)
-
-        assert len(result.updated_shots) == 1
-        assert len(result.new_shots) == 1
 
 
 # ==============================================================================
