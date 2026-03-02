@@ -48,12 +48,11 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-import time
 from functools import partial
 from typing import TYPE_CHECKING, Any, cast, final
 
 # Third-party imports
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -118,65 +117,14 @@ from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
 from shot_model import ShotModel
-from thread_safe_worker import ThreadSafeWorker
+from startup_coordinator import SessionWarmer, StartupCoordinator
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 
 # Set up logger for this module
-# Module-level logger for non-class code (SessionWarmer, etc.)
 logger = get_module_logger(__name__)
-
-
-class SessionWarmer(ThreadSafeWorker):
-    """Background thread for pre-warming bash sessions without blocking UI.
-
-    This thread runs during idle time after the UI is displayed, initializing
-    the bash environment and 'ws' function in the background. This prevents
-    the ~8 second freeze that would occur if this initialization happened
-    on the main thread during the first actual command execution.
-    """
-
-    def __init__(self, process_pool: ProcessPoolInterface) -> None:
-        """Initialize session warmer with process pool.
-
-        Args:
-            process_pool: ProcessPoolInterface instance to warm up
-
-        """
-        super().__init__()
-        self._process_pool: ProcessPoolInterface = process_pool
-
-    @override
-    def do_work(self) -> None:
-        """Pre-warm bash sessions in background thread.
-
-        Called by ThreadSafeWorker.run() to perform actual work.
-        """
-        try:
-            # Check if we should stop before starting
-            if self.should_stop():
-                return
-
-            logger.debug("Starting background session pre-warming")
-            start_time = time.time()
-
-            # Check if we should stop before executing
-            if self.should_stop():
-                return
-
-            _ = self._process_pool.execute_workspace_command(
-                "echo warming",
-                cache_ttl=1,  # Short TTL since this is just for warming
-                timeout=15,  # Give enough time for first initialization
-                use_login_shell=True,  # Use bash -l to avoid terminal blocking
-            )
-            duration = time.time() - start_time
-            logger.info(f"Bash session pre-warming completed successfully ({duration:.2f}s)")
-        except Exception:
-            # Don't fail the app if pre-warming fails
-            logger.warning("Session pre-warming failed (non-critical)", exc_info=True)
 
 
 # Tab index constants for the main tab widget
@@ -499,6 +447,24 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._connect_signals()
         self.settings_controller.load_settings()  # Use refactored settings controller
         self._restore_sort_orders()  # Restore sort order settings for tabs
+
+        # Build the startup coordinator with all dependencies
+        self._startup = StartupCoordinator(
+            shot_model=self.shot_model,
+            threede_scene_model=self.threede_scene_model,
+            threede_item_model=self.threede_item_model,
+            previous_shots_model=self.previous_shots_model,
+            cache_manager=self.cache_manager,
+            refresh_orchestrator=self.refresh_orchestrator,
+            process_pool=self._process_pool,
+            threede_controller=self.threede_controller,
+            shot_grid=self.shot_grid,
+            threede_shot_grid=self.threede_shot_grid,
+            update_status=self.update_status,
+            last_selected_shot_name=self._last_selected_shot_name,
+            refresh_shots=self._refresh_shots,
+            refresh_shot_display=self._refresh_shot_display,
+        )
 
         # Initial shot load - immediately, no delay
         # Skip in test environment if requested
@@ -853,111 +819,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # My Shots tab always sorts by name - no user-configurable sort order
 
     def _initial_load(self) -> None:
-        """Initial shot loading — instant from cache or deferred to background.
-
-        Decision table:
-            cached shots + cached scenes  → display both, schedule background refresh
-            cached shots only             → display shots, schedule background refresh
-            cached scenes only            → display scenes, no shot refresh scheduled
-            no cache                      → show "Loading…" status; background refresh
-                                            already in progress from initialize_async()
-        """
-        # Pre-warm bash sessions in background to avoid first-command delay
-        # Only warm real process pools (test doubles don't spawn subprocesses)
-        if isinstance(self._process_pool, ProcessPoolManager):
-            self._session_warmer = SessionWarmer(self._process_pool)
-            self._session_warmer.start()
-            self.logger.debug("SessionWarmer started")
-
-        has_cached_shots = bool(self.shot_model.shots)
-        has_cached_scenes = bool(self.threede_scene_model.scenes)
-
-        # Show cached shots immediately if available (should already be loaded)
-        if has_cached_shots:
-            self._refresh_shot_display()
-            self.logger.info(
-                f"Displayed {len(self.shot_model.shots)} cached shots instantly"
-            )
-        else:
-            # No cache, but let's check one more time
-            self.logger.info(
-                "No cached shots found on initial check, attempting explicit cache load"
-            )
-            if self.shot_model.try_load_from_cache():
-                has_cached_shots = True
-                self._refresh_shot_display()
-                self.logger.info(
-                    f"Loaded and displayed {len(self.shot_model.shots)} shots from cache"
-                )
-
-            # Restore last selected shot if available
-            if isinstance(self._last_selected_shot_name, str):
-                shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
-                if shot:
-                    self.shot_grid.select_shot_by_name(shot.full_name)
-
-        # Show cached 3DE scenes immediately if available
-        if has_cached_scenes:
-            self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
-            # Populate show filter with available shows
-            self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
-
-        # Update status with what was loaded from cache
-        if has_cached_shots and has_cached_scenes:
-            self.update_status(
-                (
-                    f"Loaded {len(self.shot_model.shots)} shots and "
-                     f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
-                ),
-            )
-            # Delay: let Qt finish painting the cached-shot grid before
-            # spawning the subprocess that fetches fresh data from `ws -sg`.
-            QTimer.singleShot(self._PAINT_YIELD_MS, self._refresh_shots)
-        elif has_cached_shots:
-            self.update_status(f"Loaded {len(self.shot_model.shots)} shots from cache")
-            # Delay: same rationale as above — paint first, refresh second.
-            QTimer.singleShot(self._PAINT_YIELD_MS, self._refresh_shots)
-        elif has_cached_scenes:
-            self.update_status(
-                f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache",
-            )
-        else:
-            self.update_status("Loading shots and scenes...")
-            # No cache exists - background refresh already started by initialize_async()
-            self.logger.info(
-                "No cached data found - background refresh already in progress from initialize_async()",
-            )
-
-        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
-        # Previous shots now only refresh on explicit user action via "Refresh" button
-        #
-        # NOTE: Previous shots refresh is triggered by shots_loaded/shots_changed
-        # signals connected directly to RefreshOrchestrator.trigger_previous_shots_refresh.
-
-        # If shots are already loaded from cache, trigger refresh immediately
-        if self.shot_model.shots:
-            self.logger.info(
-                "Shots already loaded from cache, triggering previous shots refresh immediately"
-            )
-            # Delay: yield to the event loop so the main shot grid
-            # finishes its layout pass before the previous-shots refresh
-            # triggers another model update.
-            QTimer.singleShot(self._EVENT_LOOP_YIELD_MS, self.previous_shots_model.refresh_shots)
-
-        # Only start 3DE discovery if we have shots AND cache is invalid/expired
-        # This avoids unnecessary scans when we already know there are no scenes
-        if has_cached_shots:
-            # Check if we have a valid cache (including valid empty results)
-            if not self.cache_manager.has_valid_threede_cache():
-                self.logger.debug("3DE cache invalid/expired - starting discovery")
-                if self.threede_controller:
-                    # 100ms delay: same rationale — yield for layout, then
-                    # kick off 3DE filesystem scan in background.
-                    QTimer.singleShot(
-                        100, self.threede_controller.refresh_threede_scenes
-                    )
-            else:
-                self.logger.debug("3DE cache valid - skipping initial scan")
+        """Initial shot loading — instant from cache or deferred to background."""
+        self._session_warmer = self._startup.perform_initial_load()
 
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
