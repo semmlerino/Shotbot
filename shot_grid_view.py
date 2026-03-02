@@ -8,8 +8,6 @@ and proper Model/View integration.
 from __future__ import annotations
 
 # Standard library imports
-import shlex
-import subprocess
 from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
@@ -821,36 +819,9 @@ class ShotGridView(BaseGridView):
         self.logger.debug("Folder opened successfully")
 
     def _open_main_plate_in_rv(self, shot: Shot) -> None:
-        """Open the main plate in RV.
-
-        Args:
-            shot: Shot object containing workspace path
-
-        """
-        from notification_manager import error as notify_error
-        from publish_plate_finder import find_main_plate
-
-        workspace_path = shot.workspace_path
-        plate_path = find_main_plate(workspace_path)
-
-        if plate_path is None:
-            self.logger.warning(f"No plate found for shot at {workspace_path}")
-            notify_error("No Plate Found", f"No plate found for shot at {workspace_path}")
-            return
-
-        self.logger.info(f"Opening plate in RV: {plate_path}")
-        try:
-            # Use bash -ilc to inherit shell environment where Rez adds RV to PATH
-            # RV settings: 12fps, auto-play, ping-pong mode (setPlayMode(2))
-            safe_path = shlex.quote(plate_path)
-            rv_cmd = f"rv {safe_path} -fps 12 -play -eval 'setPlayMode(2)'"
-            _ = subprocess.Popen(["bash", "-ilc", rv_cmd])
-        except FileNotFoundError:
-            self.logger.error("RV not found. Please ensure RV is installed and in PATH.")
-            notify_error("RV Not Found", "Could not launch RV. Check that RV is installed.")
-        except Exception as e:
-            self.logger.exception("Failed to open RV")
-            notify_error("RV Launch Failed", f"Failed to open RV: {e}")
+        """Open the main plate in RV."""
+        from rv_launcher import open_plate_in_rv
+        open_plate_in_rv(shot.workspace_path)
 
     def _copy_path_to_clipboard(self, path: str) -> None:
         """Copy a path to the system clipboard.
