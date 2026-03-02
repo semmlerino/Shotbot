@@ -247,7 +247,7 @@ class BaseItemModel(
         self._thumbnail_debounce_timer: QTimer = QTimer(self)
         self._thumbnail_debounce_timer.setSingleShot(True)  # Critical: single-shot
         self._thumbnail_debounce_timer.setInterval(self._THUMBNAIL_DEBOUNCE_MS)
-        _ = self._thumbnail_debounce_timer.timeout.connect(self._do_load_visible_thumbnails)
+        _ = self._thumbnail_debounce_timer.timeout.connect(self._load_visible_thumbnails)
 
         # Batch signal emission to reduce Qt event queue pressure
         self._pending_updates: dict[int, set[int]] = {}  # row -> set of role integers
@@ -558,6 +558,12 @@ class BaseItemModel(
                 self._loading_states[item.full_name] = "failed"
             self._schedule_data_changed(row, [BaseItemRole.LoadingStateRole])
 
+    def _cleanup_thumbnail_load(self, full_name: str) -> None:
+        """Remove a completed or failed thumbnail load from tracking sets."""
+        with QMutexLocker(self._pending_loads_mutex):
+            _ = self._active_runnables.pop(full_name, None)
+            self._pending_loads.discard(full_name)
+
     def _on_thumbnail_loaded(
         self, full_name: str, cached_path: Path, row: int
     ) -> None:
@@ -573,9 +579,7 @@ class BaseItemModel(
 
         """
         # Clean up runnable reference and pending loads (prevents memory leak)
-        with QMutexLocker(self._pending_loads_mutex):
-            _ = self._active_runnables.pop(full_name, None)
-            self._pending_loads.discard(full_name)
+        self._cleanup_thumbnail_load(full_name)
 
         # Verify row is still valid and item matches (data may have changed)
         if row >= len(self._items):
@@ -607,9 +611,7 @@ class BaseItemModel(
 
         """
         # Clean up runnable reference and pending loads (prevents memory leak)
-        with QMutexLocker(self._pending_loads_mutex):
-            _ = self._active_runnables.pop(full_name, None)
-            self._pending_loads.discard(full_name)
+        self._cleanup_thumbnail_load(full_name)
 
         # Update loading state
         with QMutexLocker(self._cache_mutex):

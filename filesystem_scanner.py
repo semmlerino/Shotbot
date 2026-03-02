@@ -554,7 +554,7 @@ class FileSystemScanner(LoggingMixin):
             if process.stderr:
                 _ = sel.register(process.stderr, selectors.EVENT_READ, "stderr")
 
-            elapsed_time = 0.0
+            start_time = time.monotonic()
 
             while process.poll() is None:
                 # Check cancellation
@@ -565,7 +565,7 @@ class FileSystemScanner(LoggingMixin):
                     return (None, "", "", "cancelled")
 
                 # Check timeout
-                if elapsed_time >= max_wait_time:
+                if time.monotonic() - start_time >= max_wait_time:
                     self.logger.error(
                         f"Subprocess timed out after {max_wait_time} seconds"
                     )
@@ -584,8 +584,6 @@ class FileSystemScanner(LoggingMixin):
                             stdout_chunks.append(data)
                         else:
                             stderr_chunks.append(data)
-
-                elapsed_time += poll_interval
 
             # Process exited - drain any remaining buffered data
             for key, _ in sel.select(timeout=0):

@@ -664,6 +664,55 @@ class ImageUtils:
         )
 
     @staticmethod
+    def _run_image_tool(
+        source: Path,
+        cmd: list[str],
+        output_path: Path,
+        timeout: int,
+        tool_name: str,
+    ) -> Path | None:
+        """Run an image extraction tool and return the output path on success.
+
+        Handles subprocess execution, result validation, and error handling
+        for FFmpeg and oiiotool commands.
+
+        Args:
+            source: Source file (used only for log messages)
+            cmd: Complete command to execute
+            output_path: Expected output file path
+            timeout: Subprocess timeout in seconds
+            tool_name: Tool name for log messages (e.g., "FFmpeg", "oiiotool")
+
+        Returns:
+            output_path on success, None on any failure
+
+        """
+        try:
+            result = subprocess.run(
+                cmd,
+                check=False,
+                capture_output=True,
+                timeout=timeout,
+                text=True,
+            )
+
+            if result.returncode == 0 and output_path.exists():
+                return output_path
+
+            logger.debug(f"{tool_name} failed for {source.name}: {result.stderr}")
+            return None
+
+        except subprocess.TimeoutExpired:
+            logger.warning(f"{tool_name} timeout for {source.name}")
+            return None
+        except FileNotFoundError:
+            logger.warning(f"{tool_name} not found in PATH")
+            return None
+        except Exception:
+            logger.exception(f"Error running {tool_name} on {source.name}")
+            return None
+
+    @staticmethod
     def extract_frame_from_mov(
         mov_path: Path,
         output_path: Path | None = None,
@@ -679,65 +728,28 @@ class ImageUtils:
             Path to the extracted JPEG frame, or None if extraction failed
 
         """
-
         if not mov_path.exists() or not mov_path.is_file():
             logger.debug(f"MOV file does not exist: {mov_path}")
             return None
 
-        # Create output path if not provided
         if output_path is None:
             output_path = _make_temp_jpeg("shotbot_thumb_")
 
-        try:
-            # Extract frame #5 using FFmpeg (frame numbering is 0-indexed, so frame 4 = 5th frame)
-            # -i: input file
-            # -an: disable audio (avoids audio codec library issues)
-            # -vf "select=eq(n\,4)": select frame number 4 (the 5th frame)
-            # -vframes 1: extract only 1 frame
-            # -q:v 2: quality (2 is high quality for JPEG)
-            # -y: overwrite output file
-            cmd = [
-                "ffmpeg",
-                "-i",
-                str(mov_path),
-                "-an",  # Disable audio - only need video frame
-                "-vf",
-                "select=eq(n\\,4)",  # Select frame 4 (5th frame, 0-indexed)
-                "-vframes",
-                "1",
-                "-q:v",
-                "2",
-                "-y",
-                str(output_path),
-            ]
+        cmd = [
+            "ffmpeg",
+            "-i", str(mov_path),
+            "-an",
+            "-vf", "select=eq(n\\,4)",
+            "-vframes", "1",
+            "-q:v", "2",
+            "-y",
+            str(output_path),
+        ]
 
-            # Run FFmpeg with timeout
-            result = subprocess.run(
-                cmd,
-                check=False, capture_output=True,
-                timeout=30,
-                text=True,
-            )
-
-            if result.returncode == 0 and output_path.exists():
-                logger.debug(
-                    f"Successfully extracted frame #5 from MOV: {mov_path.name}"
-                )
-                return output_path
-            logger.debug(
-                f"FFmpeg failed to extract frame from {mov_path.name}: {result.stderr}"
-            )
-            return None
-
-        except subprocess.TimeoutExpired:
-            logger.warning(f"FFmpeg timeout extracting frame from {mov_path.name}")
-            return None
-        except FileNotFoundError:
-            logger.warning("FFmpeg not found in PATH - cannot extract MOV frames")
-            return None
-        except Exception:
-            logger.exception(f"Error extracting frame from MOV {mov_path.name}")
-            return None
+        result = ImageUtils._run_image_tool(mov_path, cmd, output_path, timeout=30, tool_name="FFmpeg")
+        if result:
+            logger.debug(f"Successfully extracted frame #5 from MOV: {mov_path.name}")
+        return result
 
     @staticmethod
     def extract_frame_at_time(
@@ -761,58 +773,26 @@ class ImageUtils:
             Path to the extracted JPEG frame, or None if extraction failed
 
         """
-
         if not mov_path.exists() or not mov_path.is_file():
             logger.debug(f"MOV file does not exist: {mov_path}")
             return None
 
-        # Create output path if not provided
         if output_path is None:
             output_path = _make_temp_jpeg("shotbot_scrub_")
 
-        try:
-            # -ss BEFORE -i for fast seeking (critical for performance)
-            # -an: disable audio
-            # -vf "scale=width:-1": scale to width, auto-calculate height
-            # -vframes 1: extract only 1 frame
-            # -q:v 2: high quality JPEG
-            cmd = [
-                "ffmpeg",
-                "-ss", str(time_seconds),  # Seek BEFORE input for fast seeking
-                "-i", str(mov_path),
-                "-an",
-                "-vf", f"scale={width}:-1",
-                "-vframes", "1",
-                "-q:v", "2",
-                "-y",
-                str(output_path),
-            ]
+        cmd = [
+            "ffmpeg",
+            "-ss", str(time_seconds),
+            "-i", str(mov_path),
+            "-an",
+            "-vf", f"scale={width}:-1",
+            "-vframes", "1",
+            "-q:v", "2",
+            "-y",
+            str(output_path),
+        ]
 
-            result = subprocess.run(
-                cmd,
-                check=False,
-                capture_output=True,
-                timeout=10,  # Shorter timeout for single frame
-                text=True,
-            )
-
-            if result.returncode == 0 and output_path.exists():
-                return output_path
-
-            logger.debug(
-                f"FFmpeg failed at {time_seconds}s from {mov_path.name}: {result.stderr}"
-            )
-            return None
-
-        except subprocess.TimeoutExpired:
-            logger.warning(f"FFmpeg timeout at {time_seconds}s from {mov_path.name}")
-            return None
-        except FileNotFoundError:
-            logger.warning("FFmpeg not found in PATH")
-            return None
-        except Exception:
-            logger.exception(f"Error extracting frame at {time_seconds}s from {mov_path.name}")
-            return None
+        return ImageUtils._run_image_tool(mov_path, cmd, output_path, timeout=10, tool_name="FFmpeg")
 
     @staticmethod
     def extract_frame_from_exr(
@@ -832,51 +812,21 @@ class ImageUtils:
             Path to the converted JPEG frame, or None if conversion failed
 
         """
-
         if not exr_path.exists() or not exr_path.is_file():
             logger.debug(f"EXR file does not exist: {exr_path}")
             return None
 
-        # Create output path if not provided
         if output_path is None:
             output_path = _make_temp_jpeg("shotbot_scrub_")
 
-        try:
-            # oiiotool command:
-            # --resize widthx0 : resize to width, auto-calculate height (0 = preserve aspect)
-            # -o : output file
-            cmd = [
-                "oiiotool",
-                str(exr_path),
-                "--resize", f"{width}x0",
-                "-o", str(output_path),
-            ]
+        cmd = [
+            "oiiotool",
+            str(exr_path),
+            "--resize", f"{width}x0",
+            "-o", str(output_path),
+        ]
 
-            result = subprocess.run(
-                cmd,
-                check=False,
-                capture_output=True,
-                timeout=30,  # EXR processing can be slower
-                text=True,
-            )
-
-            if result.returncode == 0 and output_path.exists():
-                return output_path
-
-            logger.debug(
-                f"oiiotool failed for {exr_path.name}: {result.stderr}"
-            )
-            return None
-
-        except subprocess.TimeoutExpired:
-            logger.warning(f"oiiotool timeout for {exr_path.name}")
-            return None
-        except FileNotFoundError:
-            logger.warning("oiiotool not found in PATH")
-            return None
-        except Exception:
-            logger.exception(f"Error converting EXR {exr_path.name}")
-            return None
+        return ImageUtils._run_image_tool(exr_path, cmd, output_path, timeout=30, tool_name="oiiotool")
 
     @staticmethod
     def get_mov_duration(mov_path: Path) -> float | None:
