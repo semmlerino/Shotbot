@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # Standard library imports
-import os
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -23,14 +22,7 @@ from qt_abc_meta import QABCMeta
 from shot_filter import compose_filters, get_available_shows
 from shot_parser import OptimizedShotParser
 from utils import ValidationUtils
-
-
-# Enable verbose debug logging if environment variable is set
-DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
-    "1",
-    "true",
-    "yes",
-)
+from debug_utils import DEBUG_VERBOSE
 
 
 # Import RefreshResult from type_definitions to avoid circular imports

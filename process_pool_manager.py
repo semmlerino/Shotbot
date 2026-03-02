@@ -51,15 +51,7 @@ if TYPE_CHECKING:
     from type_definitions import PerformanceMetricsDict
 
 # Local application imports
-from debug_utils import setup_enhanced_debugging
-
-
-# Enable verbose debug logging if environment variable is set
-DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
-    "1",
-    "true",
-    "yes",
-)
+from debug_utils import DEBUG_VERBOSE, setup_enhanced_debugging
 if DEBUG_VERBOSE:
     # Set debug level for verbose logging
     logger.setLevel(logging.DEBUG)

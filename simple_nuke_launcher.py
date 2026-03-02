@@ -15,6 +15,7 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from config import Config
 from logging_mixin import LoggingMixin
 
 
@@ -52,7 +53,7 @@ class SimpleNukeLauncher(LoggingMixin):
         log_messages: list[str] = []
 
         # Build script directory path
-        user = os.environ.get("USER", "gabriel-h")
+        user = os.environ.get("USER", Config.DEFAULT_USERNAME)
         script_dir = (
             Path(shot.workspace_path)
             / "user"
@@ -223,7 +224,7 @@ except OSError:
         log_messages: list[str] = []
 
         # Build script directory path
-        user = os.environ.get("USER", "gabriel-h")
+        user = os.environ.get("USER", Config.DEFAULT_USERNAME)
         script_dir = (
             Path(shot.workspace_path)
             / "user"

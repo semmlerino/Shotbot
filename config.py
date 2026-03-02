@@ -185,9 +185,7 @@ class Config:
     CACHE_REFRESH_INTERVAL_MINUTES: int = (
         60  # Background refresh check interval (once per hour)
     )
-    ENABLE_BACKGROUND_REFRESH: bool = (
-        True  # Can be overridden by SHOTBOT_NO_BACKGROUND_REFRESH env var
-    )
+    ENABLE_BACKGROUND_REFRESH: bool = True
 
     # Enhanced cache settings
     PATH_CACHE_TTL_SECONDS: int = (

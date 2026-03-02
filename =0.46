@@ -1,8 +1,0 @@
-Requirement already satisfied: OpenEXR in ./venv/lib/python3.12/site-packages (3.3.5)
-Collecting olefile
-  Downloading olefile-0.47-py2.py3-none-any.whl.metadata (9.7 kB)
-Requirement already satisfied: numpy>=1.7.0 in ./venv/lib/python3.12/site-packages (from OpenEXR) (2.3.2)
-Downloading olefile-0.47-py2.py3-none-any.whl (114 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.6/114.6 kB 2.5 MB/s eta 0:00:00
-Installing collected packages: olefile
-Successfully installed olefile-0.47

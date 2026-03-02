@@ -74,7 +74,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         # Get raw username
         # In mock mode, always use gabriel-h
         if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
-            raw_username = username or "gabriel-h"
+            raw_username = username or Config.DEFAULT_USERNAME
         else:
             raw_username = username or os.environ.get("USER") or os.getlogin()
 

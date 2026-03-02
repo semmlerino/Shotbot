@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import ClassVar, final
 
 # Local application imports
+from config import Config
 from logging_mixin import get_module_logger
 from nuke_media_detector import NukeMediaDetector
 from nuke_script_templates import NukeScriptTemplates
@@ -203,7 +204,7 @@ class NukeScriptGenerator:
 
             # Get user from environment if not provided
             if user is None:
-                user = os.environ.get("USER", "gabriel-h")
+                user = os.environ.get("USER", Config.DEFAULT_USERNAME)
 
             # Get the script directory
             script_dir = NukeWorkspaceManager.get_workspace_script_directory(

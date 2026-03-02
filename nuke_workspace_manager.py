@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Local application imports
+from config import Config
 from error_handling_mixin import ErrorHandlingMixin
 from logging_mixin import LoggingMixin
 
@@ -59,7 +60,7 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
 
         """
         if user is None:
-            user = os.environ.get("USER", "gabriel-h")
+            user = os.environ.get("USER", Config.DEFAULT_USERNAME)
 
         # Build the path: {workspace}/user/{user}/mm/nuke/scripts/{plate}/scene/{pass}/
         script_dir = (

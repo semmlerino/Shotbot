@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 
 # Local application imports
+from config import Config
 from file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
 from path_builders import PathBuilders
@@ -197,7 +198,7 @@ class PlateDiscovery:
 
         # Get user from environment if not provided
         if user is None:
-            user = os.environ.get("USER", "gabriel-h")
+            user = os.environ.get("USER", Config.DEFAULT_USERNAME)
 
         # Build path: {workspace}/user/{user}/mm/nuke/scripts/mm-default/scene/{plate_name}/
         script_dir = (

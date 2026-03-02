@@ -16,7 +16,6 @@ Thread Safety:
 from __future__ import annotations
 
 # Standard library imports
-import os
 from typing import TYPE_CHECKING, final
 
 # Third-party imports
@@ -50,12 +49,7 @@ from type_definitions import RefreshResult, Shot
 # Re-export Shot for backward compatibility with existing imports
 __all__ = ["AsyncShotLoader", "Shot", "ShotModel", "create_optimized_shot_model"]
 
-# Enable verbose debug logging if environment variable is set
-DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
-    "1",
-    "true",
-    "yes",
-)
+from debug_utils import DEBUG_VERBOSE
 
 
 @final

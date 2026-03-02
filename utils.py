@@ -982,8 +982,8 @@ class ValidationUtils:
         """
         # In mock mode, always use gabriel-h to match the production data
         if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
-            logger.debug("Mock mode: using production username 'gabriel-h'")
-            return "gabriel-h"
+            logger.debug(f"Mock mode: using production username '{Config.DEFAULT_USERNAME}'")
+            return Config.DEFAULT_USERNAME
 
         # Try multiple environment variables in order of preference
         for env_var in ["USER", "USERNAME", "LOGNAME"]:
