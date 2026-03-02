@@ -183,10 +183,8 @@ class InjectableProcessPoolManager(ProcessPoolManager):
             # Check cache first (same as parent)
             cached = self._cache.get(command)
             if cached is not None:
-                self._metrics.cache_hits += 1
                 return cached
 
-            self._metrics.cache_misses += 1
             self._metrics.subprocess_calls += 1
 
             # Execute with test session
@@ -204,7 +202,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         # Use parent implementation with secure executor
         return super().execute_workspace_command(command, cache_ttl, timeout)
 
-    def _execute_with_session_pool(
+    def _execute_subprocess(
         self,
         command: str,
         timeout: float | None = None,
@@ -230,7 +228,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 
             return result
         # Use parent implementation
-        return super()._execute_with_session_pool(command, timeout)
+        return super()._execute_subprocess(command, timeout)
 
     def _get_bash_session(self, session_type: str):
         """Override to return injected test session when available."""
@@ -331,7 +329,6 @@ class TestProcessMetricsBehavior:
         # Perform operations that should be tracked
         metrics.subprocess_calls += 1
         metrics.subprocess_calls += 1
-        metrics.cache_hits += 3
         metrics.python_operations += 5
 
         # Record response times
@@ -353,7 +350,6 @@ class TestProcessMetricsBehavior:
         # Generate some metrics in first instance
         metrics = ProcessMetrics()
         metrics.subprocess_calls = 10
-        metrics.cache_hits = 20
         metrics.update_response_time(500)
 
         # Create fresh instance (since ProcessMetrics has no reset method)
@@ -361,7 +357,6 @@ class TestProcessMetricsBehavior:
 
         # Test BEHAVIOR: New instance starts with clean state
         assert metrics.subprocess_calls == 0
-        assert metrics.cache_hits == 0
         assert metrics.response_count == 0
 
 
@@ -799,7 +794,6 @@ class TestMetricsUnderLoad:
 
         # Test BEHAVIOR: Metrics reflect all operations
         assert metrics["subprocess_calls"] == 50
-        assert metrics["cache_misses"] == 50  # No cache hits (unique commands)
 
         manager.shutdown()
 

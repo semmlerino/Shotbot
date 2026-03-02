@@ -584,6 +584,27 @@ class CacheManager(LoggingMixin, QObject):
             self.logger.exception("Failed to process thumbnail")
             return None
 
+    def _pil_to_thumbnail(self, source: Path, output: Path) -> None:
+        """Resize source image to JPEG thumbnail at output path.
+
+        Uses atomic temp-file-then-rename pattern for crash safety.
+
+        Args:
+            source: Source image path
+            output: Output thumbnail path
+
+        """
+        temp_path = output.with_suffix(".tmp")
+        try:
+            with Image.open(source) as img:
+                img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
+                img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
+            _ = temp_path.replace(output)
+        except Exception:
+            with contextlib.suppress(OSError):
+                temp_path.unlink(missing_ok=True)
+            raise
+
     def _process_standard_thumbnail(self, source: Path, output: Path) -> Path:
         """Process standard image formats to thumbnail.
 
@@ -598,19 +619,11 @@ class CacheManager(LoggingMixin, QObject):
             Path to created thumbnail
 
         """
-        temp_path = output.with_suffix(".tmp")
         try:
-            with Image.open(source) as img:
-                img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
-                img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
-            # Atomic rename to final path
-            _ = temp_path.replace(output)
+            self._pil_to_thumbnail(source, output)
             self.logger.debug(f"Created thumbnail: {output}")
             return output
         except Exception as e:
-            # Clean up temp file before attempting fallback
-            with contextlib.suppress(OSError):
-                temp_path.unlink(missing_ok=True)
             self.logger.debug(f"PIL thumbnail processing failed: {e}")
 
             # Try MOV fallback if PIL can't read the image (e.g., EXR files)
@@ -659,12 +672,7 @@ class CacheManager(LoggingMixin, QObject):
 
             # Process the extracted JPEG frame
             try:
-                temp_path = output.with_suffix(".tmp")
-                with Image.open(extracted_frame) as img:
-                    img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
-                    img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
-                # Atomic rename to final path
-                _ = temp_path.replace(output)
+                self._pil_to_thumbnail(extracted_frame, output)
                 self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
                 return output
             except Exception as fallback_error:
@@ -1491,6 +1499,15 @@ class CacheManager(LoggingMixin, QObject):
     # Internal Helper Methods
     # ========================================================================
 
+    def _is_valid_dict_list(self, data: list[JSONValue], cache_file: Path) -> bool:
+        """Return True if data is empty or all elements are dicts."""
+        if data and not all(isinstance(item, dict) for item in data):
+            self.logger.warning(
+                f"Invalid cache format: expected list of dicts in {cache_file}"
+            )
+            return False
+        return True
+
     def _read_json_cache(
         self, cache_file: Path, check_ttl: bool = True
     ) -> list[ShotDict | ThreeDESceneDict] | None:
@@ -1525,21 +1542,17 @@ class CacheManager(LoggingMixin, QObject):
             if isinstance(raw_data, list):
                 # Direct list format - validate ALL elements are dicts (not just first)
                 # Uses generator for early exit on first non-dict
-                if raw_data and not all(isinstance(item, dict) for item in raw_data):
-                    self.logger.warning(
-                        f"Invalid cache format: expected list of dicts in {cache_file}"
-                    )
+                if not self._is_valid_dict_list(raw_data, cache_file):
                     return None
                 return cast("list[ShotDict | ThreeDESceneDict]", raw_data)
 
             if isinstance(raw_data, dict):
                 # Handle wrapped format: {"data": [...], "cached_at": "..."}
                 # Try nested keys: data.data, data.shots, data.scenes
-                result: JSONValue = raw_data.get("data")
-                if result is None:
-                    result = raw_data.get("shots")
-                if result is None:
-                    result = raw_data.get("scenes")
+                result: JSONValue = next(
+                    (raw_data[k] for k in ("data", "shots", "scenes") if k in raw_data),
+                    None,
+                )
 
                 if result is None:
                     self.logger.warning(
@@ -1549,10 +1562,7 @@ class CacheManager(LoggingMixin, QObject):
                     return None
 
                 if isinstance(result, list):
-                    if result and not all(isinstance(item, dict) for item in result):
-                        self.logger.warning(
-                            f"Invalid cache format: expected list of dicts in {cache_file}"
-                        )
+                    if not self._is_valid_dict_list(result, cache_file):
                         return None
                     return cast("list[ShotDict | ThreeDESceneDict]", result)
                 return None

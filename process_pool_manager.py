@@ -460,6 +460,13 @@ class ProcessPoolManager(LoggingMixin, QObject):
             cls._instance = cls()
         return cls._instance
 
+    def _check_not_shutdown(self) -> None:
+        """Raise RuntimeError if shutdown has been requested."""
+        with QMutexLocker(self._mutex):
+            if self._shutdown_requested:
+                msg = "ProcessPoolManager has been shut down"
+                raise RuntimeError(msg)
+
     def execute_workspace_command(
         self,
         command: str,
@@ -490,15 +497,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """
         # Check shutdown flag before executing
         # Without this check, commands submitted after shutdown() cause RuntimeError
-        with QMutexLocker(self._mutex):
-            if self._shutdown_requested:
-                msg = (
-                    "ProcessPoolManager has been shut down. "
-                    "Cannot execute new workspace commands."
-                )
-                raise RuntimeError(
-                    msg
-                )
+        self._check_not_shutdown()
 
         # CRITICAL: Prevent UI freezes - this method blocks for up to 120 seconds
         # Must only be called from background threads
@@ -522,10 +521,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # Check cache first
         cached = self._cache.get(command)
         if cached is not None:
-            self._metrics.cache_hits += 1
             return cached
 
-        self._metrics.cache_misses += 1
         self._metrics.subprocess_calls += 1
 
         # Execute command using subprocess
@@ -596,7 +593,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
     ) -> dict[str, str | None]:
         """Execute multiple commands in parallel using session pool.
 
-        Leverages multiple sessions for true parallel execution.
+        Leverages thread pool for parallel execution.
 
         Args:
             commands: List of commands to execute
@@ -612,15 +609,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # Keep the public signature aligned with the protocol and mock implementation.
         _ = session_type
         # CRITICAL BUG FIX #32: Check shutdown flag before executing batch commands
-        with QMutexLocker(self._mutex):
-            if self._shutdown_requested:
-                msg = (
-                    "ProcessPoolManager has been shut down. "
-                    "Cannot execute batch commands."
-                )
-                raise RuntimeError(
-                    msg
-                )
+        self._check_not_shutdown()
 
         # Use default timeout if not specified
         if timeout is None:
@@ -634,11 +623,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
             cached = self._cache.get(cmd)
             if cached is not None:
                 results[cmd] = cached
-                self._metrics.cache_hits += 1
                 self.logger.debug(f"Batch: cache hit for {cmd[:50]}...")
             else:
                 commands_to_execute.append(cmd)
-                self._metrics.cache_misses += 1
 
         if not commands_to_execute:
             return results  # All results were cached
@@ -647,7 +634,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         futures: dict[concurrent.futures.Future[str], str] = {}
         for cmd in commands_to_execute:
             future = self._executor.submit(
-                self._execute_with_session_pool,
+                self._execute_subprocess,
                 cmd,
                 timeout,
             )
@@ -672,12 +659,12 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         return results
 
-    def _execute_with_session_pool(
+    def _execute_subprocess(
         self,
         command: str,
         timeout: float | None = None,
     ) -> str:
-        """Execute command using session pool for true parallelism.
+        """Execute command via subprocess.
 
         This method is designed to be called in parallel threads.
 
@@ -762,6 +749,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         """
         metrics = self._metrics.get_report()
+        cache_stats = self._cache.get_stats()
 
         # Build proper PerformanceMetricsDict structure
         # Use defaults for any missing required fields
@@ -770,13 +758,13 @@ class ProcessPoolManager(LoggingMixin, QObject):
             "total_shots": int(metrics.get("total_shots", 0)),
             "total_refreshes": int(metrics.get("total_refreshes", 0)),
             "last_refresh_time": float(metrics.get("last_refresh_time", 0.0)),
-            "cache_hits": int(metrics.get("cache_hits", 0)),
-            "cache_misses": int(metrics.get("cache_misses", 0)),
-            "cache_hit_rate": float(metrics.get("cache_hit_rate", 0.0)),
+            "cache_hits": cache_stats["hits"],
+            "cache_misses": cache_stats["misses"],
+            "cache_hit_rate": cache_stats["hit_rate"],
             # cache_hit_count/cache_miss_count mirror cache_hits/cache_misses at this
             # level — ProcessPoolManager does not maintain separate session counters.
-            "cache_hit_count": int(metrics.get("cache_hits", 0)),
-            "cache_miss_count": int(metrics.get("cache_misses", 0)),
+            "cache_hit_count": cache_stats["hits"],
+            "cache_miss_count": cache_stats["misses"],
             # loading_in_progress and session_warmed are OptimizedShotModel-level
             # state not tracked by ProcessPoolManager; always False/False here.
             "loading_in_progress": False,
@@ -937,21 +925,12 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
 @final
 class ProcessMetrics:
-    """Track process optimization metrics.
-
-    Warning: ProcessMetrics tracks cache_hits and cache_misses independently of
-    CommandCache._hits/_misses. Both are updated on every cache access in
-    ProcessPoolManager, so they should agree — but they can diverge if one is
-    reset (e.g., via CommandCache.invalidate()) without resetting the other, or
-    if a subclass overrides only one tracking site. See also CommandCache.
-    """
+    """Track process optimization metrics."""
 
     def __init__(self) -> None:
         """Initialize process metrics tracking."""
         super().__init__()
         self.subprocess_calls = 0
-        self.cache_hits = 0
-        self.cache_misses = 0
         self.python_operations = 0
         self.total_response_time = 0.0
         self.response_count = 0
@@ -982,14 +961,6 @@ class ProcessMetrics:
 
         uptime = time.time() - self.start_time
 
-        # Calculate cache hit rate
-        total_cache_requests = self.cache_hits + self.cache_misses
-        cache_hit_rate = (
-            (self.cache_hits / total_cache_requests * 100)
-            if total_cache_requests > 0
-            else 0.0
-        )
-
         return {
             "subprocess_calls": self.subprocess_calls,
             "python_operations": self.python_operations,
@@ -998,9 +969,6 @@ class ProcessMetrics:
             "calls_per_minute": (self.subprocess_calls / uptime * 60)
             if uptime > 0
             else 0,
-            "cache_hits": self.cache_hits,
-            "cache_misses": self.cache_misses,
-            "cache_hit_rate": cache_hit_rate,
         }
 
 

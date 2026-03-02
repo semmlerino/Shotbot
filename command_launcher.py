@@ -321,6 +321,35 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             f"{base_command} -file {file_path} -c {shlex.quote(mel_bootstrap)}"
         )
 
+    def _apply_file_result(
+        self,
+        app_name: str,
+        command: str,
+        file_result: Path | None,
+        wanted: bool,
+    ) -> str | None:
+        """Apply a scene file search result to the launch command.
+
+        Args:
+            app_name: Application name ("3de" or "maya")
+            command: Current command string
+            file_result: Path found by search, or None
+            wanted: Whether the user requested this file type
+
+        Returns:
+            Updated command string, or None if _append_scene_to_command failed.
+
+        """
+        if file_result:
+            return self._append_scene_to_command(app_name, command, file_result)
+        if wanted:
+            label = "3DE" if app_name == "3de" else "Maya"
+            self.command_executed.emit(
+                self.timestamp,
+                f"Info: No {label} scene files found in workspace",
+            )
+        return command
+
     def _append_scene_to_command(
         self, app_name: str, command: str, scene_path: Path
     ) -> str | None:
@@ -595,9 +624,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         else:
             self.logger.warning("Async file search failed or was cancelled")
             # Clear pending state
-            self._pending_app_name = None
-            self._pending_context = None
-            self._pending_command = None
+            self._clear_pending_state()
 
     def _continue_launch_after_search(
         self,
@@ -626,36 +653,24 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         command = self._pending_command
 
         # Clear pending state
-        self._pending_app_name = None
-        self._pending_context = None
-        self._pending_command = None
+        self._clear_pending_state()
 
         if app_name is None or context is None or command is None:
             self.logger.error("Missing pending state after async search")
             return
 
         # Add scene path to command based on results
-        if app_name == "3de" and threede_result:
-            updated = self._append_scene_to_command(app_name, command, threede_result)
-            if updated is None:
+        if app_name == "3de":
+            result = self._apply_file_result("3de", command, threede_result, context.open_latest_threede)
+            if result is None:
                 return
-            command = updated
-        elif app_name == "3de" and context.open_latest_threede:
-            self.command_executed.emit(
-                self.timestamp,
-                "Info: No 3DE scene files found in workspace",
-            )
+            command = result
 
-        if app_name == "maya" and maya_result:
-            updated = self._append_scene_to_command(app_name, command, maya_result)
-            if updated is None:
+        if app_name == "maya":
+            result = self._apply_file_result("maya", command, maya_result, context.open_latest_maya)
+            if result is None:
                 return
-            command = updated
-        elif app_name == "maya" and context.open_latest_maya:
-            self.command_executed.emit(
-                self.timestamp,
-                "Info: No Maya scene files found in workspace",
-            )
+            command = result
 
         # Continue with the rest of launch_app flow (from ws command onwards)
         _ = self._finish_launch(app_name, command)
@@ -762,15 +777,19 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             full_command, app_name, error_context, has_rez_wrapper=should_wrap_rez
         )
 
+    def _clear_pending_state(self) -> None:
+        """Clear pending async launch state."""
+        self._pending_app_name = None
+        self._pending_context = None
+        self._pending_command = None
+
     def cancel_pending_search(self) -> None:
         """Cancel any pending async file search."""
         if self._pending_worker is not None:
             _ = self._pending_worker.request_stop()
             _ = self._pending_worker.safe_stop(timeout_ms=1000)
             self._pending_worker = None
-            self._pending_app_name = None
-            self._pending_context = None
-            self._pending_command = None
+            self._clear_pending_state()
             self.launch_ready.emit()  # Clear spinner
             self.logger.debug("Cancelled pending file search")
 
@@ -931,27 +950,17 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
             if cache_hit:
                 # Use cached result - add scene path to command
-                if app_name == "3de" and threede_cached:
-                    updated = self._append_scene_to_command(app_name, command, threede_cached)
-                    if updated is None:
+                if app_name == "3de":
+                    result = self._apply_file_result("3de", command, threede_cached, context.open_latest_threede)
+                    if result is None:
                         return LAUNCH_ERROR
-                    command = updated
-                elif app_name == "3de" and context.open_latest_threede:
-                    self.command_executed.emit(
-                        self.timestamp,
-                        "Info: No 3DE scene files found in workspace",
-                    )
+                    command = result
 
-                if app_name == "maya" and maya_cached:
-                    updated = self._append_scene_to_command(app_name, command, maya_cached)
-                    if updated is None:
+                if app_name == "maya":
+                    result = self._apply_file_result("maya", command, maya_cached, context.open_latest_maya)
+                    if result is None:
                         return LAUNCH_ERROR
-                    command = updated
-                elif app_name == "maya" and context.open_latest_maya:
-                    self.command_executed.emit(
-                        self.timestamp,
-                        "Info: No Maya scene files found in workspace",
-                    )
+                    command = result
             else:
                 # Cache miss - start async search and return
                 # Launch will continue when search completes
@@ -1002,8 +1011,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             self._emit_error("No shot selected")
             return False
 
-        if app_name not in Config.APPS:
-            self._emit_error(f"Unknown application: {app_name}")
+        if not self._validate_app_name(app_name):
             return False
 
         # Validate workspace before launching
@@ -1029,8 +1037,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             True if launch was successful, False otherwise
 
         """
-        if app_name not in Config.APPS:
-            self._emit_error(f"Unknown application: {app_name}")
+        if not self._validate_app_name(app_name):
             return False
 
         # Get the command
@@ -1082,8 +1089,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             True if launch was successful, False otherwise
 
         """
-        if app_name not in Config.APPS:
-            self._emit_error(f"Unknown application: {app_name}")
+        if not self._validate_app_name(app_name):
             return False
 
         # Get the command
@@ -1171,8 +1177,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             True if launch was successful, False otherwise
 
         """
-        if app_name not in Config.APPS:
-            self._emit_error(f"Unknown application: {app_name}")
+        if not self._validate_app_name(app_name):
             return False
 
         # Get the command
@@ -1194,6 +1199,13 @@ maya.cmds.evalDeferred(_shotbot_update_context)
     # Methods removed - now using launch components:
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
     # - _verify_spawn() → self.process_executor._verify_spawn(process, app_name)
+
+    def _validate_app_name(self, app_name: str) -> bool:
+        """Return True if app_name is valid, emit error and return False otherwise."""
+        if app_name not in Config.APPS:
+            self._emit_error(f"Unknown application: {app_name}")
+            return False
+        return True
 
     def _validate_workspace_before_launch(
         self, workspace_path: str, app_name: str
