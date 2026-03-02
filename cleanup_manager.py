@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
@@ -12,23 +12,48 @@ from PySide6.QtWidgets import QApplication
 from logging_mixin import LoggingMixin
 
 
+if TYPE_CHECKING:
+    from cache_manager import CacheManager
+    from command_launcher import CommandLauncher
+    from controllers.shot_selection_controller import ShotSelectionController
+    from controllers.threede_controller import ThreeDEController
+    from previous_shots_model import PreviousShotsModel
+    from shot_model import ShotModel
+
+
+class _SessionWarmerProtocol(Protocol):
+    """Structural protocol for session warmer thread.
+
+    SessionWarmer is defined inside main_window.py (not importable without
+    creating a circular dependency), so we capture only the methods that
+    CleanupManager actually calls.
+    """
+
+    def isFinished(self) -> bool: ...
+    def request_stop(self) -> None: ...
+    def wait(self, msecs: int = ...) -> bool: ...
+    def safe_terminate(self) -> None: ...
+    def is_zombie(self) -> bool: ...
+    def deleteLater(self) -> None: ...
+
+
 class CleanupTarget(Protocol):
     """Protocol defining the MainWindow interface needed by CleanupManager.
 
     This avoids circular imports while providing proper type safety.
-    Attributes are typed as Any because we cannot import MainWindow
-    without creating a circular dependency.
+    TYPE_CHECKING imports provide proper types without creating circular
+    import cycles at runtime.
     """
 
     closing: bool  # skylos: ignore
-    threede_controller: Any  # skylos: ignore
-    shot_selection_controller: Any  # skylos: ignore
-    session_warmer: Any  # skylos: ignore
-    cache_manager: Any  # skylos: ignore
-    shot_model: Any  # skylos: ignore
-    previous_shots_model: Any  # skylos: ignore
-    previous_shots_item_model: Any  # skylos: ignore
-    command_launcher: Any
+    threede_controller: ThreeDEController | None  # skylos: ignore
+    shot_selection_controller: ShotSelectionController | None  # skylos: ignore
+    session_warmer: QObject | None  # skylos: ignore
+    cache_manager: CacheManager  # skylos: ignore
+    shot_model: ShotModel  # skylos: ignore
+    previous_shots_model: PreviousShotsModel | None  # skylos: ignore
+    previous_shots_item_model: QObject | None  # skylos: ignore
+    command_launcher: CommandLauncher | None
 
 
 class CleanupManager(QObject, LoggingMixin):
@@ -84,19 +109,13 @@ class CleanupManager(QObject, LoggingMixin):
 
     def _cleanup_threede_controller(self) -> None:
         """Clean up the 3DE controller and its worker."""
-        if (
-            hasattr(self.main_window, "threede_controller")
-            and self.main_window.threede_controller
-        ):
+        if self.main_window.threede_controller:
             self.logger.debug("Cleaning up 3DE controller")
             self.main_window.threede_controller.cleanup_worker()
 
     def _cleanup_shot_selection_controller(self) -> None:
         """Clean up the shot selection controller and its discovery worker."""
-        if (
-            hasattr(self.main_window, "shot_selection_controller")
-            and self.main_window.shot_selection_controller
-        ):
+        if self.main_window.shot_selection_controller:
             self.logger.debug("Cleaning up shot selection controller")
             self.main_window.shot_selection_controller.cleanup()
 
@@ -105,7 +124,13 @@ class CleanupManager(QObject, LoggingMixin):
         if not self.main_window.session_warmer:
             return
 
-        warmer = self.main_window.session_warmer
+        # Cast to _SessionWarmerProtocol: session_warmer is typed as QObject | None
+        # in the protocol (SessionWarmer is defined inside main_window.py and cannot
+        # be imported here), but at runtime it's always a ThreadSafeWorker subclass
+        # that provides these methods.
+        from typing import cast
+
+        warmer = cast("_SessionWarmerProtocol", self.main_window.session_warmer)
 
         if not warmer.isFinished():
             self.logger.debug("Requesting session warmer to stop")
@@ -143,8 +168,7 @@ class CleanupManager(QObject, LoggingMixin):
         """Clean up manager instances."""
         # Log Nuke launcher usage statistics
         if (
-            hasattr(self.main_window, "command_launcher")
-            and self.main_window.command_launcher
+            self.main_window.command_launcher
             and hasattr(self.main_window.command_launcher, "nuke_handler")
             and hasattr(self.main_window.command_launcher.nuke_handler, "log_usage_stats")
         ):
@@ -153,37 +177,25 @@ class CleanupManager(QObject, LoggingMixin):
 
         # Cleanup command launcher
         if (
-            hasattr(self.main_window, "command_launcher")
-            and self.main_window.command_launcher
+            self.main_window.command_launcher
             and hasattr(self.main_window.command_launcher, "cleanup")
         ):
             self.logger.debug("Cleaning up command launcher")
             self.main_window.command_launcher.cleanup()
 
         # Shutdown cache manager
-        if (
-            hasattr(self.main_window, "cache_manager")
-            and self.main_window.cache_manager
-        ):
-            self.logger.debug("Shutting down cache manager")
-            self.main_window.cache_manager.shutdown()
+        self.logger.debug("Shutting down cache manager")
+        self.main_window.cache_manager.shutdown()
 
     def _cleanup_models(self) -> None:
         """Clean up model instances and their background workers."""
         # Clean up ShotModel background threads
-        if (
-            hasattr(self.main_window, "shot_model")
-            and self.main_window.shot_model
-            and hasattr(self.main_window.shot_model, "cleanup")
-        ):
+        if hasattr(self.main_window.shot_model, "cleanup"):
             self.logger.debug("Cleaning up ShotModel background threads")
             self.main_window.shot_model.cleanup()
 
         # Clean up previous shots model (stops auto-refresh timer and worker)
-        if (
-            hasattr(self.main_window, "previous_shots_model")
-            and self.main_window.previous_shots_model
-        ):
+        if self.main_window.previous_shots_model:
             self.logger.debug("Cleaning up PreviousShotsModel")
             try:
                 self.main_window.previous_shots_model.cleanup()
@@ -191,14 +203,12 @@ class CleanupManager(QObject, LoggingMixin):
                 self.logger.exception("Error cleaning up PreviousShotsModel")
 
         # Also clean up the item model if it exists
-        if (
-            hasattr(self.main_window, "previous_shots_item_model")
-            and self.main_window.previous_shots_item_model
-        ):
+        if self.main_window.previous_shots_item_model:
             self.logger.debug("Cleaning up PreviousShotsItemModel")
             try:
-                if hasattr(self.main_window.previous_shots_item_model, "cleanup"):
-                    self.main_window.previous_shots_item_model.cleanup()
+                cleanup = getattr(self.main_window.previous_shots_item_model, "cleanup", None)
+                if callable(cleanup):
+                    _ = cleanup()
             except Exception:
                 self.logger.exception("Error cleaning up PreviousShotsItemModel")
 

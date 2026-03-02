@@ -295,8 +295,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.file_pin_manager = FilePinManager(self.cache_manager, parent=self)
 
         # Initialize cleanup and refresh managers (extracted from MainWindow)
-        # MainWindow implements protocol interfaces functionally at runtime
-        # QMainWindow signatures use position-only params which differ from Protocol
+        # pyright: ignore[reportArgumentType] on these lines: QMainWindow is not a structural
+        # subtype of the Protocol classes (CleanupTarget, RefreshOrchestratorMainWindowProtocol)
+        # because pyright requires invariance for mutable Protocol attributes — e.g.
+        # MainWindow.threede_controller is typed ThreeDEController (not ThreeDEController | None).
+        # At runtime MainWindow satisfies all protocol requirements; the suppression is needed
+        # only because of pyright's strict invariance check on Protocol attribute assignability.
         self.cleanup_manager = CleanupManager(self)  # pyright: ignore[reportArgumentType]
         self.refresh_orchestrator = RefreshOrchestrator(self)  # pyright: ignore[reportArgumentType]
 

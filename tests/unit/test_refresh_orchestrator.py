@@ -40,6 +40,7 @@ def mock_main_window() -> Mock:
     main_window.shot_model.refresh_shots = Mock(return_value=(True, True))
     main_window.shot_model.shots = []
     main_window.shot_model.find_shot_by_name = Mock(return_value=None)
+    main_window.shot_model.get_available_shows = Mock(return_value=set())
 
     # Shot item model
     main_window.shot_item_model = Mock()

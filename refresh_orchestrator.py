@@ -5,9 +5,10 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from PySide6.QtCore import QObject
+from PySide6.QtWidgets import QTabWidget
 
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
@@ -16,23 +17,26 @@ from progress_manager import ProgressConfig, ProgressManager, ProgressType
 
 if TYPE_CHECKING:
     from controllers.threede_controller import ThreeDEController
-    from shot_model import Shot
+    from previous_shots_model import PreviousShotsModel
+    from shot_grid_view import ShotGridView
+    from shot_item_model import ShotItemModel
+    from shot_model import Shot, ShotModel
 
 
 class RefreshOrchestratorMainWindowProtocol(Protocol):
     """Protocol defining the MainWindow interface needed by RefreshOrchestrator.
 
     This avoids circular imports while providing proper type safety.
-    Attributes are typed as Any because we cannot import MainWindow
-    without creating a circular dependency.
+    TYPE_CHECKING imports provide proper types without creating circular
+    import cycles at runtime.
     """
 
-    tab_widget: Any
-    shot_model: Any
+    tab_widget: QTabWidget
+    shot_model: ShotModel
     threede_controller: ThreeDEController
-    previous_shots_model: Any
-    shot_item_model: Any
-    shot_grid: Any
+    previous_shots_model: PreviousShotsModel
+    shot_item_model: ShotItemModel
+    shot_grid: ShotGridView
     last_selected_shot_name: str | None
 
     def update_status(self, message: str) -> None:
@@ -113,7 +117,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         # ShotModel.refresh_shots() returns immediately; async loader continues.
         # refresh_finished will be emitted by handle_refresh_finished() when
         # ShotModel emits its refresh_finished signal after async completes.
-        self.main_window.shot_model.refresh_shots(force_fresh=True)
+        _ = self.main_window.shot_model.refresh_shots(force_fresh=True)
 
     def _refresh_threede(self) -> None:
         """Refresh Other 3DE scenes."""
@@ -121,7 +125,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
     def _refresh_previous(self) -> None:
         """Refresh Previous Shots."""
-        self.main_window.previous_shots_model.refresh_shots()
+        _ = self.main_window.previous_shots_model.refresh_shots()
 
     def handle_shots_loaded(self, shots: list[Shot]) -> None:
         """Handle shots loaded signal from model.
@@ -211,7 +215,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
             self.logger.info(
                 f"Triggering previous shots refresh after loading {len(shots)} active shots"
             )
-            self.main_window.previous_shots_model.refresh_shots()
+            _ = self.main_window.previous_shots_model.refresh_shots()
         else:
             self.logger.debug("No active shots loaded, skipping previous shots refresh")
 
@@ -232,8 +236,13 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         self.main_window.shot_item_model.set_shots(
             self.main_window.shot_model.shots
         )
-        # Populate show filter with available shows
-        self.main_window.shot_grid.populate_show_filter(self.main_window.shot_model)
+        # Populate show filter with available shows.
+        # Pass shows as a sorted list — ShotModel.get_available_shows() returns set[str]
+        # which doesn't satisfy the HasAvailableShows protocol (requires list[str]),
+        # so we convert here explicitly.
+        self.main_window.shot_grid.populate_show_filter(
+            sorted(self.main_window.shot_model.get_available_shows())
+        )
 
     def _update_status(self, message: str) -> None:
         """Update the status bar with a message.

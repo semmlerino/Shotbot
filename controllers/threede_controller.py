@@ -31,9 +31,6 @@ from PySide6.QtCore import (
 
 
 if TYPE_CHECKING:
-    # Third-party imports
-    from PySide6.QtWidgets import QStatusBar
-
     # Local application imports
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
@@ -68,7 +65,6 @@ class ThreeDETarget(Protocol):
     # Widget references needed for 3DE operations
     threede_shot_grid: ThreeDEGridView  # skylos: ignore
     right_panel: RightPanelWidget  # skylos: ignore
-    status_bar: QStatusBar  # skylos: ignore
 
     # Model references for data access
     shot_model: ShotModel  # skylos: ignore
@@ -80,7 +76,6 @@ class ThreeDETarget(Protocol):
     # Required methods
     def setWindowTitle(self, title: str) -> None: ...
     def update_status(self, message: str) -> None: ...
-    def launch_app(self, app_name: str) -> None: ...
 
     # Signals (Signal is a Qt descriptor; pyright can't resolve its methods)
     closing_started: Signal  # pyright: ignore[reportAny]  # skylos: ignore
