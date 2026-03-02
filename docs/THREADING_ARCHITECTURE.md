@@ -14,8 +14,8 @@ Shotbot uses three mechanisms:
 ## Core Components
 
 - `ThreadSafeWorker`: lifecycle/state machine, safe signal connection helpers, stop/terminate safety.
+  - Subclasses: `AsyncShotLoader`, `ThreeDESceneWorker`, `LatestFileFinderWorker`, `PreviousShotsWorker`, `SessionWarmer`.
 - `ThreeDEController`: owns `ThreeDESceneWorker` lifecycle.
-- `AsyncShotLoader`: background shot loading worker.
 - `ProcessPoolManager`: singleton executor for subprocess-heavy operations.
 - `SceneDiscoveryCoordinator`: parallel filesystem scanning orchestration.
 
@@ -39,6 +39,10 @@ Shotbot uses three mechanisms:
 - Use `QThread` when you need lifecycle control (`start/stop/pause`) and Qt signal integration.
 - Use `ThreadPoolExecutor` for blocking subprocess and filesystem tasks without Qt object access.
 - Use `QRunnable` for short tasks that benefit from pooled execution.
+
+## QRunnable Tracking
+
+`TrackedQRunnable` (`runnable_tracker.py`) is the base class for QRunnable tasks dispatched to `QThreadPool.globalInstance()`. The companion `RunnableTracker` singleton tracks active runnables, enabling graceful shutdown and leak detection in tests.
 
 ## Testing Expectations
 

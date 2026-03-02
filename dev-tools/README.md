@@ -33,7 +33,7 @@ Run from the project root directory:
 
 ```bash
 cd /path/to/shotbot
-python dev-tools/script_name.py
+uv run python dev-tools/script_name.py
 ```
 
 ## Note

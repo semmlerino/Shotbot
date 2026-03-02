@@ -40,8 +40,8 @@ Testing policy:
 1. Qt widget constructors must accept `parent: QWidget | None = None` and call `super().__init__(parent)`.
 2. Use serial `uv run pytest tests/` as the default test run; use parallel only as a secondary validation pass.
 3. Use `--dist=loadgroup` for whole-suite parallel test runs.
-4. New singletons should use `SingletonMixin` and be registered in `tests/fixtures/singleton_registry.py`.
-5. Use `process_qt_events()` for Qt event flushing in tests (not tiny real-time waits).
+4. New singletons should use `SingletonMixin` and be registered in `tests/fixtures/singleton_registry.py` (existing singletons like `ProcessPoolManager` use compatible custom patterns).
+5. Use `process_qt_events()` (from `tests.test_helpers`) for Qt event flushing in tests (not tiny real-time waits).
 6. Qt widgets added to `qtbot` should not also be manually `deleteLater()`'d in test teardown; close/hide them and let `qtbot` own destruction.
 7. UI integration tests should prefer controller/orchestrator delegation assertions over re-running deeper refresh or launch internals that already have dedicated coverage.
 8. `except Exception` that does not re-raise **must** call `logger.exception()` or `logger.error(..., exc_info=True)`. Silent swallowing hides production bugs.

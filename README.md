@@ -51,11 +51,11 @@ uv run ruff format .
 # type checking
 uv run basedpyright
 
-# primary test suite (serial, primary CI gate)
+# primary test suite (single worker via xdist, primary CI gate)
 uv run pytest tests/
 
 # parallel isolation check (secondary CI gate)
-uv run pytest tests/ -n auto --dist=loadgroup
+uv run pytest tests/ -n auto
 
 # dead code detection (generate trace first, then analyze)
 uv run python scripts/generate_skylos_trace.py
@@ -72,15 +72,9 @@ For full testing policy and troubleshooting, see `UNIFIED_TESTING_V2.md`.
 
 ## Documentation
 
-- `docs/README.md` - Active docs index
-- `docs/THREADING_ARCHITECTURE.md` - Threading model and guardrails
-- `docs/SIGNAL_ROUTING.md` - MainWindow signal-routing invariants
-- `docs/CACHING_ARCHITECTURE.md` - Cache behavior and lifecycle
-- `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md` - Launcher and BlueBolt shell behavior
-- `docs/DEPLOYMENT_SYSTEM.md` - Bundle/deploy workflow and recovery
-- `segfault.md` - Crash triage playbook
+See `docs/README.md` for the full documentation index.
 
 ## Configuration Notes
 
-- User settings persist via Qt `QSettings` (`~/.config/ShotBot/ShotBot.conf` on Linux).
+- User settings persist via Qt `QSettings` (`~/.config/VFX/ShotBot.conf` on Linux).
 - App launch mappings are configured in `config.py`.

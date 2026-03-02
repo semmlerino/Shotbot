@@ -97,7 +97,7 @@ def test_quiet_operation(expect_no_dialogs):
 
 **Subprocess calls fail by default** — `ProcessPoolManager` is a singleton; without global mocking, multiple xdist workers running real `ws -sg` commands crash at the C level and contend for singleton state.
 
-`subprocess_mocking.py` is `autouse=True`. It replaces `ProcessPoolManager` with `TestProcessPool` and patches `subprocess.Popen` and `subprocess.run` globally for every test.
+`subprocess_mocking.py` is `autouse=True`. It replaces `ProcessPoolManager` with `TestProcessPool` (defined in `process_doubles.py`) and patches `subprocess.Popen` and `subprocess.run` globally for every test.
 
 **Controllable mock** — use `subprocess_mock` fixture for error paths:
 
@@ -149,11 +149,11 @@ If tests pass serially but crash in parallel, assume test hygiene first (danglin
 All singletons support `ClassName.reset()` for test isolation. Centralized in `tests/fixtures/singleton_registry.py`.
 
 - **SingletonMixin** (preferred for new code): Inherit, implement `_initialize()`, optionally override `_cleanup_instance()`. Register in `singleton_registry.py`.
-- **Legacy pattern**: `ProcessPoolManager`, `NotificationManager`, `ProgressManager` each have a compatible `reset()` method.
+- **Custom singleton pattern** (compatible with `SingletonMixin` reset flow): `ProcessPoolManager`, `NotificationManager`, `ProgressManager` each have a compatible `reset()` method.
 
 Isolation is split by cost:
 - `reset_caches` (autouse, all tests): Clears caches, disables caching, resets `Config.SHOWS_ROOT`
-- `cleanup_state_heavy` (auto-applied to Qt tests only): Resets Qt-dependent singletons — skipped for pure logic tests to avoid 0.5s+ overhead per test
+- `reset_singletons` (auto-applied to Qt tests only): Resets Qt-dependent singletons — skipped for pure logic tests to avoid 0.5s+ overhead per test. `cleanup_state_heavy` is a backward-compatible alias.
 
 ---
 

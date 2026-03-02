@@ -9,13 +9,18 @@ If any route below is removed or changed, core behavior breaks.
 
 | Route | Required behavior |
 |-------|-------------------|
-| `shot_model.shots_loaded` -> MainWindow refresh path | Initial data display and downstream previous-shots refresh |
-| `shot_model.shots_changed` -> MainWindow refresh path | UI update after background refresh delta |
+| `shot_model.shots_loaded` → `refresh_orchestrator.handle_shots_loaded` | Initial data display and downstream previous-shots refresh |
+| `shot_model.shots_changed` → `refresh_orchestrator.handle_shots_changed` | UI update after background refresh delta |
 | `cache_manager.shots_migrated` -> MainWindow handler | Previous-shots tab stays in sync after migration |
 | `tab_widget.currentChanged` -> tab-change handler + accent handler | Tab data loading and tab-specific visual state |
 | `shot_grid.app_launch_requested` -> launcher | My Shots launches in shot context |
 | `threede_shot_grid.app_launch_requested` -> scene-aware launch path | 3DE launches with selected scene file |
 | `previous_shots_grid.app_launch_requested` -> launcher | Previous Shots launches correctly |
+
+> **Scope note:** This table lists the primary data-flow routes critical for core behavior.
+> MainWindow wires additional connections (error handling, cache events, launch lifecycle, sort sync)
+> that are covered by integration tests but not individually documented here.
+> Run `rg -n "\.connect\(" main_window.py` to discover the full set.
 
 ## Secondary Invariants
 
@@ -30,6 +35,7 @@ These are not usually app-breaking, but regressions are user-visible:
 ## Ownership Boundaries
 
 - MainWindow owns top-level cross-component routing.
+- `RefreshOrchestrator` owns shot refresh handling (`shots_loaded`, `shots_changed`, `refresh_started`, `refresh_finished`).
 - `FilterCoordinator` owns show/text filter signals.
 - `ThumbnailSizeManager` owns size-slider synchronization.
 - `ThreeDEController` owns worker lifecycle and worker signal setup.

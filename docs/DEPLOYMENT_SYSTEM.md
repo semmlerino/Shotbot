@@ -2,7 +2,7 @@
 
 Shotbot deployment is bundle-based:
 
-`commit on master -> post-commit bundle -> push encoded-releases -> pull/decode on VFX server`
+`commit on main -> post-commit bundle -> push encoded-releases -> pull/decode on VFX server`
 
 ## Artifacts
 
@@ -66,7 +66,7 @@ Recovery:
 git fetch origin encoded-releases
 git checkout encoded-releases
 git reset --hard origin/encoded-releases
-git checkout master
+git checkout main
 ```
 
 ### Import Errors in Decoded Bundle
@@ -80,7 +80,7 @@ Typical causes:
 Minimal recovery loop:
 
 ```bash
-uv run python -c "from config import AppConfig; print('OK')"
+uv run python -c "from config import Config; print('OK')"
 uv run python bundle_app.py -c transfer_config.json
 python decode_app.py shotbot_latest.txt
 ```

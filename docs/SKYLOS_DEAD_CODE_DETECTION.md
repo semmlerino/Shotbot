@@ -132,6 +132,8 @@ names = [
 # some_protocol_field: SomeType  # skylos: ignore
 ```
 
+> **Note:** This example is abridged. See `pyproject.toml` `[tool.skylos.whitelist]` for the full whitelist.
+
 ### Whitelist rationale
 
 Use whitelists for patterns you have already reviewed and found to be consistent false positives. Common candidates are:

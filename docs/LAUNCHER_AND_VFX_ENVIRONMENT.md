@@ -6,6 +6,9 @@ This document defines launcher behavior assumptions for the BlueBolt environment
 
 `CommandLauncher` is the production entrypoint for DCC launches with shot context.
 It coordinates workspace setup, environment handling, and app dispatch.
+Internally, it delegates to the `launch/` subpackage: `CommandBuilder`, `EnvironmentManager`, `ProcessExecutor`, and `ProcessVerifier`.
+
+Supported DCCs: `3de`, `maya`, `nuke`, `rv`, `publish`.
 
 ## Environment Assumptions
 
@@ -25,6 +28,8 @@ Why this matters:
 - `-l` preserves login-shell initialization behavior
 - command runs with established workspace variables
 
+When Rez wrapping is active (`has_rez_wrapper=True`), the outer shell uses `sh -c` for speed, wrapping an inner `bash -ilc` command that provides workspace context.
+
 ## Rez Mode
 
 `REZ_MODE` in `config.py` controls wrapping strategy:
@@ -34,6 +39,10 @@ Why this matters:
 - `FORCE`: always wrap with app-specific Rez packages
 
 For BlueBolt, `AUTO` is the intended mode.
+
+## Launch Verification
+
+`Config.LAUNCH_VERIFICATION_ENABLED` (default `True`) enables async verification that GUI app launches succeed. Controlled by `LAUNCH_VERIFICATION_TIMEOUT_SEC` (60s) and `LAUNCH_VERIFICATION_POLL_SEC` (0.5s).
 
 ## Debugging Checklist
 
@@ -45,10 +54,10 @@ echo "$REZ_USED"
 type ws
 
 # inspect workspace env after ws
-ws <show> <seq> <shot> && env | grep -E '^(SHOW|SEQUENCE|SHOT|WORKSPACE|REZ_)'
+ws <show>/<seq>/<shot> && env | grep -E '^(SHOW|SEQUENCE|SHOT|WORKSPACE|REZ_)'
 ```
 
 ## Integration Notes
 
 - `ProcessPoolManager` supports launcher workflows by handling subprocess-heavy paths.
-- Maya/SGTK context handling behavior is launcher-specific and should be validated in integration tests after refactors. For SGTK env var context and integration detail, see the `BLUEBOLT_VFX_ENVIRONMENT` Serena memory.
+- Maya/SGTK context handling behavior is launcher-specific and should be validated in integration tests after refactors. SGTK environment variables and integration details are managed by the launcher's environment configuration.
