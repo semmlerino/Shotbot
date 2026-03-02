@@ -205,8 +205,8 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             try:
                 files_by_type = self._file_finder.find_all_files(shot)
                 self.set_files(files_by_type)
-            except Exception as e:
-                self.logger.error(f"Error discovering files for {shot.full_name}: {e}")
+            except Exception:
+                self.logger.exception(f"Error discovering files for {shot.full_name}")
                 self._clear_files()
 
             # Discover sequences for RV section
@@ -288,8 +288,8 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
                 f"RV discovery complete: {len(playblasts)} playblast(s), {len(renders)} render(s)"
             )
 
-        except Exception as e:
-            self.logger.error(f"Error discovering sequences for RV: {e}", exc_info=True)
+        except Exception:
+            self.logger.exception("Error discovering sequences for RV")
 
     def _clear_rv_sequences(self) -> None:
         """Clear sequences from RV section."""

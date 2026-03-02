@@ -278,8 +278,8 @@ class FileSystemScanner(LoggingMixin):
                         )
                         continue
 
-        except (OSError, PermissionError) as e:
-            self.logger.warning(f"Permission denied accessing {user_dir}: {e}")
+        except (OSError, PermissionError):
+            self.logger.warning(f"Permission denied accessing {user_dir}", exc_info=True)
 
         return files
 
@@ -383,8 +383,8 @@ class FileSystemScanner(LoggingMixin):
                     user_dir, excluded_users
                 )
 
-        except Exception as e:
-            self.logger.warning(f"Error in progressive discovery: {e}")
+        except Exception:
+            self.logger.warning("Error in progressive discovery", exc_info=True)
             # Fallback to Python method
             self.logger.debug("Falling back to Python method due to error")
             files = self.find_3de_files_python_optimized(user_dir, excluded_users)
@@ -508,8 +508,8 @@ class FileSystemScanner(LoggingMixin):
 
             self.logger.info(f"Discovered {len(shots)} shots in show {show}")
 
-        except (OSError, PermissionError) as e:
-            self.logger.error(f"Error discovering shots in {show}: {e}")
+        except (OSError, PermissionError):
+            self.logger.exception(f"Error discovering shots in {show}")
 
         return shots
 
@@ -622,8 +622,8 @@ class FileSystemScanner(LoggingMixin):
                     # Yield empty batch with progress update
                     yield [], current_shot_idx, total_shots, status_msg
 
-            except Exception as e:
-                self.logger.warning(f"Error scanning shot {workspace_path}: {e}")
+            except Exception:
+                self.logger.warning(f"Error scanning shot {workspace_path}", exc_info=True)
                 # Yield empty batch to maintain progress
                 yield [], current_shot_idx, total_shots, f"Error: {status_msg}"
 
@@ -792,8 +792,8 @@ class FileSystemScanner(LoggingMixin):
                 if stderr:
                     self.logger.warning(f"stderr: {stderr}")
 
-        except (FileNotFoundError, OSError) as e:
-            self.logger.warning(f"Error running find command: {e}")
+        except (FileNotFoundError, OSError):
+            self.logger.warning("Error running find command", exc_info=True)
 
         return results
 
@@ -899,8 +899,8 @@ class FileSystemScanner(LoggingMixin):
                 f"Found {len(shots_with_published_mm)} shots with published matchmove"
             )
 
-        except Exception as e:
-            self.logger.warning(f"Error finding publish/mm directories: {e}")
+        except Exception:
+            self.logger.warning("Error finding publish/mm directories", exc_info=True)
 
         return shots_with_published_mm
 
@@ -1049,8 +1049,8 @@ class FileSystemScanner(LoggingMixin):
                 )
                 return self._fallback_python_search(shots_dir, show_path, show, excluded_users)
 
-        except Exception as e:
-            self.logger.error(f"Error in optimized search: {e}")
+        except Exception:
+            self.logger.exception("Error in optimized search")
             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         elapsed = time.time() - start_time
@@ -1101,8 +1101,8 @@ class FileSystemScanner(LoggingMixin):
                     if parsed:
                         results.append(parsed)
 
-        except Exception as e:
-            self.logger.error(f"Error in Python fallback search: {e}")
+        except Exception:
+            self.logger.exception("Error in Python fallback search")
 
         elapsed = time.time() - start_time
         self.logger.info(f"Python search found {file_count} files in {elapsed:.2f}s")

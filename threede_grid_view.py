@@ -595,7 +595,7 @@ class ThreeDEGridView(BaseGridView):
             self.logger.error("RV not found. Please ensure RV is installed and in PATH.")
             notify_error("RV Not Found", "Could not launch RV. Check that RV is installed.")
         except Exception as e:
-            self.logger.error(f"Failed to open RV: {e}")
+            self.logger.exception("Failed to open RV")
             notify_error("RV Launch Failed", f"Failed to open RV: {e}")
 
     def _pin_scene(self, scene: ThreeDEScene) -> None:

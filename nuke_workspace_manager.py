@@ -79,8 +79,8 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
             try:
                 script_dir.mkdir(parents=True, exist_ok=True)
                 cls._get_logger().info(f"Created Nuke script directory: {script_dir}")
-            except (OSError, PermissionError) as e:
-                cls._get_logger().error(f"Failed to create Nuke script directory: {e}")
+            except (OSError, PermissionError):
+                cls._get_logger().exception("Failed to create Nuke script directory")
                 raise
 
         return script_dir
@@ -137,8 +137,8 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
                                 latest_file = file_path
                         except (ValueError, IndexError):
                             continue
-        except (OSError, PermissionError) as e:
-            cls._get_logger().error(f"Error scanning directory {directory}: {e}")
+        except (OSError, PermissionError):
+            cls._get_logger().exception(f"Error scanning directory {directory}")
             return None
 
         if latest_file:
@@ -228,8 +228,8 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
                             scripts.append((file_path, version))
                         except (ValueError, IndexError):
                             continue
-        except (OSError, PermissionError) as e:
-            cls._get_logger().error(f"Error listing Nuke scripts: {e}")
+        except (OSError, PermissionError):
+            cls._get_logger().exception("Error listing Nuke scripts")
             return []
 
         # Sort by version number

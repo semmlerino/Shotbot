@@ -132,7 +132,7 @@ class ShotDiscoveryWorker(QRunnable):
                 })
         except Exception as e:
             if not self._cancelled:
-                logger.error(f"Shot discovery failed: {e}")
+                logger.exception("Shot discovery failed")
                 self.signals.error.emit(str(e))
 
 
@@ -339,7 +339,7 @@ class ShotSelectionController(LoggingMixin):
         try:
             crash_files = recovery_manager.find_crash_files(workspace_path, recursive=True)
         except Exception as e:
-            self.logger.error(f"Error scanning for crash files: {e}")
+            self.logger.exception("Error scanning for crash files")
             # Local application imports
             from notification_manager import NotificationManager
             NotificationManager.error(
@@ -383,7 +383,7 @@ class ShotSelectionController(LoggingMixin):
                 )
 
             except Exception as e:
-                self.logger.error(f"Failed to recover crash file: {e}")
+                self.logger.exception("Failed to recover crash file")
                 # Show error result
                 result_dialog = ThreeDERecoveryResultDialog(
                     success=False,

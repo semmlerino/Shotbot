@@ -99,8 +99,8 @@ class PlateDiscovery:
                         logger.debug(
                             f"Found resolution: {d.name} ({total_pixels:,} pixels)"
                         )
-        except (OSError, PermissionError) as e:
-            logger.warning(f"Error scanning plate directory {plate_dir}: {e}")
+        except (OSError, PermissionError):
+            logger.warning(f"Error scanning plate directory {plate_dir}", exc_info=True)
             return None
 
         if not resolution_dirs:
@@ -208,8 +208,8 @@ class PlateDiscovery:
         try:
             script_dir.mkdir(parents=True, exist_ok=True)
             logger.debug(f"Workspace script directory: {script_dir}")
-        except (OSError, PermissionError) as e:
-            logger.error(f"Failed to create workspace script directory {script_dir}: {e}")
+        except (OSError, PermissionError):
+            logger.exception(f"Failed to create workspace script directory {script_dir}")
             return None
 
         return script_dir
@@ -254,8 +254,8 @@ class PlateDiscovery:
                             scripts.append((file_path, version))
                         except (ValueError, IndexError):
                             continue
-        except (OSError, PermissionError) as e:
-            logger.warning(f"Error scanning for scripts in {script_dir}: {e}")
+        except (OSError, PermissionError):
+            logger.warning(f"Error scanning for scripts in {script_dir}", exc_info=True)
             return []
 
         # Sort by version

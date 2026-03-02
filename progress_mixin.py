@@ -113,9 +113,9 @@ class ProgressReportingMixin(LoggingMixin):
 
         try:
             self._progress_callback(current, total, message)
-        except Exception as e:
+        except Exception:
             # Log error but don't disrupt the operation
-            self.logger.error(f"Error in progress callback: {e}", exc_info=True)
+            self.logger.exception("Error in progress callback")
             # Disable callback to prevent further errors
             self._progress_callback = None
 

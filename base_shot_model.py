@@ -118,9 +118,9 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                 self._cache_hits += 1
                 self.logger.info(f"Loaded {len(self.shots)} shots from cache")
                 return True
-            except (KeyError, TypeError, ValueError) as e:
+            except (KeyError, TypeError, ValueError):
                 # Handle corrupted cache data gracefully
-                self.logger.warning(f"Corrupted cache data, ignoring: {e}")
+                self.logger.warning("Corrupted cache data, ignoring", exc_info=True)
                 self.shots = []
                 self._cache_misses += 1
                 return False

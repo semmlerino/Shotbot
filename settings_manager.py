@@ -713,8 +713,8 @@ class SettingsManager(LoggingMixin, QObject):
             self.logger.info(f"Settings exported to: {file_path}")
             return True
 
-        except Exception as e:
-            self.logger.error(f"Failed to export settings: {e}")
+        except Exception:
+            self.logger.exception("Failed to export settings")
             # Clean up temp file on error
             if temp_fd is not None:
                 try:
@@ -757,8 +757,8 @@ class SettingsManager(LoggingMixin, QObject):
             self.logger.info(f"Settings imported from: {file_path}")
             return True
 
-        except Exception as e:
-            self.logger.error(f"Failed to import settings: {e}")
+        except Exception:
+            self.logger.exception("Failed to import settings")
             return False
 
     def reset_to_defaults(self) -> None:

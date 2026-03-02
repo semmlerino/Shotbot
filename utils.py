@@ -252,8 +252,8 @@ class VersionUtils:
                     if match:
                         version_num = int(match.group(1))
                         version_dirs.append((version_num, item.name))
-        except (OSError, PermissionError) as e:
-            logger.warning(f"Error scanning for version directories in {path_obj}: {e}")
+        except (OSError, PermissionError):
+            logger.warning(f"Error scanning for version directories in {path_obj}", exc_info=True)
             return []
 
         # Sort by version number
@@ -383,8 +383,8 @@ class VersionUtils:
                             max_version = max(max_version, version)
                         except (ValueError, IndexError):
                             continue
-        except (OSError, PermissionError) as e:
-            logger.warning(f"Error scanning directory {dir_path} for versions: {e}")
+        except (OSError, PermissionError):
+            logger.warning(f"Error scanning directory {dir_path} for versions", exc_info=True)
             return 1
 
         return max_version + 1
@@ -477,8 +477,8 @@ class FileUtils:
                     # Early termination if limit reached
                     if limit and len(matching_files) >= limit:
                         break
-        except (OSError, PermissionError) as e:
-            logger.warning(f"Error scanning directory {dir_path}: {e}")
+        except (OSError, PermissionError):
+            logger.warning(f"Error scanning directory {dir_path}", exc_info=True)
 
         return matching_files
 
@@ -550,8 +550,8 @@ class FileUtils:
                 return False
 
             return True
-        except OSError as e:
-            logger.warning(f"Error checking file size for {path_obj}: {e}")
+        except OSError:
+            logger.warning(f"Error checking file size for {path_obj}", exc_info=True)
             return False
 
 

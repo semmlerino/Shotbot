@@ -110,8 +110,8 @@ class ShotFileFinder(LoggingMixin):
                         continue
                     nuke_files.append(nuke_file)
 
-        except (OSError, PermissionError) as e:
-            self.logger.warning(f"Error scanning for Nuke files: {e}")
+        except (OSError, PermissionError):
+            self.logger.warning("Error scanning for Nuke files", exc_info=True)
             return []
 
         return self._paths_to_scene_files(nuke_files, FileType.NUKE)

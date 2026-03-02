@@ -90,8 +90,8 @@ if __name__ == "__main__":
 
     try:
         main()
-    except Exception as e:
-        logger.error(f"❌ Error running ShotBot: {e}")
+    except Exception:
+        logger.exception("❌ Error running ShotBot")
         # Standard library imports
         import traceback
 

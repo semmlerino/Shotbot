@@ -351,7 +351,7 @@ class ShotModel(BaseShotModel):
                 cached_dicts, fresh_dicts
             )
         except (KeyError, TypeError, ValueError) as e:
-            self.logger.warning(f"Cache corruption detected, using fresh data only: {e}")
+            self.logger.warning("Cache corruption detected, using fresh data only", exc_info=True)
             merge_result = ShotMergeResult(
                 updated_shots=[s.to_dict() for s in fresh_shots],
                 new_shots=[s.to_dict() for s in fresh_shots],
@@ -422,7 +422,7 @@ class ShotModel(BaseShotModel):
             new_shot_objects = [Shot.from_dict(d) for d in merge_result.updated_shots]
         except (KeyError, TypeError, ValueError) as e:
             # Corrupted merge result - use fresh data
-            self.logger.error(f"Merge result corrupted, using fresh data: {e}")
+            self.logger.exception("Merge result corrupted, using fresh data")
             new_shot_objects = fresh_shots
             merge_result = ShotMergeResult(
                 updated_shots=[s.to_dict() for s in fresh_shots],
@@ -453,8 +453,8 @@ class ShotModel(BaseShotModel):
             try:
                 self.cache_manager.cache_shots(self.shots)
                 self.cache_updated.emit()
-            except OSError as e:
-                self.logger.warning(f"Failed to cache shots: {e}")
+            except OSError:
+                self.logger.warning("Failed to cache shots", exc_info=True)
 
             # Choose the appropriate signal based on context:
             # - First load (0 → N): Use shots_loaded
@@ -553,8 +553,8 @@ class ShotModel(BaseShotModel):
             )
             self._session_warmed = True
             self.logger.info("Session pre-warming complete")
-        except Exception as e:
-            self.logger.warning(f"Session pre-warming failed: {e}")
+        except Exception:
+            self.logger.warning("Session pre-warming failed", exc_info=True)
 
     @override
     def get_performance_metrics(self) -> PerformanceMetricsDict:
@@ -701,7 +701,7 @@ class ShotModel(BaseShotModel):
                 new_shot_objects = [Shot.from_dict(d) for d in merge_result.updated_shots]
             except (KeyError, TypeError, ValueError) as e:
                 # Corrupted merge result - use fresh data
-                self.logger.error(f"Merge result corrupted, using fresh data: {e}")
+                self.logger.exception("Merge result corrupted, using fresh data")
                 new_shot_objects = fresh_shots
                 merge_result = ShotMergeResult(
                     updated_shots=[s.to_dict() for s in fresh_shots],
@@ -737,8 +737,8 @@ class ShotModel(BaseShotModel):
                     try:
                         self.cache_manager.cache_shots(self.shots)
                         self.cache_updated.emit()
-                    except OSError as e:
-                        self.logger.warning(f"Failed to cache shots: {e}")
+                    except OSError:
+                        self.logger.warning("Failed to cache shots", exc_info=True)
             else:
                 self.logger.info("Sync refresh: no changes detected")
 

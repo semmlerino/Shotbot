@@ -138,8 +138,8 @@ class SettingsController(LoggingMixin):
 
             self.logger.info("Settings loaded successfully")
 
-        except Exception as e:
-            self.logger.error(f"Error loading settings: {e}")
+        except Exception:
+            self.logger.exception("Error loading settings")
             # Fallback to default window size
             default_size = self.window.settings_manager.get_window_size()
             # get_window_size() returns QSize or tuple[int, int] per protocol
@@ -191,8 +191,8 @@ class SettingsController(LoggingMixin):
 
             self.logger.info("Settings saved successfully")
 
-        except Exception as e:
-            self.logger.error(f"Error saving settings: {e}")
+        except Exception:
+            self.logger.exception("Error saving settings")
 
     def apply_cache_settings(self) -> None:
         """Apply cache settings from settings manager."""
@@ -204,8 +204,8 @@ class SettingsController(LoggingMixin):
 
             self.logger.debug("Cache settings applied")
 
-        except Exception as e:
-            self.logger.error(f"Error applying cache settings: {e}")
+        except Exception:
+            self.logger.exception("Error applying cache settings")
 
     def show_preferences(self) -> None:
         """Show the preferences dialog."""

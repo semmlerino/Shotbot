@@ -323,8 +323,8 @@ class SceneCache(LoggingMixin):
             else:
                 self.logger.warning("Cache warming requires both sequence and shot")
 
-        except Exception as e:
-            self.logger.error(f"Error warming cache for {show}/{sequence}/{shot}: {e}")
+        except Exception:
+            self.logger.exception(f"Error warming cache for {show}/{sequence}/{shot}")
 
     def _evict_lru(self) -> None:
         """Evict least recently used entries when cache is full."""

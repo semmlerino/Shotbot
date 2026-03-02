@@ -200,8 +200,8 @@ class EnvironmentManager:
                 self.WS_AVAILABILITY_TIMEOUT_SEC,
             )
             self._ws_available_cache = True
-        except OSError as e:
-            logger.warning(f"Failed to check ws availability: {e}")
+        except OSError:
+            logger.warning("Failed to check ws availability", exc_info=True)
             # Fall back to shutil.which (better than nothing)
             self._ws_available_cache = shutil.which("ws") is not None
 
@@ -309,8 +309,8 @@ class EnvironmentManager:
                 _ = self.is_ws_available()
                 _ = self.detect_terminal()
                 logger.debug("Environment caches pre-warmed successfully")
-            except Exception as e:
-                logger.warning(f"Error during cache pre-warming: {e}")
+            except Exception:
+                logger.warning("Error during cache pre-warming", exc_info=True)
             finally:
                 # Always signal completion so waiters don't block forever
                 self._cache_warm_event.set()

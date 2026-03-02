@@ -355,8 +355,8 @@ Environment Variables:
                     logger.info(f"Screenshot saved: {output_path}")
                 else:
                     logger.error("Failed to save screenshot")
-            except Exception as e:
-                logger.error(f"Auto-screenshot failed: {e}")
+            except Exception:
+                logger.exception("Auto-screenshot failed")
 
         # Schedule screenshot after specified delay
         delay_ms = screenshot_seconds * 1000

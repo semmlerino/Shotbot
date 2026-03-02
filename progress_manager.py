@@ -210,8 +210,8 @@ class ProgressOperation:
         if self.config.cancel_callback:
             try:
                 self.config.cancel_callback()
-            except Exception as e:
-                logger.error(f"Error in cancel callback: {e}")
+            except Exception:
+                logger.exception("Error in cancel callback")
 
         logger.info(f"Progress operation cancelled: {self.config.title}")
 

@@ -187,8 +187,8 @@ class CleanupManager(QObject, LoggingMixin):
             self.logger.debug("Cleaning up PreviousShotsModel")
             try:
                 self.main_window.previous_shots_model.cleanup()
-            except Exception as e:
-                self.logger.error(f"Error cleaning up PreviousShotsModel: {e}")
+            except Exception:
+                self.logger.exception("Error cleaning up PreviousShotsModel")
 
         # Also clean up the item model if it exists
         if (
@@ -199,8 +199,8 @@ class CleanupManager(QObject, LoggingMixin):
             try:
                 if hasattr(self.main_window.previous_shots_item_model, "cleanup"):
                     self.main_window.previous_shots_item_model.cleanup()
-            except Exception as e:
-                self.logger.error(f"Error cleaning up PreviousShotsItemModel: {e}")
+            except Exception:
+                self.logger.exception("Error cleaning up PreviousShotsItemModel")
 
     def _final_cleanup(self) -> None:
         """Perform final cleanup steps - QRunnables, timers, and garbage collection."""

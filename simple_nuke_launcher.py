@@ -96,7 +96,7 @@ class SimpleNukeLauncher(LoggingMixin):
             return "nuke", log_messages
 
         except (OSError, PermissionError) as e:
-            self.logger.error(f"Error accessing script directory {script_dir}: {e}")
+            self.logger.exception(f"Error accessing script directory {script_dir}")
             log_messages.append(f"Error: Could not access script directory: {e}")
             log_messages.append("Opening empty Nuke")
             return "nuke", log_messages
@@ -261,7 +261,7 @@ except OSError:
             return command, log_messages
 
         except (OSError, PermissionError) as e:
-            self.logger.error(f"Failed to create new version: {e}")
+            self.logger.exception("Failed to create new version")
             log_messages.append(f"Error: Could not create new version: {e}")
             log_messages.append("Opening empty Nuke")
             return "nuke", log_messages

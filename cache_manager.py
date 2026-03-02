@@ -346,8 +346,8 @@ class CacheManager(LoggingMixin, QObject):
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
             self.logger.debug(f"Ensured cache directory: {self.cache_dir}")
-        except OSError as e:
-            self.logger.error(f"Failed to create cache directories: {e}")
+        except OSError:
+            self.logger.exception("Failed to create cache directories")
 
     def ensure_cache_directory(self) -> bool:
         """Ensure cache directory exists.
@@ -400,9 +400,9 @@ class CacheManager(LoggingMixin, QObject):
 
             yield
 
-        except OSError as e:
+        except OSError:
             # Log but don't fail - fall back to no locking
-            self.logger.warning(f"Failed to acquire file lock {lock_file}: {e}")
+            self.logger.warning(f"Failed to acquire file lock {lock_file}", exc_info=True)
             yield
 
         finally:
@@ -413,8 +413,8 @@ class CacheManager(LoggingMixin, QObject):
                     _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_UN)
                     lock_fd.close()
                     self.logger.debug(f"Released file lock: {lock_file}")
-                except OSError as e:
-                    self.logger.warning(f"Failed to release file lock: {e}")
+                except OSError:
+                    self.logger.warning("Failed to release file lock", exc_info=True)
 
     # ========================================================================
     # Thumbnail Caching Methods
@@ -560,15 +560,15 @@ class CacheManager(LoggingMixin, QObject):
         with QMutexLocker(self._lock):
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
-            except (PermissionError, OSError) as e:
-                self.logger.error(f"Failed to create cache directories: {e}")
+            except (PermissionError, OSError):
+                self.logger.exception("Failed to create cache directories")
                 return None
 
         # Process thumbnail WITHOUT holding lock (I/O and CPU intensive)
         try:
             return self._process_standard_thumbnail(source_path_obj, output_path)
-        except Exception as e:
-            self.logger.error(f"Failed to process thumbnail: {e}")
+        except Exception:
+            self.logger.exception("Failed to process thumbnail")
             return None
 
     def _process_standard_thumbnail(self, source: Path, output: Path) -> Path:
@@ -607,7 +607,7 @@ class CacheManager(LoggingMixin, QObject):
                 return fallback_result
 
             # If MOV fallback didn't work, raise original error
-            self.logger.error(f"PIL thumbnail processing failed and MOV fallback unavailable: {e}")
+            self.logger.exception("PIL thumbnail processing failed and MOV fallback unavailable")
             msg = f"Failed to process thumbnail: {e}"
             raise ThumbnailError(msg) from e
 
@@ -719,11 +719,11 @@ class CacheManager(LoggingMixin, QObject):
             self.logger.debug(f"Cached QImage thumbnail: {output_path}")
             return output_path
 
-        except Exception as e:
+        except Exception:
             # Clean up temp file on any error
             with contextlib.suppress(OSError):
                 temp_path.unlink(missing_ok=True)
-            self.logger.error(f"QImage thumbnail caching failed: {e}")
+            self.logger.exception("QImage thumbnail caching failed")
             return None
 
     # ========================================================================
@@ -1301,8 +1301,8 @@ class CacheManager(LoggingMixin, QObject):
             if isinstance(data, dict):
                 return cast("dict[str, dict[str, object]]", data)
             return None
-        except Exception as e:
-            self.logger.error(f"Failed to read latest files cache: {e}")
+        except Exception:
+            self.logger.exception("Failed to read latest files cache")
             return None
 
     def _write_latest_files_cache(
@@ -1323,8 +1323,8 @@ class CacheManager(LoggingMixin, QObject):
                 self.latest_files_cache_file, data, indent=2, fsync=False
             )
             return True
-        except Exception as e:
-            self.logger.error(f"Failed to write latest files cache: {e}")
+        except Exception:
+            self.logger.exception("Failed to write latest files cache")
             return False
 
     # ========================================================================
@@ -1427,8 +1427,8 @@ class CacheManager(LoggingMixin, QObject):
                 if self._on_cleared:
                     self._on_cleared()
 
-            except Exception as e:
-                self.logger.error(f"Failed to clear cache: {e}")
+            except Exception:
+                self.logger.exception("Failed to clear cache")
 
     def get_disk_usage(self) -> dict[str, float | int | str]:
         """Get cache disk usage statistics.
@@ -1470,8 +1470,8 @@ class CacheManager(LoggingMixin, QObject):
                 "thumbnail_dir": str(self.thumbnails_dir),
             }
 
-        except Exception as e:
-            self.logger.error(f"Failed to get disk usage: {e}")
+        except Exception:
+            self.logger.exception("Failed to get disk usage")
             return {"total_mb": 0.0, "file_count": 0, "thumbnail_count": 0}
 
     # ========================================================================
@@ -1567,8 +1567,8 @@ class CacheManager(LoggingMixin, QObject):
             )
             return None
 
-        except (OSError, json.JSONDecodeError, ValueError) as e:
-            self.logger.error(f"Failed to read cache file {cache_file}: {e}")
+        except (OSError, json.JSONDecodeError, ValueError):
+            self.logger.exception(f"Failed to read cache file {cache_file}")
             return None
 
     @staticmethod
@@ -1634,8 +1634,8 @@ class CacheManager(LoggingMixin, QObject):
             self.logger.debug(f"Cached data to: {cache_file}")
             return True
 
-        except (OSError, TypeError, ValueError) as e:
-            self.logger.error(f"Failed to write cache file {cache_file}: {e}")
+        except (OSError, TypeError, ValueError):
+            self.logger.exception(f"Failed to write cache file {cache_file}")
             return False
 
     def shutdown(self) -> None:

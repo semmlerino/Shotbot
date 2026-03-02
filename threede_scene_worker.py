@@ -486,7 +486,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             _ = self._emit_finished_signal_once(scenes)
 
         except Exception as e:
-            self.logger.error(f"Error in enhanced 3DE scene discovery worker: {e}")
+            self.logger.exception("Error in enhanced 3DE scene discovery worker")
             self.error.emit(str(e))
             # Re-raise to trigger worker_error signal from base class
             raise
@@ -536,8 +536,8 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 eta_str,
             )
 
-        except Exception as e:
-            self.logger.warning(f"Could not estimate scan size: {e}")
+        except Exception:
+            self.logger.warning("Could not estimate scan size", exc_info=True)
             estimated_files = len(shot_tuples) * 10  # Fallback estimate
 
         # Use the progressive finder generator
@@ -594,8 +594,8 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 # Emit scan progress for fine-grained updates
                 self.scan_progress.emit(current_shot, total_shots, status_msg)
 
-        except Exception as e:
-            self.logger.error(f"Error in progressive discovery: {e}")
+        except Exception:
+            self.logger.exception("Error in progressive discovery")
             raise
 
         return self._all_scenes

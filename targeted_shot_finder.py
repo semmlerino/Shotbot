@@ -163,8 +163,8 @@ class TargetedShotsFinder(ShotFinderBase):
 
             self.logger.debug(f"Found {len(shots)} shots in show {show_name}")
 
-        except Exception as e:
-            self.logger.error(f"Error scanning show {show_name}: {e}")
+        except Exception:
+            self.logger.exception(f"Error scanning show {show_name}")
 
         return shots
 
@@ -285,8 +285,8 @@ class TargetedShotsFinder(ShotFinderBase):
 
                 except concurrent.futures.TimeoutError:
                     self.logger.warning(f"Timeout processing {show}")
-                except Exception as e:
-                    self.logger.error(f"Error processing {show}: {e}")
+                except Exception:
+                    self.logger.exception(f"Error processing {show}")
 
         self._report_progress(100, 100, "Targeted search complete")
 

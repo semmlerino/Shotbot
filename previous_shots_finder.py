@@ -100,8 +100,8 @@ class PreviousShotsFinder(ShotFinderBase):
 
             self.logger.info(f"Found {len(shots)} shots with user work")
 
-        except Exception as e:
-            self.logger.error(f"Error finding user shots: {e}")
+        except Exception:
+            self.logger.exception("Error finding user shots")
 
         return shots
 
@@ -391,8 +391,8 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
             self.logger.debug(f"Found {len(shots)} shots in {show_path.name}")
 
-        except Exception as e:
-            self.logger.error(f"Error scanning show {show_path.name}: {e}")
+        except Exception:
+            self.logger.exception(f"Error scanning show {show_path.name}")
 
         return shots
 
@@ -476,8 +476,8 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
                 except concurrent.futures.TimeoutError:
                     self.logger.warning(f"Timeout processing {show.name}")
-                except Exception as e:
-                    self.logger.error(f"Error processing {show.name}: {e}")
+                except Exception:
+                    self.logger.exception(f"Error processing {show.name}")
 
         self._report_progress(100, 100, "Scan complete")
 

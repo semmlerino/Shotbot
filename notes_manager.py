@@ -100,8 +100,8 @@ class NotesManager(LoggingMixin, QObject):
 
             self.logger.info(f"Loaded {len(self._notes_by_key)} shot notes from cache")
 
-        except (json.JSONDecodeError, OSError) as e:
-            self.logger.warning(f"Failed to load shot notes: {e}")
+        except (json.JSONDecodeError, OSError):
+            self.logger.warning("Failed to load shot notes", exc_info=True)
             self._notes_by_key = {}
 
     def _schedule_save(self) -> None:
@@ -144,8 +144,8 @@ class NotesManager(LoggingMixin, QObject):
 
             _ = Path(temp_path).replace(cache_file)
             self.logger.debug(f"Saved {len(self._notes_by_key)} shot notes to cache")
-        except OSError as e:
-            self.logger.error(f"Failed to save shot notes: {e}")
+        except OSError:
+            self.logger.exception("Failed to save shot notes")
 
     def flush(self) -> None:
         """Force immediate save (call on app shutdown).

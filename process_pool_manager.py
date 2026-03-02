@@ -609,8 +609,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
             return result
 
-        except Exception as e:
-            self.logger.error(f"Command execution failed ({command[:80]!r}): {e}")
+        except Exception:
+            self.logger.exception(f"Command execution failed ({command[:80]!r})")
             raise
 
     def batch_execute(
@@ -692,8 +692,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
                     f"Batch command timed out after {timeout}s: {cmd[:80]}..."
                 )
                 results[cmd] = None
-            except Exception as e:
-                self.logger.error(f"Batch command failed: {cmd} - {e}")
+            except Exception:
+                self.logger.exception(f"Batch command failed: {cmd}")
                 results[cmd] = None
 
         return results
@@ -740,8 +740,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
             return result
 
-        except Exception as e:
-            self.logger.error(f"Session pool execution failed: {e}")
+        except Exception:
+            self.logger.exception("Session pool execution failed")
             raise
 
     def find_files_python(self, directory: str, pattern: str) -> list[str]:
@@ -767,8 +767,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
             files = list(path.rglob(pattern))
             return [str(f) for f in files]
 
-        except Exception as e:
-            self.logger.error(f"File search failed: {e}")
+        except Exception:
+            self.logger.exception("File search failed")
             return []
 
     def invalidate_cache(self, pattern: str | None = None) -> None:
@@ -884,8 +884,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 except Exception as e:
                     self.logger.debug(f"Force shutdown exception: {e}")
 
-        except Exception as e:
-            self.logger.error(f"Error during ProcessPoolManager executor shutdown: {e}")
+        except Exception:
+            self.logger.exception("Error during ProcessPoolManager executor shutdown")
 
         # Stage 2: Clean up any remaining resources
         try:
@@ -898,8 +898,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 if cache_size > 0:
                     self.logger.debug(f"Cleared {cache_size} command cache entries")
 
-        except Exception as e:
-            self.logger.warning(f"Error during resource cleanup: {e}")
+        except Exception:
+            self.logger.warning("Error during resource cleanup", exc_info=True)
 
         # Stage 3: Force garbage collection to clean up circular references
         try:
@@ -945,8 +945,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
         if instance is not None:
             try:
                 instance.shutdown(timeout=2.0)
-            except Exception as e:
-                logger.warning(f"Error during reset shutdown: {e}")
+            except Exception:
+                logger.warning("Error during reset shutdown", exc_info=True)
 
             # Schedule Qt object deletion - CRITICAL for preventing segfaults
             # in pytestqt event processing after test teardown.

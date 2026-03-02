@@ -187,8 +187,8 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                         )
                         scenes.append(scene)
 
-                    except Exception as e:
-                        self.logger.warning(f"Error processing {threede_file}: {e}")
+                    except Exception:
+                        self.logger.warning(f"Error processing {threede_file}", exc_info=True)
                         continue
 
             # Also scan publish directory
@@ -204,8 +204,8 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                 f"Found {len(scenes)} total scenes for {show}/{sequence}/{shot}"
             )
 
-        except Exception as e:
-            self.logger.error(f"Error finding scenes for {show}/{sequence}/{shot}: {e}")
+        except Exception:
+            self.logger.exception(f"Error finding scenes for {show}/{sequence}/{shot}")
 
         return scenes
 
@@ -263,8 +263,8 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
 
             self.logger.info(f"Found {len(scenes)} total scenes in show {show}")
 
-        except Exception as e:
-            self.logger.error(f"Error finding scenes in show {show}: {e}")
+        except Exception:
+            self.logger.exception(f"Error finding scenes in show {show}")
 
         return scenes
 
@@ -455,7 +455,7 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
                 yield scenes, current_shot, total_shots, status
 
         except Exception as e:
-            self.logger.error(f"Error in progressive discovery for {show}: {e}")
+            self.logger.exception(f"Error in progressive discovery for {show}")
             yield [], 0, 0, f"Error: {e}"
 
 

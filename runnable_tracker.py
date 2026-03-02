@@ -111,8 +111,8 @@ class QRunnableTracker(SingletonMixin):
                 f"Unregistered {runnable.__class__.__name__} "
                 f"(active: {active_count})"
             )
-        except Exception as e:
-            logger.warning(f"Error unregistering runnable: {e}")
+        except Exception:
+            logger.warning("Error unregistering runnable", exc_info=True)
 
     def get_active_count(self) -> int:
         """Get the number of currently active runnables. Thread-safe."""

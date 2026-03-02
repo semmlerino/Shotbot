@@ -236,9 +236,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             )
             return all_scenes
 
-        except Exception as e:
+        except Exception:
             self.stats["errors"] += 1
-            self.logger.error(f"Error discovering scenes across shows: {e}")
+            self.logger.exception("Error discovering scenes across shows")
             return []
 
     def find_scenes_progressive(
@@ -294,7 +294,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         except Exception as e:
             self.stats["errors"] += 1
-            self.logger.error(f"Error in progressive scene discovery: {e}")
+            self.logger.exception("Error in progressive scene discovery")
             yield [], 0, 0, f"Error: {e}"
 
     # Hook methods
@@ -538,8 +538,8 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                 file_tuples = scanner.find_all_3de_files_in_show_targeted(
                     shows_root, show, excluded_users
                 )
-            except Exception as e:
-                print(f"Error scanning show {show}: {e}")
+            except Exception:
+                self.logger.exception(f"Error scanning show {show}")
                 return show_scenes
 
             # Convert file tuples to ThreeDEScene objects
@@ -663,8 +663,8 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                         with results_lock:
                             all_scenes.extend(show_scenes)
                             shows_completed += 1
-                    except Exception as e:
-                        print(f"Error processing show {show}: {e}")
+                    except Exception:
+                        self.logger.exception(f"Error processing show {show}")
                         with results_lock:
                             shows_completed += 1
             except Exception:

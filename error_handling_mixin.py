@@ -21,7 +21,6 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
-import traceback
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar, cast
@@ -87,15 +86,11 @@ class ErrorHandlingMixin(LoggingMixin):
 
         try:
             return operation(*args, **kwargs)
-        except Exception as e:
+        except Exception:
             if _log_error:
                 # Get operation name for logging
                 op_name = getattr(operation, "__name__", str(operation))
-                self.logger.error(f"{op_name} failed: {e}")
-
-                # Log traceback at debug level
-                if self.logger.isEnabledFor(logging.DEBUG):
-                    self.logger.debug(f"Traceback:\n{traceback.format_exc()}")
+                self.logger.exception(f"{op_name} failed")
 
             if _reraise:
                 raise
@@ -145,26 +140,24 @@ class ErrorHandlingMixin(LoggingMixin):
             # Execute the operation
             return path_operation(path_obj)
 
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             if log_error:
-                self.logger.error(f"File not found: {path} - {e}")
+                self.logger.exception(f"File not found: {path}")
             return default
 
-        except PermissionError as e:
+        except PermissionError:
             if log_error:
-                self.logger.error(f"Permission denied: {path} - {e}")
+                self.logger.exception(f"Permission denied: {path}")
             return default
 
-        except OSError as e:
+        except OSError:
             if log_error:
-                self.logger.error(f"OS error for {path}: {e}")
+                self.logger.exception(f"OS error for {path}")
             return default
 
-        except Exception as e:
+        except Exception:
             if log_error:
-                self.logger.error(f"File operation failed for {path}: {e}")
-                if self.logger.isEnabledFor(logging.DEBUG):
-                    self.logger.debug(f"Traceback:\n{traceback.format_exc()}")
+                self.logger.exception(f"File operation failed for {path}")
             return default
 
     @contextmanager
@@ -210,19 +203,15 @@ class ErrorHandlingMixin(LoggingMixin):
             context["error"] = e
             context["result"] = default_result
 
-            # Log based on specified level
+            # Log based on specified level, always with traceback
             if log_level == logging.ERROR:
-                self.logger.error(f"{operation_name} failed: {e}")
+                self.logger.exception(f"{operation_name} failed")
             elif log_level == logging.WARNING:
-                self.logger.warning(f"{operation_name} warning: {e}")
+                self.logger.warning(f"{operation_name} warning", exc_info=True)
             elif log_level == logging.INFO:
-                self.logger.info(f"{operation_name} info: {e}")
+                self.logger.info(f"{operation_name} info", exc_info=True)
             else:
-                self.logger.debug(f"{operation_name} debug: {e}")
-
-            # Include traceback for error level
-            if log_level >= logging.ERROR and self.logger.isEnabledFor(logging.DEBUG):
-                self.logger.debug(f"Traceback:\n{traceback.format_exc()}")
+                self.logger.debug(f"{operation_name} debug", exc_info=True)
 
             if reraise:
                 raise
@@ -288,11 +277,11 @@ class ErrorAggregator:
 
         for context, error in self.errors:
             if level == logging.ERROR and hasattr(self.logger, "error"):
-                self.logger.error(f"{context}: {error}")
+                self.logger.error(f"{context}: {error}", exc_info=error)
             elif level == logging.WARNING and hasattr(self.logger, "warning"):
-                self.logger.warning(f"{context}: {error}")
+                self.logger.warning(f"{context}: {error}", exc_info=error)
             elif hasattr(self.logger, "info"):
-                self.logger.info(f"{context}: {error}")
+                self.logger.info(f"{context}: {error}", exc_info=error)
 
     def clear(self) -> None:
         """Clear all collected errors."""

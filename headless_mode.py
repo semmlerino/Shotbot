@@ -200,8 +200,8 @@ class HeadlessMode:
             # Assume display is available if not in headless mode
             return True
 
-        except Exception as e:
-            logger.warning(f"Could not check display availability: {e}")
+        except Exception:
+            logger.warning("Could not check display availability", exc_info=True)
             return False
 
     @staticmethod

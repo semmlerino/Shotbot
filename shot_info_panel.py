@@ -426,8 +426,8 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         except MemoryError:
             self.logger.error(f"Out of memory loading thumbnail: {path}")
             self._set_placeholder_thumbnail()
-        except OSError as e:
-            self.logger.warning(f"I/O error loading thumbnail {path}: {e}")
+        except OSError:
+            self.logger.warning(f"I/O error loading thumbnail {path}", exc_info=True)
             self._set_placeholder_thumbnail()
         except Exception:
             self.logger.exception(f"Unexpected error loading thumbnail {path}")
@@ -572,8 +572,8 @@ class InfoPanelPixmapLoader(QRunnable):
             self.signals.loaded.emit(image)
             logger.debug(f"Successfully loaded info panel thumbnail: {self.path}")
 
-        except Exception as e:
-            logger.error(f"Error loading info panel thumbnail {self.path}: {e}")
+        except Exception:
+            logger.exception(f"Error loading info panel thumbnail {self.path}")
             self.signals.failed.emit()
 
 

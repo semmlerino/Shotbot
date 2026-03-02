@@ -196,8 +196,8 @@ class MockWorkspacePool(LoggingMixin):
         for cmd in commands:
             try:
                 results[cmd] = self.execute_workspace_command(cmd, cache_ttl)
-            except Exception as e:
-                self.logger.error(f"Failed to execute {cmd}: {e}")
+            except Exception:
+                self.logger.exception(f"Failed to execute {cmd}")
                 results[cmd] = None
         return results
 
@@ -333,14 +333,14 @@ def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> Moc
                 return pool
             logger.warning("Demo shots loaded but pool is empty")
 
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in demo_shots.json: {e}")
-        except OSError as e:
-            logger.error(f"Failed to read demo_shots.json: {e}")
-        except ValueError as e:
-            logger.error(f"Invalid demo shots structure: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error loading demo shots: {e}")
+        except json.JSONDecodeError:
+            logger.exception("Invalid JSON in demo_shots.json")
+        except OSError:
+            logger.exception("Failed to read demo_shots.json")
+        except ValueError:
+            logger.exception("Invalid demo shots structure")
+        except Exception:
+            logger.exception("Unexpected error loading demo shots")
 
     # Do NOT fall back to filesystem - this was causing ALL shots to be
     # considered assigned to gabriel-h, which filtered out all "Other 3DE Scenes"

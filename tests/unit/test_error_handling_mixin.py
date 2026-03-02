@@ -105,8 +105,7 @@ class TestSafeExecute:
         with caplog.at_level(logging.ERROR):
             handler.safe_execute(failing_op)
 
-        assert "failed" in caplog.text.lower()
-        assert "Test error message" in caplog.text
+        assert "failing_op failed" in caplog.text
 
     def test_log_error_false_suppresses_logging(
         self,

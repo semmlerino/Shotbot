@@ -88,8 +88,8 @@ class UserSequenceFinder:
                 if latest:
                     sequences[playblast_type] = latest
 
-        except OSError as e:
-            logger.warning(f"Error scanning Maya playblasts at {base_path}: {e}")
+        except OSError:
+            logger.warning(f"Error scanning Maya playblasts at {base_path}", exc_info=True)
             return []
 
         # Sort by modified time (newest first)
@@ -159,8 +159,8 @@ class UserSequenceFinder:
                     ):
                         sequences[key] = sequence
 
-        except OSError as e:
-            logger.warning(f"Error scanning Nuke renders at {base_path}: {e}")
+        except OSError:
+            logger.warning(f"Error scanning Nuke renders at {base_path}", exc_info=True)
             return []
 
         result = sorted(sequences.values(), key=lambda s: s.modified_time, reverse=True)

@@ -178,9 +178,9 @@ class SessionWarmer(ThreadSafeWorker):
             )
             duration = time.time() - start_time
             logger.info(f"Bash session pre-warming completed successfully ({duration:.2f}s)")
-        except Exception as e:
+        except Exception:
             # Don't fail the app if pre-warming fails
-            logger.warning(f"Session pre-warming failed (non-critical): {e}")
+            logger.warning("Session pre-warming failed (non-critical)", exc_info=True)
 
 
 # Tab index constants for the main tab widget

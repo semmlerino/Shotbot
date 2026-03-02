@@ -83,6 +83,6 @@ def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
         logger.info(f"No matching frame files found in {plate_dir}")
         return None
 
-    except (OSError, re.error) as e:
-        logger.warning(f"Error extracting frame range from {plate_dir}: {e}")
+    except (OSError, re.error):
+        logger.warning(f"Error extracting frame range from {plate_dir}", exc_info=True)
         return None

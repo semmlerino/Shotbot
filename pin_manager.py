@@ -79,8 +79,8 @@ class PinManager(LoggingMixin):
                         shot_val = item.get("shot")
                         if isinstance(show_val, str) and isinstance(seq_val, str) and isinstance(shot_val, str):
                             self._pinned_keys.append((show_val, seq_val, shot_val))
-                    except (KeyError, TypeError) as e:
-                        self.logger.warning(f"Invalid pinned shot entry: {e}")
+                    except (KeyError, TypeError):
+                        self.logger.warning("Invalid pinned shot entry", exc_info=True)
                 elif isinstance(item, list) and len(item) == 3:  # pyright: ignore[reportUnnecessaryIsInstance]
                     # Also support tuple-as-list format
                     v0, v1, v2 = item[0], item[1], item[2]
@@ -90,8 +90,8 @@ class PinManager(LoggingMixin):
 
             self.logger.info(f"Loaded {len(self._pinned_keys)} pinned shots from cache")
 
-        except (json.JSONDecodeError, OSError) as e:
-            self.logger.warning(f"Failed to load pinned shots: {e}")
+        except (json.JSONDecodeError, OSError):
+            self.logger.warning("Failed to load pinned shots", exc_info=True)
             self._pinned_keys = []
 
     def _save_pins(self) -> None:
@@ -118,8 +118,8 @@ class PinManager(LoggingMixin):
 
             _ = Path(temp_path).replace(cache_file)
             self.logger.debug(f"Saved {len(self._pinned_keys)} pinned shots to cache")
-        except OSError as e:
-            self.logger.error(f"Failed to save pinned shots: {e}")
+        except OSError:
+            self.logger.exception("Failed to save pinned shots")
 
     def _get_key(self, shot: Shot) -> tuple[str, str, str]:
         """Get composite key for shot.

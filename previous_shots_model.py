@@ -199,8 +199,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
             return True
 
-        except Exception as e:
-            self.logger.error(f"Error starting previous shots scan: {e}")
+        except Exception:
+            self.logger.exception("Error starting previous shots scan")
             # Reset flag on error (worker not started)
             self._reset_scanning_flag()
             self.scan_finished.emit()
@@ -266,8 +266,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
             else:
                 self.logger.debug("No new shots found - cache unchanged")
 
-        except Exception as e:
-            self.logger.error(f"Error processing scan results: {e}")
+        except Exception:
+            self.logger.exception("Error processing scan results")
         finally:
             # Reset scanning flag using helper method
             self._reset_scanning_flag()
@@ -442,8 +442,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
             return shots
 
-        except Exception as e:
-            self.logger.error(f"Error loading previous shots from cache: {e}")
+        except Exception:
+            self.logger.exception("Error loading previous shots from cache")
             return []
 
     def _save_to_cache(self) -> None:
@@ -456,16 +456,16 @@ class PreviousShotsModel(LoggingMixin, QObject):
             self.logger.debug(
                 f"Saved {len(self._previous_shots)} previous shots to cache"
             )
-        except Exception as e:
-            self.logger.error(f"Error saving previous shots to cache: {e}")
+        except Exception:
+            self.logger.exception("Error saving previous shots to cache")
 
     def clear_cache(self) -> None:
         """Clear the cached previous shots."""
         try:
             self._cache_manager.clear_cached_data("previous_shots")
             self.logger.info("Cleared previous shots cache")
-        except Exception as e:
-            self.logger.error(f"Error clearing previous shots cache: {e}")
+        except Exception:
+            self.logger.exception("Error clearing previous shots cache")
 
     def cleanup(self) -> None:
         """Clean up resources and stop worker thread."""

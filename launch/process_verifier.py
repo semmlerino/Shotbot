@@ -65,8 +65,8 @@ class ProcessVerifier:
         """Create PID directory if it doesn't exist."""
         try:
             Path(self.PID_FILE_DIR).mkdir(parents=True, exist_ok=True)
-        except OSError as e:
-            self.logger.warning(f"Could not create PID directory {self.PID_FILE_DIR}: {e}")
+        except OSError:
+            self.logger.warning(f"Could not create PID directory {self.PID_FILE_DIR}", exc_info=True)
 
     def wait_for_process(
         self,
@@ -336,8 +336,8 @@ class ProcessVerifier:
                     pid = int(pid_str)
                     self.logger.debug(f"Found PID file: {latest_pid_file} -> {pid}")
                     return pid
-                except (ValueError, OSError) as e:
-                    self.logger.warning(f"Could not read PID file {latest_pid_file}: {e}")
+                except (ValueError, OSError):
+                    self.logger.warning(f"Could not read PID file {latest_pid_file}", exc_info=True)
 
             # Poll
             time.sleep(self.POLL_INTERVAL_SEC)
@@ -356,8 +356,8 @@ class ProcessVerifier:
         """
         try:
             return psutil.pid_exists(pid)
-        except Exception as e:
-            self.logger.warning(f"Error checking PID {pid}: {e}")
+        except Exception:
+            self.logger.warning(f"Error checking PID {pid}", exc_info=True)
             return False
 
     @staticmethod

@@ -60,9 +60,9 @@ class NukeScriptGenerator:
                 temp_path = Path(temp_file)
                 if temp_path.exists():
                     temp_path.unlink()
-                    print(f"Cleaned up temporary file: {temp_file}")
-            except Exception as e:
-                print(f"Warning: Could not delete temp file {temp_file}: {e}")
+                    logger.debug(f"Cleaned up temporary file: {temp_file}")
+            except Exception:
+                logger.warning(f"Could not delete temp file {temp_file}", exc_info=True)
         cls._temp_files.clear()
 
     @classmethod
@@ -168,8 +168,8 @@ class NukeScriptGenerator:
             # Track the file for cleanup at program exit
             return NukeScriptGenerator._track_temp_file(temp_path)
 
-        except Exception as e:
-            print(f"Error creating Nuke script: {e}")
+        except Exception:
+            logger.exception("Error creating Nuke script")
             return None
 
     @staticmethod
@@ -224,11 +224,11 @@ class NukeScriptGenerator:
             with script_path.open("w", encoding="utf-8") as f:
                 _ = f.write(script_content)
 
-            print(f"Saved Nuke script to workspace: {script_path}")
+            logger.info(f"Saved Nuke script to workspace: {script_path}")
             return str(script_path)
 
-        except Exception as e:
-            print(f"Error saving Nuke script to workspace: {e}")
+        except Exception:
+            logger.exception("Error saving Nuke script to workspace")
             return None
 
     @staticmethod
@@ -268,8 +268,8 @@ class NukeScriptGenerator:
         try:
             with Path(script_content).open(encoding="utf-8") as f:
                 content = f.read()
-        except Exception as e:
-            print(f"Error reading temporary script: {e}")
+        except Exception:
+            logger.exception("Error reading temporary script")
             return None
 
         # Save to workspace
@@ -346,8 +346,8 @@ class NukeScriptGenerator:
             logger.info(f"Created Nuke script in workspace: {output_path}")
             return str(output_path)
 
-        except Exception as e:
-            logger.error(f"Failed to create workspace script: {e}")
+        except Exception:
+            logger.exception("Failed to create workspace script")
             return None
 
     @staticmethod
@@ -404,8 +404,8 @@ class NukeScriptGenerator:
             logger.info(f"Created empty Nuke script in workspace: {output_path}")
             return str(output_path)
 
-        except Exception as e:
-            logger.error(f"Failed to create empty workspace script: {e}")
+        except Exception:
+            logger.exception("Failed to create empty workspace script")
             return None
 
     # Backward compatibility: Static method aliases for detection functions

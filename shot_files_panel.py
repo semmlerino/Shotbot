@@ -531,8 +531,8 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
                 files = files_by_type.get(file_type, [])
                 section.set_files(files)
 
-        except Exception as e:
-            self.logger.error(f"Error discovering files for {shot.full_name}: {e}")
+        except Exception:
+            self.logger.exception(f"Error discovering files for {shot.full_name}")
             self._clear_all()
 
     def _clear_all(self) -> None:

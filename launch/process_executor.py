@@ -272,14 +272,14 @@ class ProcessExecutor(QObject):
 
             return process
 
-        except FileNotFoundError as e:
-            self.logger.error(f"Failed to launch {app_name}: executable not found - {e}")
+        except FileNotFoundError:
+            self.logger.exception(f"Failed to launch {app_name}: executable not found")
             return None
-        except PermissionError as e:
-            self.logger.error(f"Failed to launch {app_name}: permission denied - {e}")
+        except PermissionError:
+            self.logger.exception(f"Failed to launch {app_name}: permission denied")
             return None
-        except OSError as e:
-            self.logger.error(f"Failed to launch {app_name}: {e}")
+        except OSError:
+            self.logger.exception(f"Failed to launch {app_name}")
             return None
 
     def verify_spawn(self, process: subprocess.Popen[bytes], app_name: str) -> None:
@@ -523,8 +523,8 @@ class ProcessExecutor(QObject):
                         psutil.ZombieProcess,
                     ):
                         continue
-            except Exception as e:
-                self.logger.warning(f"Error scanning processes: {e}")
+            except Exception:
+                self.logger.warning("Error scanning processes", exc_info=True)
 
             time.sleep(poll_interval_sec)
 

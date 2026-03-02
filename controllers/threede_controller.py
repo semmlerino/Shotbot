@@ -579,7 +579,7 @@ class ThreeDEController(LoggingMixin):
         try:
             crash_files = recovery_manager.find_crash_files(workspace_path, recursive=True)
         except Exception as e:
-            self.logger.error(f"Error scanning for crash files: {e}")
+            self.logger.exception("Error scanning for crash files")
             NotificationManager.error(
                 "Scan Error",
                 f"Failed to scan for crash files: {e}"
@@ -621,7 +621,7 @@ class ThreeDEController(LoggingMixin):
                 )
 
             except Exception as e:
-                self.logger.error(f"Recovery failed: {e}", exc_info=True)
+                self.logger.exception("Recovery failed")
 
                 # Show error result
                 result_dialog = ThreeDERecoveryResultDialog(
@@ -755,8 +755,8 @@ class ThreeDEController(LoggingMixin):
             self.window.threede_scene_model.cache_manager.cache_threede_scenes(
                 self.window.threede_scene_model.to_dict(),  # pyright: ignore[reportArgumentType]
             )
-        except Exception as e:
-            self.logger.warning(f"Failed to cache 3DE scenes: {e}")
+        except Exception:
+            self.logger.warning("Failed to cache 3DE scenes", exc_info=True)
 
     def update_ui(self) -> None:
         """Update the 3DE UI elements with current scenes."""

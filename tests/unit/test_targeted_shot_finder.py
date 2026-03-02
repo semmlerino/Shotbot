@@ -684,11 +684,11 @@ class TestEdgeCases:
 
             with patch(
                 "concurrent.futures.as_completed", return_value=[mock_future]
-            ), patch.object(finder.logger, "error") as mock_error:
+            ), patch.object(finder.logger, "exception") as mock_exception:
                 list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
-                mock_error.assert_called()
-                assert "Error processing" in mock_error.call_args[0][0]
+                mock_exception.assert_called()
+                assert "Error processing" in mock_exception.call_args[0][0]
 
     def test_mock_mode_username(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test username handling in mock mode."""

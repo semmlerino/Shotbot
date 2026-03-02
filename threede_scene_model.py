@@ -205,9 +205,9 @@ class ThreeDESceneModel:
                     # Note: cached_data is ThreeDESceneDict but from_dict expects dict[str, str | Path]
                     # The structures differ but from_dict extracts only the fields it needs
                     self.scenes.append(ThreeDEScene.from_dict(scene_data))  # pyright: ignore[reportArgumentType]
-                except (KeyError, TypeError, ValueError) as e:
+                except (KeyError, TypeError, ValueError):
                     # Skip invalid cached entry
-                    logger.warning(f"Skipping invalid cached 3DE scene: {e}")
+                    logger.warning("Skipping invalid cached 3DE scene", exc_info=True)
                     continue
             return len(self.scenes) > 0
         return False
@@ -266,8 +266,8 @@ class ThreeDESceneModel:
                     try:
                         # Type note: ThreeDESceneDict from cache is compatible with from_dict at runtime
                         cached_scenes = [ThreeDEScene.from_dict(d) for d in cached_data]  # pyright: ignore[reportArgumentType]
-                    except (KeyError, TypeError) as e:
-                        logger.warning(f"Invalid cached scenes, starting fresh: {e}")
+                    except (KeyError, TypeError):
+                        logger.warning("Invalid cached scenes, starting fresh", exc_info=True)
                         cached_scenes = []
 
                     # Merge cached + fresh
@@ -304,8 +304,8 @@ class ThreeDESceneModel:
 
                 return True, has_changes
 
-            except Exception as e:
-                logger.error(f"Error refreshing 3DE scenes: {e}")
+            except Exception:
+                logger.exception("Error refreshing 3DE scenes")
                 return False, False
 
     def get_scene_by_index(self, index: int) -> ThreeDEScene | None:

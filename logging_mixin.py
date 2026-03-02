@@ -394,12 +394,12 @@ def log_execution(
 
                 return result
 
-            except Exception as e:
+            except Exception:
                 # Calculate execution time for error case
                 execution_time = time.time() - start_time
 
                 # Log error with timing
-                logger.error(f"{func_name} failed after {execution_time:.3f}s: {e}")
+                logger.exception(f"{func_name} failed after {execution_time:.3f}s")
                 raise
 
         return wrapper

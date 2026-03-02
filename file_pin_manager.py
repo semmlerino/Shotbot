@@ -195,8 +195,8 @@ class FilePinManager(LoggingMixin, QObject):
 
             self.logger.info(f"Loaded {len(self._pins)} pinned files from cache")
 
-        except (json.JSONDecodeError, OSError) as e:
-            self.logger.warning(f"Failed to load pinned files: {e}")
+        except (json.JSONDecodeError, OSError):
+            self.logger.warning("Failed to load pinned files", exc_info=True)
             self._pins = {}
 
     def _save_pins(self) -> None:
@@ -216,5 +216,5 @@ class FilePinManager(LoggingMixin, QObject):
 
             _ = Path(temp_path).replace(cache_file)
             self.logger.debug(f"Saved {len(self._pins)} pinned files to cache")
-        except OSError as e:
-            self.logger.error(f"Failed to save pinned files: {e}")
+        except OSError:
+            self.logger.exception("Failed to save pinned files")

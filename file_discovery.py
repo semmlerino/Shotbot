@@ -43,8 +43,8 @@ class FileDiscovery:
         try:
             path_obj.mkdir(parents=True, exist_ok=True)
             return True
-        except (OSError, PermissionError) as e:
-            logger.error(f"Failed to create {description} {path_obj}: {e}")
+        except (OSError, PermissionError):
+            logger.exception(f"Failed to create {description} {path_obj}")
             return False
 
     @staticmethod
@@ -318,8 +318,8 @@ class FileDiscovery:
                     # Skip non-plate directories (e.g., 'reference', 'backup', etc.)
                     logger.debug(f"Skipping non-plate directory: {plate_name}")
 
-        except (OSError, PermissionError) as e:
-            logger.warning(f"Error scanning plate directories in {base_path}: {e}")
+        except (OSError, PermissionError):
+            logger.warning(f"Error scanning plate directories in {base_path}", exc_info=True)
 
         # Sort by priority (LOWER number = HIGHER priority as per config documentation)
         found_plates.sort(key=lambda x: x[1])
