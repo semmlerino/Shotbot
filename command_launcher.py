@@ -877,6 +877,41 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         return True
 
 
+    def _build_rv_command(
+        self,
+        command: str,
+        context: LaunchContext,
+    ) -> str | None:
+        """Build the RV playback command with default flags and optional sequence path.
+
+        Appends standard RV playback flags and, when a sequence path is provided,
+        validates and appends it to the command.
+
+        Args:
+            command: Base RV command string (e.g. "rv").
+            context: Launch context; only sequence_path is used here.
+
+        Returns:
+            Complete RV command string, or None if the sequence path is invalid.
+
+        """
+        command = f"{command} -fps 12 -play -eval 'setPlayMode(2)'"
+        if context.sequence_path:
+            try:
+                safe_sequence_path = CommandBuilder.validate_path(context.sequence_path)
+                command = f"{command} {safe_sequence_path}"
+                seq_name = Path(context.sequence_path).name
+                self.command_executed.emit(
+                    self.timestamp,
+                    f"Opening sequence in RV: {seq_name}",
+                )
+            except ValueError as e:
+                self._emit_error(
+                    f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"
+                )
+                return None
+        return command
+
     def _build_app_command(
         self,
         app_name: str,
@@ -927,68 +962,28 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
         if needs_file_search:
             workspace = self.current_shot.workspace_path
+            file_type = "threede" if app_name == "3de" else "maya"
+            wanted = context.open_latest_threede if app_name == "3de" else context.open_latest_maya
+            cache_result = self._cache_manager.get_latest_file_cache_result(workspace, file_type)
 
-            # Check cache first
-            threede_cached: Path | None = None
-            maya_cached: Path | None = None
-            cache_hit = True
-
-            if app_name == "3de" and context.open_latest_threede:
-                result = self._cache_manager.get_latest_file_cache_result(
-                    workspace, "threede"
-                )
-                if result.status == "miss":
-                    cache_hit = False
-                else:
-                    threede_cached = result.path  # None for "not_found", Path for "hit"
-
-            if app_name == "maya" and context.open_latest_maya:
-                result = self._cache_manager.get_latest_file_cache_result(
-                    workspace, "maya"
-                )
-                if result.status == "miss":
-                    cache_hit = False
-                else:
-                    maya_cached = result.path  # None for "not_found", Path for "hit"
-
-            if cache_hit:
-                # Use cached result - add scene path to command
-                if app_name == "3de":
-                    result = self._apply_file_result("3de", command, threede_cached, context.open_latest_threede)
-                    if result is None:
-                        return LAUNCH_ERROR
-                    command = result
-
-                if app_name == "maya":
-                    result = self._apply_file_result("maya", command, maya_cached, context.open_latest_maya)
-                    if result is None:
-                        return LAUNCH_ERROR
-                    command = result
-            else:
+            if cache_result.status == "miss":
                 # Cache miss - start async search and return
                 # Launch will continue when search completes
                 self._start_async_file_search(app_name, context, command)
                 return ASYNC_IN_PROGRESS
 
+            # Cache hit (or "not_found") - apply result immediately
+            applied = self._apply_file_result(app_name, command, cache_result.path, wanted)
+            if applied is None:
+                return LAUNCH_ERROR
+            command = applied
+
         # Handle RV with default settings and optional sequence path
         if app_name == "rv":
-            command = f"{command} -fps 12 -play -eval 'setPlayMode(2)'"
-            if context.sequence_path:
-                try:
-                    safe_sequence_path = CommandBuilder.validate_path(
-                        context.sequence_path
-                    )
-                    command = f"{command} {safe_sequence_path}"
-                    seq_name = Path(context.sequence_path).name
-                    self.command_executed.emit(
-                        self.timestamp,
-                        f"Opening sequence in RV: {seq_name}",
-                    )
-                except ValueError as e:
-                    self._emit_error(
-                        f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"
-                    )
-                    return LAUNCH_ERROR
+            rv_command = self._build_rv_command(command, context)
+            if rv_command is None:
+                return LAUNCH_ERROR
+            command = rv_command
 
         return command, False
 

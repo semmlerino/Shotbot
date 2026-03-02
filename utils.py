@@ -19,10 +19,6 @@ from logging_mixin import get_module_logger
 
 
 if TYPE_CHECKING:
-    # Standard library imports
-    from types import TracebackType
-
-    # Third-party imports
     from PySide6.QtCore import QSize
 
 # Performance monitoring removed - was using archived module
@@ -34,71 +30,16 @@ logger = get_module_logger(__name__)
 from path_validators import (
     _PATH_CACHE_TTL,  # pyright: ignore[reportPrivateUsage]
     PathValidators,
-    clear_path_cache,
-    disable_path_caching,
-    enable_path_caching,
 )
 from path_validators import get_cache_stats as get_path_cache_stats
 
 
 __all__ = [
-    "CacheIsolation",
     "FileUtils",
     "ImageUtils",
     "ValidationUtils",
     "VersionUtils",
-    "clear_all_caches",
-    "disable_caching",
-    "enable_caching",
 ]
-
-
-def clear_all_caches() -> None:
-    """Clear all utility caches - useful for testing or debugging."""
-    clear_path_cache()  # Clear path validation cache
-    VersionUtils.clear_version_cache()
-    # Clear lru_cache decorated functions
-    VersionUtils.extract_version_from_path.cache_clear()
-    logger.debug("Cleared all utility caches")  # DEBUG to reduce test log noise
-
-
-def disable_caching() -> None:
-    """Disable caching completely - useful for testing."""
-    disable_path_caching()
-    clear_all_caches()
-    logger.debug("Caching disabled for testing")
-
-
-def enable_caching() -> None:
-    """Re-enable caching after testing."""
-    enable_path_caching()
-    logger.debug("Caching re-enabled after testing")
-
-
-class CacheIsolation:
-    """Context manager for cache isolation in tests.
-
-    Note: This uses the path cache from path_validators module.
-    The cache is managed through public functions to avoid accessing private variables.
-    """
-
-    def __enter__(self) -> CacheIsolation:
-        """Enter context with isolated cache."""
-        # Clear and disable cache
-        clear_all_caches()
-        disable_caching()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Exit context and restore caching."""
-        # Re-enable caching (cache will be empty)
-        enable_caching()
-        logger.debug("Cache isolation context exited")
 
 
 def get_cache_stats() -> dict[str, object]:
@@ -872,6 +813,55 @@ class ImageUtils:
             return None
 
 
+def get_current_username() -> str:
+    """Get the current username from environment.
+
+    Returns:
+        Current username, falling back to Config.DEFAULT_USERNAME if not found
+
+    """
+    from config import is_mock_mode
+
+    # In mock mode, always use the default username to match production data
+    if is_mock_mode():
+        logger.debug(f"Mock mode: using production username '{Config.DEFAULT_USERNAME}'")
+        return Config.DEFAULT_USERNAME
+
+    # Try multiple environment variables in order of preference
+    for env_var in ["USER", "USERNAME", "LOGNAME"]:
+        username = os.environ.get(env_var)
+        if username:
+            logger.debug(f"Found username '{username}' from ${env_var}")
+            return username
+
+    # Fallback to config default
+    logger.debug(
+        f"No username found in environment, using default: {Config.DEFAULT_USERNAME}",
+    )
+    return Config.DEFAULT_USERNAME
+
+
+def get_excluded_users(additional_users: set[str] | None = None) -> set[str]:
+    """Get set of users to exclude from searches.
+
+    Automatically excludes the current user and any additional specified users.
+
+    Args:
+        additional_users: Additional users to exclude beyond current user
+
+    Returns:
+        Set of usernames to exclude
+
+    """
+    excluded = {get_current_username()}
+
+    if additional_users:
+        excluded.update(additional_users)
+
+    logger.debug(f"Excluding users: {excluded}")
+    return excluded
+
+
 class ValidationUtils:
     """Common validation utilities."""
 
@@ -926,47 +916,18 @@ class ValidationUtils:
     def get_current_username() -> str:
         """Get the current username from environment.
 
-        Returns:
-            Current username, falling back to Config.DEFAULT_USERNAME if not found
-
+        Delegates to module-level get_current_username().
         """
-        # In mock mode, always use gabriel-h to match the production data
-        from config import is_mock_mode
-        if is_mock_mode():
-            logger.debug(f"Mock mode: using production username '{Config.DEFAULT_USERNAME}'")
-            return Config.DEFAULT_USERNAME
-
-        # Try multiple environment variables in order of preference
-        for env_var in ["USER", "USERNAME", "LOGNAME"]:
-            username = os.environ.get(env_var)
-            if username:
-                logger.debug(f"Found username '{username}' from ${env_var}")
-                return username
-
-        # Fallback to config default
-        logger.debug(
-            f"No username found in environment, using default: {Config.DEFAULT_USERNAME}",
-        )
-        return Config.DEFAULT_USERNAME
+        return get_current_username()
 
     @staticmethod
     def get_excluded_users(additional_users: set[str] | None = None) -> set[str]:
         """Get set of users to exclude from searches.
 
-        Automatically excludes the current user and any additional specified users.
-
-        Args:
-            additional_users: Additional users to exclude beyond current user
-
-        Returns:
-            Set of usernames to exclude
-
+        Excludes the current user plus any additional specified users.
         """
         excluded = {ValidationUtils.get_current_username()}
-
         if additional_users:
             excluded.update(additional_users)
-
-        logger.debug(f"Excluding users: {excluded}")
         return excluded
 

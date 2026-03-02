@@ -117,7 +117,7 @@ class TestThreeDEScene:
         monkeypatch.setattr("thumbnail_finders.Config.SHOWS_ROOT", str(shows_root))
 
         # Clear all caches to ensure they use the new Config.SHOWS_ROOT
-        from utils import clear_all_caches
+        from tests.fixtures.caching import clear_all_caches
         clear_all_caches()
 
         # Create real directory structure

@@ -20,7 +20,6 @@ import gc
 import hashlib
 import selectors
 import subprocess
-import sys
 import threading
 import time
 from collections.abc import Callable
@@ -36,7 +35,6 @@ from PySide6.QtCore import (
     QObject,
     QThread,
 )
-from PySide6.QtWidgets import QApplication
 
 # Local application imports
 from config import ThreadingConfig
@@ -137,7 +135,7 @@ class CancellableSubprocess:
             if self._process.stderr:
                 _ = sel.register(self._process.stderr, selectors.EVENT_READ, "stderr")
 
-            elapsed_time = 0.0
+            start_time = time.monotonic()
 
             while self._process.poll() is None:
                 # Check cancellation (both internal flag and external callback)
@@ -147,8 +145,8 @@ class CancellableSubprocess:
                     _ = self._process.wait()
                     return CancellableResult(None, "", "", "cancelled")
 
-                # Check timeout
-                if elapsed_time >= timeout:
+                # Check timeout using wall clock to avoid drift from processing overhead
+                if time.monotonic() - start_time >= timeout:
                     logger.error(f"Subprocess timed out after {timeout} seconds")
                     self._process.kill()
                     _ = self._process.wait()
@@ -164,8 +162,6 @@ class CancellableSubprocess:
                             stdout_chunks.append(data)
                         else:
                             stderr_chunks.append(data)
-
-                elapsed_time += poll_interval
 
             # Process exited - drain any remaining buffered data
             for key, _ in sel.select(timeout=0):
@@ -523,8 +519,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
         if cached is not None:
             return cached
 
-        self._metrics.subprocess_calls += 1
-
         # Execute command using subprocess
         start_time = time.time()
         try:
@@ -574,8 +568,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
             # Cache result
             self._cache.set(command, result, ttl=cache_ttl)
 
-            # Update metrics
+            # Update metrics after successful execution
             elapsed = (time.time() - start_time) * 1000
+            self._metrics.increment_subprocess_calls()
             self._metrics.update_response_time(elapsed)
 
             return result
@@ -694,10 +689,10 @@ class ProcessPoolManager(LoggingMixin, QObject):
             )
             result = proc_result.stdout
 
-            # Update metrics
+            # Update metrics after successful execution
             elapsed = (time.time() - start_time) * 1000
+            self._metrics.increment_subprocess_calls()
             self._metrics.update_response_time(elapsed)
-            self._metrics.subprocess_calls += 1
 
             return result
 
@@ -716,8 +711,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             List of matching file paths
 
         """
-        # Use Python pathlib instead of subprocess find
-        self._metrics.python_operations += 1
+        self._metrics.increment_python_operations()
 
         try:
             path = Path(directory)
@@ -748,16 +742,16 @@ class ProcessPoolManager(LoggingMixin, QObject):
             Performance metrics dictionary
 
         """
-        metrics = self._metrics.get_report()
         cache_stats = self._cache.get_stats()
 
-        # Build proper PerformanceMetricsDict structure
-        # Use defaults for any missing required fields
-        # Convert int | float to explicit int/float types
+        # Build PerformanceMetricsDict. ProcessPoolManager only tracks cache
+        # and subprocess counters; shot-model fields are always placeholder zeros
+        # because no callers read them from this layer (they come from ShotModel).
         result: PerformanceMetricsDict = {
-            "total_shots": int(metrics.get("total_shots", 0)),
-            "total_refreshes": int(metrics.get("total_refreshes", 0)),
-            "last_refresh_time": float(metrics.get("last_refresh_time", 0.0)),
+            # Placeholder: ProcessPoolManager has no shot-model visibility.
+            "total_shots": 0,
+            "total_refreshes": 0,
+            "last_refresh_time": 0.0,
             "cache_hits": int(cache_stats["hits"]),
             "cache_misses": int(cache_stats["misses"]),
             "cache_hit_rate": float(cache_stats["hit_rate"]),
@@ -925,26 +919,43 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
 @final
 class ProcessMetrics:
-    """Track process optimization metrics."""
+    """Track process optimization metrics.
+
+    All counter updates are protected by a threading.Lock because
+    execute_workspace_command and _execute_subprocess run from parallel
+    ThreadPoolExecutor workers.
+    """
 
     def __init__(self) -> None:
         """Initialize process metrics tracking."""
         super().__init__()
+        self._lock = threading.Lock()
         self.subprocess_calls = 0
         self.python_operations = 0
         self.total_response_time = 0.0
         self.response_count = 0
         self.start_time = time.time()
 
+    def increment_subprocess_calls(self) -> None:
+        """Increment subprocess call counter (thread-safe)."""
+        with self._lock:
+            self.subprocess_calls += 1
+
+    def increment_python_operations(self) -> None:
+        """Increment python operations counter (thread-safe)."""
+        with self._lock:
+            self.python_operations += 1
+
     def update_response_time(self, time_ms: float) -> None:
-        """Update response time metrics.
+        """Update response time metrics (thread-safe).
 
         Args:
             time_ms: Response time in milliseconds
 
         """
-        self.total_response_time += time_ms
-        self.response_count += 1
+        with self._lock:
+            self.total_response_time += time_ms
+            self.response_count += 1
 
     def get_report(self) -> dict[str, int | float]:
         """Generate performance report.
@@ -953,53 +964,27 @@ class ProcessMetrics:
             Dictionary with performance metrics
 
         """
+        with self._lock:
+            subprocess_calls = self.subprocess_calls
+            python_operations = self.python_operations
+            total_response_time = self.total_response_time
+            response_count = self.response_count
+            start_time = self.start_time
+
         avg_response = (
-            self.total_response_time / self.response_count
-            if self.response_count > 0
+            total_response_time / response_count
+            if response_count > 0
             else 0
         )
 
-        uptime = time.time() - self.start_time
+        uptime = time.time() - start_time
 
         return {
-            "subprocess_calls": self.subprocess_calls,
-            "python_operations": self.python_operations,
+            "subprocess_calls": subprocess_calls,
+            "python_operations": python_operations,
             "average_response_ms": avg_response,
             "uptime_seconds": uptime,
-            "calls_per_minute": (self.subprocess_calls / uptime * 60)
+            "calls_per_minute": (subprocess_calls / uptime * 60)
             if uptime > 0
             else 0,
         }
-
-
-# Example usage
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-
-    # Get singleton instance
-    pool = ProcessPoolManager.get_instance()
-
-    # Test workspace command with caching
-    result1 = pool.execute_workspace_command("echo 'test'", cache_ttl=5)
-    print(f"First call: {result1}")
-
-    result2 = pool.execute_workspace_command("echo 'test'", cache_ttl=5)
-    print(f"Second call (cached): {result2}")
-
-    # Test batch execution
-    commands = ["echo 'one'", "echo 'two'", "echo 'three'"]
-    results = pool.batch_execute(commands)
-    print(f"Batch results: {results}")
-
-    # Test file finding with Python
-    files = pool.find_files_python("/tmp", "*.txt")
-    print(f"Found files: {files}")
-
-    # Print metrics
-    metrics = pool.get_metrics()
-    print(f"\nMetrics: {metrics}")
-
-    # Cleanup
-    pool.shutdown()
-
-    sys.exit(0)

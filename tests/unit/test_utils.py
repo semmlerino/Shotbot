@@ -32,13 +32,13 @@ import pytest
 # Local application imports
 from config import Config
 from path_validators import PathValidators
+from tests.fixtures.caching import clear_all_caches
 from thumbnail_finders import ThumbnailFinders
 from utils import (
     FileUtils,
     ImageUtils,
     ValidationUtils,
     VersionUtils,
-    clear_all_caches,
     get_cache_stats,
 )
 

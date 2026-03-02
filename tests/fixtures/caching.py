@@ -1,8 +1,13 @@
-"""Caching fixtures for test isolation and cache behavior testing.
+"""Caching fixtures and utilities for test isolation and cache behavior testing.
 
-This module provides fixtures for tests that need to:
-- Test with caching explicitly enabled (for cache behavior tests)
-- Use isolated cache directories
+This module provides:
+- Cache management utilities (moved from utils.py — test-only infrastructure)
+- Fixtures for tests that need isolated cache environments
+
+Functions:
+    clear_all_caches: Clear all utility caches (path and version)
+    disable_caching: Disable caching for the duration of a test
+    enable_caching: Re-enable caching after a test
 
 Fixtures:
     caching_enabled: Enable caching with isolated temp directory
@@ -21,10 +26,73 @@ import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from types import TracebackType
 
     from cache_manager import CacheManager
 
 _logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Cache management utilities (test-only infrastructure)
+# ---------------------------------------------------------------------------
+
+
+def clear_all_caches() -> None:
+    """Clear all utility caches — useful for test isolation."""
+    from path_validators import clear_path_cache
+    from utils import VersionUtils
+
+    clear_path_cache()
+    VersionUtils.clear_version_cache()
+    VersionUtils.extract_version_from_path.cache_clear()
+    _logger.debug("Cleared all utility caches")
+
+
+def disable_caching() -> None:
+    """Disable caching completely for a test."""
+    from path_validators import disable_path_caching
+
+    disable_path_caching()
+    clear_all_caches()
+    _logger.debug("Caching disabled for testing")
+
+
+def enable_caching() -> None:
+    """Re-enable caching after a test."""
+    from path_validators import enable_path_caching
+
+    enable_path_caching()
+    _logger.debug("Caching re-enabled after testing")
+
+
+class CacheIsolation:
+    """Context manager for cache isolation in tests.
+
+    Clears and disables all utility caches for the duration of the block,
+    then re-enables caching on exit.
+    """
+
+    def __enter__(self) -> CacheIsolation:
+        """Enter context with isolated cache."""
+        clear_all_caches()
+        disable_caching()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Exit context and restore caching."""
+        enable_caching()
+        _logger.debug("Cache isolation context exited")
+
+
+# ---------------------------------------------------------------------------
+# pytest fixtures
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -49,8 +117,6 @@ def caching_enabled(tmp_path: Path) -> Iterator[Path]:
             # Test cache behavior with caching enabled
 
     """
-    from utils import clear_all_caches, enable_caching
-
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir(exist_ok=True)
 
@@ -119,5 +185,3 @@ def isolated_cache_manager(tmp_path: Path) -> Iterator[CacheManager]:
         manager.shutdown()
     except Exception as e:
         _logger.debug("CacheManager shutdown exception: %s", e)
-
-

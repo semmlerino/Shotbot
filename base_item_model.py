@@ -852,19 +852,10 @@ class BaseItemModel(
         # Build lookup set BEFORE model reset (exception safety)
         new_item_names = {item.full_name for item in items}
 
-        # Detect duplicates (optional but recommended)
-        duplicate_count = len(items) - len(new_item_names) if items else 0
-
         # NOW safe to begin model reset
         self.beginResetModel()
 
         try:
-            # Log duplicates inside try block (logger might throw)
-            if duplicate_count > 0:
-                self.logger.debug(
-                    f"Found {duplicate_count} items with duplicate full_name values. Thumbnails will be shared across duplicates."
-                )
-
             # Update items list (state modification inside try block)
             self._items = items
 
@@ -889,15 +880,8 @@ class BaseItemModel(
                 new_cache_size = len(self._thumbnail_cache)
             # QMutexLocker automatically releases lock here
 
-            # Log cache preservation statistics
             preserved = new_cache_size
             evicted = old_cache_size - new_cache_size
-
-            # Performance logging for large operations
-            if old_cache_size > 1000:
-                self.logger.debug(
-                    f"Large cache operation: {old_cache_size} items filtered, {evicted} evicted, {preserved} preserved"
-                )
 
             self.logger.info(
                 f"Model updated: {len(items)} items, thumbnails: {preserved} preserved, {evicted} evicted"

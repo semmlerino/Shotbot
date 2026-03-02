@@ -1156,7 +1156,7 @@ class TestCacheManagerWithPathCache:
         clear_all_caches() only clears path-validation and version caches, not
         CacheManager's shot/scene JSON files.
         """
-        from utils import clear_all_caches
+        from tests.fixtures.caching import clear_all_caches
 
         manager = isolated_cache_manager
         shot_data = [{"show": "TEST", "sequence": "SQ010", "shot": "SH0010"}]
@@ -1175,7 +1175,7 @@ class TestCacheIsolationContext:
 
     def test_cache_isolation_clears_and_disables(self, tmp_path: Path) -> None:
         """CacheIsolation provides a clean, cache-disabled environment inside the block."""
-        from utils import CacheIsolation
+        from tests.fixtures.caching import CacheIsolation
 
         test_path = tmp_path / "test"
         test_path.mkdir()
@@ -1197,7 +1197,7 @@ class TestCacheIsolationContext:
     def test_cache_isolation_reenables_caching_on_exit(self, tmp_path: Path) -> None:
         """Caching is re-enabled after CacheIsolation block exits."""
         from path_validators import clear_path_cache
-        from utils import CacheIsolation
+        from tests.fixtures.caching import CacheIsolation
 
         clear_path_cache()
 

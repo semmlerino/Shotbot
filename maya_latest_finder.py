@@ -11,6 +11,10 @@ from pathlib import Path
 from version_mixin import VersionHandlingMixin
 
 
+_MAYA_DCC_SUBPATH = "mm/maya/scenes"
+_MAYA_GLOB_PATTERNS = ["**/*.ma", "**/*.mb"]
+
+
 class MayaLatestFinder(VersionHandlingMixin):
     """Finds the latest Maya scene file in a workspace.
 
@@ -54,62 +58,18 @@ class MayaLatestFinder(VersionHandlingMixin):
             self.logger.debug(f"Workspace does not exist: {workspace_path}")
             return None
 
-        maya_files: list[tuple[Path, int]] = []
-
-        # Search in all user directories
         user_base = workspace / "user"
         if not user_base.exists():
             self.logger.debug(f"No user directory in workspace: {workspace_path}")
             return None
 
-        # Find all Maya files
-        # Search pattern: user/*/mm/maya/scenes/**/*.ma or *.mb
-        # The mm/ prefix is the matchmove department directory
-        for user_dir in user_base.iterdir():
-            # Check for cancellation between user directories
-            if cancel_flag and cancel_flag():
-                self.logger.debug("Maya scene search cancelled")
-                return None
-
-            if not user_dir.is_dir():
-                continue
-
-            # Check for maya directory structure (with mm/ department prefix)
-            maya_scenes = user_dir / "mm" / "maya" / "scenes"
-            if not maya_scenes.exists():
-                continue
-
-            # Search recursively for .ma and .mb files (scenes are in subdirs)
-            for maya_file in maya_scenes.glob("**/*.ma"):
-                # Check for cancellation between files
-                if cancel_flag and cancel_flag():
-                    self.logger.debug("Maya scene search cancelled")
-                    return None
-
-                version = self._extract_version(maya_file)
-                if version is not None:
-                    maya_files.append((maya_file, version))
-                    self.logger.debug(
-                        f"Found Maya ASCII file: {maya_file.name} (v{version:03d})"
-                    )
-
-            # Check for cancellation between glob operations
-            if cancel_flag and cancel_flag():
-                self.logger.debug("Maya scene search cancelled")
-                return None
-
-            for maya_file in maya_scenes.glob("**/*.mb"):
-                # Check for cancellation between files
-                if cancel_flag and cancel_flag():
-                    self.logger.debug("Maya scene search cancelled")
-                    return None
-
-                version = self._extract_version(maya_file)
-                if version is not None:
-                    maya_files.append((maya_file, version))
-                    self.logger.debug(
-                        f"Found Maya Binary file: {maya_file.name} (v{version:03d})"
-                    )
+        maya_files = self._collect_scene_files(
+            user_base, _MAYA_DCC_SUBPATH, _MAYA_GLOB_PATTERNS, cancel_flag
+        )
+        if maya_files is None:
+            # Cancelled
+            self.logger.debug("Maya scene search cancelled")
+            return None
 
         if not maya_files:
             self.logger.debug(
@@ -117,9 +77,12 @@ class MayaLatestFinder(VersionHandlingMixin):
             )
             return None
 
-        # Sort by version number and get the latest
-        maya_files.sort(key=lambda x: x[1])
-        latest_file = maya_files[-1][0]
+        latest_file = self._find_latest_by_version(maya_files)
+        if latest_file is None:
+            self.logger.debug(
+                f"No versioned Maya files found in workspace: {shot_name or workspace_path}"
+            )
+            return None
 
         self.logger.info(
             f"Found latest Maya scene for {shot_name or 'shot'}: {latest_file.name}"
@@ -153,48 +116,18 @@ class MayaLatestFinder(VersionHandlingMixin):
         if not workspace.exists():
             return []
 
-        maya_files: list[Path] = []
         user_base = workspace / "user"
-
         if not user_base.exists():
             return []
 
-        for user_dir in user_base.iterdir():
-            # Check for cancellation between user directories
-            if cancel_flag and cancel_flag():
-                return []
+        finder = MayaLatestFinder()
+        collected = finder._collect_scene_files(
+            user_base, _MAYA_DCC_SUBPATH, _MAYA_GLOB_PATTERNS, cancel_flag
+        )
+        if collected is None:
+            return []
 
-            if not user_dir.is_dir():
-                continue
+        if include_autosave:
+            return collected
 
-            # Check for maya directory structure (with mm/ department prefix)
-            maya_scenes = user_dir / "mm" / "maya" / "scenes"
-            if not maya_scenes.exists():
-                continue
-
-            # Get all .ma and .mb files recursively
-            for maya_file in maya_scenes.glob("**/*.ma"):
-                # Check for cancellation between files
-                if cancel_flag and cancel_flag():
-                    return []
-
-                # Skip autosave files unless requested
-                if not include_autosave and ".autosave" in maya_file.name:
-                    continue
-                maya_files.append(maya_file)
-
-            # Check for cancellation between glob operations
-            if cancel_flag and cancel_flag():
-                return []
-
-            for maya_file in maya_scenes.glob("**/*.mb"):
-                # Check for cancellation between files
-                if cancel_flag and cancel_flag():
-                    return []
-
-                # Skip autosave files unless requested
-                if not include_autosave and ".autosave" in maya_file.name:
-                    continue
-                maya_files.append(maya_file)
-
-        return maya_files
+        return [f for f in collected if ".autosave" not in f.name]

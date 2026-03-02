@@ -5,99 +5,11 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-# Cache globals
-_path_cache: dict[str, tuple[bool, float]]
-_PATH_CACHE_TTL: float
-_cache_disabled: bool
-
-def clear_all_caches() -> None: ...
 def get_cache_stats() -> dict[str, int | str | float]: ...
-def disable_caching() -> None: ...
-def enable_caching() -> None: ...
+def get_current_username() -> str: ...
+def get_excluded_users(additional_users: set[str] | None = ...) -> set[str]: ...
 def normalize_plate_id(plate_id: str | None) -> str | None: ...
 def find_path_case_insensitive(base_path: Path, plate_id: str) -> Path | None: ...
-
-class CacheIsolation:
-    """Context manager for cache isolation in tests."""
-
-    def __init__(self) -> None: ...
-    def __enter__(self) -> CacheIsolation: ...
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: object | None,
-    ) -> None: ...
-
-class PathUtils:
-    """Utilities for path construction and validation."""
-
-    @staticmethod
-    def build_path(base_path: str | Path, *segments: str) -> Path: ...
-    @staticmethod
-    def build_thumbnail_path(
-        shows_root: str,
-        show: str,
-        sequence: str,
-        shot: str,
-    ) -> Path: ...
-    @staticmethod
-    def find_turnover_plate_thumbnail(
-        shows_root: str,
-        show: str,
-        sequence: str,
-        shot: str,
-    ) -> Path | None: ...
-    @staticmethod
-    def find_undistorted_jpeg_thumbnail(
-        shows_root: str,
-        show: str,
-        sequence: str,
-        shot: str,
-    ) -> Path | None: ...
-    @staticmethod
-    def find_user_workspace_jpeg_thumbnail(
-        shows_root: str,
-        show: str,
-        sequence: str,
-        shot: str,
-    ) -> Path | None: ...
-    @staticmethod
-    def find_any_publish_thumbnail(
-        shows_root: str,
-        show: str,
-        sequence: str,
-        shot: str,
-        max_depth: int = 5,
-    ) -> Path | None: ...
-    @staticmethod
-    def find_shot_thumbnail(
-        shows_root: str,
-        show: str,
-        sequence: str,
-        shot: str,
-    ) -> Path | None: ...
-    @staticmethod
-    def build_raw_plate_path(workspace_path: str) -> Path: ...
-    @staticmethod
-    def build_threede_scene_path(workspace_path: str, username: str) -> Path: ...
-    @staticmethod
-    def validate_path_exists(
-        path: str | Path,
-        description: str = ...,
-    ) -> bool: ...
-    @staticmethod
-    def _cleanup_path_cache() -> None: ...
-    @staticmethod
-    def batch_validate_paths(paths: list[str | Path]) -> dict[str, bool]: ...
-    @staticmethod
-    def safe_mkdir(path: str | Path, description: str = ...) -> bool: ...
-    @staticmethod
-    def discover_plate_directories(
-        base_path: str | Path,
-    ) -> list[tuple[str, int]]: ...
-    @staticmethod
-    def find_mov_file_for_path(thumbnail_path: Path) -> Path | None: ...
 
 class VersionUtils:
     """Utilities for handling versioned directories and files."""

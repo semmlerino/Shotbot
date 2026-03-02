@@ -538,6 +538,7 @@ class FileSystemScanner(LoggingMixin):
         """
         stdout_chunks: list[str] = []
         stderr_chunks: list[str] = []
+        chunks: dict[str, list[str]] = {"stdout": stdout_chunks, "stderr": stderr_chunks}
 
         process = subprocess.Popen(
             cmd,
@@ -580,19 +581,13 @@ class FileSystemScanner(LoggingMixin):
                     # fileobj is IO[str] in text mode, read() returns str
                     data = cast("str", key.fileobj.read(8192))  # type: ignore[union-attr]
                     if data:
-                        if key.data == "stdout":
-                            stdout_chunks.append(data)
-                        else:
-                            stderr_chunks.append(data)
+                        chunks[key.data].append(data)
 
             # Process exited - drain any remaining buffered data
             for key, _ in sel.select(timeout=0):
                 remaining = cast("str", key.fileobj.read())  # type: ignore[union-attr]
                 if remaining:
-                    if key.data == "stdout":
-                        stdout_chunks.append(remaining)
-                    else:
-                        stderr_chunks.append(remaining)
+                    chunks[key.data].append(remaining)
 
             return (
                 process.returncode,
@@ -883,10 +878,9 @@ class FileSystemScanner(LoggingMixin):
         self._ensure_parser()
 
         self.logger.info(
-            "=== STARTING find_all_3de_files_in_show_targeted (optimized) ==="
+            f"=== STARTING find_all_3de_files_in_show_targeted (optimized) ==="
+            f" show_root={show_root!r}, show={show!r}"
         )
-        self.logger.info(f"  show_root: {show_root}")
-        self.logger.info(f"  show: {show}")
 
         show_path = Path(show_root) / show
         shots_dir = show_path / "shots"

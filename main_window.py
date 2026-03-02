@@ -280,17 +280,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # 9. _initial_load() — deferred data loading with QTimer scheduling
 
         # Ensure we're in the main thread for Qt widget creation
-        # Third-party imports
         from PySide6.QtCore import QCoreApplication, QThread
         from PySide6.QtWidgets import QApplication
 
-        # Check if QApplication exists
         app_instance = QCoreApplication.instance()
         if app_instance is None:
             msg = "MainWindow: No QApplication instance found"
             raise RuntimeError(msg)
 
-        # Check if we're in the main thread
         current_thread = QThread.currentThread()
         main_thread = app_instance.thread()
         if current_thread != main_thread:
@@ -305,7 +302,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Additional safety check for QApplication type (relaxed for tests)
         # In test environments, QCoreApplication is acceptable since pytest-qt may create it
-        # Standard library imports
         import sys
 
         is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
@@ -321,37 +317,24 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         super().__init__(parent)
 
-        # Initialize shot_model attribute (will be set later based on feature flag)
-
-        # Create process pool based on mock mode
         self._process_pool: ProcessPoolInterface
         if is_mock_mode():
-            # Local application imports
             from mock_workspace_pool import create_mock_pool_from_filesystem
 
             self._process_pool = create_mock_pool_from_filesystem()
             self.logger.info("Using MockWorkspacePool for process execution")
         else:
-            # Use production pool
             self._process_pool = ProcessPoolManager.get_instance()
             self.logger.info("Using ProcessPoolManager for process execution")
 
-        # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager(
             on_cleared=lambda: ProcessPoolManager.get_instance().invalidate_cache()
         )
-
-        # Create pin manager for tracking pinned shots
         self.pin_manager = PinManager(self.cache_manager)
-
-        # Create notes manager for per-shot notes
         self.notes_manager = NotesManager(self.cache_manager, parent=self)
-
-        # Create file pin manager for pinning specific file versions
         self.file_pin_manager = FilePinManager(self.cache_manager, parent=self)
 
-        # Initialize cleanup and refresh managers (extracted from MainWindow)
-        # pyright: ignore[reportArgumentType] on these lines: QMainWindow is not a structural
+        # pyright: ignore[reportArgumentType] on the next two lines: QMainWindow is not a structural
         # subtype of the Protocol classes (CleanupTarget, RefreshOrchestratorMainWindowProtocol)
         # because pyright requires invariance for mutable Protocol attributes — e.g.
         # MainWindow.threede_controller is typed ThreeDEController (not ThreeDEController | None).
@@ -360,14 +343,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.cleanup_manager = CleanupManager(self)  # pyright: ignore[reportArgumentType]
         self.refresh_orchestrator = RefreshOrchestrator(self)  # pyright: ignore[reportArgumentType]
 
-        # Initialize settings manager
         self.settings_manager = SettingsManager()
-
-        # Restore UI scale from settings
         saved_scale = self.settings_manager.get_ui_scale()
         design_system.set_ui_scale(saved_scale)
-
-        # Store reference to settings dialog
         self.settings_dialog: SettingsDialog | None = None
 
         # Initialize settings controller (refactored from MainWindow methods)
@@ -375,33 +353,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # QMainWindow signatures use position-only params which differ from Protocol
         self.settings_controller = SettingsController(self)  # pyright: ignore[reportArgumentType]
 
-        # Create 3DE item model for Model/View architecture
         self.threede_item_model = ThreeDEItemModel(cache_manager=self.cache_manager)
 
-        # Create the shot model with async loading and instant UI display
         self.logger.info("Creating ShotModel with 366x faster startup")
         self.shot_model = ShotModel(self.cache_manager, process_pool=self._process_pool)
-
-        # Initialize async loading for immediate UI display
         init_result = self.shot_model.initialize_async()
         if init_result.success:
             cached_count = len(self.shot_model.shots)
-            if cached_count > 0:
-                self.logger.debug(
-                    f"Model initialized with {cached_count} cached shots (valid cache)"
-                )
-            else:
-                # Check if cache exists but expired
-                persistent_cache = self.cache_manager.get_shots_no_ttl()
-                if persistent_cache:
-                    self.logger.debug(
-                        f"Model initialized: cache expired ({len(persistent_cache)} shots), "
-                         "background refresh in progress"
-                    )
-                else:
-                    self.logger.debug(
-                        "Model initialized: no cache file, background refresh in progress"
-                    )
+            self.logger.debug(f"Model initialized: {cached_count} shots in memory")
 
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
         # Cast to BaseShotModel for type safety (ShotModel inherits from BaseShotModel)
@@ -417,10 +376,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
 
         self._closing = False  # Track shutdown state
-        self._session_warmer: SessionWarmer | None = None  # Initialize session warmer
-        self._last_selected_shot_name: str | None = (
-            None  # Initialize last selected shot
-        )
+        self._session_warmer: SessionWarmer | None = None
+        self._last_selected_shot_name: str | None = None
 
         # UI setup must come before controller initialization
         self._setup_ui()
@@ -443,12 +400,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)  # pyright: ignore[reportArgumentType]
 
         self._setup_menu()
-        self._setup_accessibility()  # Add accessibility support
+        self._setup_accessibility()
         self._connect_signals()
-        self.settings_controller.load_settings()  # Use refactored settings controller
-        self._restore_sort_orders()  # Restore sort order settings for tabs
+        self.settings_controller.load_settings()
+        self._restore_sort_orders()
 
-        # Build the startup coordinator with all dependencies
         self._startup = StartupCoordinator(
             shot_model=self.shot_model,
             threede_scene_model=self.threede_scene_model,
@@ -466,8 +422,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             refresh_shot_display=self._refresh_shot_display,
         )
 
-        # Initial shot load - immediately, no delay
-        # Skip in test environment if requested
+        # Skip initial load in test environments if requested
         if not os.environ.get("SHOTBOT_NO_INITIAL_LOAD"):
             self._initial_load()
 
@@ -492,15 +447,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.setWindowTitle(f"{Config.APP_NAME} v{Config.APP_VERSION}")
         self.resize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
 
-        # Central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # Main layout
         main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(5, 5, 5, 5)
 
-        # Splitter
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         main_layout.addWidget(self.splitter)
 
@@ -512,7 +464,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.splitter.addWidget(self.tab_widget)
 
         # Tab 1: My Shots
-        # Always use Model/View architecture for maximum efficiency
         self.shot_item_model = ShotItemModel(
             cache_manager=self.cache_manager,
             pin_manager=self.pin_manager,
@@ -548,16 +499,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
         _ = self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
 
-        # Apply distinct color themes to each tab
         self.tab_widget.tabBar().setStyleSheet(_TAB_BAR_STYLESHEET)
 
-        # Right side - New redesigned panel
+        # Right side panel
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(0)
 
-        # Redesigned right panel (combines shot info, quick launch, DCC accordion, files)
         self.right_panel = RightPanelWidget(settings_manager=self.settings_manager)
         # Signal connections handled by LauncherController
         right_layout.addWidget(self.right_panel, stretch=1)
@@ -579,11 +528,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Set splitter sizes (wider right panel for better visibility)
         self.splitter.setSizes([750, 450])
 
-        # Status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
-        # Add mock mode indicator to status bar if in mock mode
         if is_mock_mode():
             mock_label = QLabel("🧪 MOCK MODE ACTIVE")
             mock_label.setStyleSheet("""
@@ -598,10 +545,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             """)
             self.status_bar.addPermanentWidget(mock_label)
 
-        # Initialize notification manager
         _ = NotificationManager.initialize(self, self.status_bar)
-
-        # Initialize progress manager
         _ = ProgressManager.initialize(self.status_bar)
 
         self.update_status("Ready")
@@ -655,7 +599,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         _ = view_menu.addSeparator()
 
-        # Reset layout action
         reset_layout_action = QAction("&Reset Layout", self)
         _ = reset_layout_action.triggered.connect(self.settings_controller.reset_layout)
         view_menu.addAction(reset_layout_action)
@@ -774,10 +717,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.command_launcher.launch_app
         )
 
-        # Tab widget - handle tab changes to update shot context
         _ = self.tab_widget.currentChanged.connect(self._on_tab_changed)
-
-        # Right panel DCC launch buttons
         _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
 
         # Async file search state - update launch button during search
@@ -804,7 +744,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Called after load_settings() to restore persisted sort orders
         to both the item models and the view UI buttons.
         """
-        # Restore 3DE scenes sort order
         threede_order = self.settings_manager.get_sort_order("threede_scenes")
         self.threede_item_model.set_sort_order(threede_order)
         self.threede_shot_grid.set_sort_order(threede_order)

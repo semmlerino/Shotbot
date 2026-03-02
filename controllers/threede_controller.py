@@ -199,24 +199,7 @@ class ThreeDEController(LoggingMixin):
         self._last_scan_time = now
 
         # INSTANT UI UPDATE: Load persistent cache first (no TTL check)
-        cached_scenes = self.window.cache_manager.get_persistent_threede_scenes()
-        if cached_scenes:
-            # Convert cached data to ThreeDEScene objects
-            scenes: list[ThreeDEScene] = []
-            for scene_data in cached_scenes:
-                try:
-                    scenes.append(ThreeDEScene.from_dict(scene_data))  # pyright: ignore[reportArgumentType]
-                except (KeyError, TypeError, ValueError) as e:
-                    self.logger.debug(f"Skipping invalid cached 3DE scene: {e}")
-                    continue
-
-            if scenes:
-                # Update model immediately
-                self.window.threede_scene_model.set_scenes(scenes)
-                self.update_ui()
-                self.logger.info(
-                    f"🚀 Loaded {len(scenes)} cached 3DE scenes immediately (scanning for updates in background)"
-                )
+        cached_scenes = self._load_cached_scenes()
 
         # Store worker reference for cleanup outside mutex
         worker_to_stop = None
@@ -237,28 +220,7 @@ class ThreeDEController(LoggingMixin):
 
         # Stop old worker outside of mutex to avoid deadlock
         if worker_to_stop:
-            worker_to_stop.stop()
-            if not worker_to_stop.wait(
-                Config.WORKER_STOP_TIMEOUT_MS
-            ):  # Wait up to 5 seconds
-                self.logger.warning(
-                    "Failed to stop 3DE worker gracefully, using safe termination",
-                )
-                # Use safe_terminate which avoids dangerous terminate() call
-                worker_to_stop.safe_terminate()
-
-            # Only delete if not a zombie (prevents crash)
-            if hasattr(worker_to_stop, "is_zombie") and worker_to_stop.is_zombie():
-                self.logger.warning(
-                    "3DE worker thread is a zombie and will not be deleted"
-                )
-            else:
-                worker_to_stop.deleteLater()
-
-            # Clear reference after worker is stopped, with mutex protection
-            with QMutexLocker(self._worker_mutex):
-                if self._threede_worker == worker_to_stop:
-                    self._threede_worker = None
+            self._stop_existing_worker(worker_to_stop)
 
         # Check once more if closing (could have changed while stopping worker)
         if self._closing:
@@ -791,6 +753,75 @@ class ThreeDEController(LoggingMixin):
     # ============================================================================
     # Private Helper Methods
     # ============================================================================
+
+    def _load_cached_scenes(self) -> list[ThreeDEScene]:
+        """Load 3DE scenes from persistent cache and populate the UI immediately.
+
+        Fetches cached scene data, converts each entry to a ThreeDEScene object
+        (skipping any that fail to deserialize), and if any valid scenes are
+        found, updates the scene model and refreshes the UI without waiting for
+        the background worker.
+
+        Returns:
+            List of successfully deserialized ThreeDEScene objects from the
+            cache.  An empty list indicates either no cache or no valid entries.
+
+        """
+        cached_data = self.window.cache_manager.get_persistent_threede_scenes()
+        if not cached_data:
+            return []
+
+        scenes: list[ThreeDEScene] = []
+        for scene_data in cached_data:
+            try:
+                scenes.append(ThreeDEScene.from_dict(scene_data))  # pyright: ignore[reportArgumentType]
+            except (KeyError, TypeError, ValueError) as e:
+                self.logger.debug(f"Skipping invalid cached 3DE scene: {e}")
+                continue
+
+        if scenes:
+            self.window.threede_scene_model.set_scenes(scenes)
+            self.update_ui()
+            self.logger.info(
+                f"🚀 Loaded {len(scenes)} cached 3DE scenes immediately (scanning for updates in background)"
+            )
+
+        return scenes
+
+    def _stop_existing_worker(self, worker_to_stop: ThreeDESceneWorker) -> None:
+        """Stop a running worker thread and release its resources.
+
+        Requests a graceful stop, waits up to the configured timeout, falls
+        back to safe termination if the worker does not respond in time, then
+        schedules the worker for deletion (unless it is a zombie thread) and
+        clears the internal worker reference under mutex protection.
+
+        Args:
+            worker_to_stop: The worker thread to stop.  Must not be ``None``.
+
+        """
+        worker_to_stop.stop()
+        if not worker_to_stop.wait(
+            Config.WORKER_STOP_TIMEOUT_MS
+        ):  # Wait up to 5 seconds
+            self.logger.warning(
+                "Failed to stop 3DE worker gracefully, using safe termination",
+            )
+            # Use safe_terminate which avoids dangerous terminate() call
+            worker_to_stop.safe_terminate()
+
+        # Only delete if not a zombie (prevents crash)
+        if hasattr(worker_to_stop, "is_zombie") and worker_to_stop.is_zombie():
+            self.logger.warning(
+                "3DE worker thread is a zombie and will not be deleted"
+            )
+        else:
+            worker_to_stop.deleteLater()
+
+        # Clear reference after worker is stopped, with mutex protection
+        with QMutexLocker(self._worker_mutex):
+            if self._threede_worker == worker_to_stop:
+                self._threede_worker = None
 
     def _setup_worker_signals(self, worker: ThreeDESceneWorker) -> None:
         """Connect all worker signals to controller slots.

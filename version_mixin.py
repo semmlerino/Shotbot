@@ -8,7 +8,9 @@ version numbers are parsed and compared across the codebase.
 from __future__ import annotations
 
 # Standard library imports
+import itertools
 import re
+from collections.abc import Callable
 from pathlib import Path
 from re import Pattern
 from typing import ClassVar
@@ -130,6 +132,59 @@ class VersionHandlingMixin(LoggingMixin):
             f"Found latest version: {latest_file.name} (v{latest_version:03d})"
         )
         return latest_file
+
+    def _collect_scene_files(
+        self,
+        user_base: Path,
+        dcc_subpath: str,
+        glob_patterns: list[str],
+        cancel_flag: Callable[[], bool] | None = None,
+    ) -> list[Path] | None:
+        """Collect scene files from user directories for a given DCC tool.
+
+        Walks all subdirectories under ``user_base``, appends ``dcc_subpath``
+        to locate the DCC-specific scene directory, then globs using each
+        pattern in ``glob_patterns`` via a single chained iterable with one
+        cancellation check per file.
+
+        Args:
+            user_base: Path to the workspace ``user/`` directory.
+            dcc_subpath: Relative path from each user directory to the scene
+                base (e.g. ``"mm/maya/scenes"`` or
+                ``"mm/3de/mm-default/scenes/scene"``).
+            glob_patterns: Glob patterns applied relative to the scene base
+                (e.g. ``["**/*.ma", "**/*.mb"]`` for recursive Maya search or
+                ``["*/*.3de"]`` for one-level-deep 3DE search).
+            cancel_flag: Optional callable returning ``True`` when the
+                operation should be aborted.
+
+        Returns:
+            List of collected :class:`~pathlib.Path` objects, or ``None`` if
+            the operation was cancelled.
+
+        """
+        collected: list[Path] = []
+
+        for user_dir in user_base.iterdir():
+            if cancel_flag and cancel_flag():
+                self.logger.debug("Scene file collection cancelled")
+                return None
+
+            if not user_dir.is_dir():
+                continue
+
+            scene_base = user_dir / dcc_subpath
+            if not scene_base.exists():
+                continue
+
+            globs = (scene_base.glob(pattern) for pattern in glob_patterns)
+            for scene_file in itertools.chain.from_iterable(globs):
+                if cancel_flag and cancel_flag():
+                    self.logger.debug("Scene file collection cancelled")
+                    return None
+                collected.append(scene_file)
+
+        return collected
 
     def _sort_files_by_version(
         self,

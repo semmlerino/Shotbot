@@ -218,7 +218,7 @@ def reset_caches(request: pytest.FixtureRequest) -> Iterator[None]:
         @pytest.mark.persistent_cache: Skip disk cache clearing for this test.
             Use this when testing cache loading, migration, or corruption handling.
     """
-    from utils import clear_all_caches, enable_caching
+    from tests.fixtures.caching import clear_all_caches, enable_caching
 
     # Check for persistent_cache marker (skip disk cache clearing)
     skip_cache_clear = "persistent_cache" in [

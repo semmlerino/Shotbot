@@ -12,7 +12,9 @@ import re
 from pathlib import Path
 
 # Local application imports
-from config import Config
+from config import (
+    Config,  # noqa: F401  # pyright: ignore[reportUnusedImport] — monkeypatched by tests
+)
 from file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
 from path_builders import PathBuilders
@@ -33,6 +35,18 @@ def _extract_frame_number(path: Path) -> int:
 
 class ThumbnailFinders:
     """Utilities for finding thumbnail images in VFX pipeline."""
+
+    @staticmethod
+    def _shot_path(
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
+        *suffix: str,
+    ) -> Path:
+        """Build a path rooted at the shot directory, with optional suffix components."""
+        shot_dir = f"{sequence}_{shot}"
+        return PathBuilders.build_path(shows_root, show, "shots", sequence, shot_dir, *suffix)
 
     @staticmethod
     def find_turnover_plate_thumbnail(
@@ -61,50 +75,24 @@ class ThumbnailFinders:
             Path to first frame of best available plate, or None if not found
 
         """
-        # Build base path to turnover plates
-        shot_dir = f"{sequence}_{shot}"
-        base_path = PathBuilders.build_path(
-            shows_root,
-            show,
-            "shots",
-            sequence,
-            shot_dir,
-            "publish",
-            "turnover",
-            "plate",
-            "input_plate",
+        # Build candidate paths in preference order: with input_plate first, then without
+        turnover_plate_base = ThumbnailFinders._shot_path(
+            shows_root, show, sequence, shot, "publish", "turnover", "plate",
         )
-
-        # Try the expected path first, but also check parent directories if it doesn't exist
-        if not PathValidators.validate_path_exists(base_path, "Turnover plate base"):
-            # Try without input_plate subdirectory
-            base_path = PathBuilders.build_path(
-                shows_root,
-                show,
-                "shots",
-                sequence,
-                shot_dir,
-                "publish",
-                "turnover",
-                "plate",
-            )
-            if not PathValidators.validate_path_exists(
-                base_path,
-                "Turnover plate directory",
-            ):
-                return None
+        candidates = [
+            turnover_plate_base / "input_plate",
+            turnover_plate_base,
+        ]
+        base_path: Path | None = next(
+            (p for p in candidates if PathValidators.validate_path_exists(p, "Turnover plate directory")),
+            None,
+        )
+        if base_path is None:
+            return None
 
         # Find all available plate directories
         try:
-            plate_dirs = []
-            # Check if input_plate is a subdirectory
-            input_plate_path = base_path / "input_plate"
-            if input_plate_path.exists() and input_plate_path.is_dir():
-                # Look for plate directories inside input_plate
-                plate_dirs = [d for d in input_plate_path.iterdir() if d.is_dir()]
-            else:
-                # Look for plate directories directly in base_path
-                plate_dirs = [d for d in base_path.iterdir() if d.is_dir()]
+            plate_dirs = [d for d in base_path.iterdir() if d.is_dir()]
         except (OSError, PermissionError) as e:
             logger.debug(f"Error accessing turnover plates: {e}")
             return None
@@ -153,20 +141,10 @@ class ThumbnailFinders:
                 sorted_frames = sorted(exr_files, key=_extract_frame_number)
                 first_frame = sorted_frames[0]
 
-                # Check if we should use EXR as fallback
-                # Only return EXR if it's reasonably sized or if we're explicitly allowing fallback
                 file_size_mb = first_frame.stat().st_size / (1024 * 1024)
-                max_direct_size = getattr(Config, "THUMBNAIL_MAX_DIRECT_SIZE_MB", 10)
-
-                if file_size_mb <= max_direct_size:
-                    logger.debug(
-                        f"Using turnover plate EXR as fallback: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB)",
-                    )
-                else:
-                    # Large EXR - return it anyway, cache_manager will resize with PIL
-                    logger.debug(
-                        f"Found large turnover plate EXR: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB) - will resize",
-                    )
+                logger.debug(
+                    f"Using turnover plate EXR: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB)",
+                )
                 return first_frame
 
         logger.debug(f"No suitable turnover plates found for {sequence}_{shot}")
@@ -198,15 +176,7 @@ class ThumbnailFinders:
 
         """
         # Build path to publish directory
-        shot_dir = f"{sequence}_{shot}"
-        publish_path = PathBuilders.build_path(
-            shows_root,
-            show,
-            "shots",
-            sequence,
-            shot_dir,
-            "publish",
-        )
+        publish_path = ThumbnailFinders._shot_path(shows_root, show, sequence, shot, "publish")
 
         # Check if publish directory exists
         if not publish_path.exists():
@@ -265,16 +235,8 @@ class ThumbnailFinders:
 
         """
         # Build base path to mm/default directory
-        shot_dir = f"{sequence}_{shot}"
-        mm_default_path = PathBuilders.build_path(
-            shows_root,
-            show,
-            "shots",
-            sequence,
-            shot_dir,
-            "publish",
-            "mm",
-            "default",
+        mm_default_path = ThumbnailFinders._shot_path(
+            shows_root, show, sequence, shot, "publish", "mm", "default",
         )
 
         if not PathValidators.validate_path_exists(mm_default_path, "MM default path"):
@@ -360,32 +322,32 @@ class ThumbnailFinders:
                     continue
 
                 version_path = undistorted_path / latest_version
+                jpeg_subdir = version_path / "jpeg"
+                potential_jpeg_path = jpeg_subdir if jpeg_subdir.exists() else version_path
+                if not potential_jpeg_path.exists():
+                    continue
 
-                for potential_jpeg_path in [version_path / "jpeg", version_path]:
-                    if not potential_jpeg_path.exists():
-                        continue
+                try:
+                    for resolution_dir in potential_jpeg_path.iterdir():
+                        if not resolution_dir.is_dir():
+                            continue
 
-                    try:
-                        for resolution_dir in potential_jpeg_path.iterdir():
-                            if not resolution_dir.is_dir():
-                                continue
+                        jpeg_dir = (
+                            resolution_dir / "jpeg"
+                            if (resolution_dir / "jpeg").exists()
+                            else resolution_dir
+                        )
 
-                            jpeg_dir = (
-                                resolution_dir / "jpeg"
-                                if (resolution_dir / "jpeg").exists()
-                                else resolution_dir
+                        jpeg_file = FileUtils.get_first_image_file(jpeg_dir)
+                        if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
+                            logger.info(
+                                f"Found user workspace JPEG: {jpeg_file.name}"
+                                f" (user: {user_path.name}, output_type: {output_type},"
+                                f" plate: {plate_name}, version: {latest_version})"
                             )
-
-                            jpeg_file = FileUtils.get_first_image_file(jpeg_dir)
-                            if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
-                                logger.info(
-                                    f"Found user workspace JPEG: {jpeg_file.name}"
-                                    f" (user: {user_path.name}, output_type: {output_type},"
-                                    f" plate: {plate_name}, version: {latest_version})"
-                                )
-                                return jpeg_file
-                    except (OSError, PermissionError):
-                        continue
+                            return jpeg_file
+                except (OSError, PermissionError):
+                    continue
 
         return None
 
@@ -416,10 +378,7 @@ class ThumbnailFinders:
             Path to first JPEG found in any user workspace, or None
 
         """
-        shot_dir = f"{sequence}_{shot}"
-        shot_path = PathBuilders.build_path(shows_root, show, "shots", sequence, shot_dir)
-
-        user_dir = shot_path / "user"
+        user_dir = ThumbnailFinders._shot_path(shows_root, show, sequence, shot, "user")
         if not PathValidators.validate_path_exists(user_dir, "User directory"):
             return None
 
@@ -437,7 +396,7 @@ class ThumbnailFinders:
                     return result
 
         except (OSError, PermissionError) as e:
-            logger.debug(f"Error scanning user workspaces in {shot_path}: {e}")
+            logger.debug(f"Error scanning user workspaces in {user_dir}: {e}")
 
         logger.debug(f"No user workspace JPEGs found for {show}/{sequence}/{shot}")
         return None
@@ -505,22 +464,15 @@ class ThumbnailFinders:
             Path to first JPEG file from latest editorial cutref version, or None if not found
 
         """
-        shot_dir = f"{sequence}_{shot}"
-        editorial_base = PathBuilders.build_path(
-            shows_root, show, "shots", sequence, shot_dir,
-            "publish", "editorial", "cutref",
+        editorial_base = ThumbnailFinders._shot_path(
+            shows_root, show, sequence, shot, "publish", "editorial", "cutref",
         )
 
         if PathValidators.validate_path_exists(editorial_base, "Editorial cutref directory"):
             result = ThumbnailFinders._find_editorial_cutref_thumbnail(editorial_base)
             if result is not None:
                 return result
-        else:
-            logger.debug(f"No editorial cutref directory found for {sequence}_{shot}")
 
-        logger.debug(f"No editorial cutref JPEGs found for {show}/{sequence}/{shot}")
-
-        logger.debug(f"Attempting turnover plate fallback for {show}/{sequence}/{shot}")
         turnover_thumbnail = ThumbnailFinders.find_turnover_plate_thumbnail(
             shows_root, show, sequence, shot
         )
@@ -528,7 +480,6 @@ class ThumbnailFinders:
             logger.info(f"Found turnover plate thumbnail: {turnover_thumbnail}")
             return turnover_thumbnail
 
-        logger.debug(f"Attempting publish directory fallback for {show}/{sequence}/{shot}")
         publish_thumbnail = ThumbnailFinders.find_any_publish_thumbnail(
             shows_root, show, sequence, shot
         )
