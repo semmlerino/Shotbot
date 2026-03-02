@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-03-02T12:48:18.735832+00:00",
+  "timestamp": "2026-03-02T12:56:18.591564+00:00",
   "folder_name": "shotbot_bundle_temp",
   "folder_path": "/tmp/shotbot_bundle_temp",
-  "original_size_bytes": 1743985,
-  "encoded_size_bytes": 538676,
+  "original_size_bytes": 1743138,
+  "encoded_size_bytes": 538344,
   "chunk_size_kb": 5120,
   "total_chunks": 1,
-  "compression_ratio": 3.2375398198546064,
-  "source_commit": "0753e37e0028bca2ecd67f9f0eca2b53353e6c4b",
+  "compression_ratio": 3.2379630867995184,
+  "source_commit": "912980a1f8ae90ae5837d1af6f826e9c89b76a59",
   "source_branch": "main",
-  "bundle_timestamp": "2026-03-02T12:48:18.986414+00:00"
+  "bundle_timestamp": "2026-03-02T12:56:18.879741+00:00"
 }
