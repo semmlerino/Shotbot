@@ -8,7 +8,6 @@ import time
 from typing import TYPE_CHECKING, Protocol
 
 from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QTabWidget
 
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
@@ -16,6 +15,8 @@ from progress_manager import ProgressConfig, ProgressManager, ProgressType
 
 
 if TYPE_CHECKING:
+    from PySide6.QtWidgets import QTabWidget
+
     from controllers.threede_controller import ThreeDEController
     from previous_shots_model import PreviousShotsModel
     from shot_grid_view import ShotGridView

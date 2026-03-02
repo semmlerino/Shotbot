@@ -312,7 +312,7 @@ class TestLoggingRedirection:
     ) -> None:
         """Test graceful degradation when logging directory creation fails."""
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
-        monkeypatch.setattr(Path, "mkdir", lambda *a, **kw: (_ for _ in ()).throw(OSError("Permission denied")))
+        monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: (_ for _ in ()).throw(OSError("Permission denied")))
         command = "nuke"
 
         result = CommandBuilder.add_logging(command)
@@ -325,7 +325,7 @@ class TestLoggingRedirection:
     ) -> None:
         """Test graceful degradation when permission is denied."""
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
-        monkeypatch.setattr(Path, "mkdir", lambda *a, **kw: (_ for _ in ()).throw(PermissionError("Access denied")))
+        monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: (_ for _ in ()).throw(PermissionError("Access denied")))
         command = "nuke"
 
         result = CommandBuilder.add_logging(command)
@@ -336,7 +336,7 @@ class TestLoggingRedirection:
     def test_logging_handles_spaces_in_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that logging handles spaces in log file path."""
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: Path("/home/user with spaces"))
-        monkeypatch.setattr(Path, "mkdir", lambda *a, **kw: None)
+        monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: None)
         command = "nuke"
 
         result = CommandBuilder.add_logging(command)

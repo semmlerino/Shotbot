@@ -246,7 +246,7 @@ class TestSimpleNukeLauncher:
         mock_shot.workspace_path = str(tmp_path)
         mock_shot.full_name = "TEST_0010"
 
-        command, log_messages = simple_launcher.open_latest_script(
+        command, _log_messages = simple_launcher.open_latest_script(
             mock_shot, "FG01", create_if_missing=True
         )
 

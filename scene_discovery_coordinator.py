@@ -17,8 +17,12 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Unpack, final
+
+
+_logger = logging.getLogger(__name__)
 
 # Local application imports
 from logging_mixin import LoggingMixin, log_execution
@@ -539,7 +543,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                     shows_root, show, excluded_users
                 )
             except Exception:
-                self.logger.exception(f"Error scanning show {show}")
+                _logger.exception("Error scanning show %s", show)
                 return show_scenes
 
             # Convert file tuples to ThreeDEScene objects
@@ -664,7 +668,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                             all_scenes.extend(show_scenes)
                             shows_completed += 1
                     except Exception:
-                        self.logger.exception(f"Error processing show {show}")
+                        _logger.exception("Error processing show %s", show)
                         with results_lock:
                             shows_completed += 1
             except Exception:
