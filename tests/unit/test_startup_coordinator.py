@@ -133,14 +133,14 @@ class TestStartupCoordinatorSessionWarming:
 
         mock_pool = Mock(spec=ProcessPoolManager)
 
-        with patch("startup_coordinator.SessionWarmer") as MockWarmer:
+        with patch("startup_coordinator.SessionWarmer") as mock_warmer_cls:
             mock_warmer_instance = Mock()
-            MockWarmer.return_value = mock_warmer_instance
+            mock_warmer_cls.return_value = mock_warmer_instance
 
             coordinator = _make_coordinator(process_pool=mock_pool)
             result = coordinator.perform_initial_load()
 
-        MockWarmer.assert_called_once_with(mock_pool)
+        mock_warmer_cls.assert_called_once_with(mock_pool)
         mock_warmer_instance.start.assert_called_once()
         assert result is mock_warmer_instance
 
@@ -148,11 +148,11 @@ class TestStartupCoordinatorSessionWarming:
         """SessionWarmer is NOT started for a plain Mock process pool."""
         mock_pool = Mock()  # Not a ProcessPoolManager instance
 
-        with patch("startup_coordinator.SessionWarmer") as MockWarmer:
+        with patch("startup_coordinator.SessionWarmer") as mock_warmer_cls:
             coordinator = _make_coordinator(process_pool=mock_pool)
             result = coordinator.perform_initial_load()
 
-        MockWarmer.assert_not_called()
+        mock_warmer_cls.assert_not_called()
         assert result is None
 
 
@@ -194,7 +194,7 @@ class TestStartupCoordinatorDecisionTable:
             refresh_shot_display=refresh_shot_display,
         )
 
-        with patch("startup_coordinator.QTimer") as MockTimer:
+        with patch("startup_coordinator.QTimer") as mock_timer_cls:
             coordinator.perform_initial_load()
 
         # Should display shots and scenes
@@ -209,7 +209,7 @@ class TestStartupCoordinatorDecisionTable:
         assert "3DE scenes" in status_msg
 
         # Should schedule a background refresh
-        MockTimer.singleShot.assert_any_call(500, refresh_shots)
+        mock_timer_cls.singleShot.assert_any_call(500, refresh_shots)
 
     def test_case_cached_shots_only(self) -> None:
         """Case: cached shots only → display shots, schedule background refresh."""
@@ -237,7 +237,7 @@ class TestStartupCoordinatorDecisionTable:
             refresh_shot_display=refresh_shot_display,
         )
 
-        with patch("startup_coordinator.QTimer") as MockTimer:
+        with patch("startup_coordinator.QTimer") as mock_timer_cls:
             coordinator.perform_initial_load()
 
         # Should display shots but not 3DE scenes
@@ -251,7 +251,7 @@ class TestStartupCoordinatorDecisionTable:
         assert "3DE scenes" not in status_msg
 
         # Should schedule a background refresh
-        MockTimer.singleShot.assert_any_call(500, refresh_shots)
+        mock_timer_cls.singleShot.assert_any_call(500, refresh_shots)
 
     def test_case_cached_scenes_only(self) -> None:
         """Case: cached scenes only → display scenes, no shot refresh scheduled."""
@@ -281,7 +281,7 @@ class TestStartupCoordinatorDecisionTable:
             refresh_shot_display=refresh_shot_display,
         )
 
-        with patch("startup_coordinator.QTimer") as MockTimer:
+        with patch("startup_coordinator.QTimer") as mock_timer_cls:
             coordinator.perform_initial_load()
 
         # Should NOT display shots (no cached shots)
@@ -297,7 +297,7 @@ class TestStartupCoordinatorDecisionTable:
         assert "3DE scenes" in status_msg
 
         # Should NOT schedule a shot background refresh
-        for call in MockTimer.singleShot.call_args_list:
+        for call in mock_timer_cls.singleShot.call_args_list:
             assert call[0][1] is not refresh_shots, (
                 "refresh_shots should not be scheduled when only scenes cached"
             )
@@ -326,7 +326,7 @@ class TestStartupCoordinatorDecisionTable:
             refresh_shot_display=refresh_shot_display,
         )
 
-        with patch("startup_coordinator.QTimer") as MockTimer:
+        with patch("startup_coordinator.QTimer") as mock_timer_cls:
             coordinator.perform_initial_load()
 
         # No display calls
@@ -339,7 +339,7 @@ class TestStartupCoordinatorDecisionTable:
         assert "Loading" in status_msg
 
         # Should NOT schedule a shot background refresh
-        for call in MockTimer.singleShot.call_args_list:
+        for call in mock_timer_cls.singleShot.call_args_list:
             assert call[0][1] is not refresh_shots, (
                 "refresh_shots should not be scheduled when no cache"
             )
@@ -492,10 +492,10 @@ class TestStartupCoordinatorPreviousShotsRefresh:
             previous_shots_model=previous_shots_model,
         )
 
-        with patch("startup_coordinator.QTimer") as MockTimer:
+        with patch("startup_coordinator.QTimer") as mock_timer_cls:
             coordinator.perform_initial_load()
 
-        MockTimer.singleShot.assert_any_call(
+        mock_timer_cls.singleShot.assert_any_call(
             100, previous_shots_model.refresh_shots
         )
 
@@ -513,11 +513,11 @@ class TestStartupCoordinatorPreviousShotsRefresh:
             previous_shots_model=previous_shots_model,
         )
 
-        with patch("startup_coordinator.QTimer") as MockTimer:
+        with patch("startup_coordinator.QTimer") as mock_timer_cls:
             coordinator.perform_initial_load()
 
         # Verify refresh_shots from previous_shots_model was not scheduled
-        for call in MockTimer.singleShot.call_args_list:
+        for call in mock_timer_cls.singleShot.call_args_list:
             assert call[0][1] is not previous_shots_model.refresh_shots, (
                 "previous_shots refresh should not be scheduled when no shots"
             )
@@ -553,10 +553,10 @@ class TestStartupCoordinator3DEDiscovery:
             threede_controller=threede_controller,
         )
 
-        with patch("startup_coordinator.QTimer") as MockTimer:
+        with patch("startup_coordinator.QTimer") as mock_timer_cls:
             coordinator.perform_initial_load()
 
-        MockTimer.singleShot.assert_any_call(
+        mock_timer_cls.singleShot.assert_any_call(
             100, threede_controller.refresh_threede_scenes
         )
 
@@ -580,10 +580,10 @@ class TestStartupCoordinator3DEDiscovery:
             threede_controller=threede_controller,
         )
 
-        with patch("startup_coordinator.QTimer") as MockTimer:
+        with patch("startup_coordinator.QTimer") as mock_timer_cls:
             coordinator.perform_initial_load()
 
-        for call in MockTimer.singleShot.call_args_list:
+        for call in mock_timer_cls.singleShot.call_args_list:
             assert call[0][1] is not threede_controller.refresh_threede_scenes, (
                 "3DE discovery should not be scheduled when cache is valid"
             )
@@ -606,10 +606,10 @@ class TestStartupCoordinator3DEDiscovery:
             threede_controller=threede_controller,
         )
 
-        with patch("startup_coordinator.QTimer") as MockTimer:
+        with patch("startup_coordinator.QTimer") as mock_timer_cls:
             coordinator.perform_initial_load()
 
-        for call in MockTimer.singleShot.call_args_list:
+        for call in mock_timer_cls.singleShot.call_args_list:
             assert call[0][1] is not threede_controller.refresh_threede_scenes, (
                 "3DE discovery should not be scheduled when no shots cached"
             )

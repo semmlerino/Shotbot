@@ -166,7 +166,7 @@ class TestPermissionErrors:
 
         try:
             # _ensure_cache_dirs re-raises OSError so callers can detect failure
-            with pytest.raises(OSError):
+            with pytest.raises(OSError, match="Permission denied"):
                 CacheManager(cache_dir=cache_dir)
         finally:
             if os.name != "nt":

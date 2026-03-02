@@ -87,7 +87,7 @@ reportImplicitOverride = "error"
 # Qt-specific adjustments (PySide6 type stub limitations)
 reportUnannotatedClassAttribute = "error"  # Signal annotations with ClassVar[Signal] recommended
 reportUnusedFunction = "error"  # Keep enabled; only false positives with autoconnect patterns
-reportAny = "information"  # Reduces noise from Qt's broad Any in stubs while keeping visibility
+reportAny = "warning"  # Qt stubs leak Any broadly; warning keeps visibility without blocking CI
 
 [tool.ruff]
 # Target Python 3.11+
@@ -175,12 +175,11 @@ ignore = [
     # Lazy imports (intentional for circular import avoidance and performance)
     "PLC0415", # import-outside-top-level (used for lazy loading and circular import avoidance)
 
-    # Complexity rules (design decisions - would require significant refactoring)
+    # Complexity rules (PLR thresholds not practical; C901 enabled at 30 via mccabe config)
     "PLR0911", # too-many-return-statements
     "PLR0912", # too-many-branches
     "PLR0913", # too-many-arguments
     "PLR0915", # too-many-statements
-    "C901",    # complex-structure
 
     # Exception handling (allow practical patterns)
     "TRY002",  # create-own-exception (generic exceptions acceptable in tests)
@@ -228,6 +227,10 @@ ignore = [
 "**/config*.py" = [
     "PLR2004", # magic-value-comparison
 ]
+
+[tool.ruff.lint.mccabe]
+# Generous threshold: prevents new extreme complexity without flagging existing code
+max-complexity = 30
 
 [tool.ruff.lint.isort]
 # Import sorting configuration
