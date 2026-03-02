@@ -51,16 +51,6 @@ if TYPE_CHECKING:
     # Local application imports
     from type_definitions import PerformanceMetricsDict
 
-# Local application imports
-from debug_utils import DEBUG_VERBOSE, setup_enhanced_debugging
-
-
-if DEBUG_VERBOSE:
-    # Set debug level for verbose logging
-    logger.setLevel(logging.DEBUG)
-    logger.info("VERBOSE DEBUG MODE ENABLED for ProcessPoolManager")
-
-setup_enhanced_debugging()
 
 
 @dataclass
@@ -530,21 +520,11 @@ class ProcessPoolManager(LoggingMixin, QObject):
         if timeout is None:
             timeout = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
 
-        if DEBUG_VERBOSE:
-            self.logger.debug(f"execute_workspace_command called: {command[:50]}...")
-
         # Check cache first
         cached = self._cache.get(command)
         if cached is not None:
             self._metrics.cache_hits += 1
-            if DEBUG_VERBOSE:
-                self.logger.debug(f"Cache HIT for command: {command[:50]}...")
             return cached
-
-        if DEBUG_VERBOSE:
-            self.logger.debug(
-                f"Cache MISS for command: {command[:50]}... - will execute"
-            )
 
         self._metrics.cache_misses += 1
         self._metrics.subprocess_calls += 1
