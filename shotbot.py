@@ -221,11 +221,8 @@ Environment Variables:
     )
 
     # Check for mock mode from either command line or environment
-    mock_mode = mock_flag or os.environ.get("SHOTBOT_MOCK", "").lower() in (
-        "1",
-        "true",
-        "yes",
-    )
+    from config import is_mock_mode
+    mock_mode = mock_flag or is_mock_mode()
 
     if headless_mode:
         logger.debug("Headless mode enabled")

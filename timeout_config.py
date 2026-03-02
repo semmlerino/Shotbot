@@ -5,8 +5,12 @@ dealing with network file systems, large data sets, and heavy applications.
 """
 
 # Standard library imports
+import logging
 import os
 from typing import ClassVar, cast
+
+
+_logger = logging.getLogger(__name__)
 
 
 class TimeoutConfig:
@@ -161,7 +165,7 @@ if os.environ.get("SHOTBOT_TIMEOUT_SCALE"):
     try:
         scale = float(os.environ["SHOTBOT_TIMEOUT_SCALE"])
         TimeoutConfig.scale_timeouts(scale)
-        print(f"Scaled all timeouts by factor of {scale}")
+        _logger.info(f"Scaled all timeouts by factor of {scale}")
     except ValueError:
         pass
 
@@ -170,6 +174,6 @@ if os.environ.get("SHOTBOT_NETWORK_LATENCY_MS"):
     try:
         latency = int(os.environ["SHOTBOT_NETWORK_LATENCY_MS"])
         TimeoutConfig.optimize_for_network_latency(latency)
-        print(f"Optimized timeouts for {latency}ms network latency")
+        _logger.info(f"Optimized timeouts for {latency}ms network latency")
     except ValueError:
         pass

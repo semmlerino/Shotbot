@@ -89,7 +89,7 @@ if TYPE_CHECKING:
 from cache_manager import CacheManager  # Need at runtime for instantiation
 from cleanup_manager import CleanupManager  # Extracted cleanup logic
 from command_launcher import CommandLauncher  # Need at runtime
-from config import Config
+from config import Config, is_mock_mode
 from controllers.filter_coordinator import FilterCoordinator
 from controllers.settings_controller import (
     SettingsController,  # Refactored settings handling
@@ -127,11 +127,6 @@ from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 # Set up logger for this module
 # Module-level logger for non-class code (SessionWarmer, etc.)
 logger = get_module_logger(__name__)
-
-
-def _is_mock_mode() -> bool:
-    """Return True if SHOTBOT_MOCK environment variable is set to a truthy value."""
-    return os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes")
 
 
 class SessionWarmer(ThreadSafeWorker):
@@ -382,7 +377,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Create process pool based on mock mode
         self._process_pool: ProcessPoolInterface
-        if _is_mock_mode():
+        if is_mock_mode():
             # Local application imports
             from mock_workspace_pool import create_mock_pool_from_filesystem
 
@@ -523,7 +518,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _setup_ui(self) -> None:
         """Set up the main UI."""
         # Set window title with mock indicator if applicable
-        if _is_mock_mode():
+        if is_mock_mode():
             self.setWindowTitle(
                 f"{Config.APP_NAME} v{Config.APP_VERSION} - 🧪 MOCK MODE"
             )
@@ -623,7 +618,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.setStatusBar(self.status_bar)
 
         # Add mock mode indicator to status bar if in mock mode
-        if _is_mock_mode():
+        if is_mock_mode():
             mock_label = QLabel("🧪 MOCK MODE ACTIVE")
             mock_label.setStyleSheet("""
                 QLabel {

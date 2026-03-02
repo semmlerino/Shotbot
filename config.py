@@ -58,6 +58,11 @@ from pathlib import Path
 from typing import ClassVar
 
 
+def is_mock_mode() -> bool:
+    """Return True if SHOTBOT_MOCK environment variable is set to a truthy value."""
+    return os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes")
+
+
 class RezMode(Enum):
     """Rez environment wrapping mode.
 
