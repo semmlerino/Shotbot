@@ -53,7 +53,6 @@ jobs:
   serial-primary:
     name: Primary Serial Gate
     runs-on: ubuntu-latest
-    needs: compatibility-smoke
 
     steps:
     - uses: actions/checkout@v4
@@ -81,7 +80,7 @@ jobs:
   parallel-isolation:
     name: Parallel Isolation Check
     runs-on: ubuntu-latest
-    needs: serial-primary
+    needs: [serial-primary, compatibility-smoke]
 
     steps:
     - uses: actions/checkout@v4

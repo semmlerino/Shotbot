@@ -120,7 +120,7 @@ from pathlib import Path
 # ==============================================================================
 # This MUST be set before any Qt imports to prevent "real widgets" from appearing
 # during tests, which causes crashes in WSL and resource exhaustion.
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 # Create unique XDG runtime directory per worker
 # IMPORTANT: 0o700 permissions are REQUIRED by Qt6 - it warns/fails if XDG_RUNTIME_DIR
@@ -131,12 +131,12 @@ worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
 base_tmp = Path(tempfile.gettempdir())
 xdg_path = base_tmp / f"xdg-{run_id}-{worker}"
 xdg_path.mkdir(mode=0o700, parents=True, exist_ok=True)  # 0o700 required by Qt6
-os.environ.setdefault("XDG_RUNTIME_DIR", str(xdg_path))
+os.environ["XDG_RUNTIME_DIR"] = str(xdg_path)
 
 # Direct custom launcher persistence into a writable, per-test directory
 config_dir = Path(tempfile.mkdtemp(prefix=f"shotbot-config-{run_id}-{worker}-"))
-os.environ.setdefault("SHOTBOT_CONFIG_DIR", str(config_dir))
-os.environ.setdefault("SHOTBOT_SECURE_EXECUTOR_MODE", "mock")
+os.environ["SHOTBOT_CONFIG_DIR"] = str(config_dir)
+os.environ["SHOTBOT_SECURE_EXECUTOR_MODE"] = "mock"
 
 # Enable test mode for threading - allows terminate() on zombie threads to prevent CI hangs
 os.environ["SHOTBOT_TEST_MODE"] = "1"
@@ -424,7 +424,7 @@ def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
     try:
         # Get fixture manager from session
         fm = item.session._fixturemanager
-        fixture_defs = fm.getfixturedefs(fixture_name, item.nodeid)
+        fixture_defs = fm.getfixturedefs(fixture_name, item)
 
         if not fixture_defs:
             return False
