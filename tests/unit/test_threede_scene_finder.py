@@ -94,7 +94,6 @@ class TestThreeDESceneFinderBasics:
         """Test ThreeDESceneFinder has expected class attributes after refactoring."""
         # After refactoring, these patterns are in SceneParser, not ThreeDESceneFinder
         # ThreeDESceneFinder now has cache-related attributes
-        assert hasattr(ThreeDESceneFinder, "_dir_cache")
         assert hasattr(ThreeDESceneFinder, "get_cache_stats")
         assert hasattr(ThreeDESceneFinder, "clear_cache")
         assert hasattr(ThreeDESceneFinder, "refresh_cache")

@@ -139,14 +139,19 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
                 del self._directory_cache[path]
                 self.logger.debug(f"Invalidated cache for {path}")
 
-    def invalidate_all(self) -> None:
-        """Clear all cached directory listings."""
+    def invalidate_all(self) -> int:
+        """Clear all cached directory listings.
+
+        Returns:
+            Number of entries cleared.
+        """
         with self._lock:
             count = len(self._directory_cache)
             self._directory_cache.clear()
             self._cache_hits = 0
             self._cache_misses = 0
             self.logger.info(f"Cleared {count} cached directory listings")
+            return count
 
     def share_discovered_paths(self, paths: dict[Path, list[Path]]) -> None:
         """Share discovered paths from one worker with others.
@@ -237,4 +242,4 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
     def _cleanup_instance(cls) -> None:
         """Clean up filesystem cache before singleton reset."""
         if cls._instance is not None:
-            cls._instance.invalidate_all()
+            _ = cls._instance.invalidate_all()

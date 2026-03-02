@@ -24,9 +24,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     # Local application imports
-    # Note: FileSystemScanner, SceneCache, SceneParser imported lazily in __init__
+    # Note: FileSystemScanner, SceneParser imported lazily in __init__
     from filesystem_scanner import FileSystemScanner
-    from scene_cache import SceneCache
     from scene_parser import SceneParser
     from threede_scene_model import ThreeDEScene
 
@@ -42,7 +41,6 @@ class SceneDiscoveryStrategy(ABC, LoggingMixin):
     # Type annotations for lazy-loaded attributes
     scanner: FileSystemScanner
     parser: SceneParser
-    cache: SceneCache
 
     def __init__(self) -> None:
         """Initialize base strategy."""
@@ -54,14 +52,12 @@ class SceneDiscoveryStrategy(ABC, LoggingMixin):
         from filesystem_scanner import (
             FileSystemScanner,
         )
-        from scene_cache import SceneCache
         from scene_parser import (
             SceneParser,
         )
 
         self.scanner = FileSystemScanner()
         self.parser = SceneParser()
-        self.cache = SceneCache()
 
     @abstractmethod
     def find_scenes_for_shot(
@@ -217,12 +213,6 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Find all scenes in a show using local filesystem scanning."""
-        # Check cache first
-        cached_scenes = self.cache.get_scenes_for_show(show)
-        if cached_scenes is not None:
-            self.logger.debug(f"Using cached scenes for show {show}")
-            return cached_scenes
-
         scenes: list[ThreeDEScene] = []
 
         try:
@@ -257,9 +247,6 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                     str(workspace_path),
                 )
                 scenes.append(scene)
-
-            # Cache the results
-            self.cache.cache_scenes_for_show(show, scenes)
 
             self.logger.info(f"Found {len(scenes)} total scenes in show {show}")
 

@@ -19,9 +19,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-# Local application imports
-from filesystem_scanner import DirectoryCache
-
 # Import the refactored components
 from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
@@ -45,23 +42,23 @@ class OptimizedThreeDESceneFinder:
     underneath.
     """
 
-    # Maintain backward compatibility for class-level cache access
-    _dir_cache: DirectoryCache = DirectoryCache(ttl_seconds=300, enable_auto_expiry=False)
+    @classmethod
+    def get_cache_stats(cls) -> dict[str, int | float]:
+        """Get directory cache statistics from FilesystemCoordinator."""
+        from filesystem_coordinator import FilesystemCoordinator
+        return FilesystemCoordinator().get_cache_stats()
 
     @classmethod
-    def get_cache_stats(cls) -> dict[str, int]:
-        """Get directory cache statistics."""
-        return cls._dir_cache.get_stats()
-
-    @classmethod
-    def clear_cache(cls) -> None:
+    def clear_cache(cls) -> int:
         """Clear directory cache."""
-        _ = cls._dir_cache.clear_cache()
+        from filesystem_coordinator import FilesystemCoordinator
+        return FilesystemCoordinator().invalidate_all()
 
     @classmethod
     def refresh_cache(cls) -> int:
         """Manually refresh the directory cache."""
-        return cls._dir_cache.clear_cache()
+        from filesystem_coordinator import FilesystemCoordinator
+        return FilesystemCoordinator().invalidate_all()
 
     @staticmethod
     def find_scenes_for_shot(

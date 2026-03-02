@@ -36,113 +36,12 @@ if TYPE_CHECKING:
 
 
 @final
-class DirectoryCache(LoggingMixin):
-    """Thread-safe directory listing cache with TTL.
-
-    Extracted from the monolithic scene finder to provide focused caching functionality.
-    """
-
-    def __init__(
-        self, ttl_seconds: int = 300, enable_auto_expiry: bool = False
-    ) -> None:
-        """Initialize directory cache.
-
-        Args:
-            ttl_seconds: TTL for automatic expiration (only used if enable_auto_expiry=True)
-            enable_auto_expiry: If True, entries expire automatically. If False, manual refresh only.
-
-        """
-        super().__init__()
-        self.ttl = ttl_seconds
-        self.enable_auto_expiry = enable_auto_expiry
-        self.cache: dict[str, list[tuple[str, bool, bool]]] = {}
-        self.timestamps: dict[str, float] = {}
-        self.lock = threading.RLock()
-        self.stats = {"hits": 0, "misses": 0, "evictions": 0}
-
-    def get_listing(self, path: Path) -> list[tuple[str, bool, bool]] | None:
-        """Get cached directory listing or None if not cached/expired."""
-        path_str = str(path)
-
-        with self.lock:
-            if path_str in self.cache:
-                # Check TTL only if auto-expiry is enabled
-                if self.enable_auto_expiry:
-                    if time.time() - self.timestamps[path_str] < self.ttl:
-                        self.stats["hits"] += 1
-                        return self.cache[path_str]
-                    # Expired
-                    del self.cache[path_str]
-                    del self.timestamps[path_str]
-                    self.stats["evictions"] += 1
-                else:
-                    # No auto-expiry, return cached entry
-                    self.stats["hits"] += 1
-                    return self.cache[path_str]
-
-            self.stats["misses"] += 1
-            return None
-
-    def set_listing(self, path: Path, listing: list[tuple[str, bool, bool]]) -> None:
-        """Cache directory listing."""
-        path_str = str(path)
-
-        with self.lock:
-            self.cache[path_str] = listing
-            self.timestamps[path_str] = time.time()
-
-            # Simple cleanup: remove expired entries if cache gets large (only if auto-expiry enabled)
-            if self.enable_auto_expiry and len(self.cache) > 1000:
-                current_time = time.time()
-                expired_keys = [
-                    k
-                    for k, t in self.timestamps.items()
-                    if current_time - t >= self.ttl
-                ]
-                for key in expired_keys:
-                    _ = self.cache.pop(key, None)
-                    _ = self.timestamps.pop(key, None)
-                self.stats["evictions"] += len(expired_keys)
-
-    def get_stats(self) -> dict[str, int]:
-        """Get cache statistics."""
-        with self.lock:
-            total_requests = self.stats["hits"] + self.stats["misses"]
-            hit_rate_float = (
-                (self.stats["hits"] / total_requests * 100)
-                if total_requests > 0
-                else 0.0
-            )
-            return {
-                "hit_rate_percent": int(hit_rate_float),
-                "total_entries": len(self.cache),
-                **self.stats,
-            }
-
-    def clear_cache(self) -> int:
-        """Manually clear all cache entries.
-
-        Returns:
-            Number of entries cleared
-
-        """
-        with self.lock:
-            count = len(self.cache)
-            self.cache.clear()
-            self.timestamps.clear()
-            self.stats["evictions"] += count
-            return count
-
-@final
 class FileSystemScanner(LoggingMixin):
     """Efficient filesystem scanner for .3de files with multiple optimization strategies.
 
     This class encapsulates all filesystem scanning logic extracted from the monolithic
     scene finder, providing clean separation of concerns and reusable scanning capabilities.
     """
-
-    # Class-level cache (shared across instances) - persistent, manual refresh only
-    _dir_cache = DirectoryCache(ttl_seconds=300, enable_auto_expiry=False)
 
     # Workload size thresholds for strategy selection
     SMALL_WORKLOAD_THRESHOLD = 100  # Use Python-only below this
@@ -178,21 +77,23 @@ class FileSystemScanner(LoggingMixin):
         self._fs_coordinator_lock = threading.Lock()
 
     @classmethod
-    def get_cache_stats(cls) -> dict[str, int]:
-        """Get directory cache statistics."""
-        return cls._dir_cache.get_stats()
+    def get_cache_stats(cls) -> dict[str, int | float]:
+        """Get directory cache statistics from FilesystemCoordinator."""
+        from filesystem_coordinator import FilesystemCoordinator
+        return FilesystemCoordinator().get_cache_stats()
 
     @classmethod
     def clear_cache(cls) -> int:
         """Clear directory cache.
 
-        Delegates to DirectoryCache.clear_cache() which uses internal locking
-        to prevent race conditions with concurrent cache access.
+        Delegates to FilesystemCoordinator.invalidate_all() which uses internal
+        locking to prevent race conditions with concurrent cache access.
 
         Returns:
             Number of entries cleared.
         """
-        return cls._dir_cache.clear_cache()
+        from filesystem_coordinator import FilesystemCoordinator
+        return FilesystemCoordinator().invalidate_all()
 
     def get_directory_listing_cached(self, path: Path) -> list[tuple[str, bool, bool]]:
         """Get directory listing with caching using FilesystemCoordinator.
@@ -223,9 +124,6 @@ class FileSystemScanner(LoggingMixin):
             except (OSError, PermissionError):
                 # Skip items we can't stat
                 continue
-
-        # Also update the old cache for backward compatibility
-        self._dir_cache.set_listing(path, listing)
 
         return listing
 

@@ -16,12 +16,11 @@ import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-import time_machine
 
-from filesystem_scanner import DirectoryCache, FileSystemScanner
+from filesystem_scanner import FileSystemScanner
 
 
 if TYPE_CHECKING:
@@ -31,245 +30,45 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.unit]
 
 
-@pytest.fixture
-def fast_time():
-    """Fixture for fast, deterministic time manipulation.
-
-    Use this instead of time.sleep() when testing TTL-based logic.
-    The traveller.shift() method instantly advances time.
-
-    Example:
-        def test_ttl(fast_time):
-            cache.set(key, value, ttl=60)
-            fast_time.shift(61)  # Instantly advance 61 seconds
-            assert cache.is_expired(key)
-
-    """
-    with time_machine.travel(0, tick=False) as traveller:
-        yield traveller
-
-
 # =============================================================================
-# DirectoryCache Threading Tests
+# Cache Delegation Tests
 # =============================================================================
 
 
-class TestDirectoryCacheThreadSafety:
-    """Test thread safety of DirectoryCache class.
+class TestCacheDelegation:
+    """Test that FileSystemScanner delegates cache operations to FilesystemCoordinator."""
 
-    DirectoryCache uses threading.RLock() for synchronization.
-    These tests verify correct behavior under concurrent access.
-    """
+    def test_clear_cache_delegates_to_coordinator(self) -> None:
+        """clear_cache() delegates to FilesystemCoordinator.invalidate_all()."""
+        with patch("filesystem_coordinator.FilesystemCoordinator") as mock_coord_cls:
+            mock_instance = MagicMock()
+            mock_instance.invalidate_all.return_value = 5
+            mock_coord_cls.return_value = mock_instance
 
-    def test_concurrent_get_set_no_corruption(self) -> None:
-        """Concurrent get/set operations don't corrupt cache state.
+            result = FileSystemScanner.clear_cache()
 
-        Multiple threads simultaneously reading and writing to the cache
-        should not cause data corruption or missing entries.
-        """
-        cache = DirectoryCache(ttl_seconds=60, enable_auto_expiry=False)
-        barrier = threading.Barrier(10)
-        errors: list[str] = []
-        iterations = 50  # Reduced for faster tests
+            mock_instance.invalidate_all.assert_called_once()
+            assert result == 5
 
-        def worker(worker_id: int) -> None:
-            barrier.wait()  # Synchronized start
-            for i in range(iterations):
-                path = Path(f"/test/{worker_id}/{i}")
-                expected_listing = [(f"file_{i}", True, False)]
-                cache.set_listing(path, expected_listing)
+    def test_get_cache_stats_delegates_to_coordinator(self) -> None:
+        """get_cache_stats() delegates to FilesystemCoordinator.get_cache_stats()."""
+        expected_stats = {
+            "cached_directories": 10,
+            "cache_hits": 50,
+            "cache_misses": 5,
+            "total_requests": 55,
+            "hit_rate": 90.9,
+            "ttl_seconds": 300,
+        }
+        with patch("filesystem_coordinator.FilesystemCoordinator") as mock_coord_cls:
+            mock_instance = MagicMock()
+            mock_instance.get_cache_stats.return_value = expected_stats
+            mock_coord_cls.return_value = mock_instance
 
-                # Immediately read back - should always succeed
-                result = cache.get_listing(path)
-                if result is None:
-                    errors.append(f"Worker {worker_id}: missing {path}")
-                elif result != expected_listing:
-                    errors.append(f"Worker {worker_id}: corrupted at {path}")
+            result = FileSystemScanner.get_cache_stats()
 
-        threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        assert not errors, f"Thread safety violation: {errors[:5]}"
-        # Verify final state
-        assert len(cache.cache) == 10 * iterations
-
-    def test_clear_cache_during_active_reads(self) -> None:
-        """Clearing cache during concurrent reads doesn't raise exceptions.
-
-        One thread clearing the cache while others are reading should not
-        cause crashes or corrupted state.
-        """
-        cache = DirectoryCache(ttl_seconds=60, enable_auto_expiry=False)
-        barrier = threading.Barrier(6)  # 5 readers + 1 clearer
-        exceptions: list[Exception] = []
-        stop_flag = threading.Event()
-
-        # Pre-populate cache
-        for i in range(100):
-            cache.set_listing(Path(f"/test/{i}"), [(f"file_{i}", True, False)])
-
-        def reader(reader_id: int) -> None:
-            barrier.wait()
-            try:
-                while not stop_flag.is_set():
-                    for i in range(100):
-                        _ = cache.get_listing(Path(f"/test/{i}"))
-            except Exception as e:
-                exceptions.append(e)
-
-        def clearer() -> None:
-            barrier.wait()
-            try:
-                for _ in range(10):
-                    cache.clear_cache()
-                    time.sleep(0.01)  # Brief pause between clears
-            except Exception as e:
-                exceptions.append(e)
-            finally:
-                stop_flag.set()
-
-        readers = [threading.Thread(target=reader, args=(i,)) for i in range(5)]
-        clear_thread = threading.Thread(target=clearer)
-
-        for r in readers:
-            r.start()
-        clear_thread.start()
-
-        clear_thread.join()
-        stop_flag.set()
-        for r in readers:
-            r.join(timeout=2.0)
-
-        assert not exceptions, f"Exceptions during concurrent access: {exceptions}"
-
-    def test_ttl_expiration_thread_safe(self) -> None:
-        """TTL expiration doesn't cause issues during concurrent access.
-
-        With auto-expiry enabled, entries expiring while being accessed
-        should not cause crashes or data corruption.
-        """
-        cache = DirectoryCache(ttl_seconds=1, enable_auto_expiry=True)
-        barrier = threading.Barrier(5)
-        errors: list[str] = []
-
-        def worker(worker_id: int) -> None:
-            barrier.wait()
-            path = Path(f"/test/{worker_id}")
-
-            for i in range(20):
-                # Set with short TTL
-                cache.set_listing(path, [(f"file_{i}", True, False)])
-
-                # Small sleep to allow TTL expiration in some iterations
-                time.sleep(0.05)
-
-                # Read - may or may not be expired (both are valid)
-                try:
-                    result = cache.get_listing(path)
-                    # Result can be None (expired) or the listing (not expired)
-                    # Both are valid outcomes
-                    if result is not None and not isinstance(result, list):
-                        errors.append(f"Worker {worker_id}: invalid type {type(result)}")
-                except Exception as e:
-                    errors.append(f"Worker {worker_id}: exception {e}")
-
-        threads = [threading.Thread(target=worker, args=(i,)) for i in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        assert not errors, f"TTL expiration errors: {errors}"
-
-    def test_stats_counter_thread_safe(self) -> None:
-        """Cache statistics counters are thread-safe.
-
-        Concurrent operations should correctly increment hit/miss/eviction
-        counters without losing counts.
-        """
-        cache = DirectoryCache(ttl_seconds=60, enable_auto_expiry=False)
-        barrier = threading.Barrier(10)
-        iterations = 50
-
-        # Pre-populate some entries for hits
-        for i in range(25):
-            cache.set_listing(Path(f"/existing/{i}"), [("file", True, False)])
-
-        def worker(worker_id: int) -> None:
-            barrier.wait()
-            for i in range(iterations):
-                # Half hits (existing paths), half misses (new paths)
-                if i % 2 == 0:
-                    cache.get_listing(Path(f"/existing/{i % 25}"))
-                else:
-                    cache.get_listing(Path(f"/missing/{worker_id}/{i}"))
-
-        threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        stats = cache.get_stats()
-        total = stats["hits"] + stats["misses"]
-
-        # Should have exactly iterations * num_threads total operations
-        expected_total = iterations * 10
-        assert total == expected_total, f"Lost {expected_total - total} operations"
-
-    def test_rlock_prevents_deadlock(self) -> None:
-        """RLock allows reentrant calls without deadlock.
-
-        DirectoryCache uses RLock which allows the same thread to acquire
-        the lock multiple times. This tests that nested operations work.
-        """
-        cache = DirectoryCache(ttl_seconds=60, enable_auto_expiry=False)
-        completed = threading.Event()
-
-        def nested_operation() -> None:
-            path = Path("/test/nested")
-            # First lock acquisition
-            cache.set_listing(path, [("file1", True, False)])
-            # Second lock acquisition (reentrant)
-            cache.get_listing(path)
-            # Third lock acquisition
-            _ = cache.get_stats()
-            completed.set()
-
-        thread = threading.Thread(target=nested_operation)
-        thread.start()
-        thread.join(timeout=2.0)
-
-        assert completed.is_set(), "Nested lock acquisition caused deadlock"
-
-    def test_large_cache_cleanup_threshold(self, fast_time) -> None:
-        """Cache cleanup at 1000 entries threshold works correctly.
-
-        When enable_auto_expiry=True, cache should clean up expired entries
-        when size exceeds 1000.
-
-        Uses fast_time fixture for instant TTL expiration instead of real sleep.
-        """
-        cache = DirectoryCache(ttl_seconds=1, enable_auto_expiry=True)
-
-        # Add 500 entries that will expire
-        for i in range(500):
-            cache.set_listing(Path(f"/old/{i}"), [("file", True, False)])
-
-        # Instantly advance time past TTL (replaces time.sleep(1.1))
-        fast_time.shift(1.1)
-
-        # Add 600 more entries (total > 1000, triggers cleanup)
-        for i in range(600):
-            cache.set_listing(Path(f"/new/{i}"), [("file", True, False)])
-
-        # Old entries should be cleaned up
-        stats = cache.get_stats()
-        assert stats["evictions"] >= 500, f"Expected >= 500 evictions, got {stats['evictions']}"
-        assert stats["total_entries"] <= 700, "Cache should be smaller after cleanup"
+            mock_instance.get_cache_stats.assert_called_once()
+            assert result == expected_stats
 
 
 # =============================================================================
@@ -841,7 +640,6 @@ class TestProgressiveDiscoveryFallback:
 # =============================================================================
 
 
-from unittest.mock import patch
 
 from shot_model import Shot
 from threede_scene_worker import ThreeDESceneWorker
