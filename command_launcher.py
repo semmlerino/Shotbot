@@ -1140,7 +1140,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         # ensuring the full environment is loaded when opening via command line
         # safe_file_path was validated above in the command-building block
         sgtk_apps = ("maya", "nuke", "3de")
-        if app_name.lower() in sgtk_apps:
+        if app_name in sgtk_apps:
             sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_file_path} && "
             self.logger.debug(f"Setting SGTK_FILE_TO_OPEN={safe_file_path}")
         else:

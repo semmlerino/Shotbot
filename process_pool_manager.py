@@ -18,7 +18,6 @@ from __future__ import annotations
 import concurrent.futures
 import gc
 import hashlib
-import logging
 import selectors
 import subprocess
 import sys
@@ -203,7 +202,7 @@ class _CacheEntry(NamedTuple):
     result: str
     timestamp: float
     ttl: int
-    command_hash: str  # Original command string for pattern-based invalidation
+    command: str  # Original command string for pattern-based invalidation
 
 
 @final
@@ -287,7 +286,7 @@ class CommandCache:
             else:
                 keys_to_remove: list[str] = []
                 for key, entry in self._cache.items():
-                    if pattern in entry.command_hash:
+                    if pattern in entry.command:
                         keys_to_remove.append(key)
                 for key in keys_to_remove:
                     del self._cache[key]
@@ -864,14 +863,11 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         # Stage 2: Clean up any remaining resources
         try:
-            # Clear caches (note: _cache is the actual attribute, not _command_cache)
-            if hasattr(self, "_cache"):
-                # CommandCache has internal dict, we can get its size via get_stats
-                stats = self._cache.get_stats()
-                cache_size = stats["size"]
-                self._cache.invalidate()  # Clear entire cache
-                if cache_size > 0:
-                    self.logger.debug(f"Cleared {cache_size} command cache entries")
+            stats = self._cache.get_stats()
+            cache_size = stats["size"]
+            self._cache.invalidate()
+            if cache_size > 0:
+                self.logger.debug(f"Cleared {cache_size} command cache entries")
 
         except Exception:
             self.logger.warning("Error during resource cleanup", exc_info=True)
@@ -895,12 +891,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
         This provides defensive cleanup but explicit shutdown() is preferred.
         """
         try:
-            # Only shutdown if we have an executor
-            if hasattr(self, "_executor") and hasattr(self, "_shutdown_requested"):
-                # Only call shutdown if not already shut down
-                if not self._shutdown_requested:
-                    self.logger.debug("ProcessPoolManager.__del__ called - triggering shutdown")
-                    self.shutdown(timeout=2.0)
+            if getattr(self, "_init_done", False) and not self._shutdown_requested:
+                self.logger.debug("ProcessPoolManager.__del__ called - triggering shutdown")
+                self.shutdown(timeout=2.0)
         except Exception:
             # Ignore errors in destructor - we're being destroyed anyway
             pass

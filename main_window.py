@@ -901,10 +901,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Handle background load finished signal from model.
 
         Intentionally empty: completion status is handled by the shots_loaded /
-        shots_changed signals via RefreshOrchestrator.  The signal connection is
-        kept so subclasses can override this hook if needed.
+        shots_changed signals via RefreshOrchestrator.
         """
-        pass  # noqa: PIE790  # intentional hook for subclass override
+        pass  # noqa: PIE790
 
 
     def _on_cache_updated(self) -> None:

@@ -17,7 +17,6 @@ import selectors
 import subprocess
 import threading
 import time
-import traceback
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, cast, final
@@ -756,6 +755,8 @@ class FileSystemScanner(LoggingMixin):
                 return None
 
             if returncode == 0 and stdout:
+                from scene_parser import SceneParser
+
                 for line in stdout.strip().split("\n"):
                     if not line:
                         continue
@@ -765,8 +766,6 @@ class FileSystemScanner(LoggingMixin):
                         shot_dir = dir_path.parent.parent.name
                         sequence = dir_path.parent.parent.parent.name
 
-                        # Delegate to SceneParser.extract_shot_name for single source of truth
-                        from scene_parser import SceneParser
                         shot = SceneParser.extract_shot_name(sequence, shot_dir)
 
                         if shot:
@@ -946,7 +945,6 @@ class FileSystemScanner(LoggingMixin):
 
         except Exception:
             self.logger.exception("Error in optimized search")
-            self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         elapsed = time.time() - start_time
         self._log_scan_summary(results, user_results, user_timed_out, elapsed)

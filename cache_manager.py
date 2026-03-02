@@ -210,8 +210,7 @@ def _scene_to_dict(scene: object) -> ThreeDESceneDict:
 
     """
     if isinstance(scene, dict):
-        # Type narrowing: convert through object to satisfy type checker
-        return cast("ThreeDESceneDict", cast("object", scene))
+        return cast("ThreeDESceneDict", scene)
     # Assume ThreeDEScene object with to_dict method
     # Safe to call: we checked it's not a dict, so it must be object with to_dict()
     # Use _HasToDict protocol to ensure type safety without explicit Any
