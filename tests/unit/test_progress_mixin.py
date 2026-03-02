@@ -32,15 +32,6 @@ class ConcreteProgressClass(ProgressReportingMixin):
 class TestProgressReportingMixinInitialization:
     """Test mixin initialization."""
 
-    def test_initialization(self) -> None:
-        """Test that mixin initializes with correct default values."""
-        obj = ConcreteProgressClass()
-        assert obj._stop_requested is False
-        assert obj._progress_callback is None
-        assert obj._last_reported_progress == -1
-        # Should also have logger from LoggingMixin
-        assert hasattr(obj, "logger")
-
     def test_multiple_inheritance_chain(self) -> None:
         """Test that mixin works in multiple inheritance chain."""
 

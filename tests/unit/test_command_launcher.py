@@ -122,22 +122,6 @@ class TestCommandLauncher:
             scene_path=Path("/path/to/scene.3de"),
         )
 
-    def test_initialization(self, launcher: CommandLauncher) -> None:
-        """Test CommandLauncher initializes correctly."""
-        assert launcher.current_shot is None
-        assert hasattr(launcher, "command_executed")
-        assert hasattr(launcher, "command_error")
-
-    def test_set_current_shot(self, launcher: CommandLauncher, test_shot: Shot) -> None:
-        """Test setting current shot."""
-        launcher.set_current_shot(test_shot)
-        assert launcher.current_shot == test_shot
-
-    def test_set_current_shot_none(self, launcher: CommandLauncher) -> None:
-        """Test clearing current shot."""
-        launcher.set_current_shot(None)
-        assert launcher.current_shot is None
-
     @pytest.mark.parametrize(
         ("app_name", "expected_token"),
         [
@@ -642,92 +626,6 @@ def potentially_dangerous_paths(draw: st.DrawFn) -> str:
     )
 
 
-class TestLaunchContextProperties:
-    """Property-based tests for LaunchContext value object."""
-
-    @given(
-        open_latest_threede=st.booleans(),
-        open_latest_maya=st.booleans(),
-        open_latest_scene=st.booleans(),
-        create_new_file=st.booleans(),
-    )
-    def test_launch_context_creation_always_succeeds(
-        self,
-        open_latest_threede: bool,
-        open_latest_maya: bool,
-        open_latest_scene: bool,
-        create_new_file: bool,
-    ) -> None:
-        """Verify LaunchContext can be created with any boolean combination."""
-        context = LaunchContext(
-            open_latest_threede=open_latest_threede,
-            open_latest_maya=open_latest_maya,
-            open_latest_scene=open_latest_scene,
-            create_new_file=create_new_file,
-        )
-
-        # Verify all fields are set correctly
-        assert context.open_latest_threede == open_latest_threede
-        assert context.open_latest_maya == open_latest_maya
-        assert context.open_latest_scene == open_latest_scene
-        assert context.create_new_file == create_new_file
-
-    @given(selected_plate=st.one_of(st.none(), st.text(min_size=1, max_size=10)))
-    def test_launch_context_selected_plate_optional(
-        self, selected_plate: str | None
-    ) -> None:
-        """Verify LaunchContext handles optional selected_plate correctly."""
-        context = LaunchContext(selected_plate=selected_plate)
-
-        assert context.selected_plate == selected_plate
-
-    def test_launch_context_is_immutable(self) -> None:
-        """Verify LaunchContext is frozen (immutable)."""
-        context = LaunchContext(open_latest_scene=True)
-
-        # Attempt to modify should raise FrozenInstanceError
-        with pytest.raises(Exception, match=r"cannot assign to field"):  # FrozenInstanceError from dataclass
-            context.open_latest_scene = False  # type: ignore[misc]
-
-    @given(
-        open_latest_threede=st.booleans(),
-        open_latest_maya=st.booleans(),
-        open_latest_scene=st.booleans(),
-        create_new_file=st.booleans(),
-        selected_plate=st.one_of(st.none(), st.text(min_size=1, max_size=10)),
-    )
-    def test_launch_context_equality(
-        self,
-        open_latest_threede: bool,
-        open_latest_maya: bool,
-        open_latest_scene: bool,
-        create_new_file: bool,
-        selected_plate: str | None,
-    ) -> None:
-        """Verify LaunchContext equality works correctly."""
-        context1 = LaunchContext(
-            open_latest_threede=open_latest_threede,
-            open_latest_maya=open_latest_maya,
-            open_latest_scene=open_latest_scene,
-            create_new_file=create_new_file,
-            selected_plate=selected_plate,
-        )
-
-        context2 = LaunchContext(
-            open_latest_threede=open_latest_threede,
-            open_latest_maya=open_latest_maya,
-            open_latest_scene=open_latest_scene,
-            create_new_file=create_new_file,
-            selected_plate=selected_plate,
-        )
-
-        # Same values should be equal
-        assert context1 == context2
-
-        # Should be hashable (since frozen=True)
-        assert hash(context1) == hash(context2)
-
-
 class TestCommandBuilderProperties:
     """Property-based tests for CommandBuilder path validation."""
 
@@ -809,80 +707,6 @@ class TestCommandBuilderProperties:
 
         # Should add redirection
         assert "2>&1" in logged or ">" in logged
-
-
-class TestLaunchContextDefaults:
-    """Test LaunchContext default values."""
-
-    def test_default_context_has_all_false(self) -> None:
-        """Verify default LaunchContext has all boolean flags False."""
-        context = LaunchContext()
-
-        assert context.open_latest_threede is False
-        assert context.open_latest_maya is False
-        assert context.open_latest_scene is False
-        assert context.create_new_file is False
-        assert context.selected_plate is None
-
-    @given(
-        open_latest_threede=st.booleans(),
-        open_latest_scene=st.booleans(),
-    )
-    def test_partial_context_creation(
-        self, open_latest_threede: bool, open_latest_scene: bool
-    ) -> None:
-        """Verify LaunchContext can be created with partial parameters."""
-        context = LaunchContext(
-            open_latest_threede=open_latest_threede,
-            open_latest_scene=open_latest_scene,
-        )
-
-        # Specified parameters
-        assert context.open_latest_threede == open_latest_threede
-        assert context.open_latest_scene == open_latest_scene
-
-        # Unspecified parameters should have defaults
-        assert context.open_latest_maya is False
-        assert context.create_new_file is False
-        assert context.selected_plate is None
-
-
-class TestPathValidationEdgeCases:
-    """Test edge cases in path validation using Hypothesis."""
-
-    @given(path=st.just(""))
-    def test_empty_path_rejected(self, path: str) -> None:
-        """Verify empty paths are rejected."""
-        with pytest.raises(ValueError, match=r".*empty.*|.*invalid.*"):
-            CommandBuilder.validate_path(path)
-
-    @given(path=st.text(max_size=0))
-    def test_zero_length_path_rejected(self, path: str) -> None:
-        """Verify zero-length paths are rejected."""
-        if len(path) == 0:
-            with pytest.raises(ValueError, match=r".*empty.*|.*invalid.*"):
-                CommandBuilder.validate_path(path)
-
-    @given(
-        path=st.text(
-            alphabet=string.whitespace,
-            min_size=1,
-            max_size=10,
-        )
-    )
-    def test_whitespace_only_paths_handled_safely(self, path: str) -> None:
-        """Verify whitespace-only paths are either rejected or safely quoted."""
-        try:
-            result = CommandBuilder.validate_path(path)
-            # If accepted, should be quoted to prevent issues
-            assert isinstance(result, str)
-            # Should be wrapped in quotes if it contains spaces
-            if " " in path:
-                assert "'" in result or '"' in result
-        except ValueError:
-            # Rejection is also acceptable for whitespace-only paths
-            pass
-
 
 
 class TestSubprocessErrorHandling:

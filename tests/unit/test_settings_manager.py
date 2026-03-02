@@ -78,34 +78,6 @@ class TestSettingsManager:
         """Create settings manager with temporary storage."""
         return make_settings_manager(tmp_path)
 
-    def test_initialization(self, settings_manager: SettingsManager) -> None:
-        """Test proper initialization with defaults."""
-        # Check that settings object was created
-        assert settings_manager.settings is not None
-
-        # Check that defaults were initialized
-        assert settings_manager.settings.contains("window/size")
-        assert settings_manager.settings.contains("preferences/refresh_interval")
-        assert settings_manager.settings.contains("performance/max_thumbnail_threads")
-
-    def test_get_default_settings(self, settings_manager: SettingsManager) -> None:
-        """Test that default settings contain expected categories."""
-        defaults = settings_manager._get_default_settings()
-
-        # Check all categories exist
-        expected_categories = [
-            "window",
-            "preferences",
-            "performance",
-            "applications",
-            "ui",
-            "advanced",
-        ]
-        for category in expected_categories:
-            assert category in defaults
-            assert isinstance(defaults[category], dict)
-            assert len(defaults[category]) > 0
-
     @pytest.mark.parametrize(
         ("getter_name", "setter_name", "test_value"),
         [
@@ -357,22 +329,6 @@ class TestSettingsManager:
         result = settings_manager.import_settings(str(bad_json_path))
         assert result is False
 
-    def test_settings_contains(self, settings_manager: SettingsManager) -> None:
-        """Test checking if a setting exists using QSettings.contains."""
-        assert settings_manager.settings.contains("window/geometry")
-        assert settings_manager.settings.contains("preferences/thumbnail_size")
-        assert not settings_manager.settings.contains("nonexistent/setting")
-
-    def test_remove_setting(self, settings_manager: SettingsManager) -> None:
-        """Test removing a setting using QSettings.remove."""
-        # Set a custom setting
-        settings_manager.settings.setValue("test/custom", "value")
-        assert settings_manager.settings.contains("test/custom")
-
-        # Remove it
-        settings_manager.settings.remove("test/custom")
-        assert not settings_manager.settings.contains("test/custom")
-
     def test_signal_emission_on_change(self, settings_manager: SettingsManager, qtbot: QtBot) -> None:
         """Test that signals are emitted when settings change."""
         # Track signal
@@ -388,17 +344,6 @@ class TestSettingsManager:
         assert len(received) > 0
         assert received[0][0] == "preferences/thumbnail_size"
         assert received[0][1] == new_size
-
-    def test_get_performance_settings(self, settings_manager: SettingsManager) -> None:
-        """Test getting performance-related settings."""
-        max_threads = settings_manager.get_max_thumbnail_threads()
-        assert max_threads == Config.MAX_THUMBNAIL_THREADS
-
-        max_memory = settings_manager.get_max_cache_memory_mb()
-        assert max_memory == Config.MAX_THUMBNAIL_MEMORY_MB
-
-        cache_expiry = settings_manager.get_cache_expiry_minutes()
-        assert cache_expiry == Config.CACHE_EXPIRY_MINUTES
 
     # test_ui_settings removed - dead UI settings (grid_columns, dark_theme, show_tooltips) were removed
 

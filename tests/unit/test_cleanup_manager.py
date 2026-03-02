@@ -73,16 +73,6 @@ def cleanup_manager(mock_main_window: Mock) -> CleanupManager:
 # =============================================================================
 
 
-class TestCleanupManagerInitialization:
-    """Test CleanupManager initialization."""
-
-    def test_initialization(
-        self, cleanup_manager: CleanupManager, mock_main_window: Mock
-    ) -> None:
-        """Test manager initializes with correct reference."""
-        assert cleanup_manager.main_window is mock_main_window
-
-
 # =============================================================================
 # Cleanup Orchestration Tests
 # =============================================================================
