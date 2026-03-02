@@ -276,67 +276,25 @@ class TestSettingsControllerInitialization:
 class TestLoadSettings:
     """Test loading settings functionality."""
 
-    def test_load_settings_restores_window_geometry(
+    def test_load_settings_restores_all_fields(
         self, controller: SettingsController, window_double: SettingsTargetDouble
     ) -> None:
-        """Test that load_settings restores window geometry."""
-        expected_geometry = QByteArray(b"saved_geometry")
-        window_double.settings_manager._geometry = expected_geometry
-
-        controller.load_settings()
-
-        assert window_double._geometry == expected_geometry
-
-    def test_load_settings_restores_window_state(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that load_settings restores window state."""
-        expected_state = QByteArray(b"saved_state")
-        window_double.settings_manager._state = expected_state
-
-        controller.load_settings()
-
-        assert window_double._state == expected_state
-
-    def test_load_settings_restores_splitter_state(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that load_settings restores splitter state."""
-        expected_splitter = QByteArray(b"main_splitter")
-        window_double.settings_manager._splitter_states["main"] = expected_splitter
-
-        controller.load_settings()
-
-        assert window_double.splitter._state == expected_splitter
-
-    def test_load_settings_restores_maximized_state(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that load_settings shows maximized if saved as maximized."""
+        """Test that load_settings restores all managed fields from settings manager."""
+        # Set up all managed fields in settings manager
+        window_double.settings_manager._geometry = QByteArray(b"saved_geometry")
+        window_double.settings_manager._state = QByteArray(b"saved_state")
+        window_double.settings_manager._splitter_states["main"] = QByteArray(b"main_splitter")
         window_double.settings_manager._maximized = True
-
-        controller.load_settings()
-
-        assert window_double._show_maximized_called is True
-
-    def test_load_settings_restores_current_tab(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that load_settings restores current tab index."""
         window_double.settings_manager._current_tab = 2
-
-        controller.load_settings()
-
-        assert window_double.tab_widget._current_index == 2
-
-    def test_load_settings_restores_thumbnail_size(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that load_settings restores thumbnail size to all grids."""
         window_double.settings_manager._thumbnail_size = 200
 
         controller.load_settings()
 
+        assert window_double._geometry == QByteArray(b"saved_geometry")
+        assert window_double._state == QByteArray(b"saved_state")
+        assert window_double.splitter._state == QByteArray(b"main_splitter")
+        assert window_double._show_maximized_called is True
+        assert window_double.tab_widget._current_index == 2
         assert window_double.shot_grid.size_slider._value == 200
         assert window_double.threede_shot_grid.size_slider._value == 200
         assert window_double.previous_shots_grid.size_slider._value == 200
@@ -359,64 +317,25 @@ class TestLoadSettings:
 class TestSaveSettings:
     """Test saving settings functionality."""
 
-    def test_save_settings_persists_geometry(
+    def test_save_settings_persists_all_fields(
         self, controller: SettingsController, window_double: SettingsTargetDouble
     ) -> None:
-        """Test that save_settings persists window geometry."""
-        expected_geometry = QByteArray(b"current_geometry")
-        window_double._geometry = expected_geometry
-
-        controller.save_settings()
-
-        assert window_double.settings_manager._geometry == expected_geometry
-
-    def test_save_settings_persists_state(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that save_settings persists window state."""
-        expected_state = QByteArray(b"current_state")
-        window_double._state = expected_state
-
-        controller.save_settings()
-
-        assert window_double.settings_manager._state == expected_state
-
-    def test_save_settings_persists_splitter_state(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that save_settings persists splitter state."""
-        controller.save_settings()
-
-        assert "main" in window_double.settings_manager._splitter_states
-
-    def test_save_settings_persists_maximized_state(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that save_settings persists maximized state."""
+        """Test that save_settings persists all managed fields to settings manager."""
+        # Set up all managed fields on window double
+        window_double._geometry = QByteArray(b"current_geometry")
+        window_double._state = QByteArray(b"current_state")
+        window_double.splitter._state = QByteArray(b"splitter_state")
         window_double._maximized = True
-
-        controller.save_settings()
-
-        assert window_double.settings_manager._maximized is True
-
-    def test_save_settings_persists_current_tab(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that save_settings persists current tab."""
         window_double.tab_widget._current_index = 1
-
-        controller.save_settings()
-
-        assert window_double.settings_manager._current_tab == 1
-
-    def test_save_settings_persists_thumbnail_size(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that save_settings persists thumbnail size."""
         window_double.shot_grid.size_slider._value = 175
 
         controller.save_settings()
 
+        assert window_double.settings_manager._geometry == QByteArray(b"current_geometry")
+        assert window_double.settings_manager._state == QByteArray(b"current_state")
+        assert "main" in window_double.settings_manager._splitter_states
+        assert window_double.settings_manager._maximized is True
+        assert window_double.settings_manager._current_tab == 1
         assert window_double.settings_manager._thumbnail_size == 175
 
     def test_save_settings_calls_sync(

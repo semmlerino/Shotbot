@@ -374,36 +374,34 @@ class TestImportExportRoundtrip:
 class TestEdgeCases:
     """Boundary values, type mismatches, and validation clamping."""
 
-    def test_thumbnail_size_zero_is_clamped_to_minimum(
-        self, real_manager: SettingsManager
+    @pytest.mark.parametrize(
+        ("setter", "input_value", "getter", "expected"),
+        [
+            ("set_thumbnail_size", 0, "get_thumbnail_size", Config.MIN_THUMBNAIL_SIZE),
+            ("set_cache_expiry_minutes", 0, "get_cache_expiry_minutes", 5),
+            ("set_cache_expiry_minutes", 999_999, "get_cache_expiry_minutes", 10080),
+            ("set_refresh_interval", 0, "get_refresh_interval", 1),
+            ("set_refresh_interval", 99_999, "get_refresh_interval", 1440),
+        ],
+        ids=[
+            "thumbnail_zero_clamped",
+            "cache_expiry_below_min",
+            "cache_expiry_above_max",
+            "refresh_below_min",
+            "refresh_above_max",
+        ],
+    )
+    def test_value_clamped_to_valid_range(
+        self,
+        real_manager: SettingsManager,
+        setter: str,
+        input_value: int,
+        getter: str,
+        expected: int,
     ) -> None:
-        """Zero thumbnail size is clamped to MIN_THUMBNAIL_SIZE."""
-        real_manager.set_thumbnail_size(0)
-        assert real_manager.get_thumbnail_size() == Config.MIN_THUMBNAIL_SIZE
-
-    def test_cache_expiry_below_minimum_is_clamped(
-        self, real_manager: SettingsManager
-    ) -> None:
-        """Cache expiry below 5 minutes is clamped to 5."""
-        real_manager.set_cache_expiry_minutes(0)
-        assert real_manager.get_cache_expiry_minutes() == 5
-
-    def test_cache_expiry_above_maximum_is_clamped(
-        self, real_manager: SettingsManager
-    ) -> None:
-        """Cache expiry above one week (10080 min) is clamped to 10080."""
-        real_manager.set_cache_expiry_minutes(999_999)
-        assert real_manager.get_cache_expiry_minutes() == 10080
-
-    def test_refresh_interval_clamped_to_valid_range(
-        self, real_manager: SettingsManager
-    ) -> None:
-        """Refresh intervals outside [1, 1440] are clamped."""
-        real_manager.set_refresh_interval(0)
-        assert real_manager.get_refresh_interval() == 1
-
-        real_manager.set_refresh_interval(99_999)
-        assert real_manager.get_refresh_interval() == 1440
+        """Out-of-range values are clamped to valid boundaries."""
+        getattr(real_manager, setter)(input_value)
+        assert getattr(real_manager, getter)() == expected
 
     def test_empty_geometry_does_not_trigger_restore(
         self, window: _WindowDouble, controller: SettingsController

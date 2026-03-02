@@ -201,12 +201,16 @@ class TestCommandLauncher:
         assert "3de" in " ".join(call_args)
         assert str(test_scene.scene_path) in " ".join(call_args)
 
+    @pytest.mark.parametrize("sequence_path", [
+        None,
+        "/shows/TEST/shots/seq01/seq01_0010/playblast/shot.####.exr",
+    ], ids=["without_sequence", "with_sequence"])
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_rv_with_sequence_path(
+    def test_launch_rv_default_settings(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
@@ -214,70 +218,19 @@ class TestCommandLauncher:
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
+        sequence_path: str | None,
     ) -> None:
-        """Test launching RV with image sequence path (playblast/render).
-
-        When double-clicking a playblast/render in DCC section, sequence_path
-        is passed to launch RV with that specific image sequence loaded.
-        """
+        """Test RV launch includes default settings with and without sequence path."""
         launcher.set_current_shot(test_shot)
-
-        # Setup mock
         mock_popen.return_value = _running_process_double("rv")
 
-        # Launch RV with sequence path (simulates double-click on playblast)
-        sequence_path = "/shows/TEST/shots/seq01/seq01_0010/playblast/shot.####.exr"
-        result = launcher.launch_app("rv", LaunchContext(sequence_path=sequence_path))
+        if sequence_path:
+            result = launcher.launch_app("rv", LaunchContext(sequence_path=sequence_path))
+        else:
+            result = launcher.launch_app("rv")
 
-        # Verify launch was successful
         assert result is True
-
-        # Wait for QTimer.singleShot(100ms) callback to complete
         process_qt_events()
-
-        # Verify subprocess was called
-        assert mock_popen.called
-        call_args = mock_popen.call_args[0][0]
-        command_str = " ".join(call_args)
-
-        # Verify RV command includes the sequence path
-        assert "rv" in command_str
-        assert sequence_path in command_str
-        # Verify default RV settings are present
-        assert "-fps 12" in command_str
-        assert "-play" in command_str
-        assert "setPlayMode(2)" in command_str
-
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_rv_without_sequence_path(
-        self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
-        launcher: CommandLauncher,
-        test_shot: Shot,
-        qtbot: QtBot,
-    ) -> None:
-        """Test RV launch without sequence path still includes default settings."""
-        launcher.set_current_shot(test_shot)
-
-        # Setup mock
-        mock_popen.return_value = _running_process_double("rv")
-
-        # Launch RV without sequence path
-        result = launcher.launch_app("rv")
-
-        # Verify launch was successful
-        assert result is True
-
-        # Wait for QTimer.singleShot(100ms) callback to complete
-        process_qt_events()
-
-        # Verify subprocess was called with default RV settings
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
         command_str = " ".join(call_args)
@@ -286,6 +239,9 @@ class TestCommandLauncher:
         assert "-fps 12" in command_str
         assert "-play" in command_str
         assert "setPlayMode(2)" in command_str
+
+        if sequence_path:
+            assert sequence_path in command_str
 
     @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
     @patch.object(
@@ -359,12 +315,16 @@ class TestCommandLauncher:
         assert "-ilc" in call_args
         assert "nuke" in " ".join(call_args)
 
+    @pytest.mark.parametrize(("background", "expect_disown"), [
+        (True, True),
+        (False, False),
+    ], ids=["background_enabled", "background_disabled"])
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
     @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_gui_app_with_background_setting_enabled(
+    def test_launch_gui_app_background_setting(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
@@ -372,69 +332,27 @@ class TestCommandLauncher:
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
+        background: bool,
+        expect_disown: bool,
     ) -> None:
-        """Test that GUI apps are backgrounded when setting is enabled."""
+        """Test GUI app backgrounding respects the background_gui_apps setting."""
         launcher.set_current_shot(test_shot)
-
-        # Setup mock
         mock_popen.return_value = _running_process_double("3de")
 
-        # Launch 3DE (a GUI app)
-        with patch.object(launcher._settings_manager, "get_background_gui_apps", return_value=True):
+        with patch.object(launcher._settings_manager, "get_background_gui_apps", return_value=background):
             result = launcher.launch_app("3de")
 
-        # Verify launch was successful
         assert result is True
-
-        # Wait for QTimer.singleShot(100ms) callback
         process_qt_events()
-
-        # Verify subprocess was called
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
         command_str = " ".join(call_args)
 
-        # Verify the command contains background wrapping
-        assert "disown" in command_str
-        assert "exit" in command_str
-
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_gui_app_without_background_setting(
-        self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
-        launcher: CommandLauncher,
-        test_shot: Shot,
-        qtbot: QtBot,
-    ) -> None:
-        """Test that GUI apps are NOT backgrounded when setting is disabled (default)."""
-        launcher.set_current_shot(test_shot)
-
-        # Setup mock
-        mock_popen.return_value = _running_process_double("3de")
-
-        # Launch 3DE (a GUI app) - default setting is False
-        with patch.object(launcher._settings_manager, "get_background_gui_apps", return_value=False):
-            result = launcher.launch_app("3de")
-
-        # Verify launch was successful
-        assert result is True
-
-        # Wait for QTimer.singleShot(100ms) callback
-        process_qt_events()
-
-        # Verify subprocess was called
-        assert mock_popen.called
-        call_args = mock_popen.call_args[0][0]
-        command_str = " ".join(call_args)
-
-        # Verify the command does NOT contain background wrapping
-        assert "disown" not in command_str
+        if expect_disown:
+            assert "disown" in command_str
+            assert "exit" in command_str
+        else:
+            assert "disown" not in command_str
 
 
 class TestCommandLauncherSignals:

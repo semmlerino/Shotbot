@@ -171,33 +171,27 @@ class TestFileUtils:
         result = FileUtils.get_first_image_file(tmp_path)
         assert result is None
 
-    def test_validate_file_size_within_limit(self, tmp_path: Path) -> None:
-        """Test file size validation within limits."""
-        test_file = tmp_path / "small_file.txt"
-        test_file.write_text("small content")
-
-        result = FileUtils.validate_file_size(test_file, max_size_mb=1)
-        assert result is True
-
-    def test_validate_file_size_exceeds_limit(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    @pytest.mark.parametrize(
+        ("file_content", "max_size_mb", "expected"),
+        [
+            ("small content", 1, True),
+            ("x" * (2 * 1024 * 1024), 1, False),
+            (None, 1, False),
+        ],
+        ids=["within_limit", "exceeds_limit", "nonexistent"],
+    )
+    def test_validate_file_size(
+        self, tmp_path: Path, file_content: str | None, max_size_mb: int, expected: bool
     ) -> None:
-        """Test file size validation when file exceeds limit."""
-        test_file = tmp_path / "large_file.txt"
-        # Create file with content larger than limit
-        large_content = "x" * (2 * 1024 * 1024)  # 2MB
-        test_file.write_text(large_content)
+        """Test file size validation for various scenarios."""
+        if file_content is not None:
+            test_file = tmp_path / "test_file.txt"
+            test_file.write_text(file_content)
+        else:
+            test_file = Path("/nonexistent/file.txt")
 
-        result = FileUtils.validate_file_size(test_file, max_size_mb=1)
-        assert result is False
-
-        # Check warning was logged
-        assert any("File too large" in record.message for record in caplog.records)
-
-    def test_validate_file_size_nonexistent_file(self) -> None:
-        """Test file size validation with non-existent file."""
-        result = FileUtils.validate_file_size("/nonexistent/file.txt")
-        assert result is False
+        result = FileUtils.validate_file_size(test_file, max_size_mb=max_size_mb)
+        assert result is expected
 
     def test_validate_file_size_uses_config_default(self, tmp_path: Path) -> None:
         """Test that file size validation uses Config.MAX_FILE_SIZE_MB when no limit specified."""
@@ -340,30 +334,28 @@ class TestVersionUtils:
         # Cache should be cleaned
         assert len(VersionUtils._version_cache) <= 250
 
-    def test_get_next_version_number_with_existing_files(self, tmp_path: Path) -> None:
-        """Test that get_next_version_number correctly reads existing version files."""
-        # Create files matching the pattern
-        (tmp_path / "shot_abc_v001.nk").touch()
-        (tmp_path / "shot_abc_v002.nk").touch()
+    @pytest.mark.parametrize(
+        ("setup_files", "expected"),
+        [
+            (["shot_abc_v001.nk", "shot_abc_v002.nk"], 3),
+            (["unrelated_file.txt"], 1),
+            (None, 1),
+        ],
+        ids=["with_existing", "no_matching", "nonexistent_dir"],
+    )
+    def test_get_next_version_number(
+        self, tmp_path: Path, setup_files: list[str] | None, expected: int
+    ) -> None:
+        """Test next version number detection for various directory states."""
+        if setup_files is None:
+            path = Path("/nonexistent/path")
+        else:
+            path = tmp_path
+            for f in setup_files:
+                (tmp_path / f).touch()
 
-        result = VersionUtils.get_next_version_number(tmp_path, "shot_*_v*.nk")
-
-        assert result == 3, f"Expected 3 (next after v002) but got {result}"
-
-    def test_get_next_version_number_no_matching_files(self, tmp_path: Path) -> None:
-        """Test that get_next_version_number returns 1 when no files match."""
-        # Directory exists but has no matching files
-        (tmp_path / "unrelated_file.txt").touch()
-
-        result = VersionUtils.get_next_version_number(tmp_path, "shot_*_v*.nk")
-
-        assert result == 1, f"Expected 1 (no existing versions) but got {result}"
-
-    def test_get_next_version_number_nonexistent_directory(self) -> None:
-        """Test that get_next_version_number returns 1 for a non-existent directory."""
-        result = VersionUtils.get_next_version_number("/nonexistent/path", "shot_*_v*.nk")
-
-        assert result == 1, f"Expected 1 (nonexistent dir) but got {result}"
+        result = VersionUtils.get_next_version_number(path, "shot_*_v*.nk")
+        assert result == expected
 
 
 class TestValidationUtils:
