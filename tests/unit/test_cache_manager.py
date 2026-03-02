@@ -578,9 +578,8 @@ class TestErrorHandling:
 
         result = cache_manager.get_shots_with_ttl()
 
-        # Should handle gracefully
-        # Implementation may return [] or None, either is acceptable
-        assert result is None or result == []
+        # Should handle gracefully - unknown schema returns None
+        assert result is None
 
     def test_cache_with_readonly_directory(self, tmp_path: Path) -> None:
         """Test caching operations with read-only directory."""
@@ -604,6 +603,65 @@ class TestErrorHandling:
         finally:
             # Restore permissions for cleanup
             cache_dir.chmod(stat.S_IRWXU)
+
+
+class TestLatestFileCacheResult:
+    """Tests for tri-state latest file cache lookup."""
+
+    def test_miss_on_no_entry(self, cache_manager: CacheManager) -> None:
+        """No cache file → miss."""
+
+        result = cache_manager.get_latest_file_cache_result("/workspace", "threede")
+        assert result.status == "miss"
+        assert result.path is None
+
+    def test_miss_on_expired(self, cache_manager: CacheManager) -> None:
+        """Expired entry → miss."""
+        import json
+
+
+        # Cache a file, then expire it
+        test_file = cache_manager.cache_dir / "test.3de"
+        test_file.touch()
+        cache_manager.cache_latest_file("/workspace", "threede", test_file)
+
+        # Manually expire by writing old timestamp
+        cache_data = json.loads(cache_manager.latest_files_cache_file.read_text())
+        cache_data["/workspace:threede"]["cached_at"] = 0.0  # epoch = very old
+        cache_manager.latest_files_cache_file.write_text(json.dumps(cache_data))
+
+        result = cache_manager.get_latest_file_cache_result("/workspace", "threede")
+        assert result.status == "miss"
+
+    def test_not_found_within_ttl(self, cache_manager: CacheManager) -> None:
+        """Cached None within TTL → not_found."""
+
+        cache_manager.cache_latest_file("/workspace", "threede", None)
+        result = cache_manager.get_latest_file_cache_result("/workspace", "threede")
+        assert result.status == "not_found"
+        assert result.path is None
+
+    def test_hit_with_existing_file(self, cache_manager: CacheManager) -> None:
+        """Cached path within TTL, file exists → hit."""
+
+        test_file = cache_manager.cache_dir / "test.3de"
+        test_file.touch()
+        cache_manager.cache_latest_file("/workspace", "threede", test_file)
+
+        result = cache_manager.get_latest_file_cache_result("/workspace", "threede")
+        assert result.status == "hit"
+        assert result.path == test_file
+
+    def test_miss_when_file_deleted(self, cache_manager: CacheManager) -> None:
+        """Cached path within TTL, but file deleted → miss."""
+
+        test_file = cache_manager.cache_dir / "test.3de"
+        test_file.touch()
+        cache_manager.cache_latest_file("/workspace", "threede", test_file)
+        test_file.unlink()  # Delete the file
+
+        result = cache_manager.get_latest_file_cache_result("/workspace", "threede")
+        assert result.status == "miss"
 
 
 class TestPersistentPreviousShotsCache:

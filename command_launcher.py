@@ -912,23 +912,22 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             cache_hit = True
 
             if app_name == "3de" and context.open_latest_threede:
-                threede_cached = self._cache_manager.get_cached_latest_file(
+                result = self._cache_manager.get_latest_file_cache_result(
                     workspace, "threede"
                 )
-                if threede_cached is None:
-                    # Check if we have a "not found" cache entry (path is None in cache)
-                    # vs no cache entry at all (need to search)
-                    if not self._cache_manager.has_cache_entry(workspace, "threede"):
-                        cache_hit = False
-                    # else: cache says "not found", use None as result
+                if result.status == "miss":
+                    cache_hit = False
+                else:
+                    threede_cached = result.path  # None for "not_found", Path for "hit"
 
             if app_name == "maya" and context.open_latest_maya:
-                maya_cached = self._cache_manager.get_cached_latest_file(
+                result = self._cache_manager.get_latest_file_cache_result(
                     workspace, "maya"
                 )
-                if maya_cached is None:
-                    if not self._cache_manager.has_cache_entry(workspace, "maya"):
-                        cache_hit = False
+                if result.status == "miss":
+                    cache_hit = False
+                else:
+                    maya_cached = result.path  # None for "not_found", Path for "hit"
 
             if cache_hit:
                 # Use cached result - add scene path to command

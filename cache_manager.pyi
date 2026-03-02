@@ -4,7 +4,7 @@
 import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 # Third-party imports
 from PySide6.QtCore import QObject, QRunnable, Signal
@@ -30,6 +30,12 @@ class SceneMergeResult(NamedTuple):
     stale_scenes: list[ThreeDESceneDict]  # In cache but not in current scan (retained within retention window)
     has_changes: bool  # Any changes detected
     pruned_count: int = 0
+
+class LatestFileCacheResult(NamedTuple):
+    """Tri-state result for latest file cache lookup."""
+
+    status: Literal["hit", "not_found", "miss"]
+    path: Path | None = None
 
 class CacheManager(QObject):
     """Manages caching of shot data and thumbnails with thread safety and memory monitoring."""
@@ -112,22 +118,21 @@ class CacheManager(QObject):
     def validate_cache(self) -> dict[str, object]: ...
     def shutdown(self) -> None: ...
     # Latest file cache methods
-    def get_cached_latest_file(
-        self,
-        workspace_path: str,
-        file_type: str,
-    ) -> Path | None: ...
     def cache_latest_file(
         self,
         workspace_path: str,
         file_type: str,
         file_path: Path | None,
     ) -> None: ...
+    def get_latest_file_cache_result(
+        self,
+        workspace_path: str,
+        file_type: str,
+    ) -> LatestFileCacheResult: ...
     def clear_latest_files_cache(
         self,
         workspace_path: str | None = ...,
     ) -> None: ...
-    def has_cache_entry(self, workspace_path: str, file_type: str) -> bool: ...
     def _read_latest_files_cache(self) -> dict[str, dict[str, object]] | None: ...
 
 class ThumbnailCacheLoaderSignals(QObject):

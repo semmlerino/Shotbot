@@ -52,6 +52,7 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     ClassVar,
+    Literal,
     NamedTuple,
     Protocol,
     TypeAlias,
@@ -134,6 +135,19 @@ class SceneMergeResult(NamedTuple):
     stale_scenes: list[ThreeDESceneDict]  # In cache but not in current scan (retained within retention window)
     has_changes: bool  # Any changes detected
     pruned_count: int = 0  # Scenes removed due to age-based pruning
+
+
+class LatestFileCacheResult(NamedTuple):
+    """Tri-state result for latest file cache lookup.
+
+    Attributes:
+        status: "hit" (file found), "not_found" (confirmed no file within TTL),
+                "miss" (no entry, expired, or file deleted)
+        path: The cached file path (only set for "hit" status)
+    """
+
+    status: Literal["hit", "not_found", "miss"]
+    path: Path | None = None
 
 
 def _get_shot_key(shot: ShotDict) -> tuple[str, str, str]:
@@ -1161,30 +1175,48 @@ class CacheManager(LoggingMixin, QObject):
     # Latest File Cache Methods (Maya/3DE scene paths per workspace)
     # ========================================================================
 
-    def get_cached_latest_file(
+    def cache_latest_file(
         self,
         workspace_path: str,
         file_type: str,
-    ) -> Path | None:
-        """Get cached latest file path for a workspace.
+        file_path: Path | None,
+    ) -> None:
+        """Cache the latest file path for a workspace."""
+        with QMutexLocker(self._lock):
+            cache_data = self._read_latest_files_cache() or {}
 
-        Args:
-            workspace_path: Full path to the shot workspace
-            file_type: Type of file ("maya" or "threede")
+            key = f"{workspace_path}:{file_type}"
+
+            cache_data[key] = {
+                "path": str(file_path) if file_path else None,
+                "cached_at": datetime.now(tz=UTC).timestamp(),
+            }
+
+            _ = self._write_latest_files_cache(cache_data)
+        if file_path:
+            self.logger.debug(f"Cached latest {file_type} file: {file_path.name}")
+        else:
+            self.logger.debug(f"Cached 'not found' for {file_type} in {workspace_path}")
+
+    def get_latest_file_cache_result(
+        self, workspace_path: str, file_type: str
+    ) -> LatestFileCacheResult:
+        """Get cached latest file with tri-state semantics.
 
         Returns:
-            Cached file path or None if not cached/expired
-
+            LatestFileCacheResult with:
+            - status="miss": no entry, expired, or file deleted since caching
+            - status="not_found": within TTL, confirmed nothing exists
+            - status="hit": within TTL, file exists → includes path
         """
         cache_data = self._read_latest_files_cache()
         if cache_data is None:
-            return None
+            return LatestFileCacheResult("miss")
 
-        # Create composite key
         key = f"{workspace_path}:{file_type}"
         entry = cache_data.get(key)
         if entry is None:
-            return None
+            return LatestFileCacheResult("miss")
 
         # Check TTL
         cached_at_raw = entry.get("cached_at", 0.0)
@@ -1195,49 +1227,20 @@ class CacheManager(LoggingMixin, QObject):
         age = datetime.now(tz=UTC).timestamp() - cached_at
         if age > self._latest_files_ttl.total_seconds():
             self.logger.debug(f"Latest file cache expired for {key}")
-            return None
+            return LatestFileCacheResult("miss")
 
-        # Return cached path
+        # Within TTL — check the cached value
         path_str = entry.get("path")
         if path_str and isinstance(path_str, str):
             cached_path = Path(path_str)
-            # Verify file still exists
             if cached_path.exists():
                 self.logger.debug(f"Latest file cache hit: {cached_path.name}")
-                return cached_path
+                return LatestFileCacheResult("hit", cached_path)
             self.logger.debug(f"Cached file no longer exists: {path_str}")
-        return None
+            return LatestFileCacheResult("miss")
 
-    def cache_latest_file(
-        self,
-        workspace_path: str,
-        file_type: str,
-        file_path: Path | None,
-    ) -> None:
-        """Cache the latest file path for a workspace.
-
-        Args:
-            workspace_path: Full path to the shot workspace
-            file_type: Type of file ("maya" or "threede")
-            file_path: Path to cache (or None to cache "not found" result)
-
-        """
-        cache_data = self._read_latest_files_cache() or {}
-
-        # Create composite key
-        key = f"{workspace_path}:{file_type}"
-
-        # Store entry with timestamp
-        cache_data[key] = {
-            "path": str(file_path) if file_path else None,
-            "cached_at": datetime.now(tz=UTC).timestamp(),
-        }
-
-        _ = self._write_latest_files_cache(cache_data)
-        if file_path:
-            self.logger.debug(f"Cached latest {file_type} file: {file_path.name}")
-        else:
-            self.logger.debug(f"Cached 'not found' for {file_type} in {workspace_path}")
+        # path is None → confirmed "not found" within TTL
+        return LatestFileCacheResult("not_found")
 
     def clear_latest_files_cache(self, workspace_path: str | None = None) -> None:
         """Clear the latest files cache.
@@ -1265,27 +1268,6 @@ class CacheManager(LoggingMixin, QObject):
                 self.logger.debug(
                     f"Cleared latest files cache for workspace: {workspace_path}"
                 )
-
-    def has_cache_entry(self, workspace_path: str, file_type: str) -> bool:
-        """Check if a cache entry exists for a workspace/file_type (regardless of value).
-
-        Unlike get_cached_latest_file(), this returns True even when the cached
-        result is None (i.e., a "not found" result was cached), letting callers
-        distinguish between "cache miss - need to search" and "searched, found nothing".
-
-        Args:
-            workspace_path: Full path to the shot workspace
-            file_type: Type of file ("maya" or "threede")
-
-        Returns:
-            True if an entry exists in the cache (even if the path is None), False if no entry
-
-        """
-        cache_data = self._read_latest_files_cache()
-        if cache_data is None:
-            return False
-        key = f"{workspace_path}:{file_type}"
-        return key in cache_data
 
     def _read_latest_files_cache(self) -> dict[str, dict[str, object]] | None:
         """Read the latest files cache from disk.
@@ -1413,9 +1395,15 @@ class CacheManager(LoggingMixin, QObject):
                     self.shots_cache_file,
                     self.previous_shots_cache_file,
                     self.threede_cache_file,
+                    self.latest_files_cache_file,
                 ]:
                     if cache_file.exists():
                         cache_file.unlink()
+
+                # Sweep any remaining JSON caches (excluding migration archive)
+                for extra_json in self.cache_dir.glob("*.json"):
+                    if extra_json.name != "migrated_shots.json":
+                        extra_json.unlink()
 
                 # Clear thumbnails
                 if self.thumbnails_dir.exists():
@@ -1554,17 +1542,23 @@ class CacheManager(LoggingMixin, QObject):
                 if result is None:
                     result = raw_data.get("shots")
                 if result is None:
-                    result = raw_data.get("scenes", [])
+                    result = raw_data.get("scenes")
+
+                if result is None:
+                    self.logger.warning(
+                        f"Unknown cache schema in {cache_file}: "
+                        f"no 'data', 'shots', or 'scenes' key found"
+                    )
+                    return None
 
                 if isinstance(result, list):
-                    # Validate ALL elements are dicts (not just first)
                     if result and not all(isinstance(item, dict) for item in result):
                         self.logger.warning(
                             f"Invalid cache format: expected list of dicts in {cache_file}"
                         )
                         return None
                     return cast("list[ShotDict | ThreeDESceneDict]", result)
-                return []
+                return None
 
             self.logger.warning(
                 f"Unexpected cache format: {cache_file}, type: {type(raw_data)}"
