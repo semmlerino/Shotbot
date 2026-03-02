@@ -17,7 +17,6 @@ import concurrent.futures
 import gc
 import hashlib
 import logging
-import os
 import selectors
 import subprocess
 import sys
@@ -52,6 +51,8 @@ if TYPE_CHECKING:
 
 # Local application imports
 from debug_utils import DEBUG_VERBOSE, setup_enhanced_debugging
+
+
 if DEBUG_VERBOSE:
     # Set debug level for verbose logging
     logger.setLevel(logging.DEBUG)

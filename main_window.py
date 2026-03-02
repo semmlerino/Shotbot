@@ -525,7 +525,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Initialize progress manager
         _ = ProgressManager.initialize(self.status_bar)
 
-        self._update_status("Ready")
+        self.update_status("Ready")
 
     def _setup_menu(self) -> None:
         """Set up menu bar."""
@@ -770,7 +770,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.logger.info(
                 "No cached shots found on initial check, attempting explicit cache load"
             )
-            if self.shot_model.test_load_from_cache():
+            if self.shot_model.try_load_from_cache():
                 has_cached_shots = True
                 self._refresh_shot_display()
                 self.logger.info(
@@ -791,7 +791,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Update status with what was loaded from cache
         if has_cached_shots and has_cached_scenes:
-            self._update_status(
+            self.update_status(
                 (
                     f"Loaded {len(self.shot_model.shots)} shots and "
                      f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
@@ -801,15 +801,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             # spawning the subprocess that fetches fresh data from `ws -sg`.
             QTimer.singleShot(500, self._refresh_shots)
         elif has_cached_shots:
-            self._update_status(f"Loaded {len(self.shot_model.shots)} shots from cache")
+            self.update_status(f"Loaded {len(self.shot_model.shots)} shots from cache")
             # 500ms delay: same rationale as above — paint first, refresh second.
             QTimer.singleShot(500, self._refresh_shots)
         elif has_cached_scenes:
-            self._update_status(
+            self.update_status(
                 f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache",
             )
         else:
-            self._update_status("Loading shots and scenes...")
+            self.update_status("Loading shots and scenes...")
             # No cache exists - background refresh already started by initialize_async()
             self.logger.info(
                 "No cached data found - background refresh already in progress from initialize_async()",
@@ -867,7 +867,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         """
         self.logger.error(f"Shot model error: {error_msg}")
-        self._update_status(f"Error: {error_msg}")
+        self.update_status(f"Error: {error_msg}")
 
     def _on_data_recovery(self, title: str, details: str) -> None:
         """Handle data recovery notification from model.
@@ -1188,10 +1188,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.settings_manager.set_sort_order("previous_shots", order)
         self.logger.info(f"Previous shots sort order changed to: {order}")
 
-    def _update_status(self, message: str) -> None:
-        """Update status bar."""
-        self.status_bar.showMessage(message)
-
     def _show_shortcuts(self) -> None:
         """Show keyboard shortcuts dialog."""
         shortcuts_text = """<h3>Keyboard Shortcuts</h3>
@@ -1279,8 +1275,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._last_selected_shot_name = value
 
     def update_status(self, message: str) -> None:
-        """Public method to update status bar."""
-        self._update_status(message)
+        """Update status bar."""
+        self.status_bar.showMessage(message)
 
     def launch_app(self, app_name: str) -> None:
         """Public method to launch an application."""

@@ -346,7 +346,7 @@ class TestShotModel:
         cache_manager.cache_shots(cache_data)
 
         # Test actual loading behavior
-        result = real_shot_model.test_load_from_cache()
+        result = real_shot_model.try_load_from_cache()
 
         assert result is True
         assert len(real_shot_model.shots) == 2
@@ -356,7 +356,7 @@ class TestShotModel:
     def test_load_from_cache_no_data(self, real_shot_model) -> None:
         """Test cache loading when no data available."""
         # Cache is empty by default in cache_manager
-        result = real_shot_model.test_load_from_cache()
+        result = real_shot_model.try_load_from_cache()
 
         assert result is False
         assert len(real_shot_model.shots) == 0

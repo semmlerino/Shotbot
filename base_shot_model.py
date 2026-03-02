@@ -22,7 +22,6 @@ from qt_abc_meta import QABCMeta
 from shot_filter import compose_filters, get_available_shows
 from shot_parser import OptimizedShotParser
 from utils import ValidationUtils
-from debug_utils import DEBUG_VERBOSE
 
 
 # Import RefreshResult from type_definitions to avoid circular imports

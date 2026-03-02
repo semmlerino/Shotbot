@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QApplication
 from logging_mixin import LoggingMixin
 
 
-class MainWindowProtocol(Protocol):
+class CleanupTarget(Protocol):
     """Protocol defining the MainWindow interface needed by CleanupManager.
 
     This avoids circular imports while providing proper type safety.
@@ -44,7 +44,7 @@ class CleanupManager(QObject, LoggingMixin):
     cleanup_started: Signal = Signal()
     cleanup_finished: Signal = Signal()
 
-    def __init__(self, main_window: MainWindowProtocol) -> None:
+    def __init__(self, main_window: CleanupTarget) -> None:
         """Initialize cleanup manager.
 
         Args:
@@ -53,7 +53,7 @@ class CleanupManager(QObject, LoggingMixin):
         """
         super().__init__()
         LoggingMixin.__init__(self)
-        self.main_window: MainWindowProtocol = main_window
+        self.main_window: CleanupTarget = main_window
         self.logger.debug("CleanupManager initialized")
 
     def perform_cleanup(self) -> None:

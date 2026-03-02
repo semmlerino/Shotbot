@@ -49,7 +49,6 @@ from type_definitions import RefreshResult, Shot
 # Re-export Shot for backward compatibility with existing imports
 __all__ = ["AsyncShotLoader", "Shot", "ShotModel", "create_optimized_shot_model"]
 
-from debug_utils import DEBUG_VERBOSE
 
 
 @final
@@ -764,7 +763,7 @@ class ShotModel(BaseShotModel):
         """Test-only access to process pool manager."""
         return self._process_pool
 
-    def test_load_from_cache(self) -> bool:
+    def try_load_from_cache(self) -> bool:
         """Test-only access to _load_from_cache method."""
         return self._load_from_cache()
 
