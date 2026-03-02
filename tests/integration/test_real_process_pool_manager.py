@@ -54,7 +54,6 @@ def _run_in_background(
 # Module-level markers - all tests in this file use real subprocess and run serialized
 pytestmark = [
     pytest.mark.real_subprocess,
-    pytest.mark.integration,
     pytest.mark.xdist_group(name="real_subprocess"),  # Serialize for safety
 ]
 

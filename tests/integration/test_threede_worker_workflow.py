@@ -56,7 +56,6 @@ from threede_scene_worker import ThreeDESceneWorker
 
 
 pytestmark = [
-    pytest.mark.integration,
     pytest.mark.qt,
     pytest.mark.slow,
 ]

@@ -35,7 +35,6 @@ from tests.test_helpers import process_qt_events
 
 
 pytestmark = [
-    pytest.mark.integration,
     pytest.mark.qt,
     pytest.mark.slow,
 ]

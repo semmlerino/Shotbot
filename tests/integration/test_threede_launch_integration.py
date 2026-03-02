@@ -26,11 +26,6 @@ from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
 
-pytestmark = [
-    pytest.mark.integration,
-]
-
-
 # ============================================================================
 # Fixtures
 # ============================================================================

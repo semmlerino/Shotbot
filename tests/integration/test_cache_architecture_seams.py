@@ -17,9 +17,6 @@ from filesystem_scanner import FileSystemScanner
 from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
 
-pytestmark = [pytest.mark.integration]
-
-
 @pytest.fixture
 def clean_coordinator():
     """Provide a clean FilesystemCoordinator, cleaned up after the test."""

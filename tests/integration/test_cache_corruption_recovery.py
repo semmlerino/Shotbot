@@ -71,7 +71,6 @@ def make_scene_dict(
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestMalformedJsonRecovery:
     """Tests for recovery from corrupted/malformed JSON cache files."""
 
@@ -120,7 +119,6 @@ class TestMalformedJsonRecovery:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestInvalidDataStructureRecovery:
     """Tests for recovery from structurally invalid cache data."""
 
@@ -175,7 +173,6 @@ class TestInvalidDataStructureRecovery:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestPermissionErrorRecovery:
     """Tests for recovery from permission errors."""
 
@@ -242,7 +239,6 @@ class TestPermissionErrorRecovery:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestAtomicWriteGuarantees:
     """Tests for atomic write behavior."""
 
@@ -328,7 +324,6 @@ class TestAtomicWriteGuarantees:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestWriteFailureRecovery:
     """Tests for recovery from write failures."""
 
@@ -384,7 +379,6 @@ class TestWriteFailureRecovery:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestPublicAPIRecovery:
     """Tests that public API methods handle errors gracefully."""
 
@@ -471,7 +465,6 @@ class TestPublicAPIRecovery:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestConcurrentErrorRecovery:
     """Tests for error recovery under concurrent access."""
 

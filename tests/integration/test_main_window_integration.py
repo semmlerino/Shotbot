@@ -52,7 +52,6 @@ def setup_qt_imports() -> None:
 
 
 pytestmark = [
-    pytest.mark.integration,
     pytest.mark.qt,
     pytest.mark.allow_dialogs,
     pytest.mark.permissive_process_pool,
@@ -674,7 +673,6 @@ class TestUserWorkflows:
 
         return shot_path
 
-    @pytest.mark.integration
     @pytest.mark.qt
     def test_launch_nuke_with_shot(self, qtbot: Any) -> None:
         """Test complete workflow of selecting a shot and launching Nuke."""
@@ -721,7 +719,6 @@ class TestUserWorkflows:
 
         assert main_window.command_launcher.current_shot == test_shot
 
-    @pytest.mark.integration
     @pytest.mark.qt
     def test_thumbnail_loading_workflow(self, qtbot: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test thumbnail loading and display workflow."""
@@ -797,7 +794,6 @@ class TestUserWorkflows:
             shot_data = main_window.shot_item_model.data(index, UnifiedRole.ObjectRole)
             assert shot_data is not None
 
-    @pytest.mark.integration
     @pytest.mark.qt
     def test_previous_shots_scanning(self, qtbot: Any) -> None:
         """Test previous shots scanning and display workflow."""

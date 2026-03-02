@@ -71,7 +71,6 @@ IMPORTANT MARKERS
 - @pytest.mark.qt_heavy              Isolate on single dedicated worker
 - @pytest.mark.real_timing           Bypass wait() patch (timing-sensitive tests)
 - @pytest.mark.skip_if_parallel      Skip test in parallel execution
-- @pytest.mark.enforce_unique_connections  Prevent duplicate signal connections
 - @pytest.mark.real_subprocess       Execute with real subprocess (bypass mocks)
 
 GLOBAL STATE
@@ -599,7 +598,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
     MARKERS:
     - @pytest.mark.qt_heavy: Forces test onto single "qt_heavy" worker group
-    - @pytest.mark.enforce_unique_connections: Enforces UniqueConnection for signals
     - @pytest.mark.qt: Marks test as Qt-using (triggers cleanup fixtures)
 
     Qt TEST DETECTION:

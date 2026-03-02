@@ -26,9 +26,6 @@ import pytest
 if TYPE_CHECKING:
     from cache_manager import CacheManager
 
-pytestmark = [pytest.mark.integration]
-
-
 # ==============================================================================
 # E2E Cache Manager Tests
 # ==============================================================================

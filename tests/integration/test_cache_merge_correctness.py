@@ -26,11 +26,6 @@ from cache_manager import CacheManager, SceneMergeResult, ShotMergeResult
 from type_definitions import Shot, ShotDict, ThreeDESceneDict
 
 
-pytestmark = [
-    pytest.mark.integration,
-]
-
-
 # ==============================================================================
 # Test Data Factories
 # ==============================================================================
@@ -87,7 +82,6 @@ def make_scene_dict(
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestShotMergeCorrectness:
     """Tests for shot merge algorithm correctness."""
 
@@ -255,7 +249,6 @@ class TestShotMergeCorrectness:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestSceneMergeCorrectness:
     """Tests for scene merge algorithm correctness."""
 
@@ -378,7 +371,6 @@ class TestSceneMergeCorrectness:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestMergeThreadSafety:
     """Tests for merge operations under concurrent access."""
 
@@ -493,7 +485,6 @@ class TestMergeThreadSafety:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestMergeEdgeCases:
     """Tests for merge edge cases and boundary conditions."""
 
@@ -575,7 +566,6 @@ class TestMergeEdgeCases:
 # ==============================================================================
 
 
-@pytest.mark.integration
 class TestMergeResultCorrectness:
     """Tests that verify merge results are correct and consistent."""
 

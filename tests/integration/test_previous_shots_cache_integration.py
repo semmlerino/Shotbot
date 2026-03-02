@@ -38,7 +38,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 pytestmark = [
-    pytest.mark.integration,
     pytest.mark.qt,
     pytest.mark.slow,
 ]

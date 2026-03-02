@@ -26,7 +26,6 @@ from threede_scene_finder import OptimizedThreeDESceneFinder
 
 
 pytestmark = [
-    pytest.mark.integration,
     pytest.mark.slow,
     pytest.mark.integration_safe,
     pytest.mark.real_subprocess,  # Uses find command for 3DE discovery

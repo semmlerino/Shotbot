@@ -17,7 +17,6 @@ from PySide6.QtCore import QObject, Signal
 
 
 pytestmark = [
-    pytest.mark.integration,
     pytest.mark.qt,  # CRITICAL: Qt state must be serialized
     pytest.mark.real_subprocess,  # Uses find command for 3DE discovery
 ]

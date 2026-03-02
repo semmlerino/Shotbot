@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 
 
 pytestmark = [
-    pytest.mark.integration,
     pytest.mark.qt,
     pytest.mark.thread_safety,
 ]
