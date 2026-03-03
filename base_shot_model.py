@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Standard library imports
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Third-party imports
@@ -64,24 +63,10 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         """
         super().__init__()
-        # Local application imports
-        import os
-        import sys
 
         if cache_manager is None:
-            from cache.shot_cache import ShotDataCache
-
-            test_cache_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
-            if test_cache_dir:
-                _default_dir = Path(test_cache_dir)
-            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
-                _default_dir = Path.home() / ".shotbot" / "cache_test"
-            elif os.getenv("SHOTBOT_MODE") == "mock":
-                _default_dir = Path.home() / ".shotbot" / "cache" / "mock"
-            else:
-                _default_dir = Path.home() / ".shotbot" / "cache" / "production"
-            _default_dir.mkdir(parents=True, exist_ok=True)
-            cache_manager = ShotDataCache(_default_dir)
+            from cache.shot_cache import make_default_shot_cache
+            cache_manager = make_default_shot_cache()
 
         self.shots: list[Shot] = []
         self.cache_manager: ShotDataCache = cache_manager

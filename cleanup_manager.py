@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
@@ -19,6 +19,11 @@ if TYPE_CHECKING:
     from controllers.threede_controller import ThreeDEController
     from previous_shots_model import PreviousShotsModel
     from shot_model import ShotModel
+
+
+@runtime_checkable
+class Cleanable(Protocol):
+    def cleanup(self) -> None: ...
 
 
 class _SessionWarmerProtocol(Protocol):
@@ -213,9 +218,9 @@ class CleanupManager(QObject, LoggingMixin):
         if self.main_window.previous_shots_item_model:
             self.logger.debug("Cleaning up PreviousShotsItemModel")
             try:
-                cleanup = getattr(self.main_window.previous_shots_item_model, "cleanup", None)
-                if callable(cleanup):
-                    _ = cleanup()
+                item_model = self.main_window.previous_shots_item_model
+                if isinstance(item_model, Cleanable):
+                    item_model.cleanup()
             except Exception:
                 self.logger.exception("Error cleaning up PreviousShotsItemModel")
 

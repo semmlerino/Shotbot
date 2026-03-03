@@ -435,3 +435,11 @@ class ThumbnailCache(LoggingMixin):
                 temp_path.unlink(missing_ok=True)
             self.logger.exception("QImage thumbnail caching failed")
             return None
+
+
+def make_default_thumbnail_cache(base_dir: Path | None = None) -> ThumbnailCache:
+    """Create a ThumbnailCache using the env-resolved default directory."""
+    from cache._dir_resolver import resolve_default_cache_dir
+    resolved = base_dir if base_dir is not None else resolve_default_cache_dir()
+    resolved.mkdir(parents=True, exist_ok=True)
+    return ThumbnailCache(resolved)

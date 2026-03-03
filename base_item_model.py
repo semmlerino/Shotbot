@@ -8,8 +8,6 @@ code duplication by ~70-80%.
 from __future__ import annotations
 
 # Standard library imports
-import os
-import sys
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from pathlib import Path
@@ -220,20 +218,10 @@ class BaseItemModel(
 
         # Core data storage
         self._items: list[T] = []
-        if cache_manager is not None:
-            self._cache_manager: ThumbnailCache = cache_manager
-        else:
-            test_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
-            if test_dir:
-                default_dir = Path(test_dir)
-            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
-                default_dir = Path.home() / ".shotbot" / "cache_test"
-            elif os.getenv("SHOTBOT_MODE") == "mock":
-                default_dir = Path.home() / ".shotbot" / "cache" / "mock"
-            else:
-                default_dir = Path.home() / ".shotbot" / "cache" / "production"
-            default_dir.mkdir(parents=True, exist_ok=True)
-            self._cache_manager = ThumbnailCache(default_dir)
+        if cache_manager is None:
+            from cache.thumbnail_cache import make_default_thumbnail_cache
+            cache_manager = make_default_thumbnail_cache()
+        self._cache_manager: ThumbnailCache = cache_manager
 
         # Thumbnail cache - use QImage for thread safety
         # QImage can be safely shared between threads

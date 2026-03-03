@@ -182,19 +182,8 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
         # Cache manager for latest files
         if cache_manager is None:
-            import os
-            import sys
-            test_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
-            if test_dir:
-                default_dir = Path(test_dir)
-            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
-                default_dir = Path.home() / ".shotbot" / "cache_test"
-            elif os.getenv("SHOTBOT_MODE") == "mock":
-                default_dir = Path.home() / ".shotbot" / "cache" / "mock"
-            else:
-                default_dir = Path.home() / ".shotbot" / "cache" / "production"
-            default_dir.mkdir(parents=True, exist_ok=True)
-            cache_manager = LatestFileCache(default_dir)
+            from cache.latest_file_cache import make_default_latest_file_cache
+            cache_manager = make_default_latest_file_cache()
         self._cache_manager = cache_manager
 
         # Async file search state

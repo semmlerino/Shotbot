@@ -90,6 +90,7 @@ from cache import (
     SceneDiskCache,
     ShotDataCache,
     ThumbnailCache,
+    resolve_default_cache_dir,
 )
 from cleanup_manager import CleanupManager  # Extracted cleanup logic
 from command_launcher import CommandLauncher  # Need at runtime
@@ -130,20 +131,6 @@ from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 # Set up logger for this module
 logger = get_module_logger(__name__)
-
-
-def _resolve_cache_dir() -> Path:
-    """Resolve cache directory using same logic as the old CacheManager."""
-    import sys
-
-    test_cache_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
-    if test_cache_dir:
-        return Path(test_cache_dir)
-    if "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
-        return Path.home() / ".shotbot" / "cache_test"
-    if os.getenv("SHOTBOT_MODE") == "mock":
-        return Path.home() / ".shotbot" / "cache" / "mock"
-    return Path.home() / ".shotbot" / "cache" / "production"
 
 
 # Tab index constants for the main tab widget
@@ -351,7 +338,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if cache_dir is not None:
             _cache_dir = cache_dir
         else:
-            _cache_dir = _resolve_cache_dir()
+            _cache_dir = resolve_default_cache_dir()
         _cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Create domain-specific cache managers
@@ -365,7 +352,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.shot_cache,
             self.scene_disk_cache,
             self.latest_file_cache,
-            on_cleared=lambda: ProcessPoolManager.get_instance().invalidate_cache(),
+            on_cleared=lambda: self._process_pool.invalidate_cache(),
         )
 
         self.pin_manager = PinManager(_cache_dir)
@@ -757,6 +744,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         _ = self.tab_widget.currentChanged.connect(self._on_tab_changed)
         _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
+        _ = self.right_panel.status_message.connect(self.update_status)
 
         # Async file search state - update launch button during search
         _ = self.command_launcher.launch_pending.connect(

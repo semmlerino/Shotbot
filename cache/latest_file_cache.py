@@ -164,3 +164,11 @@ class LatestFileCache(LoggingMixin):
 
     def shutdown(self) -> None:
         """Shutdown stub (no-op)."""
+
+
+def make_default_latest_file_cache(base_dir: Path | None = None) -> LatestFileCache:
+    """Create a LatestFileCache using the env-resolved default directory."""
+    from cache._dir_resolver import resolve_default_cache_dir
+    resolved = base_dir if base_dir is not None else resolve_default_cache_dir()
+    resolved.mkdir(parents=True, exist_ok=True)
+    return LatestFileCache(resolved)

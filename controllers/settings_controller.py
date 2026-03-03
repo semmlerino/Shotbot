@@ -103,65 +103,70 @@ class SettingsController(LoggingMixin):
 
     def load_settings(self) -> None:
         """Load settings from settings manager."""
+        # Geometry
         try:
-            # Restore window geometry and state
             geometry = self.window.settings_manager.get_window_geometry()
             if not geometry.isEmpty():
                 _ = self.window.restoreGeometry(geometry)
-
-            state = self.window.settings_manager.get_window_state()
-            if not state.isEmpty():
-                _ = self.window.restoreState(state)
-
-            # Restore splitter states
-            main_splitter_state = self.window.settings_manager.get_splitter_state(
-                "main"
-            )
-            if not main_splitter_state.isEmpty():
-                _ = self.window.splitter.restoreState(main_splitter_state)
-
-            # Apply window maximized state
-            if self.window.settings_manager.is_window_maximized():
-                self.window.showMaximized()
-
-            # Restore current tab
-            self.window.tab_widget.setCurrentIndex(
-                self.window.settings_manager.get_current_tab()
-            )
-
-            # Apply thumbnail size
-            thumbnail_size = self.window.settings_manager.get_thumbnail_size()
-            self.window.set_thumbnail_size(thumbnail_size)
-
-            # Apply cache settings
-            self.apply_cache_settings()
-
-            self.logger.info("Settings loaded successfully")
-
         except Exception:
-            self.logger.exception("Error loading settings")
-            # Fallback to default window size
+            self.logger.exception("Error restoring window geometry")
             default_size = self.window.settings_manager.get_window_size()
-            # get_window_size() returns QSize or tuple[int, int] per protocol
-            # In practice, SettingsManager returns QSize, but handle both for robustness
             try:
-                # Try QSize first (most likely)
                 width = default_size.width()
                 height = default_size.height()
                 self.window.resize(width, height)
             except AttributeError:
-                # Fallback to tuple handling or config defaults
                 if isinstance(default_size, tuple) and len(default_size) == 2:
-                    # Type checker can't narrow union type properly here, use cast
                     size_tuple = cast("tuple[int, int]", default_size)
-                    width = int(size_tuple[0])
-                    height = int(size_tuple[1])
-                    self.window.resize(width, height)
+                    self.window.resize(int(size_tuple[0]), int(size_tuple[1]))
                 else:
-                    # Final fallback to config defaults
-                    width = int(Config.DEFAULT_WINDOW_WIDTH)
-                    height = int(Config.DEFAULT_WINDOW_HEIGHT)
-                    self.window.resize(width, height)
+                    self.window.resize(int(Config.DEFAULT_WINDOW_WIDTH), int(Config.DEFAULT_WINDOW_HEIGHT))
+
+        # Window state
+        try:
+            state = self.window.settings_manager.get_window_state()
+            if not state.isEmpty():
+                _ = self.window.restoreState(state)
+        except Exception:
+            self.logger.exception("Error restoring window state")
+
+        # Splitter
+        try:
+            main_splitter_state = self.window.settings_manager.get_splitter_state("main")
+            if not main_splitter_state.isEmpty():
+                _ = self.window.splitter.restoreState(main_splitter_state)
+        except Exception:
+            self.logger.exception("Error restoring splitter state")
+
+        # Maximized state
+        try:
+            if self.window.settings_manager.is_window_maximized():
+                self.window.showMaximized()
+        except Exception:
+            self.logger.exception("Error restoring maximized state")
+
+        # Tab index
+        try:
+            self.window.tab_widget.setCurrentIndex(
+                self.window.settings_manager.get_current_tab()
+            )
+        except Exception:
+            self.logger.exception("Error restoring tab index")
+
+        # Thumbnail size
+        try:
+            thumbnail_size = self.window.settings_manager.get_thumbnail_size()
+            self.window.set_thumbnail_size(thumbnail_size)
+        except Exception:
+            self.logger.exception("Error restoring thumbnail size")
+
+        # Cache settings
+        try:
+            self.apply_cache_settings()
+        except Exception:
+            self.logger.exception("Error applying cache settings")
+
+        self.logger.info("Settings loaded")
 
     def save_settings(self) -> None:
         """Save settings to settings manager."""

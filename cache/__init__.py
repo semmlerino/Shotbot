@@ -13,13 +13,15 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
-from cache.latest_file_cache import LatestFileCache
+from cache._dir_resolver import resolve_default_cache_dir
+from cache.latest_file_cache import LatestFileCache, make_default_latest_file_cache
 from cache.scene_cache_disk import SceneDiskCache
-from cache.shot_cache import ShotDataCache
+from cache.shot_cache import ShotDataCache, make_default_shot_cache
 from cache.thumbnail_cache import (
     ThumbnailCache,
     ThumbnailCacheLoader,
     ThumbnailCacheLoaderSignals,
+    make_default_thumbnail_cache,
 )
 from cache.types import LatestFileCacheResult, SceneMergeResult, ShotMergeResult
 from logging_mixin import LoggingMixin
@@ -44,6 +46,10 @@ __all__ = [
     "ThumbnailCache",
     "ThumbnailCacheLoader",
     "ThumbnailCacheLoaderSignals",
+    "make_default_latest_file_cache",
+    "make_default_shot_cache",
+    "make_default_thumbnail_cache",
+    "resolve_default_cache_dir",
 ]
 
 

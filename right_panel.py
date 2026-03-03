@@ -46,6 +46,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
     """
 
     launch_requested = Signal(str, dict)  # app_name, options
+    status_message = Signal(str)
 
     def __init__(
         self,
@@ -208,6 +209,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             except Exception:
                 self.logger.exception(f"Error discovering files for {shot.full_name}")
                 self._clear_files()
+                self.status_message.emit("File discovery failed — see log for details")
 
             # Discover sequences for RV section
             self.discover_rv_sequences(shot)

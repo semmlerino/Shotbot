@@ -471,3 +471,15 @@ class ShotDataCache(LoggingMixin, QObject):
         This method exists so callers that shut down CacheManager continue to work.
         """
         self.logger.debug("ShotDataCache shutdown called (no-op)")
+
+
+def make_default_shot_cache(base_dir: Path | None = None) -> ShotDataCache:
+    """Create a ShotDataCache using the env-resolved default directory.
+
+    Args:
+        base_dir: Override directory. If None, resolves from environment variables.
+    """
+    from cache._dir_resolver import resolve_default_cache_dir
+    resolved = base_dir if base_dir is not None else resolve_default_cache_dir()
+    resolved.mkdir(parents=True, exist_ok=True)
+    return ShotDataCache(resolved)
