@@ -25,7 +25,17 @@ from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 from cache.latest_file_cache import LatestFileCache
 from config import Config
 from latest_file_finder_worker import LatestFileFinderWorker
-from launch import CommandBuilder, EnvironmentManager, ProcessExecutor
+from launch import (
+    AppHandler,
+    CommandBuilder,
+    EnvironmentManager,
+    GenericAppHandler,
+    MayaAppHandler,
+    NukeAppHandler,
+    ProcessExecutor,
+    RVAppHandler,
+    ThreeDEAppHandler,
+)
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from nuke_launch_router import NukeLaunchRouter
@@ -203,6 +213,15 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
         # Initialize the Nuke launch handler
         self.nuke_handler = NukeLaunchRouter()
+
+        # Per-DCC handlers for launch_with_file command building
+        self._app_handlers: dict[str, AppHandler] = {
+            "nuke": NukeAppHandler(scripts_dir=Config.SCRIPTS_DIR),
+            "3de": ThreeDEAppHandler(scripts_dir=Config.SCRIPTS_DIR),
+            "maya": MayaAppHandler(bootstrap_script=self._MAYA_BOOTSTRAP_SCRIPT),
+            "rv": RVAppHandler(),
+        }
+        self._default_handler: AppHandler = GenericAppHandler()
 
         # Connect process executor signals (track for cleanup)
         # Use QueuedConnection for thread-safe cross-thread signal handling
@@ -1100,32 +1119,8 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         # Validate and escape file path to prevent injection
         try:
             safe_file_path = CommandBuilder.validate_path(str(file_path))
-            # Add app-specific command-line flags for file
-            if app_name == "3de":
-                # 3DE: Set PYTHON_CUSTOM_SCRIPTS_3DE4 to include our startup script
-                # The 3de_sgtk_context_callback.py registers a project open callback
-                # that updates SGTK context with Task/Step, triggering full app loading
-                tde_scripts_export = (
-                    f"export PYTHON_CUSTOM_SCRIPTS_3DE4={Config.SCRIPTS_DIR}:"
-                    "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
-                )
-                command = f"{tde_scripts_export}{command} -open {safe_file_path}"
-            elif app_name == "maya":
-                # Maya: Use env var approach to avoid quote escaping issues
-                # The script is base64-encoded and passed via SHOTBOT_MAYA_SCRIPT env var
-                # A static bootstrap command reads and executes it after file loads
-                command = self._build_maya_context_command(
-                    command, safe_file_path
-                )
-            elif app_name == "nuke":
-                # Nuke: Set NUKE_PATH to include our scripts dir for init.py
-                # The init.py registers an onScriptLoad callback that updates context
-                # SGTK_FILE_TO_OPEN is already set, init.py will check for it
-                nuke_path_export = f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
-                command = f"{nuke_path_export}{command} {safe_file_path}"
-            else:
-                # Other apps: just pass file path
-                command = f"{command} {safe_file_path}"
+            handler = self._app_handlers.get(app_name, self._default_handler)
+            command = handler.build_file_command(command, safe_file_path)
 
             # Log file launch details for debugging file dialog issues
             self.logger.debug(
@@ -1146,8 +1141,8 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         # This tells ShotGrid Toolkit to bootstrap context from the file path,
         # ensuring the full environment is loaded when opening via command line
         # safe_file_path was validated above in the command-building block
-        sgtk_apps = ("maya", "nuke", "3de")
-        if app_name in sgtk_apps:
+        handler = self._app_handlers.get(app_name, self._default_handler)
+        if handler.needs_sgtk_file_to_open():
             sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_file_path} && "
             self.logger.debug(f"Setting SGTK_FILE_TO_OPEN={safe_file_path}")
         else:
