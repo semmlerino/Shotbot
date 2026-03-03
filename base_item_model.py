@@ -8,6 +8,8 @@ code duplication by ~70-80%.
 from __future__ import annotations
 
 # Standard library imports
+import os
+import sys
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from pathlib import Path
@@ -34,7 +36,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QIcon, QImage, QPixmap
 
 # Local application imports
-from cache_manager import CacheManager
+from cache.thumbnail_cache import ThumbnailCache
 from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
 from protocols import SceneDataProtocol
@@ -84,7 +86,7 @@ class ThumbnailLoaderRunnable(QRunnable):
         show: str,
         sequence: str,
         shot: str,
-        cache_manager: CacheManager,
+        cache_manager: ThumbnailCache,
     ) -> None:
         """Initialize the thumbnail loader runnable.
 
@@ -94,7 +96,7 @@ class ThumbnailLoaderRunnable(QRunnable):
             show: Show name for cache organization
             sequence: Sequence name for cache organization
             shot: Shot name for cache organization
-            cache_manager: CacheManager instance for thumbnail caching
+            cache_manager: ThumbnailCache instance for thumbnail caching
 
         """
         super().__init__()
@@ -103,7 +105,7 @@ class ThumbnailLoaderRunnable(QRunnable):
         self.show: str = show
         self.sequence: str = sequence
         self.shot: str = shot
-        self.cache_manager: CacheManager = cache_manager
+        self.cache_manager: ThumbnailCache = cache_manager
         self.signals: ThumbnailLoaderSignals = ThumbnailLoaderSignals()
         # CRITICAL: Do NOT use setAutoDelete(True) because QueuedConnection
         # requires the signals object to survive until the slot executes.
@@ -197,7 +199,7 @@ class BaseItemModel(
 
     def __init__(
         self,
-        cache_manager: CacheManager | None = None,
+        cache_manager: ThumbnailCache | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the base item model.
@@ -218,7 +220,20 @@ class BaseItemModel(
 
         # Core data storage
         self._items: list[T] = []
-        self._cache_manager: CacheManager = cache_manager or CacheManager()
+        if cache_manager is not None:
+            self._cache_manager: ThumbnailCache = cache_manager
+        else:
+            test_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
+            if test_dir:
+                default_dir = Path(test_dir)
+            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
+                default_dir = Path.home() / ".shotbot" / "cache_test"
+            elif os.getenv("SHOTBOT_MODE") == "mock":
+                default_dir = Path.home() / ".shotbot" / "cache" / "mock"
+            else:
+                default_dir = Path.home() / ".shotbot" / "cache" / "production"
+            default_dir.mkdir(parents=True, exist_ok=True)
+            self._cache_manager = ThumbnailCache(default_dir)
 
         # Thumbnail cache - use QImage for thread safety
         # QImage can be safely shared between threads

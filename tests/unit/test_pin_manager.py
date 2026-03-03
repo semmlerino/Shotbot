@@ -17,7 +17,6 @@ from pathlib import Path
 import pytest
 
 # Local application imports
-from cache_manager import CacheManager
 from config import Config
 from pin_manager import PINNED_SHOTS_CACHE_KEY, PinManager
 from shot_model import Shot
@@ -32,16 +31,17 @@ pytestmark = [
 
 
 @pytest.fixture
-def cache_manager(tmp_path: Path) -> CacheManager:
-    """Create CacheManager with temporary directory."""
-    cache_dir = tmp_path / "test_cache"
-    return CacheManager(cache_dir=cache_dir)
+def cache_dir(tmp_path: Path) -> Path:
+    """Create temporary cache directory."""
+    d = tmp_path / "test_cache"
+    d.mkdir(exist_ok=True)
+    return d
 
 
 @pytest.fixture
-def pin_manager(cache_manager: CacheManager) -> PinManager:
-    """Create PinManager with test cache manager."""
-    return PinManager(cache_manager)
+def pin_manager(cache_dir: Path) -> PinManager:
+    """Create PinManager with test cache directory."""
+    return PinManager(cache_dir)
 
 
 @pytest.fixture
@@ -148,19 +148,19 @@ class TestPersistence:
     """Tests for cache persistence."""
 
     def test_pin_order_persists(
-        self, cache_manager: CacheManager, sample_shots: list[Shot]
+        self, cache_dir: Path, sample_shots: list[Shot]
     ) -> None:
         """Pin order should persist across instances."""
         shot1, shot2, shot3 = sample_shots
 
         # Pin shots in specific order
-        pm1 = PinManager(cache_manager)
+        pm1 = PinManager(cache_dir)
         pm1.pin_shot(shot1)
         pm1.pin_shot(shot2)
         pm1.pin_shot(shot3)
 
         # Create new instance
-        pm2 = PinManager(cache_manager)
+        pm2 = PinManager(cache_dir)
 
         # Order should be preserved (most recent first)
         assert pm2.get_pin_order(shot3) == 0
@@ -168,16 +168,16 @@ class TestPersistence:
         assert pm2.get_pin_order(shot1) == 2
 
     def test_cache_file_format(
-        self, cache_manager: CacheManager, sample_shots: list[Shot]
+        self, cache_dir: Path, sample_shots: list[Shot]
     ) -> None:
         """Cache file should be valid JSON with expected format."""
         shot = sample_shots[0]
 
-        pm = PinManager(cache_manager)
+        pm = PinManager(cache_dir)
         pm.pin_shot(shot)
 
         # Read the cache file
-        cache_file = cache_manager.cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
+        cache_file = cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
         assert cache_file.exists()
 
         with cache_file.open() as f:

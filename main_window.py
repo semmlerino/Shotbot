@@ -18,16 +18,15 @@ Key Features:
 
 Architecture:
     The MainWindow uses Qt's signal-slot mechanism for loose coupling between
-    components. It maintains a single CacheManager instance shared across all
-    thumbnail widgets and data models for memory efficiency. Thread safety is
-    ensured through proper mutex usage and state management.
+    components. It maintains domain-specific cache managers (ThumbnailCache,
+    ShotDataCache, SceneDiskCache, LatestFileCache) coordinated through a
+    CacheCoordinator for memory efficiency. Thread safety is ensured through
+    proper mutex usage and state management.
 
 Examples:
     Basic usage:
         >>> from main_window import MainWindow
-        >>> from cache_manager import CacheManager
-        >>> cache = CacheManager()
-        >>> window = MainWindow(cache_manager=cache)
+        >>> window = MainWindow()
         >>> window.show()
 
     With custom configuration:
@@ -49,6 +48,7 @@ from __future__ import annotations
 # Standard library imports
 import os
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast, final
 
 # Third-party imports
@@ -76,7 +76,6 @@ from typing_compat import override
 if TYPE_CHECKING:
     # Local application imports
     from base_shot_model import BaseShotModel
-    from cache_manager import CacheManager
     from command_launcher import CommandLauncher
     from protocols import ProcessPoolInterface
     from scene_file import SceneFile
@@ -85,7 +84,13 @@ if TYPE_CHECKING:
 
 # Runtime imports (needed at runtime)
 # Local application imports
-from cache_manager import CacheManager  # Need at runtime for instantiation
+from cache import (
+    CacheCoordinator,
+    LatestFileCache,
+    SceneDiskCache,
+    ShotDataCache,
+    ThumbnailCache,
+)
 from cleanup_manager import CleanupManager  # Extracted cleanup logic
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config, is_mock_mode
@@ -125,6 +130,20 @@ from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 # Set up logger for this module
 logger = get_module_logger(__name__)
+
+
+def _resolve_cache_dir() -> Path:
+    """Resolve cache directory using same logic as the old CacheManager."""
+    import sys
+
+    test_cache_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
+    if test_cache_dir:
+        return Path(test_cache_dir)
+    if "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
+        return Path.home() / ".shotbot" / "cache_test"
+    if os.getenv("SHOTBOT_MODE") == "mock":
+        return Path.home() / ".shotbot" / "cache" / "mock"
+    return Path.home() / ".shotbot" / "cache" / "production"
 
 
 # Tab index constants for the main tab widget
@@ -262,8 +281,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def __init__(
         self,
-        cache_manager: CacheManager | None = None,
         parent: QWidget | None = None,
+        *,
+        cache_dir: Path | None = None,
     ) -> None:
         # === Initialization Order (do not reorder) ===
         # 1. Thread/app safety checks (lines below)
@@ -327,12 +347,30 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._process_pool = ProcessPoolManager.get_instance()
             self.logger.info("Using ProcessPoolManager for process execution")
 
-        self.cache_manager = cache_manager or CacheManager(
-            on_cleared=lambda: ProcessPoolManager.get_instance().invalidate_cache()
+        # Resolve cache directory
+        if cache_dir is not None:
+            _cache_dir = cache_dir
+        else:
+            _cache_dir = _resolve_cache_dir()
+        _cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create domain-specific cache managers
+        self.thumbnail_cache = ThumbnailCache(_cache_dir)
+        self.shot_cache = ShotDataCache(_cache_dir)
+        self.scene_disk_cache = SceneDiskCache(_cache_dir)
+        self.latest_file_cache = LatestFileCache(_cache_dir)
+        self.cache_coordinator = CacheCoordinator(
+            _cache_dir,
+            self.thumbnail_cache,
+            self.shot_cache,
+            self.scene_disk_cache,
+            self.latest_file_cache,
+            on_cleared=lambda: ProcessPoolManager.get_instance().invalidate_cache(),
         )
-        self.pin_manager = PinManager(self.cache_manager)
-        self.notes_manager = NotesManager(self.cache_manager, parent=self)
-        self.file_pin_manager = FilePinManager(self.cache_manager, parent=self)
+
+        self.pin_manager = PinManager(_cache_dir)
+        self.notes_manager = NotesManager(_cache_dir, parent=self)
+        self.file_pin_manager = FilePinManager(_cache_dir, parent=self)
 
         # pyright: ignore[reportArgumentType] on the next two lines: QMainWindow is not a structural
         # subtype of the Protocol classes (CleanupTarget, RefreshOrchestratorMainWindowProtocol)
@@ -353,26 +391,26 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # QMainWindow signatures use position-only params which differ from Protocol
         self.settings_controller = SettingsController(self)  # pyright: ignore[reportArgumentType]
 
-        self.threede_item_model = ThreeDEItemModel(cache_manager=self.cache_manager)
+        self.threede_item_model = ThreeDEItemModel(cache_manager=self.thumbnail_cache)
 
         self.logger.info("Creating ShotModel with 366x faster startup")
-        self.shot_model = ShotModel(self.cache_manager, process_pool=self._process_pool)
+        self.shot_model = ShotModel(self.shot_cache, process_pool=self._process_pool)
         init_result = self.shot_model.initialize_async()
         if init_result.success:
             cached_count = len(self.shot_model.shots)
             self.logger.debug(f"Model initialized: {cached_count} shots in memory")
 
-        self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
+        self.threede_scene_model = ThreeDESceneModel(self.scene_disk_cache)
         # Cast to BaseShotModel for type safety (ShotModel inherits from BaseShotModel)
         self.previous_shots_model = PreviousShotsModel(
             cast("BaseShotModel", self.shot_model),
-            self.cache_manager,
+            self.shot_cache,
         )
 
         self.command_launcher = CommandLauncher(
             parent=self,
             settings_manager=self.settings_manager,
-            cache_manager=self.cache_manager,
+            cache_manager=self.latest_file_cache,
         )
 
         self._closing = False  # Track shutdown state
@@ -410,7 +448,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             threede_scene_model=self.threede_scene_model,
             threede_item_model=self.threede_item_model,
             previous_shots_model=self.previous_shots_model,
-            cache_manager=self.cache_manager,
+            cache_manager=self.scene_disk_cache,
             refresh_orchestrator=self.refresh_orchestrator,
             process_pool=self._process_pool,
             threede_controller=self.threede_controller,
@@ -465,7 +503,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Tab 1: My Shots
         self.shot_item_model = ShotItemModel(
-            cache_manager=self.cache_manager,
+            cache_manager=self.thumbnail_cache,
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
         )
@@ -488,7 +526,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Tab 3: Previous Shots (approved/completed) - using Model/View architecture
         self.previous_shots_item_model = PreviousShotsItemModel(
             self.previous_shots_model,
-            self.cache_manager,
+            self.thumbnail_cache,
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
         )
@@ -688,8 +726,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_background_load_finished
         )
 
-        # Connect to cache manager for migration events
-        _ = self.cache_manager.shots_migrated.connect(
+        # Connect to shot cache for migration events
+        _ = self.shot_cache.shots_migrated.connect(
             self._on_shots_migrated, Qt.ConnectionType.QueuedConnection
         )
 

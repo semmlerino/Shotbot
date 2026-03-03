@@ -29,7 +29,6 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
     from base_shot_model import BaseShotModel
-    from cache_manager import CacheManager
     from tests.fixtures.test_doubles import TestProcessPool
 
 pytestmark = [
@@ -57,7 +56,7 @@ def test_shots() -> list[Shot]:
 
 @pytest.fixture
 def shot_item_model(
-    qapp: QApplication, cache_manager: CacheManager
+    qapp: QApplication, cache_manager: object
 ) -> ShotItemModel:
     """Create a ShotItemModel instance for testing."""
     return ShotItemModel(cache_manager=cache_manager)
@@ -65,7 +64,7 @@ def shot_item_model(
 
 @pytest.fixture
 def base_shot_model(
-    cache_manager: CacheManager, test_process_pool: TestProcessPool
+    cache_manager: object, test_process_pool: TestProcessPool
 ) -> BaseShotModel:
     """Create a real BaseShotModel with test process pool."""
     from base_shot_model import (
@@ -88,7 +87,7 @@ class TestInitialization:
     """Test ShotItemModel initialization behavior."""
 
     def test_initialization_with_underlying_model(
-        self, qapp: QApplication, cache_manager: CacheManager
+        self, qapp: QApplication, cache_manager: object
     ) -> None:
         """Test proper setup with cache manager."""
         model = ShotItemModel(cache_manager=cache_manager)
@@ -98,7 +97,7 @@ class TestInitialization:
         assert model.get_selected_shot() is None
 
     def test_initialization_with_cache_manager(
-        self, qapp: QApplication, cache_manager: CacheManager
+        self, qapp: QApplication, cache_manager: object
     ) -> None:
         """Test cache integration during initialization."""
         model = ShotItemModel(cache_manager=cache_manager)
@@ -161,7 +160,7 @@ class TestThumbnailLoading:
         shot_item_model: ShotItemModel,
         qtbot: QtBot,
         test_shots: list[Shot],
-        cache_manager: CacheManager,
+        cache_manager: object,
     ) -> None:
         """Test no duplicate loads for same shot (atomic check-and-mark)."""
         shot_item_model.set_shots(test_shots)
@@ -216,7 +215,7 @@ class TestThumbnailLoading:
         shot_item_model: ShotItemModel,
         qtbot: QtBot,
         test_shots: list[Shot],
-        cache_manager: CacheManager,
+        cache_manager: object,
     ) -> None:
         """Test load → cache → retrieve pattern."""
         shot_item_model.set_shots(test_shots)

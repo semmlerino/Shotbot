@@ -151,7 +151,7 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
     Args:
         tmp_path: Pytest tmp_path fixture
         test_process_pool: TestProcessPool fixture from test_doubles
-        cache_manager: CacheManager fixture from temp_directories
+        cache_manager: CacheCoordinator fixture from temp_directories
 
     """
     from shot_model import ShotModel
@@ -160,8 +160,8 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
     shows_root = tmp_path / "shows"
     shows_root.mkdir(exist_ok=True)
 
-    # Create ShotModel instance with test process pool and shared cache manager
-    model = ShotModel(cache_manager=cache_manager, process_pool=test_process_pool)
+    # Create ShotModel instance with the shot_cache sub-manager
+    model = ShotModel(cache_manager=cache_manager.shot_cache, process_pool=test_process_pool)
     model._force_sync_refresh = True
     return model
 

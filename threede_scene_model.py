@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 # Local application imports
-from cache_manager import CacheManager
+from cache.scene_cache_disk import SceneDiskCache
 from config import Config
 from path_builders import PathBuilders
 from thumbnail_finders import ThumbnailFinders
@@ -177,12 +177,26 @@ class ThreeDESceneModel:
 
     def __init__(
         self,
-        cache_manager: CacheManager | None = None,
+        cache_manager: SceneDiskCache | None = None,
         load_cache: bool = True,
     ) -> None:
         super().__init__()
         self.scenes: list[ThreeDEScene] = []
-        self.cache_manager: CacheManager = cache_manager or CacheManager()
+        if cache_manager is None:
+            import os
+            import sys
+            test_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
+            if test_dir:
+                default_dir = Path(test_dir)
+            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
+                default_dir = Path.home() / ".shotbot" / "cache_test"
+            elif os.getenv("SHOTBOT_MODE") == "mock":
+                default_dir = Path.home() / ".shotbot" / "cache" / "mock"
+            else:
+                default_dir = Path.home() / ".shotbot" / "cache" / "production"
+            default_dir.mkdir(parents=True, exist_ok=True)
+            cache_manager = SceneDiskCache(default_dir)
+        self.cache_manager: SceneDiskCache = cache_manager
         # Get excluded users dynamically (current user + any additional)
         self._excluded_users: set[str] = ValidationUtils.get_excluded_users()
         # Show filtering

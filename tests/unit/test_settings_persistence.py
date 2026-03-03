@@ -20,7 +20,7 @@ from config import Config
 from controllers.settings_controller import SettingsController
 from settings_manager import SettingsManager
 from tests.unit.test_settings_controller import (
-    CacheManagerDouble,
+    CacheCoordinatorDouble,
     GridWidgetDouble,
     SplitterDouble,
     TabWidgetDouble,
@@ -75,7 +75,7 @@ class _WindowDouble:
         self._show_maximized_called = False
 
         self.settings_manager = real_manager
-        self.cache_manager = CacheManagerDouble()
+        self.cache_coordinator = CacheCoordinatorDouble()
         self.splitter = SplitterDouble()
         self.tab_widget = TabWidgetDouble()
         self.shot_grid = GridWidgetDouble()
@@ -288,7 +288,7 @@ class TestSimulatedCrash:
         class _BrokenWindow:
             __test__ = False
             settings_manager = _BrokenManager()
-            cache_manager = CacheManagerDouble()
+            cache_coordinator = CacheCoordinatorDouble()
             splitter = SplitterDouble()
             tab_widget = TabWidgetDouble()
             settings_dialog = None

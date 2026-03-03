@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from cache_manager import CacheManager
+from cache.shot_cache import ShotDataCache
 from shot_model import ShotModel
 
 
@@ -26,14 +26,14 @@ def temp_cache_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def cache_manager_temp(temp_cache_dir: Path) -> CacheManager:
-    """Create CacheManager with temporary cache directory."""
-    return CacheManager(cache_dir=temp_cache_dir)
+def cache_manager_temp(temp_cache_dir: Path) -> ShotDataCache:
+    """Create ShotDataCache with temporary cache directory."""
+    return ShotDataCache(temp_cache_dir)
 
 
 @pytest.fixture
 def shot_model_temp(
-    cache_manager_temp: CacheManager, test_process_pool
+    cache_manager_temp: ShotDataCache, test_process_pool
 ) -> ShotModel:
     """Create ShotModel with temporary cache."""
     model = ShotModel(cache_manager=cache_manager_temp, load_cache=False)

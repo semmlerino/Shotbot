@@ -19,7 +19,6 @@ from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
-from cache_manager import CacheManager
 from shot_model import Shot
 from tests.fixtures.integration_doubles import (
     MainWindowTestProgressManager,
@@ -127,14 +126,16 @@ def _close_windows(windows: list[Any], qtbot: Any) -> None:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def real_cache_manager(tmp_path: Path) -> CacheManager:
-    """Real cache manager with temp storage."""
-    return CacheManager(cache_dir=tmp_path / "cache")
+def real_cache_manager(tmp_path: Path) -> Path:
+    """Real cache directory for testing."""
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
 
 
 @pytest.fixture
 def main_window_with_real_components(
-    qapp: Any, qtbot: Any, real_cache_manager: CacheManager, monkeypatch: Any
+    qapp: Any, qtbot: Any, real_cache_manager: Path, monkeypatch: Any
 ) -> Generator[Any, None, None]:
     """MainWindow with real components, not mocked.
 
@@ -208,7 +209,7 @@ def main_window_with_real_components(
     original_maya_latest_finder = sys.modules.get("maya_latest_finder")
     sys.modules["maya_latest_finder"] = mock_maya_latest_finder
 
-    window = MainWindow(cache_manager=real_cache_manager)
+    window = MainWindow(cache_dir=real_cache_manager)
     qtbot.addWidget(window)
 
     window._test_process_pool = test_pool
@@ -273,7 +274,7 @@ class TestCrossTabSynchronization:
         - Switching to 3DE tab and selecting a scene updates info panel
         - Tab switching clears info panel when new tab has no selection
         """
-        window = MainWindow(cache_manager=CacheManager(cache_dir=tmp_path / "cache"))
+        window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(window)
         self.test_windows.append(window)
 
@@ -351,9 +352,7 @@ class TestCrossTabSynchronization:
 
         temp_cache_dir = tmp_path / "shotbot_test_cache"
         temp_cache_dir.mkdir()
-        test_cache_manager = CacheManager(cache_dir=temp_cache_dir)
-
-        window = MainWindow(cache_manager=test_cache_manager)
+        window = MainWindow(cache_dir=temp_cache_dir)
         qtbot.addWidget(window)
         self.test_windows.append(window)
 
@@ -676,8 +675,7 @@ class TestUserWorkflows:
     @pytest.mark.qt
     def test_launch_nuke_with_shot(self, qtbot: Any) -> None:
         """Test complete workflow of selecting a shot and launching Nuke."""
-        cache_manager = CacheManager(cache_dir=self.cache_dir)
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=self.cache_dir)
         qtbot.addWidget(main_window)
         self.test_windows.append(main_window)
 
@@ -726,8 +724,6 @@ class TestUserWorkflows:
 
         monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
-        cache_manager = CacheManager(cache_dir=self.cache_dir)
-
         test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.set_outputs("")
 
@@ -737,7 +733,7 @@ class TestUserWorkflows:
             "process_pool_manager.ProcessPoolManager.get_instance",
             return_value=test_pool,
         ):
-            main_window = MainWindow(cache_manager=cache_manager)
+            main_window = MainWindow(cache_dir=self.cache_dir)
 
         qtbot.addWidget(main_window)
         self.test_windows.append(main_window)
@@ -797,8 +793,7 @@ class TestUserWorkflows:
     @pytest.mark.qt
     def test_previous_shots_scanning(self, qtbot: Any) -> None:
         """Test previous shots scanning and display workflow."""
-        cache_manager = CacheManager(cache_dir=self.cache_dir)
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=self.cache_dir)
         qtbot.addWidget(main_window)
         self.test_windows.append(main_window)
 

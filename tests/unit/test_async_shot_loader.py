@@ -53,7 +53,7 @@ class TestAsyncShotLoader:
         return pool, tmp_path
 
     @pytest.fixture
-    def loader(self, test_process_pool, qtbot, cache_manager, monkeypatch):
+    def loader(self, test_process_pool, qtbot, shot_cache, monkeypatch):
         """Create AsyncShotLoader for testing."""
         pool, test_tmp_path = test_process_pool
 
@@ -62,8 +62,8 @@ class TestAsyncShotLoader:
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(test_tmp_path))
 
         # Create BaseShotModel instance to get the parse function
-        # Use isolated cache_manager from fixture
-        base_model = BaseShotModel(cache_manager=cache_manager)
+        # Use isolated shot_cache from fixture
+        base_model = BaseShotModel(cache_manager=shot_cache)
         loader = AsyncShotLoader(
             pool, parse_function=base_model._parse_ws_output
         )
@@ -95,14 +95,14 @@ class TestAsyncShotLoader:
         assert shots[0].sequence == "seq01"
         assert shots[0].shot == "0010"
 
-    def test_failed_loading_signal_emission(self, qtbot, cache_manager) -> None:
+    def test_failed_loading_signal_emission(self, qtbot, shot_cache) -> None:
         """Test load_failed signal is emitted on exception."""
         # Create failing process pool
         failing_pool = TestProcessPool(allow_main_thread=True)
         failing_pool.should_fail = True
         failing_pool.fail_with_message = "Command failed"
 
-        base_model = BaseShotModel(cache_manager=cache_manager)
+        base_model = BaseShotModel(cache_manager=shot_cache)
         loader = AsyncShotLoader(
             failing_pool, parse_function=base_model._parse_ws_output
         )
@@ -121,7 +121,7 @@ class TestAsyncShotLoader:
                 loader.quit()
                 loader.wait(1000)
 
-    def test_loader_stop_request(self, qtbot, cache_manager) -> None:
+    def test_loader_stop_request(self, qtbot, shot_cache) -> None:
         """Test that stop() request prevents signal emission."""
         # Create slow process pool
         slow_pool = TestProcessPool(allow_main_thread=True)
@@ -129,7 +129,7 @@ class TestAsyncShotLoader:
         shows_root = Config.SHOWS_ROOT
         slow_pool.set_outputs(f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010")
 
-        base_model = BaseShotModel(cache_manager=cache_manager)
+        base_model = BaseShotModel(cache_manager=shot_cache)
         loader = AsyncShotLoader(slow_pool, parse_function=base_model._parse_ws_output)
         try:
             spy = QSignalSpy(loader.shots_loaded)
@@ -156,7 +156,7 @@ class TestAsyncShotLoader:
         assert loader.isFinished()
         assert not loader.isRunning()
 
-    def test_concurrent_loader_instances(self, qtbot, cache_manager) -> None:
+    def test_concurrent_loader_instances(self, qtbot, shot_cache) -> None:
         """Test multiple AsyncShotLoader instances don't interfere."""
         shows_root = Config.SHOWS_ROOT
         pool1 = TestProcessPool(allow_main_thread=True)
@@ -165,8 +165,8 @@ class TestAsyncShotLoader:
         pool2 = TestProcessPool(allow_main_thread=True)
         pool2.set_outputs(f"workspace {shows_root}/SHOW2/shots/seq01/SHOW2_seq01_0020")
 
-        base_model1 = BaseShotModel(cache_manager=cache_manager)
-        base_model2 = BaseShotModel(cache_manager=cache_manager)
+        base_model1 = BaseShotModel(cache_manager=shot_cache)
+        base_model2 = BaseShotModel(cache_manager=shot_cache)
         loader1 = AsyncShotLoader(pool1, parse_function=base_model1._parse_ws_output)
         loader2 = AsyncShotLoader(pool2, parse_function=base_model2._parse_ws_output)
         # loaders are QThread objects, not widgets
@@ -203,9 +203,9 @@ class TestShotModelSignals:
     """Test ShotModel signal emission patterns."""
 
     @pytest.fixture
-    def optimized_model(self, cache_manager, qtbot):
+    def optimized_model(self, shot_cache, qtbot):
         """Create ShotModel for testing."""
-        return ShotModel(cache_manager)
+        return ShotModel(shot_cache)
         # model is a QObject, not a widget
 
     def test_background_load_signals(self, optimized_model, qtbot) -> None:
@@ -272,7 +272,7 @@ class TestShotModelSignals:
         assert optimized_model.shots[0].show == "NEW"
 
     def test_shots_loaded_signal_re_emitted_after_background_load(
-        self, cache_manager, qtbot
+        self, shot_cache, qtbot
     ) -> None:
         """Test shots_loaded signal is re-emitted after background load completes.
 
@@ -288,10 +288,10 @@ class TestShotModelSignals:
         shots_loaded was only emitted once.
         """
         # Clear cache to simulate first run without cached data
-        cache_manager.clear_cached_data("shots")
+        shot_cache.clear_cached_data("shots")
 
         # Create model with empty cache
-        model = ShotModel(cache_manager)
+        model = ShotModel(shot_cache)
 
         # Set up test process pool with shot data
         test_pool = TestProcessPool(allow_main_thread=True)

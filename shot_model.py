@@ -34,13 +34,13 @@ from typing_compat import override
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from cache_manager import CacheManager
+    from cache.shot_cache import ShotDataCache
     from protocols import ProcessPoolInterface
     from type_definitions import PerformanceMetricsDict
 
 # Local application imports
 from base_shot_model import BaseShotModel
-from cache_manager import ShotMergeResult
+from cache.types import ShotMergeResult
 from exceptions import WorkspaceError
 from thread_safe_worker import ThreadSafeWorker
 from type_definitions import RefreshResult, Shot
@@ -172,7 +172,7 @@ class ShotModel(BaseShotModel):
 
     def __init__(
         self,
-        cache_manager: CacheManager | None = None,
+        cache_manager: ShotDataCache | None = None,
         load_cache: bool = True,
         process_pool: ProcessPoolInterface | None = None,
     ) -> None:
@@ -800,7 +800,7 @@ class ShotModel(BaseShotModel):
 
 # Example usage for immediate UI display
 def create_optimized_shot_model(
-    cache_manager: CacheManager | None = None,
+    cache_manager: ShotDataCache | None = None,
 ) -> ShotModel:
     """Create an optimized shot model with instant UI display.
 

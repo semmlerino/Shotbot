@@ -28,7 +28,7 @@ from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtTest import QSignalSpy, QTest
 
 # Local application imports
-from cache_manager import CacheManager
+from cache.shot_cache import ShotDataCache
 from config import Config
 from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
@@ -152,12 +152,12 @@ class TestPreviousShotsView:
     @pytest.fixture
     def test_cache_manager(self, tmp_path: Path) -> TestCacheManager:
         """Create test double CacheManager."""
-        return TestCacheManager(cache_dir=tmp_path / "cache")
+        return TestCacheManager(tmp_path / "cache")
 
     @pytest.fixture
-    def real_cache_manager(self, tmp_path: Path) -> CacheManager:
+    def real_cache_manager(self, tmp_path: Path) -> ShotDataCache:
         """Create real CacheManager with temp storage for integration tests."""
-        return CacheManager(cache_dir=tmp_path / "cache")
+        return ShotDataCache(tmp_path / "cache")
 
     @pytest.fixture
     def grid_widget(
@@ -553,7 +553,7 @@ class TestPreviousShotsViewIntegration:
         )
 
         # Real components
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        cache_manager = ShotDataCache(tmp_path / "cache")
         shot_model = ShotModel(cache_manager)
         previous_model = PreviousShotsModel(shot_model, cache_manager)
 

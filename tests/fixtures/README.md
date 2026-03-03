@@ -20,9 +20,14 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 - `qapp` — session-scoped `QApplication`; must exist before `pytest_plugins` loads
 - `_patch_qtbot_short_waits` — intercepts `qtbot.wait()` for tiny delays to prevent re-entrancy crashes
 
-## Opt-Out Markers
+## Test Behavior Markers
 
 - `@pytest.mark.real_subprocess` — bypass autouse subprocess mocking
+- `@pytest.mark.permissive_process_pool` — disable strict `ProcessPoolManager` mock mode for a test
+- `@pytest.mark.enforce_thread_guard` — make `TestProcessPool` reject main-thread calls for contract testing
+- `@pytest.mark.allow_main_thread` — allow main-thread calls through the test process pool when intentional
+- `@pytest.mark.persistent_cache` — preserve disk cache files for tests that validate cache persistence or recovery
+- `@pytest.mark.thread_leak_ok` — suppress thread-leak failure for an explicitly accepted leak case
 - `@pytest.mark.allow_dialogs` — suppress strict dialog failure for a test
 - `@pytest.mark.real_timing` — bypass the short-wait patch for tests with genuine QTimer dependencies
 

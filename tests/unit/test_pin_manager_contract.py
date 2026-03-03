@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from cache_manager import CacheManager
 from config import Config
 from file_pin_manager import PINNED_FILES_CACHE_KEY, FilePinManager
 from pin_manager import PINNED_SHOTS_CACHE_KEY, PinManager
@@ -51,8 +50,8 @@ class PinManagerAdapter:
 
 
 def _make_file_adapter(cache_dir: Path) -> tuple[PinManagerAdapter, FilePinManager]:
-    cm = CacheManager(cache_dir=cache_dir)
-    mgr = FilePinManager(cm)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    mgr = FilePinManager(cache_dir)
     items: list[Any] = [
         Path("/shows/test/shots/seq01/shot010/3de/scene_v001.3de"),
         Path("/shows/test/shots/seq01/shot010/maya/scene_v002.mb"),
@@ -71,8 +70,8 @@ def _make_file_adapter(cache_dir: Path) -> tuple[PinManagerAdapter, FilePinManag
 
 
 def _make_shot_adapter(cache_dir: Path) -> tuple[PinManagerAdapter, PinManager]:
-    cm = CacheManager(cache_dir=cache_dir)
-    mgr = PinManager(cm)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    mgr = PinManager(cache_dir)
     items: list[Any] = [
         Shot("test_show", "seq01", "shot010", f"{Config.SHOWS_ROOT}/test_show/seq01/shot010"),
         Shot("test_show", "seq01", "shot020", f"{Config.SHOWS_ROOT}/test_show/seq01/shot020"),

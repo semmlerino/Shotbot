@@ -159,7 +159,7 @@ class TestThreeDECommandBuilding:
 
         # Mock cache to return a cache hit (triggers sync path)
         cached_scene = Path("/shows/testshow/shots/sq010/sh0010/3de/latest_scene.3de")
-        from cache_manager import LatestFileCacheResult
+        from cache.types import LatestFileCacheResult
         launcher._cache_manager.get_latest_file_cache_result = MagicMock(
             return_value=LatestFileCacheResult("hit", cached_scene)
         )
@@ -195,7 +195,7 @@ class TestThreeDECommandBuilding:
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
 
         # Mock cache to return "not_found" (cached result within TTL, no file)
-        from cache_manager import LatestFileCacheResult
+        from cache.types import LatestFileCacheResult
         launcher._cache_manager.get_latest_file_cache_result = MagicMock(
             return_value=LatestFileCacheResult("not_found")
         )

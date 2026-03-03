@@ -90,18 +90,14 @@ def _clear_config_files() -> None:
 
 
 def _clear_stat_caches() -> None:
-    """Clear CacheManager stat cache for test isolation.
+    """Clear ThumbnailCache stat cache for test isolation.
 
     The stat cache has a 2-second TTL which can leak between fast tests.
-    Clearing it ensures each test gets fresh filesystem stat results.
+    ThumbnailCache is no longer a singleton, so stat caches on individual
+    instances expire naturally. This function is retained as a no-op hook
+    for future use if a central registry is introduced.
     """
-    try:
-        from cache_manager import CacheManager
-
-        if CacheManager._instance is not None:
-            CacheManager._instance._stat_cache.clear()
-    except (ImportError, AttributeError):
-        pass  # CacheManager not imported or no instance
+    # ThumbnailCache stat caches are per-instance; no singleton to clear
 
 
 def _clear_disk_cache_files() -> None:

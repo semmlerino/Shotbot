@@ -1,0 +1,230 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import TYPE_CHECKING, TypeVar, cast, final
+
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
+
+from cache._json_store import read_json_cache, write_json_cache
+from cache.types import SceneMergeResult, _get_scene_key, _scene_to_dict
+from logging_mixin import LoggingMixin
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    from type_definitions import ThreeDESceneDict
+
+# TypeVar for _build_merge_lookups generic helper
+_D = TypeVar("_D")
+
+DEFAULT_TTL_MINUTES = 30
+
+
+@final
+class SceneDiskCache(LoggingMixin, QObject):
+    """3DE scene disk persistence with incremental merge."""
+
+    cache_updated = Signal()
+    cache_write_failed = Signal(str)
+
+    def __init__(self, cache_dir: Path, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._lock = QMutex()
+        self._cache_ttl = timedelta(minutes=DEFAULT_TTL_MINUTES)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        self.threede_cache_file = cache_dir / "threede_scenes.json"
+
+    def get_cached_threede_scenes(self) -> list[ThreeDESceneDict] | None:
+        """Get cached 3DE scene list if valid.
+
+        Returns:
+            List of scene dictionaries or None if not cached/expired
+
+        """
+        result = read_json_cache(self.threede_cache_file, self._cache_ttl)
+        return cast("list[ThreeDESceneDict] | None", result)
+
+    def get_persistent_threede_scenes(self) -> list[ThreeDESceneDict] | None:
+        """Get cached 3DE scenes without TTL expiration.
+
+        Enables incremental caching by preserving scene history across scans.
+
+        Returns:
+            List of scene dictionaries or None if not cached
+
+        """
+        result = read_json_cache(self.threede_cache_file, self._cache_ttl, check_ttl=False)
+        return cast("list[ThreeDESceneDict] | None", result)
+
+    def has_valid_threede_cache(self) -> bool:
+        """Check if we have a valid 3DE cache.
+
+        Uses persistent cache (no TTL check) since 3DE scenes use
+        incremental caching where scene history is preserved.
+
+        Returns:
+            True if cache file exists with data
+
+        """
+        cached = self.get_persistent_threede_scenes()
+        return cached is not None
+
+    def cache_threede_scenes(
+        self,
+        scenes: list[ThreeDESceneDict],
+        _metadata: dict[str, object] | None = None,
+    ) -> None:
+        """Cache 3DE scene list to file.
+
+        Args:
+            scenes: List of scene dictionaries
+            _metadata: Optional metadata (ignored)
+
+        """
+        success = write_json_cache(self.threede_cache_file, scenes)
+        if success:
+            self.cache_updated.emit()
+        else:
+            self.logger.warning(
+                "Failed to write 3DE scenes cache - data may not persist across restarts"
+            )
+            self.cache_write_failed.emit("threede_scenes")
+
+    @staticmethod
+    def _build_merge_lookups(
+        cached: Sequence[object] | None,
+        fresh: Sequence[object],
+        to_dict_fn: Callable[[object], _D],
+        get_key_fn: Callable[[_D], tuple[str, str, str]],
+    ) -> tuple[list[_D], list[_D], dict[tuple[str, str, str], _D], set[tuple[str, str, str]]]:
+        """Build lookup structures for merge_scenes_incremental.
+
+        Lock acquisition is NOT done here — callers are responsible for holding
+        the lock and passing already-copied sequences. This helper operates
+        purely on local data.
+
+        Args:
+            cached: Previously cached items (objects or dicts), or None
+            fresh: Fresh items from discovery
+            to_dict_fn: Converts each item to its dict representation
+            get_key_fn: Extracts the composite (show, sequence, shot) key
+
+        Returns:
+            Tuple of (cached_dicts, fresh_dicts, cached_by_key, fresh_keys)
+
+        """
+        cached_dicts = [to_dict_fn(s) for s in (cached or [])]
+        fresh_dicts = [to_dict_fn(s) for s in fresh]
+        cached_by_key: dict[tuple[str, str, str], _D] = {
+            get_key_fn(item): item for item in cached_dicts
+        }
+        fresh_keys = {get_key_fn(item) for item in fresh_dicts}
+        return cached_dicts, fresh_dicts, cached_by_key, fresh_keys
+
+    def merge_scenes_incremental(
+        self,
+        cached: Sequence[object] | None,
+        fresh: Sequence[object],
+        max_age_days: int = 60,
+    ) -> SceneMergeResult:
+        """Merge cached 3DE scenes with fresh data incrementally.
+
+        Algorithm:
+        1. Convert to dicts for consistent handling
+        2. Build lookup: cached_by_key[(show, seq, shot)] = scene
+        3. Build set: fresh_keys = {(show, seq, shot)}
+        4. For each fresh scene:
+           - If in cached: UPDATE with fresh data (newer mtime/plate)
+           - If not in cached: ADD as new
+           - Update last_seen timestamp
+        5. Identify removed: cached_keys - fresh_keys (retained unless too old)
+        6. Prune scenes not seen in max_age_days
+
+        Args:
+            cached: Previously cached scenes (ThreeDEScene objects or dicts)
+            fresh: Fresh scenes from discovery (ThreeDEScene objects or dicts)
+            max_age_days: Maximum age for cached scenes not in fresh data (default 60)
+
+        Returns:
+            SceneMergeResult with merged list, statistics, and pruned count
+
+        Thread Safety:
+            Lock scope minimized to data copy only. CPU-bound dict operations
+            happen outside the lock since they operate on local copies.
+
+        """
+        now = datetime.now(UTC).timestamp()
+        cutoff = now - (max_age_days * 24 * 60 * 60)
+
+        # Phase 1: Convert and build lookups under lock (minimal critical section)
+        with QMutexLocker(self._lock):
+            _, fresh_dicts, cached_by_key, fresh_keys = (
+                self._build_merge_lookups(cached, fresh, _scene_to_dict, _get_scene_key)
+            )
+
+        # Phase 2: All CPU-bound merge logic OUTSIDE lock
+        # These operate on local copies, no shared state mutation
+
+        # Merge: fresh scenes override cached (UPDATE or ADD)
+        updated_by_key: dict[tuple[str, str, str], ThreeDESceneDict] = {}
+        new_scenes: list[ThreeDESceneDict] = []
+        pruned_count = 0
+
+        # Process fresh scenes (always include, update last_seen)
+        for fresh_scene in fresh_dicts:
+            fresh_key = _get_scene_key(fresh_scene)
+            if fresh_key not in cached_by_key:
+                new_scenes.append(fresh_scene)
+            # Update last_seen and add to result
+            updated_scene = dict(fresh_scene)
+            updated_scene["last_seen"] = now
+            updated_by_key[fresh_key] = cast("ThreeDESceneDict", updated_scene)
+
+        # Process cached scenes not in fresh (apply age-based pruning)
+        removed_keys = set(cached_by_key.keys()) - fresh_keys
+        stale_scenes: list[ThreeDESceneDict] = []
+
+        for key in removed_keys:
+            cached_scene = cached_by_key[key]
+            # Get last_seen (default to now for legacy cache entries)
+            scene_last_seen = cached_scene.get("last_seen", now)
+            if scene_last_seen >= cutoff:
+                # Within retention window - keep it
+                updated_by_key[key] = cached_scene
+                stale_scenes.append(cached_scene)  # Track as "not in fresh"
+            else:
+                # Too old - prune it
+                pruned_count += 1
+
+        # All scenes (kept + updated + new)
+        updated_scenes = list(updated_by_key.values())
+        has_changes = bool(new_scenes or stale_scenes or pruned_count > 0)
+
+        return SceneMergeResult(
+            updated_scenes=updated_scenes,
+            new_scenes=new_scenes,
+            stale_scenes=stale_scenes,
+            has_changes=has_changes,
+            pruned_count=pruned_count,
+        )
+
+    def set_expiry_minutes(self, expiry_minutes: int) -> None:
+        """Set cache TTL.
+
+        Args:
+            expiry_minutes: Cache TTL in minutes
+
+        """
+        self._cache_ttl = timedelta(minutes=expiry_minutes)
+        self.logger.debug(f"SceneDiskCache TTL set to {expiry_minutes} minutes")
+
+    def clear_cache(self) -> None:
+        """Delete the 3DE scenes cache file."""
+        if self.threede_cache_file.exists():
+            self.threede_cache_file.unlink()
+            self.logger.debug("Cleared 3DE scenes cache")
+
+    def shutdown(self) -> None:
+        """Shutdown stub (no-op)."""

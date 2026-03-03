@@ -17,7 +17,6 @@ from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    from cache_manager import CacheManager
     from shot_model import Shot
 
 
@@ -34,24 +33,24 @@ class PinManager(LoggingMixin):
     Pin order is most-recently-pinned-first.
     """
 
-    _cache_manager: CacheManager
+    _cache_dir: Path
     _pinned_keys: list[tuple[str, str, str]]
 
-    def __init__(self, cache_manager: CacheManager) -> None:
+    def __init__(self, cache_dir: Path) -> None:
         """Initialize the pin manager.
 
         Args:
-            cache_manager: Cache manager for persistence
+            cache_dir: Directory for cache persistence
 
         """
         super().__init__()
-        self._cache_manager = cache_manager
+        self._cache_dir = cache_dir
         self._pinned_keys = []  # (show, seq, shot)
         self._load_pins()
 
     def _load_pins(self) -> None:
         """Load pinned shots from cache."""
-        cache_file = self._cache_manager.cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
+        cache_file = self._cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
 
         if not cache_file.exists():
             self._pinned_keys = []
@@ -96,7 +95,7 @@ class PinManager(LoggingMixin):
 
     def _save_pins(self) -> None:
         """Save pinned shots to cache."""
-        cache_file = self._cache_manager.cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
+        cache_file = self._cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
 
         # Convert keys to dicts for JSON serialization
         pin_dicts = [

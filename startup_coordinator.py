@@ -19,7 +19,7 @@ from typing_compat import override
 
 
 if TYPE_CHECKING:
-    from cache_manager import CacheManager
+    from cache.scene_cache_disk import SceneDiskCache
     from controllers.threede_controller import ThreeDEController
     from previous_shots_model import PreviousShotsModel
     from protocols import ProcessPoolInterface
@@ -108,7 +108,7 @@ class StartupCoordinator:
         threede_scene_model: ThreeDESceneModel,
         threede_item_model: ThreeDEItemModel,
         previous_shots_model: PreviousShotsModel,
-        cache_manager: CacheManager,
+        cache_manager: SceneDiskCache,
         refresh_orchestrator: RefreshOrchestrator,
         process_pool: ProcessPoolInterface,
         threede_controller: ThreeDEController | None,

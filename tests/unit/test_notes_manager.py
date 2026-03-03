@@ -17,7 +17,6 @@ from pathlib import Path
 import pytest
 
 # Local application imports
-from cache_manager import CacheManager
 from config import Config
 from notes_manager import SHOT_NOTES_CACHE_KEY, NotesManager
 from shot_model import Shot
@@ -30,16 +29,17 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 @pytest.fixture
-def cache_manager(tmp_path: Path) -> CacheManager:
-    """Create CacheManager with temporary directory."""
-    cache_dir = tmp_path / "test_cache"
-    return CacheManager(cache_dir=cache_dir)
+def cache_dir(tmp_path: Path) -> Path:
+    """Create temporary cache directory."""
+    path = tmp_path / "test_cache"
+    path.mkdir()
+    return path
 
 
 @pytest.fixture
-def notes_manager(cache_manager: CacheManager) -> NotesManager:
-    """Create NotesManager with test cache manager."""
-    return NotesManager(cache_manager)
+def notes_manager(cache_dir: Path) -> NotesManager:
+    """Create NotesManager with test cache directory."""
+    return NotesManager(cache_dir)
 
 
 @pytest.fixture
@@ -201,13 +201,13 @@ class TestPersistence:
     """Tests for cache persistence."""
 
     def test_notes_persist_across_instances(
-        self, cache_manager: CacheManager, sample_shots: list[Shot]
+        self, cache_dir: Path, sample_shots: list[Shot]
     ) -> None:
         """Notes should persist when creating a new NotesManager instance."""
         shot1, shot2, _ = sample_shots
 
         # Set notes with first instance
-        nm1 = NotesManager(cache_manager)
+        nm1 = NotesManager(cache_dir)
         nm1.set_note(shot1, "Note 1")
         nm1.set_note(shot2, "Note 2")
 
@@ -215,7 +215,7 @@ class TestPersistence:
         nm1.flush()
 
         # Create new instance
-        nm2 = NotesManager(cache_manager)
+        nm2 = NotesManager(cache_dir)
 
         # Notes should be loaded
         assert nm2.has_note(shot1)
@@ -225,17 +225,17 @@ class TestPersistence:
         assert nm2.get_notes_count() == 2
 
     def test_cache_file_format(
-        self, cache_manager: CacheManager, sample_shots: list[Shot]
+        self, cache_dir: Path, sample_shots: list[Shot]
     ) -> None:
         """Cache file should be valid JSON with expected format."""
         shot = sample_shots[0]
 
-        nm = NotesManager(cache_manager)
+        nm = NotesManager(cache_dir)
         nm.set_note(shot, "Test note content")
         nm.flush()
 
         # Read the cache file
-        cache_file = cache_manager.cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
+        cache_file = cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
         assert cache_file.exists()
 
         with cache_file.open() as f:
@@ -252,36 +252,36 @@ class TestCacheRecovery:
     """Tests for handling corrupted or missing cache."""
 
     def test_handles_missing_cache_file(
-        self, cache_manager: CacheManager
+        self, cache_dir: Path
     ) -> None:
         """Should handle missing cache file gracefully."""
-        nm = NotesManager(cache_manager)
+        nm = NotesManager(cache_dir)
         assert nm.get_notes_count() == 0
 
     def test_handles_corrupted_json(
-        self, cache_manager: CacheManager
+        self, cache_dir: Path
     ) -> None:
         """Should handle corrupted JSON gracefully."""
         # Write corrupted JSON
-        cache_file = cache_manager.cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
+        cache_file = cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         cache_file.write_text("not valid json {{{")
 
         # Should not raise, should start with empty dict
-        nm = NotesManager(cache_manager)
+        nm = NotesManager(cache_dir)
         assert nm.get_notes_count() == 0
 
     def test_handles_invalid_cache_format(
-        self, cache_manager: CacheManager
+        self, cache_dir: Path
     ) -> None:
         """Should handle invalid cache format gracefully."""
         # Write valid JSON but wrong format (list instead of dict)
-        cache_file = cache_manager.cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
+        cache_file = cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         cache_file.write_text("[1, 2, 3]")
 
         # Should not raise, should start with empty dict
-        nm = NotesManager(cache_manager)
+        nm = NotesManager(cache_dir)
         assert nm.get_notes_count() == 0
 
 
@@ -314,7 +314,7 @@ class TestEdgeCases:
 
         # Reload and verify
         from notes_manager import NotesManager as NotesManagerReload
-        nm2 = NotesManagerReload(notes_manager._cache_manager)
+        nm2 = NotesManagerReload(notes_manager._cache_dir)
         assert nm2.get_note(shot) == multiline_note
 
     def test_unicode_notes(
@@ -329,7 +329,7 @@ class TestEdgeCases:
 
         # Reload and verify
         from notes_manager import NotesManager as NotesManagerReload
-        nm2 = NotesManagerReload(notes_manager._cache_manager)
+        nm2 = NotesManagerReload(notes_manager._cache_dir)
         assert nm2.get_note(shot) == unicode_note
 
 

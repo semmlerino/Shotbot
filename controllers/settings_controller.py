@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from PySide6.QtWidgets import QSplitter, QTabWidget
 
     # Local application imports
-    from cache_manager import CacheManager
+    from cache import CacheCoordinator
     from settings_dialog import SettingsDialog
     from settings_manager import SettingsManager
 
@@ -65,7 +65,7 @@ class SettingsTarget(Protocol):
 
     # Widget references needed for settings
     settings_manager: SettingsManager  # skylos: ignore
-    cache_manager: CacheManager  # skylos: ignore
+    cache_coordinator: CacheCoordinator  # skylos: ignore
     splitter: QSplitter  # skylos: ignore
     tab_widget: QTabWidget  # skylos: ignore
 
@@ -199,8 +199,8 @@ class SettingsController(LoggingMixin):
         try:
             # Apply cache expiry
             expiry_minutes = self.window.settings_manager.get_cache_expiry_minutes()
-            if hasattr(self.window.cache_manager, "set_expiry_minutes"):
-                self.window.cache_manager.set_expiry_minutes(expiry_minutes)
+            if hasattr(self.window.cache_coordinator, "set_expiry_minutes"):
+                self.window.cache_coordinator.set_expiry_minutes(expiry_minutes)
 
             self.logger.debug("Cache settings applied")
 

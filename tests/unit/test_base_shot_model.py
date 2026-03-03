@@ -9,8 +9,6 @@ Following UNIFIED_TESTING_GUIDE best practices:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import pytest
 from PySide6.QtTest import QSignalSpy
 
@@ -19,9 +17,6 @@ from config import Config
 from shot_model import Shot
 from type_definitions import RefreshResult
 
-
-if TYPE_CHECKING:
-    from cache_manager import CacheManager
 
 pytestmark = [
     pytest.mark.unit,
@@ -35,7 +30,7 @@ class ConcreteTestModel(BaseShotModel):
     """Minimal concrete implementation for testing BaseShotModel."""
 
     def __init__(
-        self, cache_manager: CacheManager | None = None, load_cache: bool = True
+        self, cache_manager: object | None = None, load_cache: bool = True
     ) -> None:
         super().__init__(cache_manager, load_cache)
         self._load_result = RefreshResult(success=True, has_changes=False)
@@ -55,7 +50,7 @@ class TestBaseShotModelInitialization:
     """Test BaseShotModel initialization behavior."""
 
     def test_initialization_loads_cache_by_default(
-        self, cache_manager: CacheManager
+        self, shot_cache: object
     ) -> None:
         """Test that load_cache=True loads from cache."""
         # Pre-populate cache
@@ -63,10 +58,10 @@ class TestBaseShotModelInitialization:
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
             Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
         ]
-        cache_manager.cache_shots(test_shots)
+        shot_cache.cache_shots(test_shots)
 
         # Create model with cache loading enabled
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=True)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=True)
 
         # Should have loaded shots from cache
         assert len(model.shots) == 2
@@ -74,17 +69,17 @@ class TestBaseShotModelInitialization:
         assert model.shots[1].shot == "0020"
 
     def test_initialization_without_cache_loading(
-        self, cache_manager: CacheManager
+        self, shot_cache: object
     ) -> None:
         """Test load_cache=False skips cache."""
         # Pre-populate cache
         test_shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         ]
-        cache_manager.cache_shots(test_shots)
+        shot_cache.cache_shots(test_shots)
 
         # Create model with cache loading disabled
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         # Should NOT have loaded from cache
         assert len(model.shots) == 0
@@ -93,15 +88,15 @@ class TestBaseShotModelInitialization:
 class TestCacheLoading:
     """Test cache loading behavior."""
 
-    def test_load_from_cache_success(self, cache_manager: CacheManager) -> None:
+    def test_load_from_cache_success(self, shot_cache: object) -> None:
         """Test successful cache loading."""
         test_shots = [
             Shot("SHOW1", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010"),
             Shot("SHOW1", "seq01", "0020", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0020"),
         ]
-        cache_manager.cache_shots(test_shots)
+        shot_cache.cache_shots(test_shots)
 
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         # Test signal emission
         spy = QSignalSpy(model.shots_loaded)
@@ -114,18 +109,18 @@ class TestCacheLoading:
         assert spy.count() == 1
         assert len(spy.at(0)[0]) == 2  # Signal emitted with 2 shots
 
-    def test_load_from_cache_empty(self, cache_manager: CacheManager) -> None:
+    def test_load_from_cache_empty(self, shot_cache: object) -> None:
         """Test cache loading when cache is empty."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         result = model._load_from_cache()
 
         assert result is False
         assert len(model.shots) == 0
 
-    def test_cache_metrics_tracking(self, cache_manager: CacheManager) -> None:
+    def test_cache_metrics_tracking(self, shot_cache: object) -> None:
         """Test that cache hits/misses are tracked."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         # Initial state
         metrics = model.get_performance_metrics()
@@ -141,7 +136,7 @@ class TestCacheLoading:
         test_shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         ]
-        cache_manager.cache_shots(test_shots)
+        shot_cache.cache_shots(test_shots)
         model._load_from_cache()
         metrics = model.get_performance_metrics()
         assert metrics["cache_hits"] == 1
@@ -151,9 +146,9 @@ class TestCacheLoading:
 class TestChangeDetection:
     """Test shot change detection logic."""
 
-    def test_check_for_changes_no_change(self, cache_manager: CacheManager) -> None:
+    def test_check_for_changes_no_change(self, shot_cache: object) -> None:
         """Test when shot list hasn't changed."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
@@ -165,9 +160,9 @@ class TestChangeDetection:
         has_changes = model._check_for_changes(shots)
         assert has_changes is False
 
-    def test_check_for_changes_added_shot(self, cache_manager: CacheManager) -> None:
+    def test_check_for_changes_added_shot(self, shot_cache: object) -> None:
         """Test when shot is added."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         model.shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
@@ -181,9 +176,9 @@ class TestChangeDetection:
         has_changes = model._check_for_changes(new_shots)
         assert has_changes is True
 
-    def test_check_for_changes_removed_shot(self, cache_manager: CacheManager) -> None:
+    def test_check_for_changes_removed_shot(self, shot_cache: object) -> None:
         """Test when shot is removed."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         model.shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
@@ -198,10 +193,10 @@ class TestChangeDetection:
         assert has_changes is True
 
     def test_check_for_changes_workspace_path_change(
-        self, cache_manager: CacheManager
+        self, shot_cache: object
     ) -> None:
         """Test when workspace path changes."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         model.shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
@@ -218,9 +213,9 @@ class TestChangeDetection:
 class TestShotManagement:
     """Test shot management methods."""
 
-    def test_get_shots(self, cache_manager: CacheManager) -> None:
+    def test_get_shots(self, shot_cache: object) -> None:
         """Test get_shots returns current shots."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         test_shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
@@ -229,9 +224,9 @@ class TestShotManagement:
 
         assert model.get_shots() == test_shots
 
-    def test_get_shot_count(self, cache_manager: CacheManager) -> None:
+    def test_get_shot_count(self, shot_cache: object) -> None:
         """Test get_shot_count returns correct count."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         assert model.get_shot_count() == 0
 
@@ -242,9 +237,9 @@ class TestShotManagement:
 
         assert model.get_shot_count() == 2
 
-    def test_find_shot_by_name_found(self, cache_manager: CacheManager) -> None:
+    def test_find_shot_by_name_found(self, shot_cache: object) -> None:
         """Test finding shot by full name."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         shot1 = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         shot2 = Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020")
@@ -253,9 +248,9 @@ class TestShotManagement:
         found = model.find_shot_by_name("seq01_0020")
         assert found is shot2
 
-    def test_find_shot_by_name_not_found(self, cache_manager: CacheManager) -> None:
+    def test_find_shot_by_name_not_found(self, shot_cache: object) -> None:
         """Test finding non-existent shot."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         model.shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
@@ -268,9 +263,9 @@ class TestShotManagement:
 class TestFiltering:
     """Test show and text filtering."""
 
-    def test_show_filter(self, cache_manager: CacheManager) -> None:
+    def test_show_filter(self, shot_cache: object) -> None:
         """Test show filtering."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         model.shots = [
             Shot("SHOW1", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010"),
@@ -292,9 +287,9 @@ class TestFiltering:
         model.set_show_filter(None)
         assert len(model.get_filtered_shots()) == 3
 
-    def test_text_filter(self, cache_manager: CacheManager) -> None:
+    def test_text_filter(self, shot_cache: object) -> None:
         """Test text filtering."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         model.shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
@@ -317,9 +312,9 @@ class TestFiltering:
         filtered = model.get_filtered_shots()
         assert len(filtered) == 2
 
-    def test_combined_filters(self, cache_manager: CacheManager) -> None:
+    def test_combined_filters(self, shot_cache: object) -> None:
         """Test combining show and text filters."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         model.shots = [
             Shot("SHOW1", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010"),
@@ -340,9 +335,9 @@ class TestFiltering:
 class TestPerformanceMetrics:
     """Test performance metrics tracking."""
 
-    def test_get_performance_metrics(self, cache_manager: CacheManager) -> None:
+    def test_get_performance_metrics(self, shot_cache: object) -> None:
         """Test performance metrics returns correct data."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         model.shots = [
             Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
@@ -357,9 +352,9 @@ class TestPerformanceMetrics:
         assert "cache_hits" in metrics
         assert "cache_misses" in metrics
 
-    def test_refresh_increments_counter(self, cache_manager: CacheManager) -> None:
+    def test_refresh_increments_counter(self, shot_cache: object) -> None:
         """Test refresh_shots increments counter."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         assert model.get_performance_metrics()["total_refreshes"] == 0
 
@@ -373,9 +368,9 @@ class TestPerformanceMetrics:
 class TestAvailableShows:
     """Test available shows extraction."""
 
-    def test_get_available_shows(self, cache_manager: CacheManager) -> None:
+    def test_get_available_shows(self, shot_cache: object) -> None:
         """Test getting unique show names."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         model.shots = [
             Shot("SHOW1", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010"),
@@ -391,9 +386,9 @@ class TestAvailableShows:
         assert "SHOW2" in shows
         assert "SHOW3" in shows
 
-    def test_get_available_shows_empty(self, cache_manager: CacheManager) -> None:
+    def test_get_available_shows_empty(self, shot_cache: object) -> None:
         """Test getting shows when no shots."""
-        model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
+        model = ConcreteTestModel(cache_manager=shot_cache, load_cache=False)
 
         shows = model.get_available_shows()
         assert len(shows) == 0

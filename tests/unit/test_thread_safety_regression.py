@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 # Local application imports
-from cache_manager import CacheManager
+from cache.shot_cache import ShotDataCache
 from shot_model import AsyncShotLoader, RefreshResult, ShotModel
 from tests.fixtures.test_doubles import TestProcessPool
 from tests.test_helpers import process_qt_events
@@ -49,7 +49,7 @@ class TestQThreadInterruptionFix:
 
     def test_no_terminate_call_in_cleanup(self) -> None:
         """Test that cleanup never calls terminate()."""
-        cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
+        cache_manager = ShotDataCache(Path(self.temp_dir.name))
         model = ShotModel(cache_manager)
 
         # Use real AsyncShotLoader with TestProcessPool at boundary
@@ -139,7 +139,7 @@ class TestDoubleCheckedLockingFix:
 
     def test_loading_flag_always_checked_under_lock(self) -> None:
         """Test that _loading_in_progress is protected by lock via concurrent access."""
-        cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
+        cache_manager = ShotDataCache(Path(self.temp_dir.name))
         model = ShotModel(cache_manager)
 
         # Use test double instead of mock
@@ -185,7 +185,7 @@ class TestDoubleCheckedLockingFix:
 
     def test_concurrent_refresh_calls_safe(self) -> None:
         """Test that concurrent refresh calls don't cause race conditions."""
-        cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
+        cache_manager = ShotDataCache(Path(self.temp_dir.name))
         model = ShotModel(cache_manager)
 
         results = []
@@ -287,7 +287,7 @@ class TestMemoryLeakPrevention:
 
     def test_loader_cleanup_prevents_leaks(self) -> None:
         """Test that loader cleanup prevents memory leaks."""
-        cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
+        cache_manager = ShotDataCache(Path(self.temp_dir.name))
         model = ShotModel(cache_manager)
 
         # Use test double to avoid real subprocess calls

@@ -19,7 +19,6 @@ from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    from cache_manager import CacheManager
     from type_definitions import Shot
 
 
@@ -43,25 +42,25 @@ class NotesManager(LoggingMixin, QObject):
     # Debounce delay in milliseconds
     SAVE_DEBOUNCE_MS: int = 2000
 
-    _cache_manager: CacheManager
+    _cache_dir: Path
     _notes_by_key: dict[tuple[str, str, str], str]
     _save_timer: QTimer | None
     _save_pending: bool
 
     def __init__(
         self,
-        cache_manager: CacheManager,
+        cache_dir: Path,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the notes manager.
 
         Args:
-            cache_manager: Cache manager for persistence
+            cache_dir: Directory for cache persistence
             parent: Optional parent QObject
 
         """
         super().__init__(parent)
-        self._cache_manager = cache_manager
+        self._cache_dir = cache_dir
         self._notes_by_key = {}
         self._save_timer = None
         self._save_pending = False
@@ -69,7 +68,7 @@ class NotesManager(LoggingMixin, QObject):
 
     def _load_notes(self) -> None:
         """Load notes from cache."""
-        cache_file = self._cache_manager.cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
+        cache_file = self._cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
 
         if not cache_file.exists():
             self._notes_by_key = {}
@@ -122,7 +121,7 @@ class NotesManager(LoggingMixin, QObject):
             return
 
         self._save_pending = False
-        cache_file = self._cache_manager.cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
+        cache_file = self._cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
 
         # Convert keys to "show|sequence|shot" format
         data = {

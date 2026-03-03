@@ -4,7 +4,7 @@ Tests the integration between Previous Shots components and the cache system.
 Focuses on cache consistency, data persistence, and performance.
 
 Focus areas:
-- Cache integration with real CacheManager components
+- Cache integration with real ShotDataCache components
 - Data persistence and TTL behavior
 - Cache invalidation and refresh
 - Performance with cached vs uncached data
@@ -17,13 +17,13 @@ from __future__ import annotations
 import concurrent.futures
 import time
 from collections.abc import Iterator
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 # Third-party imports
 import pytest
 
 # Local application imports
-from cache_manager import CacheManager
+from cache.shot_cache import ShotDataCache
 from config import Config
 from previous_shots_model import PreviousShotsModel
 from shot_model import Shot
@@ -32,10 +32,6 @@ from shot_model import Shot
 from tests.fixtures.test_doubles import TestShot, TestShotModel
 from tests.test_helpers import process_qt_events
 
-
-if TYPE_CHECKING:
-    # Standard library imports
-    from pathlib import Path
 
 pytestmark = [
     pytest.mark.qt,
@@ -74,9 +70,9 @@ class TestPreviousShootsCacheIntegration:
         return cache_dir
 
     @pytest.fixture
-    def cache_manager(self, temp_cache_dir: Path) -> CacheManager:
-        """Create real CacheManager with temporary storage."""
-        return CacheManager(cache_dir=temp_cache_dir)
+    def cache_manager(self, temp_cache_dir: Path) -> ShotDataCache:
+        """Create real ShotDataCache with temporary storage."""
+        return ShotDataCache(temp_cache_dir)
 
     @pytest.fixture
     def mock_shot_model(self) -> TestShotModel:
@@ -276,7 +272,7 @@ class TestPreviousShootsCacheIntegration:
     ) -> None:
         """Test model loads from cache on initialization."""
         # Pre-populate cache
-        cache_manager = CacheManager(cache_dir=temp_cache_dir)
+        cache_manager = ShotDataCache(temp_cache_dir)
         test_data = [
             {
                 "show": "cached_show",
@@ -368,7 +364,7 @@ class TestPreviousShootsCacheIntegration:
         cache_file = temp_cache_dir / "previous_shots.json"
         cache_file.write_text("invalid json content")
 
-        cache_manager = CacheManager(cache_dir=temp_cache_dir)
+        cache_manager = ShotDataCache(temp_cache_dir)
 
         # Should handle corrupted cache gracefully
         cached_data = cache_manager.get_cached_previous_shots()
@@ -456,7 +452,7 @@ class TestPreviousShootsCacheIntegration:
         nonexistent_cache_dir = tmp_path / "nonexistent" / "cache"
 
         # Should create directory structure
-        cache_manager = CacheManager(cache_dir=nonexistent_cache_dir)
+        cache_manager = ShotDataCache(nonexistent_cache_dir)
 
         test_data = [
             {

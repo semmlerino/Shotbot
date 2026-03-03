@@ -15,7 +15,7 @@ from typing_compat import override
 
 
 if TYPE_CHECKING:
-    from cache_manager import CacheManager
+    from cache.thumbnail_cache import ThumbnailCache
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 
@@ -36,7 +36,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
     def __init__(
         self,
-        cache_manager: CacheManager | None = None,
+        cache_manager: ThumbnailCache | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the 3DE item model.

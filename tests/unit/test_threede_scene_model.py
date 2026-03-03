@@ -32,8 +32,6 @@ from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
 
-    from cache_manager import CacheManager
-
 pytestmark = pytest.mark.unit
 
 
@@ -245,18 +243,18 @@ class TestThreeDEScene:
 class TestThreeDESceneModel:
     """Test ThreeDESceneModel with real components."""
 
-    def test_initialization(self, cache_manager: CacheManager) -> None:
+    def test_initialization(self, scene_disk_cache: object) -> None:
         """Test model initialization with real cache manager."""
-        model = ThreeDESceneModel(cache_manager=cache_manager)
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
-        assert model.cache_manager == cache_manager
+        assert model.cache_manager == scene_disk_cache
         assert hasattr(model, "scenes")
         assert isinstance(model.scenes, list)
 
     @pytest.mark.real_subprocess
     def test_refresh_scenes_with_real_files(
         self,
-        cache_manager: CacheManager,
+        scene_disk_cache: object,
         tmp_path: Path,
         monkeypatch: MonkeyPatch,
     ) -> None:
@@ -306,7 +304,7 @@ class TestThreeDESceneModel:
         # Override Config.SHOWS_ROOT
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
 
-        model = ThreeDESceneModel(cache_manager=cache_manager)
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
         # Refresh with real discovery (refresh_scenes only takes shots parameter)
         success, _has_changes = model.refresh_scenes(user_shots)
@@ -321,10 +319,10 @@ class TestThreeDESceneModel:
             assert scene.scene_path.exists()
 
     def test_scenes_property(
-        self, cache_manager: CacheManager, make_real_3de_file: Callable[..., Path]
+        self, scene_disk_cache: object, make_real_3de_file: Callable[..., Path]
     ) -> None:
         """Test scenes property returns scene list."""
-        model = ThreeDESceneModel(cache_manager=cache_manager)
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
         # Create and add real scenes
         scene_path1 = make_real_3de_file("show1", "seq01", "shot01", "user1")
@@ -356,10 +354,10 @@ class TestThreeDESceneModel:
         assert all(isinstance(s, ThreeDEScene) for s in scenes)
 
     def test_find_scene_by_display_name(
-        self, cache_manager: CacheManager, make_real_3de_file: Callable[..., Path]
+        self, scene_disk_cache: object, make_real_3de_file: Callable[..., Path]
     ) -> None:
         """Test finding scene by display name."""
-        model = ThreeDESceneModel(cache_manager=cache_manager)
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
         # Create real scenes
         scene_path1 = make_real_3de_file("show1", "seq01", "shot01", "user1")
@@ -397,10 +395,10 @@ class TestThreeDESceneModel:
         assert scene is None
 
     def test_get_scene_by_index(
-        self, cache_manager: CacheManager, make_real_3de_file: Callable[..., Path]
+        self, scene_disk_cache: object, make_real_3de_file: Callable[..., Path]
     ) -> None:
         """Test getting scene by index."""
-        model = ThreeDESceneModel(cache_manager=cache_manager)
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
         scene_path = make_real_3de_file("show1", "seq01", "shot01", "user1")
 
@@ -426,10 +424,10 @@ class TestThreeDESceneModel:
         assert model.get_scene_by_index(1) is None
 
     def test_deduplicate_scenes_per_shot(
-        self, cache_manager: CacheManager, tmp_path: Path
+        self, scene_disk_cache: object, tmp_path: Path
     ) -> None:
         """Test deduplication keeps one scene per shot with real files."""
-        model = ThreeDESceneModel(cache_manager=cache_manager)
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
         # Create real scenes with duplicates for same shot
         base_path = tmp_path / "shows" / "test" / "shots"
@@ -505,9 +503,9 @@ class TestThreeDESceneModel:
         assert seq02_scene is not None
         assert seq02_scene.user == "user4"
 
-    def test_load_from_cache(self, cache_manager: CacheManager) -> None:
+    def test_load_from_cache(self, scene_disk_cache: object) -> None:
         """Test loading scenes from cache."""
-        model = ThreeDESceneModel(cache_manager=cache_manager)
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
         # Prepare cache data
         cache_data = [
@@ -523,7 +521,7 @@ class TestThreeDESceneModel:
         ]
 
         # Cache the data
-        cache_manager.cache_threede_scenes(cache_data)
+        scene_disk_cache.cache_threede_scenes(cache_data)
 
         # Load from cache
         result = model._load_from_cache()
@@ -533,9 +531,9 @@ class TestThreeDESceneModel:
         assert model.scenes[0].show == "cached_show"
         assert model.scenes[0].user == "cached_user"
 
-    def test_empty_cache_returns_false(self, cache_manager: CacheManager) -> None:
+    def test_empty_cache_returns_false(self, scene_disk_cache: object) -> None:
         """Test loading from empty cache returns False."""
-        model = ThreeDESceneModel(cache_manager=cache_manager)
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
         # Cache is empty
         result = model._load_from_cache()
@@ -544,10 +542,10 @@ class TestThreeDESceneModel:
         assert len(model.scenes) == 0
 
     def test_concurrent_refresh(
-        self, cache_manager: CacheManager, make_real_3de_file: Callable[..., Path]
+        self, scene_disk_cache: object, make_real_3de_file: Callable[..., Path]
     ) -> None:
         """Test model handles concurrent refresh calls gracefully."""
-        model = ThreeDESceneModel(cache_manager=cache_manager)
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
         # Create real scenes
         scene_path = make_real_3de_file("show1", "seq01", "shot01", "user1")

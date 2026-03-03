@@ -18,13 +18,9 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
-
-if TYPE_CHECKING:
-    from cache_manager import CacheManager
 
 # ==============================================================================
 # E2E Cache Manager Tests
@@ -32,7 +28,7 @@ if TYPE_CHECKING:
 
 
 class TestCacheManagerE2E:
-    """End-to-end tests for CacheManager with real filesystem."""
+    """End-to-end tests for ShotDataCache with real filesystem."""
 
     @pytest.fixture
     def real_cache_dir(self, tmp_path: Path) -> Path:
@@ -44,16 +40,16 @@ class TestCacheManagerE2E:
     @pytest.fixture
     def real_cache_manager(
         self, real_cache_dir: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> CacheManager:
-        """Create a CacheManager with real filesystem operations."""
+    ) -> ShotDataCache:
+        """Create a ShotDataCache with real filesystem operations."""
         # Point to our test cache directory
         monkeypatch.setenv("SHOTBOT_TEST_CACHE_DIR", str(real_cache_dir))
 
-        from cache_manager import CacheManager
+        from cache.shot_cache import ShotDataCache
 
-        return CacheManager(cache_dir=real_cache_dir)
+        return ShotDataCache(real_cache_dir)
 
-    def test_shots_cache_persists_to_disk(self, real_cache_manager: CacheManager) -> None:
+    def test_shots_cache_persists_to_disk(self, real_cache_manager: ShotDataCache) -> None:
         """Verify shot data is actually written to disk."""
         # Create test shot data
         shots = [
@@ -79,18 +75,18 @@ class TestCacheManagerE2E:
     def test_shots_cache_survives_manager_recreation(
         self, real_cache_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Verify cached shots survive creating a new CacheManager instance."""
+        """Verify cached shots survive creating a new ShotDataCache instance."""
         monkeypatch.setenv("SHOTBOT_TEST_CACHE_DIR", str(real_cache_dir))
 
-        from cache_manager import CacheManager
+        from cache.shot_cache import ShotDataCache
 
         # First manager caches shots
-        manager1 = CacheManager(cache_dir=real_cache_dir)
+        manager1 = ShotDataCache(real_cache_dir)
         shots = [{"show": "SURVIVALTEST", "sequence": "SQ001", "shot": "SH0001"}]
         manager1.cache_shots(shots)
 
         # Create new manager pointing to same directory
-        manager2 = CacheManager(cache_dir=real_cache_dir)
+        manager2 = ShotDataCache(real_cache_dir)
 
         # New manager should find cached shots
         cached = manager2.get_shots_with_ttl()
@@ -99,7 +95,7 @@ class TestCacheManagerE2E:
         assert cached[0]["show"] == "SURVIVALTEST"
 
     def test_cache_ttl_expiration_real_time(
-        self, real_cache_manager: CacheManager
+        self, real_cache_manager: ShotDataCache
     ) -> None:
         """Verify TTL expiration works with real time passage."""
         shots = [{"show": "TTLTEST", "sequence": "SQ001", "shot": "SH0001"}]
@@ -117,7 +113,7 @@ class TestCacheManagerE2E:
         assert cached is None, "Expired cache should return None"
 
     def test_previous_shots_cache_replacement(
-        self, real_cache_manager: CacheManager
+        self, real_cache_manager: ShotDataCache
     ) -> None:
         """Verify previous shots cache replaces old data on write."""
         # First batch

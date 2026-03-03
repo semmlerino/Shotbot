@@ -87,14 +87,14 @@ def profile_process_pool_manager() -> dict[str, float]:
 def profile_shot_model_refresh() -> dict[str, Any]:
     """Profile ShotModel refresh with detailed breakdown."""
     # Local application imports
-    from cache_manager import CacheManager
+    from cache.shot_cache import ShotDataCache
     from shot_model import ShotModel
 
     timings = {}
 
-    # Create cache manager with temp directory
+    # Create shot cache with temp directory
     with tempfile.TemporaryDirectory() as tmpdir:
-        cache = CacheManager(cache_dir=Path(tmpdir))
+        cache = ShotDataCache(Path(tmpdir))
 
         # Create shot model
         start = time.perf_counter()

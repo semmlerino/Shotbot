@@ -13,7 +13,7 @@ from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    from cache_manager import CacheManager
+    from cache import CacheCoordinator
     from command_launcher import CommandLauncher
     from controllers.shot_selection_controller import ShotSelectionController
     from controllers.threede_controller import ThreeDEController
@@ -49,7 +49,7 @@ class CleanupTarget(Protocol):
     threede_controller: ThreeDEController | None  # skylos: ignore
     shot_selection_controller: ShotSelectionController | None  # skylos: ignore
     session_warmer: QObject | None  # skylos: ignore
-    cache_manager: CacheManager  # skylos: ignore
+    cache_coordinator: CacheCoordinator  # skylos: ignore
     shot_model: ShotModel  # skylos: ignore
     previous_shots_model: PreviousShotsModel | None  # skylos: ignore
     previous_shots_item_model: QObject | None  # skylos: ignore
@@ -91,7 +91,7 @@ class CleanupManager(QObject, LoggingMixin):
             1. Mark window as closing (_mark_closing)
             2. Controllers (threede_controller, shot_selection_controller)
             3. Session warmer thread (_cleanup_session_warmer)
-            4. Managers (command_launcher, cache_manager)
+            4. Managers (command_launcher, cache_coordinator)
             5. Models (shot_model, previous_shots_model, previous_shots_item_model)
         """
         self.cleanup_started.emit()
@@ -190,9 +190,9 @@ class CleanupManager(QObject, LoggingMixin):
             self.logger.debug("Cleaning up command launcher")
             self.main_window.command_launcher.cleanup()
 
-        # Shutdown cache manager
-        self.logger.debug("Shutting down cache manager")
-        self.main_window.cache_manager.shutdown()
+        # Shutdown cache coordinator
+        self.logger.debug("Shutting down cache coordinator")
+        self.main_window.cache_coordinator.shutdown()
 
     def _cleanup_models(self) -> None:
         """Clean up model instances and their background workers."""

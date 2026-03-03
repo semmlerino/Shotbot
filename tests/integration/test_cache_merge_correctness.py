@@ -7,7 +7,7 @@ This module tests:
 4. Edge cases - empty lists, duplicate keys, deleted items
 
 These are integration tests because they test the interaction between:
-- CacheManager merge methods
+- ShotDataCache and SceneDiskCache merge methods
 - Internal data structures (dicts, sets)
 - Thread safety mechanisms (QMutex)
 """
@@ -22,7 +22,9 @@ from pathlib import Path
 
 import pytest
 
-from cache_manager import CacheManager, SceneMergeResult, ShotMergeResult
+from cache.scene_cache_disk import SceneDiskCache
+from cache.shot_cache import ShotDataCache
+from cache.types import SceneMergeResult, ShotMergeResult
 from type_definitions import Shot, ShotDict, ThreeDESceneDict
 
 
@@ -86,55 +88,55 @@ class TestShotMergeCorrectness:
     """Tests for shot merge algorithm correctness."""
 
     @pytest.fixture
-    def cache_manager(self, tmp_path: Path) -> CacheManager:
-        """Create CacheManager with isolated cache directory."""
+    def shot_cache(self, tmp_path: Path) -> ShotDataCache:
+        """Create ShotDataCache with isolated cache directory."""
         cache_path = tmp_path / "cache"
         cache_path.mkdir(parents=True, exist_ok=True)
-        return CacheManager(cache_dir=cache_path)
+        return ShotDataCache(cache_path)
 
-    def test_merge_with_empty_cached(self, cache_manager: CacheManager) -> None:
+    def test_merge_with_empty_cached(self, shot_cache: ShotDataCache) -> None:
         """Merge with empty cache returns all fresh shots as new."""
         fresh = [
             make_shot_dict(shot="0010"),
             make_shot_dict(shot="0020"),
         ]
 
-        result = cache_manager.update_shots_cache(None, fresh)
+        result = shot_cache.update_shots_cache(None, fresh)
 
         assert len(result.updated_shots) == 2
         assert len(result.new_shots) == 2
         assert len(result.removed_shots) == 0
         assert result.has_changes is True
 
-    def test_merge_with_empty_fresh(self, cache_manager: CacheManager) -> None:
+    def test_merge_with_empty_fresh(self, shot_cache: ShotDataCache) -> None:
         """Merge with empty fresh marks all cached as removed."""
         cached = [
             make_shot_dict(shot="0010"),
             make_shot_dict(shot="0020"),
         ]
 
-        result = cache_manager.update_shots_cache(cached, [])
+        result = shot_cache.update_shots_cache(cached, [])
 
         assert len(result.updated_shots) == 0
         assert len(result.new_shots) == 0
         assert len(result.removed_shots) == 2
         assert result.has_changes is True
 
-    def test_merge_no_changes(self, cache_manager: CacheManager) -> None:
+    def test_merge_no_changes(self, shot_cache: ShotDataCache) -> None:
         """Merge with identical cached and fresh has no changes."""
         shots = [
             make_shot_dict(shot="0010"),
             make_shot_dict(shot="0020"),
         ]
 
-        result = cache_manager.update_shots_cache(shots, shots)
+        result = shot_cache.update_shots_cache(shots, shots)
 
         assert len(result.updated_shots) == 2
         assert len(result.new_shots) == 0
         assert len(result.removed_shots) == 0
         assert result.has_changes is False
 
-    def test_merge_new_shot_added(self, cache_manager: CacheManager) -> None:
+    def test_merge_new_shot_added(self, shot_cache: ShotDataCache) -> None:
         """Merge detects new shots not in cache."""
         cached = [make_shot_dict(shot="0010")]
         fresh = [
@@ -142,14 +144,14 @@ class TestShotMergeCorrectness:
             make_shot_dict(shot="0020"),  # New shot
         ]
 
-        result = cache_manager.update_shots_cache(cached, fresh)
+        result = shot_cache.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 2
         assert len(result.new_shots) == 1
         assert result.new_shots[0]["shot"] == "0020"
         assert result.has_changes is True
 
-    def test_merge_shot_removed(self, cache_manager: CacheManager) -> None:
+    def test_merge_shot_removed(self, shot_cache: ShotDataCache) -> None:
         """Merge detects shots removed from fresh data."""
         cached = [
             make_shot_dict(shot="0010"),
@@ -157,24 +159,24 @@ class TestShotMergeCorrectness:
         ]
         fresh = [make_shot_dict(shot="0010")]  # 0020 removed
 
-        result = cache_manager.update_shots_cache(cached, fresh)
+        result = shot_cache.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 1
         assert len(result.removed_shots) == 1
         assert result.removed_shots[0]["shot"] == "0020"
         assert result.has_changes is True
 
-    def test_deduplication_by_composite_key(self, cache_manager: CacheManager) -> None:
+    def test_deduplication_by_composite_key(self, shot_cache: ShotDataCache) -> None:
         """Shots are deduplicated by (show, sequence, shot) key."""
         # Same shot in both cached and fresh should not create duplicates
         cached = [make_shot_dict(show="showA", sequence="sq01", shot="0010")]
         fresh = [make_shot_dict(show="showA", sequence="sq01", shot="0010")]
 
-        result = cache_manager.update_shots_cache(cached, fresh)
+        result = shot_cache.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 1  # Not 2
 
-    def test_different_shows_not_deduplicated(self, cache_manager: CacheManager) -> None:
+    def test_different_shows_not_deduplicated(self, shot_cache: ShotDataCache) -> None:
         """Shots from different shows are kept separate."""
         cached = [make_shot_dict(show="showA", shot="0010")]
         fresh = [
@@ -182,13 +184,13 @@ class TestShotMergeCorrectness:
             make_shot_dict(show="showB", shot="0010"),  # Different show, same shot name
         ]
 
-        result = cache_manager.update_shots_cache(cached, fresh)
+        result = shot_cache.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 2  # Both kept
         assert len(result.new_shots) == 1  # showB shot is new
 
     def test_different_sequences_not_deduplicated(
-        self, cache_manager: CacheManager
+        self, shot_cache: ShotDataCache
     ) -> None:
         """Shots from different sequences are kept separate."""
         fresh = [
@@ -196,11 +198,11 @@ class TestShotMergeCorrectness:
             make_shot_dict(sequence="sq02", shot="0010"),  # Same shot, different seq
         ]
 
-        result = cache_manager.update_shots_cache(None, fresh)
+        result = shot_cache.update_shots_cache(None, fresh)
 
         assert len(result.updated_shots) == 2
 
-    def test_fresh_data_overrides_cached(self, cache_manager: CacheManager) -> None:
+    def test_fresh_data_overrides_cached(self, shot_cache: ShotDataCache) -> None:
         """Fresh shot data takes precedence over cached."""
         old_time = 1000.0
         new_time = 2000.0
@@ -208,12 +210,12 @@ class TestShotMergeCorrectness:
         cached = [make_shot_dict(shot="0010", discovered_at=old_time)]
         fresh = [make_shot_dict(shot="0010", discovered_at=new_time)]
 
-        result = cache_manager.update_shots_cache(cached, fresh)
+        result = shot_cache.update_shots_cache(cached, fresh)
 
         # Fresh data should be used
         assert result.updated_shots[0]["discovered_at"] == new_time
 
-    def test_merge_accepts_shot_objects(self, cache_manager: CacheManager) -> None:
+    def test_merge_accepts_shot_objects(self, shot_cache: ShotDataCache) -> None:
         """Merge works with Shot objects (not just dicts)."""
         cached = [
             Shot(
@@ -238,7 +240,7 @@ class TestShotMergeCorrectness:
             ),
         ]
 
-        result = cache_manager.update_shots_cache(cached, fresh)
+        result = shot_cache.update_shots_cache(cached, fresh)
 
         assert len(result.updated_shots) == 2
         assert len(result.new_shots) == 1
@@ -253,27 +255,27 @@ class TestSceneMergeCorrectness:
     """Tests for scene merge algorithm correctness."""
 
     @pytest.fixture
-    def cache_manager(self, tmp_path: Path) -> CacheManager:
-        """Create CacheManager with isolated cache directory."""
+    def scene_cache(self, tmp_path: Path) -> SceneDiskCache:
+        """Create SceneDiskCache with isolated cache directory."""
         cache_path = tmp_path / "cache"
         cache_path.mkdir(parents=True, exist_ok=True)
-        return CacheManager(cache_dir=cache_path)
+        return SceneDiskCache(cache_path)
 
-    def test_merge_with_empty_cached(self, cache_manager: CacheManager) -> None:
+    def test_merge_with_empty_cached(self, scene_cache: SceneDiskCache) -> None:
         """Merge with empty cache returns all fresh scenes as new."""
         fresh = [
             make_scene_dict(shot="0010"),
             make_scene_dict(shot="0020"),
         ]
 
-        result = cache_manager.merge_scenes_incremental(None, fresh)
+        result = scene_cache.merge_scenes_incremental(None, fresh)
 
         assert len(result.updated_scenes) == 2
         assert len(result.new_scenes) == 2
         assert result.has_changes is True
 
     def test_merge_with_empty_fresh_keeps_recent(
-        self, cache_manager: CacheManager
+        self, scene_cache: SceneDiskCache
     ) -> None:
         """Merge with empty fresh keeps recently-seen cached scenes."""
         now = datetime.now(UTC).timestamp()
@@ -282,13 +284,13 @@ class TestSceneMergeCorrectness:
             make_scene_dict(shot="0020", last_seen=now),
         ]
 
-        result = cache_manager.merge_scenes_incremental(cached, [], max_age_days=60)
+        result = scene_cache.merge_scenes_incremental(cached, [], max_age_days=60)
 
         # Scenes with recent last_seen should be kept
         assert len(result.updated_scenes) == 2
         assert len(result.stale_scenes) == 2  # Tracked as "not in fresh"
 
-    def test_merge_prunes_old_scenes(self, cache_manager: CacheManager) -> None:
+    def test_merge_prunes_old_scenes(self, scene_cache: SceneDiskCache) -> None:
         """Merge prunes scenes not seen within max_age_days."""
         now = datetime.now(UTC).timestamp()
         old_time = now - (70 * 24 * 60 * 60)  # 70 days ago
@@ -298,38 +300,38 @@ class TestSceneMergeCorrectness:
             make_scene_dict(shot="0020", last_seen=now),  # Recent
         ]
 
-        result = cache_manager.merge_scenes_incremental(cached, [], max_age_days=60)
+        result = scene_cache.merge_scenes_incremental(cached, [], max_age_days=60)
 
         # Only recent scene should be kept
         assert len(result.updated_scenes) == 1
         assert result.updated_scenes[0]["shot"] == "0020"
         assert result.pruned_count == 1
 
-    def test_last_seen_updated_on_merge(self, cache_manager: CacheManager) -> None:
+    def test_last_seen_updated_on_merge(self, scene_cache: SceneDiskCache) -> None:
         """Last_seen timestamp is updated when scene is in fresh data."""
         fresh = [make_scene_dict(shot="0010")]
 
-        result = cache_manager.merge_scenes_incremental(None, fresh)
+        result = scene_cache.merge_scenes_incremental(None, fresh)
 
         # last_seen should be set to current time (approximately)
         now = datetime.now(UTC).timestamp()
         assert "last_seen" in result.updated_scenes[0]
         assert result.updated_scenes[0]["last_seen"] >= now - 1  # Within 1 second
 
-    def test_deduplication_by_shot_key(self, cache_manager: CacheManager) -> None:
+    def test_deduplication_by_shot_key(self, scene_cache: SceneDiskCache) -> None:
         """Scenes are deduplicated by (show, sequence, shot) key."""
         # Two scenes for same shot - fresh takes precedence
         cached = [make_scene_dict(shot="0010", user="user1", filename="old.3de")]
         fresh = [make_scene_dict(shot="0010", user="user2", filename="new.3de")]
 
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
+        result = scene_cache.merge_scenes_incremental(cached, fresh)
 
         # Should have only 1 scene (fresh version)
         assert len(result.updated_scenes) == 1
         assert result.updated_scenes[0]["user"] == "user2"
 
     def test_different_shots_not_deduplicated(
-        self, cache_manager: CacheManager
+        self, scene_cache: SceneDiskCache
     ) -> None:
         """Scenes from different shots are kept separate."""
         fresh = [
@@ -337,12 +339,12 @@ class TestSceneMergeCorrectness:
             make_scene_dict(shot="0020", user="artist2"),
         ]
 
-        result = cache_manager.merge_scenes_incremental(None, fresh)
+        result = scene_cache.merge_scenes_incremental(None, fresh)
 
         assert len(result.updated_scenes) == 2
 
     def test_cached_scene_without_last_seen_gets_default(
-        self, cache_manager: CacheManager
+        self, scene_cache: SceneDiskCache
     ) -> None:
         """Cached scenes without last_seen get current time as default."""
         # Legacy cache entry without last_seen field
@@ -360,7 +362,7 @@ class TestSceneMergeCorrectness:
             }
         ]
 
-        result = cache_manager.merge_scenes_incremental(cached, [], max_age_days=60)
+        result = scene_cache.merge_scenes_incremental(cached, [], max_age_days=60)
 
         # Should be kept (default last_seen = now)
         assert len(result.updated_scenes) == 1
@@ -375,14 +377,21 @@ class TestMergeThreadSafety:
     """Tests for merge operations under concurrent access."""
 
     @pytest.fixture
-    def cache_manager(self, tmp_path: Path) -> CacheManager:
-        """Create CacheManager with isolated cache directory."""
+    def shot_cache(self, tmp_path: Path) -> ShotDataCache:
+        """Create ShotDataCache with isolated cache directory."""
         cache_path = tmp_path / "cache"
         cache_path.mkdir(parents=True, exist_ok=True)
-        return CacheManager(cache_dir=cache_path)
+        return ShotDataCache(cache_path)
+
+    @pytest.fixture
+    def scene_cache(self, tmp_path: Path) -> SceneDiskCache:
+        """Create SceneDiskCache with isolated cache directory."""
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return SceneDiskCache(cache_path)
 
     def test_concurrent_shot_merge_no_crash(
-        self, cache_manager: CacheManager
+        self, shot_cache: ShotDataCache
     ) -> None:
         """Multiple threads calling update_shots_cache don't crash."""
         errors: list[Exception] = []
@@ -396,7 +405,7 @@ class TestMergeThreadSafety:
                     make_shot_dict(shot=f"{thread_id:04d}"),
                     make_shot_dict(shot=f"{thread_id + 100:04d}"),
                 ]
-                result = cache_manager.update_shots_cache(cached, fresh)
+                result = shot_cache.update_shots_cache(cached, fresh)
                 with lock:
                     results.append(result)
             except Exception as e:
@@ -412,7 +421,7 @@ class TestMergeThreadSafety:
         assert len(results) == 50
 
     def test_concurrent_scene_merge_no_crash(
-        self, cache_manager: CacheManager
+        self, scene_cache: SceneDiskCache
     ) -> None:
         """Multiple threads calling merge_scenes_incremental don't crash."""
         errors: list[Exception] = []
@@ -426,7 +435,7 @@ class TestMergeThreadSafety:
                     make_scene_dict(shot=f"{thread_id:04d}"),
                     make_scene_dict(shot=f"{thread_id + 100:04d}"),
                 ]
-                result = cache_manager.merge_scenes_incremental(cached, fresh)
+                result = scene_cache.merge_scenes_incremental(cached, fresh)
                 with lock:
                     results.append(result)
             except Exception as e:
@@ -440,7 +449,9 @@ class TestMergeThreadSafety:
         assert len(errors) == 0, f"Thread errors: {errors}"
         assert len(results) == 50
 
-    def test_concurrent_mixed_merges(self, cache_manager: CacheManager) -> None:
+    def test_concurrent_mixed_merges(
+        self, shot_cache: ShotDataCache, scene_cache: SceneDiskCache
+    ) -> None:
         """Shot and scene merges can run concurrently without issues."""
         errors: list[Exception] = []
         lock = threading.Lock()
@@ -450,7 +461,7 @@ class TestMergeThreadSafety:
                 for _ in range(20):
                     cached = [make_shot_dict(shot="0010")]
                     fresh = [make_shot_dict(shot="0010"), make_shot_dict(shot="0020")]
-                    cache_manager.update_shots_cache(cached, fresh)
+                    shot_cache.update_shots_cache(cached, fresh)
             except Exception as e:
                 with lock:
                     errors.append(e)
@@ -463,7 +474,7 @@ class TestMergeThreadSafety:
                         make_scene_dict(shot="0010"),
                         make_scene_dict(shot="0020"),
                     ]
-                    cache_manager.merge_scenes_incremental(cached, fresh)
+                    scene_cache.merge_scenes_incremental(cached, fresh)
             except Exception as e:
                 with lock:
                     errors.append(e)
@@ -489,14 +500,21 @@ class TestMergeEdgeCases:
     """Tests for merge edge cases and boundary conditions."""
 
     @pytest.fixture
-    def cache_manager(self, tmp_path: Path) -> CacheManager:
-        """Create CacheManager with isolated cache directory."""
+    def shot_cache(self, tmp_path: Path) -> ShotDataCache:
+        """Create ShotDataCache with isolated cache directory."""
         cache_path = tmp_path / "cache"
         cache_path.mkdir(parents=True, exist_ok=True)
-        return CacheManager(cache_dir=cache_path)
+        return ShotDataCache(cache_path)
+
+    @pytest.fixture
+    def scene_cache(self, tmp_path: Path) -> SceneDiskCache:
+        """Create SceneDiskCache with isolated cache directory."""
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return SceneDiskCache(cache_path)
 
     def test_merge_with_duplicate_keys_in_fresh(
-        self, cache_manager: CacheManager
+        self, shot_cache: ShotDataCache
     ) -> None:
         """Merge iterates fresh data, so duplicates in input produce duplicates in output.
 
@@ -509,14 +527,14 @@ class TestMergeEdgeCases:
             make_shot_dict(shot="0010", discovered_at=2.0),  # Duplicate
         ]
 
-        result = cache_manager.update_shots_cache(None, fresh)
+        result = shot_cache.update_shots_cache(None, fresh)
 
         # Implementation iterates fresh directly, so duplicates are preserved
         # This is expected - deduplication should happen before merge
         assert len(result.updated_shots) == 2
 
     def test_merge_preserves_all_fresh_fields(
-        self, cache_manager: CacheManager
+        self, shot_cache: ShotDataCache
     ) -> None:
         """Merge preserves all fields from fresh data."""
         fresh = [
@@ -529,7 +547,7 @@ class TestMergeEdgeCases:
             )
         ]
 
-        result = cache_manager.update_shots_cache(None, fresh)
+        result = shot_cache.update_shots_cache(None, fresh)
 
         shot = result.updated_shots[0]
         assert shot["show"] == "myshow"
@@ -539,7 +557,7 @@ class TestMergeEdgeCases:
         assert shot["discovered_at"] == 12345.0
 
     def test_scene_merge_with_various_max_age(
-        self, cache_manager: CacheManager
+        self, scene_cache: SceneDiskCache
     ) -> None:
         """Scene merge respects different max_age_days settings."""
         now = datetime.now(UTC).timestamp()
@@ -548,13 +566,13 @@ class TestMergeEdgeCases:
         cached = [make_scene_dict(shot="0010", last_seen=days_10_ago)]
 
         # With 5 day max age - should be pruned
-        result_5days = cache_manager.merge_scenes_incremental(
+        result_5days = scene_cache.merge_scenes_incremental(
             cached, [], max_age_days=5
         )
         assert result_5days.pruned_count == 1
 
         # With 30 day max age - should be kept
-        result_30days = cache_manager.merge_scenes_incremental(
+        result_30days = scene_cache.merge_scenes_incremental(
             cached, [], max_age_days=30
         )
         assert result_30days.pruned_count == 0
@@ -570,13 +588,20 @@ class TestMergeResultCorrectness:
     """Tests that verify merge results are correct and consistent."""
 
     @pytest.fixture
-    def cache_manager(self, tmp_path: Path) -> CacheManager:
-        """Create CacheManager with isolated cache directory."""
+    def shot_cache(self, tmp_path: Path) -> ShotDataCache:
+        """Create ShotDataCache with isolated cache directory."""
         cache_path = tmp_path / "cache"
         cache_path.mkdir(parents=True, exist_ok=True)
-        return CacheManager(cache_dir=cache_path)
+        return ShotDataCache(cache_path)
 
-    def test_shot_merge_result_invariants(self, cache_manager: CacheManager) -> None:
+    @pytest.fixture
+    def scene_cache(self, tmp_path: Path) -> SceneDiskCache:
+        """Create SceneDiskCache with isolated cache directory."""
+        cache_path = tmp_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return SceneDiskCache(cache_path)
+
+    def test_shot_merge_result_invariants(self, shot_cache: ShotDataCache) -> None:
         """Verify ShotMergeResult invariants hold."""
         cached = [
             make_shot_dict(shot="0010"),
@@ -587,7 +612,7 @@ class TestMergeResultCorrectness:
             make_shot_dict(shot="0030"),
         ]
 
-        result = cache_manager.update_shots_cache(cached, fresh)
+        result = shot_cache.update_shots_cache(cached, fresh)
 
         # Invariant: updated_shots = fresh shots (all fresh data)
         assert len(result.updated_shots) == len(fresh)
@@ -606,7 +631,7 @@ class TestMergeResultCorrectness:
             fresh_keys = [(s["show"], s["sequence"], s["shot"]) for s in fresh]
             assert key not in fresh_keys
 
-    def test_scene_merge_result_invariants(self, cache_manager: CacheManager) -> None:
+    def test_scene_merge_result_invariants(self, scene_cache: SceneDiskCache) -> None:
         """Verify SceneMergeResult invariants hold."""
         now = datetime.now(UTC).timestamp()
         cached = [
@@ -618,7 +643,7 @@ class TestMergeResultCorrectness:
             make_scene_dict(shot="0030"),
         ]
 
-        result = cache_manager.merge_scenes_incremental(cached, fresh)
+        result = scene_cache.merge_scenes_incremental(cached, fresh)
 
         # Invariant: all updated_scenes have last_seen set
         for scene in result.updated_scenes:
@@ -632,20 +657,20 @@ class TestMergeResultCorrectness:
             ]
             assert key in updated_keys
 
-    def test_has_changes_flag_accuracy(self, cache_manager: CacheManager) -> None:
+    def test_has_changes_flag_accuracy(self, shot_cache: ShotDataCache) -> None:
         """has_changes flag accurately reflects actual changes."""
         shots = [make_shot_dict(shot="0010")]
 
         # No changes - same data
-        result1 = cache_manager.update_shots_cache(shots, shots)
+        result1 = shot_cache.update_shots_cache(shots, shots)
         assert result1.has_changes is False
 
         # Has changes - new shot
-        result2 = cache_manager.update_shots_cache(
+        result2 = shot_cache.update_shots_cache(
             shots, [*shots, make_shot_dict(shot="0020")]
         )
         assert result2.has_changes is True
 
         # Has changes - shot removed
-        result3 = cache_manager.update_shots_cache(shots, [])
+        result3 = shot_cache.update_shots_cache(shots, [])
         assert result3.has_changes is True

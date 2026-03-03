@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Third-party imports
@@ -11,7 +12,7 @@ from PySide6.QtCore import QObject, Signal
 
 
 if TYPE_CHECKING:
-    from cache_manager import CacheManager
+    from cache.shot_cache import ShotDataCache
     from protocols import ProcessPoolInterface
     from type_definitions import PerformanceMetricsDict, RefreshResult, Shot
 
@@ -50,7 +51,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
     def __init__(
         self,
-        cache_manager: CacheManager | None = None,
+        cache_manager: ShotDataCache | None = None,
         load_cache: bool = True,
         process_pool: ProcessPoolInterface | None = None,
     ) -> None:
@@ -64,12 +65,26 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         """
         super().__init__()
         # Local application imports
-        from cache_manager import (
-            CacheManager,
-        )
+        import os
+        import sys
+
+        if cache_manager is None:
+            from cache.shot_cache import ShotDataCache
+
+            test_cache_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
+            if test_cache_dir:
+                _default_dir = Path(test_cache_dir)
+            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
+                _default_dir = Path.home() / ".shotbot" / "cache_test"
+            elif os.getenv("SHOTBOT_MODE") == "mock":
+                _default_dir = Path.home() / ".shotbot" / "cache" / "mock"
+            else:
+                _default_dir = Path.home() / ".shotbot" / "cache" / "production"
+            _default_dir.mkdir(parents=True, exist_ok=True)
+            cache_manager = ShotDataCache(_default_dir)
 
         self.shots: list[Shot] = []
-        self.cache_manager: CacheManager = cache_manager or CacheManager()
+        self.cache_manager: ShotDataCache = cache_manager
         # Use OptimizedShotParser for improved performance
         self._parser: OptimizedShotParser = OptimizedShotParser()
         self._selected_shot: Shot | None = None

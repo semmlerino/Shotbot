@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, cast, final
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
 
 # Local application imports
-from cache_manager import CacheManager
+from cache.shot_cache import ShotDataCache
 from logging_mixin import LoggingMixin
 from previous_shots_finder import ParallelShotsFinder
 from previous_shots_worker import PreviousShotsWorker
@@ -42,7 +42,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
     def __init__(
         self,
         shot_model: BaseShotModel,
-        cache_manager: CacheManager | None = None,
+        cache_manager: ShotDataCache | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the previous shots model.
@@ -55,8 +55,24 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """
         super().__init__(parent)
 
+        if cache_manager is None:
+            import os
+            import sys
+
+            test_cache_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
+            if test_cache_dir:
+                _default_dir = Path(test_cache_dir)
+            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
+                _default_dir = Path.home() / ".shotbot" / "cache_test"
+            elif os.getenv("SHOTBOT_MODE") == "mock":
+                _default_dir = Path.home() / ".shotbot" / "cache" / "mock"
+            else:
+                _default_dir = Path.home() / ".shotbot" / "cache" / "production"
+            _default_dir.mkdir(parents=True, exist_ok=True)
+            cache_manager = ShotDataCache(_default_dir)
+
         self._shot_model = shot_model
-        self._cache_manager: CacheManager = cache_manager or CacheManager()
+        self._cache_manager: ShotDataCache = cache_manager
         self._finder = ParallelShotsFinder()
         self._previous_shots: list[Shot] = []
         self._is_scanning = False

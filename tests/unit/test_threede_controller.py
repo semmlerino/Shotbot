@@ -71,7 +71,7 @@ class ThreeDESceneModelDouble:
     def __init__(self, cache_manager: Any = None) -> None:
         self._scenes: list[ThreeDEScene] = []
         self._text_filter: str | None = None
-        self.cache_manager = cache_manager or CacheManagerDouble()
+        self.cache_manager = cache_manager or SceneDiskCacheDouble()
 
     @property
     def scenes(self) -> list[ThreeDEScene]:
@@ -172,8 +172,8 @@ class RightPanelDouble:
         self._current_shot = shot
 
 
-class CacheManagerDouble:
-    """Test double for CacheManager."""
+class SceneDiskCacheDouble:
+    """Test double for SceneDiskCache."""
 
     __test__ = False
 
@@ -233,7 +233,7 @@ class ThreeDETargetDouble:
         self.closing_started = SignalDouble()
 
         # Managers (create first since models may reference them)
-        self.cache_manager = CacheManagerDouble()
+        self.scene_disk_cache = SceneDiskCacheDouble()
         self.command_launcher = CommandLauncherDouble()
 
         # UI Components
@@ -241,10 +241,10 @@ class ThreeDETargetDouble:
         self.right_panel = RightPanelDouble()
         self.status_bar = StatusBarDouble()
 
-        # Models - pass shared cache_manager to scene model
+        # Models - pass shared scene_disk_cache to scene model
         self.shot_model = ShotModelDouble()
         self.threede_scene_model = ThreeDESceneModelDouble(
-            cache_manager=self.cache_manager
+            cache_manager=self.scene_disk_cache
         )
         self.threede_item_model = ThreeDEItemModelDouble()
 
@@ -652,7 +652,7 @@ class TestSceneUpdates:
         controller.update_scenes_with_changes(scenes)
 
         # Cache manager should have cached the scenes
-        assert len(window_double.cache_manager._cached_scenes) == 1
+        assert len(window_double.scene_disk_cache._cached_scenes) == 1
 
     def test_update_scenes_with_changes_updates_status_with_count(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
@@ -851,7 +851,7 @@ class TestCacheOperations:
 
         controller.cache_scenes()
 
-        cached = window_double.cache_manager._cached_scenes
+        cached = window_double.scene_disk_cache._cached_scenes
         assert len(cached) == 2
         assert cached[0]["show"] == "testshow"
         assert cached[0]["sequence"] == "sq010"

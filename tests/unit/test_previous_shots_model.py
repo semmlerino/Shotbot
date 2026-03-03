@@ -24,7 +24,7 @@ import pytest
 from PySide6.QtTest import QSignalSpy
 
 # Local application imports
-from cache_manager import CacheManager
+from cache.shot_cache import ShotDataCache
 from previous_shots_model import PreviousShotsModel
 from tests.fixtures.model_doubles import (
     FakePreviousShotsFinder,
@@ -86,14 +86,14 @@ class TestPreviousShotsModel:
         return cache_dir
 
     @pytest.fixture
-    def real_cache_manager(self, temp_cache_dir: Path) -> CacheManager:
+    def real_cache_manager(self, temp_cache_dir: Path) -> ShotDataCache:
         """Create real CacheManager with temporary storage."""
-        return CacheManager(cache_dir=temp_cache_dir)
+        return ShotDataCache(temp_cache_dir)
 
     @pytest.fixture
     def test_cache_manager(self, tmp_path: Path) -> TestCacheManager:
         """Create test double CacheManager with isolated cache directory."""
-        return TestCacheManager(cache_dir=tmp_path / "cache")
+        return TestCacheManager(tmp_path / "cache")
 
     @pytest.fixture
     def test_shot_model(self, qtbot: QtBot) -> Generator[FakeShotModel, None, None]:
@@ -147,7 +147,7 @@ class TestPreviousShotsModel:
     def model_with_real_cache(
         self,
         test_shot_model: FakeShotModel,
-        real_cache_manager: CacheManager,
+        real_cache_manager: ShotDataCache,
         qtbot: QtBot,
     ) -> Generator[PreviousShotsModel, None, None]:
         """Create model with real cache for integration tests."""
@@ -459,7 +459,7 @@ class TestPreviousShotsModel:
         cache_file = temp_cache_dir / "previous_shots.json"
         cache_file.write_text("invalid json")
 
-        cache_manager = CacheManager(cache_dir=temp_cache_dir)
+        cache_manager = ShotDataCache(temp_cache_dir)
 
         # Should handle error gracefully
         model = PreviousShotsModel(test_shot_model, cache_manager)
@@ -574,9 +574,9 @@ class TestPreviousShotsModelIntegration:
     @pytest.fixture
     def integration_setup(
         self, tmp_path: Path, qtbot: QtBot
-    ) -> Generator[tuple[PreviousShotsModel, FakeShotModel, CacheManager], None, None]:
+    ) -> Generator[tuple[PreviousShotsModel, FakeShotModel, ShotDataCache], None, None]:
         """Set up integration test with real components."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        cache_manager = ShotDataCache(tmp_path / "cache")
         shot_model = FakeShotModel()
         shot_model.set_shots(
             [
@@ -593,7 +593,7 @@ class TestPreviousShotsModelIntegration:
 
     def test_full_workflow(
         self,
-        integration_setup: tuple[PreviousShotsModel, FakeShotModel, CacheManager],
+        integration_setup: tuple[PreviousShotsModel, FakeShotModel, ShotDataCache],
         qtbot: QtBot,
     ) -> None:
         """Test complete workflow with real components."""

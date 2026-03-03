@@ -26,7 +26,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
 from base_item_model import BaseItemRole as UnifiedRole
-from cache_manager import CacheManager
 from runnable_tracker import get_tracker
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
@@ -93,20 +92,21 @@ class TestAsyncWorkflowIntegration:
     @pytest.fixture
     def integration_components(
         self, qapp: QApplication, qtbot: QtBot, temp_setup: tuple[Path, list[Path]]
-    ) -> Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]]:
+    ) -> Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]]:
         """Create integrated components for testing."""
+        from cache.thumbnail_cache import ThumbnailCache
         tmp_path, _ = temp_setup
 
-        # Use real cache manager with temp directory
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        # Use real thumbnail cache with temp directory
+        thumbnail_cache = ThumbnailCache(tmp_path / "cache")
 
         # Return factory function to create components in test context
-        def _create_components() -> tuple[ShotItemModel, ShotInfoPanel, CacheManager]:
+        def _create_components() -> tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]:
             # Create components - must be done in test method context
-            item_model = ShotItemModel(cache_manager)
-            info_panel = ShotInfoPanel(cache_manager)
+            item_model = ShotItemModel(thumbnail_cache)
+            info_panel = ShotInfoPanel(thumbnail_cache)
             qtbot.addWidget(info_panel)
-            return item_model, info_panel, cache_manager
+            return item_model, info_panel, thumbnail_cache
 
         return _create_components
 
@@ -114,7 +114,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_shot_selection_with_async_thumbnail_loading(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
@@ -162,7 +162,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_concurrent_model_updates_with_panel_sync(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
@@ -201,7 +201,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_rapid_shot_changes_stress_test(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
@@ -238,7 +238,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_memory_management_during_async_operations(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
@@ -270,7 +270,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_error_propagation_across_components(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
         test_shots: list[Shot],
         qtbot: QtBot,
         monkeypatch: pytest.MonkeyPatch,
@@ -352,8 +352,9 @@ class TestAsyncCallbackIntegration:
         image.fill(0xFF0000)
         image.save(str(image_path), "JPEG")
 
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        model = ShotItemModel(cache_manager)
+        from cache.thumbnail_cache import ThumbnailCache
+        thumbnail_cache = ThumbnailCache(tmp_path / "cache")
+        model = ShotItemModel(thumbnail_cache)
 
         # Mock get_thumbnail_path to return the test image
         monkeypatch.setattr(Shot, "get_thumbnail_path", lambda _: image_path)  # type: ignore[misc]
@@ -405,8 +406,9 @@ class TestAsyncCallbackIntegration:
         image.fill(0x00FF00)
         image.save(str(image_path), "JPEG")
 
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        panel = ShotInfoPanel(cache_manager)
+        from cache.thumbnail_cache import ThumbnailCache
+        thumbnail_cache = ThumbnailCache(tmp_path / "cache")
+        panel = ShotInfoPanel(thumbnail_cache)
         qtbot.addWidget(panel)
 
         # Mock get_thumbnail_path to return the test image

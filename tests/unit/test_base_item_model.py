@@ -25,8 +25,6 @@ if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
-    from cache_manager import CacheManager
-
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
@@ -450,14 +448,13 @@ class TestSetItems:
         This is an integration test that verifies the fix works end-to-end.
         """
         import tempfile
+        from pathlib import Path
 
-        from cache_manager import (
-            CacheManager,
-        )
+        from cache.thumbnail_cache import ThumbnailCache
 
         # Create temp cache directory
         with tempfile.TemporaryDirectory() as tmp_dir:
-            cache_manager = CacheManager(str(tmp_dir))
+            cache_manager = ThumbnailCache(Path(tmp_dir))
             model = ConcreteTestModel(cache_manager=cache_manager)
 
             shots = [
@@ -514,11 +511,12 @@ class TestSetItems:
         Instead loads min(30, item_count) initially.
         """
         import tempfile
+        from pathlib import Path
 
-        from cache_manager import CacheManager
+        from cache.thumbnail_cache import ThumbnailCache
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            cache_manager = CacheManager(str(tmp_dir))
+            cache_manager = ThumbnailCache(Path(tmp_dir))
             model = ConcreteTestModel(cache_manager=cache_manager)
 
             # Create 106 shots (typical user count from issue report)
@@ -551,14 +549,12 @@ class TestSetItems:
         Integration test: Verifies the complete thumbnail loading flow
         when a CacheManager is provided.
         """
-        from cache_manager import (
-            CacheManager,
-        )
+        from cache.thumbnail_cache import ThumbnailCache
 
         # Create cache manager with temp directory
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
-        cache_manager = CacheManager(str(cache_dir))
+        cache_manager = ThumbnailCache(cache_dir)
 
         model = ConcreteTestModel(cache_manager=cache_manager)
 

@@ -28,7 +28,6 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 # Local application imports
-from cache_manager import CacheManager
 from file_pin_manager import PINNED_FILES_CACHE_KEY, FilePinManager
 
 
@@ -36,16 +35,17 @@ from file_pin_manager import PINNED_FILES_CACHE_KEY, FilePinManager
 
 
 @pytest.fixture
-def cache_manager(tmp_path: Path) -> CacheManager:
-    """Create CacheManager with temporary directory."""
-    cache_dir = tmp_path / "test_cache"
-    return CacheManager(cache_dir=cache_dir)
+def cache_dir(tmp_path: Path) -> Path:
+    """Create temporary cache directory."""
+    path = tmp_path / "test_cache"
+    path.mkdir()
+    return path
 
 
 @pytest.fixture
-def file_pin_manager(cache_manager: CacheManager) -> Generator[FilePinManager, None, None]:
-    """Create FilePinManager with test cache manager."""
-    manager = FilePinManager(cache_manager)
+def file_pin_manager(cache_dir: Path) -> Generator[FilePinManager, None, None]:
+    """Create FilePinManager with test cache directory."""
+    manager = FilePinManager(cache_dir)
     yield manager
     # Cleanup: ensure QObject is deleted
     manager.deleteLater()
@@ -272,33 +272,33 @@ class TestPersistence:
     """Tests for cache persistence."""
 
     def test_comments_persist(
-        self, cache_manager: CacheManager, sample_file_paths: list[Path]
+        self, cache_dir: Path, sample_file_paths: list[Path]
     ) -> None:
         """Comments should persist across instances."""
         file_path = sample_file_paths[0]
         comment = "This is a persistent comment"
 
-        pm1 = FilePinManager(cache_manager)
+        pm1 = FilePinManager(cache_dir)
         pm1.pin_file(file_path, comment)
         pm1.deleteLater()
 
-        pm2 = FilePinManager(cache_manager)
+        pm2 = FilePinManager(cache_dir)
         assert pm2.get_comment(file_path) == comment
         pm2.deleteLater()
 
     def test_cache_file_format(
-        self, cache_manager: CacheManager, sample_file_paths: list[Path]
+        self, cache_dir: Path, sample_file_paths: list[Path]
     ) -> None:
         """Cache file should be valid JSON with expected format."""
         file_path = sample_file_paths[0]
         comment = "Test comment"
 
-        pm = FilePinManager(cache_manager)
+        pm = FilePinManager(cache_dir)
         pm.pin_file(file_path, comment)
         pm.deleteLater()
 
         # Read the cache file
-        cache_file = cache_manager.cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
+        cache_file = cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
         assert cache_file.exists()
 
         with cache_file.open() as f:
@@ -316,11 +316,11 @@ class TestCacheRecovery:
     """Tests for handling corrupted or missing cache."""
 
     def test_handles_partial_cache_data(
-        self, cache_manager: CacheManager
+        self, cache_dir: Path
     ) -> None:
         """Should skip entries with invalid structure."""
         # Write valid JSON with some invalid entries
-        cache_file = cache_manager.cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
+        cache_file = cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         data = {
             "/path/to/valid.3de": {"comment": "valid", "pinned_at": "2025-01-01"},
@@ -329,7 +329,7 @@ class TestCacheRecovery:
         }
         cache_file.write_text(json.dumps(data))
 
-        pm = FilePinManager(cache_manager)
+        pm = FilePinManager(cache_dir)
         assert pm.get_pinned_count() == 2  # Only valid entries loaded
         assert pm.is_pinned("/path/to/valid.3de")
         assert not pm.is_pinned("/path/to/invalid.3de")

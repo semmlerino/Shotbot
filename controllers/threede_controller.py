@@ -32,7 +32,7 @@ from PySide6.QtCore import (
 
 if TYPE_CHECKING:
     # Local application imports
-    from cache_manager import CacheManager
+    from cache.scene_cache_disk import SceneDiskCache
     from command_launcher import CommandLauncher
     from controllers.filter_coordinator import FilterableItemModel
 
@@ -70,7 +70,7 @@ class ThreeDETarget(Protocol):
     shot_model: ShotModel  # skylos: ignore
     threede_scene_model: ThreeDESceneModel  # skylos: ignore
     threede_item_model: ThreeDEItemModel  # skylos: ignore
-    cache_manager: CacheManager  # skylos: ignore
+    scene_disk_cache: SceneDiskCache  # skylos: ignore
     command_launcher: CommandLauncher  # skylos: ignore
 
     # Required methods
@@ -767,7 +767,7 @@ class ThreeDEController(LoggingMixin):
             cache.  An empty list indicates either no cache or no valid entries.
 
         """
-        cached_data = self.window.cache_manager.get_persistent_threede_scenes()
+        cached_data = self.window.scene_disk_cache.get_persistent_threede_scenes()
         if not cached_data:
             return []
 

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, final
 from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 
 # Local application imports
-from cache_manager import CacheManager
+from cache.latest_file_cache import LatestFileCache
 from config import Config
 from latest_file_finder_worker import LatestFileFinderWorker
 from launch import CommandBuilder, EnvironmentManager, ProcessExecutor
@@ -161,7 +161,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         self,
         parent: QObject | None = None,
         settings_manager: SettingsManager | None = None,
-        cache_manager: CacheManager | None = None,
+        cache_manager: LatestFileCache | None = None,
     ) -> None:
         """Initialize CommandLauncher with optional dependencies.
 
@@ -169,7 +169,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             parent: Optional parent QObject for proper Qt ownership
             settings_manager: Optional SettingsManager for configuration.
                 If not provided, creates a new instance.
-            cache_manager: Optional CacheManager for file caching.
+            cache_manager: Optional LatestFileCache for file caching.
                 If not provided, creates a new instance.
 
         """
@@ -181,7 +181,21 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         self._signal_connections: list[QMetaObject.Connection] = []
 
         # Cache manager for latest files
-        self._cache_manager = cache_manager or CacheManager()
+        if cache_manager is None:
+            import os
+            import sys
+            test_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
+            if test_dir:
+                default_dir = Path(test_dir)
+            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
+                default_dir = Path.home() / ".shotbot" / "cache_test"
+            elif os.getenv("SHOTBOT_MODE") == "mock":
+                default_dir = Path.home() / ".shotbot" / "cache" / "mock"
+            else:
+                default_dir = Path.home() / ".shotbot" / "cache" / "production"
+            default_dir.mkdir(parents=True, exist_ok=True)
+            cache_manager = LatestFileCache(default_dir)
+        self._cache_manager = cache_manager
 
         # Async file search state
         self._pending_worker: LatestFileFinderWorker | None = None

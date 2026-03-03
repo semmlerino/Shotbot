@@ -48,8 +48,8 @@ def mock_main_window() -> Mock:
     window.session_warmer.is_zombie = Mock(return_value=False)
 
     # Managers
-    window.cache_manager = Mock()
-    window.cache_manager.shutdown = Mock()
+    window.cache_coordinator = Mock()
+    window.cache_coordinator.shutdown = Mock()
 
     # Models
     window.shot_model = Mock()
@@ -132,7 +132,7 @@ class TestCleanupIntegration:
         assert mock_main_window.closing is True
         mock_main_window.threede_controller.cleanup_worker.assert_called_once()
         session_warmer.deleteLater.assert_called_once()
-        mock_main_window.cache_manager.shutdown.assert_called_once()
+        mock_main_window.cache_coordinator.shutdown.assert_called_once()
         mock_main_window.shot_model.cleanup.assert_called_once()
 
     def test_cleanup_with_partial_components(self) -> None:

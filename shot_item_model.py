@@ -17,7 +17,7 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
-    from cache_manager import CacheManager
+    from cache.thumbnail_cache import ThumbnailCache
     from notes_manager import NotesManager
     from pin_manager import PinManager
     from shot_model import Shot
@@ -39,7 +39,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
     def __init__(
         self,
-        cache_manager: CacheManager | None = None,
+        cache_manager: ThumbnailCache | None = None,
         pin_manager: PinManager | None = None,
         notes_manager: NotesManager | None = None,
         parent: QObject | None = None,

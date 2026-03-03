@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from cache_manager import CacheManager
+from cache.latest_file_cache import LatestFileCache
 from filesystem_coordinator import FilesystemCoordinator
 from filesystem_scanner import FileSystemScanner
 from scene_discovery_coordinator import SceneDiscoveryCoordinator
@@ -127,7 +127,7 @@ class TestLatestFileTTLConsistency:
 
     def test_expired_not_found_becomes_miss(self, tmp_path) -> None:
         """A cached None result past TTL should return 'miss', not stale 'not_found'."""
-        manager = CacheManager(cache_dir=tmp_path / "cache")
+        manager = LatestFileCache(tmp_path / "cache")
 
         # Cache a "not found" result
         manager.cache_latest_file("/workspace", "threede", None)
@@ -147,7 +147,7 @@ class TestLatestFileTTLConsistency:
 
     def test_active_not_found_within_ttl(self, tmp_path) -> None:
         """A cached None result within TTL should return 'not_found'."""
-        manager = CacheManager(cache_dir=tmp_path / "cache")
+        manager = LatestFileCache(tmp_path / "cache")
 
         # Cache a "not found" result
         manager.cache_latest_file("/workspace", "threede", None)

@@ -55,11 +55,8 @@ pytestmark = [
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow, CacheManager, Shot, ThreeDEScene, SceneFile, FileType  # noqa: PLW0603
+    global MainWindow, Shot, ThreeDEScene, SceneFile, FileType  # noqa: PLW0603
     # Local application imports
-    from cache_manager import (
-        CacheManager,
-    )
     from main_window import (
         MainWindow,
     )
@@ -99,17 +96,16 @@ class TestMainWindowInitialization:
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test that MainWindow initializes all required components and uses provided cache manager."""
-        # Use real cache manager with temp directory
+        # Use real cache directory
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir(exist_ok=True)
-        cache_manager = CacheManager(cache_dir=cache_dir)
 
         # Create main window with real components
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=cache_dir)
         qtbot.addWidget(main_window)
 
-        # Verify cache manager is used
-        assert main_window.cache_manager is cache_manager
+        # Verify cache coordinator is initialized (CacheManager is no longer stored as-is)
+        assert main_window.cache_coordinator is not None
 
         # Verify all critical components exist
         assert main_window.shot_model is not None
@@ -129,8 +125,8 @@ class TestMainWindowInitialization:
         main_window = MainWindow()
         qtbot.addWidget(main_window)
 
-        # Verify default cache manager exists
-        assert main_window.cache_manager is not None
+        # Verify default cache coordinator exists
+        assert main_window.cache_coordinator is not None
 
 
 class TestTabSwitching:
@@ -138,8 +134,7 @@ class TestTabSwitching:
 
     def test_switch_between_tabs(self, qtbot: QtBot, tmp_path: Path) -> None:
         """Test switching between different tabs."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Reset to first tab (settings may have restored a different tab from persistent storage)
@@ -167,8 +162,7 @@ class TestShotSelection:
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test that selecting a shot enables application launcher buttons."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Initially DCC section launch buttons should be disabled
@@ -193,8 +187,7 @@ class TestShotSelection:
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test that deselecting a shot disables application launcher buttons."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Select a shot first
@@ -222,8 +215,7 @@ class TestShotRefresh:
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test that MainWindow refresh delegates to the refresh orchestrator."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         with patch.object(main_window.refresh_orchestrator, "refresh_tab") as mock_refresh_tab:
@@ -240,8 +232,7 @@ class TestApplicationLaunching:
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
     ) -> None:
         """Test that launching an app without a shot shows an error."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Mock the workspace directory creation to avoid permission errors
@@ -270,8 +261,7 @@ class TestStatusBar:
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test that background load started signal shows status message."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Directly call the handler (simulating signal emission)
@@ -284,8 +274,7 @@ class TestStatusBar:
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test that applying show filter updates status bar with count."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Add some test shots
@@ -328,8 +317,7 @@ class TestMainWindowIntegration:
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test complete workflow: set a shot, select it, and launch an app."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         shows_root = Config.SHOWS_ROOT
@@ -366,8 +354,7 @@ class TestCrashRecovery:
         This is the bug fix test - crash recovery should work when a shot
         is selected from "My Shots" tab, not just when a 3DE scene is selected.
         """
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Create and select a shot (simulates clicking in "My Shots" tab)
@@ -411,8 +398,7 @@ class TestCrashRecovery:
         Scene selection clears current_shot, so crash recovery should use
         scene's workspace_path instead.
         """
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Create and select a 3DE scene (simulates clicking in "Other 3DE Scenes" tab)
@@ -462,8 +448,7 @@ class TestCrashRecovery:
         self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
     ) -> None:
         """Test crash recovery shows warning when no shot is selected."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Don't select any shot or scene
@@ -480,8 +465,7 @@ class TestCrashRecovery:
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
     ) -> None:
         """Test crash recovery shows info message when no crash files found."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Create and select a shot
@@ -506,8 +490,7 @@ class TestCrashRecovery:
         self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
     ) -> None:
         """Test crash recovery handles errors gracefully."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Create and select a shot
@@ -540,8 +523,7 @@ class TestRightPanelFileLaunch:
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
     ) -> None:
         """Test launching a selected file when shot is selected (My Shots tab)."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Select a shot (provides workspace context)
@@ -578,8 +560,7 @@ class TestRightPanelFileLaunch:
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
     ) -> None:
         """Test launching a selected file when 3DE scene is selected."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Select a 3DE scene (provides workspace context via selected_scene)
@@ -626,8 +607,7 @@ class TestRightPanelFileLaunch:
         self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
     ) -> None:
         """Test that launching without context shows an error."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Ensure no shot or scene is selected
@@ -655,8 +635,7 @@ class TestRightPanelFileLaunch:
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
     ) -> None:
         """Test that launch without selected_file uses standard launch_app."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Select a shot for context
@@ -686,8 +665,7 @@ class TestGetCurrentWorkspacePath:
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test returns workspace from current_shot when available."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Select a shot
@@ -703,8 +681,7 @@ class TestGetCurrentWorkspacePath:
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test returns workspace from selected_scene when no shot selected."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Select a 3DE scene without a shot
@@ -727,8 +704,7 @@ class TestGetCurrentWorkspacePath:
 
     def test_prefers_shot_over_scene(self, qtbot: QtBot, tmp_path: Path) -> None:
         """Test that shot workspace is preferred when both are available."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         shows_root = Config.SHOWS_ROOT
@@ -754,8 +730,7 @@ class TestGetCurrentWorkspacePath:
 
     def test_returns_none_when_no_context(self, qtbot: QtBot, tmp_path: Path) -> None:
         """Test returns None when neither shot nor scene is selected."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
         # Ensure no context

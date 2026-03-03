@@ -161,8 +161,8 @@ class SettingsManagerDouble:
         return True
 
 
-class CacheManagerDouble:
-    """Test double for CacheManager."""
+class CacheCoordinatorDouble:
+    """Test double for CacheCoordinator."""
 
     __test__ = False
 
@@ -191,7 +191,7 @@ class SettingsTargetDouble:
 
         # Widget references
         self.settings_manager = SettingsManagerDouble()
-        self.cache_manager = CacheManagerDouble()
+        self.cache_coordinator = CacheCoordinatorDouble()
         self.splitter = SplitterDouble()
         self.tab_widget = TabWidgetDouble()
         self.shot_grid = GridWidgetDouble()
@@ -363,7 +363,7 @@ class TestApplySettings:
 
         controller.apply_cache_settings()
 
-        assert window_double.cache_manager._expiry_minutes == 120
+        assert window_double.cache_coordinator._expiry_minutes == 120
 
     def test_on_settings_applied_updates_thumbnail_size(
         self, controller: SettingsController, window_double: SettingsTargetDouble

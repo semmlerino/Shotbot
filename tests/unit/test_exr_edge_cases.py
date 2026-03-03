@@ -43,7 +43,7 @@ pytestmark = [
 # Module-level fixture to handle lazy imports
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
-    """Import Qt and CacheManager components after test setup."""
+    """Import Qt and ThumbnailCache components after test setup."""
     global CacheManager, QCoreApplication, process_qt_events  # noqa: PLW0603
     # Third-party imports
     from PySide6.QtCore import (
@@ -51,8 +51,8 @@ def setup_qt_imports() -> None:
     )
 
     # Local application imports
-    from cache_manager import (
-        CacheManager,
+    from cache.thumbnail_cache import (
+        ThumbnailCache as CacheManager,
     )
     from tests.test_helpers import (
         process_qt_events,
@@ -67,7 +67,7 @@ class TestCorruptedFiles:
         bad_exr = tmp_path / "corrupted.exr"
         bad_exr.write_bytes(b"NOT_AN_EXR_HEADER" + b"x" * 100)
 
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        cache_manager = CacheManager(tmp_path / "cache")
 
         # Should not crash, return None
         result = cache_manager.cache_thumbnail(
@@ -85,7 +85,7 @@ class TestCorruptedFiles:
         assert result == empty_jpg  # Found the file
 
         # Cache manager should handle empty file
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        cache_manager = CacheManager(tmp_path / "cache")
         cached = cache_manager.cache_thumbnail(
             empty_jpg, show="test", sequence="seq", shot="0010"        )
 
@@ -98,7 +98,7 @@ class TestCorruptedFiles:
         # Write partial EXR magic number
         truncated.write_bytes(b"\x76\x2f\x31")  # Incomplete EXR header
 
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        cache_manager = CacheManager(tmp_path / "cache")
 
         # Test behavior: should handle gracefully without crashing
         result = cache_manager.cache_thumbnail(
@@ -167,7 +167,7 @@ class TestPermissionErrors:
         try:
             # _ensure_cache_dirs re-raises OSError so callers can detect failure
             with pytest.raises(OSError, match="Permission denied"):
-                CacheManager(cache_dir=cache_dir)
+                CacheManager(cache_dir)
         finally:
             if os.name != "nt":
                 cache_dir.chmod(stat.S_IRWXU)
@@ -221,7 +221,7 @@ class TestUnusualFormats:
         assert result == link_jpg
 
         # Cache manager should handle symlink
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        cache_manager = CacheManager(tmp_path / "cache")
         cached = cache_manager.cache_thumbnail(
             link_jpg, show="test", sequence="seq", shot="0010"        )
 
@@ -269,7 +269,7 @@ class TestConcurrentEdgeCases:
         exr_file = tmp_path / "vanishing.exr"
         exr_file.write_bytes(b"EXR" + b"x" * 1024)
 
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        cache_manager = CacheManager(tmp_path / "cache")
 
         def delete_file() -> None:
             import time
@@ -305,7 +305,7 @@ class TestConcurrentEdgeCases:
         exr_file = tmp_path / "changing.exr"
         exr_file.write_bytes(b"EXR" + b"x" * 1024)
 
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        cache_manager = CacheManager(tmp_path / "cache")
 
         def modify_file() -> None:
             import time
@@ -335,7 +335,22 @@ class TestResourceExhaustion:
         """Cache should clean up when cleared (simplified cache system)."""
         from PIL import Image
 
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        from cache import (
+            CacheCoordinator,
+            LatestFileCache,
+            SceneDiskCache,
+            ShotDataCache,
+        )
+        from cache.thumbnail_cache import ThumbnailCache
+
+        cache_dir = tmp_path / "cache"
+        thumbnail_cache = ThumbnailCache(cache_dir)
+        shot_cache = ShotDataCache(cache_dir)
+        scene_disk_cache = SceneDiskCache(cache_dir)
+        latest_file_cache = LatestFileCache(cache_dir)
+        coordinator = CacheCoordinator(
+            cache_dir, thumbnail_cache, shot_cache, scene_disk_cache, latest_file_cache
+        )
 
         # Create a real test image using PIL (avoids QImage C++ state issues)
         test_image = tmp_path / "test.jpg"
@@ -344,20 +359,20 @@ class TestResourceExhaustion:
 
         # Cache some thumbnails
         for i in range(10):
-            cache_manager.cache_thumbnail(
+            thumbnail_cache.cache_thumbnail(
                 test_image, show="test", sequence=f"seq{i}", shot=f"{i:04d}"
             )
 
         # Verify files exist
-        initial_usage = cache_manager.get_disk_usage()
+        initial_usage = coordinator.get_disk_usage()
         assert initial_usage["file_count"] > 0
         assert initial_usage["total_mb"] > 0
 
         # Clear cache should remove files
-        cache_manager.clear_cache()
+        coordinator.clear_cache()
 
         # Verify cleanup
-        final_usage = cache_manager.get_disk_usage()
+        final_usage = coordinator.get_disk_usage()
         assert (
             final_usage["file_count"] == 0
             or final_usage["total_mb"] < initial_usage["total_mb"]

@@ -23,7 +23,6 @@ from threede_grid_view import ThreeDEGridView
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-    from cache_manager import CacheManager
     from previous_shots_item_model import PreviousShotsItemModel
     from shot_item_model import ShotItemModel
     from threede_item_model import ThreeDEItemModel
@@ -74,7 +73,7 @@ def make_shot() -> Callable[[str, str, str], Shot]:
 def make_model(
     qtbot: QtBot,
     make_shot: Callable[[str, str, str], Shot],
-    cache_manager: CacheManager,
+    shot_cache: object,
     mock_process_pool_manager,
 ) -> Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel]:
     """Factory for creating test models with proper data."""
@@ -93,9 +92,9 @@ def make_model(
                 ShotModel,
             )
 
-            shot_model = ShotModel(cache_manager=cache_manager)
+            shot_model = ShotModel(cache_manager=shot_cache)
             shot_model._shots = shots
-            item_model = ShotItemModel(cache_manager=cache_manager)
+            item_model = ShotItemModel(cache_manager=None)
             # Properly initialize the item model with shots
             item_model.set_items(shots)
             return item_model
@@ -125,7 +124,7 @@ def make_model(
                 ThreeDEItemModel,
             )
 
-            item_model = ThreeDEItemModel(cache_manager=cache_manager)
+            item_model = ThreeDEItemModel(cache_manager=None)
             # Properly initialize the item model with scenes
             item_model.set_items(scenes)
             return item_model
@@ -142,10 +141,10 @@ def make_model(
             )
 
             # PreviousShotsModel requires a shot_model
-            shot_model = ShotModel(cache_manager=cache_manager)
+            shot_model = ShotModel(cache_manager=shot_cache)
             prev_model = PreviousShotsModel(shot_model)
             prev_model._shots = shots
-            item_model = PreviousShotsItemModel(prev_model, cache_manager=cache_manager)
+            item_model = PreviousShotsItemModel(prev_model, cache_manager=None)
             # Manually set items since UnifiedItemModel doesn't have _update_shots()
             item_model.set_items(shots)
             return item_model

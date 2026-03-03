@@ -36,7 +36,6 @@ from tests.test_helpers import process_qt_events
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-    from cache_manager import CacheManager
     from main_window import MainWindow
 
 # Lazy import to avoid Qt initialization at module level
@@ -53,14 +52,9 @@ pytestmark = [
 
 
 @pytest.fixture
-def real_cache_manager(tmp_path: Path) -> CacheManager:
-    """Create real CacheManager for testing."""
-    # Local application imports
-    from cache_manager import (
-        CacheManager,
-    )
-
-    return CacheManager(cache_dir=tmp_path / "test_cache")
+def real_cache_manager(tmp_path: Path) -> Path:
+    """Return cache directory path for MainWindow construction."""
+    return tmp_path / "test_cache"
 
 
 @pytest.fixture(autouse=True)
@@ -85,14 +79,14 @@ class TestMainWindowInitialization:
     """Test MainWindow initialization and basic properties."""
 
     @pytest.fixture
-    def main_window(self, qtbot: QtBot, real_cache_manager: CacheManager) -> MainWindow:
+    def main_window(self, qtbot: QtBot, real_cache_manager: Path) -> MainWindow:
         """Create MainWindow for testing."""
         # Local import to avoid module-level issues
         from main_window import (
             MainWindow,
         )
 
-        window = MainWindow(cache_manager=real_cache_manager)
+        window = MainWindow(cache_dir=real_cache_manager)
         qtbot.addWidget(window)
         return window
 
@@ -103,7 +97,7 @@ class TestMainWindowInitialization:
         # Window should be created
         assert window is not None
         assert isinstance(window, QMainWindow)
-        assert window.cache_manager is not None
+        assert window.cache_coordinator is not None
 
     def test_window_properties(self, main_window: MainWindow) -> None:
         """Test window has correct basic properties."""
@@ -128,15 +122,18 @@ class TestMainWindowInitialization:
         assert central_widget is not None
         assert isinstance(central_widget, QWidget)
 
-    def test_cache_manager_assignment(
-        self, main_window: MainWindow, real_cache_manager: CacheManager
+    def test_cache_sub_managers_created(
+        self, main_window: MainWindow
     ) -> None:
-        """Test cache manager is properly assigned."""
+        """Test cache sub-managers are properly created."""
         window = main_window
 
-        # Cache manager should be assigned
-        assert window.cache_manager == real_cache_manager
-        assert window.cache_manager is not None
+        # Cache sub-managers should be created
+        assert window.thumbnail_cache is not None
+        assert window.shot_cache is not None
+        assert window.scene_disk_cache is not None
+        assert window.latest_file_cache is not None
+        assert window.cache_coordinator is not None
 
 
 class TestMainWindowUIComponents:
@@ -144,7 +141,7 @@ class TestMainWindowUIComponents:
 
     @pytest.fixture
     def main_window_ui(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
+        self, qtbot: QtBot, real_cache_manager: Path
     ) -> MainWindow:
         """Create MainWindow with UI setup for testing."""
         # Local import to avoid module-level issues
@@ -152,7 +149,7 @@ class TestMainWindowUIComponents:
             MainWindow,
         )
 
-        window = MainWindow(cache_manager=real_cache_manager)
+        window = MainWindow(cache_dir=real_cache_manager)
         qtbot.addWidget(window)
         # Allow UI to initialize
         process_qt_events()
@@ -176,7 +173,7 @@ class TestMainWindowTabFunctionality:
 
     @pytest.fixture
     def tabbed_window(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
+        self, qtbot: QtBot, real_cache_manager: Path
     ) -> MainWindow:
         """Create MainWindow with tabs for testing."""
         # Local import to avoid module-level issues
@@ -184,7 +181,7 @@ class TestMainWindowTabFunctionality:
             MainWindow,
         )
 
-        window = MainWindow(cache_manager=real_cache_manager)
+        window = MainWindow(cache_dir=real_cache_manager)
         qtbot.addWidget(window)
         process_qt_events()
         return window
@@ -262,7 +259,7 @@ class TestMainWindowSignalConnections:
 
     @pytest.fixture
     def connected_window(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
+        self, qtbot: QtBot, real_cache_manager: Path
     ) -> MainWindow:
         """Create MainWindow with signal connections for testing."""
         # Local import to avoid module-level issues
@@ -270,7 +267,7 @@ class TestMainWindowSignalConnections:
             MainWindow,
         )
 
-        window = MainWindow(cache_manager=real_cache_manager)
+        window = MainWindow(cache_dir=real_cache_manager)
         qtbot.addWidget(window)
         process_qt_events()
         return window
@@ -280,7 +277,7 @@ class TestMainWindowStateManagement:
 
     @pytest.fixture
     def stateful_window(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
+        self, qtbot: QtBot, real_cache_manager: Path
     ) -> MainWindow:
         """Create MainWindow for state testing."""
         # Local import to avoid module-level issues
@@ -288,7 +285,7 @@ class TestMainWindowStateManagement:
             MainWindow,
         )
 
-        window = MainWindow(cache_manager=real_cache_manager)
+        window = MainWindow(cache_dir=real_cache_manager)
         qtbot.addWidget(window)
         window.show()
         qtbot.waitExposed(window)
@@ -378,26 +375,26 @@ class TestMainWindowStateManagement:
 class TestMainWindowErrorHandling:
     """Test MainWindow error handling and edge cases."""
 
-    def test_window_creation_with_no_cache_manager(self, qtbot: QtBot) -> None:
-        """Test window creates with default cache manager."""
+    def test_window_creation_with_default_cache(self, qtbot: QtBot) -> None:
+        """Test window creates with default cache directory."""
         # Local import to avoid module-level issues
         from main_window import (
             MainWindow,
         )
 
-        window = MainWindow(cache_manager=None)
+        window = MainWindow()
         qtbot.addWidget(window)
 
-        # Should create with default cache manager
+        # Should create with default cache sub-managers
         assert window is not None
-        assert window.cache_manager is not None
+        assert window.cache_coordinator is not None
 
 class TestMainWindowIntegration:
     """Test integration between MainWindow components."""
 
     @pytest.fixture
     def integrated_window(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
+        self, qtbot: QtBot, real_cache_manager: Path
     ) -> MainWindow:
         """Create fully integrated MainWindow for testing."""
         # Local import to avoid module-level issues
@@ -405,7 +402,7 @@ class TestMainWindowIntegration:
             MainWindow,
         )
 
-        window = MainWindow(cache_manager=real_cache_manager)
+        window = MainWindow(cache_dir=real_cache_manager)
         qtbot.addWidget(window)
         window.show()
         qtbot.waitExposed(window)

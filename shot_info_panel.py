@@ -4,6 +4,8 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -29,7 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 # Local application imports
-from cache_manager import CacheManager
+from cache.thumbnail_cache import ThumbnailCache
 from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import SceneFile
@@ -60,7 +62,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
 
     def __init__(
         self,
-        cache_manager: CacheManager | None = None,
+        cache_manager: ThumbnailCache | None = None,
         notes_manager: NotesManager | None = None,
         file_pin_manager: FilePinManager | None = None,
         parent: QWidget | None = None,
@@ -95,8 +97,6 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         # Additional safety check for QApplication type (relaxed for tests)
         # In test environments, QCoreApplication is acceptable since pytest-qt may create it
         # Standard library imports
-        import sys
-
         is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
 
         if not isinstance(app_instance, QApplication) and not is_test_environment:
@@ -109,7 +109,22 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         super().__init__(parent)
         self._current_shot: Shot | None = None
         self._empty_message: str = "No Shot Selected"
-        self.cache_manager: CacheManager = cache_manager or CacheManager()  # Make public
+
+        if cache_manager is not None:
+            self.cache_manager: ThumbnailCache = cache_manager
+        else:
+            test_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
+            if test_dir:
+                default_dir = Path(test_dir)
+            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
+                default_dir = Path.home() / ".shotbot" / "cache_test"
+            elif os.getenv("SHOTBOT_MODE") == "mock":
+                default_dir = Path.home() / ".shotbot" / "cache" / "mock"
+            else:
+                default_dir = Path.home() / ".shotbot" / "cache" / "production"
+            default_dir.mkdir(parents=True, exist_ok=True)
+            self.cache_manager = ThumbnailCache(default_dir)
+
         self._notes_manager = notes_manager
         self._file_pin_manager = file_pin_manager
         self._setup_ui()
@@ -590,7 +605,7 @@ class ThumbnailCacheRunnable(QRunnable):
     show: str
     sequence: str
     shot: str
-    cache_manager: CacheManager
+    cache_manager: ThumbnailCache
 
     def __init__(
         self,
@@ -598,7 +613,7 @@ class ThumbnailCacheRunnable(QRunnable):
         show: str,
         sequence: str,
         shot: str,
-        cache_manager: CacheManager,
+        cache_manager: ThumbnailCache,
     ) -> None:
         """Initialize the thumbnail cache runnable.
 
@@ -607,7 +622,7 @@ class ThumbnailCacheRunnable(QRunnable):
             show: Show name for cache organization
             sequence: Sequence name for cache organization
             shot: Shot name for cache organization
-            cache_manager: CacheManager instance for thumbnail caching
+            cache_manager: ThumbnailCache instance for thumbnail caching
 
         """
         super().__init__()

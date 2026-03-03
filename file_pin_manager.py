@@ -10,15 +10,11 @@ import json
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 from PySide6.QtCore import QObject, Signal
 
 from logging_mixin import LoggingMixin
-
-
-if TYPE_CHECKING:
-    from cache_manager import CacheManager
 
 
 # Cache key for pinned files
@@ -39,22 +35,22 @@ class FilePinManager(LoggingMixin, QObject):
     pin_changed: Signal = Signal(str)  # Emits file path when pin state changes
 
     # Instance variables (for type checking)
-    _cache_manager: CacheManager
+    _cache_dir: Path
 
     def __init__(
         self,
-        cache_manager: CacheManager,
+        cache_dir: Path,
         parent: QObject | None = None,
     ) -> None:
         """Initialize file pin manager.
 
         Args:
-            cache_manager: Cache manager for persistence
+            cache_dir: Directory for cache persistence
             parent: Optional parent QObject
 
         """
         super().__init__(parent)
-        self._cache_manager = cache_manager
+        self._cache_dir = cache_dir
         self._pins: dict[str, dict[str, str]] = {}
         self._load_pins()
 
@@ -161,7 +157,7 @@ class FilePinManager(LoggingMixin, QObject):
 
     def _load_pins(self) -> None:
         """Load pins from cache file."""
-        cache_file = self._cache_manager.cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
+        cache_file = self._cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
 
         if not cache_file.exists():
             self._pins = {}
@@ -201,7 +197,7 @@ class FilePinManager(LoggingMixin, QObject):
 
     def _save_pins(self) -> None:
         """Save pins to cache file (atomic write)."""
-        cache_file = self._cache_manager.cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
+        cache_file = self._cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
 
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
