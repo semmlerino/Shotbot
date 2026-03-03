@@ -38,7 +38,8 @@ class RefreshOrchestratorMainWindowProtocol(Protocol):
     previous_shots_model: PreviousShotsModel
     shot_item_model: ShotItemModel
     shot_grid: ShotGridView
-    last_selected_shot_name: str | None
+    @property
+    def last_selected_shot_name(self) -> str | None: ...
 
     def update_status(self, message: str) -> None:
         """Update the status bar with a message."""

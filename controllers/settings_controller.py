@@ -20,10 +20,14 @@ separation of concerns and easier testing.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast, overload
 
 # Third-party imports
-from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
+from PySide6.QtWidgets import (  # QWidget used in cast()
+    QFileDialog,
+    QMessageBox,
+    QWidget,
+)
 
 # Local application imports
 from config import Config
@@ -49,16 +53,19 @@ class SettingsTarget(Protocol):
     methods, widget references, and layout management capabilities.
     """
 
-    # Window geometry and state methods
-    def restoreGeometry(self, geometry: QByteArray) -> bool: ...
+    # Window geometry and state methods (positional-only params match Qt stubs)
+    def restoreGeometry(self, __geometry: QByteArray | bytes | bytearray) -> bool: ...
     def saveGeometry(self) -> QByteArray: ...
-    def restoreState(self, state: QByteArray) -> bool: ...
+    def restoreState(self, __state: QByteArray | bytes | bytearray, __version: int = ...) -> bool: ...
     def saveState(self) -> QByteArray: ...
     def isMaximized(self) -> bool: ...
     def showMaximized(self) -> None: ...
 
     # Overloaded resize signatures from QMainWindow
-    def resize(self, w: int, h: int) -> None: ...
+    @overload
+    def resize(self, __s: QSize, /) -> None: ...
+    @overload
+    def resize(self, __w: int, __h: int, /) -> None: ...
     def get_window_size(
         self,
     ) -> QSize | tuple[int, int]: ...  # Flexible return type for QSize or tuple

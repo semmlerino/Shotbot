@@ -75,7 +75,7 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     # Local application imports
-    from base_shot_model import BaseShotModel
+    from base_shot_model import BaseShotModel  # used in cast()
     from command_launcher import CommandLauncher
     from protocols import ProcessPoolInterface
     from scene_file import SceneFile
@@ -359,24 +359,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.notes_manager = NotesManager(_cache_dir, parent=self)
         self.file_pin_manager = FilePinManager(_cache_dir, parent=self)
 
-        # pyright: ignore[reportArgumentType] on the next two lines: QMainWindow is not a structural
-        # subtype of the Protocol classes (CleanupTarget, RefreshOrchestratorMainWindowProtocol)
-        # because pyright requires invariance for mutable Protocol attributes — e.g.
-        # MainWindow.threede_controller is typed ThreeDEController (not ThreeDEController | None).
-        # At runtime MainWindow satisfies all protocol requirements; the suppression is needed
-        # only because of pyright's strict invariance check on Protocol attribute assignability.
-        self.cleanup_manager = CleanupManager(self)  # pyright: ignore[reportArgumentType]
-        self.refresh_orchestrator = RefreshOrchestrator(self)  # pyright: ignore[reportArgumentType]
+        self.cleanup_manager = CleanupManager(self)
+        self.refresh_orchestrator = RefreshOrchestrator(self)
 
         self.settings_manager = SettingsManager()
         saved_scale = self.settings_manager.get_ui_scale()
         design_system.set_ui_scale(saved_scale)
         self.settings_dialog: SettingsDialog | None = None
 
-        # Initialize settings controller (refactored from MainWindow methods)
-        # MainWindow implements SettingsTarget protocol functionally at runtime
-        # QMainWindow signatures use position-only params which differ from Protocol
-        self.settings_controller = SettingsController(self)  # pyright: ignore[reportArgumentType]
+        self.settings_controller = SettingsController(self)
 
         self.threede_item_model = ThreeDEItemModel(cache_manager=self.thumbnail_cache)
 
@@ -407,22 +398,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # UI setup must come before controller initialization
         self._setup_ui()
 
-        # Initialize 3DE controller after UI widgets are created
-        # MainWindow implements ThreeDETarget protocol functionally at runtime
-        # QMainWindow position-only params differ from Protocol
-        self.threede_controller = ThreeDEController(self)  # pyright: ignore[reportArgumentType]
+        self.threede_controller = ThreeDEController(self)
 
-        # Initialize shot selection controller after UI widgets are created
-        # MainWindow implements ShotSelectionTarget protocol functionally at runtime
-        self.shot_selection_controller: ShotSelectionController = ShotSelectionController(self)  # pyright: ignore[reportArgumentType]
+        self.shot_selection_controller: ShotSelectionController = ShotSelectionController(self)
 
-        # Initialize filter coordinator for My Shots and Previous Shots filtering
-        # MainWindow implements FilterTarget protocol functionally at runtime
-        self.filter_coordinator: FilterCoordinator = FilterCoordinator(self)  # pyright: ignore[reportArgumentType]
+        self.filter_coordinator: FilterCoordinator = FilterCoordinator(self)
 
-        # Initialize thumbnail size manager for size synchronization across tabs
-        # MainWindow implements ThumbnailSizeTarget protocol functionally at runtime
-        self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)  # pyright: ignore[reportArgumentType]
+        self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)
 
         self._setup_menu()
         self._setup_accessibility()
@@ -673,11 +655,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         AccessibilityManager.setup_tab_widget_accessibility(self.tab_widget)
 
         # Add comprehensive tooltips
-        # MainWindow implements MainWindowProtocol functionally at runtime
-        # Protocol uses optional attributes checked with hasattr at runtime
-        AccessibilityManager.setup_comprehensive_tooltips(
-            self  # pyright: ignore[reportArgumentType]
-        )
+        AccessibilityManager.setup_comprehensive_tooltips(self)
 
 
     def _connect_signals(self) -> None:

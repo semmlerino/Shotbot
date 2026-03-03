@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from controllers.settings_controller import SettingsController
     from previous_shots_view import PreviousShotsView
     from right_panel import RightPanelWidget
-    from scene_file import FileType, SceneFile
+    from scene_file import FileType, SceneFile  # used in cast()
     from shot_grid_view import ShotGridView
     from shot_model import Shot
     from threede_grid_view import ThreeDEGridView
@@ -55,10 +55,13 @@ class ShotSelectionTarget(Protocol):
     settings_controller: SettingsController
 
     # State tracking
-    last_selected_shot_name: str | None
+    @property
+    def last_selected_shot_name(self) -> str | None: ...
+    @last_selected_shot_name.setter
+    def last_selected_shot_name(self, value: str | None) -> None: ...
 
     # Required methods
-    def setWindowTitle(self, title: str) -> None: ...
+    def setWindowTitle(self, __title: str) -> None: ...
     def update_status(self, message: str) -> None: ...
 
     # Closing state for guard checks

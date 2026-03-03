@@ -17,8 +17,10 @@ if TYPE_CHECKING:
     from command_launcher import CommandLauncher
     from controllers.shot_selection_controller import ShotSelectionController
     from controllers.threede_controller import ThreeDEController
+    from previous_shots_item_model import PreviousShotsItemModel
     from previous_shots_model import PreviousShotsModel
     from shot_model import ShotModel
+    from startup_coordinator import SessionWarmer
 
 
 @runtime_checkable
@@ -50,15 +52,24 @@ class CleanupTarget(Protocol):
     import cycles at runtime.
     """
 
-    closing: bool  # skylos: ignore
-    threede_controller: ThreeDEController | None  # skylos: ignore
-    shot_selection_controller: ShotSelectionController | None  # skylos: ignore
-    session_warmer: QObject | None  # skylos: ignore
+    @property
+    def closing(self) -> bool: ...  # skylos: ignore
+    @closing.setter
+    def closing(self, value: bool) -> None: ...  # skylos: ignore
+
+    threede_controller: ThreeDEController  # skylos: ignore
+    shot_selection_controller: ShotSelectionController  # skylos: ignore
+
+    @property
+    def session_warmer(self) -> SessionWarmer | None: ...  # skylos: ignore
+    @session_warmer.setter
+    def session_warmer(self, value: SessionWarmer | None) -> None: ...  # skylos: ignore
+
     cache_coordinator: CacheCoordinator  # skylos: ignore
     shot_model: ShotModel  # skylos: ignore
-    previous_shots_model: PreviousShotsModel | None  # skylos: ignore
-    previous_shots_item_model: QObject | None  # skylos: ignore
-    command_launcher: CommandLauncher | None
+    previous_shots_model: PreviousShotsModel  # skylos: ignore
+    previous_shots_item_model: PreviousShotsItemModel  # skylos: ignore
+    command_launcher: CommandLauncher
 
 
 class CleanupManager(QObject, LoggingMixin):
@@ -219,7 +230,7 @@ class CleanupManager(QObject, LoggingMixin):
             self.logger.debug("Cleaning up PreviousShotsItemModel")
             try:
                 item_model = self.main_window.previous_shots_item_model
-                if isinstance(item_model, Cleanable):
+                if isinstance(item_model, Cleanable):  # pyright: ignore[reportUnnecessaryIsInstance]
                     item_model.cleanup()
             except Exception:
                 self.logger.exception("Error cleaning up PreviousShotsItemModel")

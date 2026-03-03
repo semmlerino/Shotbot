@@ -4,6 +4,8 @@ Provides centralized accessibility support including screen reader compatibility
 keyboard navigation, and tooltip management.
 """
 
+# pyright: reportAttributeAccessIssue=false, reportUnknownMemberType=false
+
 from __future__ import annotations
 
 # Standard library imports
@@ -13,11 +15,9 @@ from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 # Qt imports needed at runtime for Protocol definitions
 
 if TYPE_CHECKING:
-    # Third-party imports
     from PySide6.QtGui import QAction
     from PySide6.QtWidgets import (
         QListView,
-        QPushButton,
         QSlider,
         QStatusBar,
         QTabWidget,
@@ -39,26 +39,17 @@ class GridWidget(Protocol):
 
 @runtime_checkable
 class MainWindowProtocol(Protocol):
-    """Protocol for main window with UI elements for accessibility setup."""
+    """Protocol for main window with UI elements for accessibility setup.
 
-    # Core window methods
-    def setTabOrder(self, first: QWidget, second: QWidget) -> None: ...
+    Only declares attributes that ARE instance attributes on MainWindow.
+    Other attributes (menu actions, app_buttons) are local variables in
+    _setup_menu() and are accessed via hasattr() guards at runtime.
+    """
 
-    # Menu actions (optional - checked with hasattr)
-    refresh_action: QAction | None  # skylos: ignore
-    settings_action: QAction | None  # skylos: ignore
-    exit_action: QAction | None  # skylos: ignore
-    increase_size_action: QAction | None  # skylos: ignore
-    decrease_size_action: QAction | None  # skylos: ignore
-    reset_layout_action: QAction | None  # skylos: ignore
-    shortcuts_action: QAction | None  # skylos: ignore
-    about_action: QAction | None  # skylos: ignore
-
-    # UI components (optional - checked with hasattr)
-    status_bar: QStatusBar | None  # skylos: ignore
-    tab_widget: QTabWidget | None  # skylos: ignore
-    shot_grid: GridWidget | None  # skylos: ignore
-    app_buttons: dict[str, QPushButton] | None  # skylos: ignore
+    # UI components that ARE instance attributes on MainWindow
+    refresh_action: QAction  # skylos: ignore
+    status_bar: QStatusBar  # skylos: ignore
+    tab_widget: QTabWidget  # skylos: ignore
 
 
 class AccessibilityManager:
@@ -150,7 +141,7 @@ class AccessibilityManager:
 
         """
         # File menu tooltips
-        if hasattr(window, "refresh_action") and window.refresh_action is not None:
+        if hasattr(window, "refresh_action") and window.refresh_action is not None:  # pyright: ignore[reportUnnecessaryComparison]
             window.refresh_action.setToolTip(
                 "Refresh shot list from workspace (Ctrl+R)"
             )
@@ -190,5 +181,5 @@ class AccessibilityManager:
             window.about_action.setToolTip("About ShotBot application")
 
         # Status bar tooltip
-        if hasattr(window, "status_bar") and window.status_bar is not None:
+        if hasattr(window, "status_bar") and window.status_bar is not None:  # pyright: ignore[reportUnnecessaryComparison]
             window.status_bar.setToolTip("Application status and messages")

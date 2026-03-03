@@ -22,7 +22,7 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QStatusBar
 
-    from base_shot_model import BaseShotModel
+    from base_shot_model import BaseShotModel  # used in cast()
     from previous_shots_item_model import PreviousShotsItemModel
     from previous_shots_model import PreviousShotsModel
     from previous_shots_view import PreviousShotsView
