@@ -133,6 +133,14 @@ class ShotGridView(BaseGridView):
         )
         layout.addWidget(self.recover_button)
 
+        self.publish_button = QPushButton("Publish  (P)")
+        self.publish_button.setToolTip("Launch publish_standalone for the selected shot")
+        self.publish_button.setEnabled(False)
+        _ = self.publish_button.clicked.connect(
+            lambda: self.app_launch_requested.emit("publish")
+        )
+        layout.addWidget(self.publish_button)
+
         # Push button to the right
         layout.addStretch()
 
@@ -310,6 +318,10 @@ class ShotGridView(BaseGridView):
             if shot:
                 self._selected_shot = shot
                 self.shot_selected.emit(shot)
+                self.publish_button.setEnabled(True)
+                return
+
+        self.publish_button.setEnabled(False)
 
     @override
     def _handle_visible_range_update(self, start: int, end: int) -> None:
@@ -738,6 +750,7 @@ class ShotGridView(BaseGridView):
             ("Nuke", "N", "nuke", "palette", "#FF8C00"),
             ("Maya", "M", "maya", "cube", "#9B59B6"),
             ("RV", "R", "rv", "play", "#2ECC71"),
+            ("Publish", "P", "publish", "clipboard", "#5D8A5E"),
         ]
         for label, shortcut, app_id, icon_type, color in launch_apps:
             action = launch_menu.addAction(f"{label}  ({shortcut})")
