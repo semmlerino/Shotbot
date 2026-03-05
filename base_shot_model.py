@@ -12,6 +12,7 @@ from PySide6.QtCore import QObject, Signal
 
 if TYPE_CHECKING:
     from cache.shot_cache import ShotDataCache
+    from hide_manager import HideManager
     from protocols import ProcessPoolInterface
     from type_definitions import PerformanceMetricsDict, RefreshResult, Shot
 
@@ -75,6 +76,8 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         self._selected_shot: Shot | None = None
         self._filter_show: str | None = None  # Show filter
         self._filter_text: str | None = None  # Text filter for real-time search
+        self._hide_manager: HideManager | None = None
+        self._show_hidden: bool = False
 
         # Initialize process pool - use provided instance or default singleton
         self._process_pool: ProcessPoolInterface = process_pool or ProcessPoolManager.get_instance()
@@ -361,10 +364,28 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         """Get the current text filter."""
         return self._filter_text
 
-    def get_filtered_shots(self) -> list[Shot]:
-        """Get shots filtered by show and text filters.
+    def set_hide_manager(self, hide_manager: HideManager) -> None:
+        """Set the hide manager.
 
-        Applies both show filter and text filter (AND logic).
+        Args:
+            hide_manager: Hide manager for tracking hidden shots
+
+        """
+        self._hide_manager = hide_manager
+
+    def set_show_hidden(self, show: bool) -> None:
+        """Set whether to include hidden shots in filtered results.
+
+        Args:
+            show: True to include hidden shots, False to exclude them
+
+        """
+        self._show_hidden = show
+
+    def get_filtered_shots(self) -> list[Shot]:
+        """Get shots filtered by show, text, and hide filters.
+
+        Applies show filter, text filter, and hide filter (AND logic).
 
         Returns:
             Filtered list of shots
@@ -374,8 +395,11 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
             self.shots, show=self._filter_show, text=self._filter_text
         )
 
+        if self._hide_manager and not self._show_hidden:
+            filtered = [s for s in filtered if not self._hide_manager.is_hidden(s)]
+
         self.logger.debug(
-            f"Filtered {len(self.shots)} shots to {len(filtered)} (show='{self._filter_show}', text='{self._filter_text}')"
+            f"Filtered {len(self.shots)} shots to {len(filtered)} (show='{self._filter_show}', text='{self._filter_text}', show_hidden={self._show_hidden})"
         )
         return filtered
 

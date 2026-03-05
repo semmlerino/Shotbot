@@ -69,6 +69,7 @@ from PySide6.QtWidgets import (
 
 from file_pin_manager import FilePinManager
 from notes_manager import NotesManager
+from hide_manager import HideManager
 from pin_manager import PinManager
 from typing_compat import override
 
@@ -356,6 +357,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
 
         self.pin_manager = PinManager(_cache_dir)
+        self.hide_manager = HideManager(_cache_dir)
         self.notes_manager = NotesManager(_cache_dir, parent=self)
         self.file_pin_manager = FilePinManager(_cache_dir, parent=self)
 
@@ -475,13 +477,16 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             cache_manager=self.thumbnail_cache,
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
+            hide_manager=self.hide_manager,
         )
         self.shot_item_model.set_shots(self.shot_model.shots)
         self.shot_grid = ShotGridView(
             model=self.shot_item_model,
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
+            hide_manager=self.hide_manager,
         )
+        self.shot_model.set_hide_manager(self.hide_manager)
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
 
         # Tab 2: Other 3DE scenes (using Model/View architecture)
@@ -702,6 +707,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.shot_grid.app_launch_requested.connect(
             self.command_launcher.launch_app
         )
+        _ = self.shot_grid.shot_visibility_changed.connect(
+            self._on_shot_visibility_changed
+        )
+        _ = self.shot_grid.show_hidden_changed.connect(self._on_show_hidden_changed)
 
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
@@ -815,6 +824,20 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         shots_changed signals via RefreshOrchestrator.
         """
         pass  # noqa: PIE790
+
+    def _on_shot_visibility_changed(self) -> None:
+        """Handle shot hide/unhide — refresh the shot grid display."""
+        self.shot_item_model.set_shots(self.shot_model.get_filtered_shots())
+
+    def _on_show_hidden_changed(self, show: bool) -> None:
+        """Handle Show Hidden checkbox toggle.
+
+        Args:
+            show: True to show hidden shots, False to hide them
+
+        """
+        self.shot_model.set_show_hidden(show)
+        self.shot_item_model.set_shots(self.shot_model.get_filtered_shots())
 
 
     def _on_cache_updated(self) -> None:

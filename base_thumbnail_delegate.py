@@ -68,6 +68,7 @@ class ThumbnailItemData(TypedDict, total=False):
     loading_state: str  # Loading state string
     is_selected: bool  # Selection state
     is_pinned: bool  # Pin state
+    is_hidden: bool  # Hidden state
     has_note: bool  # Note state
     frame_range: str  # Frame range display string
     user: str  # Optional - user name
@@ -235,6 +236,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
                 state & QStyle.StateFlag.State_Selected
             )
             is_pinned = data.get("is_pinned", False)
+            is_hidden = data.get("is_hidden", False)
 
             # Draw background (with pinned indicator)
             self._draw_background(painter, rect, is_hover, is_selected, is_pinned)
@@ -278,6 +280,13 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             # Draw note icon overlay (top-left, opposite of pin)
             has_note = data.get("has_note", False)
             self._draw_note_icon(painter, thumbnail_rect, has_note)
+
+            # Draw hidden overlay (dim the entire cell)
+            if is_hidden:
+                from PySide6.QtGui import QColor
+                painter.setOpacity(0.4)
+                painter.fillRect(rect, QColor(0, 0, 0, 180))
+                painter.setOpacity(1.0)
 
             # Draw text
             self._draw_text(painter, rect, data, is_selected)

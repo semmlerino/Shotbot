@@ -23,6 +23,7 @@ from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QCheckBox,
     QHBoxLayout,
     QInputDialog,
     QMenu,
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
+    from hide_manager import HideManager
     from notes_manager import NotesManager
     from pin_manager import PinManager
 
@@ -71,12 +73,15 @@ class ShotGridView(BaseGridView):
     shot_double_clicked = Signal(Shot)  # Shot object
     recover_crashes_requested = Signal()  # User clicked recover crashes button
     pin_shot_requested = Signal(Shot)  # User wants to pin a shot
+    shot_visibility_changed = Signal()  # Shot was hidden or unhidden
+    show_hidden_changed = Signal(bool)  # Show Hidden checkbox toggled
 
     def __init__(
         self,
         model: ShotItemModel | None = None,
         pin_manager: PinManager | None = None,
         notes_manager: NotesManager | None = None,
+        hide_manager: HideManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize the grid view.
@@ -85,6 +90,7 @@ class ShotGridView(BaseGridView):
             model: Optional shot item model
             pin_manager: Optional pin manager for pinning shots
             notes_manager: Optional notes manager for shot notes
+            hide_manager: Optional hide manager for hiding shots
             parent: Optional parent widget
 
         """
@@ -99,6 +105,7 @@ class ShotGridView(BaseGridView):
         self._selected_shot: Shot | None = None
         self._pin_manager: PinManager | None = pin_manager
         self._notes_manager: NotesManager | None = notes_manager
+        self._hide_manager: HideManager | None = hide_manager
 
         if model:
             self.set_model(model)
@@ -140,6 +147,11 @@ class ShotGridView(BaseGridView):
             lambda: self.app_launch_requested.emit("publish")
         )
         layout.addWidget(self.publish_button)
+
+        self.show_hidden_checkbox = QCheckBox("Show Hidden")
+        self.show_hidden_checkbox.setToolTip("Show hidden shots (dimmed)")
+        _ = self.show_hidden_checkbox.toggled.connect(self._on_show_hidden_toggled)
+        layout.addWidget(self.show_hidden_checkbox)
 
         # Push button to the right
         layout.addStretch()
@@ -725,6 +737,20 @@ class ShotGridView(BaseGridView):
                 lambda checked=False, s=shot: self._pin_shot(s)  # noqa: ARG005
             )
 
+        # Hide/Unhide shot action
+        if self._hide_manager and self._hide_manager.is_hidden(shot):
+            unhide_action = menu.addAction("Unhide Shot")
+            unhide_action.setIcon(self._create_icon("note", "#888888"))
+            _ = unhide_action.triggered.connect(
+                lambda checked=False, s=shot: self._unhide_shot(s)  # noqa: ARG005
+            )
+        else:
+            hide_action = menu.addAction("Hide Shot")
+            hide_action.setIcon(self._create_icon("note", "#888888"))
+            _ = hide_action.triggered.connect(
+                lambda checked=False, s=shot: self._hide_shot(s)  # noqa: ARG005
+            )
+
         _ = menu.addSeparator()
 
         # Primary action: Open Shot Folder
@@ -910,6 +936,46 @@ class ShotGridView(BaseGridView):
 
         """
         self._pin_manager = pin_manager
+
+    def set_hide_manager(self, hide_manager: HideManager) -> None:
+        """Set the hide manager.
+
+        Args:
+            hide_manager: Hide manager for hiding shots
+
+        """
+        self._hide_manager = hide_manager
+
+    def _hide_shot(self, shot: Shot) -> None:
+        """Hide a shot.
+
+        Args:
+            shot: Shot to hide
+
+        """
+        if self._hide_manager:
+            self._hide_manager.hide_shot(shot)
+            self.shot_visibility_changed.emit()
+
+    def _unhide_shot(self, shot: Shot) -> None:
+        """Unhide a shot.
+
+        Args:
+            shot: Shot to unhide
+
+        """
+        if self._hide_manager:
+            self._hide_manager.unhide_shot(shot)
+            self.shot_visibility_changed.emit()
+
+    def _on_show_hidden_toggled(self, checked: bool) -> None:
+        """Handle Show Hidden checkbox toggle.
+
+        Args:
+            checked: Whether the checkbox is checked
+
+        """
+        self.show_hidden_changed.emit(checked)
 
 
 # Example usage

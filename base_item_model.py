@@ -165,7 +165,8 @@ class BaseItemRole(IntEnum):
         Qt.ItemDataRole.UserRole + 22
     )  # scene.scene_path for ThreeDEScene
     ModifiedTimeRole = Qt.ItemDataRole.UserRole + 23  # File modification timestamp
-    HasNoteRole = Qt.ItemDataRole.UserRole + 24  # Whether shot has a note
+    HasNoteRole = Qt.ItemDataRole.UserRole + 24
+    IsHiddenRole = Qt.ItemDataRole.UserRole + 25  # Whether shot has a note
 
 
 class BaseItemModel(
