@@ -691,6 +691,9 @@ class TestUserWorkflows:
         main_window.command_launcher.set_current_shot(test_shot)
         assert main_window.command_launcher.current_shot == test_shot
 
+        # Pre-populate rez cache so test doesn't fail on missing rez binary
+        main_window.command_launcher.env_manager._rez_available_cache = True
+
         with (
             patch(
                 "launch.process_executor.subprocess.Popen",

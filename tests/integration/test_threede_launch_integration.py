@@ -70,11 +70,13 @@ def sample_scene() -> ThreeDEScene:
 @pytest.fixture
 def launcher(qapp: Any) -> CommandLauncher:
     """Create a CommandLauncher instance with mocked dependencies."""
-    # Mock the settings manager
-    with patch("command_launcher.SettingsManager") as mock_settings:
+    with patch("command_launcher.EnvironmentManager.warm_cache_async"), \
+         patch("command_launcher.SettingsManager") as mock_settings:
         mock_settings.return_value.get_terminal_emulator.return_value = "gnome-terminal"
 
         launcher = CommandLauncher()
+        # Pre-populate rez cache so tests don't fail on missing rez binary
+        launcher.env_manager._rez_available_cache = True
         yield launcher
 
         # Cleanup
