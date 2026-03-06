@@ -43,3 +43,10 @@ skylos_output.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# AI tool config dirs
+.claude/
+.kiro/
+.windsurf/
+.geminiignore
+.serena/
