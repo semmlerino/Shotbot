@@ -23,7 +23,7 @@ from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 
 # Local application imports
 from cache.latest_file_cache import LatestFileCache
-from config import Config
+from config import Config, RezMode
 from latest_file_finder_worker import LatestFileFinderWorker
 from launch import (
     AppHandler,
@@ -746,42 +746,45 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             )
             return False
 
-        # Build full command with ws (workspace setup)
+        # Build app command first; workspace setup stays outside the Rez wrapper.
         try:
             safe_workspace_path = CommandBuilder.validate_path(workspace_path)
             env_fixes = self._apply_nuke_environment_fixes(app_name, nuke_env_context)
-            ws_command = f"ws {safe_workspace_path} && {command_prefix}{env_fixes}{command}"
+            app_command = f"{command_prefix}{env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Determine if rez wrapping should be applied
-        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
-        if should_wrap_rez:
+        has_rez_wrapper = False
+        if Config.REZ_MODE != RezMode.DISABLED:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
-            if rez_packages:
-                full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
-                packages_str = " ".join(rez_packages)
-                self.command_executed.emit(
-                    self.timestamp,
-                    f"Using rez environment with packages: {packages_str}",
+            if not rez_packages:
+                self._emit_error(
+                    f"Cannot launch {app_name}: no Rez packages are configured for this application."
                 )
-            else:
-                full_command = ws_command
-                should_wrap_rez = False  # No packages means no actual rez wrapper
+                return False
+            if not self.env_manager.should_wrap_with_rez(Config):
+                self._emit_error(
+                    f"Cannot launch {app_name}: Rez is required, but the 'rez' command was not found on PATH."
+                )
+                return False
+
+            app_command = CommandBuilder.wrap_with_rez(app_command, rez_packages)
+            has_rez_wrapper = True
+            packages_str = " ".join(rez_packages)
+            self.command_executed.emit(
+                self.timestamp,
+                f"Using rez environment with packages: {packages_str}",
+            )
         else:
-            full_command = ws_command
-            # Emit message explaining why Rez wrapping is skipped
-            if os.environ.get("REZ_USED"):
-                self.command_executed.emit(
-                    self.timestamp,
-                    f"Note: Already in rez environment - skipping rez wrap for {app_name}",
-                )
-            else:
-                self.command_executed.emit(
-                    self.timestamp,
-                    f"Note: Using system PATH version of {app_name}",
-                )
+            self.command_executed.emit(
+                self.timestamp,
+                f"Rez disabled in config - launching {app_name} without explicit Rez context",
+            )
+
+        full_command = CommandBuilder.build_workspace_command(
+            safe_workspace_path, app_command
+        )
 
         # Add logging redirection for debugging
         full_command = CommandBuilder.add_logging(full_command, Config)
@@ -799,7 +802,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
 
         # Execute launch
         return self._launch_in_new_terminal(
-            full_command, app_name, error_context, has_rez_wrapper=should_wrap_rez
+            full_command, app_name, error_context, has_rez_wrapper=has_rez_wrapper
         )
 
     def _clear_pending_state(self) -> None:

@@ -154,22 +154,22 @@ class TestRezWrapping:
         packages = ["nuke"]
         result = CommandBuilder.wrap_with_rez(command, packages)
         # shlex.quote('nuke') returns 'nuke' (no quotes needed for simple strings)
-        assert result == "rez env nuke -- bash -ilc nuke"
+        assert result == "rez env nuke -- bash -lc nuke"
 
     def test_rez_wrap_multiple_packages(self) -> None:
         """Test wrapping command with multiple Rez packages."""
         command = "nuke"
         packages = ["nuke", "nuke-plugins", "ocio"]
         result = CommandBuilder.wrap_with_rez(command, packages)
-        assert result == "rez env nuke nuke-plugins ocio -- bash -ilc nuke"
+        assert result == "rez env nuke nuke-plugins ocio -- bash -lc nuke"
 
     def test_rez_wrap_preserves_complex_command(self) -> None:
         """Test that Rez wrapping preserves complex commands."""
-        command = "ws /workspace && NUKE_CRASH_REPORTS=0 && nuke"
+        command = "NUKE_CRASH_REPORTS=0 && nuke"
         packages = ["nuke"]
         result = CommandBuilder.wrap_with_rez(command, packages)
         # shlex.quote() wraps complex commands with special chars in single quotes
-        assert result == "rez env nuke -- bash -ilc 'ws /workspace && NUKE_CRASH_REPORTS=0 && nuke'"
+        assert result == "rez env nuke -- bash -lc 'NUKE_CRASH_REPORTS=0 && nuke'"
 
     def test_rez_wrap_escapes_double_quotes(self) -> None:
         """Test that Rez wrapping properly escapes commands with double quotes.
@@ -181,7 +181,7 @@ class TestRezWrapping:
         packages = ["nuke"]
         result = CommandBuilder.wrap_with_rez(command, packages)
         # shlex.quote() wraps in single quotes to preserve internal double quotes
-        assert result == "rez env nuke -- bash -ilc 'nuke -F \"ShotBot Template\"'"
+        assert result == "rez env nuke -- bash -lc 'nuke -F \"ShotBot Template\"'"
 
     def test_rez_wrap_escapes_single_quotes(self) -> None:
         """Test that Rez wrapping handles commands with single quotes."""
@@ -198,7 +198,7 @@ class TestRezWrapping:
         packages = ["maya"]
         result = CommandBuilder.wrap_with_rez(command, packages)
         # Verify the command is properly quoted
-        assert "rez env maya -- bash -ilc" in result
+        assert "rez env maya -- bash -lc" in result
         # Verify command is preserved (exact format depends on shlex.quote implementation)
         assert "loadPlugin" in result
         assert "shotbot" in result
@@ -386,12 +386,12 @@ class TestFullCommandAssembly:
         # 1. Nuke fixes
         assert "NUKE_PATH" in result or "NUKE_CRASH_REPORTS=0" in result
 
-        # 2. Workspace (may be quoted differently by shlex.quote)
+        # 2. Rez wrapping
+        assert "rez env nuke nuke-plugins -- bash -lc" in result
+
+        # 3. Workspace (may be quoted differently by shlex.quote)
         assert "ws" in result
         assert "workspace/path" in result
-
-        # 3. Rez wrapping
-        assert "rez env nuke nuke-plugins -- bash -ilc" in result
 
         # 4. Logging
         assert "tee -a" in result
@@ -419,7 +419,7 @@ class TestFullCommandAssembly:
             add_logging_redirect=False,
         )
         # shlex.quote() doesn't add quotes for simple strings without special chars
-        assert result == "rez env nuke -- bash -ilc nuke"
+        assert result == "rez env nuke -- bash -lc nuke"
 
     def test_command_with_nuke_fixes_only(self, mock_config: MagicMock) -> None:
         """Test building command with Nuke fixes only."""
@@ -450,10 +450,9 @@ class TestFullCommandAssembly:
             add_logging_redirect=False,
         )
 
-        # Order should be: fixes -> workspace -> rez
-        # shlex.quote() wraps complex commands with special chars in single quotes
-        assert result.startswith("rez env nuke -- bash -ilc")
-        # Then workspace
+        # Order should be: fixes -> rez -> workspace
+        assert result.startswith("ws '/ws' && rez env nuke -- bash -lc")
+        # Workspace stays outside the Rez wrapper so ws is resolved by the studio shell.
         assert "ws" in result
         assert "/ws" in result
         # Then original command with Nuke fixes

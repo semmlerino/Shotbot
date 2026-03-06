@@ -147,26 +147,18 @@ class ProcessExecutor(QObject):
         Args:
             terminal: Terminal emulator name, or None for headless execution
             command: The command to execute
-            has_rez_wrapper: If True, command already contains 'bash -ilc' for rez context.
-                Use non-interactive shell for outer terminal (~50ms faster).
+            has_rez_wrapper: Retained for API compatibility. Launcher commands
+                always use bash -ilc so studio shell functions like 'ws' are available.
 
         Returns:
             Command list suitable for subprocess.Popen
 
         Notes:
-            When rez wrapping is present, the command already contains 'bash -ilc'
-            to ensure shell functions (like 'ws') are available inside the rez
-            environment. Using 'sh -c' for the outer shell avoids double-loading
-            of .bashrc and reduces startup latency.
+            Launcher commands always use bash -ilc because the outer shell is
+            responsible for studio workspace bootstrapping before any Rez command.
 
         """
-        # When rez wrapper is present, use sh -c for outer shell (faster, ~50ms saved)
-        # The inner bash -ilc inside rez provides the interactive context for ws
-        shell_cmd = (
-            ["/bin/sh", "-c", command]
-            if has_rez_wrapper
-            else ["/bin/bash", "-ilc", command]
-        )
+        shell_cmd = ["/bin/bash", "-ilc", command]
 
         # Log the shell command for debugging file dialog issues
         logger.debug(f"Shell command (rez_wrapper={has_rez_wrapper}): {shell_cmd}")
@@ -203,8 +195,7 @@ class ProcessExecutor(QObject):
             command: Command to execute
             app_name: Application name (for error messages and verification)
             terminal: Terminal emulator name, or None for headless execution
-            has_rez_wrapper: If True, command contains rez wrapper with inner bash -ilc.
-                Enables shell optimization (sh -c instead of bash -ilc for outer shell).
+            has_rez_wrapper: Retained for API compatibility.
 
         Returns:
             Popen object on success, None on failure
@@ -212,7 +203,6 @@ class ProcessExecutor(QObject):
         Notes:
             - If terminal is None, executes directly via bash (headless mode)
             - Uses bash -ilc for interactive login shell (loads workspace functions)
-            - When has_rez_wrapper=True, uses sh -c for outer shell (~50ms faster)
             - Schedules process verification after 100ms
 
         """

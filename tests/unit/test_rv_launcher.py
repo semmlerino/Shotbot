@@ -24,18 +24,47 @@ class TestOpenPlateInRV:
     @patch("rv_launcher.subprocess.Popen")
     @patch("publish_plate_finder.find_main_plate", return_value="/path/to/plate.exr")
     def test_launches_rv_with_correct_command(self, mock_find, mock_popen):
-        """Successfully launches RV with correct flags."""
-        open_plate_in_rv("/some/workspace")
+        """Successfully launches RV through Rez with correct flags."""
+        with patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"):
+            open_plate_in_rv("/some/workspace")
         mock_popen.assert_called_once()
         args = mock_popen.call_args[0][0]
-        assert args[0] == "bash"
-        assert "-ilc" in args
+        assert args[:3] == ["rez", "env", "rv"]
+        assert args[3] == "--"
+        assert "setPlayMode(2)" in args
+
+    @patch("publish_plate_finder.find_main_plate", return_value="/path/to/plate.exr")
+    def test_missing_rv_rez_packages_shows_error(self, mock_find):
+        """Missing RV package configuration fails closed."""
+        with (
+            patch("config.Config.REZ_RV_PACKAGES", []),
+            patch("notification_manager.error") as mock_notify,
+        ):
+            open_plate_in_rv("/some/workspace")
+
+        mock_notify.assert_called_once()
+        assert "RV Launch Failed" in mock_notify.call_args[0][0]
+
+    @patch("publish_plate_finder.find_main_plate", return_value="/path/to/plate.exr")
+    def test_missing_rez_command_shows_error(self, mock_find):
+        """Missing rez executable fails closed instead of using raw PATH RV."""
+        with (
+            patch("launch.environment_manager.shutil.which", return_value=None),
+            patch("notification_manager.error") as mock_notify,
+        ):
+            open_plate_in_rv("/some/workspace")
+
+        mock_notify.assert_called_once()
+        assert "RV Launch Failed" in mock_notify.call_args[0][0]
 
     @patch("rv_launcher.subprocess.Popen", side_effect=FileNotFoundError)
     @patch("publish_plate_finder.find_main_plate", return_value="/path/to/plate.exr")
     def test_rv_not_found_error(self, mock_find, mock_popen):
         """FileNotFoundError shows RV Not Found notification."""
-        with patch("notification_manager.error") as mock_notify:
+        with (
+            patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"),
+            patch("notification_manager.error") as mock_notify,
+        ):
             open_plate_in_rv("/some/workspace")
             mock_notify.assert_called_once()
             assert "RV Not Found" in mock_notify.call_args[0][0]
@@ -44,7 +73,10 @@ class TestOpenPlateInRV:
     @patch("publish_plate_finder.find_main_plate", return_value="/path/to/plate.exr")
     def test_generic_launch_error(self, mock_find, mock_popen):
         """Generic exception shows RV Launch Failed notification."""
-        with patch("notification_manager.error") as mock_notify:
+        with (
+            patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"),
+            patch("notification_manager.error") as mock_notify,
+        ):
             open_plate_in_rv("/some/workspace")
             mock_notify.assert_called_once()
             assert "RV Launch Failed" in mock_notify.call_args[0][0]

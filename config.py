@@ -73,12 +73,13 @@ class RezMode(Enum):
     """Never wrap with rez. Use this when rez is not available or not wanted."""
 
     AUTO = auto()
-    """Skip wrapping if REZ_USED env var is set (shell init provides rez).
-    This is the default for BlueBolt environment where shell init handles rez."""
+    """Resolve the configured app-specific Rez packages for each DCC launch.
+    This is the default because a base Rez shell is not assumed to contain the
+    correct Maya/Nuke/RV context."""
 
     FORCE = auto()
-    """Always wrap with app-specific rez packages. Use when you need explicit
-    rez package resolution regardless of current environment state."""
+    """Always wrap with app-specific rez packages.
+    Reserved for callers that want the most explicit deterministic behavior."""
 
 
 class Config:
@@ -117,10 +118,9 @@ class Config:
     DEFAULT_APP: str = "nuke"
 
     # Rez Environment Configuration
-    # The new RezMode enum replaces the legacy boolean flags below.
-    # - DISABLED: Never wrap with rez
-    # - AUTO: Skip if REZ_USED is set (shell init provides rez) - BlueBolt default
-    # - FORCE: Always wrap with app-specific packages
+    # - DISABLED: Never launch through Rez
+    # - AUTO: Resolve the configured app packages for each DCC launch
+    # - FORCE: Reserved for callers that want explicit deterministic wrapping
     REZ_MODE: RezMode = RezMode.AUTO
 
     # Launch Verification Configuration
@@ -138,6 +138,7 @@ class Config:
     ]  # Default rez packages for Nuke with Python 3.11 compatibility
     REZ_MAYA_PACKAGES: ClassVar[list[str]] = ["maya"]  # Default rez packages for Maya
     REZ_3DE_PACKAGES: ClassVar[list[str]] = ["3de"]  # Default rez packages for 3DE
+    REZ_RV_PACKAGES: ClassVar[list[str]] = ["rv"]  # Default rez packages for RV
     REZ_PUBLISH_PACKAGES: ClassVar[list[str]] = ["publish_standalone"]  # Rez packages for publish tool
 
     NUKE_FIX_OCIO_CRASH: bool = (

@@ -99,7 +99,7 @@ class EnvironmentManager:
 
         Uses the new RezMode enum for cleaner configuration:
             - DISABLED: Never wrap with rez
-            - AUTO: Skip if REZ_USED is set (shell init provides rez)
+            - AUTO: Resolve configured app packages for each DCC launch
             - FORCE: Always wrap with app-specific packages
 
         Args:
@@ -116,20 +116,17 @@ class EnvironmentManager:
             logger.debug("Rez wrapping DISABLED via RezMode.DISABLED")
             return False
 
-        # AUTO mode: skip if already in rez environment
-        if config.REZ_MODE == RezMode.AUTO:
-            if os.environ.get("REZ_USED"):
-                logger.debug(
-                    "Rez wrapping skipped: already in rez environment (REZ_USED set)"
-                )
-                return False
+        if config.REZ_MODE == RezMode.AUTO and os.environ.get("REZ_USED"):
+            logger.debug(
+                "REZ_USED is set, but launcher will still resolve explicit app packages"
+            )
 
-        # FORCE mode or AUTO without REZ_USED: check if rez command exists
+        # AUTO/FORCE mode: require the rez command to be available
         if self._rez_available_cache is None:
             self._rez_available_cache = shutil.which("rez") is not None
 
         if not self._rez_available_cache:
-            logger.warning("Rez wrapping skipped: 'rez' command not found in PATH")
+            logger.warning("Rez wrapping unavailable: 'rez' command not found in PATH")
             return False
 
         logger.debug("Rez wrapping ENABLED")
@@ -153,20 +150,7 @@ class EnvironmentManager:
         in the interactive shell profile (.bashrc), not a binary on PATH.
         shutil.which() only finds binaries, so we need bash to detect the function.
 
-        Performance optimization:
-            If REZ_USED is set, the shell environment is already properly initialized
-            (Rez sets this during shell startup at BlueBolt). Skip the check to avoid
-            the subprocess overhead - we can assume ws is available.
-
         """
-        # Fast path: if we're in a rez environment, ws is definitely available
-        # (BlueBolt's shell init chain sets up both rez and ws together)
-        if os.environ.get("REZ_USED"):
-            if self._ws_available_cache is None:
-                logger.debug("REZ_USED is set - assuming ws is available")
-                self._ws_available_cache = True
-            return self._ws_available_cache
-
         if self._ws_available_cache is not None:
             return self._ws_available_cache
 
@@ -227,6 +211,7 @@ class EnvironmentManager:
             "nuke": config.REZ_NUKE_PACKAGES,
             "maya": config.REZ_MAYA_PACKAGES,
             "3de": config.REZ_3DE_PACKAGES,
+            "rv": config.REZ_RV_PACKAGES,
             "publish": config.REZ_PUBLISH_PACKAGES,
         }
         packages = package_map.get(app_name, [])

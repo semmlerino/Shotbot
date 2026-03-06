@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from config import Config
+from config import Config, RezMode
 from launch.environment_manager import EnvironmentManager
 
 
@@ -26,12 +26,11 @@ def env_manager() -> EnvironmentManager:
 def mock_config() -> MagicMock:
     """Create a mock Config object with default settings."""
     config = MagicMock(spec=Config)
-    config.USE_REZ_ENVIRONMENT = True
-    config.REZ_AUTO_DETECT = True
-    config.REZ_FORCE_WRAP = False
+    config.REZ_MODE = RezMode.AUTO
     config.REZ_NUKE_PACKAGES = ["nuke", "nuke-plugins"]
     config.REZ_MAYA_PACKAGES = ["maya", "maya-plugins"]
     config.REZ_3DE_PACKAGES = ["3de"]
+    config.REZ_RV_PACKAGES = ["rv"]
     return config
 
 
@@ -42,55 +41,33 @@ class TestRezAvailability:
         self, env_manager: EnvironmentManager, mock_config: MagicMock
     ) -> None:
         """Test that Rez is not used when disabled in config."""
-        mock_config.USE_REZ_ENVIRONMENT = False
+        mock_config.REZ_MODE = RezMode.DISABLED
 
         assert env_manager.is_rez_available(mock_config) is False
 
-    def test_rez_skipped_when_already_in_rez_environment(
-        self, env_manager: EnvironmentManager, mock_config: MagicMock
-    ) -> None:
-        """Test that rez wrapping is skipped when REZ_USED is set.
-
-        When REZ_USED is set, we're already in a rez environment.
-        Returning False avoids double-wrapping commands.
-        """
-        mock_config.REZ_AUTO_DETECT = True
-        mock_config.REZ_FORCE_WRAP = False
-
-        with patch.dict(os.environ, {"REZ_USED": "1"}):
-            assert env_manager.is_rez_available(mock_config) is False
-
     @patch("shutil.which")
-    def test_rez_force_wrap_overrides_rez_used(
+    def test_rez_auto_still_requires_rez_command_when_rez_used_is_set(
         self,
         mock_which: MagicMock,
         env_manager: EnvironmentManager,
         mock_config: MagicMock,
     ) -> None:
-        """Test that REZ_FORCE_WRAP=True allows wrapping even when REZ_USED is set.
-
-        Some base rez environments need additional app packages added.
-        REZ_FORCE_WRAP=True bypasses the REZ_USED check to allow this.
-        """
-        mock_config.REZ_AUTO_DETECT = True
-        mock_config.REZ_FORCE_WRAP = True
+        """AUTO mode still resolves app packages even from a base Rez shell."""
         mock_which.return_value = "/usr/bin/rez"
 
-        with patch.dict(os.environ, {"REZ_USED": "1"}):
-            # With REZ_FORCE_WRAP=True, should proceed to check rez command
+        with patch.dict("os.environ", {"REZ_USED": "1"}):
             assert env_manager.is_rez_available(mock_config) is True
             mock_which.assert_called_once_with("rez")
 
-    def test_rez_not_detected_when_auto_detect_disabled(
+    def test_rez_force_mode_checks_rez_command(
         self, env_manager: EnvironmentManager, mock_config: MagicMock
     ) -> None:
-        """Test that REZ_USED is ignored when REZ_AUTO_DETECT is False."""
-        mock_config.REZ_AUTO_DETECT = False
+        """FORCE mode still depends on the rez executable being present."""
+        mock_config.REZ_MODE = RezMode.FORCE
 
-        with patch.dict(os.environ, {"REZ_USED": "1"}), patch(
+        with patch.dict("os.environ", {"REZ_USED": "1"}), patch(
             "shutil.which", return_value=None
         ):
-            # Should not detect via environment, should check command
             assert env_manager.is_rez_available(mock_config) is False
 
     @patch("shutil.which")
@@ -101,10 +78,10 @@ class TestRezAvailability:
         mock_config: MagicMock,
     ) -> None:
         """Test Rez detection via 'rez' command availability."""
-        mock_config.REZ_AUTO_DETECT = False
+        mock_config.REZ_MODE = RezMode.FORCE
         mock_which.return_value = "/usr/bin/rez"
 
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict("os.environ", {}, clear=True):
             assert env_manager.is_rez_available(mock_config) is True
             mock_which.assert_called_once_with("rez")
 
@@ -116,10 +93,10 @@ class TestRezAvailability:
         mock_config: MagicMock,
     ) -> None:
         """Test Rez not detected when command not found."""
-        mock_config.REZ_AUTO_DETECT = False
+        mock_config.REZ_MODE = RezMode.FORCE
         mock_which.return_value = None
 
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict("os.environ", {}, clear=True):
             assert env_manager.is_rez_available(mock_config) is False
             mock_which.assert_called_once_with("rez")
 
@@ -131,10 +108,10 @@ class TestRezAvailability:
         mock_config: MagicMock,
     ) -> None:
         """Test that Rez availability is cached after first check."""
-        mock_config.REZ_AUTO_DETECT = False
+        mock_config.REZ_MODE = RezMode.FORCE
         mock_which.return_value = "/usr/bin/rez"
 
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict("os.environ", {}, clear=True):
             # First call - should check
             result1 = env_manager.is_rez_available(mock_config)
             assert result1 is True
@@ -149,10 +126,10 @@ class TestRezAvailability:
         self, env_manager: EnvironmentManager, mock_config: MagicMock
     ) -> None:
         """Test that reset_cache clears Rez availability cache."""
-        mock_config.REZ_AUTO_DETECT = False
+        mock_config.REZ_MODE = RezMode.FORCE
 
         with patch("shutil.which", return_value="/usr/bin/rez"), patch.dict(
-            os.environ, {}, clear=True
+            "os.environ", {}, clear=True
         ):
             # Cache result
             env_manager.is_rez_available(mock_config)
@@ -193,6 +170,13 @@ class TestRezPackages:
         """Test that unknown apps return empty package list."""
         packages = env_manager.get_rez_packages("unknown_app", mock_config)
         assert packages == []
+
+    def test_rv_packages(
+        self, env_manager: EnvironmentManager, mock_config: MagicMock
+    ) -> None:
+        """Test Rez packages for RV."""
+        packages = env_manager.get_rez_packages("rv", mock_config)
+        assert packages == ["rv"]
 
 
 class TestTerminalDetection:

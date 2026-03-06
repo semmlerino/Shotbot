@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from unittest.mock import patch
 
 import pytest
 
@@ -141,21 +142,19 @@ class TestLauncherStackSmoke:
         assert result.returncode == 0
         assert "shell_init_ok" in result.stdout
 
-    def test_rez_mode_auto_detects_rez_used(self, monkeypatch) -> None:
-        """RezMode.AUTO skips rez wrapping when REZ_USED is set."""
+    def test_rez_mode_auto_still_requires_explicit_rez(self, monkeypatch) -> None:
+        """RezMode.AUTO still resolves explicit app packages inside base Rez shells."""
         from config import Config, RezMode
         from launch.environment_manager import EnvironmentManager
 
-        # Simulate BlueBolt environment where rez is already initialized
         monkeypatch.setenv("REZ_USED", "1")
 
         env_manager = EnvironmentManager()
 
-        # AUTO mode should skip wrapping when REZ_USED is set
         if Config.REZ_MODE == RezMode.AUTO:
-            should_wrap = env_manager.should_wrap_with_rez(Config)
-            # When REZ_USED is set, AUTO mode should NOT wrap
-            assert not should_wrap, "RezMode.AUTO should skip wrapping when REZ_USED=1"
+            with patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"):
+                should_wrap = env_manager.should_wrap_with_rez(Config)
+            assert should_wrap, "RezMode.AUTO should still resolve explicit app packages"
 
     def test_command_builder_validates_paths(self) -> None:
         """CommandBuilder.validate_path handles various path formats."""
@@ -181,10 +180,10 @@ class TestLauncherStackSmoke:
         nuke_packages = env_manager.get_rez_packages("nuke", Config)
         maya_packages = env_manager.get_rez_packages("maya", Config)
         threede_packages = env_manager.get_rez_packages("3dequalizer", Config)
+        rv_packages = env_manager.get_rez_packages("rv", Config)
 
         # At minimum, should return a list (may be empty depending on config)
         assert isinstance(nuke_packages, list)
         assert isinstance(maya_packages, list)
         assert isinstance(threede_packages, list)
-
-
+        assert isinstance(rv_packages, list)

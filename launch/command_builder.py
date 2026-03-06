@@ -125,13 +125,12 @@ class CommandBuilder:
             packages: List of Rez packages to load
 
         Returns:
-            Rez-wrapped command: 'rez env {packages} -- bash -ilc {quoted_command}'
+            Rez-wrapped command: 'rez env {packages} -- bash -lc {quoted_command}'
 
         Notes:
-            - Uses bash -ilc (interactive login shell) to ensure shell functions are available
-            - Shell functions like 'ws' are defined in .bashrc, which requires -i flag
-            - Without -i, bash -lc may not source .bashrc (depends on .bash_profile setup)
-            - The minor startup overhead (~50ms) is worth the reliability gain
+            - Uses bash -lc for shell features inside the resolved Rez context
+            - The command should not include studio shell functions like 'ws'
+            - Workspace bootstrapping should happen outside the Rez wrapper
             - Uses shlex.quote() to safely escape the command for shell
             - Handles commands containing quotes, spaces, and special characters
 
@@ -141,7 +140,7 @@ class CommandBuilder:
         # CRITICAL FIX: Use shlex.quote() to properly escape the command
         # This prevents shell injection and handles commands with quotes/special chars
         quoted_command = shlex.quote(command)
-        return f"rez env {packages_str} -- bash -ilc {quoted_command}"
+        return f"rez env {packages_str} -- bash -lc {quoted_command}"
 
     @staticmethod
     def apply_nuke_environment_fixes(command: str, config: "type[Config]") -> str:
@@ -309,8 +308,8 @@ class CommandBuilder:
 
         This is a convenience method that applies all transformations in order:
         1. Nuke environment fixes (if requested)
-        2. Workspace wrapping (if workspace provided)
-        3. Rez environment wrapping (if packages provided)
+        2. Rez environment wrapping (if packages provided)
+        3. Workspace wrapping (if workspace provided)
         4. Logging redirection (if requested)
         5. Background wrapping (if requested) - must be last
 
@@ -329,7 +328,7 @@ class CommandBuilder:
         Notes:
             - Transformations are applied in the order listed above
             - Workspace path must be pre-validated with validate_path()
-            - Order matters: workspace -> rez -> logging -> background
+            - Order matters: rez -> workspace -> logging -> background
             - Background wrapping must be last since it adds `& disown; exit`
 
         """
@@ -339,13 +338,13 @@ class CommandBuilder:
         if apply_nuke_fixes:
             command = CommandBuilder.apply_nuke_environment_fixes(command, config)
 
-        # 2. Wrap with workspace if provided
-        if workspace:
-            command = CommandBuilder.build_workspace_command(workspace, command)
-
-        # 3. Wrap with Rez if packages provided
+        # 2. Wrap with Rez if packages provided
         if rez_packages:
             command = CommandBuilder.wrap_with_rez(command, rez_packages)
+
+        # 3. Wrap with workspace if provided
+        if workspace:
+            command = CommandBuilder.build_workspace_command(workspace, command)
 
         # 4. Add logging redirection if requested
         if add_logging_redirect:

@@ -145,7 +145,7 @@ class TestCommandLauncher:
             patch.object(
                 CommandLauncher, "_validate_workspace_before_launch", return_value=True
             ),
-            patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False),
+            patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
         ):
             mock_popen.return_value = _running_process_double(app_name)
@@ -171,7 +171,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_3de_with_scene(
         self,
@@ -208,7 +208,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_rv_default_settings(
         self,
@@ -247,7 +247,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
     def test_subprocess_failure(
         self,
@@ -280,7 +280,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("command_launcher.EnvironmentManager.detect_terminal", return_value=None)
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_headless_mode_when_no_terminal(
@@ -322,7 +322,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_gui_app_background_setting(
         self,
@@ -381,7 +381,7 @@ class TestCommandLauncherSignals:
                 CommandLauncher, "_validate_workspace_before_launch", return_value=True
             ),
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
-            patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False),
+            patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
         ):
             mock_popen.return_value = _running_process_double("nuke")
 

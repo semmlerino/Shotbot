@@ -12,29 +12,30 @@ Supported DCCs: `3de`, `maya`, `nuke`, `rv`, `publish`.
 
 ## Environment Assumptions
 
-1. Rez is initialized during shell startup.
-2. `ws` sets workspace context (show/sequence/shot), not Rez initialization.
-3. Launcher shell commands must use `bash -ilc` so `ws` is available.
+1. `ws` sets workspace context (show/sequence/shot), not Rez initialization.
+2. DCC launches resolve explicit Rez packages for the target app unless `REZ_MODE` is `DISABLED`.
+3. Launcher shell commands use `bash -ilc` for the outer shell so `ws` is available before the Rez command runs.
 
 ## Shell Flow
 
 High-level launch sequence:
 
-`bash -ilc "ws <show>/<seq>/<shot> && <app command>"`
+`bash -ilc "ws <show>/<seq>/<shot> && rez env <packages> -- bash -lc '<app command>'"`
 
 Why this matters:
 
 - `-i` loads `.bashrc` where `workspace/ws` is defined
 - `-l` preserves login-shell initialization behavior
-- command runs with established workspace variables
+- `ws` runs in the studio shell before Rez resolves the DCC context
+- the inner Rez command only executes the app payload; it does not re-enter an interactive login shell
 
-When Rez wrapping is active (`has_rez_wrapper=True`), the outer shell uses `sh -c` for speed, wrapping an inner `bash -ilc` command that provides workspace context.
+The launcher no longer treats `REZ_USED` as sufficient for DCC launches. A base Rez shell is not assumed to contain the correct Maya/Nuke/RV packages.
 
 ## Rez Mode
 
 `REZ_MODE` in `config.py` controls wrapping strategy:
 
-- `AUTO` (default): skip additional wrapping when `REZ_USED` is already set
+- `AUTO` (default): resolve the configured app packages for each DCC launch
 - `DISABLED`: never wrap with Rez
 - `FORCE`: always wrap with app-specific Rez packages
 
@@ -49,6 +50,7 @@ For BlueBolt, `AUTO` is the intended mode.
 ```bash
 # rez state
 echo "$REZ_USED"
+rez context
 
 # workspace command availability
 type ws
