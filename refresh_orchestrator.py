@@ -245,7 +245,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         # Always use Model/View implementation
         self.main_window.shot_item_model.set_shots(
-            self.main_window.shot_model.shots
+            self.main_window.shot_model.get_filtered_shots()
         )
         # Populate show filter with available shows.
         # Pass shows as a sorted list — ShotModel.get_available_shows() returns set[str]

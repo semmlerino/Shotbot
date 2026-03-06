@@ -68,8 +68,8 @@ from PySide6.QtWidgets import (
 )
 
 from file_pin_manager import FilePinManager
-from notes_manager import NotesManager
 from hide_manager import HideManager
+from notes_manager import NotesManager
 from pin_manager import PinManager
 from typing_compat import override
 
@@ -479,14 +479,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             notes_manager=self.notes_manager,
             hide_manager=self.hide_manager,
         )
-        self.shot_item_model.set_shots(self.shot_model.shots)
+        self.shot_model.set_hide_manager(self.hide_manager)
+        self.shot_item_model.set_shots(self.shot_model.get_filtered_shots())
         self.shot_grid = ShotGridView(
             model=self.shot_item_model,
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
             hide_manager=self.hide_manager,
         )
-        self.shot_model.set_hide_manager(self.hide_manager)
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
 
         # Tab 2: Other 3DE scenes (using Model/View architecture)

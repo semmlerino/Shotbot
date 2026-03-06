@@ -223,6 +223,27 @@ class TestShotRefresh:
 
         mock_refresh_tab.assert_called_once_with(0)
 
+    def test_refresh_shot_display_respects_hide_filter(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
+        """Hidden shots must not reappear after refresh_shot_display()."""
+        main_window = MainWindow(cache_dir=tmp_path / "cache")
+        qtbot.addWidget(main_window)
+
+        shot_visible = Shot("show1", "seq01", "shot0010", "/shows/show1/seq01/shot0010")
+        shot_hidden = Shot("show1", "seq01", "shot0020", "/shows/show1/seq01/shot0020")
+
+        # Populate model directly (bypasses async loading)
+        main_window.shot_model.shots = [shot_visible, shot_hidden]
+        main_window.hide_manager.hide_shot(shot_hidden)
+
+        # Simulate a data-refresh event (e.g. shots_loaded / F5)
+        main_window.refresh_orchestrator.refresh_shot_display()
+
+        displayed = main_window.shot_item_model.shots
+        assert shot_visible in displayed
+        assert shot_hidden not in displayed
+
 
 @pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestApplicationLaunching:
