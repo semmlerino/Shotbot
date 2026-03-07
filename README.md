@@ -1,6 +1,6 @@
 # ShotBot - Matchmove Shot Launcher
 
-Shotbot is a PySide6 desktop tool for matchmove workflow execution at a VFX studio.
+Shotbot is a PySide6 desktop tool for matchmove workflow execution in a VFX studio pipeline.
 It provides shot browsing and one-click DCC launching with workspace context.
 
 ## Workflow Scope
@@ -20,7 +20,7 @@ Primary use cases:
 
 - Python `3.11+`
 - Linux shell environment for launcher execution
-- VFX workspace command availability (`ws`)
+- Studio workspace command availability (`ws`)
 
 ## Quick Start
 

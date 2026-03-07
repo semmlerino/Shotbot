@@ -44,9 +44,17 @@ skylos_output.txt
 .DS_Store
 Thumbs.db
 
-# AI tool config dirs
+# AI tool configs
 .claude/
+.serena/
 .kiro/
 .windsurf/
 .geminiignore
-.serena/
+
+# Cross-repo artifacts
+.spritepal_settings.json
+PyFFMPEG.code-workspace
+Clipboard Image.jpg
+AUTO_PUSH_TROUBLESHOOTING_DO_NOT_DELETE.md
+PERFORMANCE_BASELINE.json
+UNIFIED_TESTING_V2.md
