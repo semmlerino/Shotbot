@@ -9,7 +9,7 @@
   8. Don't count task as done if ANY test is failing
   9. We have time, do not get overwhelmed if there are a large number of issues. Be systematic and thorough in your approach 
   10. Avoid type ignore as last resort
-  11. Research using the context7 MCP if unsure
+  11. If unsure, verify against local code, tests, and the canonical project docs
   12. Step back and reassess periodically
   13. If test is skipped, fix or delete
   14. Don't create scripts, fix systematically

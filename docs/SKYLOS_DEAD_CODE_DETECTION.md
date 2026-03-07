@@ -8,14 +8,28 @@ Skylos is a Python static analyser that combines call-trace data with AST analys
 # Step 1: generate trace data (run once, or after significant test changes)
 uv run python scripts/generate_skylos_trace.py
 
-# Optional: widen pytest's marker filter to trace more code paths
-uv run python scripts/generate_skylos_trace.py --markexpr "legacy or not legacy"
+# Optional: trace only a targeted subset of tests
+uv run python scripts/generate_skylos_trace.py --markexpr "gui_mainwindow or qt_heavy"
 
-# Step 2: analyse (auto-loads .skylos_trace)
-uv run skylos . --table --exclude-folder tests --exclude-folder archive
+# Optional: merge multiple targeted marker passes into one trace
+# Note: the default unfiltered pass already covers the full collected suite.
+uv run python scripts/generate_skylos_trace.py \
+  --include-default-pass \
+  --markexpr "gui_mainwindow or qt_heavy" \
+  --markexpr "integration_unsafe or persistent_cache"
 
-# JSON output for scripting
-uv run skylos . --exclude-folder tests --exclude-folder archive --json
+# Step 2: analyse the repo's fast first-pass queue (auto-loads .skylos_trace)
+uv run skylos . --table --exclude-folder tests --exclude-folder archive --confidence 80
+
+# JSON output for scripting or verification
+uv run skylos . --exclude-folder tests --exclude-folder archive --confidence 80 --json
+
+# Optional: run a cheap text-reference pass before manual review/removal
+uv run python scripts/verify_skylos_candidates.py /tmp/skylos_report_conf80.json
+
+# Step 3: after the 80-confidence queue is exhausted, broaden to Skylos's
+# default confidence tier for a larger manual review pass
+uv run skylos . --table --exclude-folder tests --exclude-folder archive --confidence 60
 ```
 
 ---
@@ -69,8 +83,8 @@ finally:
 
 - Default outer timeout: `300s` per test file.
 - Override timeout: `--per-file-timeout <seconds>` (`0` disables the outer timeout).
-- Optional marker override: `--markexpr "<expr>"` passes a custom `-m` expression to both collection and traced runs.
-- Output per file: `.skylos_traces/<path_slug>.json` (derived from the relative test path, so same-named files in different folders do not collide).
+- Optional marker override: `--markexpr "<expr>"` passes a custom `-m` expression to both collection and traced runs. In this repo, the default unfiltered run already covers the full collected suite, so marker passes are mainly for targeted reruns or intentionally merged subsets. Repeat `--markexpr` to merge multiple marker-specific passes; add `--include-default-pass` if you also want the unfiltered pass in the same run.
+- Output per file: `.skylos_traces/<path_slug>[__<marker_slug>__<hash>].json` (derived from the relative test path, with a stable marker suffix when using `--markexpr`, so multiple passes do not overwrite one another).
 
 ### Merge
 
@@ -83,10 +97,13 @@ uv run python scripts/generate_skylos_trace.py --resume
 ```
 
 Skips test files whose partial trace already exists and is still valid. Stale partial traces for removed or renamed test files are pruned automatically.
+Resume mode reuses traces only for the currently selected marker-pass set. If the previous run wrote `.skylos_trace_failures.json`, the trace outputs listed there are retried instead of being skipped, so a follow-up `--resume` run can heal transient failures.
 
 ### Failure handling
 
 If any traced test file crashes, errors out before writing trace data, or hits the outer timeout, the script still merges whatever partial data exists but exits non-zero by default.
+
+The script also retries once automatically if a traced subprocess exits with a pytest internal error (`exit 3`) and pytest emitted an `INTERNALERROR>` block. That catches occasional transient startup/plugin failures without hiding deterministic failures.
 
 When that happens, the script also writes `.skylos_trace_failures.json` with one entry per non-clean file, including the exit code or signal, whether a partial trace was saved, and the tail of captured `stdout`/`stderr`. That file is the first place to look before re-running the whole suite blind.
 
@@ -106,6 +123,7 @@ uv run python scripts/generate_skylos_trace.py --allow-partial
 | `.skylos_traces/` | Partial per-file traces (intermediate) |
 | `.skylos_trace_failures.json` | Failure manifest for crashed, timed out, or otherwise non-clean traced files |
 | `scripts/generate_skylos_trace.py` | Custom trace generator |
+| `scripts/verify_skylos_candidates.py` | Cheap textual verification helper for Skylos hits |
 | `pyproject.toml` `[tool.skylos]` | Whitelist configuration |
 
 `.skylos_trace`, `.skylos_traces/`, and `.skylos_trace_failures.json` should be **gitignored** — they are build artefacts.
@@ -211,6 +229,12 @@ Focus effort on **high-signal locations** where false positives are less common:
 - Heavily callback-driven UI layers
 - Objects commonly stored on `self` and used through one or more attribute hops
 
+Start with `--confidence 80` (or higher) for the first cleanup pass. Lower-confidence findings are still useful, but they are much more likely to include indirect-call false positives and should be reviewed after the obvious removals are gone.
+
+For this repo, treat `--confidence 80` as a **noise-reduction shortcut**, not as a universal Skylos best practice. Skylos's default confidence is `60`, and that broader tier should be the follow-up pass once the high-signal queue is gone.
+
+Before deleting code, run the report through `scripts/verify_skylos_candidates.py` to catch obvious textual references that Skylos may have missed. That script is only a quick filter, not proof of liveness, but it helps reduce avoidable false positives before manual inspection.
+
 ---
 
 ## Maintenance
@@ -219,7 +243,8 @@ Focus effort on **high-signal locations** where false positives are less common:
 |------|--------|
 | Test files change significantly | Re-run `generate_skylos_trace.py` (full) |
 | Adding a few new tests | `generate_skylos_trace.py --resume` |
-| You want higher accuracy from trace coverage | Re-run with a broader marker expression, for example `--markexpr "legacy or not legacy"` |
+| You want to focus trace generation on specific test categories | Run with `--markexpr "<expr>"`, or merge multiple targeted passes with repeated `--markexpr` (optionally with `--include-default-pass`) |
+| You finished reviewing the `--confidence 80` queue | Re-run Skylos at `--confidence 60` for the next broader review tier |
 | After removing dead code | Re-run Skylos — transitively dead items surface |
 | Whitelist grows unexpectedly | Audit: each entry needs a documented reason |
 | Intentional unused-parameter findings recur | Prefer explicit no-op parameter uses in code before adding Skylos suppressions |

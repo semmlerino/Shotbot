@@ -16,11 +16,14 @@ Usage:
     uv run python scripts/generate_skylos_trace.py --resume
     uv run python scripts/generate_skylos_trace.py --per-file-timeout 0
     uv run python scripts/generate_skylos_trace.py --markexpr "legacy or not legacy"
+    uv run python scripts/generate_skylos_trace.py --include-default-pass --markexpr "legacy"
+    uv run python scripts/generate_skylos_trace.py --markexpr "legacy" --markexpr "tutorial"
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -35,6 +38,7 @@ FINAL_TRACE = PROJECT_ROOT / ".skylos_trace"
 FAILURE_MANIFEST = PROJECT_ROOT / ".skylos_trace_failures.json"
 DEFAULT_PYTEST_TARGET = "tests"
 DEFAULT_PER_FILE_TIMEOUT = 300.0
+DEFAULT_INTERNAL_ERROR_RETRIES = 1
 OUTPUT_TAIL_LINES = 40
 OUTPUT_TAIL_CHARS = 4000
 
@@ -44,7 +48,8 @@ class ScriptOptions:
     resume: bool
     allow_partial: bool
     per_file_timeout: float | None
-    markexpr: str | None
+    include_default_pass: bool
+    markexprs: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -83,11 +88,21 @@ def parse_args(argv: list[str]) -> ScriptOptions:
         ),
     )
     parser.add_argument(
-        "--markexpr",
+        "--include-default-pass",
+        action="store_true",
         help=(
-            "Override pytest's -m expression for collection and traced runs. "
-            'Example: --markexpr "legacy or not legacy" to include both default '
-            "and legacy tests."
+            "When --markexpr is repeated, also keep the unfiltered collection pass "
+            "instead of replacing it."
+        ),
+    )
+    parser.add_argument(
+        "--markexpr",
+        action="append",
+        default=[],
+        help=(
+            "Add a pytest -m expression for collection and traced runs. Repeat "
+            "this flag to merge multiple marker-specific passes into one "
+            ".skylos_trace."
         ),
     )
 
@@ -97,7 +112,8 @@ def parse_args(argv: list[str]) -> ScriptOptions:
         resume=args.resume,
         allow_partial=args.allow_partial,
         per_file_timeout=per_file_timeout,
-        markexpr=args.markexpr,
+        include_default_pass=args.include_default_pass,
+        markexprs=tuple(args.markexpr),
     )
 
 
@@ -113,6 +129,44 @@ def pytest_collect_args(markexpr: str | None) -> list[str]:
     args = [DEFAULT_PYTEST_TARGET]
     args.extend(pytest_run_args(markexpr))
     return args
+
+
+def selected_markexprs(options: ScriptOptions) -> tuple[str | None, ...]:
+    """Return the ordered set of trace passes to run."""
+    selected: list[str | None] = []
+    seen: set[str | None] = set()
+
+    if options.include_default_pass or not options.markexprs:
+        selected.append(None)
+        seen.add(None)
+
+    for markexpr in options.markexprs:
+        if markexpr not in seen:
+            selected.append(markexpr)
+            seen.add(markexpr)
+
+    return tuple(selected)
+
+
+def format_markexpr(markexpr: str | None) -> str:
+    """Return a readable label for a trace pass."""
+    if markexpr is None:
+        return "default collection"
+    return f'-m "{markexpr}"'
+
+
+def markexpr_filename_suffix(markexpr: str | None) -> str:
+    """Return a stable filename suffix for a marker-specific trace pass."""
+    if markexpr is None:
+        return ""
+
+    readable = "".join(ch if ch.isalnum() else "_" for ch in markexpr)
+    readable = "_".join(part for part in readable.split("_") if part)
+    if not readable:
+        readable = "markexpr"
+    readable = readable[:32].rstrip("_")
+    digest = hashlib.sha1(markexpr.encode("utf-8")).hexdigest()[:8]
+    return f"__{readable}__{digest}"
 
 
 def discover_test_files(markexpr: str | None) -> list[Path]:
@@ -148,11 +202,11 @@ def discover_test_files(markexpr: str | None) -> list[Path]:
     return sorted(files)
 
 
-def trace_output_path(test_file: Path) -> Path:
+def trace_output_path(test_file: Path, markexpr: str | None) -> Path:
     """Return a collision-safe trace filename for a test file."""
     rel = test_file.resolve().relative_to(PROJECT_ROOT)
     slug = "__".join(rel.with_suffix("").parts)
-    return TRACE_DIR / f"{slug}.json"
+    return TRACE_DIR / f"{slug}{markexpr_filename_suffix(markexpr)}.json"
 
 
 def read_trace_count(trace_output: Path) -> int | None:
@@ -235,6 +289,15 @@ sys.exit(ret)
     )
 
 
+def should_retry_pytest_internal_error(result: TraceRunResult, attempt: int) -> bool:
+    """Return whether a traced run should be retried after a pytest internal error."""
+    return (
+        attempt < DEFAULT_INTERNAL_ERROR_RETRIES
+        and result.exit_code == 3
+        and "INTERNALERROR>" in result.stdout_tail
+    )
+
+
 def merge_traces(trace_dir: Path, output: Path) -> int:
     """Merge all partial trace files into a single .skylos_trace."""
     all_calls: dict[tuple[str, str, int], int] = {}
@@ -260,6 +323,29 @@ def merge_traces(trace_dir: Path, output: Path) -> int:
     return len(all_calls)
 
 
+def load_previous_failed_trace_outputs() -> set[Path]:
+    """Return trace outputs referenced by the previous failure manifest."""
+    if not FAILURE_MANIFEST.exists():
+        return set()
+
+    try:
+        raw = json.loads(FAILURE_MANIFEST.read_text())
+    except (OSError, json.JSONDecodeError):
+        return set()
+
+    if not isinstance(raw, list):
+        return set()
+
+    failed_outputs: set[Path] = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        trace_output = item.get("trace_output")
+        if isinstance(trace_output, str):
+            failed_outputs.add(Path(trace_output))
+    return failed_outputs
+
+
 def write_failure_manifest(failures: list[dict[str, object]]) -> None:
     """Persist structured diagnostics for non-clean trace runs."""
     if not failures:
@@ -272,14 +358,22 @@ def write_failure_manifest(failures: list[dict[str, object]]) -> None:
 def main() -> None:
     options = parse_args(sys.argv[1:])
     TRACE_DIR.mkdir(exist_ok=True)
+    previous_failed_trace_outputs = load_previous_failed_trace_outputs()
 
-    try:
-        test_files = discover_test_files(options.markexpr)
-    except RuntimeError as exc:
-        print(exc, file=sys.stderr)
-        sys.exit(1)
+    trace_passes: list[tuple[str | None, list[Path]]] = []
+    for markexpr in selected_markexprs(options):
+        try:
+            test_files = discover_test_files(markexpr)
+        except RuntimeError as exc:
+            print(f"{format_markexpr(markexpr)}: {exc}", file=sys.stderr)
+            sys.exit(1)
+        trace_passes.append((markexpr, test_files))
 
-    expected_trace_files = {trace_output_path(test_file) for test_file in test_files}
+    expected_trace_files = {
+        trace_output_path(test_file, markexpr)
+        for markexpr, test_files in trace_passes
+        for test_file in test_files
+    }
 
     for old in TRACE_DIR.glob("*.json"):
         if not options.resume or old not in expected_trace_files:
@@ -290,9 +384,16 @@ def main() -> None:
         if options.per_file_timeout is None
         else f"{options.per_file_timeout:g}s"
     )
-    print(f"Found {len(test_files)} test files (per-file timeout: {timeout_label})")
-    if options.markexpr:
-        print(f"Using pytest -m override: {options.markexpr}")
+    total_targets = sum(len(test_files) for _, test_files in trace_passes)
+    if len(trace_passes) == 1:
+        print(f"Found {total_targets} test files (per-file timeout: {timeout_label})")
+    else:
+        print(
+            f"Found {total_targets} test-file passes across {len(trace_passes)} "
+            f"collections (per-file timeout: {timeout_label})"
+        )
+        for markexpr, test_files in trace_passes:
+            print(f"  {format_markexpr(markexpr)}: {len(test_files)} files")
 
     passed = 0
     failed = 0
@@ -300,99 +401,138 @@ def main() -> None:
     timed_out = 0
     skipped = 0
     failures: list[dict[str, object]] = []
+    processed_targets = 0
 
-    for i, test_file in enumerate(test_files, 1):
-        rel = test_file.relative_to(PROJECT_ROOT)
-        trace_out = trace_output_path(test_file)
+    for markexpr, test_files in trace_passes:
+        pass_label = format_markexpr(markexpr)
+        if len(trace_passes) > 1:
+            print(f"\n== Trace pass: {pass_label} ==")
 
-        if options.resume and trace_out.exists():
-            existing_count = read_trace_count(trace_out)
-            if existing_count is not None:
-                print(f"  [{i}/{len(test_files)}] {rel} ... SKIP ({existing_count} calls)")
-                skipped += 1
-                continue
-            trace_out.unlink()
-
-        print(f"  [{i}/{len(test_files)}] {rel} ... ", end="", flush=True)
-
-        try:
-            result = run_traced_test(
-                test_file,
-                trace_out,
-                options.per_file_timeout,
-                options.markexpr,
+        for test_file in test_files:
+            processed_targets += 1
+            rel = test_file.relative_to(PROJECT_ROOT)
+            trace_out = trace_output_path(test_file, markexpr)
+            target_label = (
+                f"{rel} ({pass_label})" if len(trace_passes) > 1 else str(rel)
             )
-            if result.traced_count is None:
-                if result.exit_code < 0:
-                    print(f"CRASHED (signal {-result.exit_code}, no trace data)")
+
+            if options.resume and trace_out.exists():
+                if trace_out not in previous_failed_trace_outputs:
+                    existing_count = read_trace_count(trace_out)
+                    if existing_count is not None:
+                        print(
+                            f"  [{processed_targets}/{total_targets}] {target_label} ... "
+                            f"SKIP ({existing_count} calls)"
+                        )
+                        skipped += 1
+                        continue
+                trace_out.unlink()
+
+            print(
+                f"  [{processed_targets}/{total_targets}] {target_label} ... ",
+                end="",
+                flush=True,
+            )
+
+            try:
+                attempt = 0
+                while True:
+                    result = run_traced_test(
+                        test_file,
+                        trace_out,
+                        options.per_file_timeout,
+                        markexpr,
+                    )
+                    if not should_retry_pytest_internal_error(result, attempt):
+                        break
+                    attempt += 1
+                    print("PYTEST INTERNAL ERROR (retrying once)")
+                    print(
+                        f"  [{processed_targets}/{total_targets}] {target_label} ... ",
+                        end="",
+                        flush=True,
+                    )
+
+                if result.traced_count is None:
+                    if result.exit_code < 0:
+                        print(f"CRASHED (signal {-result.exit_code}, no trace data)")
+                    else:
+                        print(f"NO TRACE (exit {result.exit_code})")
+                    errored += 1
+                    failures.append(
+                        {
+                            "file": str(rel),
+                            "markexpr": markexpr,
+                            "status": "crashed_no_trace"
+                            if result.exit_code < 0
+                            else "no_trace",
+                            "exit_code": result.exit_code,
+                            "signal": -result.exit_code if result.exit_code < 0 else None,
+                            "trace_output": str(trace_out),
+                            "had_trace": False,
+                            "traced_count": None,
+                            "stdout_tail": result.stdout_tail,
+                            "stderr_tail": result.stderr_tail,
+                        }
+                    )
+                elif result.exit_code == 0:
+                    print(f"OK ({result.traced_count} calls)")
+                    passed += 1
+                elif result.exit_code == 1:
+                    print(f"TESTS FAILED ({result.traced_count} calls)")
+                    failed += 1
+                    failures.append(
+                        {
+                            "file": str(rel),
+                            "markexpr": markexpr,
+                            "status": "tests_failed",
+                            "exit_code": result.exit_code,
+                            "signal": None,
+                            "trace_output": str(trace_out),
+                            "had_trace": True,
+                            "traced_count": result.traced_count,
+                            "stdout_tail": result.stdout_tail,
+                            "stderr_tail": result.stderr_tail,
+                        }
+                    )
                 else:
-                    print(f"NO TRACE (exit {result.exit_code})")
-                errored += 1
+                    print(
+                        f"PYTEST ERROR (exit {result.exit_code}, "
+                        f"{result.traced_count} calls)"
+                    )
+                    errored += 1
+                    failures.append(
+                        {
+                            "file": str(rel),
+                            "markexpr": markexpr,
+                            "status": "pytest_error",
+                            "exit_code": result.exit_code,
+                            "signal": -result.exit_code if result.exit_code < 0 else None,
+                            "trace_output": str(trace_out),
+                            "had_trace": True,
+                            "traced_count": result.traced_count,
+                            "stdout_tail": result.stdout_tail,
+                            "stderr_tail": result.stderr_tail,
+                        }
+                    )
+            except subprocess.TimeoutExpired as exc:
+                print("TIMEOUT")
+                timed_out += 1
+                timed_out_count = read_trace_count(trace_out)
                 failures.append(
                     {
                         "file": str(rel),
-                        "status": "crashed_no_trace" if result.exit_code < 0 else "no_trace",
-                        "exit_code": result.exit_code,
-                        "signal": -result.exit_code if result.exit_code < 0 else None,
-                        "trace_output": str(trace_out),
-                        "had_trace": False,
-                        "traced_count": None,
-                        "stdout_tail": result.stdout_tail,
-                        "stderr_tail": result.stderr_tail,
-                    }
-                )
-            elif result.exit_code == 0:
-                print(f"OK ({result.traced_count} calls)")
-                passed += 1
-            elif result.exit_code == 1:
-                print(f"TESTS FAILED ({result.traced_count} calls)")
-                failed += 1
-                failures.append(
-                    {
-                        "file": str(rel),
-                        "status": "tests_failed",
-                        "exit_code": result.exit_code,
+                        "markexpr": markexpr,
+                        "status": "timeout",
+                        "exit_code": None,
                         "signal": None,
                         "trace_output": str(trace_out),
-                        "had_trace": True,
-                        "traced_count": result.traced_count,
-                        "stdout_tail": result.stdout_tail,
-                        "stderr_tail": result.stderr_tail,
+                        "had_trace": timed_out_count is not None,
+                        "traced_count": timed_out_count,
+                        "stdout_tail": summarize_output(exc.stdout),
+                        "stderr_tail": summarize_output(exc.stderr),
                     }
                 )
-            else:
-                print(f"PYTEST ERROR (exit {result.exit_code}, {result.traced_count} calls)")
-                errored += 1
-                failures.append(
-                    {
-                        "file": str(rel),
-                        "status": "pytest_error",
-                        "exit_code": result.exit_code,
-                        "signal": -result.exit_code if result.exit_code < 0 else None,
-                        "trace_output": str(trace_out),
-                        "had_trace": True,
-                        "traced_count": result.traced_count,
-                        "stdout_tail": result.stdout_tail,
-                        "stderr_tail": result.stderr_tail,
-                    }
-                )
-        except subprocess.TimeoutExpired as exc:
-            print("TIMEOUT")
-            timed_out += 1
-            timed_out_count = read_trace_count(trace_out)
-            failures.append(
-                {
-                    "file": str(rel),
-                    "status": "timeout",
-                    "exit_code": None,
-                    "signal": None,
-                    "trace_output": str(trace_out),
-                    "had_trace": timed_out_count is not None,
-                    "traced_count": timed_out_count,
-                    "stdout_tail": summarize_output(exc.stdout),
-                    "stderr_tail": summarize_output(exc.stderr),
-                }
-            )
 
     # Merge all partial traces
     unique_count = merge_traces(TRACE_DIR, FINAL_TRACE)
@@ -401,7 +541,11 @@ def main() -> None:
     print("\n--- Results ---")
     if skipped:
         print(f"  Skipped (cached): {skipped}")
-    print(f"  Test files:  {passed} OK, {failed} test-failed, {errored} errored, {timed_out} timed out, {len(test_files)} total")
+    print(
+        "  Pass targets: "
+        f"{passed} OK, {failed} test-failed, {errored} errored, "
+        f"{timed_out} timed out, {total_targets} total"
+    )
     print(f"  Traced calls: {unique_count} unique functions")
     print(f"  Output: {FINAL_TRACE}")
     if failures:
@@ -419,7 +563,10 @@ def main() -> None:
             print(detail, file=sys.stderr)
             sys.exit(1)
 
-    print("\nNow run: uv run skylos . --table --exclude-folder tests")
+    print(
+        "\nNow run: uv run skylos . --table --exclude-folder tests "
+        "--exclude-folder archive --confidence 80"
+    )
 
 
 if __name__ == "__main__":

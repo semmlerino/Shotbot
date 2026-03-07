@@ -17,7 +17,7 @@ This document captures behavior and invariants, not full API listings.
 ## In-Memory Caches
 
 - `SceneCache`: short-lived scene-discovery cache to reduce repeated lookups.
-- `DirectoryCache`: directory-listing cache to reduce repeated filesystem metadata reads.
+- `FilesystemCoordinator._directory_cache`: in-memory directory-listing cache used to reduce repeated filesystem metadata reads.
 
 ## Key Invariants
 

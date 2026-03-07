@@ -12,7 +12,7 @@ If any route below is removed or changed, core behavior breaks.
 | `shot_model.shots_loaded` → `refresh_orchestrator.handle_shots_loaded` | Initial data display and downstream previous-shots refresh |
 | `shot_model.shots_changed` → `refresh_orchestrator.handle_shots_changed` | UI update after background refresh delta |
 | `cache_manager.shots_migrated` -> MainWindow handler | Previous-shots tab stays in sync after migration |
-| `tab_widget.currentChanged` -> tab-change handler + accent handler | Tab data loading and tab-specific visual state |
+| `tab_widget.currentChanged` -> tab-change handler | Tab data loading and tab-specific visual state |
 | `shot_grid.app_launch_requested` -> launcher | My Shots launches in shot context |
 | `threede_shot_grid.app_launch_requested` -> scene-aware launch path | 3DE launches with selected scene file |
 | `previous_shots_grid.app_launch_requested` -> launcher | Previous Shots launches correctly |

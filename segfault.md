@@ -9,8 +9,8 @@ A shorter, no‑nonsense checklist for agents troubleshooting segfaults in pytes
 Run:
 
 ```bash
-cd ~/projects/shotbot
-PYTHONFAULTHANDLER=1 pytest -x -vv 2>&1 | tee /tmp/segv.log
+cd /mnt/c/CustomScripts/Python/shotbot
+PYTHONFAULTHANDLER=1 uv run pytest tests -x -vv 2>&1 | tee /tmp/segv.log
 ```
 
 Record:
@@ -27,7 +27,7 @@ If this *doesn’t* segfault, state it and note which command does.
 Run:
 
 ```bash
-PYTHONFAULTHANDLER=1 pytest -x -vv -p randomly --randomly-seed=789 2>&1 | tee /tmp/segv-rand.log
+PYTHONFAULTHANDLER=1 uv run pytest tests -x -vv --randomly-seed=789 2>&1 | tee /tmp/segv-rand.log
 ```
 
 Answer clearly:
@@ -39,36 +39,39 @@ If randomization changes behavior → likely **state contamination**.
 
 ---
 
-## 3. Use `pytest --bisect` (Don’t Guess)
+## 3. Manually Bisect the Failing Set (Don’t Guess)
 
 Run:
 
 ```bash
-PYTHONFAULTHANDLER=1 pytest --bisect -p randomly --randomly-seed=789 2>&1 | tee /tmp/bisect.log
+# Example: split candidate files in half and rerun each half
+PYTHONFAULTHANDLER=1 uv run pytest tests/unit -x -vv 2>&1 | tee /tmp/bisect-unit.log
+PYTHONFAULTHANDLER=1 uv run pytest tests/integration -x -vv 2>&1 | tee /tmp/bisect-integration.log
 ```
 
 Report:
 
-* Good test/set
-* Bad test/set
-* The minimal interaction that causes the crash
+* Which half still crashes
+* Which half stops crashing
+* The minimal interaction you isolated after repeating that split
 
-If bisect can’t isolate: state it and move on.
+Repeat the split on the crashing half until the interaction is isolated. If that still
+doesn’t isolate it, state that and move on.
 
 ---
 
-## 4. Check With Process Isolation
+## 4. Check With Worker Isolation
 
 Run:
 
 ```bash
-PYTHONFAULTHANDLER=1 pytest tests -x --forked 2>&1 | tee /tmp/forked.log
+PYTHONFAULTHANDLER=1 uv run pytest tests -x -vv -n 1 --dist=loadgroup 2>&1 | tee /tmp/worker.log
 ```
 
 Interpret:
 
-* **No crash** → strong evidence of cross-test contamination
-* **Crash still happens** → bug is local to one test/group
+* **No crash** → strong evidence of ordering or shared-state contamination in the default serial path
+* **Crash still happens** → bug is likely local to one test/group, not just full-suite accumulation
 
 ---
 
@@ -77,7 +80,8 @@ Interpret:
 Run separately:
 
 ```bash
-pytest tests/unit -x\pytest tests/integration -x
+uv run pytest tests/unit -x -vv
+uv run pytest tests/integration -x -vv
 ```
 
 If each passes alone but full suite crashes → interaction issue.
@@ -115,7 +119,7 @@ Re-run the minimal failing case.
 If needed:
 
 ```bash
-gdb --args python -m pytest <minimal tests> -x -vv
+gdb --args .venv/bin/python -m pytest <minimal tests> -x -vv
 run
 bt
 ```

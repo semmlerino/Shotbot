@@ -76,5 +76,5 @@ See `docs/README.md` for the full documentation index.
 
 ## Configuration Notes
 
-- User settings persist via Qt `QSettings` (`~/.config/VFX/ShotBot.conf` on Linux).
+- User settings persist via Qt `QSettings` (`~/.config/ShotBot/ShotBot.conf` on Linux).
 - App launch mappings are configured in `config.py`.

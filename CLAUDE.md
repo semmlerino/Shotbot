@@ -24,6 +24,7 @@ Prioritize correctness, maintainability, performance, and Qt thread safety.
 
 - Preferred dev location: `/mnt/c/CustomScripts/Python/shotbot`
 - Production target: `/nethome/gabriel-h/Python/Shotbot/`
+- Production desktop: GNOME
 - Deployment path: encoded bundle flow on `encoded-releases` branch
 - Dependencies and toolchain are defined in `pyproject.toml`
 
@@ -64,4 +65,6 @@ These files form the encoded-releases deployment pipeline. Deleting any of them 
 - Launcher and BlueBolt environment: `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md`
 - Threading model: `docs/THREADING_ARCHITECTURE.md`
 - MainWindow signal invariants: `docs/SIGNAL_ROUTING.md`
+- Dead-code workflow: `docs/SKYLOS_DEAD_CODE_DETECTION.md`
+- Crash triage runbook: `segfault.md`
 - Full docs index: `docs/README.md`
