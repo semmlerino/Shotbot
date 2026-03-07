@@ -77,7 +77,9 @@ class SimpleNukeLauncher(LoggingMixin):
                     # Found existing scripts - open the latest one
                     latest_script = scripts[-1]
                     safe_path = shlex.quote(str(latest_script))
-                    command = f"nuke {safe_path}"
+                    command = (
+                        f"export SGTK_FILE_TO_OPEN={safe_path} && nuke {safe_path}"
+                    )
                     log_messages.append(f"Opening: {latest_script.name}")
                     self.logger.info(f"Opening latest Nuke script: {latest_script}")
                     return command, log_messages
@@ -133,6 +135,7 @@ class SimpleNukeLauncher(LoggingMixin):
         # Build filename
         filename = f"{shot.full_name}_mm-default_{plate}_scene_v{version:03d}.nk"
         script_path = script_dir / filename
+        safe_script_path = shlex.quote(str(script_path))
 
         # Get user
         user = os.environ.get("USER", "unknown")
@@ -171,11 +174,25 @@ try:
 except ImportError:
     pass  # SGTK not available, proceed normally
 
+# Resolve Toolkit context for the target workfile before creating it.
+script_path = {str(script_path)!r}
+try:
+    import sgtk
+
+    engine = sgtk.platform.current_engine()
+    if engine:
+        new_context = engine.sgtk.context_from_path(script_path)
+        if new_context and new_context.task:
+            engine.change_context(new_context)
+            os.environ["SGTK_BOOTSTRAP_DONE"] = "1"
+            print(f"Updated SGTK context for workfile: {{script_path}}")
+except Exception as exc:
+    print(f"Could not switch SGTK context for {{script_path}}: {{exc}}")
+
 # Set up new script
 nuke.scriptNew()
 
 # Save the script (triggers onCreate hooks and templates WITH context)
-script_path = {str(script_path)!r}
 nuke.scriptSaveAs(script_path, overwrite=False)
 
 print(f"Created new Nuke script: {{script_path}}")
@@ -204,7 +221,7 @@ except OSError:
         )
         self.logger.debug(f"Startup script: {temp_script}")
 
-        return command
+        return f"export SGTK_FILE_TO_OPEN={safe_script_path} && {command}"
 
     def create_new_version(
         self,

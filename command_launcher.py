@@ -1070,6 +1070,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
         # Validate and escape scene path to prevent injection
         try:
             safe_scene_path = CommandBuilder.validate_path(str(scene.scene_path))
+            command_prefix = ""
             # Add app-specific command-line flags for scene file
             if app_name == "3de":
                 command = f"{command} -open {safe_scene_path}"
@@ -1078,6 +1079,8 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             else:
                 # Nuke and others accept scene file without flag
                 command = f"{command} {safe_scene_path}"
+                if app_name == "nuke":
+                    command_prefix = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
         except ValueError as e:
             self._emit_error(f"Invalid scene path: {e!s}")
             return False
@@ -1093,6 +1096,7 @@ maya.cmds.evalDeferred(_shotbot_update_context)
             nuke_env_context="Nuke scene launch",
             log_suffix=f" (Scene by: {scene.user}, Plate: {scene.plate})",
             error_context=" with scene",
+            command_prefix=command_prefix if app_name == "nuke" else "",
         )
 
     def launch_with_file(

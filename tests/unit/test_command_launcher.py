@@ -173,6 +173,40 @@ class TestCommandLauncher:
     )
     @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
+    def test_launch_nuke_with_scene_sets_sgtk_file_to_open(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        mock_validate: MagicMock,
+        launcher: CommandLauncher,
+        qtbot: QtBot,
+    ) -> None:
+        """Nuke scene launches should export SGTK_FILE_TO_OPEN for PTR bootstrap."""
+        mock_popen.return_value = _running_process_double("nuke")
+        nuke_scene = ThreeDEScene(
+            show="TEST",
+            sequence="seq01",
+            shot="0010",
+            workspace_path=f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+            user="testuser",
+            plate="FG01",
+            scene_path=Path("/path/to/scene.nk"),
+        )
+
+        result = launcher.launch_app_with_scene("nuke", nuke_scene)
+
+        assert result is True
+        process_qt_events()
+        assert mock_popen.called
+        command_str = " ".join(mock_popen.call_args[0][0])
+        assert "export SGTK_FILE_TO_OPEN=/path/to/scene.nk" in command_str
+        assert "nuke /path/to/scene.nk" in command_str
+
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
+    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_3de_with_scene(
         self,
         mock_popen: MagicMock,

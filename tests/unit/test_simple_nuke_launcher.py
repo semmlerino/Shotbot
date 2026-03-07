@@ -50,6 +50,7 @@ class TestSimpleNukeLauncher:
             mock_shot, "FG01", create_if_missing=False
         )
 
+        assert "export SGTK_FILE_TO_OPEN=" in command
         assert "nuke" in command
         assert "TEST_0010_mm-default_FG01_scene_v003.nk" in command
         assert any("Opening:" in msg for msg in messages)
@@ -94,7 +95,8 @@ class TestSimpleNukeLauncher:
         )
 
         # Now uses Nuke's API via startup script (no -t flag, keeps GUI open)
-        assert command.startswith("nuke ")
+        assert command.startswith("export SGTK_FILE_TO_OPEN=")
+        assert " && nuke " in command
         assert ".py" in command  # Temporary Python script
         assert any("v001.nk" in msg for msg in messages)
         assert any("onCreate hooks" in msg for msg in messages)
@@ -119,7 +121,8 @@ class TestSimpleNukeLauncher:
         command, messages = simple_launcher.create_new_version(mock_shot, "FG01")
 
         # Now uses Nuke's API via startup script (no -t flag, keeps GUI open)
-        assert command.startswith("nuke ")
+        assert command.startswith("export SGTK_FILE_TO_OPEN=")
+        assert " && nuke " in command
         assert ".py" in command
         assert any("v004" in msg for msg in messages)
         assert any("onCreate hooks" in msg for msg in messages)
@@ -147,7 +150,8 @@ class TestSimpleNukeLauncher:
         command, messages = simple_launcher.create_new_version(mock_shot, "FG01")
 
         # Now uses Nuke's API via startup script (no -t flag, keeps GUI open)
-        assert command.startswith("nuke ")
+        assert command.startswith("export SGTK_FILE_TO_OPEN=")
+        assert " && nuke " in command
         assert ".py" in command
         assert any("v001" in msg for msg in messages)
         assert any("onCreate hooks" in msg for msg in messages)
@@ -174,7 +178,8 @@ class TestSimpleNukeLauncher:
         command, messages = simple_launcher.create_new_version(mock_shot, "FG01")
 
         # Check that version was incremented correctly
-        assert command.startswith("nuke ")
+        assert command.startswith("export SGTK_FILE_TO_OPEN=")
+        assert " && nuke " in command
         assert ".py" in command
         assert any("v011" in msg for msg in messages)  # Should increment from v010
 
@@ -201,7 +206,7 @@ class TestSimpleNukeLauncher:
         command, _log_messages = simple_launcher.create_new_version(mock_shot, "FG01")
 
         # Verify a valid nuke command was produced (directory creation succeeded)
-        assert command.startswith("nuke")
+        assert command.startswith("export SGTK_FILE_TO_OPEN=")
 
     @patch.dict("os.environ", {"USER": "testuser"})
     @patch("simple_nuke_launcher.Path.mkdir")
@@ -250,8 +255,8 @@ class TestSimpleNukeLauncher:
             mock_shot, "FG01", create_if_missing=True
         )
 
-        # Extract temp script path from command (format: "nuke '/tmp/nuke_create_*.py'")
-        temp_script_path = Path(command.replace("nuke ", "").strip().strip("'"))
+        # Extract temp script path from command
+        temp_script_path = Path(command.split(" && nuke ", 1)[1].strip().strip("'"))
 
         # Verify temp file was created
         assert temp_script_path.exists(), "Temp startup script should exist"
@@ -264,6 +269,8 @@ class TestSimpleNukeLauncher:
         # Must contain cleanup code
         assert "os.remove(" in script_content, "Script should contain os.remove() call"
         assert str(temp_script_path) in script_content, "Script should reference its own path for cleanup"
+        assert "context_from_path(script_path)" in script_content
+        assert "engine.change_context(new_context)" in script_content
 
         # Clean up the temp file ourselves (normally Nuke would do this)
         temp_script_path.unlink()
