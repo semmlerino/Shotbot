@@ -77,7 +77,7 @@
     "screenshot.sh",
     "take_screenshot.py",
     "auto_screenshot.py",
-    "pyrightconfig.json.backup.json",
+    "docs/root_cleanup_archive_20260307/pyrightconfig.json.backup.json",
     "debug_utils.py",
     "transfer_config.json"
   ],
