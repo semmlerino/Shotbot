@@ -2,7 +2,7 @@
 
 Confident removals from the March 3, 2026 Skylos pass:
 
-- `debug_utils.py`: removed. No Python source or tests imported this module, and the only non-code reference that affected runtime behavior was `transfer_config.json`, which was updated in the same change. The file contained orphaned instrumentation helpers with no CLI entry point, plugin hook, or reflective lookup.
+- `debug_utils.py`: removed. No Python source or tests imported this module, and the only non-code reference that affected runtime behavior was `transfer_config.json`; the stale exclude entry was removed in a follow-up cleanup. The file contained orphaned instrumentation helpers with no CLI entry point, plugin hook, or reflective lookup.
 - `NotificationManager.clear_all_toasts()`: removed from `notification_manager.py`. A repo-wide Python search found only the defining line, so it was not used directly, as a callback, or from tests.
 - `HeadlessMode.require_display()`: removed from `headless_mode.py`. A repo-wide Python search found only the defining line, so it was not used as a decorator or direct call site.
 - `HeadlessMode.is_display_available()`: removed from `headless_mode.py` after the first cleanup pass made it definition-only. It had no remaining callers in Python sources or tests.
