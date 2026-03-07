@@ -1,55 +1,44 @@
 #!/usr/bin/env python3
-"""Quick runner for optimization-specific tests."""
+"""Compatibility wrapper for a maintained optimization-focused regression subset."""
 
-# Standard library imports
+from __future__ import annotations
+
+import os
 import subprocess
 import sys
+from pathlib import Path
 
 
-def run_optimization_tests() -> None:
-    """Run the new optimization tests with proper setup."""
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+OPTIMIZATION_TESTS = [
+    "tests/unit/test_async_shot_loader.py",
+    "tests/integration/test_incremental_caching_workflow.py",
+    "tests/integration/test_cache_architecture_seams.py",
+    "tests/integration/test_cache_merge_correctness.py",
+]
 
-    test_files = [
-        "test_async_shot_loader.py",
-        "test_optimized_cache_scenarios.py",
-        "test_concurrent_optimizations.py",
-        "test_error_recovery_optimized.py",
-        "test_qt_integration_optimized.py",
-    ]
 
-    # Set environment for Qt testing
-    env = {"QT_QPA_PLATFORM": "offscreen", "QT_LOGGING_RULES": "*.debug=false"}
+def main() -> int:
+    """Run a small maintained subset covering async and cache-heavy paths."""
+    env = os.environ.copy()
+    env.setdefault("QT_QPA_PLATFORM", "offscreen")
+    env.setdefault("QT_LOGGING_RULES", "*.debug=false")
 
-    for test_file in test_files:
-        print(f"\n{'=' * 60}")
-        print(f"Running {test_file}")
-        print(f"{'=' * 60}")
+    cmd = ["uv", "run", "pytest", *OPTIMIZATION_TESTS, "-v"]
 
-        try:
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "pytest",
-                    test_file,
-                    "-v",
-                    "--tb=short",
-                    "--no-header",
-                ],
-                check=False, env=env,
-                timeout=300,
-            )
+    print("Running maintained optimization-focused regression subset")
+    print(f"Project root: {PROJECT_ROOT}")
+    print(f"Command: {' '.join(cmd)}")
+    print("For full test policy, see README.md and UNIFIED_TESTING_V2.md.")
 
-            if result.returncode != 0:
-                print(f"❌ {test_file} had failures")
-            else:
-                print(f"✅ {test_file} passed")
+    try:
+        result = subprocess.run(cmd, cwd=PROJECT_ROOT, env=env, check=False)
+    except FileNotFoundError as exc:
+        print(f"Failed to run command: {exc}")
+        return 1
 
-        except subprocess.TimeoutExpired:
-            print(f"⏰ {test_file} timed out")
-        except Exception as e:
-            print(f"💥 {test_file} crashed: {e}")
+    return result.returncode
 
 
 if __name__ == "__main__":
-    run_optimization_tests()
+    sys.exit(main())

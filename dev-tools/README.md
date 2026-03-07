@@ -21,20 +21,24 @@ This directory contains development and analysis scripts that are not part of th
 
 ## Standalone Test Runners
 
-- **`run_optimization_tests.py`** - Performance optimization test suite
-- **`run_thread_safety_tests.py`** - Thread safety validation tests
-- **`run_type_check.py`** - Type checking validation runner
+- **`run_optimization_tests.py`** - Compatibility wrapper for a maintained optimization-focused regression subset
+- **`run_thread_safety_tests.py`** - Compatibility wrapper for maintained thread-safety suites
+- **`run_type_check.py`** - Wrapper for the canonical lint and type-check commands
 
 ## Usage
 
 These scripts are intended for development and debugging purposes. They are not part of the regular application workflow and should not be imported by the main application code.
 
-Run from the project root directory:
+Most maintained scripts can be run from the project root directory:
 
 ```bash
-cd /path/to/shotbot
-uv run python dev-tools/script_name.py
+cd /mnt/c/CustomScripts/Python/shotbot
+uv run python dev-tools/<script_name>.py
 ```
+
+The three `run_*` wrappers above are compatibility entrypoints around the current
+tooling. Prefer the canonical commands in `README.md` and `UNIFIED_TESTING_V2.md`
+when you want the full, documented workflow.
 
 ## Note
 

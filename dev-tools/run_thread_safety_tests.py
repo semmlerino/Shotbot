@@ -1,134 +1,82 @@
 #!/usr/bin/env python3
-"""Simple runner script for thread safety validation tests.
+"""Compatibility wrapper for the maintained thread-safety test suites."""
 
-This script provides an easy way to run the comprehensive thread safety
-validation test suite for the 3DE parallel scanning implementation.
+from __future__ import annotations
 
-Usage:
-    python run_thread_safety_tests.py [--quick] [--performance-only] [--verbose]
-
-Options:
-    --quick: Run only the most critical thread safety tests (faster execution)
-    --performance-only: Run only performance benchmark tests
-    --verbose: Enable verbose output with detailed logging
-"""
-
-# Standard library imports
 import argparse
-import logging
+import subprocess
 import sys
-import unittest
 from pathlib import Path
 
 
-# Ensure we can import from the current directory and tests directory
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent / "tests" / "moved_from_root"))
-
-# Third-party imports
-from test_thread_safety_validation import (  # type: ignore[import-not-found]
-    ThreadSafetyValidationTests,
-    run_validation_tests,
-)
-
-
-def run_quick_tests() -> bool:
-    """Run only the most critical thread safety tests for faster validation."""
-    print("Running QUICK thread safety validation tests...")
-
-    suite = unittest.TestSuite()
-
-    # Add only the most critical tests
-    critical_tests = [
-        "test_threadsafe_progress_tracker",
-        "test_cancellation_event_system",
-        "test_threadpool_manager",
-        "test_threading_utils_import",
-    ]
-
-    for test_name in critical_tests:
-        suite.addTest(ThreadSafetyValidationTests(test_name))
-
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
-
-    return len(result.failures) == 0 and len(result.errors) == 0
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+QUICK_TESTS = [
+    "tests/unit/test_zombie_thread_lifecycle.py",
+]
+DEFAULT_TESTS = [
+    "tests/unit/test_zombie_thread_lifecycle.py",
+    "tests/integration/test_shutdown_sequence.py",
+    "tests/regression/test_process_pool_race.py",
+    "tests/regression/test_subprocess_no_deadlock.py",
+]
 
 
-def run_performance_tests() -> bool:
-    """Run only performance benchmark tests."""
-    print("Running PERFORMANCE benchmark tests...")
+def build_command(args: argparse.Namespace) -> list[str]:
+    """Build the pytest command for the selected mode."""
+    verbosity_flag = "-vv" if args.verbose else "-v"
 
-    # Run only the performance test from ThreadSafetyValidationTests
-    suite = unittest.TestSuite()
-    suite.addTest(ThreadSafetyValidationTests("test_performance_baseline"))
+    if args.performance_only:
+        return [
+            "uv",
+            "run",
+            "pytest",
+            "tests/performance/",
+            "-m",
+            "",
+            verbosity_flag,
+        ]
 
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
-
-    return len(result.failures) == 0 and len(result.errors) == 0
+    selected_tests = QUICK_TESTS if args.quick else DEFAULT_TESTS
+    return ["uv", "run", "pytest", *selected_tests, verbosity_flag]
 
 
 def main() -> int:
-    """Main entry point for the test runner."""
-    parser = argparse.ArgumentParser(description="Run thread safety validation tests")
+    """Run maintained thread-safety coverage."""
+    parser = argparse.ArgumentParser(
+        description="Run maintained thread-safety-focused test suites"
+    )
     parser.add_argument(
         "--quick",
         action="store_true",
-        help="Run only critical tests for faster validation",
+        help="Run a minimal smoke test for thread lifecycle handling",
     )
     parser.add_argument(
         "--performance-only",
         action="store_true",
-        help="Run only performance benchmark tests",
+        help="Run only the explicit performance test directory",
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="Enable verbose logging output"
+        "--verbose",
+        action="store_true",
+        help="Increase pytest verbosity",
     )
-
     args = parser.parse_args()
 
-    # Configure logging
-    if args.verbose:
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-    else:
-        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    cmd = build_command(args)
 
-    success = False
+    print("Running maintained thread-safety compatibility wrapper")
+    print(f"Project root: {PROJECT_ROOT}")
+    print(f"Command: {' '.join(cmd)}")
+    print("Canonical threading guidance lives in docs/THREADING_ARCHITECTURE.md.")
 
     try:
-        if args.quick:
-            success = run_quick_tests()
-        elif args.performance_only:
-            success = run_performance_tests()
-        else:
-            # Run full comprehensive test suite
-            success = run_validation_tests()
-
-    except KeyboardInterrupt:
-        print("\n⚠️  Test execution interrupted by user")
-        return 1
-    except Exception as e:
-        print(f"❌ Test execution failed with error: {e}")
-        if args.verbose:
-            # Standard library imports
-            import traceback
-
-            traceback.print_exc()
+        result = subprocess.run(cmd, cwd=PROJECT_ROOT, check=False)
+    except FileNotFoundError as exc:
+        print(f"Failed to run command: {exc}")
         return 1
 
-    if success:
-        print("\n🎉 Thread safety validation PASSED!")
-        print("✅ All thread safety fixes are working correctly")
-        print("✅ No performance regressions detected")
-        return 0
-    print("\n💥 Thread safety validation FAILED!")
-    print("❌ Issues detected - see output above for details")
-    return 1
+    return result.returncode
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())
