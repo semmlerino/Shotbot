@@ -705,14 +705,6 @@ class NotificationManager(QObject):
                 break
 
     @classmethod
-    def clear_all_toasts(cls) -> None:
-        """Dismiss all active toast notifications."""
-        for toast in cls._active_toasts[
-            :
-        ]:  # Copy list to avoid modification during iteration
-            toast.dismiss()
-
-    @classmethod
     def get_status_bar(cls) -> QStatusBar | None:
         """Get the current status bar reference."""
         return cls._status_bar

@@ -177,34 +177,6 @@ class HeadlessMode:
                 )
 
     @staticmethod
-    def is_display_available() -> bool:
-        """Check if a display is actually available for rendering.
-
-        Returns:
-            True if display is available and working
-
-        """
-        if HeadlessMode.is_headless_environment():
-            return False
-
-        # Try to import Qt and check if we can create widgets
-        try:
-            # Third-party imports
-            from PySide6.QtCore import QCoreApplication
-
-            # If application already exists, display is likely available
-            if QCoreApplication.instance():
-                return True
-
-            # Otherwise, we can't easily test without side effects
-            # Assume display is available if not in headless mode
-            return True
-
-        except Exception:
-            logger.warning("Could not check display availability", exc_info=True)
-            return False
-
-    @staticmethod
     def skip_if_headless(func: Callable[P, T]) -> Callable[P, T | None]:
         """Decorator to skip function execution in headless mode.
 
@@ -227,33 +199,3 @@ class HeadlessMode:
         wrapper.__name__ = func.__name__
         wrapper.__doc__ = func.__doc__
         return wrapper
-
-    @staticmethod
-    def require_display(func: Callable[P, T]) -> Callable[P, T]:
-        """Decorator that raises an error if no display is available.
-
-        Use for functions that absolutely require a display.
-
-        Args:
-            func: Function to wrap
-
-        Returns:
-            Wrapped function that checks for display
-
-        """
-
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            if not HeadlessMode.is_display_available():
-                msg = (
-                    f"{func.__name__} requires a display but none is available. "
-                     "Run with SHOTBOT_HEADLESS=1 to use headless mode."
-                )
-                raise RuntimeError(
-                    msg
-                )
-            return func(*args, **kwargs)
-
-        wrapper.__name__ = func.__name__
-        wrapper.__doc__ = func.__doc__
-        return wrapper
-

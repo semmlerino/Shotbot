@@ -859,7 +859,7 @@ class TestCacheCoordinatorIntegration:
         test_image_jpg: Path,
     ) -> None:
         """Test complete workflow: cache shots, then thumbnails."""
-        from cache import LatestFileCache, SceneDiskCache, ThumbnailCache
+        from cache import ThumbnailCache
 
         cache_dir = tmp_path / "workflow_cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
