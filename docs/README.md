@@ -12,6 +12,7 @@ This index separates active documentation from historical artifacts.
 - `UNIFIED_TESTING_V2.md` - Canonical testing guidance (Qt rules, isolation, parallel execution)
 - `docs/SKYLOS_DEAD_CODE_DETECTION.md` - Canonical Skylos workflow and dead-code triage guidance
 - `docs/DEPLOYMENT_SYSTEM.md` - Bundle/deployment workflow and operational recovery
+- `bundle_workflow_template/README.md` - Portable copy of the encoded-bundle workflow for reuse in another repository
 - `docs/CACHING_ARCHITECTURE.md` - Cache design decisions and invariants
 - `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md` - Launcher behavior and BlueBolt shell environment
 - `docs/THREADING_ARCHITECTURE.md` - Threading model and guardrails
