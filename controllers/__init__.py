@@ -14,10 +14,19 @@ Controllers:
 This refactoring follows the established plan in MAINWINDOW_SAFE_REFACTORING_PLAN_DO_NOT_DELETE.md
 """
 
+from .filter_coordinator import FilterCoordinator
 from .settings_controller import SettingsController, SettingsTarget
+from .shot_selection_controller import ShotSelectionController, ShotSelectionTarget
+from .threede_controller import ThreeDEController
+from .thumbnail_size_manager import ThumbnailSizeManager
 
 
 __all__ = [
+    "FilterCoordinator",
     "SettingsController",
     "SettingsTarget",
+    "ShotSelectionController",
+    "ShotSelectionTarget",
+    "ThreeDEController",
+    "ThumbnailSizeManager",
 ]
