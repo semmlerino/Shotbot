@@ -18,8 +18,13 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
+
+
+if TYPE_CHECKING:
+    from cache.shot_cache import ShotDataCache
 
 
 # ==============================================================================

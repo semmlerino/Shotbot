@@ -19,13 +19,17 @@ import threading
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from cache.scene_cache_disk import SceneDiskCache
 from cache.shot_cache import ShotDataCache
-from cache.types import SceneMergeResult, ShotMergeResult
 from type_definitions import Shot, ShotDict, ThreeDESceneDict
+
+
+if TYPE_CHECKING:
+    from cache.types import SceneMergeResult, ShotMergeResult
 
 
 # ==============================================================================

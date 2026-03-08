@@ -52,7 +52,7 @@ class NukeAppHandler:
     """Handler for Nuke launches."""
 
     def __init__(self, scripts_dir: str) -> None:
-        self._scripts_dir = scripts_dir
+        self._scripts_dir: str = scripts_dir
 
     def build_file_command(self, base_cmd: str, safe_file_path: str) -> str:
         nuke_path_export = f"export NUKE_PATH={self._scripts_dir}:$NUKE_PATH && "
@@ -66,7 +66,7 @@ class ThreeDEAppHandler:
     """Handler for 3DE launches."""
 
     def __init__(self, scripts_dir: str) -> None:
-        self._scripts_dir = scripts_dir
+        self._scripts_dir: str = scripts_dir
 
     def build_file_command(self, base_cmd: str, safe_file_path: str) -> str:
         tde_scripts_export = (
@@ -83,7 +83,7 @@ class MayaAppHandler:
     """Handler for Maya launches."""
 
     def __init__(self, bootstrap_script: str) -> None:
-        self._bootstrap_script = bootstrap_script
+        self._bootstrap_script: str = bootstrap_script
 
     def build_file_command(self, base_cmd: str, safe_file_path: str) -> str:
         encoded = base64.b64encode(self._bootstrap_script.encode()).decode()

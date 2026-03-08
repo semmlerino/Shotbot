@@ -22,6 +22,8 @@ if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
+    from cache.thumbnail_cache import ThumbnailCache
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports

@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
+    from cache.thumbnail_cache import ThumbnailCache as CacheManager
+
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,

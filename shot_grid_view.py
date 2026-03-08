@@ -18,7 +18,6 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -46,7 +45,7 @@ ShotRole = BaseItemRole
 
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtGui import QContextMenuEvent
+    from PySide6.QtGui import QContextMenuEvent, QIcon
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate

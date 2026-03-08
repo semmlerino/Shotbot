@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, TypeVar, cast, final
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 
 from cache._json_store import read_json_cache, write_json_cache
-from cache.types import SceneMergeResult, _get_scene_key, _scene_to_dict
+from cache.types import SceneMergeResult, get_scene_key, scene_to_dict
 from logging_mixin import LoggingMixin
 
 
@@ -161,7 +161,7 @@ class SceneDiskCache(LoggingMixin, QObject):
         # Phase 1: Convert and build lookups under lock (minimal critical section)
         with QMutexLocker(self._lock):
             _, fresh_dicts, cached_by_key, fresh_keys = (
-                self._build_merge_lookups(cached, fresh, _scene_to_dict, _get_scene_key)
+                self._build_merge_lookups(cached, fresh, scene_to_dict, get_scene_key)
             )
 
         # Phase 2: All CPU-bound merge logic OUTSIDE lock
@@ -174,7 +174,7 @@ class SceneDiskCache(LoggingMixin, QObject):
 
         # Process fresh scenes (always include, update last_seen)
         for fresh_scene in fresh_dicts:
-            fresh_key = _get_scene_key(fresh_scene)
+            fresh_key = get_scene_key(fresh_scene)
             if fresh_key not in cached_by_key:
                 new_scenes.append(fresh_scene)
             # Update last_seen and add to result

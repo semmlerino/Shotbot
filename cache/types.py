@@ -57,7 +57,7 @@ class LatestFileCacheResult(NamedTuple):
     path: Path | None = None
 
 
-def _get_shot_key(shot: ShotDict) -> tuple[str, str, str]:
+def get_shot_key(shot: ShotDict) -> tuple[str, str, str]:
     """Get composite unique key for shot.
 
     Uses (show, sequence, shot) tuple instead of full_name to ensure
@@ -73,7 +73,7 @@ def _get_shot_key(shot: ShotDict) -> tuple[str, str, str]:
     return (shot["show"], shot["sequence"], shot["shot"])
 
 
-def _shot_to_dict(shot: object) -> ShotDict:
+def shot_to_dict(shot: object) -> ShotDict:
     """Convert Shot object or ShotDict to ShotDict.
 
     Args:
@@ -89,7 +89,7 @@ def _shot_to_dict(shot: object) -> ShotDict:
     return cast("ShotDict", cast("_HasToDict", shot).to_dict())
 
 
-def _get_scene_key(scene: ThreeDESceneDict) -> tuple[str, str, str]:
+def get_scene_key(scene: ThreeDESceneDict) -> tuple[str, str, str]:
     """Get composite unique key for scene.
 
     Uses (show, sequence, shot) tuple for shot-level deduplication.
@@ -106,7 +106,7 @@ def _get_scene_key(scene: ThreeDESceneDict) -> tuple[str, str, str]:
     return (scene["show"], scene["sequence"], scene["shot"])
 
 
-def _scene_to_dict(scene: object) -> ThreeDESceneDict:
+def scene_to_dict(scene: object) -> ThreeDESceneDict:
     """Convert ThreeDEScene object or dict to ThreeDESceneDict.
 
     Args:

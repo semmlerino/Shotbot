@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, final
 from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 
 # Local application imports
-from cache.latest_file_cache import LatestFileCache
 from config import Config, RezMode
 from latest_file_finder_worker import LatestFileFinderWorker
 from launch import (
@@ -44,6 +43,7 @@ from settings_manager import SettingsManager
 
 if TYPE_CHECKING:
     # Local application imports
+    from cache.latest_file_cache import LatestFileCache
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 

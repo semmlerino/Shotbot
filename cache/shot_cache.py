@@ -19,7 +19,7 @@ from typing import (
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 
 from cache._json_store import file_lock, read_json_cache, write_json_cache
-from cache.types import ShotMergeResult, _get_shot_key, _shot_to_dict
+from cache.types import ShotMergeResult, get_shot_key, shot_to_dict
 from logging_mixin import LoggingMixin
 
 
@@ -156,7 +156,7 @@ class ShotDataCache(LoggingMixin, QObject):
             cache_name: Descriptive name used in log/signal messages (e.g. "shots")
 
         """
-        shot_dicts = [_shot_to_dict(s) for s in shots]
+        shot_dicts = [shot_to_dict(s) for s in shots]
         success = write_json_cache(cache_file, shot_dicts)
         if success:
             self.cache_updated.emit()
@@ -184,7 +184,7 @@ class ShotDataCache(LoggingMixin, QObject):
         """
         self._write_shots_to_cache(shots, self.previous_shots_cache_file, "previous_shots")
 
-    def archive_shots_as_previous(self, shots: list[Shot | ShotDict]) -> bool:
+    def archive_shots_as_previous(self, shots: Sequence[Shot | ShotDict]) -> bool:
         """Move removed shots to Previous Shots migration cache.
 
         Merges with existing migrated shots (deduplicates by composite key).
@@ -206,7 +206,7 @@ class ShotDataCache(LoggingMixin, QObject):
             return True  # No-op is success
 
         # Phase 1: Convert input to dicts (outside lock - pure memory, no shared state)
-        to_migrate = [_shot_to_dict(s) for s in shots]
+        to_migrate = [shot_to_dict(s) for s in shots]
 
         # Phase 2-4: Read, merge, write under lock for thread and process safety
         # File lock protects against concurrent processes (opt-in via SHOTBOT_FILE_LOCKING=enabled)
@@ -220,12 +220,12 @@ class ShotDataCache(LoggingMixin, QObject):
 
             # Add existing first
             for shot in existing:
-                key = _get_shot_key(shot)
+                key = get_shot_key(shot)
                 shots_by_key[key] = shot
 
             # Add/update with new migrations (overwrites if duplicate)
             for shot in to_migrate:
-                key = _get_shot_key(shot)
+                key = get_shot_key(shot)
                 shots_by_key[key] = shot
 
             merged = list(shots_by_key.values())
@@ -285,8 +285,8 @@ class ShotDataCache(LoggingMixin, QObject):
 
     def update_shots_cache(
         self,
-        cached: list[Shot | ShotDict] | None,
-        fresh: list[Shot | ShotDict],
+        cached: Sequence[Shot | ShotDict] | None,
+        fresh: Sequence[Shot | ShotDict],
     ) -> ShotMergeResult:
         """Merge cached shots with fresh data incrementally.
 
@@ -319,7 +319,7 @@ class ShotDataCache(LoggingMixin, QObject):
         # Phase 1: Convert and build lookups under lock (minimal critical section)
         with QMutexLocker(self._lock):
             cached_dicts, fresh_dicts, cached_by_key, fresh_keys = (
-                self._build_merge_lookups(cached, fresh, _shot_to_dict, _get_shot_key)
+                self._build_merge_lookups(cached, fresh, shot_to_dict, get_shot_key)
             )
 
         # Phase 2: All merge logic outside lock (CPU-bound, no shared state)
@@ -328,7 +328,7 @@ class ShotDataCache(LoggingMixin, QObject):
         new_shots: list[ShotDict] = []
 
         for fresh_shot in fresh_dicts:
-            fresh_key = _get_shot_key(fresh_shot)
+            fresh_key = get_shot_key(fresh_shot)
             updated_shots.append(fresh_shot)  # Always use fresh data
 
             if fresh_key not in cached_by_key:
@@ -337,7 +337,7 @@ class ShotDataCache(LoggingMixin, QObject):
 
         # Identify removed (cached keys not in fresh)
         removed_shots = [
-            shot for shot in cached_dicts if _get_shot_key(shot) not in fresh_keys
+            shot for shot in cached_dicts if get_shot_key(shot) not in fresh_keys
         ]
 
         has_changes = bool(new_shots or removed_shots)

@@ -8,7 +8,7 @@ Extracted from DCCSection to isolate sequence-list concerns.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -36,7 +36,7 @@ class DCCSequenceTable(QWidget):
             user double-clicks a sequence item.
     """
 
-    sequence_launch_requested = Signal(object)  # ImageSequence
+    sequence_launch_requested: ClassVar[Signal] = Signal(object)  # ImageSequence
 
     _DEFAULT_PANEL_HEIGHT: int = 120
 
@@ -56,8 +56,8 @@ class DCCSequenceTable(QWidget):
 
         """
         super().__init__(parent)
-        self._dcc_name = dcc_name
-        self._settings_manager = settings_manager
+        self._dcc_name: str = dcc_name
+        self._settings_manager: SettingsManager | None = settings_manager
 
         self._playblasts_section: dict[str, Any] | None = None
         self._renders_section: dict[str, Any] | None = None

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 
 if TYPE_CHECKING:
+    from cache.thumbnail_cache import ThumbnailCache
     from thumbnail_loader import ThumbnailLoader
 
 # Third-party imports
@@ -37,7 +38,6 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QIcon, QImage, QPixmap
 
 # Local application imports
-from cache.thumbnail_cache import ThumbnailCache
 from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
 from protocols import SceneDataProtocol

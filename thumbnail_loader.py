@@ -8,7 +8,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
+
+
+if TYPE_CHECKING:
+    from cache.thumbnail_cache import ThumbnailCache
 
 from PySide6.QtCore import (
     QMutex,
@@ -22,10 +26,10 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QImage, QPixmap
 
-from cache.thumbnail_cache import ThumbnailCache
 from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
 from protocols import SceneDataProtocol
+from typing_compat import override
 
 
 _logger = get_module_logger(__name__)
@@ -58,6 +62,7 @@ class _ThumbnailLoaderRunnable(QRunnable):
         self.signals: _ThumbnailLoaderSignals = _ThumbnailLoaderSignals()
         self.setAutoDelete(False)
 
+    @override
     def run(self) -> None:
         try:
             cached_result = self.cache_manager.cache_thumbnail(

@@ -7,7 +7,7 @@ Extracted from DCCSection to isolate file-list concerns.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QModelIndex, QPoint, Qt, Signal
 from PySide6.QtWidgets import (
@@ -23,11 +23,11 @@ from PySide6.QtWidgets import (
 
 from design_system import design_system
 from resizable_frame import ResizableFrame
-from scene_file import SceneFile
 
 
 if TYPE_CHECKING:
     from files_tab_widget import FileTableModel
+    from scene_file import SceneFile
     from settings_manager import SettingsManager
 
 
@@ -40,8 +40,8 @@ class DCCFileTable(QWidget):
             to open a file (double-click or context-menu "Open in ...").
     """
 
-    file_selected = Signal(object)  # SceneFile
-    launch_file_requested = Signal(object)  # SceneFile
+    file_selected: ClassVar[Signal] = Signal(object)  # SceneFile
+    launch_file_requested: ClassVar[Signal] = Signal(object)  # SceneFile
 
     _DEFAULT_PANEL_HEIGHT: int = 120
 
@@ -65,13 +65,13 @@ class DCCFileTable(QWidget):
 
         """
         super().__init__(parent)
-        self._dcc_name = dcc_name
-        self._display_name = display_name
-        self._accent_color = accent_color
-        self._settings_manager = settings_manager
+        self._dcc_name: str = dcc_name
+        self._display_name: str = display_name
+        self._accent_color: str = accent_color
+        self._settings_manager: SettingsManager | None = settings_manager
 
-        self._files_expanded = False
-        self._files_count = 0
+        self._files_expanded: bool = False
+        self._files_count: int = 0
         self._current_selected_file: SceneFile | None = None
 
         # UI references populated by _setup_ui

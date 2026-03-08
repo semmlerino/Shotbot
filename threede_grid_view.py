@@ -20,7 +20,6 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -44,7 +43,7 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtGui import QIcon, QKeyEvent
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate

@@ -335,10 +335,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.logger.info("Using ProcessPoolManager for process execution")
 
         # Resolve cache directory
-        if cache_dir is not None:
-            _cache_dir = cache_dir
-        else:
-            _cache_dir = resolve_default_cache_dir()
+        _cache_dir = cache_dir if cache_dir is not None else resolve_default_cache_dir()
         _cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Create domain-specific cache managers
@@ -802,8 +799,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
 
         # Update status with what was loaded from cache
-        _PAINT_YIELD_MS = 500
-        _EVENT_LOOP_YIELD_MS = 100
+        paint_yield_ms = 500
+        event_loop_yield_ms = 100
         if has_cached_shots and has_cached_scenes:
             self.update_status(
                 (
@@ -811,12 +808,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                     f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
                 ),
             )
-            QTimer.singleShot(_PAINT_YIELD_MS, self._refresh_shots)
+            QTimer.singleShot(paint_yield_ms, self._refresh_shots)
         elif has_cached_shots:
             self.update_status(
                 f"Loaded {len(self.shot_model.shots)} shots from cache"
             )
-            QTimer.singleShot(_PAINT_YIELD_MS, self._refresh_shots)
+            QTimer.singleShot(paint_yield_ms, self._refresh_shots)
         elif has_cached_scenes:
             self.update_status(
                 f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache",
@@ -833,7 +830,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 "Shots already loaded from cache, triggering previous shots refresh immediately"
             )
             QTimer.singleShot(
-                _EVENT_LOOP_YIELD_MS, self.previous_shots_model.refresh_shots
+                event_loop_yield_ms, self.previous_shots_model.refresh_shots
             )
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
@@ -1221,7 +1218,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             warmer = self._session_warmer
             if not warmer.isFinished():
                 self.logger.debug("Requesting session warmer to stop")
-                warmer.request_stop()
+                _ = warmer.request_stop()
 
                 import sys
                 is_test_environment = "pytest" in sys.modules
