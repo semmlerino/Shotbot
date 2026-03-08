@@ -82,7 +82,7 @@ def get_workspace_shots() -> tuple[list[str], list[str]]:
                         shots.append(path)
 
         return list(shots), list(shows)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Error getting workspace shots: {e}", file=sys.stderr)
         return [], []
 
@@ -185,7 +185,7 @@ def scan_directory(
 
         except PermissionError:
             pass
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Error scanning {path}: {e}", file=sys.stderr)
 
         return {

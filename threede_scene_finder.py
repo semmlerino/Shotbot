@@ -273,7 +273,7 @@ class OptimizedThreeDESceneFinder:
                             if s.scene_path == threede_file and s.user == username
                         ]
                         scenes.extend(matching_scenes)
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         continue
 
             yield scenes, current_shot, total_shots, status

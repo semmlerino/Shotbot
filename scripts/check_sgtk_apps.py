@@ -60,7 +60,7 @@ try:
             )
             print("    Environment: shot_step")
             print(f"    Engines: {list(env.get_engines())}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"    Could not get environment: {e}")
 
         # 6. Try to manually trigger post-file-open
@@ -69,13 +69,13 @@ try:
             # This might trigger app re-registration
             engine.change_context(engine.context)
             print("    Context change triggered - check menu again")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"    Error: {e}")
 
     else:
         print("No engine running!")
 
-except Exception as e:
+except Exception as e:  # noqa: BLE001
     print(f"Error: {e}")
     import traceback
     traceback.print_exc()

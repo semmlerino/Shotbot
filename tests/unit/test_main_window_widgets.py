@@ -310,7 +310,7 @@ class TestMainWindowStateManagement:
                 lambda: window.geometry().width() >= new_width - 50,
                 timeout=1000
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Resize may not complete in headless environment
             pass
 
@@ -352,7 +352,7 @@ class TestMainWindowStateManagement:
                 lambda: window.isMinimized() or window.windowState() & Qt.WindowState.WindowMinimized,
                 timeout=1000
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Minimize may not work in headless environment
             pass
 
@@ -367,7 +367,7 @@ class TestMainWindowStateManagement:
         # Wait for window to be restored
         try:
             qtbot.waitUntil(lambda: not window.isMinimized(), timeout=1000)
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Restore may not work in headless environment
             pass
 

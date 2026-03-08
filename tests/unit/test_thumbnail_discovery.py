@@ -281,7 +281,7 @@ if __name__ == "__main__":
         print("✓ No files found integration passed")
 
         print("All integration tests passed!")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Test failed: {e}")
 
         traceback.print_exc()

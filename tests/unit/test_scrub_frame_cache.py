@@ -340,7 +340,7 @@ class TestMainThreadAssertion:
                 image = make_test_image()
                 cache.store("show/seq/shot1", 1001, image)
                 stored.append(True)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 stored.append(False)
 
         thread = threading.Thread(target=worker_store)
@@ -384,7 +384,7 @@ class TestConcurrentAccess:
                 for i in range(frames_per_thread):
                     frame_num = thread_id * 1000 + i
                     cache.store("show/seq/shot1", frame_num, make_test_image())
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         threads = [
@@ -412,7 +412,7 @@ class TestConcurrentAccess:
                 shot_key = f"show/seq/shot{thread_id}"
                 for i in range(frames_per_thread):
                     cache.store(shot_key, 1000 + i, make_test_image())
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         threads = [
@@ -445,7 +445,7 @@ class TestConcurrentAccess:
             try:
                 for i in range(operations_per_thread):
                     cache.store("show/seq/shot1", 2000 + writer_id * 100 + i, make_test_image())
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         def reader() -> None:
@@ -454,7 +454,7 @@ class TestConcurrentAccess:
                     for i in range(20):
                         _ = cache.get_image("show/seq/shot1", 1000 + i)
                         _ = cache.has_frame("show/seq/shot1", 1000 + i)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         threads = [
@@ -483,7 +483,7 @@ class TestConcurrentAccess:
                 for _ in range(100):
                     _ = cache.get_image("show/seq/shot1", 1025)
                     _ = cache.has_frame("show/seq/shot1", 1025)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         def clearer() -> None:
@@ -491,7 +491,7 @@ class TestConcurrentAccess:
                 import time
                 time.sleep(0)
                 cache.clear_shot("show/seq/shot1")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         reader_threads = [threading.Thread(target=reader) for _ in range(5)]

@@ -350,7 +350,7 @@ class VFXStructureRecreator:
 
                     self.create_3de_file(threede_file, shot, user, "bg01")
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     print(f"Error creating 3DE file for {user} in {shot_path}: {e}")
                     continue
 
@@ -429,7 +429,7 @@ class VFXStructureRecreator:
                                 )
                                 gabrielh_3de_count += 1
 
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         print(
                             f"Error creating gabriel-h 3DE file in {'/'.join(path_parts)}: {e}"
                         )
@@ -469,7 +469,7 @@ class VFXStructureRecreator:
             if not shows_link.exists():
                 shows_link.symlink_to(self.root / "shows")
                 print(f"Created symlink: /tmp/shows -> {self.root / 'shows'}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Could not create symlink: {e}")
 
         # Print statistics

@@ -174,7 +174,7 @@ class FrameExtractionRunnable(QRunnable):
                 self.shot_key, self.frame, "Failed to extract frame"
             )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug(f"Frame {self.frame} extraction exception: {e}")
             self.signals.failed.emit(self.shot_key, self.frame, str(e))
 

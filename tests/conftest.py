@@ -156,7 +156,7 @@ def _cleanup_test_dirs() -> None:
         if d.exists():
             try:
                 shutil.rmtree(d, ignore_errors=True)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass  # Best-effort cleanup
 
 
@@ -193,7 +193,7 @@ _existing_app = QApplication.instance()
 if _existing_app is None:
     try:
         _GLOBAL_QAPP = QApplication(["-platform", "offscreen"])
-    except Exception:
+    except Exception:  # noqa: BLE001
         os.environ["QT_QPA_PLATFORM"] = "minimal"
         _GLOBAL_QAPP = QApplication([])
 else:

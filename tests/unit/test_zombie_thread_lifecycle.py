@@ -410,7 +410,7 @@ class TestZombieThreadSafety:
                         ThreadSafeWorker._zombie_threads.append(worker)
                         ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
                         ThreadSafeWorker._zombie_created_count += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         def read_metrics() -> None:
@@ -418,7 +418,7 @@ class TestZombieThreadSafety:
             try:
                 for _ in range(iterations_per_thread):
                     _ = ThreadSafeWorker.get_zombie_metrics()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         def cleanup_zombies() -> None:
@@ -426,7 +426,7 @@ class TestZombieThreadSafety:
             try:
                 for _ in range(iterations_per_thread // 5):
                     _ = ThreadSafeWorker.cleanup_old_zombies()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         # Run concurrent operations

@@ -190,5 +190,5 @@ def isolated_cache_manager(tmp_path: Path) -> Iterator[CacheCoordinator]:
     # Cleanup
     try:
         coordinator.shutdown()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         _logger.debug("CacheCoordinator shutdown exception: %s", e)

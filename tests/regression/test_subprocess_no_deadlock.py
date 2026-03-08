@@ -80,7 +80,7 @@ for i in range(1024):
             try:
                 for _line in stream:
                     pass  # Discard
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         stdout_thread = threading.Thread(

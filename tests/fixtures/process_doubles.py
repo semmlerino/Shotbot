@@ -348,7 +348,7 @@ class TestProcessPool:
                 return []
             files = list(path.rglob(pattern))
             return [str(f) for f in files]
-        except Exception:
+        except Exception:  # noqa: BLE001
             return []
 
     def get_executed_commands(self) -> list[str]:

@@ -648,7 +648,7 @@ class TestSceneCacheThreadSafety:
                 for _ in range(100):
                     result = cache.get_scenes_for_shot("show1", "seq01", "0010")
                     results.put(result)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.put(e)
 
         threads = [threading.Thread(target=read_cache) for _ in range(5)]
@@ -684,7 +684,7 @@ class TestSceneCacheThreadSafety:
                         f"shot{i}",
                         mock_scenes,  # type: ignore[arg-type]
                     )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.put(e)
 
         threads = [threading.Thread(target=write_cache, args=(i,)) for i in range(5)]
@@ -715,14 +715,14 @@ class TestSceneCacheThreadSafety:
             try:
                 for i in range(100):
                     _ = cache.get_scenes_for_shot("show", "seq", f"shot{i % 10}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.put(e)
 
         def writer() -> None:
             try:
                 for i in range(100):
                     cache.cache_scenes_for_shot("show", "seq", f"new_shot{i}", mock_scenes)  # type: ignore[arg-type]
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.put(e)
 
         threads = [

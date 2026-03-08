@@ -536,7 +536,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 eta_str,
             )
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.logger.warning("Could not estimate scan size", exc_info=True)
             estimated_files = len(shot_tuples) * 10  # Fallback estimate
 

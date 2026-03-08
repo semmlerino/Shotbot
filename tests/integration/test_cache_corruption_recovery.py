@@ -502,7 +502,7 @@ class TestConcurrentErrorRecovery:
                 )
                 with lock:
                     results.append(len(result) if result else 0)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 with lock:
                     errors.append(e)
 
@@ -527,7 +527,7 @@ class TestConcurrentErrorRecovery:
             try:
                 shots = [make_shot_dict(shot=f"{thread_id:04d}")]
                 write_json_cache(cache_manager.shots_cache_file, shots)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 with lock:
                     errors.append(e)
 

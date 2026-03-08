@@ -90,7 +90,7 @@ def read_source_line(filepath: str, line_num: int) -> str:
             lines = f.readlines()
             if line_num <= len(lines):
                 return lines[line_num - 1].rstrip()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Error reading {filepath}:{line_num}: {e}")
     return ""
 

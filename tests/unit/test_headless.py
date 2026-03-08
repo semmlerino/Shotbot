@@ -159,7 +159,7 @@ def test_headless_shotbot_command() -> None:
 
     except subprocess.TimeoutExpired:
         logger.info("✅ Application started (killed after timeout - expected)")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"❌ Error running headless: {e}")
 
 
@@ -215,7 +215,7 @@ def main() -> None:
     except AssertionError as e:
         logger.error(f"❌ Test failed: {e}")
         sys.exit(1)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"❌ Unexpected error: {e}")
         # Standard library imports
         import traceback

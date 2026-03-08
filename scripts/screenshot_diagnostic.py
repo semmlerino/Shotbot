@@ -12,7 +12,7 @@ try:
     output_path = Path("/tmp/shotbot_screenshot.png")
     screenshot.save(str(output_path))
     print(f"✓ Screenshot saved to: {output_path}")
-except Exception as e:
+except Exception as e:  # noqa: BLE001
     print(f"✗ Screenshot failed: {e}")
     print("\nPyAutoGUI on Linux requires 'scrot' to be installed.")
     print("Please run: sudo apt-get install scrot")

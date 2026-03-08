@@ -153,8 +153,8 @@ class ThreadDiagnostics:
                 if hasattr(state, "name"):  # pyright: ignore[reportUnknownArgumentType]
                     return str(state.name)  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
                 return str(state)  # pyright: ignore[reportUnknownArgumentType]
-            except Exception:
-                pass
+            except Exception:  # noqa: BLE001
+                logger.debug("Failed to get thread state via get_state()", exc_info=True)
 
         # Fallback for QThread
         if isinstance(thread, QThread):

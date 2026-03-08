@@ -125,7 +125,7 @@ if __name__ == "__main__":
 
         sys.exit(0 if success else 1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"❌ Error: {e}")
         # Standard library imports
         import traceback

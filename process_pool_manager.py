@@ -800,7 +800,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             try:
                 # Python 3.11+ guaranteed to support cancel_futures parameter
                 self._executor.shutdown(wait=True, cancel_futures=True)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self.logger.debug(f"Executor shutdown exception in thread: {e}")
             finally:
                 shutdown_complete.set()
@@ -837,7 +837,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                             self.logger.warning(
                                 f"Abandoned {len(alive_threads)} threads after timeout: {thread_names}"
                             )
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     self.logger.debug(f"Force shutdown exception: {e}")
 
         except Exception:
@@ -851,13 +851,13 @@ class ProcessPoolManager(LoggingMixin, QObject):
             if cache_size > 0:
                 self.logger.debug(f"Cleared {cache_size} command cache entries")
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.logger.warning("Error during resource cleanup", exc_info=True)
 
         # Stage 3: Force garbage collection to clean up circular references
         try:
             _ = gc.collect()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Error during garbage collection: {e}")
 
         status = "successful" if shutdown_successful else "with timeout"
@@ -876,7 +876,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             if getattr(self, "_init_done", False) and not self._shutdown_requested:
                 self.logger.debug("ProcessPoolManager.__del__ called - triggering shutdown")
                 self.shutdown(timeout=2.0)
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Ignore errors in destructor - we're being destroyed anyway
             pass
 
@@ -895,7 +895,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         if instance is not None:
             try:
                 instance.shutdown(timeout=2.0)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 logger.warning("Error during reset shutdown", exc_info=True)
 
             # Schedule Qt object deletion - CRITICAL for preventing segfaults

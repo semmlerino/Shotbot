@@ -34,7 +34,7 @@ def _shotbot_update_sgtk_context():
             engine.change_context(new_context)
             print("[Shotbot] Context updated - full apps now available")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         # Silently fail - don't break Nuke startup
         print(f"[Shotbot] Note: Could not update SGTK context: {e}")
 

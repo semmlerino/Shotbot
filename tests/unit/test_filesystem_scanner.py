@@ -404,7 +404,7 @@ class TestLazyImportThreadSafety:
                         from scene_parser import SceneParser
                         scanner.parser = SceneParser()
                 parser_ids.append(id(scanner.parser))
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(str(e))
 
         threads = [threading.Thread(target=access_parser) for _ in range(10)]

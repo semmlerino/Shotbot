@@ -260,7 +260,7 @@ class TestQRunnableTrackerThreadSafety:
                     _ = tracker.get_active_count()
                     _ = tracker.get_stats()
                     _ = tracker.get_active_runnables()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         threads = [threading.Thread(target=do_operations) for _ in range(5)]

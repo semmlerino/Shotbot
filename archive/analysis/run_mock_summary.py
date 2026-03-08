@@ -8,6 +8,7 @@ from collections import defaultdict
 
 # Local application imports
 from cache_manager import CacheManager
+
 from shot_model import ShotModel
 
 

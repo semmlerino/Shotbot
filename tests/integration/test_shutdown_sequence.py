@@ -221,13 +221,13 @@ class TestAppWideShutdown:
             try:
                 pool = ProcessPoolManager.get_instance()
                 pool.shutdown(timeout=1.0)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         def shutdown_workers() -> None:
             try:
                 ThreadSafeWorker.reset()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         # Concurrent shutdown
@@ -268,7 +268,7 @@ class TestAppWideShutdown:
                     active_operations.append("started")
                     time.sleep(0.1)
                     active_operations.append("finished")
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         # Start background "operation"

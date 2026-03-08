@@ -356,7 +356,7 @@ class ProcessVerifier:
         """
         try:
             return psutil.pid_exists(pid)
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.logger.warning(f"Error checking PID {pid}", exc_info=True)
             return False
 

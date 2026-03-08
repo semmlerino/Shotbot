@@ -285,7 +285,7 @@ class TestShotThreadSafety:
                 # as it requires real filesystem)
                 with shot._thumbnail_lock:
                     pass
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         # Run many concurrent accesses

@@ -384,7 +384,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 return
 
             self.do_work()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             try:
                 self.logger.exception(f"Worker {id(self)}: Exception in do_work")
                 _ = self.set_state(WorkerState.ERROR)

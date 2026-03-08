@@ -99,7 +99,7 @@ class TestLauncherStackSmoke:
                     cache_ttl=0,  # No caching for test
                     timeout=30,
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 result_container["error"] = str(e)
 
         # Run in thread because ProcessPoolManager checks for main thread

@@ -242,7 +242,7 @@ class TestParallelDiscoveryIntegration:
 
                 results[show_name] = (scenes, progress_updates)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors[show_name] = e
 
         # Split shots by show

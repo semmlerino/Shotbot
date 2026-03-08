@@ -94,7 +94,7 @@ def test_process_pool_manager_race_condition() -> None:
             instances.append(instance)
             # Check if initialized flag is set (using correct attribute name)
             initialization_counts.append(getattr(instance, "_init_done", False))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             errors.append(e)
 
     # Create threads to trigger race condition

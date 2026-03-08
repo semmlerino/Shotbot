@@ -548,7 +548,7 @@ class TestMayaCommandMustSurviveBashParsing:
             try:
                 decoded_script = base64.b64decode(b64_value).decode()
                 base64_found = True
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         # Check for -c argument approach (old)
@@ -562,7 +562,7 @@ class TestMayaCommandMustSurviveBashParsing:
                         try:
                             decoded_script = base64.b64decode(b64_match.group(1)).decode()
                             base64_found = True
-                        except Exception:
+                        except Exception:  # noqa: BLE001
                             pass
                     break
 

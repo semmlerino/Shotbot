@@ -155,7 +155,7 @@ class TestDoubleCheckedLockingFix:
                 # Try to start background refresh multiple times
                 # If lock isn't protecting _loading_in_progress, we'd get multiple loaders
                 model._start_background_refresh()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 race_detected.append(str(e))
 
         # Run concurrent refresh attempts
@@ -196,7 +196,7 @@ class TestDoubleCheckedLockingFix:
                 # This internally calls _start_background_refresh
                 result = model.refresh_shots()
                 results.append(result)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         # Launch multiple threads

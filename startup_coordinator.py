@@ -84,7 +84,7 @@ class SessionWarmer(ThreadSafeWorker):
             logger.info(
                 f"Bash session pre-warming completed successfully ({duration:.2f}s)"
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Don't fail the app if pre-warming fails
             logger.warning("Session pre-warming failed (non-critical)", exc_info=True)
 

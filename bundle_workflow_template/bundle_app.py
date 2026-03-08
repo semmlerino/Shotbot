@@ -209,7 +209,7 @@ class ApplicationBundler:
                     default_config.update(user_config)
                     if self.verbose:
                         print(f"Loaded config from {config_path}", file=sys.stderr)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(
                     f"Warning: Failed to load config from {config_path}: {e}",
                     file=sys.stderr,
@@ -535,7 +535,7 @@ def main() -> None:
             if verbose_bool:
                 print(f"Cleaned up bundle directory: {bundle_dir}", file=sys.stderr)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 

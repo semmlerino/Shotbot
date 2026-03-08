@@ -31,7 +31,7 @@ _ = signal.signal(signal.SIGINT, signal_handler)
 # Run main
 try:
     main()
-except Exception as e:
+except Exception as e:  # noqa: BLE001
     print(f"Error: {e}")
     # Standard library imports
     import traceback

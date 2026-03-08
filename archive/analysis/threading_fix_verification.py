@@ -65,7 +65,7 @@ def test_threading_fix() -> bool:
         logger.info("🎉 Threading fix verification PASSED - no more fatal errors!")
         return True
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"❌ Threading fix verification FAILED: {e}")
         return False
 

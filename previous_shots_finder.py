@@ -144,7 +144,7 @@ class PreviousShotsFinder(ShotFinderBase):
                 shot=shot,  # Use extracted shot number to match ws -sg
                 workspace_path=workspace_path,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Could not create Shot from path {path}: {e}")
             return None
 
@@ -561,7 +561,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
                 active_shots, shows_root
             )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.logger.error(
                 f"Error in targeted search, falling back to parallel search: {e}"
             )

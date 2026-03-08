@@ -408,7 +408,7 @@ class TestMergeThreadSafety:
                 result = shot_cache.update_shots_cache(cached, fresh)
                 with lock:
                     results.append(result)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 with lock:
                     errors.append(e)
 
@@ -438,7 +438,7 @@ class TestMergeThreadSafety:
                 result = scene_cache.merge_scenes_incremental(cached, fresh)
                 with lock:
                     results.append(result)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 with lock:
                     errors.append(e)
 
@@ -462,7 +462,7 @@ class TestMergeThreadSafety:
                     cached = [make_shot_dict(shot="0010")]
                     fresh = [make_shot_dict(shot="0010"), make_shot_dict(shot="0020")]
                     shot_cache.update_shots_cache(cached, fresh)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 with lock:
                     errors.append(e)
 
@@ -475,7 +475,7 @@ class TestMergeThreadSafety:
                         make_scene_dict(shot="0020"),
                     ]
                     scene_cache.merge_scenes_incremental(cached, fresh)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 with lock:
                     errors.append(e)
 

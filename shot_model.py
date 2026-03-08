@@ -140,7 +140,7 @@ class AsyncShotLoader(ThreadSafeWorker):
         except RuntimeError as e:
             if not self.should_stop():
                 self.load_failed.emit(f"Process pool error: {e}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Only emit error if not stopped
             if not self.should_stop():
                 self.load_failed.emit(f"Unexpected error: {e}")
@@ -546,7 +546,7 @@ class ShotModel(BaseShotModel):
             )
             self._session_warmed = True
             self.logger.info("Session pre-warming complete")
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.logger.warning("Session pre-warming failed", exc_info=True)
 
     @override

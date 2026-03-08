@@ -111,7 +111,7 @@ class QRunnableTracker(SingletonMixin):
                 f"Unregistered {runnable.__class__.__name__} "
                 f"(active: {active_count})"
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.warning("Error unregistering runnable", exc_info=True)
 
     def get_active_count(self) -> int:
@@ -365,7 +365,7 @@ class FolderOpenerWorker(QRunnable):
             if hasattr(self, "signals") and self.signals:
                 with contextlib.suppress(RuntimeError):
                     self.signals.error.emit(error_msg)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error_msg = f"Unexpected error opening folder: {e}"
             logger.error(error_msg)
             # Safe signal emission

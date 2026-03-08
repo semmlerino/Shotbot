@@ -67,7 +67,7 @@ def update_context_from_current_file():
         print("File may not match SGTK templates")
         return False
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Error getting context from path: {e}")
         import traceback
         traceback.print_exc()

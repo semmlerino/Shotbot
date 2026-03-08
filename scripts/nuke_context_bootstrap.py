@@ -43,7 +43,7 @@ def register_context_callback():
                 engine.change_context(new_context)
                 print("[Shotbot] Context updated - full apps should now be available")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"[Shotbot] Error updating context: {e}")
 
     # Register callback for after script load

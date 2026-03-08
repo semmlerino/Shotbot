@@ -59,7 +59,7 @@ def setup_mock_vfx_environment() -> bool:
                     "Manual command: python recreate_vfx_structure.py vfx_structure_complete.json"
                 )
                 return False
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"❌ Error creating mock environment: {e}")
             logger.info(
                 "Manual command: python recreate_vfx_structure.py vfx_structure_complete.json"
@@ -193,7 +193,7 @@ def run_shotbot() -> int:
     except KeyboardInterrupt:
         logger.info("\n⚠️  ShotBot interrupted by user")
         return 0
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"❌ Failed to run ShotBot: {e}")
         return 1
 

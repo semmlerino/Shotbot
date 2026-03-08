@@ -94,7 +94,7 @@ def reset_threede_singletons() -> None:
         try:
             if hasattr(ProcessPoolManager._instance, "shutdown"):
                 ProcessPoolManager._instance.shutdown(timeout=1.0)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     ProcessPoolManager._instance = None
     ProcessPoolManager._initialized = False

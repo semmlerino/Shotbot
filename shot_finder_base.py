@@ -125,7 +125,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
                 shot=result.shot,
                 workspace_path=result.workspace_path,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Could not create Shot from path {path}: {e}")
             return None
 
@@ -205,7 +205,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
                 shot.shot,
             )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
             return None
 

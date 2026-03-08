@@ -368,7 +368,7 @@ def main() -> None:
         if verbose:
             print("Encoding completed successfully", file=sys.stderr)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 

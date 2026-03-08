@@ -294,7 +294,7 @@ class EnvironmentManager:
                 _ = self.is_ws_available()
                 _ = self.detect_terminal()
                 logger.debug("Environment caches pre-warmed successfully")
-            except Exception:
+            except Exception:  # noqa: BLE001
                 logger.warning("Error during cache pre-warming", exc_info=True)
             finally:
                 # Always signal completion so waiters don't block forever

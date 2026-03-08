@@ -55,7 +55,7 @@ if sgtk:
                 print(f"    Config name: {pc.get_name()}")
                 print(f"    Config path: {pc.get_path()}")
                 print(f"    Config ID: {pc.get_shotgun_id()}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"    Error getting pipeline config: {e}")
 
             # 6. List registered apps
@@ -75,7 +75,7 @@ if sgtk:
                     for key in ["launch_at_startup", "show_file_open", "file_extensions"]:
                         if key in settings:
                             print(f"    {key}: {settings[key]}")
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     print(f"    Error reading settings: {e}")
             else:
                 print("    tk-multi-workfiles2 not found in apps")
@@ -88,7 +88,7 @@ if sgtk:
         else:
             print("    No engine currently running")
             print("    This means SGTK didn't bootstrap properly")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"    Error: {e}")
         import traceback
         traceback.print_exc()
@@ -111,7 +111,7 @@ try:
             user_setup = sp_path / "userSetup.py"
             if user_setup.exists():
                 print(f"    Found: {user_setup}")
-except Exception as e:
+except Exception as e:  # noqa: BLE001
     print(f"    Error: {e}")
 
 print("\n" + "=" * 60)

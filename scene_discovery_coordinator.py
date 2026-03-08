@@ -180,7 +180,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
             return valid_scenes
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.stats["errors"] += 1
             self.logger.error(
                 f"Error discovering scenes for {show}/{sequence}/{shot}: {e}"

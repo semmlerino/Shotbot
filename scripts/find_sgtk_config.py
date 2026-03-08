@@ -61,7 +61,7 @@ def find_sgtk_module() -> None:
                 print(f"  Context: {engine.context}")
             else:
                 print("  No engine currently running")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  Could not get current engine: {e}")
 
     except ImportError:
@@ -118,7 +118,7 @@ def find_files(base_paths: list[Path], patterns: list[str], max_depth: int = 5) 
                         pass
         except PermissionError:
             pass
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  Error searching {base}: {e}")
 
     return found
@@ -184,9 +184,9 @@ def find_workfiles_config() -> None:
                             for line in content.split("\n"):
                                 if "launch_at_startup" in line:
                                     print(f"    -> {line.strip()}")
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         pass
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
 
@@ -217,9 +217,9 @@ def find_engine_startup() -> None:
                             print("    -> Contains SGTK_FILE_TO_OPEN reference!")
                         if "file_to_open" in content.lower():
                             print("    -> Contains 'file_to_open' reference")
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         pass
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
 
@@ -252,11 +252,11 @@ def list_rez_packages() -> None:
                             for v in versions:
                                 if v.is_dir():
                                     print(f"      {v.name}")
-                        except Exception:
+                        except Exception:  # noqa: BLE001
                             pass
         except PermissionError:
             print("    Permission denied")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"    Error: {e}")
 
 

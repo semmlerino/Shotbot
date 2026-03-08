@@ -337,7 +337,7 @@ class ProcessExecutor(QObject):
                     still_running.append(proc)
                 else:
                     reaped_count += 1
-            except Exception:
+            except Exception:  # noqa: BLE001
                 # Process may have been reaped by something else or invalid
                 reaped_count += 1
 
@@ -513,7 +513,7 @@ class ProcessExecutor(QObject):
                         psutil.ZombieProcess,
                     ):
                         continue
-            except Exception:
+            except Exception:  # noqa: BLE001
                 self.logger.warning("Error scanning processes", exc_info=True)
 
             time.sleep(poll_interval_sec)
@@ -580,5 +580,5 @@ class ProcessExecutor(QObject):
         """Cleanup on destruction."""
         try:
             self.cleanup()
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass  # Ignore errors in destructor

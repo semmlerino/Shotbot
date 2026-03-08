@@ -72,6 +72,7 @@ def test_shot_model() -> int:
     """Test that ShotModel properly loads all shots."""
     # Local application imports
     from cache_manager import CacheManager
+
     from mock_workspace_pool import (
         create_mock_pool_from_filesystem,
     )
@@ -210,7 +211,7 @@ def main() -> int:
             results["mock_pool"] = f"✅ PASS ({shot_count} shots)"
         else:
             results["mock_pool"] = "❌ FAIL"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Mock pool test failed: {e}")
         results["mock_pool"] = "❌ ERROR"
 
@@ -221,7 +222,7 @@ def main() -> int:
             results["shot_model"] = f"✅ PASS ({shot_count} shots)"
         else:
             results["shot_model"] = "❌ FAIL"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Shot model test failed: {e}")
         results["shot_model"] = "❌ ERROR"
 
@@ -232,7 +233,7 @@ def main() -> int:
             results["headless"] = f"✅ PASS ({shot_count} shots)"
         else:
             results["headless"] = "❌ FAIL"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Headless test failed: {e}")
         results["headless"] = "❌ ERROR"
 

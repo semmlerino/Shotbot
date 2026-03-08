@@ -712,7 +712,7 @@ class ThreeDEController(LoggingMixin):
             self.window.threede_scene_model.cache_manager.cache_threede_scenes(
                 self.window.threede_scene_model.to_dict(),  # pyright: ignore[reportArgumentType]
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.logger.warning("Failed to cache 3DE scenes", exc_info=True)
 
     def update_ui(self) -> None:

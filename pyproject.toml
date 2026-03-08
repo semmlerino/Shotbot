@@ -205,8 +205,6 @@ ignore = [
     # Performance (micro-optimizations not worth it)
     "PERF203", # try-except-in-loop (rarely a real issue)
 
-    # Blind except (TODO: fix incrementally in critical paths, then remove this ignore)
-    "BLE001",  # blind-except (316 violations - tackle incrementally)
 ]
 
 # Allow these specific patterns

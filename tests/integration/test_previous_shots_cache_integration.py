@@ -430,7 +430,7 @@ class TestPreviousShootsCacheIntegration:
                 retrieved = cache_manager.get_cached_previous_shots()
                 results.append((thread_id, retrieved))
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append((thread_id, str(e)))
 
         # Run multiple threads concurrently

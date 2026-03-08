@@ -62,7 +62,7 @@ class NukeScriptGenerator:
                 if temp_path.exists():
                     temp_path.unlink()
                     logger.debug(f"Cleaned up temporary file: {temp_file}")
-            except Exception:
+            except Exception:  # noqa: BLE001
                 logger.warning(f"Could not delete temp file {temp_file}", exc_info=True)
         cls._temp_files.clear()
 
@@ -284,8 +284,8 @@ class NukeScriptGenerator:
                 Path(script_content).unlink()
                 if script_content in NukeScriptGenerator._temp_files:
                     NukeScriptGenerator._temp_files.remove(script_content)
-            except Exception:
-                pass  # Non-critical error
+            except Exception:  # noqa: BLE001
+                logger.debug("Failed to clean up temp file", exc_info=True)
 
         return saved_path
 

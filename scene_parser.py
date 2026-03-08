@@ -133,7 +133,7 @@ class SceneParser(LoggingMixin):
             # Last resort: parent directory
             return parent_name
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.logger.warning(
                 f"Failed to extract sequence name from {file_path}; "
                 f"falling back to parent dir name",

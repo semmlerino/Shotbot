@@ -86,7 +86,7 @@ class ThumbnailCacheLoader(QRunnable):
                 self.signals.failed.emit(
                     self.show, self.sequence, self.shot, "cache_thumbnail returned None"
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.signals.failed.emit(self.show, self.sequence, self.shot, str(e))
 
 
@@ -258,7 +258,7 @@ class ThumbnailCache(LoggingMixin):
                 self._pil_to_thumbnail(extracted_frame, output)
                 self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
                 return output
-            except Exception as fallback_error:
+            except Exception as fallback_error:  # noqa: BLE001
                 self.logger.error(f"Failed to process MOV fallback frame: {fallback_error}")
                 return None
         finally:

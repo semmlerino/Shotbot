@@ -264,7 +264,7 @@ class FileSystemScanner(LoggingMixin):
                     user_dir, excluded_users
                 )
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.logger.warning("Error in progressive discovery", exc_info=True)
             # Fallback to Python method
             self.logger.debug("Falling back to Python method due to error")
@@ -285,7 +285,7 @@ class FileSystemScanner(LoggingMixin):
                     self.logger.debug(f"Quick check found .3de files in {base_path}")
                     return True
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self.logger.debug(f"Error in quick check for {base_path}: {e}")
                 continue
 
@@ -334,7 +334,7 @@ class FileSystemScanner(LoggingMixin):
                 and os.access(scene_path, os.R_OK)
                 and scene_path.suffix.lower() == ".3de"
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.logger.warning(
                 f"Exception checking scene existence for {scene_path}; treating as missing",
                 exc_info=True,
@@ -773,7 +773,7 @@ class FileSystemScanner(LoggingMixin):
                 f"Found {len(shots_with_published_mm)} shots with published matchmove"
             )
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.logger.warning("Error finding publish/mm directories", exc_info=True)
             return None
 

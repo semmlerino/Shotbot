@@ -183,7 +183,7 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                         )
                         scenes.append(scene)
 
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         self.logger.warning(f"Error processing {threede_file}", exc_info=True)
                         continue
 
@@ -299,13 +299,13 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                     )
                     scenes.append(scene)
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     self.logger.debug(
                         f"Error processing published file {threede_file}: {e}"
                     )
                     continue
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Error scanning publish directory: {e}")
 
         return scenes
@@ -433,7 +433,7 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
                             )
                             scenes.append(scene)
 
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         self.logger.warning(
                             f"Error processing scene file {threede_file}: {e}"
                         )

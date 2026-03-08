@@ -848,7 +848,7 @@ def cleanup_test_environment(temp_dir: Path) -> None:
     try:
         if temp_dir.exists():
             shutil.rmtree(temp_dir, ignore_errors=True)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Cleanup warning: {e}")
 
 
@@ -914,12 +914,12 @@ if __name__ == "__main__":
                 with contextlib.suppress(Exception):
                     test_instance.progress_patcher.stop()
                 cleanup_test_environment(Path(standalone_temp))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"   Nuke launch workflow failed: {e}")
 
         print("Standalone workflow tests completed")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Standalone test error: {e}")
         traceback.print_exc()
     finally:

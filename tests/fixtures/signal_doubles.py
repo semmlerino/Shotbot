@@ -43,7 +43,7 @@ class SignalDouble:
         for callback in self.callbacks:
             try:
                 callback(*args)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"SignalDouble callback error: {e}")
 
     def connect(self, callback: Callable[..., Any], connection_type: Any = None) -> None:

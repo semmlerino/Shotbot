@@ -56,7 +56,7 @@ class NukeMediaDetector:
                 f"No frame files found matching pattern in {plate_dir}, using default range"
             )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Log the error so users know frame range may be incorrect
             logger.warning(
                 f"Error detecting frame range for {plate_path}: {e}. "

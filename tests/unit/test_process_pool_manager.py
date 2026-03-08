@@ -702,7 +702,7 @@ class TestRoundRobinLoadBalancing:
                 result = manager.execute_workspace_command(cmd, cache_ttl=0)
                 with lock:
                     results.append(result)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 with lock:
                     errors.append(str(e))
 
@@ -751,7 +751,7 @@ class TestShutdownScenarios:
             manager.shutdown(timeout=1.0)
             manager.shutdown(timeout=1.0)
             shutdown_idempotent = True
-        except Exception:
+        except Exception:  # noqa: BLE001
             shutdown_idempotent = False
 
         assert shutdown_idempotent

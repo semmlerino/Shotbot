@@ -208,7 +208,7 @@ class TargetedShotsFinder(ShotFinderBase):
                     shot=shot,  # Use extracted shot number to match ws -sg
                     workspace_path=workspace_path,
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self.logger.debug(f"Could not create Shot from path {path}: {e}")
 
         return None

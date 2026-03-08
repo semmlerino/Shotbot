@@ -167,7 +167,7 @@ class TestThreadDiagnostics:
                     report = ThreadDiagnostics.capture_thread_state(thread)
                     ThreadDiagnostics.log_abandonment(thread, "concurrent", report)
                 results.append(True)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 results.append(False)
 
         threads = [threading.Thread(target=worker) for _ in range(5)]
