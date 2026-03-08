@@ -1,31 +1,18 @@
-"""Comprehensive tests for progress_manager module.
+"""Tests for progress_manager module.
 
-Tests the ProgressManager singleton, ProgressOperation class, and convenience
-functions following UNIFIED_TESTING_GUIDE patterns.
+Tests the simplified ProgressManager singleton.
 """
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Generator
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtWidgets import QProgressDialog, QStatusBar
+from PySide6.QtWidgets import QStatusBar
 
-from progress_manager import (
-    ProgressConfig,
-    ProgressManager,
-    ProgressOperation,
-    ProgressType,
-    finish_progress,
-    is_progress_cancelled,
-    set_progress_indeterminate,
-    set_progress_total,
-    start_progress,
-    update_progress,
-)
+from progress_manager import ProgressManager, _Operation
 
 
 if TYPE_CHECKING:
@@ -43,11 +30,10 @@ pytestmark = [
 
 
 @pytest.fixture
-def mock_notification_manager(status_bar: QStatusBar) -> Generator[Mock, None, None]:
+def mock_notification_manager() -> Generator[Mock, None, None]:
     """Mock NotificationManager at system boundary."""
     with patch("progress_manager.NotificationManager") as mock:
-        mock.get_status_bar.return_value = status_bar
-        mock.progress.return_value = Mock(spec=QProgressDialog)
+        mock.get_status_bar.return_value = None
         mock.close_progress.return_value = None
         mock.success.return_value = None
         mock.info.return_value = None
@@ -71,181 +57,48 @@ def _reset_progress_manager() -> Generator[None, None, None]:
     ProgressManager.reset()
 
 
-@pytest.fixture
-def progress_config() -> ProgressConfig:
-    """Create default progress configuration."""
-    return ProgressConfig(title="Test Operation", cancelable=False)
-
-
 # =============================================================================
-# ProgressOperation Tests
+# _Operation Tests
 # =============================================================================
 
 
-class TestProgressOperation:
-    """Test ProgressOperation state management and behavior."""
+class TestOperation:
+    """Test _Operation state management."""
 
-    def test_initialization(self, progress_config: ProgressConfig) -> None:
-        """Test operation initializes with correct default state."""
-        operation = ProgressOperation(progress_config)
+    def test_initialization(self) -> None:
+        """Operation initializes with correct default state."""
+        op = _Operation("Test Operation", total=0)
 
-        assert operation.config.title == "Test Operation"
-        assert operation.current_value == 0
-        assert operation.total_value == 0
-        assert operation.is_indeterminate is True
-        assert operation.is_cancelled_flag is False
-        assert operation.progress_dialog is None
-        assert operation.status_bar is None
+        assert op.label == "Test Operation"
+        assert op.total == 0
+        assert op.current == 0
+        assert op.cancelled is False
 
-    def test_set_total_switches_to_determinate(
-        self, progress_config: ProgressConfig
-    ) -> None:
-        """Test setting total switches from indeterminate to determinate."""
-        operation = ProgressOperation(progress_config)
-        assert operation.is_indeterminate is True
+    def test_set_total(self) -> None:
+        """set_total updates the total."""
+        op = _Operation("Test", total=0)
+        op.set_total(100)
+        assert op.total == 100
 
-        operation.set_total(100)
+    def test_update_value_and_message(self) -> None:
+        """update() stores current value and message."""
+        op = _Operation("Test", total=100)
+        op.update(50, "Halfway")
+        assert op.current == 50
+        assert op.message == "Halfway"
 
-        assert operation.total_value == 100
-        assert operation.is_indeterminate is False
+    def test_update_without_message_preserves_label(self) -> None:
+        """update() without message keeps existing message."""
+        op = _Operation("My label", total=100)
+        op.update(10)
+        assert op.message == "My label"
 
-    def test_set_indeterminate_clears_total(
-        self, progress_config: ProgressConfig
-    ) -> None:
-        """Test setting indeterminate clears total and switches mode."""
-        operation = ProgressOperation(progress_config)
-        operation.set_total(100)
-
-        operation.set_indeterminate()
-
-        assert operation.is_indeterminate is True
-        assert operation.total_value == 0
-
-    def test_update_throttling(self, progress_config: ProgressConfig) -> None:
-        """Test progress updates are throttled to prevent UI blocking."""
-        config = ProgressConfig(title="Test", update_interval=100)  # 100ms throttle
-        operation = ProgressOperation(config)
-        operation.set_total(100)
-
-        # First update should work
-        operation.update(10, "Step 1")
-        assert operation.current_value == 10
-        assert operation.current_message == "Step 1"
-
-        # Immediate second update should be ignored (throttled)
-        operation.update(20, "Step 2")
-        assert operation.current_value == 10  # Still old value
-        assert operation.current_message == "Step 1"  # Still old message
-
-    def test_update_without_throttling_after_interval(
-        self, progress_config: ProgressConfig
-    ) -> None:
-        """Test updates work after throttle interval expires."""
-        config = ProgressConfig(title="Test", update_interval=10)  # 10ms throttle
-        operation = ProgressOperation(config)
-        operation.set_total(100)
-
-        # First update should work
-        operation.update(10, "Step 1")
-
-        # Wait for throttle interval to expire (20ms > 10ms throttle)
-        threading.Event().wait(timeout=0.020)  # 20ms
-
-        # Second update should now work
-        operation.update(20, "Step 2")
-
-        assert operation.current_value == 20
-        assert operation.current_message == "Step 2"
-
-    def test_cancellation(self, progress_config: ProgressConfig) -> None:
-        """Test operation cancellation sets flag correctly."""
-        operation = ProgressOperation(progress_config)
-
-        assert not operation.is_cancelled()
-
-        operation.cancel()
-
-        assert operation.is_cancelled() is True
-
-    def test_cancel_callback_paths(self) -> None:
-        """Test cancellation invokes callback and suppresses callback failures."""
-        callbacks_called = {"ok": False, "failing": False}
-
-        def ok_callback() -> None:
-            callbacks_called["ok"] = True
-
-        def failing_callback() -> None:
-            callbacks_called["failing"] = True
-            raise RuntimeError("Callback failed")
-
-        for callback in (ok_callback, failing_callback):
-            operation = ProgressOperation(
-                ProgressConfig(title="Test", cancel_callback=callback)
-            )
-            operation.cancel()  # must not propagate callback exceptions
-            assert operation.is_cancelled() is True
-
-        assert callbacks_called == {"ok": True, "failing": True}
-
-    def test_eta_returns_empty_for_non_estimated_states(
-        self, progress_config: ProgressConfig
-    ) -> None:
-        """ETA should be empty when estimation is unavailable or disabled."""
-        # No processing data
-        no_data = ProgressOperation(progress_config)
-        no_data.set_total(100)
-        assert no_data.get_eta_string() == ""
-
-        # Indeterminate operation
-        indeterminate = ProgressOperation(progress_config)
-        assert indeterminate.get_eta_string() == ""
-
-        # Explicitly disabled ETA
-        disabled = ProgressOperation(ProgressConfig(title="Test", show_eta=False))
-        disabled.set_total(100)
-        disabled.processing_times = [10.0]
-        disabled.current_value = 50
-        assert disabled.get_eta_string() == ""
-
-        # Completed operation
-        completed = ProgressOperation(progress_config)
-        completed.set_total(100)
-        completed.processing_times = [10.0]
-        completed.current_value = 100
-        assert completed.get_eta_string() == ""
-
-    def test_eta_calculation_formats_by_time_range(self) -> None:
-        """ETA formatting should cover seconds, minutes, and hours ranges."""
-        cases = [
-            # total, current, rate, expected fragment
-            (100, 50, 10.0, "~5s"),
-            (1000, 100, 1.0, "~15m"),
-            (10000, 1000, 1.0, "~2h 30m"),
-        ]
-        for total, current, rate, expected in cases:
-            operation = ProgressOperation(ProgressConfig(title="Test", update_interval=1))
-            operation.set_total(total)
-            operation.processing_times = [rate]
-            operation.current_value = current
-            eta = operation.get_eta_string()
-            assert expected in eta
-            assert "remaining" in eta
-
-    def test_processing_rate_tracking(
-        self, progress_config: ProgressConfig
-    ) -> None:
-        """Processing rate tracks samples and respects max sample window."""
-        config = ProgressConfig(title="Test", update_interval=1)  # 1ms throttle
-        operation = ProgressOperation(config)
-        operation.set_total(100)
-        operation.max_eta_samples = 5
-
-        for i in range(15):
-            operation.update(i, f"Step {i}")
-            threading.Event().wait(timeout=0.005)
-
-        assert len(operation.processing_times) > 0
-        assert len(operation.processing_times) <= 5
+    def test_cancellation(self) -> None:
+        """cancel() sets is_cancelled to True."""
+        op = _Operation("Test", total=0)
+        assert not op.is_cancelled()
+        op.cancel()
+        assert op.is_cancelled() is True
 
 
 # =============================================================================
@@ -254,29 +107,17 @@ class TestProgressOperation:
 
 
 class TestProgressManagerSingleton:
-    """Test ProgressManager singleton behavior and instance management."""
+    """Test ProgressManager singleton behavior."""
 
     def test_singleton_pattern(self) -> None:
-        """Test ProgressManager implements singleton correctly."""
+        """ProgressManager implements singleton correctly."""
         instance1 = ProgressManager()
         instance2 = ProgressManager()
-
         assert instance1 is instance2
 
-    def test_initialization_only_once(self) -> None:
-        """Test ProgressManager initializes only once despite multiple calls."""
-        manager1 = ProgressManager()
-        manager2 = ProgressManager()
-
-        # Verify both references point to same singleton instance
-        assert manager1 is manager2
-        assert hasattr(manager1, "_initialized")
-        assert manager1._initialized is True
-
     def test_initialize_sets_status_bar(self, status_bar: QStatusBar) -> None:
-        """Test initialize() sets status bar reference."""
+        """initialize() attaches the status bar."""
         manager = ProgressManager.initialize(status_bar)
-
         assert ProgressManager._status_bar is status_bar
         assert isinstance(manager, ProgressManager)
 
@@ -289,25 +130,21 @@ class TestProgressManagerSingleton:
 class TestProgressManagerOperationStack:
     """Test operation stack management and lifecycle."""
 
-    def test_start_operation_with_config(self, mock_notification_manager: Mock) -> None:
-        """Test starting operation with ProgressConfig."""
-        config = ProgressConfig(title="Test Operation", cancelable=False)
+    def test_start_operation_with_label(self, mock_notification_manager: Mock) -> None:
+        """start_operation() pushes operation and returns it."""
+        op = ProgressManager.start_operation("Test Operation")
 
-        operation = ProgressManager.start_operation(config)
-
-        assert operation is not None
-        assert operation.config.title == "Test Operation"
+        assert op is not None
+        assert op.label == "Test Operation"
         assert ProgressManager.is_operation_active()
 
-    def test_start_operation_with_string(self, mock_notification_manager: Mock) -> None:
-        """Test starting operation with simple string title."""
-        operation = ProgressManager.start_operation("Simple Operation")
-
-        assert operation is not None
-        assert operation.config.title == "Simple Operation"
+    def test_start_operation_with_total(self, mock_notification_manager: Mock) -> None:
+        """start_operation() accepts an optional total."""
+        op = ProgressManager.start_operation("Counting", total=50)
+        assert op.total == 50
 
     def test_finish_operation_pops_stack(self, mock_notification_manager: Mock) -> None:
-        """Test finishing operation removes it from stack."""
+        """finish_operation() removes the current operation."""
         ProgressManager.start_operation("Test")
         assert ProgressManager.is_operation_active()
 
@@ -315,39 +152,28 @@ class TestProgressManagerOperationStack:
 
         assert not ProgressManager.is_operation_active()
 
-    def test_finish_operation_empty_stack_warning(
+    def test_finish_operation_empty_stack_is_safe(
         self, mock_notification_manager: Mock
     ) -> None:
-        """Test finishing operation on empty stack logs warning gracefully."""
-        # Should not raise exception
+        """Finishing on an empty stack logs a warning but does not raise."""
         ProgressManager.finish_operation(success=True)
-
-        # Stack remains empty
         assert not ProgressManager.is_operation_active()
 
     def test_get_current_operation(self, mock_notification_manager: Mock) -> None:
-        """Test retrieving current operation from stack."""
-        operation = ProgressManager.start_operation("Test")
+        """get_current_operation() returns the top-of-stack operation."""
+        op = ProgressManager.start_operation("Test")
+        assert ProgressManager.get_current_operation() is op
 
-        current = ProgressManager.get_current_operation()
+    def test_get_current_operation_empty_stack(self) -> None:
+        """get_current_operation() returns None when stack is empty."""
+        assert ProgressManager.get_current_operation() is None
 
-        assert current is operation
+    def test_stacked_operations(self, mock_notification_manager: Mock) -> None:
+        """Operations stack correctly; finish pops in LIFO order."""
+        op1 = ProgressManager.start_operation("Op 1")
+        op2 = ProgressManager.start_operation("Op 2")
+        op3 = ProgressManager.start_operation("Op 3")
 
-    def test_get_current_operation_empty_stack(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """Test getting current operation returns None when stack empty."""
-        current = ProgressManager.get_current_operation()
-
-        assert current is None
-
-    def test_nested_operations_stack(self, mock_notification_manager: Mock) -> None:
-        """Test nested operations maintain correct stack order."""
-        op1 = ProgressManager.start_operation("Operation 1")
-        op2 = ProgressManager.start_operation("Operation 2")
-        op3 = ProgressManager.start_operation("Operation 3")
-
-        # Current should be most recent
         assert ProgressManager.get_current_operation() is op3
 
         ProgressManager.finish_operation()
@@ -359,6 +185,15 @@ class TestProgressManagerOperationStack:
         ProgressManager.finish_operation()
         assert ProgressManager.get_current_operation() is None
 
+    def test_multiple_finish_operations_is_safe(
+        self, mock_notification_manager: Mock
+    ) -> None:
+        """Calling finish_operation() more times than start is safe."""
+        ProgressManager.start_operation("Test")
+        ProgressManager.finish_operation(success=True)
+        ProgressManager.finish_operation(success=True)  # Should not crash
+        assert not ProgressManager.is_operation_active()
+
 
 # =============================================================================
 # ProgressManager Context Manager Tests
@@ -366,53 +201,47 @@ class TestProgressManagerOperationStack:
 
 
 class TestProgressManagerContextManager:
-    """Test context manager behavior and exception handling."""
+    """Test context manager behavior."""
 
-    def test_context_manager_basic_usage(self, mock_notification_manager: Mock) -> None:
-        """Test basic context manager operation."""
-        with ProgressManager.operation("Test Operation") as progress:
-            assert progress is not None
+    def test_context_manager_basic(self, mock_notification_manager: Mock) -> None:
+        """Context manager starts and finishes the operation automatically."""
+        with ProgressManager.operation("Test Operation") as op:
+            assert op is not None
             assert ProgressManager.is_operation_active()
 
-        # Should auto-finish on exit
         assert not ProgressManager.is_operation_active()
 
     def test_context_manager_with_updates(
         self, mock_notification_manager: Mock
     ) -> None:
-        """Test context manager with progress updates."""
-        with ProgressManager.operation("Test") as progress:
-            progress.set_total(100)
-            progress.update(50, "Halfway")
-
-            assert progress.current_value == 50
-            assert progress.total_value == 100
+        """Context manager allows progress updates mid-operation."""
+        with ProgressManager.operation("Test", total=100) as op:
+            op.update(50, "Halfway")
+            assert op.current == 50
+            assert op.total == 100
 
     def test_context_manager_handles_exceptions(
         self, mock_notification_manager: Mock
     ) -> None:
-        """Test context manager propagates exceptions after cleanup."""
-        # PT012: Extract setup outside pytest.raises() for single statement rule
+        """Context manager propagates exceptions after cleanup."""
+
         def raise_in_context() -> None:
-            with ProgressManager.operation("Test") as progress:
-                progress.set_total(10)
+            with ProgressManager.operation("Test"):
                 raise ValueError("Test error")
 
         with pytest.raises(ValueError, match="Test error"):
             raise_in_context()
 
-        # Operation should be cleaned up
         assert not ProgressManager.is_operation_active()
         mock_notification_manager.error.assert_called()
 
     def test_context_manager_success_notification(
         self, mock_notification_manager: Mock
     ) -> None:
-        """Test success notification shown on successful completion."""
+        """Successful completion triggers a success notification."""
         with ProgressManager.operation("Test Operation"):
             pass
 
-        # Should show success notification
         mock_notification_manager.success.assert_called()
         call_args = mock_notification_manager.success.call_args[0][0]
         assert "Test Operation" in call_args
@@ -421,95 +250,13 @@ class TestProgressManagerContextManager:
     def test_context_manager_cancellation_notification(
         self, mock_notification_manager: Mock
     ) -> None:
-        """Test cancellation shows appropriate notification."""
-        with ProgressManager.operation("Test", cancelable=True) as progress:
-            progress.cancel()
+        """A cancelled operation shows an info notification, not success."""
+        with ProgressManager.operation("Test") as op:
+            op.cancel()
 
-        # Should show info (cancellation) not success
         mock_notification_manager.info.assert_called()
         call_args = mock_notification_manager.info.call_args[0][0]
         assert "cancelled" in call_args
-
-    def test_nested_context_managers(self, mock_notification_manager: Mock) -> None:
-        """Test nested progress operations with context managers."""
-        with ProgressManager.operation("Main Operation") as main:
-            main.set_total(2)
-
-            with ProgressManager.operation("Sub-operation 1") as sub1:
-                sub1.set_total(10)
-                sub1.update(10)
-
-            main.update(1)
-
-            with ProgressManager.operation("Sub-operation 2") as sub2:
-                sub2.set_total(20)
-                sub2.update(20)
-
-            main.update(2)
-
-        # All should be cleaned up
-        assert not ProgressManager.is_operation_active()
-
-
-# =============================================================================
-# ProgressManager Progress Type Selection Tests
-# =============================================================================
-
-
-class TestProgressTypeSelection:
-    """Test automatic progress type selection logic."""
-
-    def test_auto_progress_type_cancelable_uses_modal(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """Test AUTO type uses modal dialog for cancelable operations."""
-        config = ProgressConfig(
-            title="Test", cancelable=True, progress_type=ProgressType.AUTO
-        )
-
-        operation = ProgressManager.start_operation(config)
-
-        # Should have created progress dialog (modal)
-        mock_notification_manager.progress.assert_called_once()
-        assert operation.progress_dialog is not None
-
-    def test_auto_progress_type_non_cancelable_uses_status(
-        self, mock_notification_manager: Mock, status_bar: QStatusBar
-    ) -> None:
-        """Test AUTO type uses status bar for non-cancelable operations."""
-        ProgressManager.initialize(status_bar)
-        config = ProgressConfig(
-            title="Test", cancelable=False, progress_type=ProgressType.AUTO
-        )
-
-        operation = ProgressManager.start_operation(config)
-
-        # Should use status bar, not modal dialog
-        mock_notification_manager.progress.assert_not_called()
-        assert operation.status_bar is status_bar
-
-    def test_explicit_modal_progress_type(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """Test explicit MODAL_DIALOG progress type creates dialog."""
-        config = ProgressConfig(title="Test", progress_type=ProgressType.MODAL_DIALOG)
-
-        operation = ProgressManager.start_operation(config)
-
-        mock_notification_manager.progress.assert_called_once()
-        assert operation.progress_dialog is not None
-
-    def test_explicit_status_bar_progress_type(
-        self, mock_notification_manager: Mock, status_bar: QStatusBar
-    ) -> None:
-        """Test explicit STATUS_BAR progress type uses status bar."""
-        ProgressManager.initialize(status_bar)
-        config = ProgressConfig(title="Test", progress_type=ProgressType.STATUS_BAR)
-
-        operation = ProgressManager.start_operation(config)
-
-        mock_notification_manager.progress.assert_not_called()
-        assert operation.status_bar is status_bar
 
 
 # =============================================================================
@@ -520,46 +267,40 @@ class TestProgressTypeSelection:
 class TestProgressCancellation:
     """Test operation cancellation behavior."""
 
-    def test_cancel_current_operation_cancelable(
+    def test_cancel_current_operation_when_active(
         self, mock_notification_manager: Mock
     ) -> None:
-        """Test cancelling a cancelable operation."""
-        config = ProgressConfig(title="Test", cancelable=True)
-        ProgressManager.start_operation(config)
+        """cancel_current_operation() cancels the active operation."""
+        ProgressManager.start_operation("Test")
 
         result = ProgressManager.cancel_current_operation()
 
         assert result is True
-        operation = ProgressManager.get_current_operation()
-        assert operation.is_cancelled() is True
+        assert ProgressManager.get_current_operation().is_cancelled() is True  # type: ignore[union-attr]
 
-    def test_cancel_current_operation_non_cancelable(
+    def test_cancel_with_no_active_operation(self) -> None:
+        """cancel_current_operation() returns False when no operation is active."""
+        result = ProgressManager.cancel_current_operation()
+        assert result is False
+
+    def test_is_cancelled_reflects_state(
         self, mock_notification_manager: Mock
     ) -> None:
-        """Test cancelling a non-cancelable operation returns False."""
-        config = ProgressConfig(title="Test", cancelable=False)
-        ProgressManager.start_operation(config)
+        """ProgressManager.is_cancelled() mirrors the current operation's state."""
+        ProgressManager.start_operation("Test")
+        assert not ProgressManager.is_cancelled()
 
-        result = ProgressManager.cancel_current_operation()
+        ProgressManager.cancel_current_operation()
+        assert ProgressManager.is_cancelled() is True
 
-        assert result is False
-        operation = ProgressManager.get_current_operation()
-        assert operation.is_cancelled() is False
-
-    def test_cancel_with_no_active_operation(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """Test cancelling when no operation is active."""
-        result = ProgressManager.cancel_current_operation()
-
-        assert result is False
+    def test_is_cancelled_with_no_operation(self) -> None:
+        """ProgressManager.is_cancelled() returns False when no operation is active."""
+        assert ProgressManager.is_cancelled() is False
 
     def test_clear_all_operations(self, mock_notification_manager: Mock) -> None:
-        """Test emergency cleanup clears all operations."""
-        # Start multiple operations
-        ProgressManager.start_operation(ProgressConfig(title="Op1", cancelable=True))
-        ProgressManager.start_operation(ProgressConfig(title="Op2", cancelable=True))
-        ProgressManager.start_operation(ProgressConfig(title="Op3", cancelable=False))
+        """clear_all_operations() empties the stack."""
+        ProgressManager.start_operation("Op1")
+        ProgressManager.start_operation("Op2")
 
         ProgressManager.clear_all_operations()
 
@@ -573,159 +314,76 @@ class TestProgressCancellation:
 
 
 class TestUIIntegration:
-    """Test UI updates and integration with Qt widgets."""
+    """Test status bar updates."""
 
-    def test_status_bar_message_updates(
+    def test_status_bar_message_on_start(
         self, mock_notification_manager: Mock, status_bar: QStatusBar
     ) -> None:
-        """Test status bar shows progress messages."""
+        """start_operation() displays the label in the status bar."""
         ProgressManager.initialize(status_bar)
-        config = ProgressConfig(title="Test", progress_type=ProgressType.STATUS_BAR)
+        ProgressManager.start_operation("My Operation")
 
-        operation = ProgressManager.start_operation(config)
-        operation.set_total(100)
-        operation.update(50, "Processing")
+        assert "My Operation" in status_bar.currentMessage()
 
-        # Status bar should show message with percentage
+    def test_status_bar_message_with_percentage(
+        self, mock_notification_manager: Mock, status_bar: QStatusBar
+    ) -> None:
+        """update() shows percentage when total is set."""
+        ProgressManager.initialize(status_bar)
+        op = ProgressManager.start_operation("Processing", total=100)
+        op.update(50, "Processing")
+
         message = status_bar.currentMessage()
         assert "Processing" in message
         assert "50.0%" in message
 
     def test_status_bar_handles_deleted_widget(self) -> None:
-        """Test graceful handling when status bar is deleted."""
-        # Create mock status bar that raises RuntimeError (simulates deleted widget)
+        """Gracefully handles a deleted status bar widget."""
         mock_status_bar = Mock(spec=QStatusBar)
         mock_status_bar.showMessage.side_effect = RuntimeError(
             "wrapped C/C++ object has been deleted"
         )
 
-        # Mock NotificationManager to return our failing status bar
         with patch("progress_manager.NotificationManager") as mock_nm:
             mock_nm.get_status_bar.return_value = mock_status_bar
-            mock_nm.progress.return_value = Mock(spec=QProgressDialog)
 
-            config = ProgressConfig(title="Test", progress_type=ProgressType.STATUS_BAR)
-            operation = ProgressManager.start_operation(config)
-
-            # Should handle RuntimeError gracefully
-            operation.update(50, "Test")  # Should not raise
+            op = ProgressManager.start_operation("Test")
+            op.update(50, "Test")  # Should not raise
 
             # Reference should be cleared
-            assert operation.status_bar is None
+            assert ProgressManager._status_bar is None
 
-    def test_progress_dialog_created_for_modal(
+    def test_update_class_method_delegates_to_current_operation(
+        self, mock_notification_manager: Mock, status_bar: QStatusBar
+    ) -> None:
+        """ProgressManager.update() delegates to the current operation."""
+        ProgressManager.initialize(status_bar)
+        op = ProgressManager.start_operation("Test", total=10)
+
+        ProgressManager.update(5, "Midway")
+
+        assert op.current == 5
+        assert op.message == "Midway"
+
+    def test_update_with_no_operation_is_safe(
         self, mock_notification_manager: Mock
     ) -> None:
-        """Test progress dialog creation for modal operations."""
-        config = ProgressConfig(title="Test", progress_type=ProgressType.MODAL_DIALOG)
-
-        operation = ProgressManager.start_operation(config)
-
-        mock_notification_manager.progress.assert_called_once_with(
-            title="Test", message="Test", cancelable=False, callback=None
-        )
-        assert operation.progress_dialog is not None
-
-    def test_progress_dialog_closed_on_finish(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """Test progress dialog is closed when operation finishes."""
-        config = ProgressConfig(title="Test", progress_type=ProgressType.MODAL_DIALOG)
-        ProgressManager.start_operation(config)
-
-        ProgressManager.finish_operation(success=True)
-
-        mock_notification_manager.close_progress.assert_called_once()
+        """ProgressManager.update() is a no-op when no operation is active."""
+        ProgressManager.update(50)  # Should not raise
 
 
 # =============================================================================
-# Convenience Functions Tests
+# Edge Cases
 # =============================================================================
 
 
-class TestConvenienceFunctions:
-    """Test convenience wrapper functions."""
-
-    def test_convenience_wrapper_happy_path(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """Wrapper functions should operate on the active operation."""
-        operation = start_progress("Test Operation", cancelable=True)
-
-        assert operation is not None
-        assert operation.config.title == "Test Operation"
-        assert operation.config.cancelable is True
-
-        set_progress_total(100)
-        assert operation.total_value == 100
-        assert operation.is_indeterminate is False
-
-        update_progress(50, "Halfway")
-        assert operation.current_value == 50
-        assert operation.current_message == "Halfway"
-
-        set_progress_indeterminate()
-        assert operation.is_indeterminate is True
-
-        finish_progress(success=True)
-        assert not ProgressManager.is_operation_active()
-
-    def test_is_progress_cancelled_function(self, mock_notification_manager: Mock) -> None:
-        """is_progress_cancelled reflects cancellation state of active operation."""
-        operation = start_progress("Cancelable", cancelable=True)
-
-        assert is_progress_cancelled() is False
-
-        operation.cancel()
-
-        assert is_progress_cancelled() is True
-
-    def test_convenience_functions_with_no_operation(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """Test convenience functions handle no active operation gracefully."""
-        # Should not raise exceptions
-        update_progress(50)
-        set_progress_total(100)
-        set_progress_indeterminate()
-
-        # Should return False when no operation
-        assert is_progress_cancelled() is False
-
-
-# =============================================================================
-# Edge Cases and Error Handling Tests
-# =============================================================================
-
-
-class TestEdgeCasesAndErrorHandling:
+class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_multiple_finish_operations(self, mock_notification_manager: Mock) -> None:
-        """Test finishing operation multiple times is safe."""
-        ProgressManager.start_operation("Test")
-
-        ProgressManager.finish_operation(success=True)
-        ProgressManager.finish_operation(success=True)  # Should not crash
-
-        assert not ProgressManager.is_operation_active()
-
     def test_update_value_edge_cases(self, mock_notification_manager: Mock) -> None:
-        """Operations should handle boundary/overflow update values safely."""
-        operation = ProgressManager.start_operation(
-            ProgressConfig(title="Test", update_interval=0)
-        )
+        """Operations handle boundary update values safely."""
+        op = ProgressManager.start_operation("Test")
         for total, value in ((0, 0), (100, -10), (100, 150)):
-            operation.set_total(total)
-            operation.update(value, "Edge")
-            assert operation.current_value == value
-
-    def test_eta_with_non_positive_rate(self, mock_notification_manager: Mock) -> None:
-        """ETA should be empty for zero or negative processing rate."""
-        operation = ProgressManager.start_operation("Test")
-        operation.set_total(100)
-        operation.current_value = 50
-
-        for rate in (0.0, -1.0):
-            operation.processing_times = [rate]
-            assert operation.get_eta_string() == ""
+            op.set_total(total)
+            op.update(value, "Edge")
+            assert op.current == value

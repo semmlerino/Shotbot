@@ -10,7 +10,9 @@ import time
 
 import pytest
 
-from threede_scene_finder import OptimizedThreeDESceneFinder
+from scene_discovery_coordinator import (
+    SceneDiscoveryCoordinator as OptimizedThreeDESceneFinder,
+)
 
 
 pytestmark = [pytest.mark.performance, pytest.mark.slow]
@@ -37,7 +39,7 @@ class TestPerformanceRegression:
         # Performance test
         start_time = time.perf_counter()
 
-        scenes = OptimizedThreeDESceneFinder.find_scenes_for_shot(
+        scenes = OptimizedThreeDESceneFinder().find_scenes_for_shot(
             shot_workspace_path=str(shot_path),
             show="perf_show",
             sequence="perf_seq",

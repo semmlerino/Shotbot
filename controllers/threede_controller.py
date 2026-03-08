@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from cache.scene_cache_disk import SceneDiskCache
     from command_launcher import CommandLauncher
     from controllers.filter_coordinator import FilterableItemModel
+    from progress_manager import _Operation as _ProgressOperation
 
     # Local type imports
     from right_panel import RightPanelWidget
@@ -48,7 +49,7 @@ if TYPE_CHECKING:
 from config import Config
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
-from progress_manager import ProgressManager, ProgressOperation
+from progress_manager import ProgressManager
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 from threede_scene_worker import ThreeDESceneWorker
@@ -120,7 +121,7 @@ class ThreeDEController(LoggingMixin):
         self._closing: bool = False
 
         # Progress operation tracking for cleanup
-        self._current_progress_operation: ProgressOperation | None = None
+        self._current_progress_operation: _ProgressOperation | None = None
 
         # Scan debouncing to prevent restart spam
         self._last_scan_time: float = 0.0

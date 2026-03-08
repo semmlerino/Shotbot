@@ -20,9 +20,10 @@ from pathlib import Path
 import pytest
 
 # Local application imports
+from filesystem_scanner import FileSystemScanner
+from scene_discovery_coordinator import SceneDiscoveryCoordinator
 from shot_model import Shot
 from tests.integration.conftest import create_test_vfx_structure
-from threede_scene_finder import OptimizedThreeDESceneFinder
 
 
 pytestmark = [
@@ -47,34 +48,23 @@ class TestParallelDiscoveryIntegration:
         self.temp_dir.mkdir()
         self.shows_root = self.temp_dir / "shows"
 
-    def test_find_all_3de_files_in_show_parallel_production_pattern(self) -> None:
-        """Test the exact method that failed in production with progress_interval parameter.
+    def test_find_all_3de_files_in_show_targeted_production_pattern(self) -> None:
+        """Test targeted 3DE file discovery for a complete show.
 
-        This test would have caught the ThreadSafeProgressTracker parameter bug.
+        Exercises the production code path that finds all .3de files in a show
+        directory with proper structure validation.
         """
         shows_root, _ = create_test_vfx_structure(self.shows_root)
 
-        # Track progress updates
-        progress_updates = []
-
-        def progress_callback(count: int, status: str) -> None:
-            progress_updates.append((count, status))
-
-        # Call the EXACT method that failed in production
-        # The progress_interval is hardcoded from config inside this method
-        # The bug was in the ThreadSafeProgressTracker creation inside this method
-        results = OptimizedThreeDESceneFinder.find_all_3de_files_in_show_parallel(
+        # Call the underlying targeted method directly
+        results = FileSystemScanner().find_all_3de_files_in_show_targeted(
             show_root=str(shows_root),
             show="TESTSHOW",
-            progress_callback=progress_callback,
         )
 
         # Verify results
         assert isinstance(results, list)
         assert len(results) > 0, "Should find multiple 3DE files"
-
-        # Verify progress callback was called
-        assert len(progress_updates) > 0, "Progress callback should have been called"
 
         # Verify file structure of results
         for file_tuple in results:
@@ -110,8 +100,7 @@ class TestParallelDiscoveryIntegration:
             return cancellation_requested
 
         # Call the method used by ThreeDESceneWorker
-        # This is the complete workflow that failed in production
-        scenes = OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
+        scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
             user_shots=test_shots[:3],  # Use subset of shots for testing
             excluded_users={"baduser"},  # Exclude some users
             progress_callback=progress_callback,
@@ -149,7 +138,7 @@ class TestParallelDiscoveryIntegration:
             return len(progress_updates) >= cancel_after_updates
 
         # This should be cancelled mid-processing
-        scenes = OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
+        scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
             user_shots=test_shots,
             excluded_users=set(),
             progress_callback=progress_callback,
@@ -181,7 +170,7 @@ class TestParallelDiscoveryIntegration:
             progress_updates.append((count, status))
 
         # Should handle invalid paths gracefully
-        scenes = OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
+        scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
             user_shots=all_shots,
             excluded_users=set(),
             progress_callback=progress_callback,
@@ -194,26 +183,17 @@ class TestParallelDiscoveryIntegration:
         valid_scenes = [s for s in scenes if s.scene_path.exists()]
         assert len(valid_scenes) > 0
 
-    def test_config_based_progress_interval_handling(self) -> None:
-        """Test that progress_interval from config is handled correctly internally."""
+    def test_find_all_3de_files_in_show_targeted_finds_files(self) -> None:
+        """Test that targeted file discovery finds .3de files in a show."""
         shows_root, _ = create_test_vfx_structure(self.shows_root)
 
-        progress_updates = []
-
-        def progress_callback(count: int, status: str) -> None:
-            progress_updates.append((count, status))
-
-        # Test that the method works with config-based progress interval
-        # The progress_interval is read from ThreadingConfig.THREEDE_PROGRESS_INTERVAL
-        results = OptimizedThreeDESceneFinder.find_all_3de_files_in_show_parallel(
+        results = FileSystemScanner().find_all_3de_files_in_show_targeted(
             show_root=str(shows_root),
             show="TESTSHOW",
-            progress_callback=progress_callback,
         )
 
-        # Should work without error (would fail with original parameter bug)
         assert isinstance(results, list)
-        assert len(results) > 0, "Should find files using config progress interval"
+        assert len(results) > 0, "Should find files in test structure"
 
     def test_concurrent_parallel_discovery(self) -> None:
         """Test multiple parallel discoveries running concurrently."""
@@ -233,7 +213,7 @@ class TestParallelDiscoveryIntegration:
                 def progress_callback(count: int, status: str) -> None:
                     progress_updates.append((count, status))
 
-                scenes = OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
+                scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
                     user_shots=shot_subset,
                     excluded_users=set(),
                     progress_callback=progress_callback,

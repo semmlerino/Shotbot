@@ -12,9 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from threede_scene_finder import (
-    OptimizedThreeDESceneFinder as ThreeDESceneFinder,
-)
+from filesystem_scanner import FileSystemScanner
+from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
 
 pytestmark = pytest.mark.performance
@@ -90,7 +89,7 @@ class TestSceneFinderBudgets:
         )
 
         start = time.perf_counter()
-        ThreeDESceneFinder.find_scenes_for_shot(
+        SceneDiscoveryCoordinator().find_scenes_for_shot(
             shot_workspace_path=str(test_shot_path),
             show="small_project",
             sequence="seq01",
@@ -106,9 +105,9 @@ class TestSceneFinderBudgets:
         shows_root, _stats = small_project
 
         start = time.perf_counter()
-        ThreeDESceneFinder.find_all_3de_files_in_show(
+        FileSystemScanner().find_all_3de_files_in_show_targeted(
             str(shows_root), "small_project"
         )
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 5.0, f"find_all_3de_files_in_show too slow: {elapsed:.3f}s > 5.0s"
+        assert elapsed < 5.0, f"find_all_3de_files_in_show_targeted too slow: {elapsed:.3f}s > 5.0s"

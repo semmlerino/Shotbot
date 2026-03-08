@@ -21,11 +21,10 @@ from PySide6.QtCore import (
 
 # Local application imports
 from config import Config
+from filesystem_scanner import FileSystemScanner
 from logging_mixin import LoggingMixin
+from scene_discovery_coordinator import SceneDiscoveryCoordinator
 from thread_safe_worker import ThreadSafeWorker
-from threede_scene_finder import (
-    OptimizedThreeDESceneFinder as ThreeDESceneFinder,
-)
 from typing_compat import override
 from utils import ValidationUtils
 
@@ -514,7 +513,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         # Get size estimation for progress calculation
         try:
-            estimated_users, estimated_files = ThreeDESceneFinder.estimate_scan_size(
+            estimated_users, estimated_files = FileSystemScanner().estimate_scan_size(
                 shot_tuples,
                 self.excluded_users,
             )
@@ -540,22 +539,21 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             self.logger.warning("Could not estimate scan size", exc_info=True)
             estimated_files = len(shot_tuples) * 10  # Fallback estimate
 
-        # Use the progressive finder generator
+        # Discover scenes per shot and emit batches with progress updates
+        coordinator = SceneDiscoveryCoordinator()
+        total_shots = len(shot_tuples)
         try:
-            for (
-                scene_batch,
-                current_shot,
-                total_shots,
-                status_msg,
-            ) in ThreeDESceneFinder.find_all_scenes_progressive(
-                shot_tuples,
-                self.excluded_users,
-                self.batch_size,
-                cancel_flag=self.should_stop,
+            for current_shot_idx, (workspace_path, show, sequence, shot) in enumerate(
+                shot_tuples, start=1
             ):
-                # Check for pause/cancel between batches
+                # Check for pause/cancel between shots
                 if not self._check_pause_and_cancel():
                     break
+
+                status_msg = f"Scanning {show}/{sequence}/{shot}"
+                scene_batch = coordinator.find_scenes_for_shot(
+                    workspace_path, show, sequence, shot, self.excluded_users
+                )
 
                 # Add batch to accumulated results
                 if scene_batch:
@@ -582,7 +580,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                     )
 
                     self.progress.emit(
-                        current_shot,
+                        current_shot_idx,
                         total_shots,
                         progress_pct,
                         detailed_status,
@@ -592,7 +590,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                     self._last_progress_time = current_time
 
                 # Emit scan progress for fine-grained updates
-                self.scan_progress.emit(current_shot, total_shots, status_msg)
+                self.scan_progress.emit(current_shot_idx, total_shots, status_msg)
 
         except Exception:
             self.logger.exception("Error in progressive discovery")
@@ -639,7 +637,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         # Use the new parallel file-first discovery
         self.logger.info("Using parallel discovery with progress reporting")
         all_scenes = (
-            ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
+            SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
                 self.user_shots,  # Used to determine which shows to search
                 self.excluded_users,
                 progress_callback=progress_callback,
@@ -754,7 +752,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 )
 
                 # Discover all shots in this show
-                all_shots = ThreeDESceneFinder.discover_all_shots_in_show(
+                all_shots = FileSystemScanner().discover_all_shots_in_show(
                     show_root,
                     show,
                 )
@@ -789,7 +787,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                             "",
                         )
 
-                    scenes = ThreeDESceneFinder.find_scenes_for_shot(
+                    scenes = SceneDiscoveryCoordinator().find_scenes_for_shot(
                         workspace_path,
                         show_name,
                         sequence,

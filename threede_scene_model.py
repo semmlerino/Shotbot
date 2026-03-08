@@ -260,13 +260,11 @@ class ThreeDESceneModel:
             try:
                 # Local application imports
                 # Lazy import to break circular dependency:
-                # scene_cache → threede_scene_model → threede_scene_finder → ... → scene_cache
-                from threede_scene_finder import (
-                    OptimizedThreeDESceneFinder as ThreeDESceneFinder,
-                )
+                # scene_cache → threede_scene_model → scene_discovery_coordinator → scene_cache
+                from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
                 # Step 1: Discover fresh scenes from filesystem
-                fresh_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient(
+                fresh_scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient(
                     shots,  # User's shots are used to determine which shows to search
                     self._excluded_users,
                 )

@@ -20,7 +20,6 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -38,7 +37,7 @@ from base_grid_view import BaseGridView
 from base_item_model import BaseItemRole
 from design_system import design_system
 from icon_painter import create_icon
-from progress_manager import ProgressManager, update_progress
+from progress_manager import ProgressManager
 from runnable_tracker import FolderOpenerWorker
 from shot_grid_delegate import ShotGridDelegate
 from typing_compat import override
@@ -49,7 +48,7 @@ ShotRole = BaseItemRole
 
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtGui import QCloseEvent, QContextMenuEvent
+    from PySide6.QtGui import QCloseEvent, QContextMenuEvent, QIcon
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
@@ -351,7 +350,7 @@ class PreviousShotsView(BaseGridView):
             percent = int((current / total) * 100)
             self._status_label.setText(f"Scanning... {percent}%")
             # Update progress in status bar
-            update_progress(current, f"Scanning {percent}%")
+            ProgressManager.update(current, f"Scanning {percent}%")
 
     def _update_status(self) -> None:
         """Update the status label with shot count."""

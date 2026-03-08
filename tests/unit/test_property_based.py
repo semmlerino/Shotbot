@@ -194,8 +194,8 @@ class TestSceneFinderProperties:
         import tempfile
 
         # Local application imports
-        from threede_scene_finder import (
-            OptimizedThreeDESceneFinder as ThreeDESceneFinder,
+        from scene_discovery_coordinator import (
+            SceneDiscoveryCoordinator as ThreeDESceneFinder,
         )
 
         with tempfile.TemporaryDirectory() as temp_dir:

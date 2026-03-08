@@ -11,7 +11,7 @@ from PySide6.QtCore import QObject
 
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
-from progress_manager import ProgressConfig, ProgressManager, ProgressType
+from progress_manager import ProgressManager
 
 
 if TYPE_CHECKING:
@@ -115,13 +115,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         """
         # Start progress operation manually (don't use context manager for async)
         # The operation will be finished in handle_refresh_finished()
-        config = ProgressConfig(
-            title="Refreshing shots",
-            cancelable=False,
-            progress_type=ProgressType.AUTO,
-        )
-        operation = ProgressManager.start_operation(config)
-        operation.set_indeterminate()
+        _ = ProgressManager.start_operation("Refreshing shots")
         self._shots_refresh_in_progress = True
 
         # force_fresh=True bypasses ws -sg cache for user-initiated refresh
