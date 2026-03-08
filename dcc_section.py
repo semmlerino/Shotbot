@@ -7,9 +7,8 @@ Shows version info in collapsed header for quick reference.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, final
+from typing import TYPE_CHECKING, final
 
 
 if TYPE_CHECKING:
@@ -18,16 +17,10 @@ if TYPE_CHECKING:
 
 from PySide6.QtCore import QModelIndex, QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
-    QAbstractItemView,
-    QApplication,
     QCheckBox,
     QComboBox,
     QHBoxLayout,
-    QHeaderView,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QMenu,
     QPushButton,
     QTableView,
     QToolButton,
@@ -35,10 +28,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from dcc_file_table import DCCFileTable
+from dcc_sequence_table import DCCSequenceTable
 from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
-from resizable_frame import ResizableFrame
-from runnable_tracker import FolderOpenerWorker
 from scene_file import FileType, ImageSequence, SceneFile
 
 
@@ -195,21 +188,9 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._checkboxes: dict[str, QCheckBox] = {}
         self._plate_selector: QComboBox | None = None
 
-        # Files sub-section components (only if has_files_section)
-        self._files_section: QWidget | None = None
-        self._files_content: QWidget | None = None
-        self._file_table: QTableView | None = None
-        self._file_model: FileTableModel | None = None
-        self._file_table_frame: ResizableFrame | None = None
-        self._files_header_btn: QPushButton | None = None
-        self._files_expanded = False
-        self._files_count = 0
-        self._current_selected_file: SceneFile | None = None
-
-        # RV sequence sub-section components (only for RV)
-        self._playblasts_section: dict[str, Any] | None = None
-        self._renders_section: dict[str, Any] | None = None
-        self._selected_sequence: ImageSequence | None = None
+        # Composed sub-widgets (created in _setup_ui if applicable)
+        self._dcc_file_table: DCCFileTable | None = None
+        self._dcc_sequence_table: DCCSequenceTable | None = None
 
         # Store references for dynamic styling
         self._plate_label: QLabel | None = None
@@ -324,11 +305,30 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         # Files sub-section (if configured)
         if self.config.has_files_section:
-            self._setup_files_subsection(content_layout)
+            self._dcc_file_table = DCCFileTable(
+                dcc_name=self.config.name,
+                display_name=self.config.display_name,
+                accent_color=self.config.color,
+                settings_manager=self._settings_manager,
+                parent=self,
+            )
+            _ = self._dcc_file_table.file_selected.connect(self._on_embedded_file_selected)
+            _ = self._dcc_file_table.launch_file_requested.connect(
+                self._on_embedded_file_launch_requested
+            )
+            content_layout.addWidget(self._dcc_file_table)
 
         # RV sequence sub-sections (Maya Playblasts and Nuke Renders)
         if self.config.name == "rv":
-            self._setup_rv_sequence_subsections(content_layout)
+            self._dcc_sequence_table = DCCSequenceTable(
+                dcc_name=self.config.name,
+                settings_manager=self._settings_manager,
+                parent=self,
+            )
+            _ = self._dcc_sequence_table.sequence_launch_requested.connect(
+                self._on_sequence_launch_requested
+            )
+            content_layout.addWidget(self._dcc_sequence_table)
 
         container_layout.addWidget(self._content)
         layout.addWidget(self._container)
@@ -436,53 +436,9 @@ class DCCSection(QtWidgetMixin, QWidget):
                 QComboBox::down-arrow {{ image: none; }}
             """)
 
-        # Files header button
-        if self._files_header_btn is not None:
-            self._files_header_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: transparent;
-                    border: none;
-                    text-align: left;
-                    padding: 4px 0px;
-                    font-size: {design_system.typography.size_tiny}px;
-                    font-weight: bold;
-                    color: #888;
-                }}
-                QPushButton:hover {{
-                    color: #aaa;
-                }}
-            """)
-
-        # Files table
-        if self._file_table is not None:
-            color = self.config.color
-            self._file_table.setStyleSheet(f"""
-                QTableView {{
-                    background-color: #1e1e1e;
-                    alternate-background-color: #232323;
-                    color: #ecf0f1;
-                    border: 1px solid #333;
-                    border-radius: 3px;
-                    selection-background-color: {color}40;
-                    selection-color: #ecf0f1;
-                }}
-                QTableView::item {{
-                    padding: 2px 6px;
-                    font-size: {design_system.typography.size_small}px;
-                }}
-                QTableView::item:selected {{
-                    background-color: {color}60;
-                }}
-                QHeaderView::section {{
-                    background-color: #252525;
-                    color: #888;
-                    padding: 3px 6px;
-                    border: none;
-                    border-bottom: 1px solid #333;
-                    font-weight: bold;
-                    font-size: {design_system.typography.size_tiny}px;
-                }}
-            """)
+        # Delegate file table styling
+        if self._dcc_file_table is not None:
+            self._dcc_file_table.apply_styles()
 
     def _toggle_expanded(self) -> None:
         """Toggle the expanded state."""
@@ -719,240 +675,38 @@ class DCCSection(QtWidgetMixin, QWidget):
         else:
             self._launch_description.setVisible(False)
 
-    # ========== Files Sub-Section Methods ==========
+    # ========== Embedded File Table Signal Handlers ==========
 
-    def _setup_files_subsection(self, content_layout: QVBoxLayout) -> None:
-        """Set up the collapsible files sub-section.
+    def _on_embedded_file_selected(self, file: SceneFile) -> None:
+        """Handle file_selected from embedded DCCFileTable.
 
-        Args:
-            content_layout: The layout to add the files section to
-
-        """
-        # Local import to avoid circular dependency
-        from files_tab_widget import FileTableModel
-
-        # Container for files sub-section
-        self._files_section = QWidget()
-        files_layout = QVBoxLayout(self._files_section)
-        files_layout.setContentsMargins(0, 8, 0, 0)
-        files_layout.setSpacing(0)
-
-        # Files header button (collapsible)
-        self._files_header_btn = QPushButton("▶  Files (0)")
-        self._files_header_btn.setFlat(True)
-        self._files_header_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        _ = self._files_header_btn.clicked.connect(self._toggle_files_expanded)
-        files_layout.addWidget(self._files_header_btn)
-
-        # Files table container (hidden by default)
-        self._files_content = QWidget()
-        self._files_content.setVisible(False)
-        files_content_layout = QVBoxLayout(self._files_content)
-        files_content_layout.setContentsMargins(0, 4, 0, 0)
-        files_content_layout.setSpacing(0)
-
-        # Create table model and view
-        self._file_model = FileTableModel(parent=self)
-        self._file_table = QTableView()
-        self._file_table.setModel(self._file_model)
-        self._file_table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows
-        )
-        self._file_table.setSelectionMode(
-            QAbstractItemView.SelectionMode.SingleSelection
-        )
-        self._file_table.setAlternatingRowColors(True)
-        self._file_table.setSortingEnabled(False)
-        self._file_table.setShowGrid(False)
-        self._file_table.verticalHeader().setVisible(False)
-
-        # Configure header
-        header = self._file_table.horizontalHeader()
-        header.setStretchLastSection(True)
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-
-        # Connect signals
-        _ = self._file_table.clicked.connect(self._on_file_clicked)
-
-        # Enable context menu on right-click
-        self._file_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        _ = self._file_table.customContextMenuRequested.connect(
-            self._show_file_context_menu
-        )
-
-        # Connect double-click for quick launch
-        _ = self._file_table.doubleClicked.connect(self._on_file_double_clicked)
-
-        # Wrap table in ResizableFrame for user-adjustable height
-        self._file_table_frame = ResizableFrame(
-            child_widget=self._file_table,
-            min_height=60,
-            max_height=400,
-            initial_height=self._get_stored_table_height(),
-            accent_color=self.config.color,
-            parent=self,
-        )
-        _ = self._file_table_frame.height_changed.connect(self._on_table_height_changed)
-        files_content_layout.addWidget(self._file_table_frame)
-        files_layout.addWidget(self._files_content)
-
-        content_layout.addWidget(self._files_section)
-
-    def _toggle_files_expanded(self) -> None:
-        """Toggle the files sub-section expanded state."""
-        self._files_expanded = not self._files_expanded
-        if self._files_content is not None:
-            self._files_content.setVisible(self._files_expanded)
-        self._update_files_header()
-
-    def _update_files_header(self) -> None:
-        """Update files header text with indicator and count."""
-        if self._files_header_btn is not None:
-            indicator = "▼" if self._files_expanded else "▶"
-            self._files_header_btn.setText(f"{indicator}  Files ({self._files_count})")
-
-    def _on_file_clicked(self, index: QModelIndex) -> None:
-        """Handle file row click — select but don't launch.
+        Updates the launch description and re-emits file_selected on DCCSection.
 
         Args:
-            index: The clicked model index
+            file: The selected SceneFile.
 
         """
-        if self._file_model is not None:
-            file = self._file_model.get_file(index.row())
-            if file is not None:
-                self._select_file(file)
-                self._update_launch_button_from_file(file)
-
-    def _select_file(self, file: SceneFile) -> None:
-        """Set *file* as the current selection and notify listeners.
-
-        Shared by single-click (select only) and double-click/context-menu
-        (select + launch) paths. This ensures selection state stays consistent.
-
-        Args:
-            file: SceneFile to select.
-
-        """
-        self._current_selected_file = file
-        if self._file_model is not None:
-            self._file_model.set_current_default(file)
+        self._update_launch_button_from_file(file)
         self.file_selected.emit(file)
 
-    def _select_and_launch_file(self, file: SceneFile) -> None:
-        """Select *file* as current and immediately emit a launch signal.
+    def _on_embedded_file_launch_requested(self, file: SceneFile) -> None:
+        """Handle launch_file_requested from embedded DCCFileTable.
 
-        Shared implementation used by double-click and context-menu launch paths.
-        Updates selection state, notifies listeners via ``file_selected``, then
-        emits ``launch_requested`` so the parent can launch the DCC app.
+        Updates the launch description and emits launch_requested on DCCSection.
 
         Args:
-            file: SceneFile to select and launch.
+            file: The SceneFile the user wants to open.
 
         """
-        self._select_file(file)
         self._update_launch_button_from_file(file)
         options = self.get_options()
         self.launch_requested.emit(self.config.name, options)
-
-    def _on_file_double_clicked(self, index: QModelIndex) -> None:
-        """Handle file row double-click - launch immediately.
-
-        Double-clicking a file row launches the DCC app with that file selected.
-
-        Args:
-            index: The double-clicked model index
-
-        """
-        if self._file_model is None:
-            return
-
-        file = self._file_model.get_file(index.row())
-        if file is None:
-            return
-
-        self._select_and_launch_file(file)
-
-    def _show_file_context_menu(self, pos: QPoint) -> None:
-        """Show context menu for file table.
-
-        Args:
-            pos: Position where context menu was requested
-
-        """
-        if self._file_table is None or self._file_model is None:
-            return
-
-        index = self._file_table.indexAt(pos)
-        if not index.isValid():
-            return
-
-        file = self._file_model.get_file(index.row())
-        if file is None:
-            return
-
-        menu = QMenu(self)
-
-        # "Open in [App Name]" action
-        app_display_name = self.config.display_name
-        open_action = menu.addAction(f"Open in {app_display_name}")
-        _ = open_action.triggered.connect(lambda: self._launch_file(file))
-
-        # "Open Containing Folder" action
-        open_folder_action = menu.addAction("Open Containing Folder")
-        _ = open_folder_action.triggered.connect(lambda: self._open_file_folder(file))
-
-        # Separator
-        _ = menu.addSeparator()
-
-        # "Copy Path" action
-        copy_path_action = menu.addAction("Copy Path")
-        _ = copy_path_action.triggered.connect(lambda: self._copy_file_path(file))
-
-        # Show menu at global position
-        _ = menu.exec(self._file_table.mapToGlobal(pos))
-
-    def _launch_file(self, file: SceneFile) -> None:
-        """Launch the DCC app with the specified file.
-
-        Args:
-            file: SceneFile to launch
-
-        """
-        self._select_and_launch_file(file)
-
-    def _open_file_folder(self, file: SceneFile) -> None:
-        """Open the containing folder for a file.
-
-        Args:
-            file: SceneFile whose parent folder to open
-
-        """
-        from pathlib import Path
-
-        from PySide6.QtCore import QThreadPool
-
-        file_path = Path(file.path)
-        if file_path.exists():
-            folder_path = str(file_path.parent)
-            worker = FolderOpenerWorker(folder_path)
-            QThreadPool.globalInstance().start(worker)
-
-    def _copy_file_path(self, file: SceneFile) -> None:
-        """Copy file path to clipboard.
-
-        Args:
-            file: SceneFile whose path to copy
-
-        """
-        clipboard = QApplication.clipboard()
-        clipboard.setText(str(file.path))
 
     def _update_launch_button_from_file(self, file: SceneFile) -> None:
         """Update launch button description from selected file.
 
         Args:
-            file: The selected scene file
+            file: The selected scene file.
 
         """
         if file.version is not None:
@@ -960,46 +714,95 @@ class DCCSection(QtWidgetMixin, QWidget):
             plate = self.get_selected_plate()
             self.set_launch_description(version_str, plate)
 
+    # ========== Embedded Sequence Table Signal Handlers ==========
+
+    def _on_sequence_launch_requested(self, sequence: ImageSequence) -> None:
+        """Handle sequence_launch_requested from embedded DCCSequenceTable.
+
+        Emits launch_requested with sequence_path in options.
+
+        Args:
+            sequence: The ImageSequence to launch.
+
+        """
+        options = self.get_options()
+        options["sequence_path"] = str(sequence.path)
+        self.launch_requested.emit(self.config.name, options)
+
+    # ========== Delegation to DCCFileTable ==========
+
+    @property
+    def _files_section(self) -> QWidget | None:
+        """The files subsection widget (backward compat)."""
+        return self._dcc_file_table
+
+    @property
+    def _file_table(self) -> QTableView | None:
+        """The QTableView inside the file table (backward compat)."""
+        if self._dcc_file_table is not None:
+            return self._dcc_file_table._file_table
+        return None
+
+    @property
+    def _file_model(self) -> FileTableModel | None:
+        """The FileTableModel inside the file table (backward compat)."""
+        if self._dcc_file_table is not None:
+            return self._dcc_file_table._file_model
+        return None
+
+    @property
+    def _files_header_btn(self) -> QPushButton | None:
+        """The header button for the files subsection (backward compat)."""
+        if self._dcc_file_table is not None:
+            return self._dcc_file_table._files_header_btn
+        return None
+
+    @property
+    def _current_selected_file(self) -> SceneFile | None:
+        """Currently selected file (backward compat)."""
+        if self._dcc_file_table is not None:
+            return self._dcc_file_table._current_selected_file
+        return None
+
+    @_current_selected_file.setter
+    def _current_selected_file(self, value: SceneFile | None) -> None:
+        """Set currently selected file (backward compat)."""
+        if self._dcc_file_table is not None:
+            self._dcc_file_table._current_selected_file = value
+
     def set_files(self, files: list[SceneFile]) -> None:
         """Set files for the embedded files sub-section.
 
         Args:
-            files: List of scene files to display
+            files: List of scene files to display.
 
         """
-        if self._file_model is not None:
-            self._file_model.set_files(files)
-            self._files_count = len(files)
-            self._update_files_header()
-
-            # Auto-select first file if available
+        if self._dcc_file_table is not None:
+            self._dcc_file_table.set_files(files)
+            # Update launch description from auto-selected first file
             if files:
-                self._current_selected_file = files[0]
-                self._file_model.set_current_default(files[0])
                 self._update_launch_button_from_file(files[0])
-            else:
-                self._current_selected_file = None
 
     def get_selected_file(self) -> SceneFile | None:
         """Get the currently selected file from the embedded table.
 
         Returns:
-            Selected SceneFile or None
+            Selected SceneFile or None.
 
         """
-        # Return the tracked current selected file
-        return self._current_selected_file
+        if self._dcc_file_table is not None:
+            return self._dcc_file_table.get_selected_file()
+        return None
 
     def set_default_file(self, file: SceneFile | None) -> None:
         """Mark a file as the default (shows arrow indicator).
 
         Args:
-            file: The file to mark as default, or None to clear
+            file: The file to mark as default, or None to clear.
 
         """
-        self._current_selected_file = file
-        if self._file_model is not None:
-            self._file_model.set_current_default(file)
+        if self._dcc_file_table is not None:
+            self._dcc_file_table.set_default_file(file)
             if file is not None:
                 self._update_launch_button_from_file(file)
 
@@ -1007,320 +810,87 @@ class DCCSection(QtWidgetMixin, QWidget):
         """Set the files sub-section expanded state.
 
         Args:
-            expanded: True to expand, False to collapse
+            expanded: True to expand, False to collapse.
 
         """
-        if self._files_expanded != expanded:
-            self._files_expanded = expanded
-            if self._files_content is not None:
-                self._files_content.setVisible(expanded)
-            self._update_files_header()
+        if self._dcc_file_table is not None:
+            self._dcc_file_table.set_files_expanded(expanded)
 
     def is_files_expanded(self) -> bool:
         """Return files sub-section expanded state."""
-        return self._files_expanded
+        if self._dcc_file_table is not None:
+            return self._dcc_file_table.is_files_expanded()
+        return False
 
-    # =========================================================================
-    # RV Sequence Subsections (Maya Playblasts and Nuke Renders)
-    # =========================================================================
-
-    def _setup_rv_sequence_subsections(self, content_layout: QVBoxLayout) -> None:
-        """Set up Maya Playblasts and Nuke Renders subsections for RV section.
+    def _on_file_double_clicked(self, index: QModelIndex) -> None:
+        """Delegate double-click handling to file table (backward compat).
 
         Args:
-            content_layout: The layout to add the sequence sections to
+            index: The double-clicked model index.
 
         """
-        # Colors matching DCC themes
-        playblast_color = "#6b4d8a"  # Purple (Maya-like)
-        render_color = "#8a6b2b"  # Gold (distinctive)
+        if self._dcc_file_table is not None:
+            self._dcc_file_table._on_file_double_clicked(index)
 
-        # Create Maya Playblasts subsection
-        self._playblasts_section = self._create_sequence_subsection(
-            title="Maya Playblasts",
-            color=playblast_color,
-            content_layout=content_layout,
-        )
-
-        # Create Nuke Renders subsection
-        self._renders_section = self._create_sequence_subsection(
-            title="Nuke Renders",
-            color=render_color,
-            content_layout=content_layout,
-        )
-
-    def _create_sequence_subsection(
-        self,
-        title: str,
-        color: str,
-        content_layout: QVBoxLayout,
-    ) -> dict[str, Any]:
-        """Create a collapsible sequence subsection.
+    def _show_file_context_menu(self, pos: QPoint) -> None:
+        """Delegate context menu to file table (backward compat).
 
         Args:
-            title: Section title (e.g., "Maya Playblasts")
-            color: Accent color hex
-            content_layout: Parent layout to add section to
-
-        Returns:
-            Dict containing section state and UI elements
+            pos: Position where context menu was requested.
 
         """
-        section = QWidget()
-        layout = QVBoxLayout(section)
-        layout.setContentsMargins(0, 8, 0, 0)
-        layout.setSpacing(0)
+        if self._dcc_file_table is not None:
+            self._dcc_file_table._show_file_context_menu(pos)
 
-        # Header button (collapsible, colored left border)
-        header_btn = QPushButton(f"▶  {title} (0)")
-        header_btn.setFlat(True)
-        header_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        header_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                border-left: 3px solid {color};
-                text-align: left;
-                padding: 4px 8px;
-                font-size: {design_system.typography.size_tiny}px;
-                font-weight: bold;
-                color: {color};
-            }}
-            QPushButton:hover {{
-                background-color: #2a2a2a;
-            }}
-        """)
-        layout.addWidget(header_btn)
-
-        # Content container (hidden by default)
-        content = QWidget()
-        content.setVisible(False)
-        content_inner_layout = QVBoxLayout(content)
-        content_inner_layout.setContentsMargins(8, 4, 0, 0)
-        content_inner_layout.setSpacing(4)
-
-        # List widget for sequences
-        list_widget = QListWidget()
-        list_widget.setStyleSheet(f"""
-            QListWidget {{
-                background-color: #1e1e1e;
-                border: 1px solid #333;
-                border-radius: 3px;
-                color: #ecf0f1;
-                font-size: {design_system.typography.size_small}px;
-            }}
-            QListWidget::item {{
-                padding: 4px 8px;
-                border-bottom: 1px solid #2a2a2a;
-            }}
-            QListWidget::item:selected {{
-                background-color: {color}40;
-            }}
-            QListWidget::item:hover {{
-                background-color: #2a2a2a;
-            }}
-        """)
-
-        # Wrap list in ResizableFrame for user-adjustable height
-        list_frame = ResizableFrame(
-            child_widget=list_widget,
-            min_height=60,
-            max_height=400,
-            initial_height=self._get_stored_sequence_height(title),
-            accent_color=color,
-            parent=self,
-        )
-        def make_height_handler(
-            section_title: str,
-        ) -> Callable[[int], None]:
-            def on_height_changed(h: int) -> None:
-                self._on_sequence_height_changed(section_title, h)
-
-            return on_height_changed
-
-        _ = list_frame.height_changed.connect(make_height_handler(title))
-        content_inner_layout.addWidget(list_frame)
-
-        layout.addWidget(content)
-        content_layout.addWidget(section)
-
-        # Store state in dict
-        result: dict[str, Any] = {
-            "section": section,
-            "header_btn": header_btn,
-            "content": content,
-            "list_widget": list_widget,
-            "list_frame": list_frame,
-            "expanded": False,
-            "color": color,
-            "title": title,
-        }
-
-        # Connect toggle
-        _ = header_btn.clicked.connect(lambda: self._toggle_sequence_section(result))
-
-        # Connect double-click to launch RV with sequence
-        _ = list_widget.itemDoubleClicked.connect(self._on_sequence_double_clicked)
-
-        return result
-
-    def _toggle_sequence_section(self, section_data: dict[str, Any]) -> None:
-        """Toggle sequence subsection expanded state.
+    def _launch_file(self, file: SceneFile) -> None:
+        """Delegate file launch to file table (backward compat).
 
         Args:
-            section_data: Dict containing section state and UI elements
+            file: SceneFile to launch.
 
         """
-        section_data["expanded"] = not section_data["expanded"]
-        section_data["content"].setVisible(section_data["expanded"])
-        indicator = "▼" if section_data["expanded"] else "▶"
-        count = section_data["list_widget"].count()
-        section_data["header_btn"].setText(
-            f"{indicator}  {section_data['title']} ({count})"
-        )
+        if self._dcc_file_table is not None:
+            self._dcc_file_table._launch_file(file)
 
-    def _on_sequence_double_clicked(self, item: QListWidgetItem) -> None:
-        """Handle sequence item double-click - launch RV with sequence.
+    def _copy_file_path(self, file: SceneFile) -> None:
+        """Delegate copy path to file table (backward compat).
 
         Args:
-            item: The double-clicked list item
+            file: SceneFile whose path to copy.
 
         """
-        sequence = item.data(Qt.ItemDataRole.UserRole)
-        if isinstance(sequence, ImageSequence):
-            self._selected_sequence = sequence
-            # Emit launch signal with sequence_path in options
-            options = self.get_options()
-            options["sequence_path"] = str(sequence.path)
-            self.launch_requested.emit(self.config.name, options)
+        if self._dcc_file_table is not None:
+            self._dcc_file_table._copy_file_path(file)
+
+    # ========== Delegation to DCCSequenceTable ==========
 
     def set_playblast_sequences(self, sequences: list[ImageSequence]) -> None:
         """Set Maya playblast sequences for display.
 
         Args:
-            sequences: List of ImageSequence objects
+            sequences: List of ImageSequence objects.
 
         """
-        if self._playblasts_section:
-            self._update_sequence_list(self._playblasts_section, sequences)
+        if self._dcc_sequence_table is not None:
+            self._dcc_sequence_table.set_playblast_sequences(sequences)
 
     def set_render_sequences(self, sequences: list[ImageSequence]) -> None:
         """Set Nuke render sequences for display.
 
         Args:
-            sequences: List of ImageSequence objects
+            sequences: List of ImageSequence objects.
 
         """
-        if self._renders_section:
-            self._update_sequence_list(self._renders_section, sequences)
-
-    def _update_sequence_list(
-        self, section_data: dict[str, Any], sequences: list[ImageSequence]
-    ) -> None:
-        """Update a sequence list widget with new data.
-
-        Args:
-            section_data: Dict containing section state and UI elements
-            sequences: List of ImageSequence objects to display
-
-        """
-        list_widget: QListWidget = section_data["list_widget"]
-        list_widget.clear()
-
-        for i, seq in enumerate(sequences):
-            # Format: "▶  {render_type}  |  v{version}  |  {frame_range}  |  {age}  |  LATEST"
-            version_str = f"v{seq.version:03d}" if seq.version else "—"
-            latest_badge = "  LATEST" if i == 0 else ""
-            item_text = (
-                f"▶  {seq.render_type}  |  {version_str}  |  "
-                f"{seq.frame_range_str}  |  {seq.relative_age}{latest_badge}"
-            )
-
-            item = QListWidgetItem(item_text)
-            item.setData(Qt.ItemDataRole.UserRole, seq)
-            list_widget.addItem(item)
-
-        # Update header count
-        indicator = "▼" if section_data["expanded"] else "▶"
-        section_data["header_btn"].setText(
-            f"{indicator}  {section_data['title']} ({len(sequences)})"
-        )
+        if self._dcc_sequence_table is not None:
+            self._dcc_sequence_table.set_render_sequences(sequences)
 
     def get_selected_sequence(self) -> ImageSequence | None:
         """Get currently selected sequence for RV launch.
 
         Returns:
-            Selected ImageSequence or None
+            Selected ImageSequence or None.
 
         """
-        return self._selected_sequence
-
-    # --- Height Persistence Methods ---
-
-    _DEFAULT_PANEL_HEIGHT: int = 120
-
-    def _get_stored_height(self, key: str) -> int:
-        """Read a panel height from settings, falling back to ``_DEFAULT_PANEL_HEIGHT``.
-
-        Args:
-            key: QSettings key path (e.g. ``"ui/table_height/3de"``).
-
-        Returns:
-            Stored integer height, or ``_DEFAULT_PANEL_HEIGHT`` if unset or wrong type.
-
-        """
-        if self._settings_manager is None:
-            return self._DEFAULT_PANEL_HEIGHT
-        value = self._settings_manager.settings.value(key, self._DEFAULT_PANEL_HEIGHT, type=int)
-        return value if isinstance(value, int) else self._DEFAULT_PANEL_HEIGHT
-
-    def _save_height(self, key: str, value: int) -> None:
-        """Persist a panel height to settings.
-
-        Args:
-            key: QSettings key path.
-            value: Height in pixels to store.
-
-        """
-        if self._settings_manager is not None:
-            self._settings_manager.settings.setValue(key, value)
-
-    def _get_stored_table_height(self) -> int:
-        """Get stored table height from settings.
-
-        Returns:
-            Stored height or default of ``_DEFAULT_PANEL_HEIGHT``.
-
-        """
-        return self._get_stored_height(f"ui/table_height/{self.config.name}")
-
-    def _on_table_height_changed(self, height: int) -> None:
-        """Save new table height to settings.
-
-        Args:
-            height: The new height value.
-
-        """
-        self._save_height(f"ui/table_height/{self.config.name}", height)
-
-    def _get_stored_sequence_height(self, title: str) -> int:
-        """Get stored sequence list height from settings.
-
-        Args:
-            title: The sequence subsection title (e.g., "Maya Playblasts").
-
-        Returns:
-            Stored height or default of ``_DEFAULT_PANEL_HEIGHT``.
-
-        """
-        return self._get_stored_height(f"ui/table_height/{self.config.name}/{title}")
-
-    def _on_sequence_height_changed(self, title: str, height: int) -> None:
-        """Save new sequence list height to settings.
-
-        Args:
-            title: The sequence subsection title.
-            height: The new height value.
-
-        """
-        self._save_height(f"ui/table_height/{self.config.name}/{title}", height)
+        if self._dcc_sequence_table is not None:
+            return self._dcc_sequence_table.get_selected_sequence()
+        return None

@@ -33,6 +33,50 @@ def _extract_frame_number(path: Path) -> int:
     return 99999  # Sort non-matching files last
 
 
+def _find_first_jpeg_in_version_tree(
+    base_path: Path,
+    image_subdir: str = "jpeg",
+) -> Path | None:
+    """Return the first JPEG found under ``base_path/<latest_version>/<image_subdir>/<resolution>/``.
+
+    Calls ``VersionUtils.get_latest_version(base_path)`` to determine the version
+    directory, then iterates resolution sub-directories (e.g. ``4312x2304``) looking
+    for the first file whose suffix is ``.jpg`` or ``.jpeg``.
+
+    Args:
+        base_path: Directory that contains versioned sub-directories (v001, v002, …).
+        image_subdir: Name of the image format directory inside the version directory.
+            Defaults to ``"jpeg"``; pass ``"jpg"`` for editorial cutref paths.
+
+    Returns:
+        Path to the first JPEG file found, or ``None`` if nothing matches.
+
+    """
+    latest_version = VersionUtils.get_latest_version(base_path)
+    if not latest_version:
+        logger.debug(f"No version found in {base_path}")
+        return None
+
+    jpeg_base_path = base_path / latest_version / image_subdir
+    if not PathValidators.validate_path_exists(jpeg_base_path, "JPEG base path"):
+        return None
+
+    try:
+        for resolution_dir in jpeg_base_path.iterdir():
+            if resolution_dir.is_dir():
+                jpeg_file = FileUtils.get_first_image_file(resolution_dir)
+                if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
+                    logger.debug(
+                        f"Found JPEG in version tree: {jpeg_file.name}"
+                        f" (version: {latest_version}, resolution: {resolution_dir.name})"
+                    )
+                    return jpeg_file
+    except (OSError, PermissionError) as e:
+        logger.debug(f"Error scanning JPEG directory {jpeg_base_path}: {e}")
+
+    return None
+
+
 class ThumbnailFinders:
     """Utilities for finding thumbnail images in VFX pipeline."""
 
@@ -256,30 +300,16 @@ class ThumbnailFinders:
             if not PathValidators.validate_path_exists(plate_path, "Undistorted plate path"):
                 continue
 
-            # Find latest version directory
-            latest_version = VersionUtils.get_latest_version(plate_path)
-            if not latest_version:
-                logger.debug(f"No version found in {plate_path}")
-                continue
-
-            # Build path to jpeg subdirectory
-            jpeg_base_path = plate_path / latest_version / "jpeg"
-
-            if not PathValidators.validate_path_exists(jpeg_base_path, "JPEG base path"):
-                continue
-
-            # Find any resolution directory (4312x2304, etc.)
-            try:
-                for resolution_dir in jpeg_base_path.iterdir():
-                    if resolution_dir.is_dir():
-                        # Find first .jpeg file in this resolution
-                        jpeg_file = FileUtils.get_first_image_file(resolution_dir)
-                        if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
-                            logger.info(f"Found undistorted JPEG thumbnail: {jpeg_file.name} (camera: {plate_name}, version: {latest_version})")
-                            return jpeg_file
-            except (OSError, PermissionError) as e:
-                logger.debug(f"Error scanning JPEG directory {jpeg_base_path}: {e}")
-                continue
+            # Find latest version directory and first JPEG inside jpeg subdir
+            jpeg_file = _find_first_jpeg_in_version_tree(plate_path, image_subdir="jpeg")
+            if jpeg_file is not None:
+                # jpeg_file path is: plate_path / version / jpeg / resolution / file.jpeg
+                version_name = jpeg_file.parent.parent.parent.name
+                logger.info(
+                    f"Found undistorted JPEG thumbnail: {jpeg_file.name}"
+                    f" (camera: {plate_name}, version: {version_name})"
+                )
+                return jpeg_file
 
         logger.debug(
             f"No undistorted JPEG thumbnails found for {show}/{sequence}/{shot}"
@@ -412,30 +442,16 @@ class ThumbnailFinders:
             Path to first JPEG from the latest version, or None
 
         """
-        latest_version = VersionUtils.get_latest_version(editorial_base)
-        if not latest_version:
-            logger.debug(f"No version directories found in {editorial_base}")
-            return None
-
-        jpg_base_path = editorial_base / latest_version / "jpg"
-        if not PathValidators.validate_path_exists(jpg_base_path, "JPEG base path"):
-            logger.debug(f"No jpg directory found in {editorial_base}/{latest_version}")
-            return None
-
-        try:
-            for resolution_dir in jpg_base_path.iterdir():
-                if resolution_dir.is_dir():
-                    jpeg_file = FileUtils.get_first_image_file(resolution_dir)
-                    if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
-                        logger.info(
-                            f"Found editorial cutref thumbnail: {jpeg_file.name}"
-                            f" (version: {latest_version}, resolution: {resolution_dir.name})"
-                        )
-                        return jpeg_file
-        except (OSError, PermissionError) as e:
-            logger.debug(f"Error scanning editorial cutref JPEG directory {jpg_base_path}: {e}")
-
-        return None
+        jpeg_file = _find_first_jpeg_in_version_tree(editorial_base, image_subdir="jpg")
+        if jpeg_file is not None:
+            # jpeg_file path is: editorial_base / version / jpg / resolution / file.jpg
+            version_name = jpeg_file.parent.parent.parent.name
+            resolution_name = jpeg_file.parent.name
+            logger.info(
+                f"Found editorial cutref thumbnail: {jpeg_file.name}"
+                f" (version: {version_name}, resolution: {resolution_name})"
+            )
+        return jpeg_file
 
     @staticmethod
     def find_shot_thumbnail(
