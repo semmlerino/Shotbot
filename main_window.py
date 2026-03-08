@@ -52,9 +52,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast, final
 
 # Third-party imports
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
+    QApplication,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -93,7 +94,6 @@ from cache import (
     ThumbnailCache,
     resolve_default_cache_dir,
 )
-from cleanup_manager import CleanupManager  # Extracted cleanup logic
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config, is_mock_mode
 from controllers.filter_coordinator import FilterCoordinator
@@ -124,7 +124,7 @@ from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
 from shot_model import ShotModel
-from startup_coordinator import SessionWarmer, StartupCoordinator
+from startup_coordinator import SessionWarmer
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
@@ -289,7 +289,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Ensure we're in the main thread for Qt widget creation
         from PySide6.QtCore import QCoreApplication, QThread
-        from PySide6.QtWidgets import QApplication
 
         app_instance = QCoreApplication.instance()
         if app_instance is None:
@@ -361,7 +360,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.notes_manager = NotesManager(_cache_dir, parent=self)
         self.file_pin_manager = FilePinManager(_cache_dir, parent=self)
 
-        self.cleanup_manager = CleanupManager(self)
         self.refresh_orchestrator = RefreshOrchestrator(self)
 
         self.settings_manager = SettingsManager()
@@ -413,23 +411,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._connect_signals()
         self.settings_controller.load_settings()
         self._restore_sort_orders()
-
-        self._startup = StartupCoordinator(
-            shot_model=self.shot_model,
-            threede_scene_model=self.threede_scene_model,
-            threede_item_model=self.threede_item_model,
-            previous_shots_model=self.previous_shots_model,
-            cache_manager=self.scene_disk_cache,
-            refresh_orchestrator=self.refresh_orchestrator,
-            process_pool=self._process_pool,
-            threede_controller=self.threede_controller,
-            shot_grid=self.shot_grid,
-            threede_shot_grid=self.threede_shot_grid,
-            update_status=self.update_status,
-            last_selected_shot_name=self._last_selected_shot_name,
-            refresh_shots=self._refresh_shots,
-            refresh_shot_display=self._refresh_shot_display,
-        )
 
         # Skip initial load in test environments if requested
         if not os.environ.get("SHOTBOT_NO_INITIAL_LOAD"):
@@ -771,8 +752,100 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # My Shots tab always sorts by name - no user-configurable sort order
 
     def _initial_load(self) -> None:
-        """Initial shot loading — instant from cache or deferred to background."""
-        self._session_warmer = self._startup.perform_initial_load()
+        """Initial shot loading — instant from cache or deferred to background.
+
+        Implements a 4-case decision table based on cache state:
+            cached shots + cached scenes  → display both, schedule background refresh
+            cached shots only             → display shots, schedule background refresh
+            cached scenes only            → display scenes, no shot refresh scheduled
+            no cache                      → show "Loading..." status; background refresh
+                                            already in progress from initialize_async()
+        """
+        # Pre-warm bash sessions in background to avoid first-command delay
+        # Only warm real process pools (test doubles don't spawn subprocesses)
+        if isinstance(self._process_pool, ProcessPoolManager):
+            self._session_warmer = SessionWarmer(self._process_pool)
+            self._session_warmer.start()
+            logger.debug("SessionWarmer started")
+
+        has_cached_shots = bool(self.shot_model.shots)
+        has_cached_scenes = bool(self.threede_scene_model.scenes)
+
+        # Show cached shots immediately if available (should already be loaded)
+        if has_cached_shots:
+            self._refresh_shot_display()
+            logger.info(
+                f"Displayed {len(self.shot_model.shots)} cached shots instantly"
+            )
+        else:
+            # No cache, but let's check one more time
+            logger.info(
+                "No cached shots found on initial check, attempting explicit cache load"
+            )
+            if self.shot_model.try_load_from_cache():
+                has_cached_shots = True
+                self._refresh_shot_display()
+                logger.info(
+                    f"Loaded and displayed {len(self.shot_model.shots)} shots from cache"
+                )
+
+            # Restore last selected shot if available
+            if isinstance(self._last_selected_shot_name, str):
+                shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
+                if shot:
+                    self.shot_grid.select_shot_by_name(shot.full_name)
+
+        # Show cached 3DE scenes immediately if available
+        if has_cached_scenes:
+            self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
+            # Populate show filter with available shows
+            self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
+
+        # Update status with what was loaded from cache
+        _PAINT_YIELD_MS = 500
+        _EVENT_LOOP_YIELD_MS = 100
+        if has_cached_shots and has_cached_scenes:
+            self.update_status(
+                (
+                    f"Loaded {len(self.shot_model.shots)} shots and "
+                    f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
+                ),
+            )
+            QTimer.singleShot(_PAINT_YIELD_MS, self._refresh_shots)
+        elif has_cached_shots:
+            self.update_status(
+                f"Loaded {len(self.shot_model.shots)} shots from cache"
+            )
+            QTimer.singleShot(_PAINT_YIELD_MS, self._refresh_shots)
+        elif has_cached_scenes:
+            self.update_status(
+                f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache",
+            )
+        else:
+            self.update_status("Loading shots and scenes...")
+            logger.info(
+                "No cached data found - background refresh already in progress from initialize_async()",
+            )
+
+        # If shots are already loaded from cache, trigger refresh immediately
+        if self.shot_model.shots:
+            logger.info(
+                "Shots already loaded from cache, triggering previous shots refresh immediately"
+            )
+            QTimer.singleShot(
+                _EVENT_LOOP_YIELD_MS, self.previous_shots_model.refresh_shots
+            )
+
+        # Only start 3DE discovery if we have shots AND cache is invalid/expired
+        if has_cached_shots:
+            if not self.scene_disk_cache.has_valid_threede_cache():
+                logger.debug("3DE cache invalid/expired - starting discovery")
+                if self.threede_controller:
+                    QTimer.singleShot(
+                        100, self.threede_controller.refresh_threede_scenes
+                    )
+            else:
+                logger.debug("3DE cache valid - skipping initial scan")
 
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
@@ -1100,29 +1173,131 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         proper close events.
         """
         self.logger.debug("Starting explicit MainWindow cleanup")
-        # Delegate to CleanupManager
-        self.cleanup_manager.perform_cleanup()
+        self._perform_cleanup()
         self.logger.debug("Completed explicit MainWindow cleanup")
 
     @override
     def closeEvent(self, event: QCloseEvent) -> None:
-        """Thread-safe close event handler.
-
-        Implements proper shutdown sequence using CleanupManager.
-        """
+        """Thread-safe close event handler."""
         self.logger.debug("MainWindow closeEvent - starting cleanup")
 
         # Flush any pending notes to disk
         self.notes_manager.flush()
 
-        # Delegate to CleanupManager
-        self.cleanup_manager.perform_cleanup()
+        self._perform_cleanup()
 
         # Save settings before closing
         self.settings_controller.save_settings()
 
         self.logger.debug("MainWindow closeEvent - cleanup complete")
         event.accept()
+
+    def _perform_cleanup(self) -> None:
+        """Main cleanup orchestration method.
+
+        Cleanup ordering:
+            1. Mark window as closing
+            2. Controllers (threede_controller, shot_selection_controller)
+            3. Session warmer thread
+            4. Managers (command_launcher, cache_coordinator)
+            5. Models (shot_model, previous_shots_model, previous_shots_item_model)
+        """
+        self.logger.debug("Starting MainWindow cleanup sequence")
+
+        # 1. Mark window as closing
+        self._closing = True
+
+        # 2. Controllers
+        if self.threede_controller:
+            self.logger.debug("Cleaning up 3DE controller")
+            self.threede_controller.cleanup_worker()
+
+        if self.shot_selection_controller:
+            self.logger.debug("Cleaning up shot selection controller")
+            self.shot_selection_controller.cleanup()
+
+        # 3. Session warmer thread
+        if self._session_warmer is not None:
+            warmer = self._session_warmer
+            if not warmer.isFinished():
+                self.logger.debug("Requesting session warmer to stop")
+                warmer.request_stop()
+
+                import sys
+                is_test_environment = "pytest" in sys.modules
+                session_timeout_ms = 200 if is_test_environment else 2000
+
+                if not warmer.wait(session_timeout_ms):
+                    self.logger.warning(
+                        f"Session warmer didn't finish gracefully within {session_timeout_ms}ms, using safe termination"
+                    )
+                    warmer.safe_terminate()
+
+                    final_timeout_ms = 100 if is_test_environment else 1000
+                    if not warmer.wait(final_timeout_ms):
+                        self.logger.warning(
+                            "Session warmer thread abandoned - will be cleaned on exit"
+                        )
+
+            if warmer.is_zombie():
+                self.logger.warning(
+                    "Session warmer thread is a zombie and will not be deleted"
+                )
+            else:
+                warmer.deleteLater()
+
+            self._session_warmer = None
+
+        # 4. Managers
+        if (
+            self.command_launcher
+            and hasattr(self.command_launcher, "nuke_handler")
+            and hasattr(self.command_launcher.nuke_handler, "log_usage_stats")
+        ):
+            self.logger.debug("Logging Nuke launcher usage statistics")
+            self.command_launcher.nuke_handler.log_usage_stats()
+
+        if self.command_launcher and hasattr(self.command_launcher, "cleanup"):
+            self.logger.debug("Cleaning up command launcher")
+            self.command_launcher.cleanup()
+
+        self.logger.debug("Shutting down cache coordinator")
+        self.cache_coordinator.shutdown()
+
+        # 5. Models
+        if hasattr(self.shot_model, "cleanup"):
+            self.logger.debug("Cleaning up ShotModel background threads")
+            self.shot_model.cleanup()
+
+        if self.previous_shots_model:
+            self.logger.debug("Cleaning up PreviousShotsModel")
+            try:
+                self.previous_shots_model.cleanup()
+            except Exception:
+                self.logger.exception("Error cleaning up PreviousShotsModel")
+
+        if self.previous_shots_item_model:
+            self.logger.debug("Cleaning up PreviousShotsItemModel")
+            try:
+                item_model = self.previous_shots_item_model
+                if hasattr(item_model, "cleanup"):
+                    item_model.cleanup()
+            except Exception:
+                self.logger.exception("Error cleaning up PreviousShotsItemModel")
+
+        # Final: process events, clean QRunnables, GC
+        app = QApplication.instance()
+        if app:
+            app.processEvents()
+
+        from runnable_tracker import cleanup_all_runnables
+        self.logger.debug("Cleaning up tracked QRunnables")
+        cleanup_all_runnables()
+
+        import gc
+        _ = gc.collect()
+
+        self.logger.debug("MainWindow cleanup sequence completed")
 
 
 # Background refresh methods and BackgroundRefreshWorker removed - ShotModel now uses reactive signals instead of polling

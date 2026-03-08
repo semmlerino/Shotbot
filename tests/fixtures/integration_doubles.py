@@ -12,8 +12,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from notification_manager import NotificationType
-
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QObject
@@ -111,17 +109,6 @@ class TestNotificationManager:
     @classmethod
     def success(cls, message: str, timeout: int = 3000) -> None:
         cls._record_notification("success", "", message, timeout=timeout)
-
-    @classmethod
-    def toast(
-        cls,
-        message: str,
-        notification_type: NotificationType = NotificationType.INFO,
-        duration: int = 4000,
-    ) -> None:
-        cls._record_notification(
-            "toast", "", message, notification_type=notification_type, duration=duration
-        )
 
     @classmethod
     def get_last_notification(cls) -> dict[str, Any] | None:

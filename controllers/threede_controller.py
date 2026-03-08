@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 # Runtime imports (needed at runtime)
 from config import Config
 from logging_mixin import LoggingMixin
-from notification_manager import NotificationManager, NotificationType
+from notification_manager import NotificationManager
 from progress_manager import ProgressManager, ProgressOperation
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
@@ -572,10 +572,7 @@ class ThreeDEController(LoggingMixin):
                 self.logger.info("Refreshing 3DE scenes after recovery")
                 self.refresh_threede_scenes()
 
-                NotificationManager.toast(
-                    f"Recovered: {recovered_path.name}",
-                    NotificationType.SUCCESS
-                )
+                NotificationManager.success(f"Recovered: {recovered_path.name}")
 
             except Exception as e:
                 self.logger.exception("Recovery failed")

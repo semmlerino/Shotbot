@@ -27,7 +27,6 @@ import pytest
 # Local application imports
 from process_pool_manager import (
     CommandCache,
-    ProcessMetrics,
     ProcessPoolManager,
 )
 
@@ -152,7 +151,6 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         self._session_lock = threading.RLock()
         # Add condition variable for proper thread synchronization
         self._session_condition = threading.Condition(self._session_lock)
-        self._metrics = ProcessMetrics()
         self._initialized = True
         self._test_session: BashSessionDouble | None = None
         # Instance-level mutex and shutdown flag (added to parent class)
@@ -177,26 +175,16 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         """Override to use test session when available."""
         if self._test_session:
             # Use test session instead of secure executor
-            # Standard library imports
-            import time
-
             # Check cache first (same as parent)
             cached = self._cache.get(command)
             if cached is not None:
                 return cached
 
-            self._metrics.subprocess_calls += 1
-
             # Execute with test session
-            start_time = time.time()
             result = self._test_session.execute(command, timeout)
 
             # Cache result
             self._cache.set(command, result, ttl=cache_ttl)
-
-            # Update metrics
-            elapsed = (time.time() - start_time) * 1000
-            self._metrics.update_response_time(elapsed)
 
             return result
         # Use parent implementation with secure executor
@@ -210,23 +198,12 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         """Override to use test session for batch execution."""
         if self._test_session:
             # Use test session instead of secure executor for batch commands
-            # Standard library imports
-            import time
-
             from config import ThreadingConfig
 
             # Use provided timeout or default
             actual_timeout = timeout if timeout is not None else ThreadingConfig.SUBPROCESS_TIMEOUT
 
-            start_time = time.time()
-            result = self._test_session.execute(command, timeout=int(actual_timeout))
-
-            # Update metrics
-            elapsed = (time.time() - start_time) * 1000
-            self._metrics.update_response_time(elapsed)
-            self._metrics.subprocess_calls += 1
-
-            return result
+            return self._test_session.execute(command, timeout=int(actual_timeout))
         # Use parent implementation
         return super()._execute_subprocess(command, timeout)
 
@@ -315,49 +292,6 @@ class TestCommandCacheBehavior:
         assert cache.get("other_cmd") == "output3"  # Doesn't have "test_"
         assert cache.get("another_test") == "output4"  # Has "test" but not "test_"
 
-
-class TestProcessMetricsBehavior:
-    """Test ProcessMetrics behavior and calculations."""
-
-    def test_metrics_track_operations(self) -> None:
-        """Test that metrics track operations correctly.
-
-        CORRECT: Testing state changes, not internal counters.
-        """
-        metrics = ProcessMetrics()
-
-        # Perform operations that should be tracked
-        metrics.subprocess_calls += 1
-        metrics.subprocess_calls += 1
-        metrics.python_operations += 5
-
-        # Record response times
-        metrics.update_response_time(100)
-        metrics.update_response_time(200)
-        metrics.update_response_time(150)
-
-        # Test BEHAVIOR: Metrics reflect operations
-        report = metrics.get_report()
-        assert report["subprocess_calls"] == 2
-        assert report["python_operations"] == 5
-        assert report["average_response_ms"] == 150  # (100+200+150)/3
-
-    def test_metrics_reset_functionality(self) -> None:
-        """Test that metrics can be reinitialized.
-
-        CORRECT: Testing observable state after creating new instance.
-        """
-        # Generate some metrics in first instance
-        metrics = ProcessMetrics()
-        metrics.subprocess_calls = 10
-        metrics.update_response_time(500)
-
-        # Create fresh instance (since ProcessMetrics has no reset method)
-        metrics = ProcessMetrics()
-
-        # Test BEHAVIOR: New instance starts with clean state
-        assert metrics.subprocess_calls == 0
-        assert metrics.response_count == 0
 
 
 class TestProcessPoolManagerBehavior:
@@ -759,43 +693,6 @@ class TestShutdownScenarios:
 
 
 
-
-class TestMetricsUnderLoad:
-    """Test metrics tracking under concurrent load."""
-
-    def test_metrics_track_concurrent_operations(self) -> None:
-        """Test that metrics correctly track concurrent operations.
-
-        CORRECT: Testing observable metrics under load.
-        """
-        manager = InjectableProcessPoolManager()
-        session = BashSessionDouble()
-        manager.set_test_session(session)
-
-        # Execute multiple commands concurrently
-        def execute_unique_command(cmd_id: int) -> None:
-            """Execute command with unique ID."""
-            cmd = f"concurrent_{cmd_id}"
-            session.set_response(cmd, f"result_{cmd_id}")
-            manager.execute_workspace_command(cmd, cache_ttl=0)
-
-        threads = [
-            threading.Thread(target=execute_unique_command, args=(i,))
-            for i in range(50)
-        ]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join()
-
-        # Get metrics from the underlying ProcessMetrics object
-        # (get_metrics() returns PerformanceMetricsDict which filters fields)
-        metrics = manager._metrics.get_report()
-
-        # Test BEHAVIOR: Metrics reflect all operations
-        assert metrics["subprocess_calls"] == 50
-
-        manager.shutdown()
 
 
 # =============================================================================

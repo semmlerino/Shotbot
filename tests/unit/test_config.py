@@ -184,7 +184,6 @@ class TestTimeoutConfigurationValidation:
             ("SUBPROCESS_TIMEOUT_SECONDS", Config.SUBPROCESS_TIMEOUT_SECONDS),
             ("WS_COMMAND_TIMEOUT_SECONDS", Config.WS_COMMAND_TIMEOUT_SECONDS),
             ("WORKER_STOP_TIMEOUT_MS", Config.WORKER_STOP_TIMEOUT_MS),
-            ("NOTIFICATION_TOAST_DURATION_MS", Config.NOTIFICATION_TOAST_DURATION_MS),
             ("NOTIFICATION_SUCCESS_TIMEOUT_MS", Config.NOTIFICATION_SUCCESS_TIMEOUT_MS),
             ("NOTIFICATION_ERROR_TIMEOUT_MS", Config.NOTIFICATION_ERROR_TIMEOUT_MS),
             ("THUMBNAIL_UNLOAD_DELAY_MS", Config.THUMBNAIL_UNLOAD_DELAY_MS),
@@ -216,7 +215,6 @@ class TestTimeoutConfigurationValidation:
         # Check millisecond timeouts (should be < 600000ms = 10 minutes)
         ms_timeouts = [
             ("WORKER_STOP_TIMEOUT_MS", Config.WORKER_STOP_TIMEOUT_MS),
-            ("NOTIFICATION_TOAST_DURATION_MS", Config.NOTIFICATION_TOAST_DURATION_MS),
             ("THUMBNAIL_UNLOAD_DELAY_MS", Config.THUMBNAIL_UNLOAD_DELAY_MS),
         ]
 

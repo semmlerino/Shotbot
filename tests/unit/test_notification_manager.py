@@ -29,7 +29,6 @@ from PySide6.QtWidgets import (
 from notification_manager import (
     NotificationManager,
     NotificationType,
-    ToastNotification,
 )
 
 
@@ -49,21 +48,6 @@ def _process_events(duration_ms: int = 5, iterations: int = 2) -> None:
         app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, duration_ms)
 
 
-# Factory fixtures for test data creation
-@pytest.fixture
-def make_toast() -> Callable[[str, NotificationType, int], ToastNotification]:
-    """Factory for creating ToastNotification instances."""
-
-    def _make(
-        message: str = "Test message",
-        notification_type: NotificationType = NotificationType.INFO,
-        duration: int = 2000,
-    ) -> ToastNotification:
-        return ToastNotification(message, notification_type, duration)
-
-    return _make
-
-
 @pytest.fixture
 def make_manager_with_ui(
     qtbot: QtBot,
@@ -80,112 +64,6 @@ def make_manager_with_ui(
         return manager, main_window, status_bar
 
     return _make
-
-
-class TestToastNotification:
-    """Test suite for ToastNotification widget."""
-
-    def test_toast_initialization(self, qtbot: QtBot) -> None:
-        """Test toast notification initialization."""
-        toast = ToastNotification("Test message", NotificationType.INFO, duration=2000)
-        qtbot.addWidget(toast)
-
-        assert toast.message_label.text() == "Test message"
-        assert toast.notification_type == NotificationType.INFO
-        assert toast.duration == 2000
-        assert toast.dismiss_timer.isActive()
-
-    def test_toast_auto_dismiss(self, qtbot: QtBot) -> None:
-        """Test that toast auto-dismisses after duration."""
-        toast = ToastNotification(
-            "Auto dismiss test",
-            NotificationType.SUCCESS,
-            duration=100,  # Short duration for testing
-        )
-        qtbot.addWidget(toast)
-
-        # Track dismissal
-        dismissed: list[bool] = []
-        toast.dismissed.connect(lambda: dismissed.append(True))
-
-        # Wait for auto-dismiss with conditional check
-        qtbot.waitUntil(
-            lambda: len(dismissed) > 0 or not toast.isVisible(), timeout=300
-        )
-
-    def test_toast_manual_dismiss(self, qtbot: QtBot) -> None:
-        """Test manual dismissal of toast."""
-        toast = ToastNotification(
-            "Manual dismiss test",
-            NotificationType.WARNING,
-            duration=5000,  # Long duration
-        )
-        qtbot.addWidget(toast)
-
-        # Track dismissal
-        dismissed: list[bool] = []
-        toast.dismissed.connect(lambda: dismissed.append(True))
-
-        # Manually dismiss
-        toast.dismiss()
-
-        # Wait for dismissal to complete
-        qtbot.waitUntil(
-            lambda: len(dismissed) > 0 or not toast.isVisible(), timeout=100
-        )
-
-        # Check timer is no longer active
-        assert not toast.dismiss_timer.isActive()
-
-    def test_toast_auto_dismiss_enabled(self, qtbot: QtBot) -> None:
-        """Test toast with auto-dismiss enabled (normal case).
-
-        Changed from testing duration=0 edge case which caused Qt segfaults in parallel execution.
-        Now tests the normal auto-dismiss behavior which is the primary use case.
-        """
-        toast = ToastNotification("Auto dismiss test", NotificationType.ERROR, duration=100)
-        qtbot.addWidget(toast)
-
-        # Timer should be active with normal duration
-        assert toast.dismiss_timer.isActive()
-
-        # Check that toast was created properly
-        assert toast is not None
-
-        toast.close()
-        _process_events()
-
-    @pytest.mark.parametrize(
-        "notif_type",
-        [
-            NotificationType.ERROR,
-            NotificationType.WARNING,
-            NotificationType.INFO,
-            NotificationType.SUCCESS,
-        ],
-    )
-    def test_toast_types_styling(
-        self,
-        qtbot: QtBot,
-        make_toast: Callable[[str, NotificationType, int], ToastNotification],
-        notif_type: NotificationType,
-    ) -> None:
-        """Test different notification types have appropriate styling.
-
-        Changed from duration=0 to duration=100 to avoid Qt segfaults in parallel execution.
-        The test is about styling, not auto-dismiss behavior, so duration value doesn't affect
-        the test's purpose.
-        """
-        toast = make_toast(f"{notif_type.name} message", notif_type, duration=100)
-        qtbot.addWidget(toast)
-
-        # Check that a style has been set
-        style = toast.styleSheet()
-        assert len(style) > 0
-        assert "background-color" in style.lower()
-
-        toast.close()
-        _process_events()
 
 
 class TestNotificationManager:
@@ -296,27 +174,6 @@ class TestNotificationManager:
         # Success messages include checkmark
         assert "✓" in status_bar.currentMessage()
 
-    def test_toast_notification(
-        self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar], qtbot: QtBot
-    ) -> None:
-        """Test toast notification display."""
-        _manager, _main_window, _status_bar = manager_with_ui
-
-        # Create toast
-        NotificationManager.toast("Toast message", NotificationType.INFO, duration=100)
-
-        # Check toast was created and added to active list
-        assert len(NotificationManager._active_toasts) > 0
-
-        toast = NotificationManager._active_toasts[0]
-        assert toast.message_label.text() == "Toast message"
-
-        # Wait for toast visibility state
-        qtbot.waitUntil(
-            lambda: toast is not None,  # Simple check that toast exists
-            timeout=50,
-        )
-
     def test_progress_notification(
         self,
         manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar],
@@ -354,33 +211,6 @@ class TestNotificationManager:
         mock_progress.close.assert_called_once()
         assert NotificationManager._current_progress is None
 
-    def test_multiple_toasts_stacking(
-        self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar], qtbot: QtBot
-    ) -> None:
-        """Test that multiple toasts stack properly."""
-        _manager, _main_window, _status_bar = manager_with_ui
-
-        # Create multiple toasts
-        for i in range(3):
-            NotificationManager.toast(
-                f"Toast {i}",
-                NotificationType.INFO,
-                duration=0,  # No auto-dismiss
-            )
-
-        # Check all toasts were created
-        assert len(NotificationManager._active_toasts) == 3
-
-        # Check positioning (each should be offset)
-        positions: list[int] = [toast.y() for toast in NotificationManager._active_toasts]
-
-        # Positions should be different (stacked)
-        assert len(set(positions)) == len(positions)
-
-        # Clean up
-        for toast in NotificationManager._active_toasts[:]:
-            toast.close()
-
     def test_notification_without_ui(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test notifications work without UI initialization."""
         # Don't initialize with UI
@@ -408,8 +238,6 @@ class TestNotificationManager:
         """Test cleanup of notification resources."""
         _manager, _main_window, _status_bar = manager_with_ui
 
-        # Create some toasts and progress
-        NotificationManager.toast("Test", NotificationType.INFO, duration=0)
         mock_progress = MagicMock()
         NotificationManager._current_progress = mock_progress
 
@@ -419,7 +247,6 @@ class TestNotificationManager:
         # Check everything was cleaned
         assert NotificationManager._main_window is None
         assert NotificationManager._status_bar is None
-        assert len(NotificationManager._active_toasts) == 0
         assert NotificationManager._current_progress is None
         mock_progress.close.assert_called_once()
 

@@ -7,7 +7,7 @@ key discrimination, and TTL consistency) works correctly at the integration leve
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -78,43 +78,36 @@ class TestDirectoryCacheCoherence:
 
 
 class TestSceneDiscoverySingleCache:
-    """Verify strategy has no independent cache after refactoring."""
-
-    def test_strategy_has_no_cache(self) -> None:
-        """SceneDiscoveryCoordinator's strategy should not have a .cache attribute."""
-        coordinator = SceneDiscoveryCoordinator(enable_caching=True)
-        assert not hasattr(coordinator.strategy, "cache")
+    """Verify coordinator caching works correctly after strategy inlining."""
 
     def test_clear_cache_leaves_no_stale_data(self) -> None:
         """After coordinator.clear_cache(), re-discovery hits the filesystem."""
         coordinator = SceneDiscoveryCoordinator(enable_caching=True)
 
-        # Mock the strategy to track calls
-        mock_strategy = MagicMock()
-        mock_strategy.find_scenes_for_shot.return_value = []
-        mock_strategy.get_strategy_name.return_value = "mock"
-        coordinator.strategy = mock_strategy
+        # Mock the inlined discovery method to track calls
+        with patch.object(
+            coordinator, "_find_scenes_for_shot_local", return_value=[]
+        ) as mock_find:
+            # First call should miss cache and call method
+            _ = coordinator.find_scenes_for_shot(
+                "/workspace", "SHOW", "SEQ", "0010"
+            )
+            assert mock_find.call_count == 1
 
-        # First call should miss cache and call strategy
-        _ = coordinator.find_scenes_for_shot(
-            "/workspace", "SHOW", "SEQ", "0010"
-        )
-        assert mock_strategy.find_scenes_for_shot.call_count == 1
+            # Second call should hit cache (no additional call)
+            _ = coordinator.find_scenes_for_shot(
+                "/workspace", "SHOW", "SEQ", "0010",
+            )
+            assert mock_find.call_count == 1  # Still 1
 
-        # Second call should hit cache (no additional strategy call)
-        _ = coordinator.find_scenes_for_shot(
-            "/workspace", "SHOW", "SEQ", "0010",
-        )
-        assert mock_strategy.find_scenes_for_shot.call_count == 1  # Still 1
+            # Clear cache
+            coordinator.clear_cache()
 
-        # Clear cache
-        coordinator.clear_cache()
-
-        # Third call should miss cache again and call strategy
-        _ = coordinator.find_scenes_for_shot(
-            "/workspace", "SHOW", "SEQ", "0010",
-        )
-        assert mock_strategy.find_scenes_for_shot.call_count == 2  # Now 2
+            # Third call should miss cache again
+            _ = coordinator.find_scenes_for_shot(
+                "/workspace", "SHOW", "SEQ", "0010",
+            )
+            assert mock_find.call_count == 2  # Now 2
 
 
 # =============================================================================

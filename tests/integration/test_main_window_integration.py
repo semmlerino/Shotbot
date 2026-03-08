@@ -163,13 +163,11 @@ def main_window_with_real_components(
         "warning": NotificationManager.warning,
         "info": NotificationManager.info,
         "success": NotificationManager.success,
-        "toast": NotificationManager.toast,
     }
     NotificationManager.error = TestNotificationManager.error
     NotificationManager.warning = TestNotificationManager.warning
     NotificationManager.info = TestNotificationManager.info
     NotificationManager.success = TestNotificationManager.success
-    NotificationManager.toast = TestNotificationManager.toast
 
     from progress_manager import ProgressManager
     test_progress_manager = MainWindowTestProgressManager()

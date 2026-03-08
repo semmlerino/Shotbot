@@ -237,7 +237,6 @@ def strategy_double() -> SceneDiscoveryStrategyDouble:
 def coordinator(
     scanner_double: FileSystemScannerDouble,
     cache_double: SceneCacheDouble,
-    strategy_double: SceneDiscoveryStrategyDouble,
 ):
     """Create a SceneDiscoveryCoordinator with test doubles injected."""
     # Patch the lazy imports used by __init__
@@ -247,20 +246,16 @@ def coordinator(
             "filesystem_scanner": MagicMock(FileSystemScanner=lambda: scanner_double),
             "scene_cache": MagicMock(SceneCache=lambda **_kwargs: cache_double),
             "scene_parser": MagicMock(SceneParser=lambda: MagicMock()),
-            "scene_discovery_strategy": MagicMock(
-                create_discovery_strategy=lambda *_args, **_kwargs: strategy_double
-            ),
         },
     ):
         from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
         coord = SceneDiscoveryCoordinator(
-            strategy_type="test", enable_caching=True, cache_ttl=1800
+            strategy_type="local", enable_caching=True, cache_ttl=1800
         )
         # Inject test doubles
         coord.scanner = scanner_double
         coord.cache = cache_double
-        coord.strategy = strategy_double
         return coord
 
 
@@ -303,18 +298,18 @@ class TestFindScenesForShot:
     def test_find_scenes_returns_scenes_for_valid_shot(
         self,
         coordinator,
-        strategy_double: SceneDiscoveryStrategyDouble,
         scanner_double: FileSystemScannerDouble,
     ) -> None:
         """Test that find_scenes_for_shot returns discovered scenes."""
         scene = create_test_scene(show="SHOW", sequence="SEQ", shot="0010")
-        strategy_double.set_scenes_for_shot("SHOW", "SEQ", "0010", [scene])
         scanner_double.set_valid_paths(str(scene.scene_path))
 
-        # Patch validation to always pass
+        # Patch validation to always pass and the local discovery method to return our scene
         with patch(
             "utils.ValidationUtils.validate_shot_components",
             return_value=True,
+        ), patch.object(
+            coordinator, "_find_scenes_for_shot_local", return_value=[scene]
         ):
             result = coordinator.find_scenes_for_shot(
                 "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
@@ -362,17 +357,17 @@ class TestFindScenesForShot:
         self,
         coordinator,
         cache_double: SceneCacheDouble,
-        strategy_double: SceneDiscoveryStrategyDouble,
         scanner_double: FileSystemScannerDouble,
     ) -> None:
         """Test that find_scenes_for_shot updates cache on miss."""
         scene = create_test_scene(show="SHOW", sequence="SEQ", shot="0010")
-        strategy_double.set_scenes_for_shot("SHOW", "SEQ", "0010", [scene])
         scanner_double.set_valid_paths(str(scene.scene_path))
 
         with patch(
             "utils.ValidationUtils.validate_shot_components",
             return_value=True,
+        ), patch.object(
+            coordinator, "_find_scenes_for_shot_local", return_value=[scene]
         ):
             coordinator.find_scenes_for_shot(
                 "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
@@ -387,7 +382,6 @@ class TestFindScenesForShot:
     def test_find_scenes_filters_invalid_scenes(
         self,
         coordinator,
-        strategy_double: SceneDiscoveryStrategyDouble,
         scanner_double: FileSystemScannerDouble,
     ) -> None:
         """Test that find_scenes_for_shot filters out invalid scenes."""
@@ -397,15 +391,16 @@ class TestFindScenesForShot:
         invalid_scene = create_test_scene(
             scene_path="/invalid/scene.3de", show="SHOW", sequence="SEQ", shot="0010"
         )
-        strategy_double.set_scenes_for_shot(
-            "SHOW", "SEQ", "0010", [valid_scene, invalid_scene]
-        )
         # Only the valid scene exists
         scanner_double.set_valid_paths("/valid/scene.3de")
 
         with patch(
             "utils.ValidationUtils.validate_shot_components",
             return_value=True,
+        ), patch.object(
+            coordinator,
+            "_find_scenes_for_shot_local",
+            return_value=[valid_scene, invalid_scene],
         ):
             result = coordinator.find_scenes_for_shot(
                 "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
@@ -418,14 +413,15 @@ class TestFindScenesForShot:
     def test_find_scenes_handles_strategy_exception(
         self,
         coordinator,
-        strategy_double: SceneDiscoveryStrategyDouble,
     ) -> None:
-        """Test that find_scenes_for_shot handles strategy errors."""
-        strategy_double.set_failure_mode(True)
-
+        """Test that find_scenes_for_shot handles discovery errors."""
         with patch(
             "utils.ValidationUtils.validate_shot_components",
             return_value=True,
+        ), patch.object(
+            coordinator,
+            "_find_scenes_for_shot_local",
+            side_effect=RuntimeError("Discovery error"),
         ):
             result = coordinator.find_scenes_for_shot(
                 "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
@@ -519,17 +515,17 @@ class TestStatistics:
     def test_statistics_track_discovered_scenes(
         self,
         coordinator,
-        strategy_double: SceneDiscoveryStrategyDouble,
         scanner_double: FileSystemScannerDouble,
     ) -> None:
         """Test that statistics track discovered scenes."""
         scene = create_test_scene()
-        strategy_double.set_scenes_for_shot("SHOW", "SEQ", "0010", [scene])
         scanner_double.set_valid_paths(str(scene.scene_path))
 
         with patch(
             "utils.ValidationUtils.validate_shot_components",
             return_value=True,
+        ), patch.object(
+            coordinator, "_find_scenes_for_shot_local", return_value=[scene]
         ):
             coordinator.find_scenes_for_shot(
                 "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
@@ -546,26 +542,37 @@ class TestStatistics:
 class TestStrategyManagement:
     """Test strategy management methods."""
 
-    def test_get_strategy_name_returns_current_strategy(
+    def test_get_strategy_name_returns_local_by_default(
         self,
         coordinator,
     ) -> None:
-        """Test that get_strategy_name returns current strategy name."""
+        """Test that get_strategy_name returns 'LocalFileSystemStrategy' for local coordinator."""
         name = coordinator.get_strategy_name()
-        assert name == "test"
+        assert name == "LocalFileSystemStrategy"
 
-    def test_switch_strategy_changes_strategy(
+    def test_switch_strategy_changes_to_progressive(
         self,
         coordinator,
     ) -> None:
-        """Test that switch_strategy changes the strategy."""
-        new_strategy = SceneDiscoveryStrategyDouble(name="new_strategy")
+        """Test that switch_strategy changes to progressive."""
+        coordinator.switch_strategy("progressive")
+        assert coordinator.get_strategy_name() == "ProgressiveDiscoveryStrategy"
+        assert coordinator._use_progressive is True
 
-        with patch(
-            "scene_discovery_strategy.create_discovery_strategy",
-            return_value=new_strategy,
-        ):
-            coordinator.switch_strategy("parallel")
+    def test_switch_strategy_changes_back_to_local(
+        self,
+        coordinator,
+    ) -> None:
+        """Test that switch_strategy can switch back to local."""
+        coordinator.switch_strategy("progressive")
+        coordinator.switch_strategy("local")
+        assert coordinator.get_strategy_name() == "LocalFileSystemStrategy"
+        assert coordinator._use_progressive is False
 
-        assert coordinator.strategy is new_strategy
-        assert coordinator.get_strategy_name() == "new_strategy"
+    def test_switch_strategy_raises_on_invalid_type(
+        self,
+        coordinator,
+    ) -> None:
+        """Test that switch_strategy raises ValueError for unknown type."""
+        with pytest.raises(ValueError, match="Unknown strategy type"):
+            coordinator.switch_strategy("invalid")

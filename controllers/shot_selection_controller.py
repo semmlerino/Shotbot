@@ -380,11 +380,8 @@ class ShotSelectionController(LoggingMixin):
                 _ = result_dialog.exec()
 
                 # Local application imports
-                from notification_manager import NotificationManager, NotificationType
-                NotificationManager.toast(
-                    f"Recovered: {recovered_path.name}",
-                    NotificationType.SUCCESS
-                )
+                from notification_manager import NotificationManager
+                NotificationManager.success(f"Recovered: {recovered_path.name}")
 
             except Exception as e:
                 self.logger.exception("Failed to recover crash file")

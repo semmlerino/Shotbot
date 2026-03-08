@@ -17,7 +17,6 @@ from __future__ import annotations
 # Standard library imports
 import concurrent.futures
 import gc
-import hashlib
 import selectors
 import subprocess
 import threading
@@ -203,12 +202,7 @@ class _CacheEntry(NamedTuple):
 
 @final
 class CommandCache:
-    """TTL-based cache for command results with LRU eviction.
-
-    Warning: CommandCache tracks cache hits/misses independently of
-    ProcessMetrics. Both counters are updated on every cache access, so they
-    may diverge if one is reset or inspected in isolation. See 4.12.
-    """
+    """TTL-based cache for command results with LRU eviction."""
 
     MAX_CACHE_SIZE: Final[int] = 500  # Maximum entries before LRU eviction
 
@@ -310,16 +304,16 @@ class CommandCache:
             }
 
     def _make_key(self, command: str) -> str:
-        """Generate cache key from command.
+        """Return the command string as cache key.
 
         Args:
             command: Command string
 
         Returns:
-            SHA256 hash of command
+            The command string itself
 
         """
-        return hashlib.sha256(command.encode()).hexdigest()
+        return command
 
     def _cleanup_expired(self) -> None:
         """Remove expired entries and enforce max size with LRU eviction."""
@@ -431,7 +425,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             max_workers=max_workers,
         )
         self._cache = CommandCache(default_ttl=30)
-        self._metrics = ProcessMetrics()
         # Instance-level mutex and shutdown flag for thread-safe shutdown
         self._mutex = QMutex()
         self._shutdown_requested = False
@@ -520,7 +513,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             return cached
 
         # Execute command using subprocess
-        start_time = time.time()
         try:
             # Shell mode selection for ws command execution:
             #
@@ -567,11 +559,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
             # Cache result
             self._cache.set(command, result, ttl=cache_ttl)
-
-            # Update metrics after successful execution
-            elapsed = (time.time() - start_time) * 1000
-            self._metrics.increment_subprocess_calls()
-            self._metrics.update_response_time(elapsed)
 
             return result
 
@@ -676,7 +663,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             timeout = ThreadingConfig.SUBPROCESS_TIMEOUT
 
         # Execute shell command using subprocess
-        start_time = time.time()
         try:
             # Execute using shell for standard commands
             proc_result = subprocess.run(
@@ -687,14 +673,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 timeout=timeout,
                 check=True,
             )
-            result = proc_result.stdout
-
-            # Update metrics after successful execution
-            elapsed = (time.time() - start_time) * 1000
-            self._metrics.increment_subprocess_calls()
-            self._metrics.update_response_time(elapsed)
-
-            return result
+            return proc_result.stdout
 
         except Exception:
             self.logger.exception("Session pool execution failed")
@@ -711,8 +690,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             List of matching file paths
 
         """
-        self._metrics.increment_python_operations()
-
         try:
             path = Path(directory)
             if not path.exists():
@@ -915,76 +892,3 @@ class ProcessPoolManager(LoggingMixin, QObject):
             cls._initialized = False
 
         logger.debug("ProcessPoolManager reset for testing")
-
-
-@final
-class ProcessMetrics:
-    """Track process optimization metrics.
-
-    All counter updates are protected by a threading.Lock because
-    execute_workspace_command and _execute_subprocess run from parallel
-    ThreadPoolExecutor workers.
-    """
-
-    def __init__(self) -> None:
-        """Initialize process metrics tracking."""
-        super().__init__()
-        self._lock = threading.Lock()
-        self.subprocess_calls = 0
-        self.python_operations = 0
-        self.total_response_time = 0.0
-        self.response_count = 0
-        self.start_time = time.time()
-
-    def increment_subprocess_calls(self) -> None:
-        """Increment subprocess call counter (thread-safe)."""
-        with self._lock:
-            self.subprocess_calls += 1
-
-    def increment_python_operations(self) -> None:
-        """Increment python operations counter (thread-safe)."""
-        with self._lock:
-            self.python_operations += 1
-
-    def update_response_time(self, time_ms: float) -> None:
-        """Update response time metrics (thread-safe).
-
-        Args:
-            time_ms: Response time in milliseconds
-
-        """
-        with self._lock:
-            self.total_response_time += time_ms
-            self.response_count += 1
-
-    def get_report(self) -> dict[str, int | float]:
-        """Generate performance report.
-
-        Returns:
-            Dictionary with performance metrics
-
-        """
-        with self._lock:
-            subprocess_calls = self.subprocess_calls
-            python_operations = self.python_operations
-            total_response_time = self.total_response_time
-            response_count = self.response_count
-            start_time = self.start_time
-
-        avg_response = (
-            total_response_time / response_count
-            if response_count > 0
-            else 0
-        )
-
-        uptime = time.time() - start_time
-
-        return {
-            "subprocess_calls": subprocess_calls,
-            "python_operations": python_operations,
-            "average_response_ms": avg_response,
-            "uptime_seconds": uptime,
-            "calls_per_minute": (subprocess_calls / uptime * 60)
-            if uptime > 0
-            else 0,
-        }

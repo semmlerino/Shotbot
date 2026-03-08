@@ -225,10 +225,8 @@ class Config:
     CACHE_STATS_LOG_INTERVAL: int = 300  # Log cache stats every 5 minutes
 
     # Notification settings
-    NOTIFICATION_TOAST_DURATION_MS: int = 4000  # Auto-dismiss time for toast notifications
     NOTIFICATION_SUCCESS_TIMEOUT_MS: int = 3000  # Success message timeout in status bar
     NOTIFICATION_ERROR_TIMEOUT_MS: int = 5000  # Error message timeout in status bar
-    NOTIFICATION_MAX_TOASTS: int = 5  # Maximum simultaneous toast notifications
 
     # VFX pipeline settings
     DEFAULT_USERNAME: str = "gabriel-h"  # Default username for pipeline paths

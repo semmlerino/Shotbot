@@ -1,9 +1,9 @@
 """SceneDiscoveryCoordinator - Template Method Pattern implementation
 
 This module provides the main coordinator that orchestrates scene discovery using
-all the extracted components (FileSystemScanner, SceneParser, SceneCache, and
-SceneDiscoveryStrategy). It implements the Template Method pattern to provide
-a unified interface while maintaining backward compatibility.
+all the extracted components (FileSystemScanner, SceneParser, SceneCache).
+It implements the Template Method pattern to provide a unified interface while
+maintaining backward compatibility.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
@@ -19,7 +19,7 @@ from __future__ import annotations
 import concurrent.futures
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Unpack, final
+from typing import TYPE_CHECKING, final
 
 
 _logger = logging.getLogger(__name__)
@@ -31,9 +31,11 @@ from logging_mixin import LoggingMixin, log_execution
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable, Generator
+    from pathlib import Path
 
     # Local application imports
-    from scene_discovery_strategy import StrategyKwargs
+    from filesystem_scanner import FileSystemScanner
+    from scene_parser import SceneParser
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
@@ -50,12 +52,16 @@ class SceneDiscoveryCoordinator(LoggingMixin):
     allowing different strategies to be plugged in for specific steps.
     """
 
+    # Type annotations for lazy-loaded attributes
+    scanner: FileSystemScanner
+    parser: SceneParser
+
     def __init__(
         self,
         strategy_type: str = "local",
         enable_caching: bool = True,
         cache_ttl: int = 1800,  # 30 minutes
-        **strategy_kwargs: Unpack[StrategyKwargs],
+        **_strategy_kwargs: object,
     ) -> None:
         """Initialize scene discovery coordinator.
 
@@ -63,10 +69,19 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             strategy_type: Discovery strategy to use ("local", "progressive")
             enable_caching: Whether to enable result caching
             cache_ttl: Cache TTL in seconds
-            **strategy_kwargs: Additional arguments for strategy initialization
+            **_strategy_kwargs: Accepted but unused (retained for call-site compatibility)
 
         """
         super().__init__()
+
+        if strategy_type not in ("local", "progressive"):
+            msg = (
+                f"Unknown strategy type: {strategy_type}. "
+                f"Available: local, progressive"
+            )
+            raise ValueError(msg)
+
+        self._use_progressive = strategy_type == "progressive"
 
         # Lazy imports to break circular dependencies
         # Import only when needed at runtime, not at module load time
@@ -74,9 +89,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             FileSystemScanner,
         )
         from scene_cache import SceneCache
-        from scene_discovery_strategy import (
-            create_discovery_strategy,
-        )
         from scene_parser import (
             SceneParser,
         )
@@ -85,7 +97,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         self.scanner = FileSystemScanner()
         self.parser = SceneParser()
         self.cache = SceneCache(default_ttl=cache_ttl) if enable_caching else None
-        self.strategy = create_discovery_strategy(strategy_type, **strategy_kwargs)
 
         self.enable_caching = enable_caching
 
@@ -100,6 +111,301 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         self.logger.info(
             f"Initialized SceneDiscoveryCoordinator with {strategy_type} strategy"
         )
+
+    # ------------------------------------------------------------------
+    # Private strategy implementations
+    # ------------------------------------------------------------------
+
+    def _find_scenes_for_shot_local(
+        self,
+        shot_workspace_path: str,
+        show: str,
+        sequence: str,
+        shot: str,
+        excluded_users: set[str] | None = None,
+    ) -> list[ThreeDEScene]:
+        """Find scenes for a shot using local filesystem scanning."""
+        scenes: list[ThreeDEScene] = []
+
+        try:
+            from pathlib import Path
+
+            from utils import ValidationUtils
+
+            # Input validation
+            if not ValidationUtils.validate_shot_components(show, sequence, shot):
+                self.logger.warning("Invalid shot components provided")
+                return []
+
+            if not shot_workspace_path:
+                self.logger.warning("Empty shot workspace path provided")
+                return []
+
+            if excluded_users is None:
+                excluded_users = ValidationUtils.get_excluded_users()
+
+            shot_path = Path(shot_workspace_path)
+
+            # Check user directory
+            user_dir = shot_path / "user"
+            if user_dir.exists():
+                self.logger.debug(f"Scanning user directory: {user_dir}")
+
+                # Use progressive discovery for efficiency
+                file_pairs = self.scanner.find_3de_files_progressive(
+                    user_dir, excluded_users
+                )
+                self.logger.debug(f"Found {len(file_pairs)} .3de files")
+
+                # Convert file pairs to ThreeDEScene objects
+                for username, threede_file in file_pairs:
+                    try:
+                        # Verify file accessibility
+                        if not self.scanner.verify_scene_exists(threede_file):
+                            continue
+
+                        # Extract plate using parser
+                        user_path = user_dir / username
+                        plate = self.parser.extract_plate_from_path(
+                            threede_file, user_path
+                        )
+
+                        # Create scene object
+                        scene = self.parser.create_scene_from_file_info(
+                            threede_file,
+                            show,
+                            sequence,
+                            shot,
+                            username,
+                            plate,
+                            shot_workspace_path,
+                        )
+                        scenes.append(scene)
+
+                    except Exception:  # noqa: BLE001
+                        self.logger.warning(f"Error processing {threede_file}", exc_info=True)
+                        continue
+
+            # Also scan publish directory
+            publish_dir = shot_path / "publish"
+            if publish_dir.exists():
+                self.logger.debug(f"Scanning publish directory: {publish_dir}")
+                publish_scenes = self._scan_publish_directory(
+                    publish_dir, show, sequence, shot, shot_workspace_path
+                )
+                scenes.extend(publish_scenes)
+
+            self.logger.info(
+                f"Found {len(scenes)} total scenes for {show}/{sequence}/{shot}"
+            )
+
+        except Exception:
+            self.logger.exception(f"Error finding scenes for {show}/{sequence}/{shot}")
+
+        return scenes
+
+    def _scan_publish_directory(
+        self,
+        publish_dir: Path,
+        show: str,
+        sequence: str,
+        shot: str,
+        workspace_path: str,
+    ) -> list[ThreeDEScene]:
+        """Scan publish directory for additional scenes."""
+        scenes: list[ThreeDEScene] = []
+
+        try:
+            # Find .3de files in publish directory
+            publish_files = list(publish_dir.rglob("*.3de"))
+            publish_files.extend(list(publish_dir.rglob("*.3DE")))
+
+            for threede_file in publish_files:
+                if not self.scanner.verify_scene_exists(threede_file):
+                    continue
+
+                try:
+                    relative_path = threede_file.relative_to(publish_dir)
+                    department = (
+                        relative_path.parts[0] if relative_path.parts else "unknown"
+                    )
+                    pseudo_user = f"published-{department}"
+
+                    plate = self.parser.extract_plate_from_path(
+                        threede_file, publish_dir
+                    )
+
+                    scene = self.parser.create_scene_from_file_info(
+                        threede_file,
+                        show,
+                        sequence,
+                        shot,
+                        pseudo_user,
+                        plate,
+                        workspace_path,
+                    )
+                    scenes.append(scene)
+
+                except Exception as e:  # noqa: BLE001
+                    self.logger.debug(
+                        f"Error processing published file {threede_file}: {e}"
+                    )
+                    continue
+
+        except Exception as e:  # noqa: BLE001
+            self.logger.debug(f"Error scanning publish directory: {e}")
+
+        return scenes
+
+    def _find_all_scenes_in_show_local(
+        self,
+        show_root: str,
+        show: str,
+        excluded_users: set[str] | None = None,
+    ) -> list[ThreeDEScene]:
+        """Find all scenes in a show using local filesystem scanning."""
+        scenes: list[ThreeDEScene] = []
+
+        try:
+            from pathlib import Path
+
+            show_path = Path(show_root) / show
+            if not show_path.exists():
+                self.logger.warning(f"Show path does not exist: {show_path}")
+                return []
+
+            # Use targeted search for efficiency
+            file_results = self.scanner.find_all_3de_files_in_show_targeted(
+                show_root, show, excluded_users
+            )
+
+            self.logger.info(f"Found {len(file_results)} .3de files in {show}")
+
+            # Convert to ThreeDEScene objects
+            for file_path, show_name, sequence, shot_name, user, plate in file_results:
+                workspace_path = (
+                    show_path / "shots" / sequence / f"{sequence}_{shot_name}"
+                )
+
+                scene = self.parser.create_scene_from_file_info(
+                    file_path,
+                    show_name,
+                    sequence,
+                    shot_name,
+                    user,
+                    plate,
+                    str(workspace_path),
+                )
+                scenes.append(scene)
+
+            self.logger.info(f"Found {len(scenes)} total scenes in show {show}")
+
+        except Exception:
+            self.logger.exception(f"Error finding scenes in show {show}")
+
+        return scenes
+
+    def _find_all_scenes_in_show_progressive(
+        self,
+        show_root: str,
+        show: str,
+        excluded_users: set[str] | None = None,
+    ) -> list[ThreeDEScene]:
+        """Find all scenes in show using progressive discovery (collects all at once)."""
+        scenes: list[ThreeDEScene] = []
+        for (
+            scene_batch,
+            _current_shot,
+            _total_shots,
+            _status,
+        ) in self._find_scenes_progressive_impl(show_root, show, excluded_users):
+            scenes.extend(scene_batch)
+        return scenes
+
+    def _find_scenes_progressive_impl(
+        self,
+        show_root: str,
+        show: str,
+        excluded_users: set[str] | None = None,
+        batch_size: int = 10,
+    ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
+        """Find scenes progressively with batch updates.
+
+        Args:
+            show_root: Root path for shows
+            show: Show name
+            excluded_users: Set of usernames to exclude
+            batch_size: Number of scenes per batch
+
+        Yields:
+            Tuple of (scene_batch, current_shot, total_shots, status_message)
+
+        """
+        try:
+            # First discover all shots in the show
+            shot_tuples = self.scanner.discover_all_shots_in_show(show_root, show)
+
+            if not shot_tuples:
+                yield [], 0, 0, "No shots found"
+                return
+
+            # Use scanner's progressive discovery
+            for (
+                file_batch,
+                current_shot,
+                total_shots,
+                status,
+            ) in self.scanner.find_all_scenes_progressive(
+                shot_tuples, excluded_users, batch_size
+            ):
+                scenes: list[ThreeDEScene] = []
+                for _username, threede_file in file_batch:
+                    try:
+                        from pathlib import Path
+
+                        show_path = Path(show_root) / show
+
+                        parsed = self.parser.parse_3de_file_path(
+                            threede_file, show_path, show, excluded_users or set()
+                        )
+
+                        if parsed:
+                            file_path, show_name, sequence, shot_name, user, plate = (
+                                parsed
+                            )
+                            workspace_path = (
+                                show_path
+                                / "shots"
+                                / sequence
+                                / f"{sequence}_{shot_name}"
+                            )
+
+                            scene = self.parser.create_scene_from_file_info(
+                                file_path,
+                                show_name,
+                                sequence,
+                                shot_name,
+                                user,
+                                plate,
+                                str(workspace_path),
+                            )
+                            scenes.append(scene)
+
+                    except Exception as e:  # noqa: BLE001
+                        self.logger.warning(
+                            f"Error processing scene file {threede_file}: {e}"
+                        )
+                        continue
+
+                yield scenes, current_shot, total_shots, status
+
+        except Exception as e:
+            self.logger.exception(f"Error in progressive discovery for {show}")
+            yield [], 0, 0, f"Error: {e}"
+
+    # ------------------------------------------------------------------
+    # Template Methods
+    # ------------------------------------------------------------------
 
     # Template Method - defines the algorithm skeleton
     @log_execution(include_args=False)  # pyright: ignore[reportUntypedFunctionDecorator]
@@ -157,7 +463,8 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             with self.logger.context(
                 operation="scene_discovery", shot=f"{show}/{sequence}/{shot}"
             ):
-                scenes = self.strategy.find_scenes_for_shot(
+                # Progressive strategy delegates single-shot discovery to local
+                scenes = self._find_scenes_for_shot_local(
                     shot_workspace_path, show, sequence, shot, excluded_users
                 )
 
@@ -231,9 +538,14 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                             self.stats["cache_misses"] += 1
 
                         # Discover scenes using strategy
-                        show_scenes = self.strategy.find_all_scenes_in_show(
-                            show_root, show, excluded_users
-                        )
+                        if self._use_progressive:
+                            show_scenes = self._find_all_scenes_in_show_progressive(
+                                show_root, show, excluded_users
+                            )
+                        else:
+                            show_scenes = self._find_all_scenes_in_show_local(
+                                show_root, show, excluded_users
+                            )
 
                         # Validate and filter results
                         valid_scenes = self._validate_and_filter_scenes(show_scenes)
@@ -284,20 +596,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         """
         try:
-            # Use progressive strategy if available
-            # Local application imports
-            from scene_discovery_strategy import ProgressiveDiscoveryStrategy
-
-            if not isinstance(self.strategy, ProgressiveDiscoveryStrategy):
-                # Fallback: create progressive strategy temporarily
-                progressive_strategy = ProgressiveDiscoveryStrategy()
-                scene_generator = progressive_strategy.find_scenes_progressive(
-                    show_root, show, excluded_users, batch_size
-                )
-            else:
-                scene_generator = self.strategy.find_scenes_progressive(
-                    show_root, show, excluded_users, batch_size
-                )
+            scene_generator = self._find_scenes_progressive_impl(
+                show_root, show, excluded_users, batch_size
+            )
 
             # Process batches and call progress callback if provided
             for scene_batch, current_shot, total_shots, status in scene_generator:
@@ -461,25 +762,29 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         return 0
 
     def switch_strategy(
-        self, strategy_type: str, **strategy_kwargs: Unpack[StrategyKwargs]
+        self, strategy_type: str, **_strategy_kwargs: object
     ) -> None:
         """Switch to a different discovery strategy.
 
         Args:
             strategy_type: New strategy type ("local", "progressive")
-            **strategy_kwargs: Additional arguments for strategy initialization
+            **_strategy_kwargs: Accepted but unused (retained for call-site compatibility)
 
         """
-        # Lazy import to break circular dependency
-        from scene_discovery_strategy import create_discovery_strategy
+        if strategy_type not in ("local", "progressive"):
+            msg = (
+                f"Unknown strategy type: {strategy_type}. "
+                f"Available: local, progressive"
+            )
+            raise ValueError(msg)
 
-        old_strategy = self.strategy.get_strategy_name()
-        self.strategy = create_discovery_strategy(strategy_type, **strategy_kwargs)
-        self.logger.info(f"Switched strategy from {old_strategy} to {strategy_type}")
+        old_name = self.get_strategy_name()
+        self._use_progressive = strategy_type == "progressive"
+        self.logger.info(f"Switched strategy from {old_name} to {strategy_type}")
 
     def get_strategy_name(self) -> str:
         """Get the name of the current discovery strategy."""
-        return self.strategy.get_strategy_name()
+        return "ProgressiveDiscoveryStrategy" if self._use_progressive else "LocalFileSystemStrategy"
 
     @staticmethod
     def find_all_scenes_in_shows_truly_efficient(
