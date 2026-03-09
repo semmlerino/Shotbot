@@ -104,44 +104,32 @@ class CommandLauncher(LoggingMixin, QObject):
     _MAYA_BOOTSTRAP_SCRIPT = """
 import maya.cmds
 import traceback
-import time
 
-def _shotbot_update_context():
-    # Import SGTK - fail gracefully in non-SGTK environments
+def _shotbot_update_context(_retries_left=20):
     try:
         import sgtk
     except ImportError:
-        return  # Not a SGTK environment - expected, don't log
+        return
 
-    # Wait for SGTK engine with retry (handles late initialization)
-    engine = None
-    for _ in range(10):
-        engine = sgtk.platform.current_engine()
-        if engine:
-            break
-        time.sleep(0.3)
-
+    engine = sgtk.platform.current_engine()
     if not engine:
-        print("[Shotbot] No SGTK engine available after retries")
+        if _retries_left > 0:
+            maya.cmds.evalDeferred(lambda: _shotbot_update_context(_retries_left - 1))
+        else:
+            print("[Shotbot] No SGTK engine available after retries")
         return
 
-    # Wait for file to load with retry (handles evalDeferred timing)
-    scene_path = None
-    for _ in range(10):
-        scene_path = maya.cmds.file(query=True, sceneName=True)
-        if scene_path:
-            break
-        time.sleep(0.3)
-
+    scene_path = maya.cmds.file(query=True, sceneName=True)
     if not scene_path:
-        print("[Shotbot] No scene file loaded after retries")
+        if _retries_left > 0:
+            maya.cmds.evalDeferred(lambda: _shotbot_update_context(_retries_left - 1))
+        else:
+            print("[Shotbot] No scene file loaded after retries")
         return
 
-    # Skip if context already has task (don't overwrite existing task context)
     if engine.context.task:
         return
 
-    # Get context from file path
     try:
         new_context = engine.sgtk.context_from_path(scene_path)
     except Exception as e:
@@ -156,7 +144,6 @@ def _shotbot_update_context():
         print(f"[Shotbot] File path doesn't match task template: {scene_path}")
         return
 
-    # Update context - triggers full SGTK app loading
     try:
         engine.change_context(new_context)
         print(f"[Shotbot] Context updated to: {new_context}")
