@@ -98,7 +98,7 @@ inquirer==3.4.1
     # via skylos
 jaraco-classes==3.4.0
     # via keyring
-jaraco-context==6.1.0
+jaraco-context==6.1.1
     # via keyring
 jaraco-functools==4.4.0
     # via keyring
