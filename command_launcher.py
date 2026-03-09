@@ -105,6 +105,11 @@ class CommandLauncher(LoggingMixin, QObject):
 import maya.cmds
 import traceback
 
+try:
+    from PySide6.QtCore import QTimer
+except ImportError:
+    from PySide2.QtCore import QTimer
+
 def _shotbot_update_context(_retries_left=20):
     try:
         import sgtk
@@ -114,7 +119,7 @@ def _shotbot_update_context(_retries_left=20):
     engine = sgtk.platform.current_engine()
     if not engine:
         if _retries_left > 0:
-            maya.cmds.evalDeferred(lambda: _shotbot_update_context(_retries_left - 1))
+            QTimer.singleShot(300, lambda: _shotbot_update_context(_retries_left - 1))
         else:
             print("[Shotbot] No SGTK engine available after retries")
         return
@@ -122,7 +127,7 @@ def _shotbot_update_context(_retries_left=20):
     scene_path = maya.cmds.file(query=True, sceneName=True)
     if not scene_path:
         if _retries_left > 0:
-            maya.cmds.evalDeferred(lambda: _shotbot_update_context(_retries_left - 1))
+            QTimer.singleShot(300, lambda: _shotbot_update_context(_retries_left - 1))
         else:
             print("[Shotbot] No scene file loaded after retries")
         return
