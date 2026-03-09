@@ -98,19 +98,32 @@ class CommandLauncher(LoggingMixin, QObject):
     launch_pending = Signal()  # Emitted when async file search starts
     launch_ready = Signal()  # Emitted when async search completes (ready to launch)
 
-    # Maya bootstrap script with retry logic and detailed error handling.
-    # Used to ensure SGTK context is updated when opening a file.
-    # Runs via evalDeferred() after file loads to upgrade Shot → Shot+Task context.
+    # Maya bootstrap script that upgrades SGTK context from Shot → Shot+Task.
+    # Uses a background thread to poll for SGTK engine availability with real
+    # time.sleep() delays (immune to event-loop blocking during plugin loading),
+    # then dispatches the context update to the main thread.
     _MAYA_BOOTSTRAP_SCRIPT = """
 import maya.cmds
+import maya.utils
 import traceback
+import threading
+import time
 
-try:
-    from PySide6.QtCore import QTimer
-except ImportError:
-    from PySide2.QtCore import QTimer
+def _shotbot_wait_for_sgtk():
+    for _ in range(50):
+        time.sleep(0.5)
+        try:
+            import sgtk
+            if sgtk.platform.current_engine():
+                maya.utils.executeDeferred(_shotbot_update_context)
+                return
+        except ImportError:
+            return
+    maya.utils.executeDeferred(
+        lambda: print("[Shotbot] No SGTK engine available after retries")
+    )
 
-def _shotbot_update_context(_retries_left=50):
+def _shotbot_update_context():
     try:
         import sgtk
     except ImportError:
@@ -118,18 +131,11 @@ def _shotbot_update_context(_retries_left=50):
 
     engine = sgtk.platform.current_engine()
     if not engine:
-        if _retries_left > 0:
-            QTimer.singleShot(500, lambda: _shotbot_update_context(_retries_left - 1))
-        else:
-            print("[Shotbot] No SGTK engine available after retries")
         return
 
     scene_path = maya.cmds.file(query=True, sceneName=True)
     if not scene_path:
-        if _retries_left > 0:
-            QTimer.singleShot(500, lambda: _shotbot_update_context(_retries_left - 1))
-        else:
-            print("[Shotbot] No scene file loaded after retries")
+        print("[Shotbot] No scene file loaded")
         return
 
     if engine.context.task:
@@ -156,7 +162,7 @@ def _shotbot_update_context(_retries_left=50):
         print(f"[Shotbot] Error changing context: {e}")
         traceback.print_exc()
 
-maya.cmds.evalDeferred(_shotbot_update_context)
+threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
 """
 
     def __init__(
