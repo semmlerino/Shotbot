@@ -261,25 +261,6 @@ class TestFilesTabWidgetSignals:
 
         assert isinstance(blocker.args[0], SceneFile)
 
-    def test_double_click_emits_file_open_requested(
-        self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
-    ) -> None:
-        """Double click emits file_open_requested signal."""
-        widget = FilesTabWidget()
-        qtbot.addWidget(widget)
-        widget.set_files(sample_files)
-        widget.show()
-        process_qt_events()
-
-        # Test via direct signal emission (mouseDClick is unreliable in headless Qt)
-        with qtbot.waitSignal(widget.file_open_requested, timeout=1000) as blocker:
-            # Simulate double-click by calling the handler directly
-            index = widget._models[FileType.THREEDE].index(0, 0)
-            widget._on_row_double_clicked(FileType.THREEDE, index)
-            process_qt_events()
-
-        assert isinstance(blocker.args[0], SceneFile)
-
 
 class TestFilesTabWidgetNavigation:
     """Tests for tab navigation."""

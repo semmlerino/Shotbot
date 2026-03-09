@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from design_system import design_system
 from resizable_frame import ResizableFrame
 from scene_file import ImageSequence
+from settings_manager import get_stored_height
 
 
 if TYPE_CHECKING:
@@ -313,11 +314,11 @@ class DCCSequenceTable(QWidget):
         """
         if self._settings_manager is None:
             return self._DEFAULT_PANEL_HEIGHT
-        key = f"ui/table_height/{self._dcc_name}/{title}"
-        value = self._settings_manager.settings.value(
-            key, self._DEFAULT_PANEL_HEIGHT, type=int
+        return get_stored_height(
+            self._settings_manager.settings,
+            f"ui/table_height/{self._dcc_name}/{title}",
+            self._DEFAULT_PANEL_HEIGHT,
         )
-        return value if isinstance(value, int) else self._DEFAULT_PANEL_HEIGHT
 
     def _on_sequence_height_changed(self, title: str, height: int) -> None:
         """Save new sequence list height to settings.

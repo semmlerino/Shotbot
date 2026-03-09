@@ -287,8 +287,6 @@ class PerformanceMetricsDict(TypedDict):
     cache_hit_rate: float
 
     # Extended metrics from OptimizedShotModel (optional for base model)
-    cache_hit_count: int
-    cache_miss_count: int
     loading_in_progress: bool
     session_warmed: bool
 

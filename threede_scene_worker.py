@@ -205,8 +205,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
     scan_progress = Signal(int, int, str)  # Emitted during individual shot scanning
     discovery_finished = Signal(list)  # Emitted with complete list of scenes
     error = Signal(str)  # Emitted when an error occurs
-    paused = Signal()  # Emitted when worker is paused
-    resumed = Signal()  # Emitted when worker resumes
 
     def __init__(
         self,
@@ -282,35 +280,22 @@ class ThreeDESceneWorker(ThreadSafeWorker):
     def pause(self) -> None:
         """Request the worker to pause processing."""
         self.logger.debug("Pause requested for 3DE scene worker")
-        should_emit = False
         self._pause_mutex.lock()
         try:
-            if not self._is_paused:  # Only emit if state actually changes
-                self._is_paused = True
-                should_emit = True
+            self._is_paused = True
         finally:
             self._pause_mutex.unlock()
-
-        # Emit signal outside the lock to prevent deadlocks
-        if should_emit:
-            self.paused.emit()
 
     def resume(self) -> None:
         """Resume processing if paused."""
         self.logger.debug("Resume requested for 3DE scene worker")
-        should_emit = False
         self._pause_mutex.lock()
         try:
             if self._is_paused:
                 self._is_paused = False
                 self._pause_condition.wakeAll()
-                should_emit = True
         finally:
             self._pause_mutex.unlock()
-
-        # Emit signal outside the lock to prevent deadlocks
-        if should_emit:
-            self.resumed.emit()
 
     def is_paused(self) -> bool:
         """Check if worker is currently paused."""

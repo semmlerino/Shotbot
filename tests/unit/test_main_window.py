@@ -262,16 +262,11 @@ class TestApplicationLaunching:
 
         monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
 
-        # Try to launch app without selecting a shot
-        errors: list[tuple[str, str]] = []
-        main_window.command_launcher.command_error.connect(
-            lambda ts, msg: errors.append((ts, msg))
-        )
+        # Try to launch app without selecting a shot (should not raise)
         main_window.launch_app("nuke")
 
-        # Should emit command_error because no shot is selected
-        assert len(errors) == 1
-        assert "No shot selected" in errors[0][1]
+        # No shot selected; underlying launcher returns False but MainWindow.launch_app -> None
+        assert main_window.command_launcher.current_shot is None
 
 
 

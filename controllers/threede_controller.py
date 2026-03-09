@@ -859,17 +859,6 @@ class ThreeDEController(LoggingMixin):
             self.on_discovery_error,  # pyright: ignore[reportAny]
             Qt.ConnectionType.QueuedConnection,
         )
-        _ = worker.safe_connect(
-            worker.paused,
-            self.on_discovery_paused,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        _ = worker.safe_connect(
-            worker.resumed,
-            self.on_discovery_resumed,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-
         self.logger.debug("Connected all worker signals to controller")
 
     def _disconnect_worker_signals(self, worker: ThreeDESceneWorker) -> None:
@@ -888,8 +877,6 @@ class ThreeDEController(LoggingMixin):
                 worker.scan_progress,
                 worker.discovery_finished,
                 worker.error,
-                worker.paused,
-                worker.resumed,
             ]
 
             for signal in signals_to_disconnect:

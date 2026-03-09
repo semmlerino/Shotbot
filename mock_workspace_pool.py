@@ -237,8 +237,6 @@ class MockWorkspacePool(LoggingMixin):
             cache_hits=cache_hits,
             cache_misses=cache_misses,
             cache_hit_rate=cache_hits / max(1, len(self.commands_executed)),
-            cache_hit_count=cache_hits,
-            cache_miss_count=cache_misses,
             loading_in_progress=False,
             session_warmed=len(self.shots) > 0,
         )

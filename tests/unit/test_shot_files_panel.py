@@ -170,14 +170,6 @@ class TestFileListItem:
         signal_spy = QSignalSpy(file_list_item.open_requested)
         assert signal_spy is not None
 
-    @pytest.mark.allow_dialogs
-    def test_open_folder_requested_signal_defined(
-        self, qtbot: QtBot, file_list_item: FileListItem
-    ) -> None:
-        """Test that open_folder_requested signal is defined."""
-        assert hasattr(file_list_item, "open_folder_requested")
-        signal_spy = QSignalSpy(file_list_item.open_folder_requested)
-        assert signal_spy is not None
 
 
 class TestFileListItemContextMenu:
@@ -360,27 +352,6 @@ class TestFileTypeSectionFiles:
         # Section should be hidden when cleared
         assert file_type_section.isHidden() is True
 
-    @pytest.mark.allow_dialogs
-    def test_file_open_requested_signal_emits(
-        self, qtbot: QtBot, file_type_section: FileTypeSection
-    ) -> None:
-        """Test that file_open_requested signal is emitted from child items."""
-        signal_spy = QSignalSpy(file_type_section.file_open_requested)
-
-        scene_file = create_scene_file()
-        file_type_section.set_files([scene_file])
-        process_qt_events()
-
-        # Get the file item and trigger its signal
-        # The file item is added to _file_list_layout
-        for i in range(file_type_section._file_list_layout.count()):
-            widget = file_type_section._file_list_layout.itemAt(i).widget()
-            if isinstance(widget, FileListItem):
-                widget.open_requested.emit(scene_file)
-                break
-
-        process_qt_events()
-        assert signal_spy.count() == 1
 
 
 # ============================================================================
@@ -414,14 +385,6 @@ class TestShotFilesPanel:
         assert hasattr(shot_files_panel, "_finder")
         assert shot_files_panel._finder is not None
 
-    @pytest.mark.allow_dialogs
-    def test_file_open_requested_signal_defined(
-        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel
-    ) -> None:
-        """Test that file_open_requested signal is defined."""
-        assert hasattr(shot_files_panel, "file_open_requested")
-        signal_spy = QSignalSpy(shot_files_panel.file_open_requested)
-        assert signal_spy is not None
 
 
 class TestShotFilesPanelSetShot:
@@ -521,21 +484,6 @@ class TestShotFilesPanelSetShot:
 
 class TestShotFilesPanelSignalRouting:
     """Test signal routing through ShotFilesPanel."""
-
-    @pytest.mark.allow_dialogs
-    def test_section_signal_routes_to_panel(
-        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel
-    ) -> None:
-        """Test that section file_open_requested routes to panel."""
-        signal_spy = QSignalSpy(shot_files_panel.file_open_requested)
-
-        scene_file = create_scene_file()
-
-        # Emit from a section
-        shot_files_panel._sections[FileType.THREEDE].file_open_requested.emit(scene_file)
-        process_qt_events()
-
-        assert signal_spy.count() == 1
 
 
 # ============================================================================

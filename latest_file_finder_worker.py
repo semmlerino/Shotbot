@@ -25,8 +25,6 @@ class LatestFileFinderWorker(ThreadSafeWorker):
     network storage.
 
     Signals:
-        maya_found: Emitted when Maya scene search completes (Path | None)
-        threede_found: Emitted when 3DE scene search completes (Path | None)
         search_complete: Emitted when all searches finish (success: bool)
 
     Example:
@@ -36,15 +34,12 @@ class LatestFileFinderWorker(ThreadSafeWorker):
             find_maya=True,
             find_threede=False,
         )
-        worker.maya_found.connect(self._on_maya_found)
         worker.search_complete.connect(self._on_search_complete)
         worker.start()
 
     """
 
     # Result signals - emitted from background thread, received via queued connection
-    maya_found = Signal(object)  # type: ignore[assignment]  # Path | None
-    threede_found = Signal(object)  # type: ignore[assignment]  # Path | None
     search_complete = Signal(bool)  # type: ignore[assignment]  # success
 
     def __init__(
@@ -111,7 +106,6 @@ class LatestFileFinderWorker(ThreadSafeWorker):
                     self._shot_name,
                     cancel_flag=self.should_stop,
                 )
-                self.threede_found.emit(self._threede_result)
 
                 if self._threede_result:
                     self.logger.info(f"Found 3DE scene: {self._threede_result.name}")
@@ -137,7 +131,6 @@ class LatestFileFinderWorker(ThreadSafeWorker):
                     self._shot_name,
                     cancel_flag=self.should_stop,
                 )
-                self.maya_found.emit(self._maya_result)
 
                 if self._maya_result:
                     self.logger.info(f"Found Maya scene: {self._maya_result.name}")

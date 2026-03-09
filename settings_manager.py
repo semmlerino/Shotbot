@@ -57,7 +57,7 @@ from pathlib import Path
 from typing import cast, final
 
 # Third-party imports
-from PySide6.QtCore import QByteArray, QObject, QSettings, QSize, Signal
+from PySide6.QtCore import QByteArray, QObject, QSettings, QSize
 
 # Local application imports
 from config import Config
@@ -74,11 +74,6 @@ class SettingsManager(LoggingMixin, QObject):
     Provides a comprehensive settings management system with automatic
     migration, validation, and organized access to application preferences.
     """
-
-    # Signals for settings changes
-    settings_changed = Signal(str, object)  # Setting key, new value
-    category_changed = Signal(str)  # Category name
-    settings_reset = Signal()  # All settings reset to defaults
 
     def __init__(
         self, organization: str = "ShotBot", application: str = "ShotBot"
@@ -235,7 +230,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_window_geometry(self, geometry: QByteArray) -> None:
         """Set window geometry."""
         self.settings.setValue("window/geometry", geometry)
-        self.settings_changed.emit("window/geometry", geometry)
 
     def get_window_state(self) -> QByteArray:
         """Get window state (dock widgets, toolbars)."""
@@ -245,7 +239,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_window_state(self, state: QByteArray) -> None:
         """Set window state."""
         self.settings.setValue("window/state", state)
-        self.settings_changed.emit("window/state", state)
 
     def get_window_size(self) -> QSize:
         """Get window size."""
@@ -261,7 +254,6 @@ class SettingsManager(LoggingMixin, QObject):
         validated_size = QSize(min_width, min_height)
 
         self.settings.setValue("window/size", validated_size)
-        self.settings_changed.emit("window/size", validated_size)
 
     def get_splitter_state(self, splitter_name: str) -> QByteArray:
         """Get splitter state by name."""
@@ -273,7 +265,6 @@ class SettingsManager(LoggingMixin, QObject):
         """Set splitter state by name."""
         key = f"window/splitter_{splitter_name}"
         self.settings.setValue(key, state)
-        self.settings_changed.emit(key, state)
 
     def get_current_tab(self) -> int:
         """Get current tab index."""
@@ -284,7 +275,6 @@ class SettingsManager(LoggingMixin, QObject):
         """Set current tab index."""
         validated_index = max(0, index)  # Ensure non-negative
         self.settings.setValue("window/current_tab", validated_index)
-        self.settings_changed.emit("window/current_tab", validated_index)
 
     def is_window_maximized(self) -> bool:
         """Check if window was maximized."""
@@ -294,7 +284,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_window_maximized(self, maximized: bool) -> None:
         """Set window maximized state."""
         self.settings.setValue("window/maximized", maximized)
-        self.settings_changed.emit("window/maximized", maximized)
 
     # Preference Settings
     def get_refresh_interval(self) -> int:
@@ -313,7 +302,6 @@ class SettingsManager(LoggingMixin, QObject):
         # Validate range (1 minute to 24 hours)
         validated_minutes = max(1, min(minutes, 1440))
         self.settings.setValue("preferences/refresh_interval", validated_minutes)
-        self.settings_changed.emit("preferences/refresh_interval", validated_minutes)
 
     def get_background_refresh(self) -> bool:
         """Get background refresh enabled state."""
@@ -327,7 +315,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_background_refresh(self, enabled: bool) -> None:
         """Set background refresh enabled state."""
         self.settings.setValue("preferences/background_refresh", enabled)
-        self.settings_changed.emit("preferences/background_refresh", enabled)
 
     def get_thumbnail_size(self) -> int:
         """Get thumbnail size."""
@@ -343,7 +330,6 @@ class SettingsManager(LoggingMixin, QObject):
             Config.MIN_THUMBNAIL_SIZE, min(size, Config.MAX_THUMBNAIL_SIZE)
         )
         self.settings.setValue("preferences/thumbnail_size", validated_size)
-        self.settings_changed.emit("preferences/thumbnail_size", validated_size)
 
     def get_last_directory(self) -> str:
         """Get last used directory."""
@@ -357,7 +343,6 @@ class SettingsManager(LoggingMixin, QObject):
         # Validate directory exists
         if Path(directory).is_dir():
             self.settings.setValue("preferences/last_directory", directory)
-            self.settings_changed.emit("preferences/last_directory", directory)
 
     def get_preferred_terminal(self) -> str:
         """Get preferred terminal emulator."""
@@ -369,7 +354,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_preferred_terminal(self, terminal: str) -> None:
         """Set preferred terminal emulator."""
         self.settings.setValue("preferences/preferred_terminal", terminal)
-        self.settings_changed.emit("preferences/preferred_terminal", terminal)
 
     def get_double_click_action(self) -> str:
         """Get double click action."""
@@ -383,7 +367,6 @@ class SettingsManager(LoggingMixin, QObject):
         valid_actions = ["launch_default", "show_info", "open_folder"]
         if action in valid_actions:
             self.settings.setValue("preferences/double_click_action", action)
-            self.settings_changed.emit("preferences/double_click_action", action)
 
     # Performance Settings
     def get_max_thumbnail_threads(self) -> int:
@@ -398,9 +381,6 @@ class SettingsManager(LoggingMixin, QObject):
         # Validate range (1-16 threads)
         validated_threads = max(1, min(threads, 16))
         self.settings.setValue("performance/max_thumbnail_threads", validated_threads)
-        self.settings_changed.emit(
-            "performance/max_thumbnail_threads", validated_threads
-        )
 
     def get_max_cache_memory_mb(self) -> int:
         """Get maximum cache memory in MB."""
@@ -414,7 +394,6 @@ class SettingsManager(LoggingMixin, QObject):
         # Validate range (10MB to 1GB)
         validated_memory = max(10, min(memory_mb, 1024))
         self.settings.setValue("performance/max_cache_memory_mb", validated_memory)
-        self.settings_changed.emit("performance/max_cache_memory_mb", validated_memory)
 
     def get_cache_expiry_minutes(self) -> int:
         """Get cache expiry time in minutes."""
@@ -428,9 +407,6 @@ class SettingsManager(LoggingMixin, QObject):
         # Validate range (5 minutes to 1 week)
         validated_minutes = max(5, min(minutes, 10080))
         self.settings.setValue("performance/cache_expiry_minutes", validated_minutes)
-        self.settings_changed.emit(
-            "performance/cache_expiry_minutes", validated_minutes
-        )
 
     def get_enable_animations(self) -> bool:
         """Get animation enabled state."""
@@ -440,7 +416,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_enable_animations(self, enabled: bool) -> None:
         """Set animation enabled state."""
         self.settings.setValue("performance/enable_animations", enabled)
-        self.settings_changed.emit("performance/enable_animations", enabled)
 
     # Application Settings
     def get_default_app(self) -> str:
@@ -456,7 +431,6 @@ class SettingsManager(LoggingMixin, QObject):
         available_apps = list(Config.APPS.keys())
         if app in available_apps:
             self.settings.setValue("applications/default_app", app)
-            self.settings_changed.emit("applications/default_app", app)
 
     def get_file_associations(self) -> dict[str, str]:
         """Get file type associations."""
@@ -475,7 +449,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_file_associations(self, associations: dict[str, str]) -> None:
         """Set file type associations."""
         self.settings.setValue("applications/file_associations", associations)
-        self.settings_changed.emit("applications/file_associations", associations)
 
     def get_background_gui_apps(self) -> bool:
         """Get whether to run GUI apps in background (close terminal immediately).
@@ -489,7 +462,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_background_gui_apps(self, enabled: bool) -> None:
         """Set whether to run GUI apps in background."""
         self.settings.setValue("applications/background_gui_apps", enabled)
-        self.settings_changed.emit("applications/background_gui_apps", enabled)
 
     def get_custom_launchers(self) -> list[dict[str, object]]:
         """Get custom launcher definitions."""
@@ -510,7 +482,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_custom_launchers(self, launchers: list[dict[str, object]]) -> None:
         """Set custom launcher definitions."""
         self.settings.setValue("applications/custom_launchers", launchers)
-        self.settings_changed.emit("applications/custom_launchers", launchers)
 
     # UI Settings
     # Dead settings removed: grid_columns, show_tooltips, dark_theme
@@ -540,7 +511,6 @@ class SettingsManager(LoggingMixin, QObject):
         # Validate and clamp range
         validated_scale = max(0.8, min(scale, 1.5))
         self.settings.setValue("ui/ui_scale", validated_scale)
-        self.settings_changed.emit("ui/ui_scale", validated_scale)
 
     def get_expanded_sections(self) -> dict[str, bool]:
         """Get expanded state for all sections."""
@@ -562,7 +532,6 @@ class SettingsManager(LoggingMixin, QObject):
         sections = self.get_expanded_sections()
         sections[section_id] = expanded
         self.settings.setValue("ui/expanded_sections", sections)
-        self.settings_changed.emit("ui/expanded_sections", sections)
 
     def is_section_expanded(self, section_id: str) -> bool:
         """Check if a section is expanded.
@@ -609,7 +578,6 @@ class SettingsManager(LoggingMixin, QObject):
             self.logger.warning(f"Invalid sort order '{order}', ignoring")
             return
         self.settings.setValue(f"ui/sort_order_{tab_id}", order)
-        self.settings_changed.emit(f"ui/sort_order_{tab_id}", order)
 
     # Advanced Settings
     def get_debug_mode(self) -> bool:
@@ -620,7 +588,6 @@ class SettingsManager(LoggingMixin, QObject):
     def set_debug_mode(self, enabled: bool) -> None:
         """Set debug mode state."""
         self.settings.setValue("advanced/debug_mode", enabled)
-        self.settings_changed.emit("advanced/debug_mode", enabled)
 
     def get_log_level(self) -> str:
         """Get logging level."""
@@ -632,7 +599,6 @@ class SettingsManager(LoggingMixin, QObject):
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if level in valid_levels:
             self.settings.setValue("advanced/log_level", level)
-            self.settings_changed.emit("advanced/log_level", level)
 
     # Category Access
     def get_category(self, category: str) -> dict[str, object]:
@@ -662,7 +628,6 @@ class SettingsManager(LoggingMixin, QObject):
         finally:
             self.settings.endGroup()
 
-        self.category_changed.emit(category)
 
     # Bulk Operations
     def export_settings(self, file_path: str) -> bool:
@@ -770,7 +735,6 @@ class SettingsManager(LoggingMixin, QObject):
         self._initialize_defaults()
 
         self.logger.info("All settings reset to defaults")
-        self.settings_reset.emit()
 
     def reset_category(self, category: str) -> None:
         """Reset a specific category to defaults."""
@@ -779,7 +743,6 @@ class SettingsManager(LoggingMixin, QObject):
         if category in defaults:
             self.set_category(category, defaults[category])
             self.logger.info(f"Category '{category}' reset to defaults")
-            self.category_changed.emit(category)
 
     def sync(self) -> None:
         """Synchronize settings to disk."""
@@ -788,3 +751,20 @@ class SettingsManager(LoggingMixin, QObject):
     def get_settings_file_path(self) -> str:
         """Get the path to the settings file."""
         return self.settings.fileName()
+
+
+def get_stored_height(settings: QSettings, key: str, default: int) -> int:
+    """Read an integer height value from QSettings with a safe fallback.
+
+    Args:
+        settings: The QSettings instance to read from.
+        key: The settings key to look up.
+        default: Value to return when the key is absent or the stored value
+            is not an integer.
+
+    Returns:
+        The stored integer height, or *default* if not found or wrong type.
+
+    """
+    value = settings.value(key, default, type=int)
+    return value if isinstance(value, int) else default

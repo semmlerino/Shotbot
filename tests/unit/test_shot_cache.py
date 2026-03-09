@@ -692,32 +692,6 @@ class TestCacheWriteFailureSignals:
             shot_cache.cache_shots(sample_shots)
 
     @pytest.mark.parametrize(
-        ("cache_method_name", "cache_key"),
-        [("cache_shots", "shots"), ("cache_previous_shots", "previous_shots")],
-    )
-    def test_cache_methods_emit_write_failed_on_error(
-        self,
-        shot_cache: ShotDataCache,
-        sample_shots: list[Shot],
-        mocker,
-        cache_method_name: str,
-        cache_key: str,
-    ) -> None:
-        """Cache write methods emit write_failed and suppress cache_updated on errors."""
-        mocker.patch("cache.shot_cache.write_json_cache", return_value=False)
-
-        signals_received: list[str] = []
-        shot_cache.cache_updated.connect(lambda: signals_received.append("updated"))
-        shot_cache.cache_write_failed.connect(
-            lambda name: signals_received.append(f"failed:{name}")
-        )
-
-        getattr(shot_cache, cache_method_name)(sample_shots)
-
-        assert f"failed:{cache_key}" in signals_received
-        assert "updated" not in signals_received
-
-    @pytest.mark.parametrize(
         ("shots_input", "mock_write_failure", "expected_result"),
         [
             pytest.param(
@@ -756,25 +730,6 @@ class TestCacheWriteFailureSignals:
         result = shot_cache.archive_shots_as_previous(shots_input)
         assert result is expected_result
 
-    def test_migrate_emits_write_failed_on_error(
-        self, shot_cache: ShotDataCache, qtbot, mocker
-    ) -> None:
-        """cache_write_failed signal is emitted when migration write fails."""
-        mocker.patch("cache.shot_cache.write_json_cache", return_value=False)
-
-        signals_received: list[str] = []
-        shot_cache.cache_write_failed.connect(
-            lambda name: signals_received.append(f"failed:{name}")
-        )
-        shot_cache.shots_migrated.connect(
-            lambda _: signals_received.append("migrated")
-        )
-
-        shots = [Shot("show1", "seq01", "0010", "/path")]
-        shot_cache.archive_shots_as_previous(shots)
-
-        assert "failed:migrated_shots" in signals_received
-        assert "migrated" not in signals_received
 
 
 # ---------------------------------------------------------------------------

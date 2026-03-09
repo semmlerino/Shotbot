@@ -123,7 +123,7 @@ from scene_file import SceneFile
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
-from shot_model import ShotModel
+from shot_model import Shot, ShotModel
 from startup_coordinator import SessionWarmer
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
@@ -707,6 +707,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.command_launcher.launch_app
         )
 
+        # Pin sort-order refresh — fallback path when view has no pin_manager set
+        _ = self.shot_grid.pin_shot_requested.connect(
+            self._on_shot_grid_pin_requested
+        )
+        _ = self.previous_shots_grid.pin_shot_requested.connect(
+            self._on_previous_shots_pin_requested
+        )
+
         _ = self.tab_widget.currentChanged.connect(self._on_tab_changed)
         _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
         _ = self.right_panel.status_message.connect(self.update_status)
@@ -909,6 +917,25 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.shot_model.set_show_hidden(show)
         self.shot_item_model.set_shots(self.shot_model.get_filtered_shots())
 
+    def _on_shot_grid_pin_requested(self, shot: Shot) -> None:
+        """Handle pin request from the My Shots grid (fallback when no pin_manager on view).
+
+        Args:
+            shot: Shot to pin
+
+        """
+        self.pin_manager.pin_shot(shot)
+        self.shot_item_model.refresh_pin_order()
+
+    def _on_previous_shots_pin_requested(self, shot: Shot) -> None:
+        """Handle pin request from the Previous Shots grid (fallback when no pin_manager on view).
+
+        Args:
+            shot: Shot to pin
+
+        """
+        self.pin_manager.pin_shot(shot)
+        self.previous_shots_item_model.refresh_pin_order()
 
     def _on_cache_updated(self) -> None:
         """Handle cache updated signal from model."""

@@ -27,7 +27,6 @@ class SceneDiskCache(LoggingMixin, QObject):
     """3DE scene disk persistence with incremental merge."""
 
     cache_updated = Signal()
-    cache_write_failed = Signal(str)
 
     def __init__(self, cache_dir: Path, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -90,7 +89,6 @@ class SceneDiskCache(LoggingMixin, QObject):
             self.logger.warning(
                 "Failed to write 3DE scenes cache - data may not persist across restarts"
             )
-            self.cache_write_failed.emit("threede_scenes")
 
     @staticmethod
     def _build_merge_lookups(

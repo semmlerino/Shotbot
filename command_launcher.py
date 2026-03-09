@@ -93,8 +93,6 @@ class CommandLauncher(LoggingMixin, QObject):
     """
 
     # Signals
-    command_executed = Signal(str, str)  # timestamp, command
-    command_error = Signal(str, str)  # timestamp, error
     launch_pending = Signal()  # Emitted when async file search starts
     launch_ready = Signal()  # Emitted when async search completes (ready to launch)
 
@@ -298,14 +296,6 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             fix_details.append("OCIO fallback")
         fix_details.append("crash reporting disabled")
 
-        # Emit status signal
-        timestamp = self.timestamp
-        context_str = f"for {context}" if context else "to prevent Nuke crashes"
-        self.command_executed.emit(
-            timestamp,
-            f"Applied environment fixes {context_str}: {', '.join(fix_details)}",
-        )
-
         return env_fixes
 
     def _build_maya_context_command(
@@ -365,12 +355,6 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         """
         if file_result:
             return self._append_scene_to_command(app_name, command, file_result)
-        if wanted:
-            label = "3DE" if app_name == "3de" else "Maya"
-            self.command_executed.emit(
-                self.timestamp,
-                f"Info: No {label} scene files found in workspace",
-            )
         return command
 
     def _append_scene_to_command(
@@ -400,19 +384,11 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
 
         if app_name == "3de":
             updated = f"{command} -open {safe_scene_path}"
-            self.command_executed.emit(
-                self.timestamp,
-                f"Opening latest 3DE scene: {scene_path.name}",
-            )
             return updated
 
         if app_name == "maya":
             updated = self._build_maya_context_command(command, safe_scene_path)
             updated = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {updated}"
-            self.command_executed.emit(
-                self.timestamp,
-                f"Opening latest Maya scene: {scene_path.name}",
-            )
             return updated
 
         # Unsupported app — caller should not reach this path
@@ -473,8 +449,6 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             message: Progress status message
 
         """
-        timestamp = self.timestamp
-        self.command_executed.emit(timestamp, f"[{operation}] {message}")
 
     def _on_execution_completed(self, success: bool, message: str) -> None:
         """Handle execution completion from ProcessExecutor.
@@ -769,16 +743,6 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
 
             app_command = CommandBuilder.wrap_with_rez(app_command, rez_packages)
             has_rez_wrapper = True
-            packages_str = " ".join(rez_packages)
-            self.command_executed.emit(
-                self.timestamp,
-                f"Using rez environment with packages: {packages_str}",
-            )
-        else:
-            self.command_executed.emit(
-                self.timestamp,
-                f"Rez disabled in config - launching {app_name} without explicit Rez context",
-            )
 
         full_command = CommandBuilder.build_workspace_command(
             safe_workspace_path, app_command
@@ -786,9 +750,6 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
 
         # Add logging redirection for debugging
         full_command = CommandBuilder.add_logging(full_command, Config)
-
-        # Log the command to UI
-        self.command_executed.emit(self.timestamp, f"{full_command}{log_suffix}")
 
         # Enhanced debug logging for command integrity verification
         self.logger.debug(
@@ -924,10 +885,6 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
                 safe_sequence_path = CommandBuilder.validate_path(context.sequence_path)
                 command = f"{command} {safe_sequence_path}"
                 seq_name = Path(context.sequence_path).name
-                self.command_executed.emit(
-                    self.timestamp,
-                    f"Opening sequence in RV: {seq_name}",
-                )
             except ValueError as e:
                 self._emit_error(
                     f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"
@@ -967,12 +924,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
                 "open_latest_scene": context.open_latest_scene,
                 "create_new_file": context.create_new_file,
             }
-            command, log_messages = self.nuke_handler.prepare_nuke_command(
+            command, _ = self.nuke_handler.prepare_nuke_command(
                 self.current_shot, command, options, selected_plate=context.selected_plate
             )
-            timestamp = self.timestamp
-            for msg in log_messages:
-                self.command_executed.emit(timestamp, msg)
             if not command:
                 self._emit_error("Nuke launch aborted - see log messages above")
                 return LAUNCH_ERROR
@@ -1264,9 +1218,8 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
     # - _add_dispatcher_logging() → CommandBuilder.add_logging(command)
 
     def _emit_error(self, error: str) -> None:
-        """Emit error with timestamp."""
-        timestamp = self.timestamp
-        self.command_error.emit(timestamp, error)
+        """Log an error with timestamp."""
+        self.logger.error(error)
 
     # Old terminal signal handlers removed - now using ProcessExecutor signals:
     # - _on_terminal_progress() → _on_execution_progress()

@@ -56,31 +56,6 @@ class TimeoutConfig:
     UI_RESPONSE_MS: int = 500  # 500ms for UI responsiveness
 
     @classmethod
-    def get_timeout_for_operation(cls, operation_type: str) -> int:
-        """Get appropriate timeout for a given operation type.
-
-        Args:
-            operation_type: Type of operation (e.g., 'workspace', 'file_search', 'app_launch')
-
-        Returns:
-            Timeout in seconds
-
-        """
-        timeout_map = {
-            "workspace": cls.WORKSPACE_COMMAND_DEFAULT,
-            "workspace_heavy": cls.WORKSPACE_COMMAND_HEAVY,
-            "app_launch": cls.APPLICATION_LAUNCH,
-            "simple": cls.SIMPLE_COMMAND,
-            "file_search": cls.FILE_SEARCH_STANDARD,
-            "file_search_quick": cls.FILE_SEARCH_QUICK,
-            "file_search_deep": cls.FILE_SEARCH_DEEP,
-            "process_terminate": cls.PROCESS_GRACEFUL_TERMINATE,
-            "session_recovery": cls.SESSION_RECOVERY_MAX_WAIT,
-            "default": cls.WORKSPACE_COMMAND_DEFAULT,
-        }
-        return timeout_map.get(operation_type, cls.WORKSPACE_COMMAND_DEFAULT)
-
-    @classmethod
     def scale_timeouts(cls, factor: float) -> None:
         """Scale all timeouts by a factor for slower/faster environments.
 
@@ -126,24 +101,6 @@ class TimeoutConfig:
         """Reset all timeout values to defaults. Used in test isolation."""
         for attr_name, default_value in cls.initial_defaults.items():
             setattr(cls, attr_name, default_value)
-
-    @classmethod
-    def get_config_summary(cls) -> str:
-        """Get a summary of current timeout configuration.
-
-        Returns:
-            String summary of timeout settings
-
-        """
-        summary = "Timeout Configuration:\n"
-        summary += "-" * 40 + "\n"
-        summary += f"Workspace Commands: {cls.WORKSPACE_COMMAND_DEFAULT}s\n"
-        summary += f"Application Launch: {cls.APPLICATION_LAUNCH}s\n"
-        summary += f"File Search (Standard): {cls.FILE_SEARCH_STANDARD}s\n"
-        summary += f"Process Termination: {cls.PROCESS_GRACEFUL_TERMINATE}s\n"
-        summary += f"Session Recovery: {cls.SESSION_RECOVERY_MAX_WAIT}s\n"
-        return summary
-
 
 def _capture_timeout_defaults(cls: type[TimeoutConfig]) -> None:
     """Capture current TimeoutConfig class attribute values as reset defaults."""

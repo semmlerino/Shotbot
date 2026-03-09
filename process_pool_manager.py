@@ -16,7 +16,6 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
-import gc
 import selectors
 import subprocess
 import threading
@@ -732,10 +731,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             "cache_hits": int(cache_stats["hits"]),
             "cache_misses": int(cache_stats["misses"]),
             "cache_hit_rate": float(cache_stats["hit_rate"]),
-            # cache_hit_count/cache_miss_count mirror cache_hits/cache_misses at this
-            # level — ProcessPoolManager does not maintain separate session counters.
-            "cache_hit_count": int(cache_stats["hits"]),
-            "cache_miss_count": int(cache_stats["misses"]),
             # loading_in_progress and session_warmed are OptimizedShotModel-level
             # state not tracked by ProcessPoolManager; always False/False here.
             "loading_in_progress": False,
@@ -833,6 +828,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         # Stage 3: Force garbage collection to clean up circular references
         try:
+            import gc
             _ = gc.collect()
         except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Error during garbage collection: {e}")

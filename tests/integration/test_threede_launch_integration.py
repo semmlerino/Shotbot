@@ -406,46 +406,37 @@ class TestPathEscaping:
 class TestErrorHandling:
     """Test error handling in launch flow."""
 
-    def test_error_signal_emitted_on_no_shot(
+    def test_launch_returns_false_on_no_shot(
         self, launcher: CommandLauncher
     ) -> None:
-        """Test that error signal is emitted when no shot selected."""
-        error_received: list[str] = []
-        launcher.command_error.connect(lambda _ts, msg: error_received.append(msg))
+        """launch_app returns False when no shot is selected."""
+        result = launcher.launch_app("3de")
 
-        launcher.launch_app("3de")
+        assert result is False
 
-        assert len(error_received) > 0
-        assert "No shot selected" in error_received[0]
-
-    def test_error_signal_emitted_on_unknown_app(
+    def test_launch_returns_false_on_unknown_app(
         self, launcher: CommandLauncher, sample_shot: Shot
     ) -> None:
-        """Test that error signal is emitted for unknown app."""
+        """launch_app returns False for unknown app."""
         launcher.set_current_shot(sample_shot)
-        error_received: list[str] = []
-        launcher.command_error.connect(lambda _ts, msg: error_received.append(msg))
 
-        launcher.launch_app("invalid_app")
+        result = launcher.launch_app("invalid_app")
 
-        assert len(error_received) > 0
-        assert "Unknown application" in error_received[0]
+        assert result is False
 
-    def test_error_signal_on_workspace_validation_failure(
+    def test_error_on_workspace_validation_failure(
         self,
         launcher: CommandLauncher,
         sample_shot: Shot,
     ) -> None:
-        """Test that error is emitted on workspace validation failure."""
+        """launch_app returns False on workspace validation failure."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
         launcher.set_current_shot(sample_shot)
-        error_received: list[str] = []
-        launcher.command_error.connect(lambda _ts, msg: error_received.append(msg))
 
         # Don't mock validation - let it fail for non-existent path
-        launcher.launch_app("3de")
+        result = launcher.launch_app("3de")
 
-        assert len(error_received) > 0
+        assert result is False
 
 
 # ============================================================================
@@ -456,55 +447,37 @@ class TestErrorHandling:
 class TestCommandLogging:
     """Test command execution logging."""
 
-    def test_command_executed_signal_emitted(
+    def test_command_launch_succeeds(
         self,
         launcher: CommandLauncher,
         sample_shot: Shot,
     ) -> None:
-        """Test that command_executed signal is emitted."""
+        """launch_app returns True when command executes successfully."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
         launcher.set_current_shot(sample_shot)
-
-        commands_logged: list[tuple[str, str]] = []
-        launcher.command_executed.connect(
-            lambda ts, msg: commands_logged.append((ts, msg))
-        )
 
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ), patch.object(
             launcher, "_launch_in_new_terminal", return_value=True
         ):
-            launcher.launch_app("3de")
+            result = launcher.launch_app("3de")
 
-        # Should have logged the command
-        assert len(commands_logged) > 0
-        # One of the logged messages should contain the full command
-        has_ws_command = any("ws " in msg for ts, msg in commands_logged)
-        assert has_ws_command
+        assert result is True
 
-    def test_scene_launch_logs_user_and_plate(
+    def test_scene_launch_succeeds(
         self,
         launcher: CommandLauncher,
         sample_scene: ThreeDEScene,
     ) -> None:
-        """Test that scene launch logs user and plate info."""
+        """launch_app_with_scene returns True for valid scene."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
-
-        commands_logged: list[tuple[str, str]] = []
-        launcher.command_executed.connect(
-            lambda ts, msg: commands_logged.append((ts, msg))
-        )
 
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ), patch.object(
             launcher, "_launch_in_new_terminal", return_value=True
         ):
-            launcher.launch_app_with_scene("3de", sample_scene)
+            result = launcher.launch_app_with_scene("3de", sample_scene)
 
-        # Should log user and plate info
-        has_user_info = any(sample_scene.user in msg for ts, msg in commands_logged)
-        has_plate_info = any(sample_scene.plate in msg for ts, msg in commands_logged)
-
-        assert has_user_info or has_plate_info
+        assert result is True

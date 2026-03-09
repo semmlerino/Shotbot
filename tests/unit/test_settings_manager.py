@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 from PySide6.QtCore import QByteArray, QSettings, QSize
@@ -17,9 +17,6 @@ from PySide6.QtCore import QByteArray, QSettings, QSize
 from config import Config
 from settings_manager import SettingsManager
 
-
-if TYPE_CHECKING:
-    from pytestqt.qtbot import QtBot
 
 # Test markers for categorization and parallel safety
 pytestmark = [
@@ -329,22 +326,6 @@ class TestSettingsManager:
         result = settings_manager.import_settings(str(bad_json_path))
         assert result is False
 
-    def test_signal_emission_on_change(self, settings_manager: SettingsManager, qtbot: QtBot) -> None:
-        """Test that signals are emitted when settings change."""
-        # Track signal
-        received: list[tuple[str, Any]] = []
-        settings_manager.settings_changed.connect(lambda k, v: received.append((k, v)))
-
-        # Change setting with signal wait (use valid value within range MIN=400, MAX=1200)
-        new_size = 500
-        with qtbot.waitSignal(settings_manager.settings_changed, timeout=1000):
-            settings_manager.set_thumbnail_size(new_size)
-
-        # Check signal was received with correct values
-        assert len(received) > 0
-        assert received[0][0] == "preferences/thumbnail_size"
-        assert received[0][1] == new_size
-
     # test_ui_settings removed - dead UI settings (grid_columns, dark_theme, show_tooltips) were removed
 
     def test_advanced_settings(self, settings_manager: SettingsManager) -> None:
@@ -534,17 +515,6 @@ class TestSortOrderSettings:
         result = settings_manager.get_sort_order("threede_scenes")
         assert result == "name"
 
-    def test_set_sort_order_emits_signal(
-        self, settings_manager: SettingsManager, qtbot: QtBot
-    ) -> None:
-        """Test that set_sort_order emits settings_changed signal."""
-        with qtbot.waitSignal(settings_manager.settings_changed, timeout=1000) as blocker:
-            settings_manager.set_sort_order("previous_shots", "name")
-
-        # Signal should include the key and value
-        assert blocker.args[0] == "ui/sort_order_previous_shots"
-        assert blocker.args[1] == "name"
-
     def test_set_sort_order_invalid_value_ignored(
         self, settings_manager: SettingsManager
     ) -> None:
@@ -634,15 +604,6 @@ class TestUIScaleSettings:
         """Test UI scale validation and boundary clamping."""
         settings_manager.set_ui_scale(input_value)
         assert settings_manager.get_ui_scale() == expected_value
-
-    def test_set_ui_scale_emits_signal(
-        self, settings_manager: SettingsManager, qtbot: QtBot
-    ) -> None:
-        """Test that setting UI scale emits settings_changed signal."""
-        with qtbot.waitSignal(settings_manager.settings_changed, timeout=1000) as blocker:
-            settings_manager.set_ui_scale(1.3)
-
-        assert blocker.args == ["ui/ui_scale", 1.3]
 
     def test_ui_scale_persistence_across_instances(self, tmp_path: Path) -> None:
         """Test that UI scale persists across SettingsManager instances."""

@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from design_system import design_system
 from resizable_frame import ResizableFrame
+from settings_manager import get_stored_height
 
 
 if TYPE_CHECKING:
@@ -411,12 +412,11 @@ class DCCFileTable(QWidget):
         """Get stored table height from settings."""
         if self._settings_manager is None:
             return self._DEFAULT_PANEL_HEIGHT
-        value = self._settings_manager.settings.value(
+        return get_stored_height(
+            self._settings_manager.settings,
             f"ui/table_height/{self._dcc_name}",
             self._DEFAULT_PANEL_HEIGHT,
-            type=int,
         )
-        return value if isinstance(value, int) else self._DEFAULT_PANEL_HEIGHT
 
     def _on_table_height_changed(self, height: int) -> None:
         """Save new table height to settings.

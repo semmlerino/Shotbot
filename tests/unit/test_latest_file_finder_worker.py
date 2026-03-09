@@ -1,7 +1,7 @@
 """Tests for LatestFileFinderWorker async file search.
 
 Tests cover:
-- Signal emission: maya_found, threede_found, search_complete
+- Signal emission: search_complete
 - Search execution: Maya only, 3DE only, both
 - Properties: maya_result, threede_result
 - Cancellation: should_stop() behavior
@@ -141,52 +141,6 @@ class TestLatestFileFinderWorkerInit:
 class TestLatestFileFinderWorkerSignals:
     """Tests for signal emission."""
 
-    def test_maya_found_signal_emitted(
-        self,
-        qtbot: QtBot,
-        workspace: Path,
-    ) -> None:
-        """maya_found signal is emitted when Maya search completes."""
-        worker = LatestFileFinderWorker(
-            workspace_path=str(workspace),
-            shot_name="test_shot",
-            find_maya=True,
-            find_threede=False,
-        )
-
-        received_results: list[Path | None] = []
-        worker.maya_found.connect(lambda r: received_results.append(r))
-
-        worker.do_work()
-        process_qt_events()
-
-        assert len(received_results) == 1
-        assert received_results[0] is not None
-        assert received_results[0].suffix == ".ma"
-
-    def test_threede_found_signal_emitted(
-        self,
-        qtbot: QtBot,
-        workspace: Path,
-    ) -> None:
-        """threede_found signal is emitted when 3DE search completes."""
-        worker = LatestFileFinderWorker(
-            workspace_path=str(workspace),
-            shot_name="test_shot",
-            find_maya=False,
-            find_threede=True,
-        )
-
-        received_results: list[Path | None] = []
-        worker.threede_found.connect(lambda r: received_results.append(r))
-
-        worker.do_work()
-        process_qt_events()
-
-        assert len(received_results) == 1
-        assert received_results[0] is not None
-        assert received_results[0].suffix == ".3de"
-
     def test_search_complete_signal_emitted(
         self,
         qtbot: QtBot,
@@ -208,30 +162,6 @@ class TestLatestFileFinderWorkerSignals:
 
         assert len(received_complete) == 1
         assert received_complete[0] is True
-
-    def test_both_signals_emitted_for_dual_search(
-        self,
-        qtbot: QtBot,
-        workspace: Path,
-    ) -> None:
-        """Both maya_found and threede_found signals are emitted."""
-        worker = LatestFileFinderWorker(
-            workspace_path=str(workspace),
-            shot_name="test_shot",
-            find_maya=True,
-            find_threede=True,
-        )
-
-        maya_results: list[Path | None] = []
-        threede_results: list[Path | None] = []
-        worker.maya_found.connect(lambda r: maya_results.append(r))
-        worker.threede_found.connect(lambda r: threede_results.append(r))
-
-        worker.do_work()
-        process_qt_events()
-
-        assert len(maya_results) == 1
-        assert len(threede_results) == 1
 
 
 # ==============================================================================
@@ -280,12 +210,12 @@ class TestLatestFileFinderWorkerSearch:
         assert worker.threede_result is not None
         assert worker.threede_result.name == "track_v002.3de"
 
-    def test_empty_workspace_returns_none(
+    def test_empty_workspace_result_is_none(
         self,
         qtbot: QtBot,
         empty_workspace: Path,
     ) -> None:
-        """Returns None when no files found."""
+        """Returns None result properties when no files found."""
         worker = LatestFileFinderWorker(
             workspace_path=str(empty_workspace),
             shot_name="test_shot",
@@ -293,25 +223,18 @@ class TestLatestFileFinderWorkerSearch:
             find_threede=True,
         )
 
-        maya_results: list[Path | None] = []
-        threede_results: list[Path | None] = []
-        worker.maya_found.connect(lambda r: maya_results.append(r))
-        worker.threede_found.connect(lambda r: threede_results.append(r))
-
         worker.do_work()
         process_qt_events()
 
-        assert len(maya_results) == 1
-        assert maya_results[0] is None
-        assert len(threede_results) == 1
-        assert threede_results[0] is None
+        assert worker.maya_result is None
+        assert worker.threede_result is None
 
-    def test_no_signals_when_search_disabled(
+    def test_no_search_when_disabled(
         self,
         qtbot: QtBot,
         workspace: Path,
     ) -> None:
-        """No signals emitted for disabled search types."""
+        """Results remain None when search is disabled."""
         worker = LatestFileFinderWorker(
             workspace_path=str(workspace),
             shot_name="test_shot",
@@ -319,17 +242,17 @@ class TestLatestFileFinderWorkerSearch:
             find_threede=False,
         )
 
-        maya_results: list[Path | None] = []
-        threede_results: list[Path | None] = []
-        worker.maya_found.connect(lambda r: maya_results.append(r))
-        worker.threede_found.connect(lambda r: threede_results.append(r))
+        complete_results: list[bool] = []
+        worker.search_complete.connect(lambda s: complete_results.append(s))
 
         worker.do_work()
         process_qt_events()
 
-        # No signals emitted when both disabled
-        assert len(maya_results) == 0
-        assert len(threede_results) == 0
+        # Results are None when search is disabled
+        assert worker.maya_result is None
+        assert worker.threede_result is None
+        assert len(complete_results) == 1
+        assert complete_results[0] is True
 
 
 # ==============================================================================
@@ -371,7 +294,8 @@ class TestLatestFileFinderWorkerCancellation:
         qtbot: QtBot,
         workspace: Path,
     ) -> None:
-        """Worker checks should_stop() between 3DE and Maya searches."""
+        """Worker skips Maya search when stopped after 3DE search."""
+        # Use a mock 3DE finder that triggers stop mid-search
         worker = LatestFileFinderWorker(
             workspace_path=str(workspace),
             shot_name="test_shot",
@@ -379,24 +303,26 @@ class TestLatestFileFinderWorkerCancellation:
             find_threede=True,
         )
 
-        threede_results: list[Path | None] = []
-        maya_results: list[Path | None] = []
+        original_threede_finder_class = None
 
-        def on_threede_found(result: Path | None) -> None:
-            threede_results.append(result)
-            # Stop after 3DE search completes
+        def stop_after_threede(*args, **kwargs):
+            """Finder that also requests stop on the worker."""
+            from threede_latest_finder import ThreeDELatestFinder
+            finder = ThreeDELatestFinder()
+            result = finder.find_latest_threede_scene(*args, **kwargs)
             worker.request_stop()
+            return result
 
-        worker.threede_found.connect(on_threede_found)
-        worker.maya_found.connect(lambda r: maya_results.append(r))
+        with patch("latest_file_finder_worker.ThreeDELatestFinder") as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.find_latest_threede_scene.side_effect = stop_after_threede
+            mock_cls.return_value = mock_instance
 
-        worker.do_work()
-        process_qt_events()
+            worker.do_work()
+            process_qt_events()
 
-        # 3DE search should complete
-        assert len(threede_results) == 1
-        # Maya search should be skipped
-        assert len(maya_results) == 0
+        # Maya search should be skipped because stop was requested after 3DE
+        assert worker.maya_result is None
 
 
 # ==============================================================================

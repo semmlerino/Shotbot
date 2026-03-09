@@ -189,8 +189,6 @@ class ShotModel(BaseShotModel):
 
         # Performance metrics
         self._last_load_time = 0.0
-        self._cache_hit_count = 0
-        self._cache_miss_count = 0
 
         # Set to True to force synchronous refresh (used by tests)
         self._force_sync_refresh: bool = False
@@ -213,7 +211,6 @@ class ShotModel(BaseShotModel):
 
         if cached_shots:
             try:
-                self._cache_hit_count += 1
                 self.shots = [Shot.from_dict(s) for s in cached_shots]
                 self.logger.info(f"Loaded {len(self.shots)} shots from cache instantly")
                 self.shots_loaded.emit(self.shots)
@@ -223,11 +220,9 @@ class ShotModel(BaseShotModel):
                 self.logger.warning(
                     f"Corrupted cache data in initialize_async, ignoring: {e}"
                 )
-                self._cache_miss_count += 1
                 # Treat as cache miss and continue with fresh load
 
         if not cache_loaded:
-            self._cache_miss_count += 1
             # Check if cache file exists but is expired
             persistent_cache = self.cache_manager.get_shots_no_ttl()
             if persistent_cache:
@@ -559,10 +554,6 @@ class ShotModel(BaseShotModel):
 
         metrics.update(
             {
-                "cache_hit_count": self._cache_hit_count,
-                "cache_miss_count": self._cache_miss_count,
-                "cache_hit_rate": self._cache_hit_count
-                / max(1, self._cache_hit_count + self._cache_miss_count),
                 "loading_in_progress": loading,
                 "session_warmed": self._session_warmed,
             }

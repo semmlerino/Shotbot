@@ -330,8 +330,6 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
             "cache_misses": self._cache_misses,
             "cache_hit_rate": self._cache_hits / max(1, cache_total),
             # Extended metrics for compatibility (defaults for base model)
-            "cache_hit_count": self._cache_hits,
-            "cache_miss_count": self._cache_misses,
             "loading_in_progress": False,
             "session_warmed": len(self.shots) > 0,
         }

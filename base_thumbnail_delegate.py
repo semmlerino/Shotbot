@@ -22,7 +22,6 @@ from PySide6.QtCore import (
     QSize,
     Qt,
     QTimer,
-    Signal,
 )
 from PySide6.QtGui import (
     QBrush,
@@ -118,10 +117,6 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
     - get_item_data() to extract model data
     - get_theme() to provide theme configuration
     """
-
-    # Signals
-    thumbnail_clicked: Signal = Signal(QModelIndex)
-    thumbnail_double_clicked: Signal = Signal(QModelIndex)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the delegate.

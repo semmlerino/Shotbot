@@ -35,13 +35,11 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
     Attributes:
         launch_requested: Signal(str, dict) - app_name, options dict
-        section_expanded: Signal(str, bool) - app_name, is_expanded
         file_selected: Signal(str, object) - app_name, SceneFile
 
     """
 
     launch_requested = Signal(str, dict)  # app_name, options
-    section_expanded = Signal(str, bool)  # app_name, is_expanded
     file_selected = Signal(str, object)  # app_name, SceneFile
 
     def __init__(
@@ -83,7 +81,6 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
             # Forward signals
             _ = section.launch_requested.connect(self._on_section_launch)
-            _ = section.expanded_changed.connect(self._on_section_expanded)
 
             # Forward file_selected signal with app name
             def make_file_handler(
@@ -131,16 +128,6 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         """
         self.launch_requested.emit(app_name, options)
-
-    def _on_section_expanded(self, app_name: str, is_expanded: bool) -> None:
-        """Handle section expansion change.
-
-        Args:
-            app_name: Name of the app section
-            is_expanded: Whether section is now expanded
-
-        """
-        self.section_expanded.emit(app_name, is_expanded)
 
     def _on_section_file_selected(self, app_name: str, file: SceneFile) -> None:
         """Handle file selection from a section.

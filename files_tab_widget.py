@@ -188,12 +188,10 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
 
     Attributes:
         file_selected: Signal(SceneFile) - emitted on single click
-        file_open_requested: Signal(SceneFile) - emitted on double-click
 
     """
 
     file_selected = Signal(object)  # SceneFile
-    file_open_requested = Signal(object)  # SceneFile
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the files tab widget.
@@ -357,11 +355,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
             index: The clicked model index
 
         """
-        model = self._models.get(file_type)
-        if model:
-            file = model.get_file(index.row())
-            if file:
-                self.file_open_requested.emit(file)
+        _ = (file_type, index)  # double-click handler retained for future use
 
     def set_files(self, files_by_type: dict[FileType, list[SceneFile]]) -> None:
         """Set files for all tabs.

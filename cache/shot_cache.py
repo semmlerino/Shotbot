@@ -40,7 +40,6 @@ class ShotDataCache(LoggingMixin, QObject):
     """Shot data caching with incremental merge support."""
 
     cache_updated = Signal()
-    cache_write_failed = Signal(str)
     shots_migrated = Signal(list)
 
     def __init__(self, cache_dir: Path) -> None:
@@ -164,7 +163,6 @@ class ShotDataCache(LoggingMixin, QObject):
             self.logger.warning(
                 f"Failed to write {cache_name} cache - data may not persist across restarts"
             )
-            self.cache_write_failed.emit(cache_name)
 
     def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
         """Cache shot list to file.
@@ -244,7 +242,6 @@ class ShotDataCache(LoggingMixin, QObject):
             self.logger.error(
                 f"Failed to persist {len(to_migrate)} migrated shots to disk. Migration will be lost on restart."
             )
-            self.cache_write_failed.emit("migrated_shots")
 
         return write_success
 

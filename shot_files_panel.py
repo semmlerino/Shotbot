@@ -41,7 +41,6 @@ class FileListItem(QFrame):
 
     # Signals
     open_requested = Signal(SceneFile)
-    open_folder_requested = Signal(SceneFile)
 
     def __init__(
         self,
@@ -238,9 +237,6 @@ class FileTypeSection(QtWidgetMixin, QWidget):
     Contains a header with expand/collapse button and a list of files.
     """
 
-    # Signals
-    file_open_requested = Signal(SceneFile)
-
     def __init__(
         self,
         file_type: FileType,
@@ -382,7 +378,6 @@ class FileTypeSection(QtWidgetMixin, QWidget):
                 file_pin_manager=self._file_pin_manager,
                 parent=self,
             )
-            _ = item.open_requested.connect(self.file_open_requested.emit)
             self._file_list_layout.addWidget(item)
 
         # Show/hide based on file count
@@ -423,9 +418,6 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
 
     Contains collapsible sections for each file type (3DE, Maya, Nuke).
     """
-
-    # Signals
-    file_open_requested = Signal(SceneFile)
 
     def __init__(
         self,
@@ -476,7 +468,6 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
                 file_pin_manager=self._file_pin_manager,
                 parent=self,
             )
-            _ = section.file_open_requested.connect(self.file_open_requested.emit)
             chip_row.addWidget(section)
             self._sections[file_type] = section
 

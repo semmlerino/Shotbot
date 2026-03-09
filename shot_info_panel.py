@@ -34,7 +34,6 @@ from PySide6.QtWidgets import (
 from cache.thumbnail_cache import ThumbnailCache
 from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
-from scene_file import SceneFile
 from shot_files_panel import ShotFilesPanel
 from typing_compat import override
 from utils import ImageUtils
@@ -49,9 +48,6 @@ if TYPE_CHECKING:
 
 class ShotInfoPanel(QtWidgetMixin, QWidget):
     """Panel displaying current shot information and associated files."""
-
-    # Signals
-    file_open_requested: Signal = Signal(SceneFile)
 
     # Instance attributes
     _files_panel: ShotFilesPanel
@@ -225,9 +221,6 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         self._files_panel = ShotFilesPanel(
             file_pin_manager=self._file_pin_manager,
             parent=self,
-        )
-        _ = self._files_panel.file_open_requested.connect(
-            self.file_open_requested.emit
         )
         main_layout.addWidget(self._files_panel)
 

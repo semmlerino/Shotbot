@@ -172,16 +172,6 @@ class TestDCCAccordionLaunchSignal:
 class TestDCCAccordionExpansion:
     """Tests for expansion management."""
 
-    def test_section_expanded_signal_forwarded(self, qtbot: QtBot) -> None:
-        """Section expansion signals forwarded through accordion."""
-        accordion = DCCAccordion()
-        qtbot.addWidget(accordion)
-
-        with qtbot.waitSignal(accordion.section_expanded, timeout=1000) as blocker:
-            accordion._sections["3de"].set_expanded(True)
-
-        assert blocker.args == ["3de", True]
-
     def test_set_section_expanded(self, qtbot: QtBot) -> None:
         """Can expand specific section programmatically."""
         accordion = DCCAccordion()
