@@ -330,7 +330,7 @@ class SceneParser(LoggingMixin):
             return False
 
         # Check file extension
-        if scene_path.suffix.lower() not in [".3de"]:
+        if scene_path.suffix.lower() != ".3de":
             return False
 
         # Check if file is readable

@@ -251,8 +251,8 @@ class PlateFrameProvider(QObject):
             # Try to get frame range from Shot or filesystem
             # For MOV, we'll use the EXR sequence to get frame range if available
             exr_info = FileDiscovery.find_plate_exr_sequence(workspace_path)
-            frame_start = exr_info[1] if exr_info[1] else 1001
-            frame_end = exr_info[2] if exr_info[2] else 1100
+            frame_start = exr_info[1] or 1001
+            frame_end = exr_info[2] or 1100
 
             source = PlateSource(
                 source_path=mov_path,

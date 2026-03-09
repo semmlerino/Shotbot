@@ -125,7 +125,7 @@ def main():
         cmd.append("tests/")
 
     # Run specific module tests
-    if module and suite not in ["quick"]:
+    if module and suite != "quick":
         test_file = Path(f"tests/unit/test_{module}.py")
         if test_file.exists():
             cmd = [c for c in cmd if not c.startswith("tests/")]  # Remove test path

@@ -5,7 +5,7 @@ requires-python = ">=3.11"
 dependencies = [
     "PySide6~=6.10.0",
     "pillow>=12.1.1",
-    "psutil~=7.1.0",
+    "psutil~=7.2.0",
     "typing-extensions~=4.15.0",
 ]
 
@@ -15,19 +15,19 @@ package = false
 [dependency-groups]
 dev = [
     # Testing
-    "pytest~=8.4.0",
+    "pytest~=9.0.0",
     "pytest-qt~=4.5.0",
     "pytest-mock~=3.15.0",
     "pytest-cov~=7.0.0",
     "pytest-xdist~=3.8.0",
     "pytest-timeout~=2.4.0",
-    "pytest-randomly~=3.16.0",
-    "hypothesis~=6.100.0",
-    "time-machine~=2.18.0",
+    "pytest-randomly~=4.0.0",
+    "hypothesis~=6.151.0",
+    "time-machine~=3.2.0",
     # Development
-    "ruff~=0.14.0",
-    "basedpyright~=1.32.0",
-    "deptry~=0.23.0",
+    "ruff~=0.15.0",
+    "basedpyright~=1.38.0",
+    "deptry~=0.24.0",
     "skylos>=3.4.3",
 ]
 
@@ -175,6 +175,9 @@ ignore = [
     # Lazy imports (intentional for circular import avoidance and performance)
     "PLC0415", # import-outside-top-level (used for lazy loading and circular import avoidance)
 
+    # Qt signal connection lambdas (lambda: self.method() captures context, not unnecessary)
+    "PLW0108", # unnecessary-lambda
+
     # Complexity rules (PLR thresholds not practical; C901 enabled at 30 via mccabe config)
     "PLR0911", # too-many-return-statements
     "PLR0912", # too-many-branches
@@ -212,6 +215,7 @@ ignore = [
 # Tests have different standards
 "tests/**/*.py" = [
     "ARG001",  # unused-function-argument (pytest fixtures)
+    "ARG004",  # unused-static-method-argument (test stubs/mocks)
     "PLR2004", # magic-value-comparison (test data can be literal)
     "PLR0913", # too-many-arguments (pytest fixtures often need many params)
     "DTZ001",  # call-datetime-without-tzinfo (tests don't need tz)
@@ -255,6 +259,9 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
+# pytest 9: strict mode (replaces --strict-markers + --strict-config)
+strict = true
+
 # Required plugins (ensures config options like --dist, timeout, qt_api don't silently half-work)
 required_plugins = [
     "pytest-xdist",
@@ -267,8 +274,6 @@ required_plugins = [
 # NOTE: Coverage is disabled by default for faster local runs.
 # Run with coverage manually: pytest tests/ --cov=. --cov-report=term-missing --cov-report=html:coverage_html
 addopts = [
-    "--strict-markers",     # Fail on unknown markers
-    "--strict-config",      # Fail on unknown config options
     "-ra",                  # Show all test summary info
     "--durations=20",       # Show slowest 20 tests
     "--randomly-seed=last", # Reproduce last run's order (use --randomly-seed=<N> for specific seed)

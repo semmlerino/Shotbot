@@ -405,6 +405,50 @@ class DCCFileTable(QWidget):
             self._file_model.set_current_default(file)
 
     # ------------------------------------------------------------------
+    # Public attribute accessors (used by DCCSectionWidget backward-compat layer)
+    # ------------------------------------------------------------------
+
+    @property
+    def file_table(self) -> QTableView | None:
+        """The QTableView widget."""
+        return self._file_table
+
+    @property
+    def file_model(self) -> FileTableModel | None:
+        """The FileTableModel backing the table."""
+        return self._file_model
+
+    @property
+    def files_header_btn(self) -> QPushButton | None:
+        """The collapsible-header button."""
+        return self._files_header_btn
+
+    @property
+    def current_selected_file(self) -> SceneFile | None:
+        """Currently selected/default file."""
+        return self._current_selected_file
+
+    @current_selected_file.setter
+    def current_selected_file(self, value: SceneFile | None) -> None:
+        self._current_selected_file = value
+
+    def on_file_double_clicked(self, index: QModelIndex) -> None:
+        """Handle a double-click on a file row (public wrapper)."""
+        self._on_file_double_clicked(index)
+
+    def show_file_context_menu(self, pos: QPoint) -> None:
+        """Show the file context menu at pos (public wrapper)."""
+        self._show_file_context_menu(pos)
+
+    def launch_file(self, file: SceneFile) -> None:
+        """Launch file in the DCC (public wrapper)."""
+        self._launch_file(file)
+
+    def copy_file_path(self, file: SceneFile) -> None:
+        """Copy file path to clipboard (public wrapper)."""
+        self._copy_file_path(file)
+
+    # ------------------------------------------------------------------
     # Height persistence
     # ------------------------------------------------------------------
 

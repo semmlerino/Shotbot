@@ -122,7 +122,7 @@ class FilterCoordinator(LoggingMixin):
 
         """
         # Convert empty string back to None for the model
-        show_filter = show if show else None
+        show_filter = show or None
 
         # Apply filter to item model
         # Different item models have varying set_show_filter signatures
@@ -130,13 +130,13 @@ class FilterCoordinator(LoggingMixin):
 
         # Get filtered count for status
         filtered_count = int(item_model.rowCount())
-        filter_desc = show if show else "All Shows"
+        filter_desc = show or "All Shows"
         self.window.status_bar.showMessage(
             f"{tab_name}: {filtered_count} shots ({filter_desc})", 2500
         )
 
         self.logger.info(
-            f"Applied {tab_name} show filter: {show if show else 'All Shows'}"
+            f"Applied {tab_name} show filter: {show or 'All Shows'}"
         )
 
     @Slot(str)

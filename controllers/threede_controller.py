@@ -35,7 +35,9 @@ if TYPE_CHECKING:
     from cache.scene_cache_disk import SceneDiskCache
     from command_launcher import CommandLauncher
     from controllers.filter_coordinator import FilterableItemModel
-    from progress_manager import _Operation as _ProgressOperation
+    from progress_manager import (
+        _Operation as _ProgressOperation,  # pyright: ignore[reportPrivateUsage]
+    )
 
     # Local type imports
     from right_panel import RightPanelWidget
@@ -739,13 +741,13 @@ class ThreeDEController(LoggingMixin):
 
         """
         # Convert empty string back to None for the model
-        show_filter = show if show else None
+        show_filter = show or None
 
         # Apply filter to item model
         item_model.set_show_filter(model, show_filter)
 
         self.logger.info(
-            f"Applied {tab_name} show filter: {show if show else 'All Shows'}"
+            f"Applied {tab_name} show filter: {show or 'All Shows'}"
         )
 
     # ============================================================================

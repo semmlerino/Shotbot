@@ -82,15 +82,18 @@ def load_report(path: Path) -> dict[str, object]:
     try:
         raw = path.read_text(encoding="utf-8")
     except OSError as exc:
-        raise RuntimeError(f"failed to read report: {exc}") from exc
+        msg = f"failed to read report: {exc}"
+        raise RuntimeError(msg) from exc
 
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"invalid JSON report: {exc}") from exc
+        msg = f"invalid JSON report: {exc}"
+        raise RuntimeError(msg) from exc
 
     if not isinstance(data, dict):
-        raise RuntimeError("report root is not a JSON object")
+        msg = "report root is not a JSON object"
+        raise RuntimeError(msg)
     return data
 
 
@@ -118,7 +121,8 @@ def iter_candidates(
 def rg_search(pattern: str, repo_root: Path) -> list[SearchMatch]:
     """Search Python files using ripgrep and return parsed matches."""
     if shutil.which("rg") is None:
-        raise RuntimeError("ripgrep (rg) is required for verification")
+        msg = "ripgrep (rg) is required for verification"
+        raise RuntimeError(msg)
 
     result = subprocess.run(
         [
@@ -136,7 +140,8 @@ def rg_search(pattern: str, repo_root: Path) -> list[SearchMatch]:
 
     if result.returncode not in (0, 1):
         detail = result.stderr.strip() or result.stdout.strip() or "unknown rg error"
-        raise RuntimeError(f"ripgrep failed: {detail}")
+        msg = f"ripgrep failed: {detail}"
+        raise RuntimeError(msg)
 
     matches: list[SearchMatch] = []
     for line in result.stdout.splitlines():
@@ -180,12 +185,11 @@ def filter_definition_line(
         return matches
 
     definition_path = Path(file_value).resolve()
-    filtered = [
+    return [
         match
         for match in matches
         if not (match.path.resolve() == definition_path and match.line == line_value)
     ]
-    return filtered
 
 
 def verify_candidate(

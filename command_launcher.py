@@ -383,13 +383,11 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             return None
 
         if app_name == "3de":
-            updated = f"{command} -open {safe_scene_path}"
-            return updated
+            return f"{command} -open {safe_scene_path}"
 
         if app_name == "maya":
             updated = self._build_maya_context_command(command, safe_scene_path)
-            updated = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {updated}"
-            return updated
+            return f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {updated}"
 
         # Unsupported app — caller should not reach this path
         self.logger.warning(f"_append_scene_to_command called for unsupported app: {app_name}")
@@ -884,7 +882,6 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             try:
                 safe_sequence_path = CommandBuilder.validate_path(context.sequence_path)
                 command = f"{command} {safe_sequence_path}"
-                seq_name = Path(context.sequence_path).name
             except ValueError as e:
                 self._emit_error(
                     f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"

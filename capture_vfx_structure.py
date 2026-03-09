@@ -151,7 +151,7 @@ def scan_directory(
             with os.scandir(path) as entries:
                 for entry in entries:
                     # Skip hidden files/dirs unless important
-                    if entry.name.startswith(".") and entry.name not in {".thumbnails"}:
+                    if entry.name.startswith(".") and entry.name != ".thumbnails":
                         continue
 
                     # Check if this is important
@@ -210,14 +210,7 @@ def capture_structure(shows: list[str] | None = None) -> StructureDict:
     )
 
     # Determine which shows to capture
-    if shows:
-        target_shows = shows
-    else:
-        target_shows = (
-            workspace_shows
-            if workspace_shows
-            else ["gator", "jack_ryan", "broken_eggs"]
-        )
+    target_shows = shows or (workspace_shows or ["gator", "jack_ryan", "broken_eggs"])
 
     print(f"Capturing structure for shows: {', '.join(target_shows)}", file=sys.stderr)
 

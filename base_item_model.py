@@ -256,43 +256,43 @@ class BaseItemModel(
 
     @property
     def _thumbnail_cache(self) -> dict[str, QImage]:
-        return self._thumbnail_loader._thumbnail_cache
+        return self._thumbnail_loader.thumbnail_cache
 
     @_thumbnail_cache.setter
     def _thumbnail_cache(self, value: dict[str, QImage]) -> None:
-        self._thumbnail_loader._thumbnail_cache = value
+        self._thumbnail_loader.thumbnail_cache = value
 
     @property
     def _pixmap_cache(self) -> dict[str, QPixmap]:
-        return self._thumbnail_loader._pixmap_cache
+        return self._thumbnail_loader.pixmap_cache
 
     @_pixmap_cache.setter
     def _pixmap_cache(self, value: dict[str, QPixmap]) -> None:
-        self._thumbnail_loader._pixmap_cache = value
+        self._thumbnail_loader.pixmap_cache = value
 
     @property
     def _loading_states(self) -> dict[str, str]:
-        return self._thumbnail_loader._loading_states
+        return self._thumbnail_loader.loading_states
 
     @_loading_states.setter
     def _loading_states(self, value: dict[str, str]) -> None:
-        self._thumbnail_loader._loading_states = value
+        self._thumbnail_loader.loading_states = value
 
     @property
     def _cache_mutex(self) -> QMutex:
-        return self._thumbnail_loader._cache_mutex
+        return self._thumbnail_loader.cache_mutex
 
     @property
     def _thumbnail_debounce_timer(self) -> QTimer:
-        return self._thumbnail_loader._thumbnail_debounce_timer
+        return self._thumbnail_loader.thumbnail_debounce_timer
 
     @property
     def _pending_updates(self) -> dict[int, set[int]]:
-        return self._thumbnail_loader._pending_updates
+        return self._thumbnail_loader.pending_updates
 
     @property
     def _batch_timer(self) -> QTimer:
-        return self._thumbnail_loader._batch_timer
+        return self._thumbnail_loader.batch_timer
 
     @override
     def rowCount(
@@ -466,11 +466,11 @@ class BaseItemModel(
 
     def _load_visible_thumbnails(self) -> None:
         """Check if visible range changed and schedule actual load."""
-        self._thumbnail_loader._load_visible_thumbnails()
+        self._thumbnail_loader.load_visible_thumbnails()
 
     def _do_load_visible_thumbnails(self) -> None:
         """Actually load thumbnails for visible range."""
-        self._thumbnail_loader._do_load_visible_thumbnails()
+        self._thumbnail_loader.do_load_visible_thumbnails()
 
     def _get_thumbnail_pixmap(self, item: T) -> QPixmap | None:
         """Get cached thumbnail pixmap for an item.

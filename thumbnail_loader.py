@@ -129,6 +129,64 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
         self._batch_timer.setInterval(self.BATCH_WINDOW_MS)
         _ = self._batch_timer.timeout.connect(self._emit_batched_updates)
 
+    # ============= Public accessors for BaseItemModel forwarding properties =============
+    # BaseItemModel exposes these attributes on itself for test/subclass access.
+
+    @property
+    def thumbnail_cache(self) -> dict[str, QImage]:
+        """The in-memory QImage cache."""
+        return self._thumbnail_cache
+
+    @thumbnail_cache.setter
+    def thumbnail_cache(self, value: dict[str, QImage]) -> None:
+        self._thumbnail_cache = value
+
+    @property
+    def pixmap_cache(self) -> dict[str, QPixmap]:
+        """The converted QPixmap cache."""
+        return self._pixmap_cache
+
+    @pixmap_cache.setter
+    def pixmap_cache(self, value: dict[str, QPixmap]) -> None:
+        self._pixmap_cache = value
+
+    @property
+    def loading_states(self) -> dict[str, str]:
+        """Per-item loading state strings."""
+        return self._loading_states
+
+    @loading_states.setter
+    def loading_states(self, value: dict[str, str]) -> None:
+        self._loading_states = value
+
+    @property
+    def cache_mutex(self) -> QMutex:
+        """Mutex guarding the thumbnail/pixmap/loading_states dicts."""
+        return self._cache_mutex
+
+    @property
+    def thumbnail_debounce_timer(self) -> QTimer:
+        """Timer that debounces visible-range thumbnail checks."""
+        return self._thumbnail_debounce_timer
+
+    @property
+    def pending_updates(self) -> dict[int, set[int]]:
+        """Pending batched data-changed updates."""
+        return self._pending_updates
+
+    @property
+    def batch_timer(self) -> QTimer:
+        """Timer that batches data-changed emissions."""
+        return self._batch_timer
+
+    def load_visible_thumbnails(self) -> None:
+        """Check if visible range changed and schedule actual load (public wrapper)."""
+        self._load_visible_thumbnails()
+
+    def do_load_visible_thumbnails(self) -> None:
+        """Actually load thumbnails for visible range (public wrapper)."""
+        self._do_load_visible_thumbnails()
+
     def get_pixmap(self, item: T) -> QPixmap | None:
         with QMutexLocker(self._cache_mutex):
             pixmap = self._pixmap_cache.get(item.full_name)

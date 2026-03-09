@@ -1,0 +1,42 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # Group minor/patch updates into a single PR to reduce noise
+    groups:
+      dev-tools:
+        patterns:
+          - "ruff"
+          - "basedpyright"
+          - "deptry"
+          - "skylos"
+        update-types:
+          - "minor"
+          - "patch"
+      test-deps:
+        patterns:
+          - "pytest*"
+          - "hypothesis"
+          - "time-machine"
+        update-types:
+          - "minor"
+          - "patch"
+      runtime-deps:
+        patterns:
+          - "psutil"
+          - "pillow"
+          - "typing-extensions"
+        update-types:
+          - "minor"
+          - "patch"
+    # PySide6 updates need manual testing — don't auto-PR major bumps
+    ignore:
+      - dependency-name: "PySide6"
+        update-types: ["version-update:semver-major"]
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"

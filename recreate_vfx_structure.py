@@ -257,9 +257,9 @@ class VFXStructureRecreator:
                 shot = "unknown"
 
                 if "/user/" in path_str:
-                    user = path_str.split("/user/")[1].split("/")[0]
+                    user = path_str.split("/user/")[1].split("/", maxsplit=1)[0]
                 if "/scene/" in path_str:
-                    plate = path_str.split("/scene/")[1].split("/")[0]
+                    plate = path_str.split("/scene/")[1].split("/", maxsplit=1)[0]
 
                 # Extract shot from filename
                 if "_" in name:

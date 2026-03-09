@@ -392,7 +392,7 @@ class TestParse3DEFilePathShotExtraction:
         expected_shot: str,
     ) -> None:
         """Extracts shot name when directory has sequence prefix."""
-        sequence = shot_dir.split("_")[0]
+        sequence = shot_dir.split("_", maxsplit=1)[0]
         show_path = tmp_path / "myshow"
         threede_file = (
             show_path

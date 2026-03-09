@@ -373,7 +373,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         """
         self._filter_show = show
-        self.logger.info(f"Show filter set to: {show if show else 'All Shows'}")
+        self.logger.info(f"Show filter set to: {show or 'All Shows'}")
 
     def get_show_filter(self) -> str | None:
         """Get the current show filter."""
@@ -387,7 +387,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         """
         self._filter_text = text
-        self.logger.info(f"Text filter set to: '{text if text else ''}'")
+        self.logger.info(f"Text filter set to: '{text or ''}'")
 
     def get_text_filter(self) -> str | None:
         """Get the current text filter."""

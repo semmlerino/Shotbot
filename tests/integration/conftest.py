@@ -19,7 +19,7 @@ def pytest_collection_modifyitems(
     """Modify test collection to handle custom markers."""
     # Add integration marker to all tests in this directory
     for item in items:
-        if "integration" in str(item.fspath):
+        if "integration" in str(item.path):
             item.add_marker(pytest.mark.integration)
 
 

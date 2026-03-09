@@ -344,7 +344,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         scenes_to_emit = (
             scenes
             if scenes is not None
-            else (self._all_scenes if self._all_scenes else [])
+            else (self._all_scenes or [])
         )
 
         if not scenes_to_emit:

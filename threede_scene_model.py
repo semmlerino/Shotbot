@@ -365,7 +365,7 @@ class ThreeDESceneModel:
 
         """
         self._filter_text = text
-        logger.info(f"Text filter set to: '{text if text else ''}'")
+        logger.info(f"Text filter set to: '{text or ''}'")
 
     def get_text_filter(self) -> str | None:
         """Get the current text filter."""

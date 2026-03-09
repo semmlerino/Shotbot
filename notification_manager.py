@@ -359,7 +359,7 @@ class NotificationManager(QObject):
         if cls._current_progress:
             _ = cls._current_progress.close()
 
-        parent = cls._main_window if cls._main_window else None
+        parent = cls._main_window or None
         progress = QProgressDialog(
             message or title, "Cancel" if cancelable else "", 0, 0, parent
         )

@@ -303,7 +303,6 @@ class TestLatestFileFinderWorkerCancellation:
             find_threede=True,
         )
 
-        original_threede_finder_class = None
 
         def stop_after_threede(*args, **kwargs):
             """Finder that also requests stop on the worker."""

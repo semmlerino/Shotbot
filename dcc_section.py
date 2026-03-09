@@ -629,7 +629,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         if not self._plate_selector or not self._plate_selector.isEnabled():
             return None
         text = self._plate_selector.currentText()
-        return text if text else None
+        return text or None
 
     def set_version_info(
         self, version: str | None, age: str | None = None
@@ -732,43 +732,43 @@ class DCCSection(QtWidgetMixin, QWidget):
     # ========== Delegation to DCCFileTable ==========
 
     @property
-    def _files_section(self) -> QWidget | None:
+    def _files_section(self) -> QWidget | None:  # pyright: ignore[reportUnusedFunction]
         """The files subsection widget (backward compat)."""
         return self._dcc_file_table
 
     @property
-    def _file_table(self) -> QTableView | None:
+    def _file_table(self) -> QTableView | None:  # pyright: ignore[reportUnusedFunction]
         """The QTableView inside the file table (backward compat)."""
         if self._dcc_file_table is not None:
-            return self._dcc_file_table._file_table
+            return self._dcc_file_table.file_table
         return None
 
     @property
-    def _file_model(self) -> FileTableModel | None:
+    def _file_model(self) -> FileTableModel | None:  # pyright: ignore[reportUnusedFunction]
         """The FileTableModel inside the file table (backward compat)."""
         if self._dcc_file_table is not None:
-            return self._dcc_file_table._file_model
+            return self._dcc_file_table.file_model
         return None
 
     @property
-    def _files_header_btn(self) -> QPushButton | None:
+    def _files_header_btn(self) -> QPushButton | None:  # pyright: ignore[reportUnusedFunction]
         """The header button for the files subsection (backward compat)."""
         if self._dcc_file_table is not None:
-            return self._dcc_file_table._files_header_btn
+            return self._dcc_file_table.files_header_btn
         return None
 
     @property
     def _current_selected_file(self) -> SceneFile | None:
         """Currently selected file (backward compat)."""
         if self._dcc_file_table is not None:
-            return self._dcc_file_table._current_selected_file
+            return self._dcc_file_table.current_selected_file
         return None
 
     @_current_selected_file.setter
     def _current_selected_file(self, value: SceneFile | None) -> None:
         """Set currently selected file (backward compat)."""
         if self._dcc_file_table is not None:
-            self._dcc_file_table._current_selected_file = value
+            self._dcc_file_table.current_selected_file = value
 
     def set_files(self, files: list[SceneFile]) -> None:
         """Set files for the embedded files sub-section.
@@ -822,7 +822,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             return self._dcc_file_table.is_files_expanded()
         return False
 
-    def _on_file_double_clicked(self, index: QModelIndex) -> None:
+    def _on_file_double_clicked(self, index: QModelIndex) -> None:  # pyright: ignore[reportUnusedFunction]
         """Delegate double-click handling to file table (backward compat).
 
         Args:
@@ -830,9 +830,9 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         """
         if self._dcc_file_table is not None:
-            self._dcc_file_table._on_file_double_clicked(index)
+            self._dcc_file_table.on_file_double_clicked(index)
 
-    def _show_file_context_menu(self, pos: QPoint) -> None:
+    def _show_file_context_menu(self, pos: QPoint) -> None:  # pyright: ignore[reportUnusedFunction]
         """Delegate context menu to file table (backward compat).
 
         Args:
@@ -840,9 +840,9 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         """
         if self._dcc_file_table is not None:
-            self._dcc_file_table._show_file_context_menu(pos)
+            self._dcc_file_table.show_file_context_menu(pos)
 
-    def _launch_file(self, file: SceneFile) -> None:
+    def _launch_file(self, file: SceneFile) -> None:  # pyright: ignore[reportUnusedFunction]
         """Delegate file launch to file table (backward compat).
 
         Args:
@@ -850,9 +850,9 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         """
         if self._dcc_file_table is not None:
-            self._dcc_file_table._launch_file(file)
+            self._dcc_file_table.launch_file(file)
 
-    def _copy_file_path(self, file: SceneFile) -> None:
+    def _copy_file_path(self, file: SceneFile) -> None:  # pyright: ignore[reportUnusedFunction]
         """Delegate copy path to file table (backward compat).
 
         Args:
@@ -860,7 +860,7 @@ class DCCSection(QtWidgetMixin, QWidget):
 
         """
         if self._dcc_file_table is not None:
-            self._dcc_file_table._copy_file_path(file)
+            self._dcc_file_table.copy_file_path(file)
 
     # ========== Delegation to DCCSequenceTable ==========
 
