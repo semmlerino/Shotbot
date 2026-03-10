@@ -36,6 +36,10 @@ Testing policy:
 - `uv run pytest tests/` is the default local run and the primary correctness gate.
 - `uv run pytest tests/ -n auto --dist=loadgroup` is a secondary isolation check for shared-state and teardown bugs.
 
+Pre-commit checks (run on changed files before committing):
+- `uv run ruff check <files>` — linting
+- `uv run basedpyright <files>` — type checking; fix all **errors** before committing (warnings are acceptable if pre-existing)
+
 ## Deployment-Critical Files (DO NOT DELETE)
 
 These files form the encoded-releases deployment pipeline. Deleting any of them breaks automated deployment:
