@@ -4,11 +4,10 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
-import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 # Local application imports
 from cache.scene_cache_disk import SceneDiskCache
@@ -17,10 +16,6 @@ from path_builders import PathBuilders
 from thumbnail_finders import ThumbnailFinders
 from utils import ValidationUtils
 
-
-if TYPE_CHECKING:
-    # Local application imports
-    from shot_model import Shot
 
 logger = logging.getLogger(__name__)
 
@@ -202,8 +197,6 @@ class ThreeDESceneModel:
         # Show filtering
         self._filter_show: str | None = None
         self._filter_text: str | None = None  # Text filter for real-time search
-        # Lock to protect refresh_scenes() from concurrent calls (prevents data loss)
-        self._refresh_lock: threading.Lock = threading.Lock()
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
             _ = self._load_from_cache()
@@ -237,88 +230,6 @@ class ThreeDESceneModel:
 
         """
         self.scenes = scenes
-
-    def refresh_scenes(self, shots: list[Shot]) -> tuple[bool, bool]:
-        """Refresh 3DE scenes with persistent incremental merge strategy.
-
-        Uses persistent incremental caching where newly discovered scenes are
-        added to existing cache, and previously cached scenes remain even if
-        not found in subsequent scans. This preserves scene history.
-
-        Thread-safe: Uses _refresh_lock to prevent concurrent refreshes from
-        losing discovered scenes.
-
-        Args:
-            shots: List of shots to scan for 3DE scenes
-
-        Returns:
-            (success, has_changes) - whether refresh succeeded and if scenes changed
-
-        """
-        # Lock entire refresh to prevent concurrent calls from losing discoveries
-        with self._refresh_lock:
-            try:
-                # Local application imports
-                # Lazy import to break circular dependency:
-                # scene_cache → threede_scene_model → scene_discovery_coordinator → scene_cache
-                from scene_discovery_coordinator import SceneDiscoveryCoordinator
-
-                # Step 1: Discover fresh scenes from filesystem
-                fresh_scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient(
-                    shots,  # User's shots are used to determine which shows to search
-                    self._excluded_users,
-                )
-
-                # Step 2: Load persistent cache (no TTL expiration)
-                cached_data = self.cache_manager.get_persistent_threede_scenes()
-
-                # Step 3: Incremental merge (preserve history + add new)
-                if cached_data:
-                    # Convert cached dicts to ThreeDEScene objects
-                    try:
-                        # Type note: ThreeDESceneDict from cache is compatible with from_dict at runtime
-                        cached_scenes = [ThreeDEScene.from_dict(d) for d in cached_data]  # pyright: ignore[reportArgumentType]
-                    except (KeyError, TypeError):
-                        logger.warning("Invalid cached scenes, starting fresh", exc_info=True)
-                        cached_scenes = []
-
-                    # Merge cached + fresh
-                    merge_result = self.cache_manager.merge_scenes_incremental(
-                        cached_scenes, fresh_scenes
-                    )
-
-                    # Log merge statistics
-                    if merge_result.has_changes:
-                        logger.info(
-                            f"3DE scene merge: {len(merge_result.new_scenes)} new, {len(merge_result.stale_scenes)} not found (kept in cache), {len(merge_result.updated_scenes)} total"
-                        )
-
-                    # Convert merged dicts back to ThreeDEScene objects
-                    # Type note: ThreeDESceneDict from merge is compatible with from_dict at runtime
-                    merged_scenes = [ThreeDEScene.from_dict(d) for d in merge_result.updated_scenes]  # pyright: ignore[reportArgumentType]
-                    has_changes = merge_result.has_changes
-                else:
-                    # First time: use fresh data
-                    merged_scenes = fresh_scenes
-                    has_changes = True
-                    logger.info(f"First-time 3DE discovery: {len(fresh_scenes)} scenes")
-
-                # Step 4: Apply deduplication AFTER merge (one scene per shot, best by mtime/plate)
-                if has_changes:
-                    self.scenes = self.deduplicate_scenes_by_shot(merged_scenes)
-                    self.scenes.sort(key=lambda s: (s.full_name, s.user))
-
-                # Step 5: ALWAYS cache to persist (refreshes file timestamp)
-                # Note: cache_threede_scenes expects list[ThreeDESceneDict], but to_dict() returns
-                # list[dict[str, str | Path]] with different field structure. The cache system
-                # handles this gracefully via JSON serialization.
-                self.cache_manager.cache_threede_scenes(self.to_dict())  # pyright: ignore[reportArgumentType]
-
-                return True, has_changes
-
-            except Exception:
-                logger.exception("Error refreshing 3DE scenes")
-                return False, False
 
     def get_scene_by_index(self, index: int) -> ThreeDEScene | None:
         """Get scene by index."""

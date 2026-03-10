@@ -276,7 +276,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # === Initialization Order (do not reorder) ===
         # 1. Thread/app safety checks (lines below)
         # 2. super().__init__() — QMainWindow + LoggingMixin
-        # 3. Infrastructure: ProcessPool, CacheManager, PinManager, NotesManager,
+        # 3. Infrastructure: ProcessPool, CacheCoordinator, PinManager, NotesManager,
         #    FilePinManager, CleanupManager, RefreshOrchestrator, SettingsManager
         # 4. Models: ThreeDEItemModel, ShotModel (+ async init), ThreeDESceneModel,
         #    PreviousShotsModel, CommandLauncher

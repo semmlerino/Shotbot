@@ -21,25 +21,25 @@ This document captures behavior and invariants, not full API listings.
 
 ## Key Invariants
 
-1. 3DE scene cache merge is orchestrated by `ThreeDESceneModel` before writing; `CacheManager.cache_threede_scenes()` performs a replace write.
+1. 3DE scene cache merge is orchestrated by `ThreeDESceneModel` before writing; `SceneDiskCache.cache_threede_scenes()` performs a replace write.
 2. Deduplication occurs after merge so best available scene survives.
 3. Thumbnail cache writes are non-blocking in UI paths.
 4. TTL caches may return stale/empty results by design; callers must handle cache miss paths.
 
 ## Signals
 
-`CacheManager` notifies UI flows through signals including:
+`ShotDataCache` and `SceneDiskCache` notify UI flows through signals including:
 
-- cache update events
-- shot migration events
-- cache-write failure events
+- cache update events (`cache_updated`)
+- shot migration events (`shots_migrated` on `ShotDataCache`)
+- cache-write failure events (`cache_write_failed`)
 
 Changes to cache write paths should preserve these signals.
 
 ## Clearing Cache
 
-Use `CacheManager.clear_cache()` to clear managed caches.
+Use `CacheCoordinator.clear_cache()` to clear managed caches.
 
 ## Configuration
 
-- `SHOTBOT_FILE_LOCKING=disabled` — Opt out of file locking for cache writes. Enabled by default. Defined in `cache_manager.py`.
+- `SHOTBOT_FILE_LOCKING=disabled` — Opt out of file locking for cache writes. Enabled by default. Defined in `cache/_json_store.py`.

@@ -22,9 +22,6 @@ import pytest
 
 from config import Config
 
-# Local application imports
-from shot_model import Shot
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
@@ -251,72 +248,59 @@ class TestThreeDESceneModel:
         assert hasattr(model, "scenes")
         assert isinstance(model.scenes, list)
 
-    @pytest.mark.real_subprocess
-    def test_refresh_scenes_with_real_files(
+    def test_set_scenes_dedup_and_serialize(
         self,
         scene_disk_cache: object,
         tmp_path: Path,
-        monkeypatch: MonkeyPatch,
     ) -> None:
-        """Test refresh_scenes with real 3DE files."""
+        """Test set_scenes + deduplicate + to_dict — the model's production pipeline."""
         # Create real directory structure
         shows_root = tmp_path / "shows"
 
-        # Create multiple real 3DE scenes
-        scenes_created = []
-        for seq_num in range(2):
-            for shot_num in range(2):
-                seq = f"seq{seq_num:02d}"
-                shot = f"shot{shot_num:02d}"
-                shot_name = f"{seq}_{shot}"
+        # Create multiple real 3DE scenes — two for the same shot (to test dedup)
+        base = shows_root / "test_show" / "shots" / "seq00" / "seq00_shot00"
+        paths: list[Path] = []
+        for i, user in enumerate(["artist_a", "artist_b"]):
+            p = base / "user" / user / "3de" / "mm-default" / f"seq00_shot00_v00{i + 1}.3de"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(f"# 3DE scene by {user}")
+            # Stagger mtimes so dedup is deterministic (artist_b is newer)
+            import os
+            mtime = 1_700_000_000 + i * 100
+            os.utime(p, (mtime, mtime))
+            paths.append(p)
 
-                shot_path = shows_root / "test_show" / "shots" / seq / shot_name
+        # Build ThreeDEScene objects
+        from threede_scene_model import ThreeDEScene
 
-                # Create 3DE file for each shot
-                scene_path = (
-                    shot_path
-                    / "user"
-                    / f"artist{seq_num}"
-                    / "3de"
-                    / "mm-default"
-                    / f"{shot_name}_v001.3de"
-                )
-                scene_path.parent.mkdir(parents=True, exist_ok=True)
-                scene_path.write_text(f"# 3DE scene for {shot_name}")
-                scenes_created.append(scene_path)
-
-        # Create user shots
-        user_shots = [
-            Shot(
-                "test_show",
-                "seq00",
-                "shot00",
-                str(shows_root / "test_show" / "shots" / "seq00" / "seq00_shot00"),
-            ),
-            Shot(
-                "test_show",
-                "seq01",
-                "shot01",
-                str(shows_root / "test_show" / "shots" / "seq01" / "seq01_shot01"),
-            ),
+        raw_scenes = [
+            ThreeDEScene(
+                show="test_show",
+                sequence="seq00",
+                shot="shot00",
+                workspace_path=str(base),
+                user=user,
+                plate="FG01",
+                scene_path=p,
+            )
+            for user, p in zip(["artist_a", "artist_b"], paths)
         ]
-
-        # Override Config.SHOWS_ROOT
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
 
         model = ThreeDESceneModel(cache_manager=scene_disk_cache)
 
-        # Refresh with real discovery (refresh_scenes only takes shots parameter)
-        success, _has_changes = model.refresh_scenes(user_shots)
+        # Pipeline: set → dedup → serialize (mirrors controller flow)
+        deduped = model.deduplicate_scenes_by_shot(raw_scenes)
+        model.set_scenes(deduped)
 
-        # Test actual discovery results
-        assert success is True
-        scenes = model.scenes  # Access scenes directly
-        assert len(scenes) == len(scenes_created)
+        assert len(model.scenes) == 1
+        # Newer file wins
+        assert model.scenes[0].user == "artist_b"
 
-        # Verify scenes are real
-        for scene in scenes:
-            assert scene.scene_path.exists()
+        # Serialization round-trip
+        dicts = model.to_dict()
+        assert len(dicts) == 1
+        assert dicts[0]["show"] == "test_show"
+        assert dicts[0]["user"] == "artist_b"
 
     def test_scenes_property(
         self, scene_disk_cache: object, make_real_3de_file: Callable[..., Path]
@@ -541,26 +525,3 @@ class TestThreeDESceneModel:
         assert result is False
         assert len(model.scenes) == 0
 
-    def test_concurrent_refresh(
-        self, scene_disk_cache: object, make_real_3de_file: Callable[..., Path]
-    ) -> None:
-        """Test model handles concurrent refresh calls gracefully."""
-        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
-
-        # Create real scenes
-        scene_path = make_real_3de_file("show1", "seq01", "shot01", "user1")
-
-        user_shots = [
-            Shot(
-                "show1", "seq01", "shot01", str(scene_path.parent.parent.parent.parent)
-            )
-        ]
-
-        # Multiple rapid refreshes
-        for _ in range(3):
-            success, _has_changes = model.refresh_scenes(user_shots)
-            assert success is True
-
-        # Model should remain in consistent state
-        scenes = model.scenes
-        assert isinstance(scenes, list)

@@ -73,6 +73,15 @@ class LaunchContext:
     sequence_path: str | None = None  # Image sequence path for RV
 
 
+@dataclass(frozen=True)
+class PendingLaunch:
+    """Groups non-worker pending state for async file searches."""
+
+    app_name: str
+    context: LaunchContext
+    command: str
+
+
 # Number of consecutive verification timeouts before resetting terminal cache.
 # A single timeout is normal (VFX apps boot slowly); repeated failures indicate
 # a broken terminal/environment.
@@ -194,9 +203,7 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
 
         # Async file search state
         self._pending_worker: LatestFileFinderWorker | None = None
-        self._pending_app_name: str | None = None
-        self._pending_context: LaunchContext | None = None
-        self._pending_command: str | None = None
+        self._pending_launch: PendingLaunch | None = None
 
         # Counter for consecutive verification timeouts; reset on success.
         # See _on_app_verification_timeout and _TIMEOUT_THRESHOLD_FOR_CACHE_RESET.
@@ -537,9 +544,7 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             return
 
         # Store pending state
-        self._pending_app_name = app_name
-        self._pending_context = context
-        self._pending_command = command
+        self._pending_launch = PendingLaunch(app_name=app_name, context=context, command=command)
 
         # Determine what to search for
         find_threede = app_name == "3de" and context.open_latest_threede
@@ -601,9 +606,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         # Cache results (even None results to avoid re-searching)
         if self.current_shot is not None:
             workspace = self.current_shot.workspace_path
-            if self._pending_context and self._pending_context.open_latest_maya:
+            if self._pending_launch and self._pending_launch.context.open_latest_maya:
                 self._cache_manager.cache_latest_file(workspace, "maya", maya_result)
-            if self._pending_context and self._pending_context.open_latest_threede:
+            if self._pending_launch and self._pending_launch.context.open_latest_threede:
                 self._cache_manager.cache_latest_file(workspace, "threede", threede_result)
 
         # Clean up worker
@@ -643,16 +648,18 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             threede_result: Latest 3DE scene found by the worker, or None.
 
         """
-        app_name = self._pending_app_name
-        context = self._pending_context
-        command = self._pending_command
+        launch = self._pending_launch
 
         # Clear pending state
         self._clear_pending_state()
 
-        if app_name is None or context is None or command is None:
+        if launch is None:
             self.logger.error("Missing pending state after async search")
             return
+
+        app_name = launch.app_name
+        context = launch.context
+        command = launch.command
 
         # Add scene path to command based on results
         if app_name == "3de":
@@ -764,9 +771,7 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
 
     def _clear_pending_state(self) -> None:
         """Clear pending async launch state."""
-        self._pending_app_name = None
-        self._pending_context = None
-        self._pending_command = None
+        self._pending_launch = None
 
     def cancel_pending_search(self) -> None:
         """Cancel any pending async file search."""
