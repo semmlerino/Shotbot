@@ -513,7 +513,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 try:
-                    self._cache_manager.shots_migrated.disconnect(self._on_cache_shots_migrated)
+                    _ = self._cache_manager.shots_migrated.disconnect(self._on_cache_shots_migrated)
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
         self._cleanup_worker_safely()  # Use centralized cleanup

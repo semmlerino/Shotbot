@@ -157,14 +157,15 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         sorted_shots = self._apply_sort(shots)
         self.set_items(sorted_shots)
 
-    def _apply_sort(self, shots: list[Shot]) -> list[Shot]:
+    @override
+    def _apply_sort(self, items: list[Shot]) -> list[Shot]:
         """Apply current sort order to a list of shots.
 
         Pinned shots are always sorted to the front (by pin order),
         then unpinned shots are sorted by the current sort order.
 
         Args:
-            shots: List of shots to sort
+            items: List of shots to sort
 
         Returns:
             Sorted list of shots
@@ -186,13 +187,13 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
                     secondary = -s.discovered_at
                 return (not is_pinned, pin_order, secondary)
 
-            return sorted(shots, key=sort_key)
+            return sorted(items, key=sort_key)
 
         # No pin manager - use original sort logic
         if self._sort_order == "name":
-            return sorted(shots, key=lambda s: s.full_name.lower())
+            return sorted(items, key=lambda s: s.full_name.lower())
         # "date" - newest first
-        return sorted(shots, key=lambda s: s.discovered_at, reverse=True)
+        return sorted(items, key=lambda s: s.discovered_at, reverse=True)
 
     def get_shot_at_index(self, index: QModelIndex) -> Shot | None:
         """Get shot at the given index.

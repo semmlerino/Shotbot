@@ -157,20 +157,21 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             self.scenes_updated.emit()
         self.logger.info(f"Set {len(scenes)} scenes in model (sorted by {self._sort_order})")
 
-    def _apply_sort(self, scenes: list[ThreeDEScene]) -> list[ThreeDEScene]:
+    @override
+    def _apply_sort(self, items: list[ThreeDEScene]) -> list[ThreeDEScene]:
         """Apply current sort order to a list of scenes.
 
         Args:
-            scenes: List of scenes to sort
+            items: List of scenes to sort
 
         Returns:
             Sorted list of scenes
 
         """
         if self._sort_order == "name":
-            return sorted(scenes, key=lambda s: s.full_name.lower())
+            return sorted(items, key=lambda s: s.full_name.lower())
         # "date" - newest first
-        return sorted(scenes, key=lambda s: s.modified_time, reverse=True)
+        return sorted(items, key=lambda s: s.modified_time, reverse=True)
 
     def set_show_filter(
         self, threede_scene_model: ThreeDESceneModel, show: str | None
