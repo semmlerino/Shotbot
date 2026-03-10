@@ -7,7 +7,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Protocol
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Signal
 
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
@@ -17,7 +17,6 @@ from progress_manager import ProgressManager
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QTabWidget
 
-    from controllers.threede_controller import ThreeDEController
     from previous_shots_model import PreviousShotsModel
     from shot_grid_view import ShotGridView
     from shot_item_model import ShotItemModel
@@ -34,7 +33,6 @@ class RefreshOrchestratorMainWindowProtocol(Protocol):
 
     tab_widget: QTabWidget
     shot_model: ShotModel
-    threede_controller: ThreeDEController
     previous_shots_model: PreviousShotsModel
     shot_item_model: ShotItemModel
     shot_grid: ShotGridView
@@ -62,6 +60,8 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         Coordinates shot_model, threede_controller, and previous_shots_model
         refresh operations, routing results through signal handlers and UI updates.
     """
+
+    threede_refresh_requested: Signal = Signal()
 
     def __init__(self, main_window: RefreshOrchestratorMainWindowProtocol) -> None:
         """Initialize refresh orchestrator.
@@ -126,7 +126,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
     def _refresh_threede(self) -> None:
         """Refresh Other 3DE scenes."""
-        self.main_window.threede_controller.refresh_threede_scenes()
+        self.threede_refresh_requested.emit()
 
     def _refresh_previous(self) -> None:
         """Refresh Previous Shots."""
@@ -197,7 +197,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
             # Also refresh 3DE scenes when shots are refreshed
             if self.main_window.shot_model.shots:
-                self.main_window.threede_controller.refresh_threede_scenes()
+                self.threede_refresh_requested.emit()
         else:
             self._update_status("Failed to refresh shots")
             NotificationManager.error(

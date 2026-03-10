@@ -24,7 +24,6 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     from command_launcher import CommandLauncher
-    from controllers.settings_controller import SettingsController
     from previous_shots_view import PreviousShotsView
     from right_panel import RightPanelWidget
     from scene_file import FileType, SceneFile  # used in cast()
@@ -52,7 +51,6 @@ class ShotSelectionTarget(Protocol):
 
     # Controller and launcher references
     command_launcher: CommandLauncher
-    settings_controller: SettingsController
 
     # State tracking
     @property
@@ -140,7 +138,7 @@ class ShotDiscoveryWorker(QRunnable):
                 self.signals.error.emit(str(e))
 
 
-class ShotSelectionController(LoggingMixin):
+class ShotSelectionController(QObject, LoggingMixin):
     """Controller for shot selection, discovery, and crash recovery.
 
     This controller encapsulates all shot selection functionality that was
@@ -153,14 +151,18 @@ class ShotSelectionController(LoggingMixin):
     - Right panel and window state updates
     """
 
-    def __init__(self, window: ShotSelectionTarget) -> None:
+    settings_save_requested: Signal = Signal()
+
+    def __init__(self, window: ShotSelectionTarget, parent: QObject | None = None) -> None:
         """Initialize shot selection controller.
 
         Args:
             window: MainWindow instance implementing ShotSelectionTarget protocol
+            parent: Optional Qt parent object
 
         """
-        super().__init__()
+        super().__init__(parent)
+        LoggingMixin.__init__(self)
         self.window: ShotSelectionTarget = window
         self._discovery_worker: ShotDiscoveryWorker | None = None
         self._setup_signals()
@@ -223,7 +225,7 @@ class ShotSelectionController(LoggingMixin):
 
             # Clear saved selection
             self.window.last_selected_shot_name = None
-            self.window.settings_controller.save_settings()
+            self.settings_save_requested.emit()
         else:
             # Handle selection
             self.window.command_launcher.set_current_shot(shot)
@@ -239,7 +241,7 @@ class ShotSelectionController(LoggingMixin):
 
             # Save selection
             self.window.last_selected_shot_name = shot.full_name
-            self.window.settings_controller.save_settings()
+            self.settings_save_requested.emit()
 
             # Start async discovery for plates and files (non-blocking)
             self._discovery_worker = ShotDiscoveryWorker(shot)

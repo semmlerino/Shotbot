@@ -37,7 +37,6 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QByteArray, QSize
-    from PySide6.QtWidgets import QSplitter, QTabWidget
 
     # Local application imports
     from cache import CacheCoordinator
@@ -73,8 +72,13 @@ class SettingsTarget(Protocol):
     # Widget references needed for settings
     settings_manager: SettingsManager  # skylos: ignore
     cache_coordinator: CacheCoordinator  # skylos: ignore
-    splitter: QSplitter  # skylos: ignore
-    tab_widget: QTabWidget  # skylos: ignore
+
+    # Splitter and tab wrapper methods
+    def get_splitter_state(self) -> QByteArray: ...
+    def restore_splitter_state(self, __state: QByteArray | bytes | bytearray) -> bool: ...
+    def get_current_tab(self) -> int: ...
+    def set_current_tab(self, __index: int) -> None: ...
+    def reset_splitter_sizes(self, __sizes: list[int]) -> None: ...
 
     # Thumbnail size access methods
     def set_thumbnail_size(self, size: int) -> None: ...
@@ -141,7 +145,7 @@ class SettingsController(LoggingMixin):
         try:
             main_splitter_state = self.window.settings_manager.get_splitter_state("main")
             if not main_splitter_state.isEmpty():
-                _ = self.window.splitter.restoreState(main_splitter_state)
+                _ = self.window.restore_splitter_state(main_splitter_state)
         except Exception:
             self.logger.exception("Error restoring splitter state")
 
@@ -154,7 +158,7 @@ class SettingsController(LoggingMixin):
 
         # Tab index
         try:
-            self.window.tab_widget.setCurrentIndex(
+            self.window.set_current_tab(
                 self.window.settings_manager.get_current_tab()
             )
         except Exception:
@@ -185,12 +189,12 @@ class SettingsController(LoggingMixin):
 
             # Save splitter states
             self.window.settings_manager.set_splitter_state(
-                "main", self.window.splitter.saveState()
+                "main", self.window.get_splitter_state()
             )
 
             # Save current tab
             self.window.settings_manager.set_current_tab(
-                self.window.tab_widget.currentIndex()
+                self.window.get_current_tab()
             )
 
             # Save thumbnail size
@@ -329,6 +333,6 @@ class SettingsController(LoggingMixin):
             )
 
             # Reset splitter
-            self.window.splitter.setSizes([840, 360])  # 70/30 split
+            self.window.reset_splitter_sizes([840, 360])  # 70/30 split
 
             self.logger.info("Layout reset to defaults")

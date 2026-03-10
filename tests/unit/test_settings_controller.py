@@ -234,6 +234,21 @@ class SettingsTargetDouble:
     def get_thumbnail_size(self) -> int:
         return self.shot_grid.size_slider.value()
 
+    def get_splitter_state(self) -> QByteArray:
+        return self.splitter.saveState()
+
+    def restore_splitter_state(self, state: QByteArray) -> bool:
+        return self.splitter.restoreState(state)
+
+    def get_current_tab(self) -> int:
+        return self.tab_widget.currentIndex()
+
+    def set_current_tab(self, index: int) -> None:
+        self.tab_widget.setCurrentIndex(index)
+
+    def reset_splitter_sizes(self, sizes: list[int]) -> None:
+        self.splitter.setSizes(sizes)
+
 
 # ============================================================================
 # Fixtures

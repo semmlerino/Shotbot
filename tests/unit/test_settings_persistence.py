@@ -118,6 +118,21 @@ class _WindowDouble:
     def get_thumbnail_size(self) -> int:
         return self.shot_grid.size_slider.value()
 
+    def get_splitter_state(self) -> QByteArray:
+        return self.splitter.saveState()
+
+    def restore_splitter_state(self, state: QByteArray) -> bool:
+        return self.splitter.restoreState(state)
+
+    def get_current_tab(self) -> int:
+        return self.tab_widget.currentIndex()
+
+    def set_current_tab(self, index: int) -> None:
+        self.tab_widget.setCurrentIndex(index)
+
+    def reset_splitter_sizes(self, sizes: list[int]) -> None:
+        self.splitter.setSizes(sizes)
+
 
 # ============================================================================
 # Fixtures
@@ -304,6 +319,11 @@ class TestSimulatedCrash:
             def get_window_size(self) -> QSize: return self._size
             def set_thumbnail_size(self, size: int) -> None: pass
             def get_thumbnail_size(self) -> int: return 150
+            def get_splitter_state(self) -> QByteArray: return self.splitter.saveState()
+            def restore_splitter_state(self, state: QByteArray) -> bool: return self.splitter.restoreState(state)
+            def get_current_tab(self) -> int: return self.tab_widget.currentIndex()
+            def set_current_tab(self, index: int) -> None: self.tab_widget.setCurrentIndex(index)
+            def reset_splitter_sizes(self, sizes: list[int]) -> None: self.splitter.setSizes(sizes)
 
         broken_window = _BrokenWindow()
         ctrl = SettingsController(broken_window)  # type: ignore[arg-type]

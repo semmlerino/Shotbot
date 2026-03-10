@@ -76,6 +76,9 @@ from typing_compat import override
 
 
 if TYPE_CHECKING:
+    # Third-party imports
+    from PySide6.QtCore import QByteArray
+
     # Local application imports
     from base_shot_model import BaseShotModel  # used in cast()
     from command_launcher import CommandLauncher
@@ -397,7 +400,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         self.threede_controller = ThreeDEController(self)
 
-        self.shot_selection_controller: ShotSelectionController = ShotSelectionController(self)
+        self.shot_selection_controller: ShotSelectionController = ShotSelectionController(self, parent=self)
 
         self.filter_coordinator: FilterCoordinator = FilterCoordinator(self)
 
@@ -715,6 +718,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_previous_shots_pin_requested
         )
 
+        _ = self.shot_selection_controller.settings_save_requested.connect(
+            self.settings_controller.save_settings
+        )
+        _ = self.refresh_orchestrator.threede_refresh_requested.connect(
+            self.threede_controller.refresh_threede_scenes
+        )
+
         _ = self.tab_widget.currentChanged.connect(self._on_tab_changed)
         _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
         _ = self.right_panel.status_message.connect(self.update_status)
@@ -864,6 +874,25 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Delegate to RefreshOrchestrator
         self.refresh_orchestrator.refresh_shot_display()
 
+    def get_splitter_state(self) -> QByteArray:
+        """Get the main splitter state for settings persistence."""
+        return self.splitter.saveState()
+
+    def restore_splitter_state(self, state: QByteArray | bytes | bytearray) -> bool:
+        """Restore the main splitter state from settings."""
+        return self.splitter.restoreState(state)
+
+    def get_current_tab(self) -> int:
+        """Get the current tab index."""
+        return self.tab_widget.currentIndex()
+
+    def set_current_tab(self, index: int) -> None:
+        """Set the current tab index."""
+        self.tab_widget.setCurrentIndex(index)
+
+    def reset_splitter_sizes(self, sizes: list[int]) -> None:
+        """Reset splitter to given sizes."""
+        self.splitter.setSizes(sizes)
 
     def _on_shot_error(self, error_msg: str) -> None:
         """Handle error signal from model.
