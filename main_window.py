@@ -85,7 +85,6 @@ if TYPE_CHECKING:
     from protocols import ProcessPoolInterface
     from scene_file import SceneFile
     from settings_dialog import SettingsDialog
-    from type_definitions import ShotDict
 
 # Runtime imports (needed at runtime)
 # Local application imports
@@ -677,11 +676,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_background_load_finished
         )
 
-        # Connect to shot cache for migration events
-        _ = self.shot_cache.shots_migrated.connect(
-            self._on_shots_migrated, Qt.ConnectionType.QueuedConnection
-        )
-
         # Shot selection - handled by ShotSelectionController when active
         # Controller handles shot_selected, shot_double_clicked, recover_crashes_requested
         # Filter signals handled by FilterCoordinator
@@ -970,22 +964,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Handle cache updated signal from model."""
         self.logger.debug("Shot cache updated")
 
-    def _on_shots_migrated(self, migrated_shots: list[ShotDict]) -> None:
-        """Handle shots migrated to Previous Shots cache.
-
-        This is called when shots are removed from My Shots and automatically
-        migrated to the Previous Shots cache. We refresh the Previous Shots
-        tab so users see the migrated shots immediately.
-
-        Args:
-            migrated_shots: List of ShotDict objects that were migrated
-
-        """
-        self.logger.info(f"{len(migrated_shots)} shots migrated to Previous Shots")
-        # Trigger Previous Shots tab refresh to show newly migrated shots
-        if self.previous_shots_model:
-            _ = self.previous_shots_model.refresh_shots()
-
     def _on_tab_changed(self, index: int) -> None:
         """Handle tab widget tab changes.
 
@@ -1217,6 +1195,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def launch_app(self, app_name: str) -> None:
         """Public method to launch an application."""
         _ = self.command_launcher.launch_app(app_name)
+
+    def get_active_shots(self) -> list[Shot]:
+        """Get currently active shots for cross-controller queries."""
+        return self.shot_model.shots
 
     def cleanup(self) -> None:
         """Explicit cleanup method for proper resource management.

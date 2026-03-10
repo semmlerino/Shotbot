@@ -63,7 +63,6 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         self._underlying_model: PreviousShotsModel = underlying_model
         self._pin_manager: PinManager | None = pin_manager
         self._notes_manager: NotesManager | None = notes_manager
-        self._sort_order: str = "date"  # Default: newest first by discovered_at
 
         # Connect generic items_updated to shot-specific signal
         _ = self.items_updated.connect(self.shots_updated)
@@ -194,38 +193,6 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             return sorted(shots, key=lambda s: s.full_name.lower())
         # "date" - newest first
         return sorted(shots, key=lambda s: s.discovered_at, reverse=True)
-
-    def set_sort_order(self, order: str) -> None:
-        """Set the sort order and re-sort the current shots.
-
-        Args:
-            order: Sort order ("name" or "date")
-
-        """
-        if order not in ("name", "date"):
-            self.logger.warning(f"Invalid sort order '{order}', ignoring")
-            return
-
-        if self._sort_order == order:
-            return  # No change needed
-
-        self._sort_order = order
-
-        # Re-sort existing items
-        if self._items:
-            self.layoutAboutToBeChanged.emit()
-            self._items = self._apply_sort(self._items)
-            self.layoutChanged.emit()
-            self.logger.info(f"Re-sorted {len(self._items)} shots by {order}")
-
-    def get_sort_order(self) -> str:
-        """Get the current sort order.
-
-        Returns:
-            Current sort order ("name" or "date")
-
-        """
-        return self._sort_order
 
     def get_shot_at_index(self, index: QModelIndex) -> Shot | None:
         """Get shot at the given index.

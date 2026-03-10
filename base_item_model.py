@@ -222,6 +222,7 @@ class BaseItemModel(
 
         # Core data storage
         self._items: list[T] = []
+        self._sort_order: str = "date"
         if cache_manager is None:
             from cache.thumbnail_cache import make_default_thumbnail_cache
             cache_manager = make_default_thumbnail_cache()
@@ -736,3 +737,47 @@ class BaseItemModel(
 
         """
         return False
+
+    def _apply_sort(self, items: list[T]) -> list[T]:
+        """Apply current sort order to items. Override in subclasses.
+
+        Args:
+            items: List of items to sort
+
+        Returns:
+            Sorted list of items (base returns unchanged)
+
+        """
+        return items
+
+    def set_sort_order(self, order: str) -> None:
+        """Set the sort order and re-sort the current items.
+
+        Args:
+            order: Sort order ("name" or "date")
+
+        """
+        if order not in ("name", "date"):
+            self.logger.warning(f"Invalid sort order '{order}', ignoring")
+            return
+
+        if self._sort_order == order:
+            return  # No change needed
+
+        self._sort_order = order
+
+        # Re-sort existing items
+        if self._items:
+            self.layoutAboutToBeChanged.emit()
+            self._items = self._apply_sort(self._items)
+            self.layoutChanged.emit()
+            self.logger.info(f"Re-sorted {len(self._items)} items by {order}")
+
+    def get_sort_order(self) -> str:
+        """Get the current sort order.
+
+        Returns:
+            Current sort order ("name" or "date")
+
+        """
+        return self._sort_order

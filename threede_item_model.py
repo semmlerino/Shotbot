@@ -51,7 +51,6 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         # ThreeDEScene-specific state
         self._is_loading = False
         self._updating_filter = False  # Recursion guard for filter updates
-        self._sort_order: str = "date"  # Default: newest first by modified_time
 
         # Connect generic items_updated to scene-specific signal
         _ = self.items_updated.connect(self.scenes_updated)
@@ -172,38 +171,6 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             return sorted(scenes, key=lambda s: s.full_name.lower())
         # "date" - newest first
         return sorted(scenes, key=lambda s: s.modified_time, reverse=True)
-
-    def set_sort_order(self, order: str) -> None:
-        """Set the sort order and re-sort the current scenes.
-
-        Args:
-            order: Sort order ("name" or "date")
-
-        """
-        if order not in ("name", "date"):
-            self.logger.warning(f"Invalid sort order '{order}', ignoring")
-            return
-
-        if self._sort_order == order:
-            return  # No change needed
-
-        self._sort_order = order
-
-        # Re-sort existing items
-        if self._items:
-            self.layoutAboutToBeChanged.emit()
-            self._items = self._apply_sort(self._items)
-            self.layoutChanged.emit()
-            self.logger.info(f"Re-sorted {len(self._items)} scenes by {order}")
-
-    def get_sort_order(self) -> str:
-        """Get the current sort order.
-
-        Returns:
-            Current sort order ("name" or "date")
-
-        """
-        return self._sort_order
 
     def set_show_filter(
         self, threede_scene_model: ThreeDESceneModel, show: str | None

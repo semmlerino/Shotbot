@@ -258,6 +258,9 @@ class ThreeDETargetDouble:
     def update_status(self, message: str) -> None:
         self._status_messages.append(message)
 
+    def get_active_shots(self) -> list[Shot]:
+        return self.shot_model.shots
+
     def launch_app(self, app_name: str, context: Any = None) -> None:
         self.command_launcher.launch_app(app_name, context)
 

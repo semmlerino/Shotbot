@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal, Slot
 
 # Local application imports
 from cache.shot_cache import ShotDataCache
@@ -87,6 +87,12 @@ class PreviousShotsModel(LoggingMixin, QObject):
         self._previous_shots = self._load_from_cache()  # Now returns list
 
         self.logger.debug("PreviousShotsModel initialized")
+
+        # Connect directly to cache migration events (bypasses MainWindow relay)
+        if hasattr(self._cache_manager, "shots_migrated"):
+            _ = self._cache_manager.shots_migrated.connect(
+                self._on_cache_shots_migrated, Qt.ConnectionType.QueuedConnection
+            )
 
     def _reset_scanning_flag(self) -> None:
         """Reset the scanning flag with proper locking.
@@ -221,6 +227,20 @@ class PreviousShotsModel(LoggingMixin, QObject):
             self._reset_scanning_flag()
             self.scan_finished.emit()
             return False
+
+    @Slot(list)  # pyright: ignore[reportAny]
+    def _on_cache_shots_migrated(self, migrated_shots: list[ShotDict]) -> None:
+        """Handle shots migrated to Previous Shots cache.
+
+        Connected directly to ShotDataCache.shots_migrated, bypassing
+        MainWindow relay for simpler signal routing.
+
+        Args:
+            migrated_shots: List of ShotDict objects that were migrated
+
+        """
+        self.logger.info(f"{len(migrated_shots)} shots migrated to Previous Shots cache")
+        _ = self.refresh_shots()
 
     def _on_scan_finished(self, approved_shots: list[dict[str, str]]) -> None:
         """Handle worker completion with incremental merge strategy.
@@ -485,7 +505,17 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
     def cleanup(self) -> None:
         """Clean up resources and stop worker thread."""
+        import warnings
+
         self.logger.debug("PreviousShotsModel cleanup initiated")
+        # Disconnect cache migration signal (only if it was connected)
+        if hasattr(self._cache_manager, "shots_migrated"):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                try:
+                    self._cache_manager.shots_migrated.disconnect(self._on_cache_shots_migrated)
+                except (RuntimeError, TypeError):
+                    pass  # Already disconnected
         self._cleanup_worker_safely()  # Use centralized cleanup
         self.logger.debug("PreviousShotsModel cleanup completed")
 

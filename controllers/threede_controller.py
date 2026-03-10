@@ -41,7 +41,6 @@ if TYPE_CHECKING:
 
     # Local type imports
     from right_panel import RightPanelWidget
-    from shot_model import ShotModel
     from threede_grid_view import ThreeDEGridView
     from threede_item_model import ThreeDEItemModel
     from threede_recovery import CrashFileInfo
@@ -70,7 +69,7 @@ class ThreeDETarget(Protocol):
     right_panel: RightPanelWidget  # skylos: ignore
 
     # Model references for data access
-    shot_model: ShotModel  # skylos: ignore
+    def get_active_shots(self) -> list[Shot]: ...  # skylos: ignore
     threede_scene_model: ThreeDESceneModel  # skylos: ignore
     threede_item_model: ThreeDEItemModel  # skylos: ignore
     scene_disk_cache: SceneDiskCache  # skylos: ignore
@@ -244,7 +243,7 @@ class ThreeDEController(LoggingMixin):
             # Pass user's shots so the worker knows which shows to scan
             # The worker will scan ALL shots in those shows, not just the user's shots
             self._threede_worker = ThreeDESceneWorker(
-                shots=self.window.shot_model.shots,  # Used to determine which shows to scan
+                shots=self.window.get_active_shots(),  # Used to determine which shows to scan
                 enable_progressive=True,  # Enable progressive scanning for better UI responsiveness
                 batch_size=None,  # Use config default
                 scan_all_shots=True,  # Scan ALL shots in the shows, not just user's shots
