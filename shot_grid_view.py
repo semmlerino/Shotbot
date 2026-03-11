@@ -187,21 +187,6 @@ class ShotGridView(BaseGridView):
         """
         return self._thumbnail_size
 
-    def refresh_shots(self) -> None:
-        """Compatibility method for refreshing shots.
-
-        This method exists for compatibility with the old ShotGrid interface.
-        It's not needed for Model/View as updates happen through the model.
-        """
-        # Model/View updates automatically when model data changes
-        # This method is kept for interface compatibility
-        model = cast("ShotItemModel | None", self._model)
-        if model:
-            # Force a view update
-            self.list_view.viewport().update()
-            self.logger.debug(
-                "View refresh requested (Model/View updates automatically)"
-            )
 
     def set_model(self, model: ShotItemModel) -> None:
         """Set the data model for the view.

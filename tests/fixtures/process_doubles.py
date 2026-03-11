@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import subprocess
 import time
-from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QCoreApplication, QThread
@@ -328,28 +327,6 @@ class TestProcessPool:
         """Shutdown the test double (resets state for test isolation)."""
         self.reset()
 
-    def find_files_python(self, directory: str, pattern: str) -> list[str]:
-        """Find files using Python glob (real implementation for test double).
-
-        This method uses real filesystem operations since it doesn't involve
-        subprocess calls that would cause parallel test issues.
-
-        Args:
-            directory: Directory to search in
-            pattern: Glob pattern to match
-
-        Returns:
-            List of matching file paths
-
-        """
-        try:
-            path = Path(directory)
-            if not path.exists():
-                return []
-            files = list(path.rglob(pattern))
-            return [str(f) for f in files]
-        except Exception:  # noqa: BLE001
-            return []
 
     def get_executed_commands(self) -> list[str]:
         """Get the list of executed commands (compatible with TestProcessPoolManager)."""
@@ -386,28 +363,6 @@ class TestProcessPool:
             return self.command_kwargs.get(last_cmd, {})
         return {}
 
-    def get_metrics(self) -> dict[str, Any]:
-        """Get execution metrics.
-
-        Returns:
-            Dictionary with execution statistics
-
-        """
-        total_delay = sum(self.execution_delays)
-        return {
-            "total_calls": self.call_count,
-            "unique_commands": len(set(self.commands)),
-            "cache_hits": self._cache_hits,
-            "cache_misses": self._cache_misses,
-            "cache_hit_rate": self._cache_hits / max(1, self.call_count),
-            "cache_size": len(self._cache),
-            "total_delay_ms": total_delay * 1000,
-            "average_delay_ms": (
-                total_delay * 1000 / len(self.execution_delays)
-                if self.execution_delays
-                else 0.0
-            ),
-        }
 
     @classmethod
     def get_instance(cls) -> TestProcessPool:

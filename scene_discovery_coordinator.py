@@ -8,7 +8,7 @@ maintaining backward compatibility.
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
 # pyright: reportImportCycles=false
-# Import cycles are broken at runtime by lazy imports in __init__ and switch_strategy.
+# Import cycles are broken at runtime by lazy imports in __init__ and methods.
 # The cycles exist at module level due to: scene_cache → threede_scene_model → threede_scene_finder
 # → threede_scene_finder_optimized → scene_discovery_coordinator → scene_cache (and similar chains
 # through filesystem_scanner and scene_parser). All imports are deferred to method execution time.
@@ -61,7 +61,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         strategy_type: str = "local",
         enable_caching: bool = True,
         cache_ttl: int = 1800,  # 30 minutes
-        **_strategy_kwargs: object,
     ) -> None:
         """Initialize scene discovery coordinator.
 
@@ -69,7 +68,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             strategy_type: Discovery strategy to use ("local", "progressive")
             enable_caching: Whether to enable result caching
             cache_ttl: Cache TTL in seconds
-            **_strategy_kwargs: Accepted but unused (retained for call-site compatibility)
 
         """
         super().__init__()
@@ -574,51 +572,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             self.logger.exception("Error discovering scenes across shows")
             return []
 
-    def find_scenes_progressive(
-        self,
-        show_root: str,
-        show: str,
-        excluded_users: set[str] | None = None,
-        batch_size: int = 10,
-        progress_callback: Callable[[int, int, str], None] | None = None,
-    ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
-        """Progressive scene discovery with batch processing and progress updates.
-
-        Args:
-            show_root: Root path for shows
-            show: Show name
-            excluded_users: Set of usernames to exclude
-            batch_size: Number of scenes per batch
-            progress_callback: Optional callback for progress updates
-
-        Yields:
-            Tuple of (scene_batch, current_shot, total_shots, status_message)
-
-        """
-        try:
-            scene_generator = self._find_scenes_progressive_impl(
-                show_root, show, excluded_users, batch_size
-            )
-
-            # Process batches and call progress callback if provided
-            for scene_batch, current_shot, total_shots, status in scene_generator:
-                # Validate scenes in batch
-                valid_scenes = self._validate_and_filter_scenes(scene_batch)
-
-                # Update statistics
-                self.stats["scenes_discovered"] += len(valid_scenes)
-
-                # Call progress callback if provided
-                if progress_callback:
-                    progress_callback(current_shot, total_shots, status)
-
-                yield valid_scenes, current_shot, total_shots, status
-
-        except Exception as e:
-            self.stats["errors"] += 1
-            self.logger.exception("Error in progressive scene discovery")
-            yield [], 0, 0, f"Error: {e}"
-
     # Hook methods
 
     def _validate_shot_input(
@@ -760,44 +713,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         if self.enable_caching and self.cache:
             return self.cache.invalidate_show(show)
         return 0
-
-    def switch_strategy(
-        self, strategy_type: str, **_strategy_kwargs: object
-    ) -> None:
-        """Switch to a different discovery strategy.
-
-        Args:
-            strategy_type: New strategy type ("local", "progressive")
-            **_strategy_kwargs: Accepted but unused (retained for call-site compatibility)
-
-        """
-        if strategy_type not in ("local", "progressive"):
-            msg = (
-                f"Unknown strategy type: {strategy_type}. "
-                f"Available: local, progressive"
-            )
-            raise ValueError(msg)
-
-        old_name = self.get_strategy_name()
-        self._use_progressive = strategy_type == "progressive"
-        self.logger.info(f"Switched strategy from {old_name} to {strategy_type}")
-
-    def get_strategy_name(self) -> str:
-        """Get the name of the current discovery strategy."""
-        return "ProgressiveDiscoveryStrategy" if self._use_progressive else "LocalFileSystemStrategy"
-
-    @staticmethod
-    def find_all_scenes_in_shows_truly_efficient(
-        user_shots: list[Shot],
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Find all scenes across shows using the local strategy."""
-        coordinator = SceneDiscoveryCoordinator(
-            strategy_type="local",
-            enable_caching=True,
-            cache_ttl=1800,
-        )
-        return coordinator.find_all_scenes_in_shows(user_shots, excluded_users)
 
     @staticmethod
     def _resolve_shows_root(user_shots: list[Shot]) -> str:

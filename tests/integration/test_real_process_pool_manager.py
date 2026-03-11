@@ -126,44 +126,21 @@ class TestRealProcessPoolManagerCaching:
 
         assert result1 == result2
 
-    def test_cache_metrics_increment(self, real_ppm: ProcessPoolManager) -> None:
-        """Verify cache metrics are tracked correctly."""
-        command = f"echo 'metrics_test_{time.time()}'"  # Unique command
-
-        metrics_before = real_ppm.get_metrics()
-        initial_hits = metrics_before["cache_hits"]
-        initial_misses = metrics_before["cache_misses"]
-
-        # First call - cache miss
-        _run_in_background(real_ppm, command, cache_ttl=60)
-
-        metrics_after_first = real_ppm.get_metrics()
-        assert metrics_after_first["cache_misses"] == initial_misses + 1
-
-        # Second call - cache hit
-        _run_in_background(real_ppm, command, cache_ttl=60)
-
-        metrics_after_second = real_ppm.get_metrics()
-        assert metrics_after_second["cache_hits"] == initial_hits + 1
 
     def test_cache_invalidation(self, real_ppm: ProcessPoolManager) -> None:
         """Verify cache invalidation clears cached results."""
         command = f"echo 'invalidation_test_{time.time()}'"
 
         # First call - cache miss
-        _run_in_background(real_ppm, command, cache_ttl=60)
+        result1 = _run_in_background(real_ppm, command, cache_ttl=60)
+        assert "invalidation_test_" in result1
 
         # Invalidate cache
         real_ppm.invalidate_cache()
 
-        metrics_before = real_ppm.get_metrics()
-        initial_misses = metrics_before["cache_misses"]
-
-        # After invalidation, same command should be cache miss again
-        _run_in_background(real_ppm, command, cache_ttl=60)
-
-        metrics_after = real_ppm.get_metrics()
-        assert metrics_after["cache_misses"] == initial_misses + 1
+        # After invalidation, same command should still work when re-executed
+        result2 = _run_in_background(real_ppm, command, cache_ttl=60)
+        assert result1 == result2  # Same result from fresh execution
 
 
 class TestRealProcessPoolManagerShutdown:
@@ -201,39 +178,6 @@ class TestRealProcessPoolManagerShutdown:
         assert "after_reset" in result
 
 
-class TestRealProcessPoolManagerMetrics:
-    """Tests for metrics collection.
-
-    Note: The public get_metrics() API returns PerformanceMetricsDict with
-    cache-related metrics. Internal metrics like subprocess_calls are
-    tracked but not directly exposed. Cache behavior is tested in
-    TestRealProcessPoolManagerCaching.
-    """
-
-    def test_metrics_returns_valid_structure(
-        self, real_ppm: ProcessPoolManager
-    ) -> None:
-        """Verify metrics returns expected structure."""
-        metrics = real_ppm.get_metrics()
-
-        # Verify expected keys exist in the public API
-        assert "cache_hits" in metrics
-        assert "cache_misses" in metrics
-        assert "cache_hit_rate" in metrics
-
-    def test_metrics_types_are_correct(
-        self, real_ppm: ProcessPoolManager
-    ) -> None:
-        """Verify metrics have correct types."""
-        # Execute a command to populate some metrics
-        _run_in_background(real_ppm, "echo 'type_test'", cache_ttl=0)
-
-        metrics = real_ppm.get_metrics()
-
-        # Verify types
-        assert isinstance(metrics["cache_hits"], int)
-        assert isinstance(metrics["cache_misses"], int)
-        assert isinstance(metrics["cache_hit_rate"], float)
 
 
 class TestRealProcessPoolManagerSingleton:
@@ -284,72 +228,3 @@ class TestRealProcessPoolManagerErrorHandling:
             )
 
 
-class TestRealProcessPoolManagerBatchExecution:
-    """Tests for batch command execution.
-
-    Note: batch_execute() returns a dict mapping commands to results,
-    where None indicates failure/timeout.
-    """
-
-    def test_batch_execute_multiple_commands(
-        self, real_ppm: ProcessPoolManager
-    ) -> None:
-        """Verify batch execution processes multiple commands."""
-        commands = [
-            "echo 'batch1'",
-            "echo 'batch2'",
-            "echo 'batch3'",
-        ]
-
-        # batch_execute can be called from main thread (uses internal thread pool)
-        results = real_ppm.batch_execute(commands, cache_ttl=0, timeout=10)
-
-        assert len(results) == 3
-        assert all(cmd in results for cmd in commands)
-        assert "batch1" in (results[commands[0]] or "")
-        assert "batch2" in (results[commands[1]] or "")
-        assert "batch3" in (results[commands[2]] or "")
-
-    def test_batch_execute_partial_failure(
-        self, real_ppm: ProcessPoolManager
-    ) -> None:
-        """Verify batch handles partial failures gracefully."""
-        commands = [
-            "echo 'good1'",
-            f"{sys.executable} -c 'import sys; sys.exit(1)'",  # Fails
-            "echo 'good2'",
-        ]
-
-        results = real_ppm.batch_execute(commands, cache_ttl=0, timeout=10)
-
-        # First and last should succeed
-        assert results[commands[0]] is not None
-        assert "good1" in results[commands[0]]
-        # Failed command returns None
-        assert results[commands[1]] is None
-        # Third should succeed
-        assert results[commands[2]] is not None
-        assert "good2" in results[commands[2]]
-
-    def test_batch_execute_uses_cache(
-        self, real_ppm: ProcessPoolManager
-    ) -> None:
-        """Verify batch execution uses cache for repeated commands."""
-        commands = ["echo 'cached_batch'"]
-
-        # First execution - cache miss
-        results1 = real_ppm.batch_execute(commands, cache_ttl=60, timeout=10)
-        assert "cached_batch" in (results1[commands[0]] or "")
-
-        # Get metrics after first call
-        metrics1 = real_ppm.get_metrics()
-        misses_after_first = metrics1["cache_misses"]
-
-        # Second execution - should hit cache
-        results2 = real_ppm.batch_execute(commands, cache_ttl=60, timeout=10)
-        assert "cached_batch" in (results2[commands[0]] or "")
-
-        # Misses should not have increased (cache hit)
-        metrics2 = real_ppm.get_metrics()
-        assert metrics2["cache_hits"] > metrics1["cache_hits"]
-        assert metrics2["cache_misses"] == misses_after_first

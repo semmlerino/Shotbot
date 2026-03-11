@@ -170,10 +170,6 @@ class SceneDiscoveryStrategyDouble:
             raise RuntimeError("Strategy error")
         return self._scenes_for_show.get(show, [])
 
-    def get_strategy_name(self) -> str:
-        """Get strategy name."""
-        return self._name
-
     def set_scenes_for_shot(
         self, show: str, sequence: str, shot: str, scenes: list[ThreeDEScene]
     ) -> None:
@@ -539,40 +535,3 @@ class TestStatistics:
 # ============================================================================
 
 
-class TestStrategyManagement:
-    """Test strategy management methods."""
-
-    def test_get_strategy_name_returns_local_by_default(
-        self,
-        coordinator,
-    ) -> None:
-        """Test that get_strategy_name returns 'LocalFileSystemStrategy' for local coordinator."""
-        name = coordinator.get_strategy_name()
-        assert name == "LocalFileSystemStrategy"
-
-    def test_switch_strategy_changes_to_progressive(
-        self,
-        coordinator,
-    ) -> None:
-        """Test that switch_strategy changes to progressive."""
-        coordinator.switch_strategy("progressive")
-        assert coordinator.get_strategy_name() == "ProgressiveDiscoveryStrategy"
-        assert coordinator._use_progressive is True
-
-    def test_switch_strategy_changes_back_to_local(
-        self,
-        coordinator,
-    ) -> None:
-        """Test that switch_strategy can switch back to local."""
-        coordinator.switch_strategy("progressive")
-        coordinator.switch_strategy("local")
-        assert coordinator.get_strategy_name() == "LocalFileSystemStrategy"
-        assert coordinator._use_progressive is False
-
-    def test_switch_strategy_raises_on_invalid_type(
-        self,
-        coordinator,
-    ) -> None:
-        """Test that switch_strategy raises ValueError for unknown type."""
-        with pytest.raises(ValueError, match="Unknown strategy type"):
-            coordinator.switch_strategy("invalid")

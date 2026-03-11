@@ -37,8 +37,6 @@ class NukeScriptGenerator:
     _temp_files: ClassVar[set[str]] = set()
     _cleanup_registered: ClassVar[bool] = False
 
-    # Backward compatibility: expose WINDOW_LAYOUT_XML as class attribute
-    WINDOW_LAYOUT_XML = NukeScriptTemplates.WINDOW_LAYOUT_XML
 
     def __init__(self) -> None:
         """Initialize the generator with helper modules."""
@@ -94,10 +92,10 @@ class NukeScriptGenerator:
         # Convert paths for Nuke
         nuke_plate_path = self.templates.format_frame_sequence(plate_path)
 
-        # Detect media properties using backward-compatible methods
-        first_frame, last_frame = NukeScriptGenerator._detect_frame_range(plate_path)
-        width, height = NukeScriptGenerator._detect_resolution(plate_path)
-        colorspace, raw_flag = NukeScriptGenerator._detect_colorspace(plate_path)
+        # Detect media properties
+        first_frame, last_frame = NukeMediaDetector.detect_frame_range(plate_path)
+        width, height = NukeMediaDetector.detect_resolution(plate_path)
+        colorspace, raw_flag = NukeMediaDetector.detect_colorspace(plate_path)
 
         # Start building script content
         script_parts = [
@@ -409,18 +407,3 @@ class NukeScriptGenerator:
             logger.exception("Failed to create empty workspace script")
             return None
 
-    # Backward compatibility: Static method aliases for detection functions
-    @staticmethod
-    def _detect_frame_range(plate_path: str) -> tuple[int, int]:
-        """Backward compatibility wrapper for frame range detection."""
-        return NukeMediaDetector.detect_frame_range(plate_path)
-
-    @staticmethod
-    def _detect_colorspace(plate_path: str) -> tuple[str, bool]:
-        """Backward compatibility wrapper for colorspace detection."""
-        return NukeMediaDetector.detect_colorspace(plate_path)
-
-    @staticmethod
-    def _detect_resolution(plate_path: str) -> tuple[int, int]:
-        """Backward compatibility wrapper for resolution detection."""
-        return NukeMediaDetector.detect_resolution(plate_path)

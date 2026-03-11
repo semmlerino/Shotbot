@@ -20,6 +20,7 @@ from tempfile import TemporaryDirectory
 import pytest
 
 # Local application imports
+from nuke_media_detector import NukeMediaDetector
 from nuke_script_generator import NukeScriptGenerator
 
 
@@ -97,7 +98,7 @@ class TestNukeScriptGenerator:
         monkeypatch.setattr("os.path.exists", lambda _path: True)
 
         for filepath, _expected in test_cases:
-            colorspace, use_raw = NukeScriptGenerator._detect_colorspace(filepath)
+            colorspace, use_raw = NukeMediaDetector.detect_colorspace(filepath)
             # Test that some colorspace is returned (exact matching may vary)
             assert isinstance(colorspace, str)
             assert len(colorspace) > 0
@@ -213,8 +214,8 @@ class TestNukeScriptGenerator:
 
             # Use monkeypatch instead of patch.object
             monkeypatch.setattr(
-                NukeScriptGenerator,
-                "_detect_colorspace",
+                NukeMediaDetector,
+                "detect_colorspace",
                 lambda _filepath: (test_colorspace, False),
             )
 

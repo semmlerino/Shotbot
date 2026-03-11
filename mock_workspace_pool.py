@@ -9,11 +9,7 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
-
-
-if TYPE_CHECKING:
-    from type_definitions import PerformanceMetricsDict
+from typing import cast
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -173,33 +169,6 @@ class MockWorkspacePool(LoggingMixin):
 
         return result
 
-    def batch_execute(
-        self,
-        commands: list[str],
-        cache_ttl: int = 30,
-        session_type: str = "workspace",  # pyright: ignore[reportUnusedParameter]
-    ) -> dict[str, str | None]:
-        """Execute multiple commands.
-
-        Args:
-            commands: Commands to execute
-            cache_ttl: Cache TTL
-            session_type: Session type
-
-        Returns:
-            Command results
-
-        """
-        # Preserve signature compatibility with ProcessPoolManagerProtocol.
-        _ = session_type
-        results: dict[str, str | None] = {}
-        for cmd in commands:
-            try:
-                results[cmd] = self.execute_workspace_command(cmd, cache_ttl)
-            except Exception:
-                self.logger.exception(f"Failed to execute {cmd}")
-                results[cmd] = None
-        return results
 
     def invalidate_cache(self, pattern: str | None = None) -> None:
         """Invalidate cache entries.
@@ -217,29 +186,6 @@ class MockWorkspacePool(LoggingMixin):
 
     def shutdown(self) -> None:
         """Shutdown the pool (no-op for mock)."""
-
-    def get_metrics(self) -> PerformanceMetricsDict:
-        """Get mock metrics compatible with ProcessPoolInterface.
-
-        Returns:
-            Metrics dictionary conforming to PerformanceMetricsDict
-
-        """
-        from type_definitions import PerformanceMetricsDict
-
-        cache_hits = len(self._cache)
-        cache_misses = len(self.commands_executed) - cache_hits
-
-        return PerformanceMetricsDict(
-            total_shots=len(self.shots),
-            total_refreshes=len(self.commands_executed),
-            last_refresh_time=0.0,
-            cache_hits=cache_hits,
-            cache_misses=cache_misses,
-            cache_hit_rate=cache_hits / max(1, len(self.commands_executed)),
-            loading_in_progress=False,
-            session_warmed=len(self.shots) > 0,
-        )
 
 
 def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> MockWorkspacePool:
@@ -370,7 +316,3 @@ if __name__ == "__main__":
 
     if len(shots) > 10:
         print(f"  ... and {len(shots) - 10} more")
-
-    # Show metrics
-    metrics = pool.get_metrics()
-    print(f"\nMetrics: {metrics}")

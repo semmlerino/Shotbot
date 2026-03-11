@@ -22,8 +22,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Final, NamedTuple, cast, final
+from typing import ClassVar, Final, NamedTuple, cast, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -42,9 +41,6 @@ from logging_mixin import LoggingMixin, get_module_logger
 # Module-level logger
 logger = get_module_logger(__name__)
 
-if TYPE_CHECKING:
-    # Local application imports
-    from type_definitions import PerformanceMetricsDict
 
 
 
@@ -565,80 +561,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             self.logger.exception(f"Command execution failed ({command[:80]!r})")
             raise
 
-    def batch_execute(
-        self,
-        commands: list[str],
-        cache_ttl: int = 30,
-        session_type: str = "workspace",
-        timeout: float | None = None,
-    ) -> dict[str, str | None]:
-        """Execute multiple commands in parallel using session pool.
-
-        Leverages thread pool for parallel execution.
-
-        Args:
-            commands: List of commands to execute
-            cache_ttl: Cache time-to-live in seconds
-            session_type: Type of session pool to use
-            timeout: Per-command timeout in seconds (default: SUBPROCESS_TIMEOUT).
-                     Commands that exceed this timeout return None.
-
-        Returns:
-            Dictionary mapping commands to results (None for failed/timed-out commands)
-
-        """
-        # Keep the public signature aligned with the protocol and mock implementation.
-        _ = session_type
-        # CRITICAL BUG FIX #32: Check shutdown flag before executing batch commands
-        self._check_not_shutdown()
-
-        # Use default timeout if not specified
-        if timeout is None:
-            timeout = ThreadingConfig.SUBPROCESS_TIMEOUT
-
-        # Check cache first and separate cached from non-cached
-        results: dict[str, str | None] = {}
-        commands_to_execute: list[str] = []
-
-        for cmd in commands:
-            cached = self._cache.get(cmd)
-            if cached is not None:
-                results[cmd] = cached
-                self.logger.debug(f"Batch: cache hit for {cmd[:50]}...")
-            else:
-                commands_to_execute.append(cmd)
-
-        if not commands_to_execute:
-            return results  # All results were cached
-
-        # Execute non-cached commands in parallel
-        futures: dict[concurrent.futures.Future[str], str] = {}
-        for cmd in commands_to_execute:
-            future = self._executor.submit(
-                self._execute_subprocess,
-                cmd,
-                timeout,
-            )
-            futures[future] = cmd
-
-        # Collect results with timeout on each future
-        for future in concurrent.futures.as_completed(futures):
-            cmd = futures[future]
-            try:
-                result = future.result(timeout=timeout)
-                results[cmd] = result
-                # Cache successful results
-                self._cache.set(cmd, result, ttl=cache_ttl)
-            except concurrent.futures.TimeoutError:
-                self.logger.warning(
-                    f"Batch command timed out after {timeout}s: {cmd[:80]}..."
-                )
-                results[cmd] = None
-            except Exception:
-                self.logger.exception(f"Batch command failed: {cmd}")
-                results[cmd] = None
-
-        return results
 
     def _execute_subprocess(
         self,
@@ -678,29 +600,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             self.logger.exception("Session pool execution failed")
             raise
 
-    def find_files_python(self, directory: str, pattern: str) -> list[str]:
-        """Find files using Python instead of subprocess.
-
-        Args:
-            directory: Directory to search
-            pattern: File pattern to match
-
-        Returns:
-            List of matching file paths
-
-        """
-        try:
-            path = Path(directory)
-            if not path.exists():
-                return []
-
-            # Use rglob for recursive search
-            files = list(path.rglob(pattern))
-            return [str(f) for f in files]
-
-        except Exception:
-            self.logger.exception("File search failed")
-            return []
 
     def invalidate_cache(self, pattern: str | None = None) -> None:
         """Invalidate command cache.
@@ -711,33 +610,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """
         self._cache.invalidate(pattern)
 
-    def get_metrics(self) -> PerformanceMetricsDict:
-        """Get performance metrics.
-
-        Returns:
-            Performance metrics dictionary
-
-        """
-        cache_stats = self._cache.get_stats()
-
-        # Build PerformanceMetricsDict. ProcessPoolManager only tracks cache
-        # and subprocess counters; shot-model fields are always placeholder zeros
-        # because no callers read them from this layer (they come from ShotModel).
-        result: PerformanceMetricsDict = {
-            # Placeholder: ProcessPoolManager has no shot-model visibility.
-            "total_shots": 0,
-            "total_refreshes": 0,
-            "last_refresh_time": 0.0,
-            "cache_hits": int(cache_stats["hits"]),
-            "cache_misses": int(cache_stats["misses"]),
-            "cache_hit_rate": float(cache_stats["hit_rate"]),
-            # loading_in_progress and session_warmed are OptimizedShotModel-level
-            # state not tracked by ProcessPoolManager; always False/False here.
-            "loading_in_progress": False,
-            "session_warmed": False,
-        }
-
-        return result
 
     def shutdown(self, timeout: float = 5.0) -> None:
         """Shutdown the process pool manager with enhanced error handling.

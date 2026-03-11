@@ -18,7 +18,6 @@ from __future__ import annotations
 # Standard library imports
 import threading
 import time
-from pathlib import Path
 from typing import Self
 
 # Third-party imports
@@ -343,66 +342,9 @@ class TestProcessPoolManagerBehavior:
         assert result2 == "hello"
         assert len(session.executed_commands) == 1  # Still 1, used cache
 
-        # Test BEHAVIOR: Cache statistics reflect usage
-        metrics = manager.get_metrics()
-        assert metrics["cache_hits"] == 1
-        assert metrics["cache_misses"] == 1
-
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)
         manager.shutdown()
 
-    def test_batch_command_execution(self) -> None:
-        """Test batch execution of multiple commands.
-
-        Following UNIFIED_TESTING_GUIDE: Test behavior (all commands executed),
-        not implementation (execution order). batch_execute uses parallel execution
-        via concurrent.futures.as_completed(), so order is not guaranteed.
-        """
-        manager = InjectableProcessPoolManager()
-        session = BashSessionDouble()
-
-        # Configure realistic responses
-        session.set_response("ls /tmp", "file1\nfile2")
-        session.set_response("pwd", "/home/user")
-        session.set_response("echo done", "done")
-
-        manager.set_test_session(session)
-
-        # Execute batch
-        commands = ["ls /tmp", "pwd", "echo done"]
-        results = manager.batch_execute(commands)
-
-        # Test BEHAVIOR: All commands executed and results returned
-        assert len(results) == 3
-        assert results["ls /tmp"] == "file1\nfile2"
-        assert results["pwd"] == "/home/user"
-        assert results["echo done"] == "done"
-
-        # Test BEHAVIOR: All commands were executed (order not guaranteed in parallel)
-        assert set(session.executed_commands) == set(commands), (
-            f"Expected all commands to be executed. "
-            f"Executed: {session.executed_commands}, Expected: {commands}"
-        )
-        assert len(session.executed_commands) == len(commands), (
-            "Should execute each command exactly once"
-        )
-
-        # Cleanup InjectableProcessPoolManager (it bypasses singleton)
-        manager.shutdown()
-
-    def test_batch_execute_timeout_parameter(self) -> None:
-        """Test batch_execute respects timeout parameter."""
-        manager = InjectableProcessPoolManager()
-        session = BashSessionDouble()
-
-        session.set_response("fast", "done")
-        manager.set_test_session(session)
-
-        # Execute with explicit timeout
-        results = manager.batch_execute(["fast"], timeout=5.0)
-
-        assert results["fast"] == "done"
-        manager.shutdown()
 
     def test_error_recovery_during_execution(self) -> None:
         """Test that manager recovers from execution errors.
@@ -496,73 +438,6 @@ class TestProcessPoolManagerBehavior:
 
         # Cleanup
         main_manager.shutdown()
-
-
-class TestPythonFileOperations:
-    """Test Python-based file operations without subprocess."""
-
-    def test_find_files_in_directory(self, tmp_path) -> None:
-        """Test file finding using Python glob.
-
-        CORRECT: Using real filesystem with temp directory.
-        """
-        manager = ProcessPoolManager()
-
-        # Create test directory structure
-        test_dir = tmp_path / "test_files"
-        test_dir.mkdir()
-
-        # Create test files
-        (test_dir / "doc1.txt").touch()
-        (test_dir / "doc2.txt").touch()
-        (test_dir / "image.png").touch()
-        (test_dir / "data.json").touch()
-
-        # Create subdirectory with more files
-        sub_dir = test_dir / "subdir"
-        sub_dir.mkdir()
-        (sub_dir / "nested.txt").touch()
-
-        # Test BEHAVIOR: Finds correct files by pattern (rglob is recursive)
-        txt_files = manager.find_files_python(str(test_dir), "*.txt")
-        assert len(txt_files) == 3  # doc1.txt, doc2.txt, and nested.txt in subdir
-        assert all("txt" in f for f in txt_files)
-
-        # Test BEHAVIOR: Different patterns work
-        json_files = manager.find_files_python(str(test_dir), "*.json")
-        assert len(json_files) == 1
-        assert "data.json" in json_files[0]
-
-        # Test BEHAVIOR: Returns empty list for no matches
-        pdf_files = manager.find_files_python(str(test_dir), "*.pdf")
-        assert pdf_files == []
-
-        # Cleanup
-        manager.shutdown()
-
-    def test_nonexistent_directory_handling(self) -> None:
-        """Test behavior with nonexistent directories.
-
-        CORRECT: Testing actual error handling behavior.
-        """
-        manager = ProcessPoolManager()
-
-        # Test BEHAVIOR: Returns empty list for nonexistent path
-        results = manager.find_files_python("/this/does/not/exist", "*.txt")
-        assert results == []
-
-        # Test BEHAVIOR: Manager remains functional after error
-        # (Can still perform other operations)
-        # Standard library imports
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            Path(temp_dir, "test.txt").touch()
-            results = manager.find_files_python(temp_dir, "*.txt")
-            assert len(results) == 1
-
-        # Cleanup
-        manager.shutdown()
 
 
 class TestCacheInvalidation:
