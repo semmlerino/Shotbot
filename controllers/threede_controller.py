@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 
 # Runtime imports (needed at runtime)
 from config import Config
+from controllers.filter_helpers import apply_show_filter
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from progress_manager import ProgressManager
@@ -739,15 +740,8 @@ class ThreeDEController(LoggingMixin):
             tab_name: Human-readable tab name for logging
 
         """
-        # Convert empty string back to None for the model
-        show_filter = show or None
-
-        # Apply filter to item model
-        item_model.set_show_filter(model, show_filter)
-
-        self.logger.info(
-            f"Applied {tab_name} show filter: {show or 'All Shows'}"
-        )
+        apply_show_filter(item_model, model, show)
+        self.logger.info(f"Applied {tab_name} show filter: {show or 'All Shows'}")
 
     # ============================================================================
     # Private Helper Methods

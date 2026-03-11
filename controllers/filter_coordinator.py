@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Protocol, final
 
 from PySide6.QtCore import Slot
 
+from controllers.filter_helpers import apply_show_filter
 from logging_mixin import LoggingMixin
 
 
@@ -121,23 +122,14 @@ class FilterCoordinator(LoggingMixin):
             tab_name: Human-readable tab name for logging
 
         """
-        # Convert empty string back to None for the model
-        show_filter = show or None
-
-        # Apply filter to item model
-        # Different item models have varying set_show_filter signatures
-        item_model.set_show_filter(model, show_filter)
-
-        # Get filtered count for status
-        filtered_count = int(item_model.rowCount())
-        filter_desc = show or "All Shows"
-        self.window.status_bar.showMessage(
-            f"{tab_name}: {filtered_count} shots ({filter_desc})", 2500
+        apply_show_filter(
+            item_model,
+            model,
+            show,
+            status_callback=self.window.status_bar.showMessage,
+            tab_name=tab_name,
         )
-
-        self.logger.info(
-            f"Applied {tab_name} show filter: {show or 'All Shows'}"
-        )
+        self.logger.info(f"Applied {tab_name} show filter: {show or 'All Shows'}")
 
     @Slot(str)
     def _on_shot_show_filter_requested(self, show: str) -> None:
