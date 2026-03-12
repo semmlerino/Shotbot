@@ -14,7 +14,7 @@ If any route below is removed or changed, core behavior breaks.
 | `cache_manager.shots_migrated` -> MainWindow handler | Previous-shots tab stays in sync after migration |
 | `tab_widget.currentChanged` -> tab-change handler | Tab data loading and tab-specific visual state |
 | `shot_grid.app_launch_requested` -> launcher | My Shots launches in shot context |
-| `threede_shot_grid.app_launch_requested` -> scene-aware launch path | 3DE launches with selected scene file |
+| `threede_shot_grid.app_launch_requested` -> scene-aware launch path | 3DE opens the selected `.3de` file; Maya/Nuke/RV must use the selected scene's workspace/context unless a DCC-native file was explicitly chosen |
 | `previous_shots_grid.app_launch_requested` -> launcher | Previous Shots launches correctly |
 
 > **Scope note:** This table lists the primary data-flow routes critical for core behavior.
@@ -27,6 +27,7 @@ If any route below is removed or changed, core behavior breaks.
 These are not usually app-breaking, but regressions are user-visible:
 
 - Right panel launch request wiring
+- 3DE-grid launch semantics: file-open for `3de`, context-only for other DCCs
 - Thumbnail size synchronization across tabs
 - Sort-order synchronization between related views
 - Log viewer visibility toggle
@@ -59,11 +60,14 @@ Do not move signals across these boundaries without updating tests and docs.
    uv run pytest tests/integration/test_threede_launch_integration.py -v
    uv run pytest tests/integration/test_shutdown_sequence.py -v
    ```
+5. When the launch source is a `ThreeDEScene`, verify that non-3DE apps do not
+   receive the `.3de` file path as their scene/workfile argument.
 
 ## High-Risk Changes
 
 - Reworking shot refresh handlers (`shots_loaded` / `shots_changed`)
 - Modifying launch-request paths
+- Mixing file-open and context-only launch routes for `ThreeDEScene` payloads
 - Changing tab-switch flow
 - Changing cross-thread signal behavior for cache migration
 

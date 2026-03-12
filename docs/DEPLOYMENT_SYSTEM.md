@@ -63,8 +63,13 @@ git checkout encoded-releases
 git pull origin encoded-releases
 python decode_app.py shotbot_latest.txt
 cd shotbot_bundle_temp
+export SHOTBOT_SCRIPTS_DIR="$PWD/scripts"
 python shotbot.py
 ```
+
+`SHOTBOT_SCRIPTS_DIR` is required when the deployed host does not provide the
+expected external Shotbot scripts location. This keeps Nuke/3DE startup hooks
+pointing at the bundled `scripts/` directory.
 
 ## Common Failure Modes
 
@@ -97,8 +102,28 @@ uv run python bundle_app.py -c transfer_config.json
 python decode_app.py shotbot_latest.txt
 ```
 
+### Missing Toolkit Apps or Startup Hooks in DCC
+
+Typical causes:
+
+1. `SHOTBOT_SCRIPTS_DIR` not set on the deployed host
+2. Bundled `scripts/` directory missing or incomplete
+3. Site Rez package / wrapper did not start an initial SGTK engine
+
+Minimal recovery loop:
+
+```bash
+cd shotbot_bundle_temp
+export SHOTBOT_SCRIPTS_DIR="$PWD/scripts"
+test -f "$SHOTBOT_SCRIPTS_DIR/init.py"
+test -f "$SHOTBOT_SCRIPTS_DIR/3de_sgtk_context_callback.py"
+python shotbot.py
+```
+
 ## Guardrails
 
 1. Do not use destructive cleanup commands in deployment hooks (`git rm -rf .`).
 2. Keep deployment behavior branch-agnostic (no checkout from background script).
 3. Treat `.post-commit-output/` logs as the first source of truth for failures.
+4. Treat `SHOTBOT_SCRIPTS_DIR` as part of the production launch contract when
+   deploying outside the facility's shared Shotbot scripts location.

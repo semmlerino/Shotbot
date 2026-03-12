@@ -21,6 +21,9 @@ Primary use cases:
 - Python `3.11+`
 - Linux shell environment for launcher execution
 - Studio workspace command availability (`ws`)
+- Rez command availability for production DCC launches unless `REZ_MODE` is explicitly disabled
+- A valid SGTK bootstrap source in the launched DCC environment
+  (`Rez` package startup, site wrapper, or Shotbot startup scripts)
 
 ## Quick Start
 
@@ -78,3 +81,9 @@ See `docs/README.md` for the full documentation index.
 
 - User settings persist via Qt `QSettings` (`~/.config/ShotBot/ShotBot.conf` on Linux).
 - App launch mappings are configured in `config.py`.
+- `SHOTBOT_SCRIPTS_DIR` should point at the deployed `scripts/` directory if the
+  facility does not provide `~/Python/Shotbot/scripts`. Shotbot injects this
+  path into `NUKE_PATH` and `PYTHON_CUSTOM_SCRIPTS_3DE4` for file-launch hooks.
+- Shotbot manages workspace and Rez shell setup, but it does not currently
+  perform a full SGTK bootstrap on its own. See `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md`
+  for the production launcher contract.
