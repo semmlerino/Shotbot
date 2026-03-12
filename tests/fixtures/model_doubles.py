@@ -231,7 +231,7 @@ class TestCacheManager(QObject):
 
     cache_updated = Signal()
     thumbnail_cached = Signal(str)
-    shots_migrated = Signal(list)  # Emitted when shots migrate to Previous Shots
+    shots_migrated = Signal(object)  # Emitted when shots migrate to Previous Shots
 
     def __init__(self, cache_dir: Path | None = None) -> None:
         """Initialize test cache manager."""
@@ -595,7 +595,7 @@ class FakePreviousShotsWorker(QObject):
     # Real Qt signals for proper integration
     started = Signal()
     scan_progress = Signal(int, int, str)
-    scan_finished = Signal(list)
+    scan_finished = Signal(object)
     error_occurred = Signal(str)
 
     def __init__(self, parent=None) -> None:

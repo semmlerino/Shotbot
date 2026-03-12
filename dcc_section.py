@@ -149,13 +149,13 @@ class DCCSection(QtWidgetMixin, QWidget):
     - Plate selector (if applicable)
 
     Attributes:
-        launch_requested: Signal(str, dict) - app_name, options dict
+        launch_requested: Signal(str, object) - app_name, options dict
         expanded_changed: Signal(str, bool) - app_name, is_expanded
         file_selected: Signal(object) - emits SceneFile when user clicks a file
 
     """
 
-    launch_requested = Signal(str, dict)  # app_name, options
+    launch_requested = Signal(str, object)  # app_name, options
     expanded_changed = Signal(str, bool)  # app_name, is_expanded
     file_selected = Signal(object)  # SceneFile
 

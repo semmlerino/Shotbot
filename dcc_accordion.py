@@ -34,12 +34,12 @@ class DCCAccordion(QtWidgetMixin, QWidget):
     user-controlled expansion (multiple sections can be open at once).
 
     Attributes:
-        launch_requested: Signal(str, dict) - app_name, options dict
+        launch_requested: Signal(str, object) - app_name, options dict
         file_selected: Signal(str, object) - app_name, SceneFile
 
     """
 
-    launch_requested = Signal(str, dict)  # app_name, options
+    launch_requested = Signal(str, object)  # app_name, options
     file_selected = Signal(str, object)  # app_name, SceneFile
 
     def __init__(

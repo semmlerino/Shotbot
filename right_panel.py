@@ -42,10 +42,10 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
     - RV section has no files (no scene files for playback)
 
     Signals:
-        launch_requested: Signal(str, dict) - app_name, options
+        launch_requested: Signal(str, object) - app_name, options
     """
 
-    launch_requested = Signal(str, dict)  # app_name, options
+    launch_requested = Signal(str, object)  # app_name, options
     status_message = Signal(str)
 
     def __init__(

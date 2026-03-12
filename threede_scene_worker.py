@@ -194,7 +194,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
     # Enhanced signals specific to 3DE discovery
     worker_discovery_started = Signal()  # Emitted when discovery starts
-    batch_ready = Signal(list)  # Emitted with each batch of scenes
+    batch_ready = Signal(object)  # Emitted with each batch of scenes
     progress = Signal(
         int,
         int,
@@ -203,7 +203,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         str,
     )  # (current, total, percentage, description, eta)
     scan_progress = Signal(int, int, str)  # Emitted during individual shot scanning
-    discovery_finished = Signal(list)  # Emitted with complete list of scenes
+    discovery_finished = Signal(object)  # Emitted with complete list of scenes
     error = Signal(str)  # Emitted when an error occurs
 
     def __init__(

@@ -63,7 +63,7 @@ class AsyncShotLoader(ThreadSafeWorker):
     """
 
     # Signals with proper type annotations
-    shots_loaded = Signal(list)  # List of Shot objects
+    shots_loaded = Signal(object)  # List of Shot objects
     load_failed = Signal(str)  # Error message string
 
     def __init__(

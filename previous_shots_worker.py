@@ -32,7 +32,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
     # Signals
     scan_progress = Signal(int, int, str)  # current, total, current_operation
-    scan_finished = Signal(list)  # List of all shots found
+    scan_finished = Signal(object)  # List of all shots found
     error_occurred = Signal(str)  # Error message
 
     def __init__(

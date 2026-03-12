@@ -91,7 +91,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
     THUMBNAIL_DEBOUNCE_MS: ClassVar[int] = 250
     BATCH_WINDOW_MS: ClassVar[int] = 10
 
-    data_changed: ClassVar[Signal] = Signal(dict)
+    data_changed: ClassVar[Signal] = Signal(object)
     thumbnail_ready: ClassVar[Signal] = Signal(int)  # row index, emitted immediately
 
     def __init__(

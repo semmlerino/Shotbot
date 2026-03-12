@@ -42,8 +42,8 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
     """
 
     # Common Qt signals
-    shots_loaded: Signal = Signal(list)  # List of Shot objects
-    shots_changed: Signal = Signal(list)  # List of Shot objects
+    shots_loaded: Signal = Signal(object)  # List of Shot objects
+    shots_changed: Signal = Signal(object)  # List of Shot objects
     refresh_started: Signal = Signal()
     refresh_finished: Signal = Signal(bool, bool)  # success, has_changes
     error_occurred: Signal = Signal(str)  # Error message

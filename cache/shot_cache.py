@@ -40,7 +40,7 @@ class ShotDataCache(LoggingMixin, QObject):
     """Shot data caching with incremental merge support."""
 
     cache_updated = Signal()
-    shots_migrated = Signal(list)
+    shots_migrated = Signal(object)
 
     def __init__(self, cache_dir: Path) -> None:
         """Initialize shot data cache.
