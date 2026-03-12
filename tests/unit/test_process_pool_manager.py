@@ -30,7 +30,7 @@ from process_pool_manager import (
 )
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.slow]
+pytestmark = [pytest.mark.unit, pytest.mark.slow, pytest.mark.qt]
 
 
 # =============================================================================

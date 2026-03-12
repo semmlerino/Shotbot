@@ -11,6 +11,9 @@ import pytest
 from PySide6.QtGui import QColor, QPalette
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
+
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 

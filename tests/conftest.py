@@ -588,6 +588,32 @@ def _module_imports_pyside6(module) -> bool:
     return result
 
 
+def _module_uses_pyside6_fast(module) -> bool:
+    """Fast check if a module has PySide6 objects at module level.
+
+    This is the runtime-only check (no AST parsing). It catches module-level
+    PySide6 imports and Qt widget subclasses. Function-level imports are caught
+    by the @pytest.mark.qt marker requirement.
+    """
+    if module is None:
+        return False
+    try:
+        module_dict = vars(module)
+    except TypeError:
+        return False
+
+    for obj in module_dict.values():
+        obj_module = getattr(obj, "__module__", "")
+        if isinstance(obj_module, str) and obj_module.startswith("PySide6"):
+            return True
+        if isinstance(obj, type):
+            for base in getattr(obj, "__mro__", ()):
+                base_module = getattr(base, "__module__", "")
+                if isinstance(base_module, str) and base_module.startswith("PySide6"):
+                    return True
+    return False
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Group Qt-using tests and auto-enable fixtures based on markers.
 
@@ -632,7 +658,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         # Auto-detect PySide6 imports if not already detected as Qt test
         if not is_qt_test:
             # Method 1: Check module-level and function-level imports
-            if item.module and _module_imports_pyside6(item.module):
+            if item.module and _module_uses_pyside6_fast(item.module):
                 is_qt_test = True
                 # Log once per module (not per test)
                 module_name = item.module.__name__ if item.module else "unknown"

@@ -18,6 +18,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+pytestmark = [pytest.mark.qt]
+
 
 def test_headless_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test headless environment detection."""

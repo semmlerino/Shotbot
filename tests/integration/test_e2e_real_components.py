@@ -27,6 +27,9 @@ if TYPE_CHECKING:
     from cache.shot_cache import ShotDataCache
 
 
+pytestmark = [pytest.mark.qt]
+
+
 # ==============================================================================
 # E2E Cache Manager Tests
 # ==============================================================================
