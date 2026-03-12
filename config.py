@@ -231,9 +231,9 @@ class Config:
     # VFX pipeline settings
     DEFAULT_USERNAME: str = "gabriel-h"  # Default username for pipeline paths
     # Production scripts directory — used for PYTHON_CUSTOM_SCRIPTS_3DE4 and NUKE_PATH exports
-    # Override with SHOTBOT_SCRIPTS_DIR env var; defaults to ~/Python/Shotbot/scripts
+    # Override with SHOTBOT_SCRIPTS_DIR env var; defaults to repo-relative scripts/
     SCRIPTS_DIR: str = os.environ.get(
-        "SHOTBOT_SCRIPTS_DIR", str(Path.home() / "Python/Shotbot/scripts")
+        "SHOTBOT_SCRIPTS_DIR", str(Path(__file__).resolve().parent / "scripts")
     )
 
     # File extensions

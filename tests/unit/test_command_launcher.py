@@ -199,8 +199,10 @@ class TestCommandLauncher:
         process_qt_events()
         assert mock_popen.called
         command_str = " ".join(mock_popen.call_args[0][0])
-        assert "export SGTK_FILE_TO_OPEN=/path/to/scene.nk" in command_str
-        assert "nuke /path/to/scene.nk" in command_str
+        assert "NUKE_PATH" in command_str
+        assert "SGTK_FILE_TO_OPEN=/path/to/scene.nk" in command_str
+        # Nuke should NOT have the scene file as a command argument
+        assert "nuke /path/to/scene.nk" not in command_str
 
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
@@ -232,8 +234,11 @@ class TestCommandLauncher:
         # Verify subprocess was called
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
-        assert "3de" in " ".join(call_args)
-        assert str(test_scene.scene_path) in " ".join(call_args)
+        command_str = " ".join(call_args)
+        assert "3de" in command_str
+        assert str(test_scene.scene_path) in command_str
+        assert "PYTHON_CUSTOM_SCRIPTS_3DE4" in command_str
+        assert "SGTK_FILE_TO_OPEN" in command_str
 
     @pytest.mark.parametrize("sequence_path", [
         None,

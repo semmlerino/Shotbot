@@ -31,7 +31,7 @@ def _shotbot_update_sgtk_context():
         new_context = engine.sgtk.context_from_path(script_path)
         if new_context and new_context.task:
             print(f"[Shotbot] Updating SGTK context to include Task: {new_context.task}")
-            engine.change_context(new_context)
+            sgtk.platform.change_context(new_context)
             print("[Shotbot] Context updated - full apps now available")
 
     except Exception as e:  # noqa: BLE001

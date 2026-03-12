@@ -53,7 +53,7 @@ def update_context_from_current_file():
 
         if new_context.task:
             print("Changing context...")
-            engine.change_context(new_context)
+            sgtk.platform.change_context(new_context)
             print("Context changed successfully!")
             print(f"New context: {engine.context}")
 

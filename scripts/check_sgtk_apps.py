@@ -67,7 +67,7 @@ try:
         print("\n[6] Attempting to trigger context change...")
         try:
             # This might trigger app re-registration
-            engine.change_context(engine.context)
+            sgtk.platform.change_context(engine.context)
             print("    Context change triggered - check menu again")
         except Exception as e:  # noqa: BLE001
             print(f"    Error: {e}")

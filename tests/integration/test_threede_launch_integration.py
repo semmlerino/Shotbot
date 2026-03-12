@@ -234,7 +234,7 @@ class TestLaunchWithScene:
         launcher: CommandLauncher,
         sample_scene: ThreeDEScene,
     ) -> None:
-        """Test launching Maya with a scene file uses -file flag."""
+        """Test launching Maya with a scene file uses context-only launch."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
 
         # Create a Maya scene
@@ -262,8 +262,9 @@ class TestLaunchWithScene:
         call_args = mock_execute.call_args
         full_command = call_args[0][0]
 
-        assert "-file" in full_command
-        assert "scene.ma" in full_command
+        # Maya gets context-only launch (no -file flag)
+        assert "-file" not in full_command
+        assert "SGTK_FILE_TO_OPEN" in full_command
 
     def test_launch_with_scene_rejects_unknown_app(
         self, launcher: CommandLauncher, sample_scene: ThreeDEScene

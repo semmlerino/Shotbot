@@ -163,7 +163,7 @@ def _shotbot_update_context():
         return
 
     try:
-        engine.change_context(new_context)
+        sgtk.platform.change_context(new_context)
         print(f"[Shotbot] Context updated to: {new_context}")
     except Exception as e:
         print(f"[Shotbot] Error changing context: {e}")
@@ -390,7 +390,12 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             return None
 
         if app_name == "3de":
-            return f"{command} -open {safe_scene_path}"
+            tde_scripts_export = (
+                f"export PYTHON_CUSTOM_SCRIPTS_3DE4={Config.SCRIPTS_DIR}:"
+                "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
+            )
+            sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
+            return f"{tde_scripts_export}{sgtk_export}{command} -open {safe_scene_path}"
 
         if app_name == "maya":
             updated = self._build_maya_context_command(command, safe_scene_path)
@@ -1027,14 +1032,22 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             command_prefix = ""
             # Add app-specific command-line flags for scene file
             if app_name == "3de":
+                # 3DE gets the scene file + scripts export + SGTK context
+                tde_scripts_export = (
+                    f"export PYTHON_CUSTOM_SCRIPTS_3DE4={Config.SCRIPTS_DIR}:"
+                    "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
+                )
+                sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
                 command = f"{command} -open {safe_scene_path}"
+                command_prefix = f"{tde_scripts_export}{sgtk_export}"
+            elif app_name == "nuke":
+                # Nuke gets context-only launch with NUKE_PATH for startup hooks
+                nuke_path_export = f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
+                sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
+                command_prefix = f"{nuke_path_export}{sgtk_export}"
             elif app_name == "maya":
-                command = f"{command} -file {safe_scene_path}"
-            else:
-                # Nuke and others accept scene file without flag
-                command = f"{command} {safe_scene_path}"
-                if app_name == "nuke":
-                    command_prefix = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
+                # Maya gets context-only launch with SGTK_FILE_TO_OPEN
+                command_prefix = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
         except ValueError as e:
             self._emit_error(f"Invalid scene path: {e!s}")
             return False
@@ -1050,7 +1063,7 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             nuke_env_context="Nuke scene launch",
             log_suffix=f" (Scene by: {scene.user}, Plate: {scene.plate})",
             error_context=" with scene",
-            command_prefix=command_prefix if app_name == "nuke" else "",
+            command_prefix=command_prefix,
         )
 
     def launch_with_file(

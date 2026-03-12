@@ -78,6 +78,7 @@ class SimpleNukeLauncher(LoggingMixin):
                     latest_script = scripts[-1]
                     safe_path = shlex.quote(str(latest_script))
                     command = (
+                        f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
                         f"export SGTK_FILE_TO_OPEN={safe_path} && nuke {safe_path}"
                     )
                     log_messages.append(f"Opening: {latest_script.name}")
@@ -183,7 +184,7 @@ try:
     if engine:
         new_context = engine.sgtk.context_from_path(script_path)
         if new_context and new_context.task:
-            engine.change_context(new_context)
+            sgtk.platform.change_context(new_context)
             os.environ["SGTK_BOOTSTRAP_DONE"] = "1"
             print(f"Updated SGTK context for workfile: {{script_path}}")
 except Exception as exc:
@@ -221,7 +222,10 @@ except OSError:
         )
         self.logger.debug(f"Startup script: {temp_script}")
 
-        return f"export SGTK_FILE_TO_OPEN={safe_script_path} && {command}"
+        return (
+            f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
+            f"export SGTK_FILE_TO_OPEN={safe_script_path} && {command}"
+        )
 
     def create_new_version(
         self,
