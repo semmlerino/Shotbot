@@ -20,6 +20,9 @@ from shot_parser import (
 )
 
 
+pytestmark = [pytest.mark.smoke]
+
+
 @pytest.fixture
 def shows_root() -> str:
     """Return the current SHOWS_ROOT for test data construction."""

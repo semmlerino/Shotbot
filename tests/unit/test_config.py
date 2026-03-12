@@ -42,6 +42,7 @@ from config import Config, ThreadingConfig
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.fast,
+    pytest.mark.smoke,
 ]
 
 

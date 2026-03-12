@@ -295,6 +295,7 @@ class TestConcurrentThumbnailRaceConditions:
             # Restore original function
             ThumbnailFinders.find_shot_thumbnail = original_find  # type: ignore[method-assign]
 
+    @pytest.mark.slow
     def test_massive_concurrent_load_stress_test(self) -> None:
         """Stress test simulating production load: 285 concurrent callbacks.
 
@@ -378,6 +379,7 @@ class TestConcurrentThumbnailRaceConditions:
         print("✓ All thread-safety mechanisms working correctly")
         print(f"{'='*70}")
 
+    @pytest.mark.slow
     @pytest.mark.parametrize(("num_workers", "num_iterations"), [
         (2, 50),
         (5, 100),

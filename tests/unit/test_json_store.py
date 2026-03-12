@@ -17,6 +17,7 @@ import pytest
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
+    pytest.mark.smoke,
 ]
 
 

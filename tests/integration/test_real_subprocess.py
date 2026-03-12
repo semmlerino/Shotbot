@@ -65,6 +65,7 @@ class TestLauncherRealSubprocess:
 
 @pytest.mark.real_subprocess
 @pytest.mark.xdist_group("real_subprocess")
+@pytest.mark.smoke
 class TestLauncherStackSmoke:
     """Smoke tests for the actual launcher stack with real subprocess execution.
 

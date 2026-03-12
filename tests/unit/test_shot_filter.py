@@ -21,6 +21,9 @@ from shot_filter import (
 from shot_model import Shot
 
 
+pytestmark = [pytest.mark.smoke]
+
+
 class TestFilterByShow:
     """Test filtering shots by show name."""
 

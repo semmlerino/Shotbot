@@ -37,7 +37,7 @@ jobs:
     - name: Run compatibility smoke tests
       run: |
         uv run pytest tests/ \
-          -m "not slow and not performance and not legacy" \
+          -m smoke \
           --tb=short \
           --maxfail=10 \
           --timeout=10 \

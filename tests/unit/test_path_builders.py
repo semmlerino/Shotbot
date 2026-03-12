@@ -17,6 +17,9 @@ from config import Config
 from path_builders import PathBuilders
 
 
+pytestmark = [pytest.mark.smoke]
+
+
 class TestBuildPath:
     """Tests for PathBuilders.build_path()."""
 
