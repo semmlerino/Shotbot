@@ -254,7 +254,12 @@ line-ending = "auto"
 [tool.pytest.ini_options]
 # Test discovery
 testpaths = ["tests"]
-norecursedirs = ["tests/manual", "tests/performance", ".git", ".venv", "archive", ".hypothesis"]
+norecursedirs = [
+    "tests/manual", "tests/performance",
+    ".git", ".venv", "archive", ".hypothesis",
+    "__pycache__", ".pytest_cache", ".ruff_cache",
+    "coverage_html", "htmlcov", "encoded_releases",
+]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -332,6 +337,7 @@ markers = [
     "skip_if_parallel: Skip when running in parallel mode due to Qt state pollution",
     "allow_dialogs: Suppress strict dialog failure for a test",
     "real_timing: Bypass short-wait patch for timing-sensitive tests",
+    "smoke: Fast, dependency-light tests for cross-version compatibility checks",
 ]
 
 # Coverage configuration

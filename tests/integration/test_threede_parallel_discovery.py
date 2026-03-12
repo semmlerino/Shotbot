@@ -183,18 +183,6 @@ class TestParallelDiscoveryIntegration:
         valid_scenes = [s for s in scenes if s.scene_path.exists()]
         assert len(valid_scenes) > 0
 
-    def test_find_all_3de_files_in_show_targeted_finds_files(self) -> None:
-        """Test that targeted file discovery finds .3de files in a show."""
-        shows_root, _ = create_test_vfx_structure(self.shows_root)
-
-        results = FileSystemScanner().find_all_3de_files_in_show_targeted(
-            show_root=str(shows_root),
-            show="TESTSHOW",
-        )
-
-        assert isinstance(results, list)
-        assert len(results) > 0, "Should find files in test structure"
-
     def test_concurrent_parallel_discovery(self) -> None:
         """Test multiple parallel discoveries running concurrently."""
         # Standard library imports

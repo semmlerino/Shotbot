@@ -368,7 +368,10 @@ pytest_plugins = [
 
 
 # Fixtures that indicate a test uses Qt and needs grouping/cleanup
-_QT_FIXTURES = frozenset({"qtbot", "cleanup_qt_state", "qt_cleanup", "qapp"})
+_QT_FIXTURES = frozenset({
+    "qtbot", "cleanup_qt_state", "qt_cleanup", "qapp",
+    "suppress_qmessagebox", "prevent_qapp_exit",
+})
 
 # Logger for Qt detection messages
 import logging
@@ -403,6 +406,8 @@ def _qt_auto_fixtures(request: pytest.FixtureRequest) -> None:
     if is_qt_test:
         request.getfixturevalue("qt_cleanup")
         request.getfixturevalue("cleanup_state_heavy")
+        request.getfixturevalue("suppress_qmessagebox")
+        request.getfixturevalue("prevent_qapp_exit")
 
 
 def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:

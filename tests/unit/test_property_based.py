@@ -24,7 +24,7 @@ from hypothesis.strategies import composite
 from config import Config
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 # Custom strategies for shot components

@@ -4,12 +4,12 @@ This module provides autouse fixtures that prevent Qt-related test failures
 by suppressing modal dialogs and preventing application exit calls that
 would corrupt the event loop.
 
-These fixtures are ALWAYS active (autouse=True) because the issues they
-prevent can cascade through the entire test suite.
+These fixtures are activated for Qt tests by the _qt_auto_fixtures dispatcher
+in conftest.py to prevent cascading failures.
 
 Fixtures:
-    suppress_qmessagebox: Auto-dismiss modal dialogs (autouse), returns DialogRecorder
-    prevent_qapp_exit: Prevent QApplication exit/quit calls (autouse)
+    suppress_qmessagebox: Dismiss modal dialogs (Qt tests), returns DialogRecorder
+    prevent_qapp_exit: Prevent QApplication exit/quit calls (Qt tests)
     expect_dialog: Assert at least one dialog shown (opt-in)
     expect_no_dialogs: Assert no dialogs shown (opt-in)
 """
@@ -119,13 +119,13 @@ class DialogRecorder:
         self.calls.clear()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def suppress_qmessagebox(
     monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
 ) -> DialogRecorder:
-    """Auto-dismiss modal dialogs to prevent blocking tests.
+    """Dismiss modal dialogs to prevent blocking tests.
 
-    This autouse fixture provides default mocks for QMessageBox to prevent
+    This fixture provides default mocks for QMessageBox to prevent
     real dialogs from appearing. Individual tests can override these mocks
     with their own monkeypatch calls - test-specific patches take priority.
 
@@ -225,7 +225,7 @@ def suppress_qmessagebox(
         )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def prevent_qapp_exit(monkeypatch: pytest.MonkeyPatch, qapp: QApplication) -> None:
     """Prevent tests from calling QApplication.exit() or quit() which poisons event loops.
 
