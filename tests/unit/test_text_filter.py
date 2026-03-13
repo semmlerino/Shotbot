@@ -99,6 +99,16 @@ class TestThreeDESceneModelTextFiltering:
         threede_scene_model.set_text_filter(None)
         assert threede_scene_model.get_text_filter() is None
 
+    def test_set_artist_filter(self, threede_scene_model: ThreeDESceneModel) -> None:
+        """Test setting the artist filter on 3DE scene model."""
+        assert threede_scene_model.get_artist_filter() is None
+
+        threede_scene_model.set_artist_filter("user1")
+        assert threede_scene_model.get_artist_filter() == "user1"
+
+        threede_scene_model.set_artist_filter(None)
+        assert threede_scene_model.get_artist_filter() is None
+
     def test_get_filtered_scenes_with_text_filter(
         self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
     ) -> None:
@@ -117,18 +127,32 @@ class TestThreeDESceneModelTextFiltering:
         assert len(filtered) == 1
         assert filtered[0].shot == "other_scene"
 
+    def test_get_filtered_scenes_with_artist_filter(
+        self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
+    ) -> None:
+        """Test filtering 3DE scenes by artist."""
+        threede_scene_model.set_scenes(test_scenes)
+
+        threede_scene_model.set_artist_filter("user1")
+        filtered = threede_scene_model.get_filtered_scenes()
+
+        assert len(filtered) == 2
+        assert all(scene.user == "user1" for scene in filtered)
+
     def test_get_filtered_scenes_combined_filters(
         self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
     ) -> None:
-        """Test combining show and text filters for 3DE scenes."""
+        """Test combining show, artist, and text filters for 3DE scenes."""
         threede_scene_model.set_scenes(test_scenes)
 
-        # Both filters: show1 AND dm
+        # All filters: show1 AND user1 AND dm
         threede_scene_model.set_show_filter("show1")
+        threede_scene_model.set_artist_filter("user1")
         threede_scene_model.set_text_filter("dm")
         filtered = threede_scene_model.get_filtered_scenes()
-        assert len(filtered) == 2
+        assert len(filtered) == 1
         assert all(scene.show == "show1" for scene in filtered)
+        assert all(scene.user == "user1" for scene in filtered)
         assert all("dm" in scene.shot.lower() for scene in filtered)
 
 

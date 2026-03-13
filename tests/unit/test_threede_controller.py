@@ -49,13 +49,19 @@ class ThreeDEGridViewDouble:
         self.scene_double_clicked = SignalDouble()
         self.recover_crashes_requested = SignalDouble()
         self.show_filter_requested = SignalDouble()
+        self.artist_filter_requested = SignalDouble()
         self.text_filter_requested = SignalDouble()
         self._show_filter_populated = False
+        self._artist_filter_populated = False
         self._selected_scene: ThreeDEScene | None = None
 
     def populate_show_filter(self, model: Any) -> None:
         """Populate show filter from model."""
         self._show_filter_populated = True
+
+    def populate_artist_filter(self, model: Any) -> None:
+        """Populate artist filter from model."""
+        self._artist_filter_populated = True
 
     @property
     def selected_scene(self) -> ThreeDEScene | None:
@@ -70,6 +76,8 @@ class ThreeDESceneModelDouble:
 
     def __init__(self, cache_manager: Any = None) -> None:
         self._scenes: list[ThreeDEScene] = []
+        self._show_filter: str | None = None
+        self._artist_filter: str | None = None
         self._text_filter: str | None = None
         self.cache_manager = cache_manager or SceneDiskCacheDouble()
 
@@ -99,11 +107,42 @@ class ThreeDESceneModelDouble:
         """Set text filter."""
         self._text_filter = text
 
+    def set_show_filter(self, show: str | None) -> None:
+        """Set show filter."""
+        self._show_filter = show
+
+    def get_show_filter(self) -> str | None:
+        """Get show filter."""
+        return self._show_filter
+
+    def set_artist_filter(self, artist: str | None) -> None:
+        """Set artist filter."""
+        self._artist_filter = artist
+
+    def get_artist_filter(self) -> str | None:
+        """Get artist filter."""
+        return self._artist_filter
+
+    def get_unique_shows(self) -> list[str]:
+        """Get unique shows."""
+        return sorted({scene.show for scene in self._scenes})
+
+    def get_unique_artists(self) -> list[str]:
+        """Get unique artists."""
+        return sorted({scene.user for scene in self._scenes})
+
     def get_filtered_scenes(self) -> list[ThreeDEScene]:
         """Get filtered scenes."""
-        if not self._text_filter:
-            return self._scenes
-        return [s for s in self._scenes if self._text_filter.lower() in s.full_name.lower()]
+        scenes = self._scenes
+        if self._show_filter:
+            scenes = [s for s in scenes if s.show == self._show_filter]
+        if self._artist_filter:
+            scenes = [s for s in scenes if s.user == self._artist_filter]
+        if self._text_filter:
+            scenes = [
+                s for s in scenes if self._text_filter.lower() in s.full_name.lower()
+            ]
+        return scenes
 
     def to_dict(self) -> list[dict[str, Any]]:
         """Convert scenes to dict list for caching."""
@@ -137,14 +176,24 @@ class ThreeDEItemModelDouble:
 
     def set_show_filter(self, model: Any, show: str | None) -> None:
         self._filter_show = show or ""
+        if hasattr(model, "set_show_filter"):
+            model.set_show_filter(show)
+        if hasattr(model, "get_filtered_scenes"):
+            self.set_scenes(model.get_filtered_scenes())
 
     def set_scenes(self, scenes: list[ThreeDEScene]) -> None:
         """Set scenes in the model."""
         self._scenes = scenes
+        self._items = list(scenes)
 
     def set_items(self, items: list[ThreeDEScene]) -> None:
         """Set items (filtered scenes) in the model."""
         self._items = items
+        self._scenes = list(items)
+
+    def rowCount(self) -> int:
+        """Return current visible row count."""
+        return len(self._items)
 
 
 class ShotModelDouble:
@@ -383,6 +432,7 @@ class TestSignalSetup:
             ("scene_double_clicked", "on_scene_double_clicked"),
             ("recover_crashes_requested", "on_recover_crashes_clicked"),
             ("show_filter_requested", "_on_show_filter_requested"),
+            ("artist_filter_requested", "_on_artist_filter_requested"),
             ("text_filter_requested", "_on_text_filter_requested"),
         ],
     )
@@ -708,6 +758,14 @@ class TestFilterHandling:
         # The filter should be applied to scene model
         assert window_double.threede_scene_model._text_filter == "sq010"
 
+    def test_artist_filter_applies_to_scene_model(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that artist filter is applied to scene model."""
+        controller._on_artist_filter_requested("artist_a")
+
+        assert window_double.threede_scene_model._artist_filter == "artist_a"
+
     def test_empty_show_filter_clears_filter(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
@@ -719,6 +777,21 @@ class TestFilterHandling:
 
         # Empty string is converted to None, which becomes "" in the double
         assert window_double.threede_item_model._filter_show == ""
+
+    def test_update_ui_populates_artist_filter(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that UI refresh populates the artist filter dropdown."""
+        window_double.threede_scene_model.set_scenes(
+            [
+                make_scene(user="artist_a"),
+                make_scene(shot="sh0020", user="artist_b"),
+            ]
+        )
+
+        controller.update_ui()
+
+        assert window_double.threede_shot_grid._artist_filter_populated is True
 
 
 # ============================================================================
@@ -858,6 +931,5 @@ class TestCacheOperations:
         assert len(cached) == 2
         assert cached[0]["show"] == "testshow"
         assert cached[0]["sequence"] == "sq010"
-
 
 

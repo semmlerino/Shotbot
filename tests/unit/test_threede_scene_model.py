@@ -337,6 +337,38 @@ class TestThreeDESceneModel:
         assert len(scenes) == 2
         assert all(isinstance(s, ThreeDEScene) for s in scenes)
 
+    def test_get_unique_artists(
+        self, scene_disk_cache: object, make_real_3de_file: Callable[..., Path]
+    ) -> None:
+        """Test unique artists are returned in sorted order."""
+        model = ThreeDESceneModel(cache_manager=scene_disk_cache)
+
+        scene_path1 = make_real_3de_file("show1", "seq01", "shot01", "artist_b")
+        scene_path2 = make_real_3de_file("show1", "seq01", "shot02", "artist_a")
+
+        model.scenes = [
+            ThreeDEScene(
+                "show1",
+                "seq01",
+                "shot01",
+                str(scene_path1.parent.parent.parent.parent),
+                "artist_b",
+                "FG01",
+                scene_path1,
+            ),
+            ThreeDEScene(
+                "show1",
+                "seq01",
+                "shot02",
+                str(scene_path2.parent.parent.parent.parent),
+                "artist_a",
+                "BG01",
+                scene_path2,
+            ),
+        ]
+
+        assert model.get_unique_artists() == ["artist_a", "artist_b"]
+
     def test_find_scene_by_display_name(
         self, scene_disk_cache: object, make_real_3de_file: Callable[..., Path]
     ) -> None:
@@ -524,4 +556,3 @@ class TestThreeDESceneModel:
 
         assert result is False
         assert len(model.scenes) == 0
-

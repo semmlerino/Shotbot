@@ -196,6 +196,7 @@ class ThreeDESceneModel:
         self._excluded_users: set[str] = ValidationUtils.get_excluded_users()
         # Show filtering
         self._filter_show: str | None = None
+        self._filter_artist: str | None = None
         self._filter_text: str | None = None  # Text filter for real-time search
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
@@ -255,6 +256,11 @@ class ThreeDESceneModel:
         shows = {scene.show for scene in self.scenes}
         return sorted(shows)
 
+    def get_unique_artists(self) -> list[str]:
+        """Get sorted list of unique artist names from all scenes."""
+        artists = {scene.user for scene in self.scenes}
+        return sorted(artists, key=str.casefold)
+
     def set_show_filter(self, show: str | None) -> None:
         """Set the show filter.
 
@@ -267,6 +273,19 @@ class ThreeDESceneModel:
     def get_show_filter(self) -> str | None:
         """Get the current show filter."""
         return self._filter_show
+
+    def set_artist_filter(self, artist: str | None) -> None:
+        """Set the artist filter.
+
+        Args:
+            artist: Artist name to filter by, or None for no filtering
+
+        """
+        self._filter_artist = artist
+
+    def get_artist_filter(self) -> str | None:
+        """Get the current artist filter."""
+        return self._filter_artist
 
     def set_text_filter(self, text: str | None) -> None:
         """Set the text filter for real-time search.
@@ -283,9 +302,9 @@ class ThreeDESceneModel:
         return self._filter_text
 
     def get_filtered_scenes(self) -> list[ThreeDEScene]:
-        """Get scenes filtered by show and text filters.
+        """Get scenes filtered by show, artist, and text filters.
 
-        Applies both show filter and text filter (AND logic).
+        Applies all active filters using AND logic.
 
         Returns:
             List of scenes matching the filters, or all scenes if no filters
@@ -297,6 +316,10 @@ class ThreeDESceneModel:
         if self._filter_show is not None:
             scenes = [scene for scene in scenes if scene.show == self._filter_show]
 
+        # Apply artist filter
+        if self._filter_artist is not None:
+            scenes = [scene for scene in scenes if scene.user == self._filter_artist]
+
         # Apply text filter (case-insensitive substring match on full_name)
         if self._filter_text:
             filter_lower = self._filter_text.lower()
@@ -305,7 +328,12 @@ class ThreeDESceneModel:
             ]
 
         logger.debug(
-            f"Filtered {len(self.scenes)} scenes to {len(scenes)} (show='{self._filter_show}', text='{self._filter_text}')"
+            "Filtered %s scenes to %s (show=%r, artist=%r, text=%r)",
+            len(self.scenes),
+            len(scenes),
+            self._filter_show,
+            self._filter_artist,
+            self._filter_text,
         )
         return scenes
 

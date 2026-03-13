@@ -23,6 +23,7 @@ from PySide6.QtCore import (
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
+    QComboBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -74,6 +75,7 @@ class ThreeDEGridView(BaseGridView):
     app_launch_requested = Signal(str, object)  # app_name, scene
     recover_crashes_requested = Signal()  # User clicked recover crashes button
     sort_order_changed = Signal(str)  # "name" or "date"
+    artist_filter_requested = Signal(str)  # artist name or empty string for all
 
     def __init__(
         self,
@@ -97,6 +99,7 @@ class ThreeDEGridView(BaseGridView):
         self.loading_label: QLabel
         self.count_label: QLabel
         self.recover_button: QPushButton
+        self.artist_combo: QComboBox
         self.sort_name_btn: QPushButton
         self.sort_date_btn: QPushButton
         self._sort_button_group: QButtonGroup
@@ -107,7 +110,8 @@ class ThreeDEGridView(BaseGridView):
         super().__init__(parent)
 
         # Update text filter placeholder for 3DE context
-        self.text_filter_input.setPlaceholderText("Filter scenes...")
+        self.text_filter_input.setPlaceholderText("Filter shot name...")
+        self.text_filter_input.setToolTip("Filter by shot or sequence")
 
         # ThreeDEGridView-specific attributes
         self._selected_scene = None
@@ -159,6 +163,15 @@ class ThreeDEGridView(BaseGridView):
             layout: The toolbar horizontal layout
 
         """
+        self.artist_combo = QComboBox()
+        self.artist_combo.addItem("All Artists")
+        self.artist_combo.setFixedWidth(130)
+        self.artist_combo.setToolTip("Filter by artist")
+        _ = self.artist_combo.currentTextChanged.connect(
+            self._on_artist_filter_changed
+        )
+        layout.addWidget(self.artist_combo)
+
         # Sort toggle buttons
         sort_label = QLabel("Sort:")
         layout.addWidget(sort_label)
@@ -245,19 +258,66 @@ class ThreeDEGridView(BaseGridView):
 
         """
         if isinstance(shows, list):
-            # Type narrowing: shows is list[str] after isinstance check
             shows_list = cast("list[str]", shows)
-            super().populate_show_filter(shows_list)
         else:
-            # Type narrowing: if not list, must be ThreeDESceneModel
             from threede_scene_model import ThreeDESceneModel
 
             assert isinstance(shows, ThreeDESceneModel)
-            model_shows = shows.get_unique_shows()
-            super().populate_show_filter(model_shows)
-            show_count = len(model_shows)
-            show_word = "show" if show_count == 1 else "shows"
-            self.logger.info(f"Populated show filter with {show_count} {show_word}")
+            shows_list = shows.get_unique_shows()
+
+        self._populate_filter_combo(self.show_combo, shows_list, "All Shows")
+        show_count = len(shows_list)
+        show_word = "show" if show_count == 1 else "shows"
+        self.logger.info(f"Populated show filter with {show_count} {show_word}")
+
+    def populate_artist_filter(self, artists: list[str] | object) -> None:
+        """Populate the artist filter combo box with available artists.
+
+        Args:
+            artists: List of artist names or ThreeDESceneModel to extract artists from
+
+        """
+        if isinstance(artists, list):
+            artist_list = cast("list[str]", artists)
+        else:
+            from threede_scene_model import ThreeDESceneModel
+
+            assert isinstance(artists, ThreeDESceneModel)
+            artist_list = artists.get_unique_artists()
+
+        self._populate_filter_combo(self.artist_combo, artist_list, "All Artists")
+        artist_count = len(artist_list)
+        artist_word = "artist" if artist_count == 1 else "artists"
+        self.logger.info(
+            f"Populated artist filter with {artist_count} {artist_word}"
+        )
+
+    def _populate_filter_combo(
+        self,
+        combo: QComboBox,
+        values: list[str],
+        all_label: str,
+    ) -> None:
+        """Populate a filter combo and preserve its selection when possible."""
+        current_text = combo.currentText()
+        previous_state = combo.blockSignals(True)
+        try:
+            combo.clear()
+            combo.addItem(all_label)
+            for value in sorted(values, key=str.casefold):
+                combo.addItem(value)
+
+            next_text = current_text if combo.findText(current_text) >= 0 else all_label
+            combo.setCurrentText(next_text)
+        finally:
+            combo.blockSignals(previous_state)
+
+    @Slot(str)  # pyright: ignore[reportAny]
+    def _on_artist_filter_changed(self, artist_text: str) -> None:
+        """Handle artist filter change."""
+        artist_filter = "" if artist_text == "All Artists" else artist_text
+        self.artist_filter_requested.emit(artist_filter)
+        self.logger.info(f"Artist filter requested: {artist_text}")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_scenes_updated(self) -> None:

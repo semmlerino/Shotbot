@@ -152,6 +152,10 @@ class ThreeDEController(LoggingMixin):
         if hasattr(grid, "show_filter_requested"):
             _ = grid.show_filter_requested.connect(self._on_show_filter_requested)  # pyright: ignore[reportAny]
 
+        # Artist filtering (if available)
+        if hasattr(grid, "artist_filter_requested"):
+            _ = grid.artist_filter_requested.connect(self._on_artist_filter_requested)  # pyright: ignore[reportAny]
+
         # Text filtering (if available)
         if hasattr(grid, "text_filter_requested"):
             _ = grid.text_filter_requested.connect(self._on_text_filter_requested)  # pyright: ignore[reportAny]
@@ -608,15 +612,26 @@ class ThreeDEController(LoggingMixin):
         )
 
     @Slot(str)  # pyright: ignore[reportAny]
+    def _on_artist_filter_requested(self, artist: str) -> None:
+        """Handle artist filter requests from 3DE grid."""
+        filter_artist = artist.strip() if artist else None
+        self.window.threede_scene_model.set_artist_filter(filter_artist)
+
+        filtered_scenes = self._refresh_filtered_scenes()
+        self.logger.debug(
+            "3DE artist filter applied: %r - %s scenes",
+            filter_artist,
+            len(filtered_scenes),
+        )
+
+    @Slot(str)  # pyright: ignore[reportAny]
     def _on_text_filter_requested(self, text: str) -> None:
         """Handle text filter requests from 3DE grid."""
         # Set text filter on model
         filter_text = text.strip() if text else None
         self.window.threede_scene_model.set_text_filter(filter_text)
 
-        # Update item model with filtered scenes
-        filtered_scenes = self.window.threede_scene_model.get_filtered_scenes()
-        self.window.threede_item_model.set_items(filtered_scenes)
+        filtered_scenes = self._refresh_filtered_scenes()
 
         self.logger.debug(
             f"3DE text filter applied: '{filter_text}' - {len(filtered_scenes)} scenes"
@@ -717,16 +732,31 @@ class ThreeDEController(LoggingMixin):
 
     def update_ui(self) -> None:
         """Update the 3DE UI elements with current scenes."""
-        self.window.threede_item_model.set_scenes(
-            self.window.threede_scene_model.scenes
-        )
-        # Populate show filter with available shows
-        self.window.threede_shot_grid.populate_show_filter(
-            self.window.threede_scene_model
-        )
+        scene_model = self.window.threede_scene_model
+        active_show = scene_model.get_show_filter()
+        available_shows = scene_model.get_unique_shows()
+        if active_show is not None and active_show not in available_shows:
+            scene_model.set_show_filter(None)
+
+        active_artist = scene_model.get_artist_filter()
+        available_artists = scene_model.get_unique_artists()
+        if active_artist is not None and active_artist not in available_artists:
+            scene_model.set_artist_filter(None)
+
+        self.window.threede_shot_grid.populate_show_filter(available_shows)
+        self.window.threede_shot_grid.populate_artist_filter(available_artists)
+        visible_scenes = self._refresh_filtered_scenes()
         self.logger.info(
-            f"✅ UI model updated with {len(self.window.threede_scene_model.scenes)} scenes"
+            "✅ UI model updated with %s visible scenes from %s total",
+            len(visible_scenes),
+            len(scene_model.scenes),
         )
+
+    def _refresh_filtered_scenes(self) -> list[ThreeDEScene]:
+        """Rebuild the item model from the currently active scene filters."""
+        filtered_scenes = self.window.threede_scene_model.get_filtered_scenes()
+        self.window.threede_item_model.set_scenes(filtered_scenes)
+        return filtered_scenes
 
     def _apply_show_filter(
         self, item_model: FilterableItemModel, model: object, show: str, tab_name: str

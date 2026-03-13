@@ -12,6 +12,7 @@ from pathlib import Path
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtTest import QSignalSpy
 
 # Local application imports
 from config import Config
@@ -104,6 +105,52 @@ class TestThreeDEGridViewInitialization:
     def test_focus_policy(self, threede_grid) -> None:
         """Test widget has proper focus policy."""
         assert threede_grid.focusPolicy() == Qt.FocusPolicy.StrongFocus
+
+
+class TestThreeDEGridViewFilters:
+    """Test ThreeDE-specific filter widgets."""
+
+    def test_artist_filter_combo_exists(self, threede_grid) -> None:
+        """Test artist filter combo is created with the default option."""
+        assert hasattr(threede_grid, "artist_combo")
+        assert threede_grid.artist_combo.currentText() == "All Artists"
+        assert threede_grid.artist_combo.count() == 1
+
+    def test_populate_artist_filter_from_scene_model(
+        self, threede_grid, scene_model
+    ) -> None:
+        """Test artist filter is populated from the scene model."""
+        threede_grid.populate_artist_filter(scene_model)
+
+        assert threede_grid.artist_combo.count() == 6
+        assert threede_grid.artist_combo.itemText(0) == "All Artists"
+        assert threede_grid.artist_combo.itemText(1) == "user0"
+        assert threede_grid.artist_combo.itemText(5) == "user4"
+
+    @pytest.mark.allow_dialogs
+    def test_artist_filter_change_emits_signal(self, threede_grid, scene_model) -> None:
+        """Test changing the artist filter emits the selected artist name."""
+        threede_grid.populate_artist_filter(scene_model)
+
+        signal_spy = QSignalSpy(threede_grid.artist_filter_requested)
+        threede_grid.artist_combo.setCurrentText("user3")
+
+        assert signal_spy.count() == 1
+        assert signal_spy.at(0)[0] == "user3"
+
+    @pytest.mark.allow_dialogs
+    def test_artist_filter_all_artists_emits_empty_string(
+        self, threede_grid, scene_model
+    ) -> None:
+        """Test selecting 'All Artists' clears the artist filter."""
+        threede_grid.populate_artist_filter(scene_model)
+        threede_grid.artist_combo.setCurrentText("user2")
+
+        signal_spy = QSignalSpy(threede_grid.artist_filter_requested)
+        threede_grid.artist_combo.setCurrentText("All Artists")
+
+        assert signal_spy.count() == 1
+        assert signal_spy.at(0)[0] == ""
 
 
 class TestThreeDEGridViewSizeControl:
