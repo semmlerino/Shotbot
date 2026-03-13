@@ -17,8 +17,6 @@ from typing import TYPE_CHECKING, Final
 import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from notification_manager import NotificationManager
-
 
 if TYPE_CHECKING:
     from config import Config
@@ -51,6 +49,8 @@ class ProcessExecutor(QObject):
     app_verified: Signal = Signal(str, int)  # app_name, pid
     app_verification_failed: Signal = Signal(str, str)  # app_name, error_message
     app_verification_timeout: Signal = Signal(str)  # app_name
+    headless_launch_warning: Signal = Signal(str)  # app_name
+    launch_crash_detected: Signal = Signal(str)  # app_name
 
     # Known GUI applications that should run in background
     GUI_APPS: Final[set[str]] = {
@@ -211,11 +211,7 @@ class ProcessExecutor(QObject):
                 f"No terminal available, launching {app_name} in headless mode. "
                 "If app prompts for input, it may hang."
             )
-            NotificationManager.warning(
-                "Headless Launch",
-                f"No terminal found. {app_name} will run without terminal window. "
-                "Install gnome-terminal, konsole, or xterm for better experience.",
-            )
+            self.headless_launch_warning.emit(app_name)
         else:
             self.logger.info(f"Launching {app_name} in new {terminal} terminal")
 
@@ -301,9 +297,7 @@ class ProcessExecutor(QObject):
                 # Signal source deleted - object is being cleaned up
                 return
 
-            NotificationManager.error(
-                "Launch Failed", f"{app_name} crashed immediately"
-            )
+            self.launch_crash_detected.emit(app_name)
         else:
             # Process spawned successfully
             self.logger.debug(f"{app_name} process spawned successfully (PID {process.pid})")
@@ -561,13 +555,6 @@ class ProcessExecutor(QObject):
                 )
                 # Emit as ERROR, not just progress - enables proper error handling
                 self.execution_error.emit(timestamp, error_msg)
-
-                # Also show notification for GUI apps - user may have missed the error
-                NotificationManager.warning(
-                    "Launch Verification Failed",
-                    f"{app_name} may have failed to start. "
-                    f"Check terminal or {log_hint} for errors.",
-                )
             else:
                 self.execution_progress.emit(
                     timestamp,

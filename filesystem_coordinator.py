@@ -9,6 +9,7 @@ from typing import ClassVar
 
 from logging_mixin import LoggingMixin
 from singleton_mixin import SingletonMixin
+from timeout_config import TimeoutConfig
 from typing_compat import override
 
 
@@ -36,7 +37,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         # Cache: path -> (listing as (name, is_dir, is_file) tuples, timestamp)
         self._directory_cache: dict[Path, tuple[list[tuple[str, bool, bool]], float]] = {}
-        self._ttl_seconds: int = 300  # 5 minutes TTL for cached listings
+        self._ttl_seconds: int = TimeoutConfig.FILESYSTEM_CACHE_TTL  # 5 minutes TTL for cached listings
         self._cache_hits: int = 0
         self._cache_misses: int = 0
 

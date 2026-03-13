@@ -193,7 +193,7 @@ class TestCommandLauncher:
             scene_path=Path("/path/to/scene.nk"),
         )
 
-        result = launcher.launch_app_with_scene("nuke", nuke_scene)
+        result = launcher.launch_app_opening_scene_file("nuke", nuke_scene)
 
         assert result is True
         process_qt_events()
@@ -223,7 +223,7 @@ class TestCommandLauncher:
         mock_popen.return_value = _running_process_double("3de")
 
         # Launch 3DE with scene
-        result = launcher.launch_app_with_scene("3de", test_scene)
+        result = launcher.launch_app_opening_scene_file("3de", test_scene)
 
         # Verify launch was successful
         assert result is True
@@ -435,6 +435,7 @@ class TestCommandLauncherSignals:
             assert mock_popen.called
 
 
+@pytest.mark.allow_dialogs
 class TestVerificationTimeoutCounter:
     """Test verification timeout counter behavior.
 

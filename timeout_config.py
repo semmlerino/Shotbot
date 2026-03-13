@@ -50,6 +50,19 @@ class TimeoutConfig:
     BACKGROUND_TASK: int = 60  # 1 minute for background tasks
     CLEANUP_OPERATION: int = 10  # 10 seconds for cleanup operations
 
+    # Shot model operation timeouts
+    SHOT_WORKSPACE_COMMAND: int = 30  # 30 seconds for shot workspace commands
+    SHOT_CACHE_OPERATION: int = 5  # 5 seconds for shot cache reads
+
+    # Image processing timeouts
+    IMAGE_TOOL_STANDARD: int = 30  # 30 seconds for ffmpeg/oiiotool operations
+
+    # Filesystem coordination
+    FILESYSTEM_CACHE_TTL: int = 300  # 5 minutes TTL for cached directory listings
+
+    # Concurrent operation timeouts
+    FUTURE_RESULT_QUICK: int = 5  # 5 seconds for quick future.result() calls
+
     # UI and interaction timeouts (in milliseconds)
     UI_OPERATION_MS: int = 5000  # 5 seconds for UI operations
     UI_ANIMATION_MS: int = 1000  # 1 second for animations

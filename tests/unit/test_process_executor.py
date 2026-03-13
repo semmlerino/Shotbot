@@ -241,10 +241,8 @@ class TestNewTerminalExecution:
 class TestProcessVerification:
     """Tests for process spawn verification."""
 
-    @patch("launch.process_executor.NotificationManager.error")
     def test_process_crashed_immediately(
         self,
-        mock_notification: MagicMock,
         executor: ProcessExecutor,
         qtbot: QtBot,
     ) -> None:
@@ -256,12 +254,10 @@ class TestProcessVerification:
         with (
             qtbot.waitSignal(executor.execution_error, timeout=1000),
             qtbot.waitSignal(executor.execution_completed, timeout=1000),
+            qtbot.waitSignal(executor.launch_crash_detected, timeout=1000),
         ):
             # Call verification
             executor.verify_spawn(mock_process, "nuke")
-
-        # Verify notification was shown
-        mock_notification.assert_called_once()
 
     def test_process_spawned_successfully(
         self, executor: ProcessExecutor, qtbot: QtBot

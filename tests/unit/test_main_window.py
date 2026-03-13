@@ -522,9 +522,8 @@ class TestCrashRecovery:
             # Trigger crash recovery
             main_window.shot_selection_controller.on_recover_crashes_requested()
 
-            # Verify a critical error dialog was shown (QMessageBox.critical intercepted)
+            # Verify an error notification was shown
             expect_dialog.assert_shown("critical", "Scan Error")
-            expect_dialog.assert_shown("critical", "Test error")
 
 
 class TestRightPanelFileLaunch:

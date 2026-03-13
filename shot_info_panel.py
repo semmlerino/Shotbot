@@ -638,6 +638,6 @@ class ThumbnailCacheRunnable(QRunnable):
                 self.sequence,
                 self.shot,
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             # Log but don't propagate - caching failure is non-critical
-            logger.debug(f"Background thumbnail caching failed: {e}")
+            logger.debug("Background thumbnail caching failed", exc_info=True)

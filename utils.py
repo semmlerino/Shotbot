@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, ClassVar
 # Local application imports
 from config import Config
 from logging_mixin import get_module_logger
+from timeout_config import TimeoutConfig
 
 
 if TYPE_CHECKING:
@@ -687,7 +688,7 @@ class ImageUtils:
             str(output_path),
         ]
 
-        result = ImageUtils._run_image_tool(mov_path, cmd, output_path, timeout=30, tool_name="FFmpeg")
+        result = ImageUtils._run_image_tool(mov_path, cmd, output_path, timeout=TimeoutConfig.IMAGE_TOOL_STANDARD, tool_name="FFmpeg")
         if result:
             logger.debug(f"Successfully extracted frame #5 from MOV: {mov_path.name}")
         return result
@@ -767,7 +768,7 @@ class ImageUtils:
             "-o", str(output_path),
         ]
 
-        return ImageUtils._run_image_tool(exr_path, cmd, output_path, timeout=30, tool_name="oiiotool")
+        return ImageUtils._run_image_tool(exr_path, cmd, output_path, timeout=TimeoutConfig.IMAGE_TOOL_STANDARD, tool_name="oiiotool")
 
     @staticmethod
     def get_mov_duration(mov_path: Path) -> float | None:

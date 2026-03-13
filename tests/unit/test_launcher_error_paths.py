@@ -4,9 +4,9 @@ Covers:
 - ProcessExecutor.verify_spawn signal emission when process crashes immediately
 - ProcessExecutor.execute_in_new_terminal with PermissionError and OSError
 - _validate_workspace_before_launch edge cases (nonexistent path, file not dir, permissions)
-- Invalid/dangerous scene paths in launch_app_with_scene
+- Invalid/dangerous scene paths in launch_app_opening_scene_file
 - Invalid/dangerous workspace paths in _finish_launch
-- Unknown app_name in launch_app and launch_app_with_scene
+- Unknown app_name in launch_app and launch_app_opening_scene_file
 - Two timeouts then success: counter resets and cache is NOT reset at the second timeout
 - ProcessVerifier._is_gui_app and _extract_app_name edge cases
 - ProcessVerifier.cleanup_old_pid_files with missing directory
@@ -333,21 +333,21 @@ class TestLaunchAppGuardClauses:
 
         assert result is False
 
-    def test_launch_app_with_scene_unknown_app_emits_error(
+    def test_launch_app_opening_scene_file_unknown_app_emits_error(
         self,
         launcher: CommandLauncher,
         test_scene: ThreeDEScene,
         qtbot: QtBot,
     ) -> None:
-        """launch_app_with_scene returns False for unknown app names."""
+        """launch_app_opening_scene_file returns False for unknown app names."""
 
-        result = launcher.launch_app_with_scene("blender_xyz_unknown", test_scene)
+        result = launcher.launch_app_opening_scene_file("blender_xyz_unknown", test_scene)
 
         assert result is False
 
 
 # ---------------------------------------------------------------------------
-# Invalid scene paths in launch_app_with_scene
+# Invalid scene paths in launch_app_opening_scene_file
 # ---------------------------------------------------------------------------
 
 
@@ -370,7 +370,7 @@ class TestInvalidScenePaths:
         bad_path: str,
         qtbot: QtBot,
     ) -> None:
-        """launch_app_with_scene rejects paths containing shell meta-characters."""
+        """launch_app_opening_scene_file rejects paths containing shell meta-characters."""
         import time
 
         ws = tmp_path / "ws"
@@ -386,7 +386,7 @@ class TestInvalidScenePaths:
             modified_time=time.time(),
         )
 
-        result = launcher.launch_app_with_scene("3de", scene)
+        result = launcher.launch_app_opening_scene_file("3de", scene)
 
         assert result is False
 
@@ -439,6 +439,7 @@ class TestInvalidWorkspacePathInFinishLaunch:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.allow_dialogs
 class TestConsecutiveTimeoutThenSuccess:
     """Tests for timeout counter edge cases not covered by test_command_launcher.py."""
 

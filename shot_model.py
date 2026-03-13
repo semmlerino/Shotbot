@@ -43,6 +43,7 @@ from base_shot_model import BaseShotModel
 from cache.types import ShotMergeResult
 from exceptions import WorkspaceError
 from thread_safe_worker import ThreadSafeWorker
+from timeout_config import TimeoutConfig
 from type_definitions import RefreshResult, Shot
 
 
@@ -96,7 +97,7 @@ class AsyncShotLoader(ThreadSafeWorker):
             output = self.process_pool.execute_workspace_command(
                 "ws -sg",
                 cache_ttl=300,  # 5 minute cache
-                timeout=30,
+                timeout=TimeoutConfig.SHOT_WORKSPACE_COMMAND,
             )
 
             # Thread-safe check for stop request
@@ -537,7 +538,7 @@ class ShotModel(BaseShotModel):
             _ = self._process_pool.execute_workspace_command(
                 "echo warming",
                 cache_ttl=1,  # Very short cache
-                timeout=5,
+                timeout=TimeoutConfig.SHOT_CACHE_OPERATION,
             )
             self._session_warmed = True
             self.logger.info("Session pre-warming complete")
@@ -659,7 +660,7 @@ class ShotModel(BaseShotModel):
             output = self._process_pool.execute_workspace_command(
                 "ws -sg",
                 cache_ttl=300,  # 5 minute cache (consistent with AsyncShotLoader)
-                timeout=30,
+                timeout=TimeoutConfig.SHOT_WORKSPACE_COMMAND,
             )
 
             # Build frame range lookup to skip expensive disk scans for cached shots

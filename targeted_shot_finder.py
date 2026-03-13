@@ -19,6 +19,7 @@ from config import Config, ThreadingConfig
 from process_pool_manager import CancellableSubprocess
 from shot_finder_base import FindShotsKwargs, ShotFinderBase
 from shot_model import Shot
+from timeout_config import TimeoutConfig
 from typing_compat import override
 
 
@@ -279,7 +280,7 @@ class TargetedShotsFinder(ShotFinderBase):
                 )
 
                 try:
-                    shots = future.result(timeout=5)
+                    shots = future.result(timeout=TimeoutConfig.FUTURE_RESULT_QUICK)
                     # Yield shots immediately as they're found
                     yield from shots
 

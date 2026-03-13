@@ -251,8 +251,8 @@ class CommandLauncherDouble:
     def launch_app(self, app_name: str, context: Any = None) -> None:
         self._launched_apps.append((app_name, context))
 
-    def launch_app_with_scene(self, app_name: str, scene: Any) -> bool:
-        """Launch app with scene context."""
+    def launch_app_opening_scene_file(self, app_name: str, scene: Any) -> bool:
+        """Launch app opening the specific scene file."""
         self._launched_with_scene.append((app_name, scene))
         return True
 

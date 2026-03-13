@@ -254,7 +254,7 @@ class TestLaunchWithScene:
         ), patch.object(
             launcher, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
-            result = launcher.launch_app_with_scene("maya", maya_scene)
+            result = launcher.launch_app_opening_scene_file("maya", maya_scene)
 
         assert result is True
 
@@ -269,8 +269,8 @@ class TestLaunchWithScene:
     def test_launch_with_scene_rejects_unknown_app(
         self, launcher: CommandLauncher, sample_scene: ThreeDEScene
     ) -> None:
-        """Test that launch_app_with_scene rejects unknown apps."""
-        result = launcher.launch_app_with_scene("unknown_app", sample_scene)
+        """Test that launch_app_opening_scene_file rejects unknown apps."""
+        result = launcher.launch_app_opening_scene_file("unknown_app", sample_scene)
 
         assert result is False
 
@@ -394,7 +394,7 @@ class TestPathEscaping:
         ), patch.object(
             launcher, "_launch_in_new_terminal", return_value=True
         ):
-            result = launcher.launch_app_with_scene("3de", scene)
+            result = launcher.launch_app_opening_scene_file("3de", scene)
 
         assert result is True
 
@@ -471,7 +471,7 @@ class TestCommandLogging:
         launcher: CommandLauncher,
         sample_scene: ThreeDEScene,
     ) -> None:
-        """launch_app_with_scene returns True for valid scene."""
+        """launch_app_opening_scene_file returns True for valid scene."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
 
         with patch.object(
@@ -479,6 +479,6 @@ class TestCommandLogging:
         ), patch.object(
             launcher, "_launch_in_new_terminal", return_value=True
         ):
-            result = launcher.launch_app_with_scene("3de", sample_scene)
+            result = launcher.launch_app_opening_scene_file("3de", sample_scene)
 
         assert result is True

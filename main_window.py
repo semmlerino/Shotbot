@@ -691,7 +691,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Controller handles its own signal connections in __init__
         # Handle app launch with scene context (signal emits app_name, scene)
         _ = self.threede_shot_grid.app_launch_requested.connect(
-            self._launch_app_with_scene_context
+            self._launch_app_opening_scene_file
         )
 
         # 3DE show filter - handled by controller
@@ -811,8 +811,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
 
         # Update status with what was loaded from cache
-        paint_yield_ms = 500
-        event_loop_yield_ms = 100
+        paint_yield_ms = self._PAINT_YIELD_MS
+        event_loop_yield_ms = self._EVENT_LOOP_YIELD_MS
         if has_cached_shots and has_cached_scenes:
             self.update_status(
                 (
@@ -851,7 +851,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 logger.debug("3DE cache invalid/expired - starting discovery")
                 if self.threede_controller:
                     QTimer.singleShot(
-                        100, self.threede_controller.refresh_threede_scenes
+                        event_loop_yield_ms, self.threede_controller.refresh_threede_scenes
                     )
             else:
                 logger.debug("3DE cache valid - skipping initial scan")
@@ -996,20 +996,20 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             selected_shot = self.previous_shots_grid.selected_shot
             self.shot_selection_controller.on_shot_selected(selected_shot)
 
-    def _launch_app_with_scene_context(
+    def _launch_app_opening_scene_file(
         self, app_name: str, scene: ThreeDEScene
     ) -> None:
-        """Launch an application with scene context.
+        """Launch an application and open the specific 3DE scene file.
 
         This method is used when app_launch_requested signal is emitted from
         ThreeDEGridView with both app_name and scene parameters.
 
         Args:
             app_name: Name of the application to launch
-            scene: 3DE scene providing the launch context
+            scene: 3DE scene file to open
 
         """
-        _ = self.command_launcher.launch_app_with_scene(app_name, scene)
+        _ = self.command_launcher.launch_app_opening_scene_file(app_name, scene)
 
     def _on_right_panel_launch(
         self, app_name: str, options: dict[str, Any]

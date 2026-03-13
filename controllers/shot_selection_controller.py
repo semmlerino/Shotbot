@@ -331,69 +331,9 @@ class ShotSelectionController(QObject, LoggingMixin):
             full_name = current_scene.full_name
         self.logger.info(f"Scanning for crash files in shot workspace: {workspace_path}")
 
-        # Import recovery components
-        from threede_recovery import CrashFileInfo, ThreeDERecoveryManager
-        from threede_recovery_dialog import (
-            ThreeDERecoveryDialog,
-            ThreeDERecoveryResultDialog,
+        from controllers.crash_recovery import execute_crash_recovery
+        execute_crash_recovery(
+            workspace_path=workspace_path,
+            display_name=full_name,
+            parent_widget=self.window.shot_grid,
         )
-
-        # Create recovery manager
-        recovery_manager = ThreeDERecoveryManager()
-
-        # Find crash files in workspace
-        try:
-            crash_files = recovery_manager.find_crash_files(workspace_path, recursive=True)
-        except Exception as e:
-            self.logger.exception("Error scanning for crash files")
-            # Local application imports
-            from notification_manager import NotificationManager
-            NotificationManager.error(
-                "Scan Error",
-                f"Failed to scan for crash files: {e}"
-            )
-            return
-
-        if not crash_files:
-            # Local application imports
-            from notification_manager import NotificationManager
-            message = f"No 3DE crash files found in workspace for {full_name}."
-            NotificationManager.info(message)
-            return
-
-        # Show recovery dialog
-        self.logger.info(f"Found {len(crash_files)} crash file(s), showing recovery dialog")
-        dialog = ThreeDERecoveryDialog(crash_files, parent=self.window.shot_grid)
-
-        # Connect recovery signal
-        def on_recovery_requested(crash_info: CrashFileInfo) -> None:  # type: ignore[name-defined]
-            self.logger.info(f"Recovery requested for: {crash_info.crash_path.name}")
-            try:
-                # Perform recovery and archiving
-                recovered_path, archived_path = recovery_manager.recover_and_archive(crash_info)
-
-                # Show success result
-                result_dialog = ThreeDERecoveryResultDialog(
-                    success=True,
-                    recovered_path=recovered_path,
-                    archived_path=archived_path,
-                    parent=self.window.shot_grid,
-                )
-                _ = result_dialog.exec()
-
-                # Local application imports
-                from notification_manager import NotificationManager
-                NotificationManager.success(f"Recovered: {recovered_path.name}")
-
-            except Exception as e:
-                self.logger.exception("Failed to recover crash file")
-                # Show error result
-                result_dialog = ThreeDERecoveryResultDialog(
-                    success=False,
-                    error_message=str(e),
-                    parent=self.window.shot_grid,
-                )
-                _ = result_dialog.exec()
-
-        _ = dialog.recovery_requested.connect(on_recovery_requested)
-        _ = dialog.exec()

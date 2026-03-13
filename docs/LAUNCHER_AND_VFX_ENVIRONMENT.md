@@ -72,10 +72,10 @@ The launcher exposes multiple public entrypoints with different guarantees:
   first, then launch inside the shot workspace.
 - `launch_with_file(...)`: explicit DCC-native file launch. This is the main
   path that exports file-oriented SGTK variables and startup-hook paths.
-- `launch_app_with_scene(...)`: open the concrete file referenced by the
+- `launch_app_opening_scene_file(...)`: open the concrete file referenced by the
   provided scene object. Only use this when the target DCC can consume that
   file path directly.
-- `launch_app_with_scene_context(...)`: borrow workspace/context from a
+- `launch_app_with_workspace_context(...)`: borrow workspace/context from a
   `ThreeDEScene` without passing the `.3de` file path to the target DCC. This
   is the correct route for Nuke, Maya, and RV when launched from a 3DE scene
   selection unless a DCC-native file was explicitly chosen.

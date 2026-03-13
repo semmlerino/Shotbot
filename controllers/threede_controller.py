@@ -43,7 +43,6 @@ if TYPE_CHECKING:
     from right_panel import RightPanelWidget
     from threede_grid_view import ThreeDEGridView
     from threede_item_model import ThreeDEItemModel
-    from threede_recovery import CrashFileInfo
     from threede_scene_model import ThreeDESceneModel
 
 # Runtime imports (needed at runtime)
@@ -508,7 +507,7 @@ class ThreeDEController(LoggingMixin):
     def on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene double click - launch 3de with the scene."""
         self.logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
-        _ = self.window.command_launcher.launch_app_with_scene("3de", scene)
+        _ = self.window.command_launcher.launch_app_opening_scene_file("3de", scene)
 
     @Slot()  # pyright: ignore[reportAny]
     def on_recover_crashes_clicked(self) -> None:
@@ -529,76 +528,13 @@ class ThreeDEController(LoggingMixin):
         workspace_path = scene.workspace_path
         self.logger.info(f"Scanning for crash files in: {workspace_path}")
 
-        # Import recovery components - lazy load as this feature may not be used
-        from threede_recovery import ThreeDERecoveryManager
-        from threede_recovery_dialog import (
-            ThreeDERecoveryDialog,
-            ThreeDERecoveryResultDialog,
+        from controllers.crash_recovery import execute_crash_recovery
+        execute_crash_recovery(
+            workspace_path=workspace_path,
+            display_name=scene.full_name,
+            parent_widget=self.window.threede_shot_grid,
+            post_recovery_callback=self.refresh_threede_scenes,
         )
-
-        # Create recovery manager
-        recovery_manager = ThreeDERecoveryManager()
-
-        # Find crash files in workspace
-        try:
-            crash_files = recovery_manager.find_crash_files(workspace_path, recursive=True)
-        except Exception as e:
-            self.logger.exception("Error scanning for crash files")
-            NotificationManager.error(
-                "Scan Error",
-                f"Failed to scan for crash files: {e}"
-            )
-            return
-
-        if not crash_files:
-            message = f"No 3DE crash files found in workspace for {scene.full_name}."
-            NotificationManager.info(message)
-            return
-
-        # Show recovery dialog
-        self.logger.info(f"Found {len(crash_files)} crash file(s), showing recovery dialog")
-        dialog = ThreeDERecoveryDialog(crash_files, parent=self.window.threede_shot_grid)
-
-        # Connect recovery signal
-        def on_recovery_requested(crash_info: CrashFileInfo) -> None:
-            self.logger.info(f"Recovery requested for: {crash_info.crash_path.name}")
-            try:
-                # Perform recovery and archiving
-                recovered_path, archived_path = recovery_manager.recover_and_archive(crash_info)
-
-                # Show success result
-                result_dialog = ThreeDERecoveryResultDialog(
-                    success=True,
-                    recovered_path=recovered_path,
-                    archived_path=archived_path,
-                    parent=self.window.threede_shot_grid,
-                )
-                _ = result_dialog.exec()
-
-                # Refresh 3DE scenes to show recovered file
-                self.logger.info("Refreshing 3DE scenes after recovery")
-                self.refresh_threede_scenes()
-
-                NotificationManager.success(f"Recovered: {recovered_path.name}")
-
-            except Exception as e:
-                self.logger.exception("Recovery failed")
-
-                # Show error result
-                result_dialog = ThreeDERecoveryResultDialog(
-                    success=False,
-                    error_message=str(e),
-                    parent=self.window.threede_shot_grid,
-                )
-                _ = result_dialog.exec()
-
-                NotificationManager.error(
-                    "Recovery Failed",
-                    f"Failed to recover crash file: {e}"
-                )
-
-        _ = dialog.recovery_requested.connect(on_recovery_requested)
-        _ = dialog.exec()
 
     @Slot(str)  # pyright: ignore[reportAny]
     def _on_show_filter_requested(self, show: str) -> None:

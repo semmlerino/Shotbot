@@ -253,6 +253,16 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
                 self._on_app_verified, Qt.ConnectionType.QueuedConnection
             )
         )
+        self._signal_connections.append(
+            self.process_executor.headless_launch_warning.connect(
+                self._on_headless_launch_warning, Qt.ConnectionType.QueuedConnection
+            )
+        )
+        self._signal_connections.append(
+            self.process_executor.launch_crash_detected.connect(
+                self._on_launch_crash_detected, Qt.ConnectionType.QueuedConnection
+            )
+        )
 
         # Initialize scene/file finders (created internally, not injected)
         # Local application imports
@@ -274,15 +284,11 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         """
         return datetime.now(tz=UTC).strftime("%H:%M:%S")
 
-    def _apply_nuke_environment_fixes(self, app_name: str, context: str = "") -> str:
-        """Apply Nuke environment fixes and emit status signals.
-
-        Extracts the Nuke environment fix logic to eliminate code duplication
-        across launch_app(), launch_app_with_scene(), and related methods.
+    def _build_nuke_environment_prefix(self, app_name: str) -> str:
+        """Return the Nuke environment fix prefix string for use in launch commands.
 
         Args:
             app_name: The application name (only applies fixes if "nuke")
-            context: Optional context string for the status message (e.g., "scene launch")
 
         Returns:
             Environment fix prefix string (empty if not Nuke or no fixes needed)
@@ -294,14 +300,6 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         env_fixes = self.nuke_handler.get_environment_fixes()
         if not env_fixes:
             return ""
-
-        # Build fix details list
-        fix_details: list[str] = []
-        if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
-            fix_details.append("runtime NUKE_PATH filtering")
-        if Config.NUKE_OCIO_FALLBACK_CONFIG:
-            fix_details.append("OCIO fallback")
-        fix_details.append("crash reporting disabled")
 
         return env_fixes
 
@@ -511,6 +509,16 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
                 f"[{app_name}] Verification timeout - app may still be starting"
             )
 
+        # Show user-visible notification for GUI apps that may have failed to start
+        if self.process_executor.is_gui_app(app_name):
+            # Local application imports
+            from notification_manager import NotificationManager
+            NotificationManager.warning(
+                "Launch Verification Failed",
+                f"{app_name} may have failed to start. "
+                "Check terminal or logs for errors.",
+            )
+
     def _on_app_verified(self, app_name: str, pid: int) -> None:
         """Handle successful app verification from ProcessExecutor.
 
@@ -525,6 +533,24 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         # Reset timeout counter on success - terminal is working
         self._consecutive_timeout_count = 0
         self.logger.debug(f"App {app_name} verified with PID {pid}")
+
+    def _on_headless_launch_warning(self, app_name: str) -> None:
+        """Handle headless launch warning from ProcessExecutor."""
+        # Local application imports
+        from notification_manager import NotificationManager
+        NotificationManager.warning(
+            "Headless Launch",
+            f"No terminal found. {app_name} will run without terminal window. "
+            "Install gnome-terminal, konsole, or xterm for better experience.",
+        )
+
+    def _on_launch_crash_detected(self, app_name: str) -> None:
+        """Handle launch crash detection from ProcessExecutor."""
+        # Local application imports
+        from notification_manager import NotificationManager
+        NotificationManager.error(
+            "Launch Failed", f"{app_name} crashed immediately"
+        )
 
     # ========================================================================
     # Async Latest File Search Methods
@@ -731,7 +757,7 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         # Build app command first; workspace setup stays outside the Rez wrapper.
         try:
             safe_workspace_path = CommandBuilder.validate_path(workspace_path)
-            env_fixes = self._apply_nuke_environment_fixes(app_name, nuke_env_context)
+            env_fixes = self._build_nuke_environment_prefix(app_name)
             app_command = f"{command_prefix}{env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
@@ -1008,12 +1034,12 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
 
         return self._finish_launch(app_name, command)
 
-    def launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:
-        """Launch an application with a specific 3DE scene file.
+    def launch_app_opening_scene_file(self, app_name: str, scene: ThreeDEScene) -> bool:
+        """Launch an application and open a specific 3DE scene file.
 
         Args:
             app_name: Name of the application to launch
-            scene: The 3DE scene to open
+            scene: The 3DE scene file to open
 
         Returns:
             True if launch was successful, False otherwise
@@ -1132,16 +1158,16 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             command_prefix=sgtk_export,
         )
 
-    def launch_app_with_scene_context(
+    def launch_app_with_workspace_context(
         self,
         app_name: str,
         scene: ThreeDEScene,
     ) -> bool:
-        """Launch an application in the context of a 3DE scene (shot context only, no scene file).
+        """Launch an application using shot context from a 3DE scene (no scene file opened).
 
         Args:
             app_name: Name of the application to launch
-            scene: The 3DE scene providing shot context
+            scene: The 3DE scene providing workspace/shot context
 
         Returns:
             True if launch was successful, False otherwise
