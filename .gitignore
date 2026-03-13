@@ -36,6 +36,7 @@ coverage_html/
 /--help/
 likely_dead_code.txt
 skylos_output.txt
+docs/archive/plans/
 .serena/memories/MEMORY.md
 .serena/memories/shotbot-patterns.md
 .serena/memories/skylos-dead-code-workflow.md
@@ -46,6 +47,7 @@ Thumbs.db
 
 # AI tool configs
 .claude/
+.serena/project.yml
 .serena/
 .kiro/
 .windsurf/
