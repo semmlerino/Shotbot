@@ -120,18 +120,6 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             except OSError:
                 return 0.0
 
-        # Legacy roles for backward compatibility
-        elif role == (Qt.ItemDataRole.UserRole + 5):  # Legacy UserRole
-            return item.user
-        elif role == (Qt.ItemDataRole.UserRole + 6):  # Legacy ScenePathRole
-            return item.scene_path
-        elif role == (Qt.ItemDataRole.UserRole + 11):  # Legacy ModifiedTimeRole
-            scene_path = item.scene_path
-            try:
-                return float(scene_path.stat().st_mtime)
-            except OSError:
-                return 0.0
-
         return None
 
     # ============= 3DE Scene-specific methods =============

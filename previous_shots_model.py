@@ -153,8 +153,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
             # PreviousShotsWorker uses scan_progress, not progress
             # ThreeDESceneWorker uses progress signal
             # Runtime hasattr check handles polymorphism - attribute may not exist
-            if hasattr(worker, "progress") and worker.progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                worker.progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+            if hasattr(worker, "scan_progress") and worker.scan_progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                _ = worker.scan_progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
         except (RuntimeError, TypeError, AttributeError):
             pass  # Already disconnected or no connections
 
