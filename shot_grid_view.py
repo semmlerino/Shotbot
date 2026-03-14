@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, cast, final
 # Third-party imports
 from PySide6.QtCore import (
     QModelIndex,
+    QSortFilterProxyModel,
     Qt,
     QThreadPool,
     Signal,
@@ -78,6 +79,7 @@ class ShotGridView(BaseGridView):
     def __init__(
         self,
         model: ShotItemModel | None = None,
+        proxy: QSortFilterProxyModel | None = None,
         pin_manager: PinManager | None = None,
         notes_manager: NotesManager | None = None,
         hide_manager: HideManager | None = None,
@@ -87,6 +89,7 @@ class ShotGridView(BaseGridView):
 
         Args:
             model: Optional shot item model
+            proxy: Optional proxy model for filtering/sorting
             pin_manager: Optional pin manager for pinning shots
             notes_manager: Optional notes manager for shot notes
             hide_manager: Optional hide manager for hiding shots
@@ -107,7 +110,7 @@ class ShotGridView(BaseGridView):
         self._hide_manager: HideManager | None = hide_manager
 
         if model:
-            self.set_model(model)
+            self.set_model(model, proxy)
 
         self.logger.debug("ShotGridView initialized")
 
@@ -188,16 +191,18 @@ class ShotGridView(BaseGridView):
         return self._thumbnail_size
 
 
-    def set_model(self, model: ShotItemModel) -> None:
+    def set_model(self, model: ShotItemModel, proxy: QSortFilterProxyModel | None = None) -> None:
         """Set the data model for the view.
 
         Args:
             model: Shot item model
+            proxy: Optional proxy model for filtering/sorting
 
         """
+
         # Store in base class attribute (base type is QAbstractItemModel)
         self._model = model
-        self.list_view.setModel(model)
+        self.list_view.setModel(proxy if proxy is not None else model)
         self._connect_model_visibility(model)
 
         # Set up selection model
@@ -630,11 +635,12 @@ class ShotGridView(BaseGridView):
 
     def _refresh_with_pins(self) -> None:
         """Re-sort and refresh grid to reflect pin changes."""
-        model = cast("ShotItemModel | None", self._model)
-        if model:
-            model.refresh_pin_order()
-            # Force view update
-            self.list_view.viewport().update()
+        proxy = self.list_view.model()
+        if isinstance(proxy, QSortFilterProxyModel):
+            proxy.invalidate()
+        elif self._model:
+            cast("ShotItemModel", self._model).refresh_pin_order()
+        self.list_view.viewport().update()
 
     def set_pin_manager(self, pin_manager: PinManager) -> None:
         """Set the pin manager.

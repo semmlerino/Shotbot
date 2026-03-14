@@ -226,7 +226,7 @@ class TestShotRefresh:
     def test_refresh_shot_display_respects_hide_filter(
         self, qtbot: QtBot, tmp_path: Path
     ) -> None:
-        """Hidden shots must not reappear after refresh_shot_display()."""
+        """Hidden shots must not appear in the proxy after refresh_shot_display()."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
@@ -240,9 +240,20 @@ class TestShotRefresh:
         # Simulate a data-refresh event (e.g. shots_loaded / F5)
         main_window.refresh_orchestrator.refresh_shot_display()
 
-        displayed = main_window.shot_item_model.shots
-        assert shot_visible in displayed
-        assert shot_hidden not in displayed
+        # Item model holds all shots; proxy applies hide filter
+        all_shots = main_window.shot_item_model.shots
+        assert shot_visible in all_shots
+        assert shot_hidden in all_shots  # Item model has all shots
+
+        # Proxy filters out hidden shots
+        proxy = main_window.shot_proxy
+        visible_rows = proxy.rowCount()
+        visible_shots = [
+            proxy.sourceModel().get_item_at_index(proxy.mapToSource(proxy.index(r, 0)))
+            for r in range(visible_rows)
+        ]
+        assert shot_visible in visible_shots
+        assert shot_hidden not in visible_shots
 
 
 @pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
@@ -311,18 +322,12 @@ class TestStatusBar:
         main_window.shot_model.shots = test_shots
         main_window.shot_item_model.set_shots(test_shots)
 
-        # Apply filter via the filter coordinator
-        main_window.filter_coordinator._apply_show_filter(
-            main_window.shot_item_model,
-            main_window.shot_model,
-            "TestShow",
-            "My Shots",
-        )
+        # Apply filter via the filter coordinator (new proxy-based interface)
+        main_window.filter_coordinator._on_shot_show_filter_requested("TestShow")
 
         # Verify status bar shows filter result
         message = main_window.status_bar.currentMessage()
         assert "TestShow" in message
-        assert "shot" in message.lower()
 
 
 @pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread

@@ -34,10 +34,10 @@ if TYPE_CHECKING:
     # Local application imports
     from cache.scene_cache_disk import SceneDiskCache
     from command_launcher import CommandLauncher
-    from controllers.filter_coordinator import FilterableItemModel
     from progress_manager import (
         _Operation as _ProgressOperation,  # pyright: ignore[reportPrivateUsage]
     )
+    from proxy_models import ThreeDEProxyModel
 
     # Local type imports
     from right_panel import RightPanelWidget
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
 
 # Runtime imports (needed at runtime)
 from config import Config
-from controllers.filter_helpers import apply_show_filter
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from progress_manager import ProgressManager
@@ -72,6 +71,7 @@ class ThreeDETarget(Protocol):
     def get_active_shots(self) -> list[Shot]: ...  # skylos: ignore
     threede_scene_model: ThreeDESceneModel  # skylos: ignore
     threede_item_model: ThreeDEItemModel  # skylos: ignore
+    threede_proxy: ThreeDEProxyModel  # skylos: ignore
     scene_disk_cache: SceneDiskCache  # skylos: ignore
     command_launcher: CommandLauncher  # skylos: ignore
 
@@ -539,39 +539,23 @@ class ThreeDEController(LoggingMixin):
     @Slot(str)  # pyright: ignore[reportAny]
     def _on_show_filter_requested(self, show: str) -> None:
         """Handle show filter requests from 3DE grid."""
-        # Apply filter to 3DE scenes
-        self._apply_show_filter(
-            self.window.threede_item_model,
-            self.window.threede_scene_model,
-            show,
-            "3DE Scenes",
-        )
+        show_filter = show or None
+        self.window.threede_proxy.set_show_filter(show_filter)
+        self.logger.info(f"Applied 3DE show filter: {show or 'All Shows'}")
 
     @Slot(str)  # pyright: ignore[reportAny]
     def _on_artist_filter_requested(self, artist: str) -> None:
         """Handle artist filter requests from 3DE grid."""
         filter_artist = artist.strip() if artist else None
-        self.window.threede_scene_model.set_artist_filter(filter_artist)
-
-        filtered_scenes = self._refresh_filtered_scenes()
-        self.logger.debug(
-            "3DE artist filter applied: %r - %s scenes",
-            filter_artist,
-            len(filtered_scenes),
-        )
+        self.window.threede_proxy.set_artist_filter(filter_artist)
+        self.logger.debug(f"3DE artist filter applied: {filter_artist!r}")
 
     @Slot(str)  # pyright: ignore[reportAny]
     def _on_text_filter_requested(self, text: str) -> None:
         """Handle text filter requests from 3DE grid."""
-        # Set text filter on model
         filter_text = text.strip() if text else None
-        self.window.threede_scene_model.set_text_filter(filter_text)
-
-        filtered_scenes = self._refresh_filtered_scenes()
-
-        self.logger.debug(
-            f"3DE text filter applied: '{filter_text}' - {len(filtered_scenes)} scenes"
-        )
+        self.window.threede_proxy.set_text_filter(filter_text)
+        self.logger.debug(f"3DE text filter applied: '{filter_text}'")
 
     # ============================================================================
     # Scene Management Helpers (Phase 3.5)
@@ -681,33 +665,14 @@ class ThreeDEController(LoggingMixin):
 
         self.window.threede_shot_grid.populate_show_filter(available_shows)
         self.window.threede_shot_grid.populate_artist_filter(available_artists)
-        visible_scenes = self._refresh_filtered_scenes()
+        self.window.threede_proxy.invalidate()
+        visible_count = self.window.threede_proxy.rowCount()
+        total_count = len(scene_model.scenes)
         self.logger.info(
-            "✅ UI model updated with %s visible scenes from %s total",
-            len(visible_scenes),
-            len(scene_model.scenes),
+            "UI model updated with %s visible scenes from %s total",
+            visible_count,
+            total_count,
         )
-
-    def _refresh_filtered_scenes(self) -> list[ThreeDEScene]:
-        """Rebuild the item model from the currently active scene filters."""
-        filtered_scenes = self.window.threede_scene_model.get_filtered_scenes()
-        self.window.threede_item_model.set_scenes(filtered_scenes)
-        return filtered_scenes
-
-    def _apply_show_filter(
-        self, item_model: FilterableItemModel, model: object, show: str, tab_name: str
-    ) -> None:
-        """Generic show filter handler for all tabs.
-
-        Args:
-            item_model: The item model to apply the filter to
-            model: The data model to pass to the item model
-            show: Show name to filter by, or empty string for all shows
-            tab_name: Human-readable tab name for logging
-
-        """
-        apply_show_filter(item_model, model, show)
-        self.logger.info(f"Applied {tab_name} show filter: {show or 'All Shows'}")
 
     # ============================================================================
     # Private Helper Methods

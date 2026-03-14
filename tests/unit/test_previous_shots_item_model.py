@@ -315,11 +315,12 @@ class TestPreviousShotsSorting:
         ]
 
     def test_default_date_sort_order(self, model, shots_with_times) -> None:
-        """Default sort should be date-descending on initial sync."""
+        """Item model stores all shots in insertion order (proxy handles date sort)."""
         model._underlying_model._shots = shots_with_times
         model._update_from_underlying_model()
 
-        assert [shot.full_name for shot in model._items] == ["020_0020", "030_0030", "010_0010"]
+        assert len(model._items) == 3
+        assert {shot.full_name for shot in model._items} == {"010_0010", "020_0020", "030_0030"}
 
     def test_switch_to_name_sort_reorders_items(self, model, shots_with_times, qtbot) -> None:
         """Switching sort mode should reorder and emit layout signals."""

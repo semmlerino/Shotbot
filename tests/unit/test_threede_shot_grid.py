@@ -16,9 +16,9 @@ from PySide6.QtTest import QSignalSpy, QTest
 
 # Local application imports
 from config import Config
+from tests.test_helpers import process_qt_events
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
-from tests.test_helpers import process_qt_events
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 

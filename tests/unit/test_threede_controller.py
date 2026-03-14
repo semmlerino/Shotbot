@@ -149,6 +149,33 @@ class ThreeDESceneModelDouble:
         return [s.to_dict() for s in self._scenes]
 
 
+class ThreeDEProxyDouble:
+    """Test double for ThreeDEProxyModel."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self._show_filter: str | None = None
+        self._artist_filter: str | None = None
+        self._text_filter: str | None = None
+        self._row_count: int = 0
+
+    def set_show_filter(self, show: str | None) -> None:
+        self._show_filter = show
+
+    def set_artist_filter(self, artist: str | None) -> None:
+        self._artist_filter = artist
+
+    def set_text_filter(self, text: str | None) -> None:
+        self._text_filter = text
+
+    def invalidate(self) -> None:
+        pass
+
+    def rowCount(self) -> int:
+        return self._row_count
+
+
 class ThreeDEItemModelDouble:
     """Test double for ThreeDEItemModel."""
 
@@ -296,6 +323,9 @@ class ThreeDETargetDouble:
             cache_manager=self.scene_disk_cache
         )
         self.threede_item_model = ThreeDEItemModelDouble()
+
+        # Proxy model (filter/sort sits between item model and view)
+        self.threede_proxy = ThreeDEProxyDouble()
 
         # Window state tracking
         self._window_title: str = ""
@@ -743,40 +773,35 @@ class TestFilterHandling:
     def test_show_filter_applies_to_model(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
-        """Test that show filter is applied to item model."""
+        """Test that show filter is applied to proxy model."""
         controller._on_show_filter_requested("myshow")
 
-        # The filter should be applied (set_show_filter converts "" to None)
-        assert window_double.threede_item_model._filter_show == "myshow"
+        assert window_double.threede_proxy._show_filter == "myshow"
 
     def test_text_filter_applies_to_scene_model(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
-        """Test that text filter is applied to scene model."""
+        """Test that text filter is applied to proxy model."""
         controller._on_text_filter_requested("sq010")
 
-        # The filter should be applied to scene model
-        assert window_double.threede_scene_model._text_filter == "sq010"
+        assert window_double.threede_proxy._text_filter == "sq010"
 
     def test_artist_filter_applies_to_scene_model(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
-        """Test that artist filter is applied to scene model."""
+        """Test that artist filter is applied to proxy model."""
         controller._on_artist_filter_requested("artist_a")
 
-        assert window_double.threede_scene_model._artist_filter == "artist_a"
+        assert window_double.threede_proxy._artist_filter == "artist_a"
 
     def test_empty_show_filter_clears_filter(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
-        """Test that empty show filter clears the filter."""
-        # Set a filter first
-        window_double.threede_item_model._filter_show = "oldshow"
-
+        """Test that empty show filter clears the filter (None)."""
+        controller._on_show_filter_requested("oldshow")
         controller._on_show_filter_requested("")
 
-        # Empty string is converted to None, which becomes "" in the double
-        assert window_double.threede_item_model._filter_show == ""
+        assert window_double.threede_proxy._show_filter is None
 
     def test_update_ui_populates_artist_filter(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble

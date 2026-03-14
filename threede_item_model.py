@@ -16,7 +16,7 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
-    from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+    from threede_scene_model import ThreeDEScene
 
 
 @final
@@ -141,61 +141,14 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         Args:
             scenes: List of ThreeDEScene objects
-            reset: If True, perform full model reset (default).
-                   If False, incremental update (for future optimization)
+            reset: Kept for API compatibility; always performs a full model reset.
 
         """
-        # Apply sorting before setting items
-        sorted_scenes = self._apply_sort(scenes)
-        if reset:
-            self.set_items(sorted_scenes)
-        else:
-            # Incremental update (more complex, for future optimization)
-            self.beginResetModel()
-            self._items = list(sorted_scenes)
-            self.endResetModel()
-            self.scenes_updated.emit()
-        self.logger.info(f"Set {len(scenes)} scenes in model (sorted by {self._sort_order})")
+        _ = reset  # Kept for API compat
+        self.set_items(scenes)
+        self.logger.info(f"Set {len(scenes)} scenes in model")
 
-    @override
-    def _apply_sort(self, items: list[ThreeDEScene]) -> list[ThreeDEScene]:
-        """Apply current sort order to a list of scenes.
 
-        Args:
-            items: List of scenes to sort
-
-        Returns:
-            Sorted list of scenes
-
-        """
-        if self._sort_order == "name":
-            return sorted(items, key=lambda s: s.full_name.lower())
-        # "date" - newest first
-        return sorted(items, key=lambda s: s.modified_time, reverse=True)
-
-    def set_show_filter(
-        self, threede_scene_model: ThreeDESceneModel, show: str | None
-    ) -> None:
-        """Set show filter and update the model.
-
-        Args:
-            threede_scene_model: Model to get filtered scenes from
-            show: Show name to filter by or None for all shows
-
-        """
-        # Set filter on the model
-        threede_scene_model.set_show_filter(show)
-
-        # Get filtered scenes and update our display
-        filtered_scenes = threede_scene_model.get_filtered_scenes()
-        self.set_scenes(filtered_scenes)
-
-        # Emit filter changed signal for UI updates
-        filter_display = show if show is not None else "All Shows"
-        self.show_filter_changed.emit(filter_display)
-        self.logger.info(
-            f"Applied show filter: {filter_display}, {len(filtered_scenes)} scenes"
-        )
 
     def get_scene(self, index: QModelIndex) -> ThreeDEScene | None:
         """Get scene at the given index.

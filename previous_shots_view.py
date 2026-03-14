@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, ClassVar, cast
 from PySide6.QtCore import (
     QAbstractItemModel,
     QModelIndex,
+    QSortFilterProxyModel,
     Qt,
     QThreadPool,
     Signal,
@@ -80,6 +81,7 @@ class PreviousShotsView(BaseGridView):
     def __init__(
         self,
         model: PreviousShotsItemModel | None = None,
+        proxy: QSortFilterProxyModel | None = None,
         pin_manager: PinManager | None = None,
         notes_manager: NotesManager | None = None,
         parent: QWidget | None = None,
@@ -88,6 +90,7 @@ class PreviousShotsView(BaseGridView):
 
         Args:
             model: Optional previous shots item model
+            proxy: Optional proxy model for filtering/sorting
             pin_manager: Optional pin manager for pinning shots
             notes_manager: Optional notes manager for shot notes
             parent: Optional parent widget
@@ -113,7 +116,7 @@ class PreviousShotsView(BaseGridView):
         self._unified_model: PreviousShotsItemModel | None = model
 
         if model:
-            self.set_model(model)
+            self.set_model(model, proxy)
 
         self.logger.debug("PreviousShotsView initialized")
 
@@ -223,16 +226,17 @@ class PreviousShotsView(BaseGridView):
         """
         return self._thumbnail_size
 
-    def set_model(self, model: PreviousShotsItemModel) -> None:
+    def set_model(self, model: PreviousShotsItemModel, proxy: QSortFilterProxyModel | None = None) -> None:
         """Set the data model for the view.
 
         Args:
             model: Previous shots item model
+            proxy: Optional proxy model for filtering/sorting
 
         """
         self._unified_model = model
         self._model = model  # type: ignore[assignment]
-        self.list_view.setModel(model)
+        self.list_view.setModel(proxy if proxy is not None else model)
         self._connect_model_visibility(model)
 
         # Set up selection model
@@ -735,10 +739,12 @@ class PreviousShotsView(BaseGridView):
 
     def _refresh_with_pins(self) -> None:
         """Re-sort and refresh grid to reflect pin changes."""
-        if self._unified_model:
+        proxy = self.list_view.model()
+        if isinstance(proxy, QSortFilterProxyModel):
+            proxy.invalidate()
+        elif self._unified_model:
             self._unified_model.refresh_pin_order()
-            # Force view update
-            self.list_view.viewport().update()
+        self.list_view.viewport().update()
 
     def set_pin_manager(self, pin_manager: PinManager) -> None:
         """Set the pin manager.

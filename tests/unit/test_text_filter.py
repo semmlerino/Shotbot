@@ -17,7 +17,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 # Standard library imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Third-party imports
 import pytest
@@ -358,6 +358,30 @@ class TestMainWindowTextFilterHandlers:
         mock_previous_grid.text_filter_requested = mock_signal
         window.previous_shots_grid = mock_previous_grid
 
+        # Add proxy model doubles (filtering moved to proxy in Phase 3)
+        class _ProxyDouble:
+            def __init__(self) -> None:
+                self._show_filter: str | None = None
+                self._text_filter: str | None = None
+
+            def set_show_filter(self, show: str | None) -> None:
+                self._show_filter = show
+
+            def set_text_filter(self, text: str | None) -> None:
+                self._text_filter = text
+
+            def rowCount(self) -> int:
+                return 0
+
+            def sourceModel(self) -> Any:
+                class _Src:
+                    def rowCount(self) -> int:
+                        return 0
+                return _Src()
+
+        window.shot_proxy = _ProxyDouble()
+        window.previous_shots_proxy = _ProxyDouble()
+
         # Add FilterCoordinator for filter handling
         from controllers.filter_coordinator import FilterCoordinator
         window.filter_coordinator = FilterCoordinator(window)  # pyright: ignore[reportArgumentType]
@@ -369,90 +393,41 @@ class TestMainWindowTextFilterHandlers:
 
     def test_on_shot_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for My Shots text filter request."""
-        # Set up test shots
-        test_shots = [
-            Shot("show1", "seq1", "dm_001", "/workspace/show1/seq1/dm_001"),
-            Shot("show1", "seq2", "DM_002", "/workspace/show1/seq2/DM_002"),
-            Shot("show1", "seq3", "shot_003", "/workspace/show1/seq3/shot_003"),
-        ]
-        mock_main_window.shot_model.shots = test_shots
-        mock_main_window.shot_item_model.set_items(test_shots)
-
         # Call the handler with "dm" filter via filter_coordinator
         mock_main_window.filter_coordinator._on_shot_text_filter_requested("dm")
 
-        # Verify the filter was applied
-        assert mock_main_window.shot_model.get_text_filter() == "dm"
-        assert mock_main_window.shot_item_model.rowCount() == 2
+        # Verify the filter was applied to the proxy (proxy handles filtering)
+        assert mock_main_window.shot_proxy._text_filter == "dm"  # type: ignore[attr-defined]
 
         # Test clearing filter
         mock_main_window.filter_coordinator._on_shot_text_filter_requested("")
-        assert mock_main_window.shot_model.get_text_filter() is None
-        assert mock_main_window.shot_item_model.rowCount() == 3
+        assert mock_main_window.shot_proxy._text_filter is None  # type: ignore[attr-defined]
 
     def test_on_previous_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for Previous Shots text filter request."""
-        # Set up test previous shots
-        test_shots = [
-            Shot("showA", "seq10", "dm_010", "/workspace/showA/seq10/dm_010"),
-            Shot("showA", "seq11", "other_011", "/workspace/showA/seq11/other_011"),
-            Shot("showB", "seq20", "dm_020", "/workspace/showB/seq20/dm_020"),
-        ]
-        mock_main_window.previous_shots_model._previous_shots = test_shots
-        mock_main_window.previous_shots_item_model.set_items(test_shots)
-
         # Call the handler with "dm" filter via filter_coordinator
         mock_main_window.filter_coordinator._on_previous_text_filter_requested("dm")
 
-        # Verify the filter was applied
-        assert mock_main_window.previous_shots_model.get_text_filter() == "dm"
-        assert mock_main_window.previous_shots_item_model.rowCount() == 2
+        # Verify the filter was applied to the proxy
+        assert mock_main_window.previous_shots_proxy._text_filter == "dm"  # type: ignore[attr-defined]
 
     def test_text_and_show_filters_together(self, mock_main_window: MainWindow) -> None:
-        """Test that text and show filters work together."""
-        # Set up test shots
-        test_shots = [
-            Shot("show1", "seq1", "dm_001", "/workspace/show1/seq1/dm_001"),
-            Shot("show1", "seq2", "DM_002", "/workspace/show1/seq2/DM_002"),
-            Shot("show2", "seq3", "dm_003", "/workspace/show2/seq3/dm_003"),
-            Shot("show2", "seq4", "other_004", "/workspace/show2/seq4/other_004"),
-        ]
-        mock_main_window.shot_model.shots = test_shots
-        mock_main_window.shot_item_model.set_items(test_shots)
-
+        """Test that text and show filters work together via proxy."""
         # Apply show filter first via filter_coordinator
         mock_main_window.filter_coordinator._on_shot_show_filter_requested("show1")
-        assert mock_main_window.shot_item_model.rowCount() == 2
+        assert mock_main_window.shot_proxy._show_filter == "show1"  # type: ignore[attr-defined]
 
         # Then apply text filter via filter_coordinator
         mock_main_window.filter_coordinator._on_shot_text_filter_requested("dm")
-        # Should show only show1 shots with "dm"
-        assert mock_main_window.shot_item_model.rowCount() == 2
-        filtered = [
-            mock_main_window.shot_item_model.get_item_at_index(
-                mock_main_window.shot_item_model.index(i, 0)
-            )
-            for i in range(mock_main_window.shot_item_model.rowCount())
-        ]
-        assert all(shot.show == "show1" for shot in filtered)
-        assert all("dm" in shot.shot.lower() for shot in filtered)
+        assert mock_main_window.shot_proxy._text_filter == "dm"  # type: ignore[attr-defined]
 
     def test_text_filter_updates_status_bar(self, mock_main_window: MainWindow) -> None:
-        """Test that applying text filter updates status bar with count."""
-        # Set up test shots
-        test_shots = [
-            Shot("show1", "seq1", "dm_001", "/workspace/show1/seq1/dm_001"),
-            Shot("show1", "seq2", "DM_002", "/workspace/show1/seq2/DM_002"),
-            Shot("show1", "seq3", "shot_003", "/workspace/show1/seq3/shot_003"),
-        ]
-        mock_main_window.shot_model.shots = test_shots
-        mock_main_window.shot_item_model.set_items(test_shots)
-
+        """Test that applying text filter updates status bar."""
         # Call the handler with "dm" filter via filter_coordinator
         mock_main_window.filter_coordinator._on_shot_text_filter_requested("dm")
 
-        # Verify status bar was updated with filter result
+        # Verify status bar was updated with filter info
         mock_main_window.status_bar.showMessage.assert_called()
         call_args = mock_main_window.status_bar.showMessage.call_args[0][0]
-        assert "2 of 3" in call_args  # 2 filtered out of 3
         assert "dm" in call_args  # Filter text shown
+        assert "My Shots" in call_args

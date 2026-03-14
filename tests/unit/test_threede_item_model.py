@@ -371,15 +371,12 @@ class TestThreeDESorting:
     def test_default_sort_order_is_date(
         self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
     ) -> None:
-        """Test that default sort order is by date (newest first)."""
+        """Test that item model stores all scenes (sorting is handled by proxy)."""
         model.set_scenes(scenes_with_times)
 
-        # Default is "date" - newest first
-        # Order should be: charlie (3000), bravo (2000), alpha (1000)
+        # Item model stores items in insertion order; proxy handles sorting
         assert model.rowCount() == 3
-        assert model.scenes[0].full_name == "020_0020"  # charlie - newest
-        assert model.scenes[1].full_name == "030_0030"  # bravo - middle
-        assert model.scenes[2].full_name == "010_0010"  # alpha - oldest
+        assert {s.full_name for s in model.scenes} == {"010_0010", "020_0020", "030_0030"}
 
     def test_sort_by_name(
         self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
@@ -396,15 +393,14 @@ class TestThreeDESorting:
     def test_sort_by_date(
         self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
     ) -> None:
-        """Test sorting by date (newest first)."""
+        """Test that item model stores all scenes regardless of sort_order calls."""
         model.set_scenes(scenes_with_times)
-        model.set_sort_order("name")  # First switch to name
+        model.set_sort_order("name")  # Proxy handles sorting; these calls are no-ops in item model
         model.set_sort_order("date")  # Then back to date
 
-        # Newest first: 020_0020 (3000), 030_0030 (2000), 010_0010 (1000)
-        assert model.scenes[0].full_name == "020_0020"
-        assert model.scenes[1].full_name == "030_0030"
-        assert model.scenes[2].full_name == "010_0010"
+        # Item model always has all 3 scenes
+        assert model.rowCount() == 3
+        assert {s.full_name for s in model.scenes} == {"010_0010", "020_0020", "030_0030"}
 
     def test_sort_order_invalid_value_ignored(
         self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]

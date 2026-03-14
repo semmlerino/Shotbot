@@ -237,9 +237,9 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         self._last_refresh_time = now
 
-        # Always use Model/View implementation
+        # Always use Model/View implementation; proxy handles filtering
         self.main_window.shot_item_model.set_shots(
-            self.main_window.shot_model.get_filtered_shots()
+            self.main_window.shot_model.shots
         )
         # Populate show filter with available shows.
         # Pass shows as a sorted list — ShotModel.get_available_shows() returns set[str]

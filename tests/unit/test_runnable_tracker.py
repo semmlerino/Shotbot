@@ -388,10 +388,10 @@ class TestTrackedQRunnable:
         TrackedTestRunnable.work_done = 0
         runnable = TrackedTestRunnable(auto_delete=False)
 
-        # Before run
-        assert tracker.get_active_count() == 0
+        # After construction: auto-registered
+        assert tracker.get_active_count() == 1
 
-        # Run (registers, does work, unregisters)
+        # Run (does work, then unregisters)
         runnable.run()
 
         # After run

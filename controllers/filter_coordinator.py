@@ -12,31 +12,23 @@ injection pattern established by SettingsController and ThreeDEController.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, final
+from typing import TYPE_CHECKING, Protocol, final
 
 from PySide6.QtCore import Slot
 
-from controllers.filter_helpers import apply_show_filter
 from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QStatusBar
 
-    from base_shot_model import BaseShotModel  # used in cast()
     from previous_shots_item_model import PreviousShotsItemModel
     from previous_shots_model import PreviousShotsModel
     from previous_shots_view import PreviousShotsView
+    from proxy_models import PreviousShotsProxyModel, ShotProxyModel
     from shot_grid_view import ShotGridView
     from shot_item_model import ShotItemModel
     from shot_model import ShotModel
-
-
-class FilterableItemModel(Protocol):
-    """Protocol for item models that support show filtering."""
-
-    def set_show_filter(self, __model: Any, __show_filter: str | None) -> None: ...
-    def rowCount(self) -> int: ...
 
 
 class FilterTarget(Protocol):
@@ -57,6 +49,10 @@ class FilterTarget(Protocol):
     # Item models
     shot_item_model: ShotItemModel
     previous_shots_item_model: PreviousShotsItemModel
+
+    # Proxy models
+    shot_proxy: ShotProxyModel
+    previous_shots_proxy: PreviousShotsProxyModel
 
     # Status bar
     status_bar: QStatusBar
@@ -110,101 +106,68 @@ class FilterCoordinator(LoggingMixin):
 
         self.logger.debug("FilterCoordinator signals connected")
 
-    def _apply_show_filter(
-        self, item_model: FilterableItemModel, model: Any, show: str, tab_name: str
-    ) -> None:
-        """Generic show filter handler for all tabs.
-
-        Args:
-            item_model: The item model to apply the filter to
-            model: The data model to pass to the item model
-            show: Show name to filter by, or empty string for all shows
-            tab_name: Human-readable tab name for logging
-
-        """
-        apply_show_filter(
-            item_model,
-            model,
-            show,
-            status_callback=self.window.status_bar.showMessage,
-            tab_name=tab_name,
-        )
-        self.logger.info(f"Applied {tab_name} show filter: {show or 'All Shows'}")
-
     @Slot(str)
     def _on_shot_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from My Shots grid view."""
-        self._apply_show_filter(
-            self.window.shot_item_model, self.window.shot_model, show, "My Shots"
+        show_filter = show or None
+        self.window.shot_proxy.set_show_filter(show_filter)
+
+        filtered_count = self.window.shot_proxy.rowCount()
+        total = self.window.shot_proxy.sourceModel().rowCount()
+        filter_desc = show or "All Shows"
+        self.window.status_bar.showMessage(
+            f"My Shots: {filtered_count} of {total} ({filter_desc})", 2500
         )
+        self.logger.info(f"Applied My Shots show filter: {filter_desc}")
 
     @Slot(str)
     def _on_shot_text_filter_requested(self, text: str) -> None:
         """Handle text filter request from My Shots grid view."""
-        from typing import cast
-
         filter_text = text.strip() if text else None
-        # Cast to BaseShotModel to access inherited methods
-        base_model = cast("BaseShotModel", self.window.shot_model)
-        base_model.set_text_filter(filter_text)
+        self.window.shot_proxy.set_text_filter(filter_text)
 
-        # Update item model with filtered shots
-        filtered_shots = base_model.get_filtered_shots()
-        # Use set_shots() to apply pin-aware sorting
-        self.window.shot_item_model.set_shots(filtered_shots)
-
-        # Show brief status with filter result
-        total_shots = len(self.window.shot_model.shots)
-        filtered_count = len(filtered_shots)
+        filtered_count = self.window.shot_proxy.rowCount()
+        total = self.window.shot_proxy.sourceModel().rowCount()
         if filter_text:
             self.window.status_bar.showMessage(
-                f"My Shots: {filtered_count} of {total_shots} (filter: '{filter_text}')",
-                2500,
+                f"My Shots: {filtered_count} of {total} (filter: '{filter_text}')", 2500
             )
         else:
-            self.window.status_bar.showMessage(f"My Shots: {total_shots} shots", 2500)
-
-        self.logger.debug(
-            f"My Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
-        )
+            self.window.status_bar.showMessage(f"My Shots: {total} shots", 2500)
+        self.logger.debug(f"My Shots text filter: '{filter_text}' - {filtered_count} shots")
 
     @Slot(str)
     def _on_previous_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from Previous Shots grid view."""
-        self._apply_show_filter(
-            self.window.previous_shots_item_model,
-            self.window.previous_shots_model,
-            show,
-            "Previous Shots",
+        show_filter = show or None
+        self.window.previous_shots_proxy.set_show_filter(show_filter)
+
+        filtered_count = self.window.previous_shots_proxy.rowCount()
+        total = self.window.previous_shots_proxy.sourceModel().rowCount()
+        filter_desc = show or "All Shows"
+        self.window.status_bar.showMessage(
+            f"Previous Shots: {filtered_count} of {total} ({filter_desc})", 2500
         )
+        self.logger.info(f"Applied Previous Shots show filter: {filter_desc}")
 
     @Slot(str)
     def _on_previous_text_filter_requested(self, text: str) -> None:
         """Handle text filter request from Previous Shots grid view."""
         filter_text = text.strip() if text else None
-        self.window.previous_shots_model.set_text_filter(filter_text)
+        self.window.previous_shots_proxy.set_text_filter(filter_text)
 
-        # Update item model with filtered shots
-        filtered_shots = self.window.previous_shots_model.get_filtered_shots()
-        # Use set_shots() to apply pin-aware sorting
-        self.window.previous_shots_item_model.set_shots(filtered_shots)
-
-        # Show brief status with filter result
-        total_shots = len(self.window.previous_shots_model.get_shots())
-        filtered_count = len(filtered_shots)
+        filtered_count = self.window.previous_shots_proxy.rowCount()
+        total = self.window.previous_shots_proxy.sourceModel().rowCount()
         if filter_text:
             self.window.status_bar.showMessage(
-                f"Previous Shots: {filtered_count} of {total_shots} (filter: '{filter_text}')",
+                f"Previous Shots: {filtered_count} of {total} (filter: '{filter_text}')",
                 2500,
             )
         else:
             self.window.status_bar.showMessage(
-                f"Previous Shots: {total_shots} shots", 2500
+                f"Previous Shots: {total} shots", 2500
             )
-
-        self.logger.debug(
-            f"Previous Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
-        )
+        self.logger.debug(f"Previous Shots text filter: '{filter_text}' - {filtered_count} shots")
 
     @Slot()
     def _on_previous_shots_updated(self) -> None:

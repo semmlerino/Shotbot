@@ -409,6 +409,30 @@ class TestMainWindowFilterHandlers:
         from unittest.mock import Mock
         window.status_bar = Mock()
 
+        # Add proxy model doubles (filtering moved to proxy in Phase 3)
+        class _ProxyDouble:
+            def __init__(self) -> None:
+                self._show_filter: str | None = None
+                self._text_filter: str | None = None
+
+            def set_show_filter(self, show: str | None) -> None:
+                self._show_filter = show
+
+            def set_text_filter(self, text: str | None) -> None:
+                self._text_filter = text
+
+            def rowCount(self) -> int:
+                return 0
+
+            def sourceModel(self) -> Any:
+                class _Src:
+                    def rowCount(self) -> int:
+                        return 0
+                return _Src()
+
+        window.shot_proxy = _ProxyDouble()
+        window.previous_shots_proxy = _ProxyDouble()
+
         # Add FilterCoordinator (filter methods moved from MainWindow)
         from controllers.filter_coordinator import FilterCoordinator
         window.filter_coordinator = FilterCoordinator(window)
@@ -422,50 +446,23 @@ class TestMainWindowFilterHandlers:
 
     def test_on_shot_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for My Shots show filter request."""
-        # Set up test shots
-        test_shots = [
-            Shot("show1", "seq1", "shot1", "/workspace/show1/seq1/shot1"),
-            Shot("show1", "seq2", "shot2", "/workspace/show1/seq2/shot2"),
-            Shot("show2", "seq3", "shot3", "/workspace/show2/seq3/shot3"),
-        ]
-        mock_main_window.shot_model.shots = test_shots
-        mock_main_window.shot_item_model.set_shots(test_shots)
-
         # Call the handler (method is now on FilterCoordinator)
         mock_main_window.filter_coordinator._on_shot_show_filter_requested("show1")
 
-        # Verify the filter was applied
-        assert mock_main_window.shot_model.get_show_filter() == "show1"
-        assert mock_main_window.shot_item_model.rowCount() == 2
+        # Verify the filter was applied to the proxy (proxy handles filtering)
+        assert mock_main_window.shot_proxy._show_filter == "show1"
 
         # Test clearing filter
         mock_main_window.filter_coordinator._on_shot_show_filter_requested("")
-        assert mock_main_window.shot_model.get_show_filter() is None
-        assert mock_main_window.shot_item_model.rowCount() == 3
+        assert mock_main_window.shot_proxy._show_filter is None
 
     def test_on_previous_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for Previous Shots show filter request."""
-        # Set up test previous shots
-        test_shots = [
-            Shot("showA", "seq10", "shot10", "/workspace/showA/seq10/shot10"),
-            Shot("showA", "seq11", "shot11", "/workspace/showA/seq11/shot11"),
-            Shot("showB", "seq20", "shot20", "/workspace/showB/seq20/shot20"),
-        ]
-        mock_main_window.previous_shots_model._previous_shots = test_shots
-        mock_main_window.previous_shots_item_model._shots = test_shots
-
         # Call the handler (method is now on FilterCoordinator)
         mock_main_window.filter_coordinator._on_previous_show_filter_requested("showA")
 
-        # Verify the filter was applied
-        assert mock_main_window.previous_shots_model.get_show_filter() == "showA"
-        # The filter should have been applied, showing only showA shots
-        filtered_shots = [
-            s
-            for s in mock_main_window.previous_shots_item_model._shots
-            if s.show == "showA"
-        ]
-        assert len(filtered_shots) == 2
+        # Verify the filter was applied to the proxy (proxy handles filtering)
+        assert mock_main_window.previous_shots_proxy._show_filter == "showA"
 
     def test_refresh_populates_show_filter(self, mock_main_window: Any) -> None:
         """Test that refreshing shots populates the show filter combo."""
@@ -518,21 +515,12 @@ class TestMainWindowFilterHandlers:
         assert "showY" in items
 
     def test_filter_updates_status_bar(self, mock_main_window: Any) -> None:
-        """Test that applying show filter updates status bar with count."""
-        # Set up test shots
-        test_shots = [
-            Shot("show1", "seq1", "shot1", "/workspace/show1/seq1/shot1"),
-            Shot("show1", "seq2", "shot2", "/workspace/show1/seq2/shot2"),
-            Shot("show2", "seq3", "shot3", "/workspace/show2/seq3/shot3"),
-        ]
-        mock_main_window.shot_model.shots = test_shots
-        mock_main_window.shot_item_model.set_shots(test_shots)
-
+        """Test that applying show filter updates status bar."""
         # Call the handler (method is now on FilterCoordinator)
         mock_main_window.filter_coordinator._on_shot_show_filter_requested("show1")
 
-        # Verify status bar was updated with filter result
+        # Verify status bar was updated with filter info
         mock_main_window.status_bar.showMessage.assert_called()
         call_args = mock_main_window.status_bar.showMessage.call_args[0][0]
         assert "show1" in call_args
-        assert "2" in call_args  # 2 shots filtered
+        assert "My Shots" in call_args

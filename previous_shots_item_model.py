@@ -153,47 +153,8 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             shots: List of Shot objects
 
         """
-        # Apply sorting before setting items
-        sorted_shots = self._apply_sort(shots)
-        self.set_items(sorted_shots)
+        self.set_items(shots)
 
-    @override
-    def _apply_sort(self, items: list[Shot]) -> list[Shot]:
-        """Apply current sort order to a list of shots.
-
-        Pinned shots are always sorted to the front (by pin order),
-        then unpinned shots are sorted by the current sort order.
-
-        Args:
-            items: List of shots to sort
-
-        Returns:
-            Sorted list of shots
-
-        """
-        if self._pin_manager:
-            # Sort: pinned first (by pin order), then unpinned (by sort order)
-            def sort_key(s: Shot) -> tuple[bool, int, float | str]:
-                is_pinned = self._pin_manager.is_pinned(s)  # type: ignore[union-attr]
-                pin_order = (
-                    self._pin_manager.get_pin_order(s)  # type: ignore[union-attr]
-                    if is_pinned
-                    else 999999
-                )
-                if self._sort_order == "name":
-                    secondary: float | str = s.full_name.lower()
-                else:
-                    # "date" - use negative timestamp for newest first
-                    secondary = -s.discovered_at
-                return (not is_pinned, pin_order, secondary)
-
-            return sorted(items, key=sort_key)
-
-        # No pin manager - use original sort logic
-        if self._sort_order == "name":
-            return sorted(items, key=lambda s: s.full_name.lower())
-        # "date" - newest first
-        return sorted(items, key=lambda s: s.discovered_at, reverse=True)
 
     def get_shot_at_index(self, index: QModelIndex) -> Shot | None:
         """Get shot at the given index.
@@ -216,29 +177,6 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         """
         return self.get_selected_item()
 
-    def set_show_filter(
-        self, previous_shots_model: PreviousShotsModel, show: str | None
-    ) -> None:
-        """Set show filter and update the model.
-
-        Args:
-            previous_shots_model: Model to get filtered shots from
-            show: Show name to filter by or None for all shows
-
-        """
-        # Set filter on the model
-        previous_shots_model.set_show_filter(show)
-
-        # Get filtered shots and update our display
-        filtered_shots = previous_shots_model.get_filtered_shots()
-        self.set_shots(filtered_shots)
-
-        # Emit filter changed signal for UI updates
-        filter_display = show if show is not None else "All Shows"
-        self.show_filter_changed.emit(filter_display)
-        self.logger.info(
-            f"Applied show filter: {filter_display}, {len(filtered_shots)} shots"
-        )
 
     def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
         """Find a shot by its full name.
@@ -267,11 +205,9 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
     def refresh_pin_order(self) -> None:
         """Re-sort shots to reflect pin changes.
 
-        Call this after pinning/unpinning to update the display order.
+        Note: With proxy models, call proxy.refresh_sort() instead.
+        Kept for backward compatibility with tests.
         """
-        if self._items:
-            # Re-sort with current items
-            self.set_shots(list(self._items))
 
     def _on_underlying_shots_updated(self) -> None:
         """Handle shots update from underlying model."""
@@ -280,9 +216,8 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
     def _update_from_underlying_model(self) -> None:
         """Update items from underlying model."""
         new_shots = self._underlying_model.get_shots()
-        # Apply sorting through set_shots()
         self.set_shots(new_shots)
-        self.logger.debug(f"Updated with {len(new_shots)} previous shots (sorted by {self._sort_order})")
+        self.logger.debug(f"Updated with {len(new_shots)} previous shots")
 
     def refresh(self) -> None:
         """Trigger refresh of underlying model."""

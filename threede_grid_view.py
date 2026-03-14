@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, cast, final
 from PySide6.QtCore import (
     QModelIndex,
     QPoint,
+    QSortFilterProxyModel,
     Qt,
     QThreadPool,
     Signal,
@@ -80,6 +81,7 @@ class ThreeDEGridView(BaseGridView):
     def __init__(
         self,
         model: ThreeDEItemModel | None = None,
+        proxy: QSortFilterProxyModel | None = None,
         pin_manager: PinManager | None = None,
         notes_manager: NotesManager | None = None,
         parent: QWidget | None = None,
@@ -88,6 +90,7 @@ class ThreeDEGridView(BaseGridView):
 
         Args:
             model: Optional 3DE item model
+            proxy: Optional proxy model for filtering/sorting
             pin_manager: Optional pin manager for pinning shots
             notes_manager: Optional notes manager for shot notes
             parent: Optional parent widget
@@ -127,7 +130,7 @@ class ThreeDEGridView(BaseGridView):
         _ = self.list_view.customContextMenuRequested.connect(self._show_context_menu)
 
         if model:
-            self.set_model(model)
+            self.set_model(model, proxy)
 
         self.logger.debug("ThreeDEGridView initialized")
 
@@ -228,16 +231,17 @@ class ThreeDEGridView(BaseGridView):
         """
         return ThreeDEGridDelegate(self)
 
-    def set_model(self, model: ThreeDEItemModel) -> None:
+    def set_model(self, model: ThreeDEItemModel, proxy: QSortFilterProxyModel | None = None) -> None:
         """Set the item model.
 
         Args:
             model: ThreeDEItemModel instance configured for 3DE scenes
+            proxy: Optional proxy model for filtering/sorting
 
         """
         self._model = model  # Set base class attribute for visibility tracking
         self._threede_model = model
-        self.list_view.setModel(model)
+        self.list_view.setModel(proxy if proxy is not None else model)
         self._connect_model_visibility(model)
 
         # Connect model signals
@@ -339,8 +343,14 @@ class ThreeDEGridView(BaseGridView):
         """
         # Update the specific item
         if self._threede_model:
-            index = self._threede_model.index(row, 0)
-            self.list_view.update(index)
+            source_index = self._threede_model.index(row, 0)
+            proxy = self.list_view.model()
+            if isinstance(proxy, QSortFilterProxyModel):
+                view_index = proxy.mapFromSource(source_index)
+                if view_index.isValid():
+                    self.list_view.update(view_index)
+            else:
+                self.list_view.update(source_index)
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_loading_started(self) -> None:
@@ -390,10 +400,15 @@ class ThreeDEGridView(BaseGridView):
         if not self._threede_model:
             return
 
-        scene = self._threede_model.get_scene(index)
+        # Map proxy index to source if needed
+        source_index = index
+        proxy = self.list_view.model()
+        if isinstance(proxy, QSortFilterProxyModel):
+            source_index = proxy.mapToSource(index)
+        scene = self._threede_model.get_scene(source_index)
         if scene:
             self._selected_scene = scene
-            self._threede_model.set_selected(index)
+            self._threede_model.set_selected(source_index)
             self.scene_selected.emit(scene)
 
     @Slot(QModelIndex)  # pyright: ignore[reportAny]
@@ -407,7 +422,11 @@ class ThreeDEGridView(BaseGridView):
         if not self._threede_model:
             return
 
-        scene = self._threede_model.get_scene(index)
+        source_index = index
+        proxy = self.list_view.model()
+        if isinstance(proxy, QSortFilterProxyModel):
+            source_index = proxy.mapToSource(index)
+        scene = self._threede_model.get_scene(source_index)
         if scene:
             self.scene_double_clicked.emit(scene)
             # Launch 3DE by default
@@ -439,7 +458,11 @@ class ThreeDEGridView(BaseGridView):
         if not index.isValid() or not self._threede_model:
             return
 
-        scene = self._threede_model.get_scene(index)
+        source_index = index
+        proxy = self.list_view.model()
+        if isinstance(proxy, QSortFilterProxyModel):
+            source_index = proxy.mapToSource(index)
+        scene = self._threede_model.get_scene(source_index)
         if not scene:
             return
 
@@ -708,7 +731,11 @@ class ThreeDEGridView(BaseGridView):
         """Handle Return/Enter key to launch selected scene."""
         current = self.list_view.currentIndex()
         if current.isValid() and self._threede_model:
-            scene = self._threede_model.get_scene(current)
+            source_index = current
+            proxy = self.list_view.model()
+            if isinstance(proxy, QSortFilterProxyModel):
+                source_index = proxy.mapToSource(current)
+            scene = self._threede_model.get_scene(source_index)
             if scene:
                 self.scene_double_clicked.emit(scene)
                 self.app_launch_requested.emit("3de", scene)
@@ -728,7 +755,12 @@ class ThreeDEGridView(BaseGridView):
             index = self._threede_model.index(row, 0)
             model_scene = self._threede_model.get_scene(index)
             if model_scene and model_scene.full_name == scene.full_name:
-                self.list_view.setCurrentIndex(index)
+                # Map source index to proxy for view selection
+                proxy = self.list_view.model()
+                view_index = index
+                if isinstance(proxy, QSortFilterProxyModel):
+                    view_index = proxy.mapFromSource(index)
+                self.list_view.setCurrentIndex(view_index)
                 self._threede_model.set_selected(index)
                 self._selected_scene = scene
                 self.scene_selected.emit(scene)

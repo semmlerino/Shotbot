@@ -30,27 +30,41 @@ pytestmark = [
 # ============================================================================
 
 
-class FilterableItemModelDouble:
-    """Test double for FilterableItemModel protocol."""
+class SourceModelDouble:
+    """Test double for the source model behind a proxy."""
 
     __test__ = False
 
     def __init__(self, row_count: int = 0) -> None:
         self._row_count = row_count
-        self._show_filter: str | None = None
-        self._set_show_filter_calls: list[tuple[Any, str | None]] = []
-        self._shots: list[Any] = []
-
-    def set_show_filter(self, model: Any, show_filter: str | None) -> None:
-        self._show_filter = show_filter
-        self._set_show_filter_calls.append((model, show_filter))
 
     def rowCount(self) -> int:
         return self._row_count
 
-    def set_shots(self, shots: list[Any]) -> None:
-        self._shots = shots
-        self._row_count = len(shots)
+
+class ProxyModelDouble:
+    """Test double for ShotProxyModel / PreviousShotsProxyModel."""
+
+    __test__ = False
+
+    def __init__(self, source_row_count: int = 0, filtered_row_count: int = 0) -> None:
+        self._source = SourceModelDouble(source_row_count)
+        self._filtered_row_count = filtered_row_count
+        self._show_filter: str | None = None
+        self._text_filter: str | None = None
+
+    def set_show_filter(self, show: str | None) -> None:
+        self._show_filter = show
+
+    def set_text_filter(self, text: str | None) -> None:
+        # Mimic real proxy normalization: empty/whitespace → None
+        self._text_filter = text.strip() if text else None
+
+    def rowCount(self) -> int:
+        return self._filtered_row_count
+
+    def sourceModel(self) -> SourceModelDouble:
+        return self._source
 
 
 class ShotModelDouble:
@@ -132,7 +146,24 @@ class GridViewDouble:
         self._populate_show_filter_model = model
 
 
-class PreviousShotsItemModelDouble(FilterableItemModelDouble):
+class ItemModelDouble:
+    """Test double for ShotItemModel / PreviousShotsItemModel."""
+
+    __test__ = False
+
+    def __init__(self, row_count: int = 0) -> None:
+        self._row_count = row_count
+        self._shots: list[Any] = []
+
+    def rowCount(self) -> int:
+        return self._row_count
+
+    def set_shots(self, shots: list[Any]) -> None:
+        self._shots = shots
+        self._row_count = len(shots)
+
+
+class PreviousShotsItemModelDouble(ItemModelDouble):
     """Test double for PreviousShotsItemModel with shots_updated signal."""
 
     __test__ = False
@@ -154,8 +185,12 @@ class FilterTargetDouble:
         self.shot_model = ShotModelDouble()
         self.previous_shots_model = PreviousShotsModelDouble()
 
-        self.shot_item_model = FilterableItemModelDouble()
+        self.shot_item_model = ItemModelDouble()
         self.previous_shots_item_model = PreviousShotsItemModelDouble()
+
+        # Proxy models (filter/sort sit between item models and views)
+        self.shot_proxy = ProxyModelDouble()
+        self.previous_shots_proxy = ProxyModelDouble()
 
         self.status_bar = StatusBarDouble()
 
@@ -215,61 +250,6 @@ class TestFilterCoordinatorInit:
 
 
 # ============================================================================
-# Test _apply_show_filter
-# ============================================================================
-
-
-class TestApplyShowFilter:
-    """Test the _apply_show_filter helper."""
-
-    def test_apply_show_filter_calls_set_show_filter_with_show(
-        self, coordinator: FilterCoordinator, window: FilterTargetDouble
-    ) -> None:
-        """_apply_show_filter passes the show name to set_show_filter."""
-        coordinator._apply_show_filter(
-            window.shot_item_model, window.shot_model, "myshow", "My Shots"
-        )
-        assert window.shot_item_model._show_filter == "myshow"
-
-    def test_apply_show_filter_converts_empty_string_to_none(
-        self, coordinator: FilterCoordinator, window: FilterTargetDouble
-    ) -> None:
-        """_apply_show_filter converts empty string to None (all shows)."""
-        coordinator._apply_show_filter(
-            window.shot_item_model, window.shot_model, "", "My Shots"
-        )
-        assert window.shot_item_model._show_filter is None
-
-    def test_apply_show_filter_shows_status_message(
-        self, coordinator: FilterCoordinator, window: FilterTargetDouble
-    ) -> None:
-        """_apply_show_filter shows a non-empty status bar message."""
-        coordinator._apply_show_filter(
-            window.shot_item_model, window.shot_model, "myshow", "My Shots"
-        )
-        assert window.status_bar._last_message != ""
-        assert window.status_bar._last_timeout > 0
-
-    def test_apply_show_filter_status_contains_tab_name(
-        self, coordinator: FilterCoordinator, window: FilterTargetDouble
-    ) -> None:
-        """Status message contains the tab name."""
-        coordinator._apply_show_filter(
-            window.shot_item_model, window.shot_model, "myshow", "My Shots"
-        )
-        assert "My Shots" in window.status_bar._last_message
-
-    def test_apply_show_filter_status_describes_all_shows_for_empty(
-        self, coordinator: FilterCoordinator, window: FilterTargetDouble
-    ) -> None:
-        """Status message uses 'All Shows' when show is empty string."""
-        coordinator._apply_show_filter(
-            window.shot_item_model, window.shot_model, "", "My Shots"
-        )
-        assert "All Shows" in window.status_bar._last_message
-
-
-# ============================================================================
 # Test _on_shot_show_filter_requested
 # ============================================================================
 
@@ -277,12 +257,12 @@ class TestApplyShowFilter:
 class TestShotShowFilter:
     """Test _on_shot_show_filter_requested."""
 
-    def test_show_name_applies_filter_to_shot_item_model(
+    def test_show_name_applies_filter_to_shot_proxy(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
-        """Non-empty show name applies filter to shot_item_model."""
+        """Non-empty show name applies filter to shot_proxy."""
         coordinator._on_shot_show_filter_requested("show1")
-        assert window.shot_item_model._show_filter == "show1"
+        assert window.shot_proxy._show_filter == "show1"
 
     def test_empty_string_clears_filter(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
@@ -290,7 +270,7 @@ class TestShotShowFilter:
         """Empty string clears the show filter (sets None)."""
         coordinator._on_shot_show_filter_requested("show1")
         coordinator._on_shot_show_filter_requested("")
-        assert window.shot_item_model._show_filter is None
+        assert window.shot_proxy._show_filter is None
 
     def test_show_filter_updates_status_bar(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
@@ -298,13 +278,28 @@ class TestShotShowFilter:
         """Handler updates the status bar."""
         coordinator._on_shot_show_filter_requested("show1")
         assert "My Shots" in window.status_bar._last_message
+        assert window.status_bar._last_timeout > 0
 
     def test_signal_emission_triggers_handler(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
         """show_filter_requested signal emission triggers the handler."""
         window.shot_grid.show_filter_requested.emit("show_from_signal")
-        assert window.shot_item_model._show_filter == "show_from_signal"
+        assert window.shot_proxy._show_filter == "show_from_signal"
+
+    def test_status_bar_message_contains_show_name(
+        self, coordinator: FilterCoordinator, window: FilterTargetDouble
+    ) -> None:
+        """Status bar message includes the active show filter."""
+        coordinator._on_shot_show_filter_requested("myshow")
+        assert "myshow" in window.status_bar._last_message
+
+    def test_empty_show_filter_status_bar_says_all_shows(
+        self, coordinator: FilterCoordinator, window: FilterTargetDouble
+    ) -> None:
+        """Status bar says 'All Shows' when filter is empty."""
+        coordinator._on_shot_show_filter_requested("")
+        assert "All Shows" in window.status_bar._last_message
 
 
 # ============================================================================
@@ -315,53 +310,32 @@ class TestShotShowFilter:
 class TestShotTextFilter:
     """Test _on_shot_text_filter_requested."""
 
-    def test_text_filter_sets_filter_on_shot_model(
+    def test_text_filter_sets_filter_on_shot_proxy(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
-        """Non-empty text sets text filter on shot_model."""
-        window.shot_model.shots = ["shot_abc", "shot_xyz"]
+        """Non-empty text sets text filter on shot_proxy."""
         coordinator._on_shot_text_filter_requested("abc")
-        assert window.shot_model._text_filter == "abc"
-
-    def test_text_filter_updates_shot_item_model_shots(
-        self, coordinator: FilterCoordinator, window: FilterTargetDouble
-    ) -> None:
-        """Handler updates shot_item_model with filtered shots."""
-        window.shot_model.shots = ["shot_abc", "shot_xyz"]
-        coordinator._on_shot_text_filter_requested("abc")
-        assert window.shot_item_model._shots == ["shot_abc"]
+        assert window.shot_proxy._text_filter == "abc"
 
     def test_empty_text_clears_filter(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
-        """Empty string clears the text filter."""
-        window.shot_model.shots = ["shot_abc", "shot_xyz"]
+        """Empty string clears the text filter (sets None)."""
         coordinator._on_shot_text_filter_requested("abc")
         coordinator._on_shot_text_filter_requested("")
-        assert window.shot_model._text_filter is None
-
-    def test_empty_text_restores_all_shots(
-        self, coordinator: FilterCoordinator, window: FilterTargetDouble
-    ) -> None:
-        """Clearing text filter restores all shots in item model."""
-        window.shot_model.shots = ["shot_abc", "shot_xyz"]
-        coordinator._on_shot_text_filter_requested("abc")
-        coordinator._on_shot_text_filter_requested("")
-        assert len(window.shot_item_model._shots) == 2
+        assert window.shot_proxy._text_filter is None
 
     def test_text_filter_shows_status_with_filter_info(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
         """Status bar shows filter text when filter is active."""
-        window.shot_model.shots = ["shot_abc"]
         coordinator._on_shot_text_filter_requested("abc")
         assert "abc" in window.status_bar._last_message
 
-    def test_clear_text_filter_shows_total_count(
+    def test_clear_text_filter_shows_my_shots_tab_name(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
-        """Status bar shows total shot count when filter is cleared."""
-        window.shot_model.shots = ["shot_abc", "shot_xyz"]
+        """Status bar shows 'My Shots' tab name when filter is cleared."""
         coordinator._on_shot_text_filter_requested("")
         assert "My Shots" in window.status_bar._last_message
 
@@ -369,9 +343,30 @@ class TestShotTextFilter:
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
         """text_filter_requested signal emission triggers the handler."""
-        window.shot_model.shots = ["shot_abc", "shot_xyz"]
         window.shot_grid.text_filter_requested.emit("abc")
-        assert window.shot_model._text_filter == "abc"
+        assert window.shot_proxy._text_filter == "abc"
+
+    def test_whitespace_text_filter_is_treated_as_empty(
+        self, coordinator: FilterCoordinator, window: FilterTargetDouble
+    ) -> None:
+        """Whitespace-only text filter is normalized to None."""
+        coordinator._on_shot_text_filter_requested("   ")
+        assert window.shot_proxy._text_filter is None
+
+    def test_text_filter_updates_shot_item_model_shots(
+        self, coordinator: FilterCoordinator, window: FilterTargetDouble
+    ) -> None:
+        """Handler calls set_text_filter on the proxy (proxy handles filtering)."""
+        coordinator._on_shot_text_filter_requested("abc")
+        assert window.shot_proxy._text_filter == "abc"
+
+    def test_empty_text_restores_all_shots(
+        self, coordinator: FilterCoordinator, window: FilterTargetDouble
+    ) -> None:
+        """Clearing text filter clears the proxy filter."""
+        coordinator._on_shot_text_filter_requested("abc")
+        coordinator._on_shot_text_filter_requested("")
+        assert window.shot_proxy._text_filter is None
 
 
 # ============================================================================
@@ -382,12 +377,12 @@ class TestShotTextFilter:
 class TestPreviousShowFilter:
     """Test _on_previous_show_filter_requested."""
 
-    def test_show_name_applies_filter_to_previous_item_model(
+    def test_show_name_applies_filter_to_previous_proxy(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
-        """Non-empty show name applies filter to previous_shots_item_model."""
+        """Non-empty show name applies filter to previous_shots_proxy."""
         coordinator._on_previous_show_filter_requested("showA")
-        assert window.previous_shots_item_model._show_filter == "showA"
+        assert window.previous_shots_proxy._show_filter == "showA"
 
     def test_empty_string_clears_filter(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
@@ -395,7 +390,7 @@ class TestPreviousShowFilter:
         """Empty string clears the show filter."""
         coordinator._on_previous_show_filter_requested("showA")
         coordinator._on_previous_show_filter_requested("")
-        assert window.previous_shots_item_model._show_filter is None
+        assert window.previous_shots_proxy._show_filter is None
 
     def test_show_filter_updates_status_bar(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
@@ -409,7 +404,7 @@ class TestPreviousShowFilter:
     ) -> None:
         """show_filter_requested signal on previous_shots_grid triggers handler."""
         window.previous_shots_grid.show_filter_requested.emit("showB")
-        assert window.previous_shots_item_model._show_filter == "showB"
+        assert window.previous_shots_proxy._show_filter == "showB"
 
 
 # ============================================================================
@@ -420,45 +415,40 @@ class TestPreviousShowFilter:
 class TestPreviousTextFilter:
     """Test _on_previous_text_filter_requested."""
 
-    def test_text_filter_sets_filter_on_previous_shots_model(
+    def test_text_filter_sets_filter_on_previous_proxy(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
-        """Non-empty text sets text filter on previous_shots_model."""
-        window.previous_shots_model._shots = ["shot_abc", "shot_xyz"]
+        """Non-empty text sets text filter on previous_shots_proxy."""
         coordinator._on_previous_text_filter_requested("abc")
-        assert window.previous_shots_model._text_filter == "abc"
-
-    def test_text_filter_updates_previous_item_model_shots(
-        self, coordinator: FilterCoordinator, window: FilterTargetDouble
-    ) -> None:
-        """Handler updates previous_shots_item_model with filtered shots."""
-        window.previous_shots_model._shots = ["shot_abc", "shot_xyz"]
-        coordinator._on_previous_text_filter_requested("abc")
-        assert window.previous_shots_item_model._shots == ["shot_abc"]
+        assert window.previous_shots_proxy._text_filter == "abc"
 
     def test_empty_text_clears_filter(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
         """Empty string clears the text filter."""
-        window.previous_shots_model._shots = ["shot_abc", "shot_xyz"]
         coordinator._on_previous_text_filter_requested("abc")
         coordinator._on_previous_text_filter_requested("")
-        assert window.previous_shots_model._text_filter is None
+        assert window.previous_shots_proxy._text_filter is None
+
+    def test_text_filter_updates_previous_item_model_shots(
+        self, coordinator: FilterCoordinator, window: FilterTargetDouble
+    ) -> None:
+        """Handler calls set_text_filter on the proxy."""
+        coordinator._on_previous_text_filter_requested("abc")
+        assert window.previous_shots_proxy._text_filter == "abc"
 
     def test_empty_text_restores_all_shots(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
-        """Clearing text filter restores all shots in item model."""
-        window.previous_shots_model._shots = ["shot_abc", "shot_xyz"]
+        """Clearing text filter clears the proxy filter."""
         coordinator._on_previous_text_filter_requested("abc")
         coordinator._on_previous_text_filter_requested("")
-        assert len(window.previous_shots_item_model._shots) == 2
+        assert window.previous_shots_proxy._text_filter is None
 
     def test_text_filter_shows_status_with_filter_info(
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
         """Status bar shows filter text when filter is active."""
-        window.previous_shots_model._shots = ["shot_abc"]
         coordinator._on_previous_text_filter_requested("abc")
         assert "abc" in window.status_bar._last_message
 
@@ -466,9 +456,8 @@ class TestPreviousTextFilter:
         self, coordinator: FilterCoordinator, window: FilterTargetDouble
     ) -> None:
         """text_filter_requested signal on previous_shots_grid triggers handler."""
-        window.previous_shots_model._shots = ["shot_abc", "shot_xyz"]
         window.previous_shots_grid.text_filter_requested.emit("xyz")
-        assert window.previous_shots_model._text_filter == "xyz"
+        assert window.previous_shots_proxy._text_filter == "xyz"
 
 
 # ============================================================================

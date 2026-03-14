@@ -16,7 +16,6 @@ from typing_compat import override
 
 
 if TYPE_CHECKING:
-    from base_shot_model import BaseShotModel
     from cache.thumbnail_cache import ThumbnailCache
     from hide_manager import HideManager
     from notes_manager import NotesManager
@@ -134,30 +133,36 @@ class ShotItemModel(BaseItemModel["Shot"]):
     def set_shots(self, shots: list[Shot]) -> None:
         """Set the shots list.
 
-        Sorts shots with pinned shots first (by pin order), then unpinned
-        shots alphabetically.
-
         Args:
             shots: List of Shot objects
 
         """
-        if self._pin_manager:
-            # Sort: pinned first (by pin order), then unpinned (alphabetically)
-            def sort_key(s: Shot) -> tuple[bool, int, str]:
-                is_pinned = self._pin_manager.is_pinned(s)  # type: ignore[union-attr]
-                pin_order = (
-                    self._pin_manager.get_pin_order(s)  # type: ignore[union-attr]
-                    if is_pinned
-                    else 999999
-                )
-                return (not is_pinned, pin_order, s.full_name.lower())
+        self.set_items(shots)
 
-            sorted_shots = sorted(shots, key=sort_key)
-        else:
-            # Fallback: alphabetical sorting only
-            sorted_shots = sorted(shots, key=lambda s: s.full_name.lower())
+    def set_show_filter(self, shot_model: object, show: str | None) -> None:
+        """Apply show filter to item model (legacy compatibility).
 
-        self.set_items(sorted_shots)
+        Note: In production, filtering is handled by ShotProxyModel.
+        This method is retained for test compatibility with direct item model usage.
+
+        Args:
+            shot_model: Shot model to get filtered shots from (duck typed)
+            show: Show name to filter by or None for all shows
+
+        """
+        # Apply filter on the underlying model (duck-typed)
+        if hasattr(shot_model, "set_show_filter"):
+            shot_model.set_show_filter(show)  # type: ignore[union-attr]
+
+        # Get filtered shots (duck-typed)
+        if hasattr(shot_model, "get_filtered_shots"):
+            filtered_shots: list[Shot] = shot_model.get_filtered_shots()  # type: ignore[union-attr]
+            self.set_items(filtered_shots)  # pyright: ignore[reportUnknownArgumentType]
+
+        # Emit filter changed signal for test compatibility
+        filter_display = show if show is not None else "All Shows"
+        self.show_filter_changed.emit(filter_display)
+        self.logger.info(f"Applied show filter (compat): {filter_display}")
 
     def refresh_shots(self, shots: list[Shot]) -> RefreshResult:
         """Refresh with new shots, detecting changes.
@@ -204,27 +209,6 @@ class ShotItemModel(BaseItemModel["Shot"]):
         """
         return self.get_selected_item()
 
-    def set_show_filter(self, shot_model: BaseShotModel, show: str | None) -> None:
-        """Set show filter and update the model.
-
-        Args:
-            shot_model: Shot model to get filtered shots from
-            show: Show name to filter by or None for all shows
-
-        """
-        # Set filter on the shot model
-        shot_model.set_show_filter(show)
-
-        # Get filtered shots and update our display
-        filtered_shots = shot_model.get_filtered_shots()
-        self.set_shots(filtered_shots)
-
-        # Emit filter changed signal for UI updates
-        filter_display = show if show is not None else "All Shows"
-        self.show_filter_changed.emit(filter_display)
-        self.logger.info(
-            f"Applied show filter: {filter_display}, {len(filtered_shots)} shots"
-        )
 
     def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
         """Find a shot by its full name.
@@ -262,11 +246,9 @@ class ShotItemModel(BaseItemModel["Shot"]):
     def refresh_pin_order(self) -> None:
         """Re-sort shots to reflect pin changes.
 
-        Call this after pinning/unpinning to update the display order.
+        Note: With proxy models, call proxy.refresh_sort() instead.
+        Kept for backward compatibility with tests.
         """
-        if self._items:
-            # Re-sort with current items
-            self.set_shots(list(self._items))
 
     # ============= Properties =============
 

@@ -482,23 +482,35 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         if not self._model:
             return
 
-        # Get visible rectangle
         viewport = self.list_view.viewport()
         visible_rect = viewport.rect()
 
-        # Find first and last visible items
         first_index = self.list_view.indexAt(visible_rect.topLeft())
         last_index = self.list_view.indexAt(visible_rect.bottomRight())
 
+        # self._model is already verified non-None above; use it for fallback index building
         if not first_index.isValid():
             first_index = self._model.index(0, 0)
 
         if not last_index.isValid():
             last_index = self._model.index(self._model.rowCount() - 1, 0)
 
-        # Let subclasses handle the actual range update
         if first_index.isValid() and last_index.isValid():
-            self._handle_visible_range_update(first_index.row(), last_index.row() + 1)
+            # Map through proxy if the list view has a proxy model installed
+            from PySide6.QtCore import QSortFilterProxyModel
+
+            proxy = self.list_view.model()
+            if isinstance(proxy, QSortFilterProxyModel):
+                source_rows: list[int] = []
+                for row in range(first_index.row(), last_index.row() + 1):
+                    proxy_idx = proxy.index(row, 0)
+                    source_idx = proxy.mapToSource(proxy_idx)
+                    if source_idx.isValid():
+                        source_rows.append(source_idx.row())
+                if source_rows:
+                    self._handle_visible_range_update(min(source_rows), max(source_rows) + 1)
+            else:
+                self._handle_visible_range_update(first_index.row(), last_index.row() + 1)
 
     def _handle_visible_range_update(self, start: int, end: int) -> None:
         """Handle the visible range update.

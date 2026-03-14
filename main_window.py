@@ -118,6 +118,7 @@ from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
 from process_pool_manager import ProcessPoolManager
 from progress_manager import ProgressManager
+from proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
 from qt_widget_mixin import QtWidgetMixin
 from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from right_panel import RightPanelWidget  # New redesigned right panel
@@ -460,9 +461,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             hide_manager=self.hide_manager,
         )
         self.shot_model.set_hide_manager(self.hide_manager)
-        self.shot_item_model.set_shots(self.shot_model.get_filtered_shots())
+        self.shot_item_model.set_shots(self.shot_model.shots)  # ALL shots, unfiltered
+        self.shot_proxy = ShotProxyModel(self)
+        self.shot_proxy.set_pin_manager(self.pin_manager)
+        self.shot_proxy.set_hide_manager(self.hide_manager)
+        self.shot_proxy.setSourceModel(self.shot_item_model)
+        self.shot_proxy.sort(0)
         self.shot_grid = ShotGridView(
             model=self.shot_item_model,
+            proxy=self.shot_proxy,
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
             hide_manager=self.hide_manager,
@@ -470,8 +477,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
 
         # Tab 2: Other 3DE scenes (using Model/View architecture)
+        self.threede_proxy = ThreeDEProxyModel(self)
+        self.threede_proxy.set_pin_manager(self.pin_manager)
+        self.threede_proxy.setSourceModel(self.threede_item_model)
+        self.threede_proxy.sort(0)
         self.threede_shot_grid = ThreeDEGridView(
             model=self.threede_item_model,
+            proxy=self.threede_proxy,
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
         )
@@ -484,8 +496,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
         )
+        self.previous_shots_proxy = PreviousShotsProxyModel(self)
+        self.previous_shots_proxy.set_pin_manager(self.pin_manager)
+        self.previous_shots_proxy.setSourceModel(self.previous_shots_item_model)
+        self.previous_shots_proxy.sort(0)
         self.previous_shots_grid = PreviousShotsView(
             model=self.previous_shots_item_model,
+            proxy=self.previous_shots_proxy,
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
         )
@@ -749,12 +766,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """
         threede_order = self.settings_manager.get_sort_order("threede_scenes")
         self.threede_item_model.set_sort_order(threede_order)
+        self.threede_proxy.set_sort_order(threede_order)
         self.threede_shot_grid.set_sort_order(threede_order)
         self.logger.debug(f"Restored 3DE scenes sort order: {threede_order}")
 
         # Restore Previous Shots sort order
         previous_order = self.settings_manager.get_sort_order("previous_shots")
         self.previous_shots_item_model.set_sort_order(previous_order)
+        self.previous_shots_proxy.set_sort_order(previous_order)
         self.previous_shots_grid.set_sort_order(previous_order)
         self.logger.debug(f"Restored Previous Shots sort order: {previous_order}")
 
@@ -928,7 +947,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _on_shot_visibility_changed(self) -> None:
         """Handle shot hide/unhide — refresh the shot grid display."""
-        self.shot_item_model.set_shots(self.shot_model.get_filtered_shots())
+        self.shot_proxy.invalidate()
 
     def _on_show_hidden_changed(self, show: bool) -> None:
         """Handle Show Hidden checkbox toggle.
@@ -937,8 +956,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             show: True to show hidden shots, False to hide them
 
         """
-        self.shot_model.set_show_hidden(show)
-        self.shot_item_model.set_shots(self.shot_model.get_filtered_shots())
+        self.shot_proxy.set_show_hidden(show)
 
     def _on_shot_grid_pin_requested(self, shot: Shot) -> None:
         """Handle pin request from the My Shots grid (fallback when no pin_manager on view).
@@ -948,7 +966,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         """
         self.pin_manager.pin_shot(shot)
-        self.shot_item_model.refresh_pin_order()
+        self.shot_proxy.refresh_sort()
 
     def _on_previous_shots_pin_requested(self, shot: Shot) -> None:
         """Handle pin request from the Previous Shots grid (fallback when no pin_manager on view).
@@ -958,7 +976,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         """
         self.pin_manager.pin_shot(shot)
-        self.previous_shots_item_model.refresh_pin_order()
+        self.previous_shots_proxy.refresh_sort()
 
     def _on_cache_updated(self) -> None:
         """Handle cache updated signal from model."""
@@ -1097,6 +1115,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         """
         item_model.set_sort_order(order)
+        # Also update the proxy model's sort order
+        if settings_key == "previous_shots":
+            self.previous_shots_proxy.set_sort_order(order)
+        elif settings_key == "threede_scenes":
+            self.threede_proxy.set_sort_order(order)
         self.settings_manager.set_sort_order(settings_key, order)
         self.logger.info(f"{settings_key} sort order changed to: {order}")
 
