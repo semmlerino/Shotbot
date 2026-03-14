@@ -189,23 +189,6 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         # Use parent implementation with secure executor
         return super().execute_workspace_command(command, cache_ttl, timeout)
 
-    def _execute_subprocess(
-        self,
-        command: str,
-        timeout: float | None = None,
-    ) -> str:
-        """Override to use test session for batch execution."""
-        if self._test_session:
-            # Use test session instead of secure executor for batch commands
-            from config import ThreadingConfig
-
-            # Use provided timeout or default
-            actual_timeout = timeout if timeout is not None else ThreadingConfig.SUBPROCESS_TIMEOUT
-
-            return self._test_session.execute(command, timeout=int(actual_timeout))
-        # Use parent implementation
-        return super()._execute_subprocess(command, timeout)
-
     def _get_bash_session(self, session_type: str):
         """Override to return injected test session when available."""
         if self._test_session:

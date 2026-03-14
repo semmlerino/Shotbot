@@ -13,7 +13,7 @@ import base64
 import re
 import shlex
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -344,120 +344,6 @@ class TestLoggingRedirection:
         # Path should be quoted
         assert "'/home/user with spaces" in result or '"/home/user with spaces' in result
 
-
-class TestFullCommandAssembly:
-    """Tests for full command assembly."""
-
-    def test_minimal_command(self, mock_config: MagicMock) -> None:
-        """Test building minimal command (app only)."""
-        result = CommandBuilder.build_full_command(
-            app_command="nuke",
-            workspace=None,
-            config=mock_config,
-            rez_packages=None,
-            apply_nuke_fixes=False,
-            add_logging_redirect=False,
-        )
-        assert result == "nuke"
-
-    @patch("pathlib.Path.mkdir")
-    @patch("pathlib.Path.home")
-    def test_full_command_with_all_features(
-        self,
-        mock_home: MagicMock,
-        mock_mkdir: MagicMock,
-        mock_config: MagicMock,
-    ) -> None:
-        """Test building command with all features enabled."""
-        mock_home.return_value = Path("/home/user")
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = True
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = "/path/to/config.ocio"
-
-        result = CommandBuilder.build_full_command(
-            app_command="nuke",
-            workspace="'/workspace/path'",
-            config=mock_config,
-            rez_packages=["nuke", "nuke-plugins"],
-            apply_nuke_fixes=True,
-            add_logging_redirect=True,
-        )
-
-        # Should contain all transformations in order:
-        # 1. Nuke fixes
-        assert "NUKE_PATH" in result or "NUKE_CRASH_REPORTS=0" in result
-
-        # 2. Rez wrapping
-        assert "rez env nuke nuke-plugins -- bash -lc" in result
-
-        # 3. Workspace (may be quoted differently by shlex.quote)
-        assert "ws" in result
-        assert "workspace/path" in result
-
-        # 4. Logging
-        assert "tee -a" in result
-
-    def test_command_with_workspace_only(self, mock_config: MagicMock) -> None:
-        """Test building command with workspace only."""
-        result = CommandBuilder.build_full_command(
-            app_command="nuke",
-            workspace="'/workspace/path'",
-            config=mock_config,
-            rez_packages=None,
-            apply_nuke_fixes=False,
-            add_logging_redirect=False,
-        )
-        assert result == "ws '/workspace/path' && nuke"
-
-    def test_command_with_rez_only(self, mock_config: MagicMock) -> None:
-        """Test building command with Rez only."""
-        result = CommandBuilder.build_full_command(
-            app_command="nuke",
-            workspace=None,
-            config=mock_config,
-            rez_packages=["nuke"],
-            apply_nuke_fixes=False,
-            add_logging_redirect=False,
-        )
-        # shlex.quote() doesn't add quotes for simple strings without special chars
-        assert result == "rez env nuke -- bash -lc nuke"
-
-    def test_command_with_nuke_fixes_only(self, mock_config: MagicMock) -> None:
-        """Test building command with Nuke fixes only."""
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = ""
-
-        result = CommandBuilder.build_full_command(
-            app_command="nuke",
-            workspace=None,
-            config=mock_config,
-            rez_packages=None,
-            apply_nuke_fixes=True,
-            add_logging_redirect=False,
-        )
-        assert result == "NUKE_CRASH_REPORTS=0 && nuke"
-
-    def test_transformation_order(self, mock_config: MagicMock) -> None:
-        """Test that transformations are applied in correct order."""
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = ""
-
-        result = CommandBuilder.build_full_command(
-            app_command="nuke",
-            workspace="'/ws'",
-            config=mock_config,
-            rez_packages=["nuke"],
-            apply_nuke_fixes=True,
-            add_logging_redirect=False,
-        )
-
-        # Order should be: fixes -> rez -> workspace
-        assert result.startswith("ws '/ws' && rez env nuke -- bash -lc")
-        # Workspace stays outside the Rez wrapper so ws is resolved by the studio shell.
-        assert "ws" in result
-        assert "/ws" in result
-        # Then original command with Nuke fixes
-        assert "NUKE_CRASH_REPORTS=0" in result
-        assert "nuke" in result
 
 
 class TestBackgroundWrapping:

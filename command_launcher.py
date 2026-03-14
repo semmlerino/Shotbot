@@ -37,8 +37,9 @@ from launch import (
 )
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
-from nuke_launch_router import NukeLaunchRouter
+from nuke_launch_handler import NukeLaunchHandler
 from settings_manager import SettingsManager
+from simple_nuke_launcher import SimpleNukeLauncher
 
 
 if TYPE_CHECKING:
@@ -214,8 +215,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         self.env_manager.warm_cache_async()  # Pre-warm caches in background
         self.process_executor = ProcessExecutor(Config, parent=self)
 
-        # Initialize the Nuke launch handler
-        self.nuke_handler = NukeLaunchRouter()
+        # Initialize Nuke launch components
+        self.nuke_launcher = SimpleNukeLauncher()
+        self.nuke_env = NukeLaunchHandler()
 
         # Per-DCC handlers for launch_with_file command building
         self._app_handlers: dict[str, AppHandler] = {
@@ -297,7 +299,7 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         if app_name != "nuke":
             return ""
 
-        env_fixes = self.nuke_handler.get_environment_fixes()
+        env_fixes = self.nuke_env.get_environment_fixes()
         if not env_fixes:
             return ""
 
@@ -953,16 +955,22 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
 
         # Handle Nuke-specific launching logic
         if app_name == "nuke":
-            options = {
-                "open_latest_scene": context.open_latest_scene,
-                "create_new_file": context.create_new_file,
-            }
-            command, _ = self.nuke_handler.prepare_nuke_command(
-                self.current_shot, command, options, selected_plate=context.selected_plate
-            )
-            if not command:
-                self._emit_error("Nuke launch aborted - see log messages above")
-                return LAUNCH_ERROR
+            has_workspace_options = context.open_latest_scene or context.create_new_file
+            if has_workspace_options:
+                if not context.selected_plate:
+                    self._emit_error("No plate selected. Please select a plate space.")
+                    return LAUNCH_ERROR
+                if context.create_new_file:
+                    command, _ = self.nuke_launcher.create_new_version(
+                        self.current_shot, context.selected_plate
+                    )
+                else:
+                    command, _ = self.nuke_launcher.open_latest_script(
+                        self.current_shot, context.selected_plate, create_if_missing=True
+                    )
+                if not command:
+                    self._emit_error("Nuke launch aborted - see log messages above")
+                    return LAUNCH_ERROR
 
         # Handle 3DE/Maya with latest scene file (async-aware)
         needs_file_search = (

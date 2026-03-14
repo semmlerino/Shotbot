@@ -13,6 +13,7 @@ Part of the Phase 2 refactoring to break down the monolithic scene finder.
 from __future__ import annotations
 
 # Standard library imports
+import logging
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
@@ -20,6 +21,8 @@ from typing import TYPE_CHECKING, ClassVar
 # Local application imports
 from logging_mixin import LoggingMixin
 
+
+_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
@@ -214,8 +217,8 @@ class SceneParser(LoggingMixin):
             self.logger.debug(f"Could not parse path {threede_file}: {e}")
             return None
 
+    @staticmethod
     def create_scene_from_file_info(
-        self,
         file_path: Path,
         show: str,
         sequence: str,
@@ -267,7 +270,7 @@ class SceneParser(LoggingMixin):
             frame_end=frame_end,
         )
 
-        self.logger.debug(f"Created scene: {show}/{sequence}/{shot} - {user}/{plate}")
+        _logger.debug("Created scene: %s/%s/%s - %s/%s", show, sequence, shot, user, plate)
         return scene
 
     def extract_shot_from_workspace_path(

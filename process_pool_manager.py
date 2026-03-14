@@ -562,45 +562,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             raise
 
 
-    def _execute_subprocess(
-        self,
-        command: str,
-        timeout: float | None = None,
-    ) -> str:
-        """Execute command via subprocess.
-
-        This method is designed to be called in parallel threads.
-
-        Args:
-            command: Command to execute
-            timeout: Command timeout in seconds (default: ThreadingConfig.SUBPROCESS_TIMEOUT)
-
-        Returns:
-            Command output
-
-        """
-        # Use default timeout if not specified
-        if timeout is None:
-            timeout = ThreadingConfig.SUBPROCESS_TIMEOUT
-
-        # Execute shell command using subprocess
-        try:
-            # Execute using shell for standard commands
-            proc_result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=True,
-            )
-            return proc_result.stdout
-
-        except Exception:
-            self.logger.exception("Session pool execution failed")
-            raise
-
-
     def invalidate_cache(self, pattern: str | None = None) -> None:
         """Invalidate command cache.
 

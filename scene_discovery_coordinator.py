@@ -748,64 +748,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         return Config.SHOWS_ROOT
 
     @staticmethod
-    def _build_threede_scene(
-        scene_path: object,
-        show_name: str,
-        seq: str,
-        shot: str,
-        user: str,
-        plate: str,
-        workspace_path: str,
-    ) -> ThreeDEScene:
-        """Construct a ThreeDEScene from raw file-tuple components.
-
-        Args:
-            scene_path: Path object for the .3de file.
-            show_name: Show name extracted from the file path.
-            seq: Sequence name extracted from the file path.
-            shot: Shot name extracted from the file path.
-            user: Owner username extracted from the file path.
-            plate: Plate name extracted from the file path.
-            workspace_path: Resolved workspace path for this shot.
-
-        Returns:
-            Populated ThreeDEScene instance.
-
-        """
-        # Standard library imports
-        from pathlib import Path as _Path
-
-        # Local application imports
-        from frame_range_extractor import extract_frame_range
-        from threede_scene_model import ThreeDEScene
-
-        scene_path = _Path(scene_path) if not isinstance(scene_path, _Path) else scene_path  # type: ignore[arg-type]
-
-        # Get file modification time for sorting (0.0 if unavailable)
-        try:
-            modified_time = scene_path.stat().st_mtime  # type: ignore[union-attr]
-        except OSError:
-            modified_time = 0.0
-
-        # Extract frame range for scrub preview
-        frame_range = extract_frame_range(workspace_path)
-        frame_start = frame_range[0] if frame_range else None
-        frame_end = frame_range[1] if frame_range else None
-
-        return ThreeDEScene(
-            show=show_name,
-            sequence=seq,
-            shot=shot,
-            workspace_path=workspace_path,
-            user=user,
-            plate=plate,
-            scene_path=scene_path,  # type: ignore[arg-type]
-            modified_time=modified_time,
-            frame_start=frame_start,
-            frame_end=frame_end,
-        )
-
-    @staticmethod
     def _process_show(
         show: str,
         shows_root: str,
@@ -834,6 +776,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         # Local application imports
         from filesystem_scanner import FileSystemScanner
+        from scene_parser import SceneParser
 
         show_scenes: list[ThreeDEScene] = []
 
@@ -882,7 +825,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                 # This allows viewing 3DE work from other users on any shot in the show
                 workspace_path = f"{shows_root}/{show_name}/shots/{seq}/{seq}_{shot}"
 
-            scene = SceneDiscoveryCoordinator._build_threede_scene(
+            scene = SceneParser.create_scene_from_file_info(
                 scene_path, show_name, seq, shot, user, plate, workspace_path
             )
             show_scenes.append(scene)

@@ -1284,14 +1284,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._session_warmer = None
 
         # 4. Managers
-        if (
-            self.command_launcher
-            and hasattr(self.command_launcher, "nuke_handler")
-            and hasattr(self.command_launcher.nuke_handler, "log_usage_stats")
-        ):
-            self.logger.debug("Logging Nuke launcher usage statistics")
-            self.command_launcher.nuke_handler.log_usage_stats()
-
         if self.command_launcher and hasattr(self.command_launcher, "cleanup"):
             self.logger.debug("Cleaning up command launcher")
             self.command_launcher.cleanup()
