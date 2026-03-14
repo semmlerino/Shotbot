@@ -231,6 +231,8 @@ class TrackedQRunnable(QRunnable):
             "type": self.__class__.__name__,
             "auto_delete": auto_delete,
         }
+        # Register immediately upon initialization so wait_for_all() knows it's queued
+        self._tracker.register(self, self._metadata)
 
     @override
     def run(self) -> None:
@@ -239,7 +241,6 @@ class TrackedQRunnable(QRunnable):
         Subclasses should override _do_work() instead of this method.
         """
         try:
-            self._tracker.register(self, self._metadata)
             self._do_work()
         finally:
             self._tracker.unregister(self)

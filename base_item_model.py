@@ -42,6 +42,7 @@ from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
 from protocols import SceneDataProtocol
 from qt_abc_meta import QABCMeta
+from runnable_tracker import TrackedQRunnable
 from typing_compat import override
 
 
@@ -72,7 +73,7 @@ class ThumbnailLoaderSignals(QObject):
     failed: ClassVar[Signal] = Signal(str)  # full_name
 
 
-class ThumbnailLoaderRunnable(QRunnable):
+class ThumbnailLoaderRunnable(TrackedQRunnable):
     """Background thumbnail loader using QThreadPool.
 
     Loads and caches thumbnails in a background thread to avoid blocking
@@ -100,7 +101,8 @@ class ThumbnailLoaderRunnable(QRunnable):
             cache_manager: ThumbnailCache instance for thumbnail caching
 
         """
-        super().__init__()
+        # Pass auto_delete=False because callbacks need to clean up
+        super().__init__(auto_delete=False)
         self.full_name: str = full_name
         self.thumbnail_path: Path = thumbnail_path
         self.show: str = show
@@ -108,13 +110,9 @@ class ThumbnailLoaderRunnable(QRunnable):
         self.shot: str = shot
         self.cache_manager: ThumbnailCache = cache_manager
         self.signals: ThumbnailLoaderSignals = ThumbnailLoaderSignals()
-        # CRITICAL: Do NOT use setAutoDelete(True) because QueuedConnection
-        # requires the signals object to survive until the slot executes.
-        # The runnable will be cleaned up by the callback handlers.
-        self.setAutoDelete(False)
 
     @override
-    def run(self) -> None:
+    def _do_work(self) -> None:
         """Execute thumbnail caching in background thread."""
         try:
             cached_result = self.cache_manager.cache_thumbnail(

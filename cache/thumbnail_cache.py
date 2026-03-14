@@ -25,6 +25,7 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, QRunnable, Qt, Signal
 # Local application imports
 from exceptions import ThumbnailError
 from logging_mixin import LoggingMixin
+from runnable_tracker import TrackedQRunnable
 from typing_compat import override
 
 
@@ -54,7 +55,7 @@ class ThumbnailCacheLoaderSignals(QObject):
 
 
 @final
-class ThumbnailCacheLoader(QRunnable):
+class ThumbnailCacheLoader(TrackedQRunnable):
     """Background thumbnail cache loader — caches a source thumbnail via ThumbnailCache."""
 
     def __init__(
@@ -65,17 +66,16 @@ class ThumbnailCacheLoader(QRunnable):
         sequence: str,
         shot: str,
     ) -> None:
-        super().__init__()
+        super().__init__(auto_delete=True)
         self.cache_manager = cache
         self.source_path = source_path
         self.show = show
         self.sequence = sequence
         self.shot = shot
         self.signals = ThumbnailCacheLoaderSignals()
-        self.setAutoDelete(True)
 
     @override
-    def run(self) -> None:
+    def _do_work(self) -> None:
         try:
             result = self.cache_manager.cache_thumbnail(
                 self.source_path, self.show, self.sequence, self.shot

@@ -9,7 +9,6 @@ from __future__ import annotations
 # Standard library imports
 import os
 import stat
-import threading
 from pathlib import Path
 from unittest.mock import patch
 
@@ -276,7 +275,7 @@ class TestConcurrentEdgeCases:
                 def mock_open_side_effect(*args, **kwargs):
                     if exr_file.exists():
                         exr_file.unlink()
-                    raise FileNotFoundError()
+                    raise FileNotFoundError
                 mock_open.side_effect = mock_open_side_effect
 
                 result = cache_manager.cache_thumbnail(
@@ -302,19 +301,19 @@ class TestConcurrentEdgeCases:
             with patch.object(Image, "open") as mock_open:
                 # Store original open to call it after modifying
                 original_open = Image.open
-                
+
                 def mock_open_side_effect(*args, **kwargs):
                     if exr_file.exists():
                         # Change file content
                         exr_file.write_bytes(b"MODIFIED" + b"y" * 2048)
                     try:
                         # Just return None to avoid infinite recursion with patched mock
-                        return None
+                        return
                     except Exception:
                         pass
-                
+
                 mock_open.side_effect = mock_open_side_effect
-                
+
                 result = cache_manager.cache_thumbnail(
                     exr_file, show="test", sequence="seq", shot="0010"        )
         else:

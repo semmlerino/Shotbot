@@ -455,7 +455,7 @@ def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
                 source = inspect.getsource(func)
                 if "PySide6" not in source:
                     continue
-                    
+
                 tree = ast.parse(source)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Import):
@@ -471,7 +471,7 @@ def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
                 pass
     except (AttributeError, KeyError, TypeError, OSError, SyntaxError):
         pass
-    
+
     _PYSIDE6_FIXTURE_CACHE[fixture_name] = False
     return False
 
@@ -833,6 +833,15 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 def pytest_unconfigure(config: pytest.Config) -> None:
     """Final Qt teardown hook to avoid PySide shutdown-time segfaults."""
     global _GLOBAL_QAPP  # noqa: PLW0603
+
+    # Ensure any remaining thread pool runnables are cancelled or finished
+    try:
+        from PySide6.QtCore import QThreadPool
+        pool = QThreadPool.globalInstance()
+        pool.clear()
+        pool.waitForDone(2000)
+    except Exception:
+        pass
 
     # Keep this hook minimal. Per-test cleanup already drains Qt state; extra
     # Qt API calls here can crash during interpreter teardown once C++ objects
