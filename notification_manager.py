@@ -390,31 +390,3 @@ class NotificationManager(QObject):
     def get_status_bar(cls) -> QStatusBar | None:
         """Get the current status bar reference."""
         return cls._status_bar
-
-
-# Convenience functions for easier usage throughout the application
-def error(title: str, message: str = "", details: str = "") -> None:
-    """Show an error notification."""
-    NotificationManager.error(title, message, details)
-
-
-def warning(title: str, message: str = "", details: str = "") -> None:
-    """Show a warning notification."""
-    NotificationManager.warning(title, message, details)
-
-
-def info(message: str, timeout: int = 3000) -> None:
-    """Show an info message."""
-    NotificationManager.info(message, timeout)
-
-
-def success(message: str, timeout: int = 3000) -> None:
-    """Show a success message."""
-    NotificationManager.success(message, timeout)
-
-
-def progress(
-    title: str, message: str = "", cancelable: bool = False
-) -> QProgressDialog:
-    """Show a progress dialog."""
-    return NotificationManager.progress(title, message, cancelable)

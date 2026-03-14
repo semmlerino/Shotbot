@@ -10,14 +10,13 @@ Path patterns:
 
 from __future__ import annotations
 
-import getpass
-import os
 import re
 from datetime import datetime
 from pathlib import Path
 
 from logging_mixin import get_module_logger
 from scene_file import ImageSequence
+from utils import get_current_username
 
 
 logger = get_module_logger(__name__)
@@ -28,11 +27,6 @@ class UserSequenceFinder:
 
     Returns only the latest version of each sequence type.
     """
-
-    @staticmethod
-    def get_current_username() -> str:
-        """Get current username from environment or system."""
-        return os.environ.get("USER", getpass.getuser())
 
     @classmethod
     def find_maya_playblasts(
@@ -54,7 +48,7 @@ class UserSequenceFinder:
 
         """
         if username is None:
-            username = cls.get_current_username()
+            username = get_current_username()
 
         logger.info(
             f"Searching Maya playblasts for user '{username}' in workspace: {workspace_path}"
@@ -117,7 +111,7 @@ class UserSequenceFinder:
 
         """
         if username is None:
-            username = cls.get_current_username()
+            username = get_current_username()
 
         logger.info(
             f"Searching Nuke renders for user '{username}' in workspace: {workspace_path}"

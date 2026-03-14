@@ -913,22 +913,4 @@ class ValidationUtils:
             names=["show", "sequence", "shot"],
         )
 
-    @staticmethod
-    def get_current_username() -> str:
-        """Get the current username from environment.
-
-        Delegates to module-level get_current_username().
-        """
-        return get_current_username()
-
-    @staticmethod
-    def get_excluded_users(additional_users: set[str] | None = None) -> set[str]:
-        """Get set of users to exclude from searches.
-
-        Excludes the current user plus any additional specified users.
-        """
-        excluded = {ValidationUtils.get_current_username()}
-        if additional_users:
-            excluded.update(additional_users)
-        return excluded
 

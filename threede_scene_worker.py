@@ -26,7 +26,7 @@ from logging_mixin import LoggingMixin
 from scene_discovery_coordinator import SceneDiscoveryCoordinator
 from thread_safe_worker import ThreadSafeWorker
 from typing_compat import override
-from utils import ValidationUtils
+from utils import get_excluded_users
 
 
 if TYPE_CHECKING:
@@ -228,7 +228,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         self.shots = shots
         self.user_shots = shots  # Keep track of user's shots for filtering
         self.scan_all_shots = scan_all_shots
-        self.excluded_users = excluded_users or ValidationUtils.get_excluded_users()
+        self.excluded_users = excluded_users or get_excluded_users()
         self.batch_size = batch_size or Config.PROGRESSIVE_SCAN_BATCH_SIZE
         self.enable_progressive = enable_progressive and Config.PROGRESSIVE_SCAN_ENABLED
 

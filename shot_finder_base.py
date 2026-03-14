@@ -7,7 +7,6 @@ eliminating duplication between targeted and previous shot finders.
 from __future__ import annotations
 
 # Standard library imports
-import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TypedDict
@@ -18,6 +17,7 @@ from finder_utils import FinderUtils
 from progress_mixin import ProgressReportingMixin
 from shot_model import Shot
 from shot_parser import OptimizedShotParser
+from utils import get_current_username
 
 
 class FindShotsKwargs(TypedDict, total=False):
@@ -71,13 +71,8 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         # Initialize parent class (ProgressReportingMixin -> LoggingMixin)
         super().__init__()
 
-        # Get raw username
-        # In mock mode, always use gabriel-h
-        from config import is_mock_mode
-        if is_mock_mode():
-            raw_username = username or Config.DEFAULT_USERNAME
-        else:
-            raw_username = username or os.environ.get("USER") or os.getlogin()
+        # Get raw username, falling back to the canonical resolver
+        raw_username = username or get_current_username()
 
         # Use FinderUtils for username sanitization
         self.username: str = FinderUtils.sanitize_username(raw_username)

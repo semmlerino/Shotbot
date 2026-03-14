@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+from notification_manager import NotificationManager
 from rv_launcher import open_plate_in_rv
 
 
@@ -16,7 +17,7 @@ class TestOpenPlateInRV:
     @patch("publish_plate_finder.find_main_plate", return_value=None)
     def test_no_plate_found_logs_warning_and_notifies(self, mock_find):
         """When no plate is found, logs warning and shows error notification."""
-        with patch("notification_manager.error") as mock_notify:
+        with patch.object(NotificationManager, "error") as mock_notify:
             open_plate_in_rv("/some/workspace")
             mock_notify.assert_called_once()
             assert "No Plate Found" in mock_notify.call_args[0][0]
@@ -38,7 +39,7 @@ class TestOpenPlateInRV:
         """Missing RV package configuration fails closed."""
         with (
             patch("config.Config.REZ_RV_PACKAGES", []),
-            patch("notification_manager.error") as mock_notify,
+            patch.object(NotificationManager, "error") as mock_notify,
         ):
             open_plate_in_rv("/some/workspace")
 
@@ -50,7 +51,7 @@ class TestOpenPlateInRV:
         """Missing rez executable fails closed instead of using raw PATH RV."""
         with (
             patch("launch.environment_manager.shutil.which", return_value=None),
-            patch("notification_manager.error") as mock_notify,
+            patch.object(NotificationManager, "error") as mock_notify,
         ):
             open_plate_in_rv("/some/workspace")
 
@@ -63,7 +64,7 @@ class TestOpenPlateInRV:
         """FileNotFoundError shows RV Not Found notification."""
         with (
             patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"),
-            patch("notification_manager.error") as mock_notify,
+            patch.object(NotificationManager, "error") as mock_notify,
         ):
             open_plate_in_rv("/some/workspace")
             mock_notify.assert_called_once()
@@ -75,7 +76,7 @@ class TestOpenPlateInRV:
         """Generic exception shows RV Launch Failed notification."""
         with (
             patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"),
-            patch("notification_manager.error") as mock_notify,
+            patch.object(NotificationManager, "error") as mock_notify,
         ):
             open_plate_in_rv("/some/workspace")
             mock_notify.assert_called_once()

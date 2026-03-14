@@ -128,7 +128,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         try:
             from pathlib import Path
 
-            from utils import ValidationUtils
+            from utils import ValidationUtils, get_excluded_users
 
             # Input validation
             if not ValidationUtils.validate_shot_components(show, sequence, shot):
@@ -140,7 +140,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                 return []
 
             if excluded_users is None:
-                excluded_users = ValidationUtils.get_excluded_users()
+                excluded_users = get_excluded_users()
 
             shot_path = Path(shot_workspace_path)
 

@@ -415,50 +415,48 @@ class TestValidationUtils:
     def test_get_current_username_from_env(self) -> None:
         """Test username detection from environment variables."""
         # Test each environment variable in priority order
+        from utils import get_current_username
+
         env_vars = ["USER", "USERNAME", "LOGNAME"]
 
         for env_var in env_vars:
             with patch.dict(os.environ, {env_var: "testuser"}, clear=True):
-                result = ValidationUtils.get_current_username()
+                result = get_current_username()
                 assert result == "testuser"
 
     def test_get_current_username_fallback_to_default(self) -> None:
         """Test username fallback when no environment variables are set."""
         # Clear all username environment variables
+        from utils import get_current_username
+
         with patch.dict(os.environ, {}, clear=True):
-            result = ValidationUtils.get_current_username()
+            result = get_current_username()
             assert result == Config.DEFAULT_USERNAME
 
     def test_get_excluded_users_default(self) -> None:
         """Test getting excluded users with current user only."""
-        with patch.object(
-            ValidationUtils,
-            "get_current_username",
-            return_value="currentuser",
-        ):
-            result = ValidationUtils.get_excluded_users()
+        from utils import get_excluded_users
+
+        with patch("utils.get_current_username", return_value="currentuser"):
+            result = get_excluded_users()
             assert result == {"currentuser"}
 
     def test_get_excluded_users_with_additional(self) -> None:
         """Test getting excluded users with additional users."""
+        from utils import get_excluded_users
+
         additional = {"user1", "user2"}
-        with patch.object(
-            ValidationUtils,
-            "get_current_username",
-            return_value="currentuser",
-        ):
-            result = ValidationUtils.get_excluded_users(additional)
+        with patch("utils.get_current_username", return_value="currentuser"):
+            result = get_excluded_users(additional)
             assert result == {"currentuser", "user1", "user2"}
 
     def test_get_excluded_users_no_duplicates(self) -> None:
         """Test that current user isn't duplicated if in additional users."""
+        from utils import get_excluded_users
+
         additional = {"currentuser", "user1"}  # Includes current user
-        with patch.object(
-            ValidationUtils,
-            "get_current_username",
-            return_value="currentuser",
-        ):
-            result = ValidationUtils.get_excluded_users(additional)
+        with patch("utils.get_current_username", return_value="currentuser"):
+            result = get_excluded_users(additional)
             assert result == {"currentuser", "user1"}
 
 

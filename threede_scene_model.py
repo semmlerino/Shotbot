@@ -14,7 +14,7 @@ from cache.scene_cache_disk import SceneDiskCache
 from config import Config
 from path_builders import PathBuilders
 from thumbnail_finders import ThumbnailFinders
-from utils import ValidationUtils
+from utils import get_excluded_users
 
 
 logger = logging.getLogger(__name__)
@@ -193,7 +193,7 @@ class ThreeDESceneModel:
             cache_manager = SceneDiskCache(default_dir)
         self.cache_manager: SceneDiskCache = cache_manager
         # Get excluded users dynamically (current user + any additional)
-        self._excluded_users: set[str] = ValidationUtils.get_excluded_users()
+        self._excluded_users: set[str] = get_excluded_users()
         # Show filtering
         self._filter_show: str | None = None
         self._filter_artist: str | None = None

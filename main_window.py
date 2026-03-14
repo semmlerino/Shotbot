@@ -1038,9 +1038,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 )
                 return
             # If no workspace context, show error
-            from notification_manager import error as notify_error
-
-            notify_error(
+            NotificationManager.error(
                 "Cannot Launch File",
                 "No shot or scene context available. Select a shot first.",
             )

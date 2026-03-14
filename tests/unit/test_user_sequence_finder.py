@@ -10,27 +10,6 @@ from unittest.mock import patch
 from user_sequence_finder import UserSequenceFinder
 
 
-class TestGetCurrentUsername:
-    """Test get_current_username method."""
-
-    def test_uses_user_env_variable(self) -> None:
-        """Test that USER env variable is preferred."""
-        with patch.dict(os.environ, {"USER": "test-user"}):
-            username = UserSequenceFinder.get_current_username()
-            assert username == "test-user"
-
-    def test_falls_back_to_getpass(self) -> None:
-        """Test fallback to getpass when USER not set."""
-        env = os.environ.copy()
-        env.pop("USER", None)
-        with (
-            patch.dict(os.environ, env, clear=True),
-            patch("getpass.getuser", return_value="getpass-user"),
-        ):
-            username = UserSequenceFinder.get_current_username()
-            assert username == "getpass-user"
-
-
 class TestFindMayaPlayblasts:
     """Test find_maya_playblasts method."""
 
@@ -119,9 +98,7 @@ class TestFindMayaPlayblasts:
         version_dir.mkdir(parents=True)
         (version_dir / "Test.1001.png").touch()
 
-        with patch.object(
-            UserSequenceFinder, "get_current_username", return_value="testuser"
-        ):
+        with patch("user_sequence_finder.get_current_username", return_value="testuser"):
             result = UserSequenceFinder.find_maya_playblasts(str(workspace))
 
         assert len(result) == 1
