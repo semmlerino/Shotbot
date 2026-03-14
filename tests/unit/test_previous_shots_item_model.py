@@ -99,7 +99,7 @@ class TestPreviousShotsThreadSafety:
         def access_cache() -> None:
             for shot in test_shots:
                 # These operations should be mutex-protected
-                model._thumbnail_cache.get(shot.full_name, None)
+                model._thumbnail_loader.thumbnail_cache.get(shot.full_name, None)
 
         # Multiple concurrent accesses should not corrupt dictionary
         for _ in range(10):
@@ -135,13 +135,13 @@ class TestPreviousShotsThreadSafety:
         # Try to add more than MAX_CACHE_SIZE items
         added_count = 0
         for shot in many_shots:
-            if len(model._thumbnail_cache) < 100:
-                with QMutexLocker(model._cache_mutex):
-                    model._thumbnail_cache[shot.full_name] = test_image
+            if len(model._thumbnail_loader.thumbnail_cache) < 100:
+                with QMutexLocker(model._thumbnail_loader.cache_mutex):
+                    model._thumbnail_loader.thumbnail_cache[shot.full_name] = test_image
                     added_count += 1
 
         # Cache should not exceed limit
-        assert len(model._thumbnail_cache) <= 100
+        assert len(model._thumbnail_loader.thumbnail_cache) <= 100
         assert added_count <= 100
 
     def test_data_roles_thread_safety(self, model, test_shots) -> None:
@@ -264,12 +264,12 @@ class TestDataConsistency:
 
         # Populate cache
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
-        with QMutexLocker(model._cache_mutex):
+        with QMutexLocker(model._thumbnail_loader.cache_mutex):
             for shot in test_shots:
-                model._thumbnail_cache[shot.full_name] = test_image
+                model._thumbnail_loader.thumbnail_cache[shot.full_name] = test_image
                 # PreviousShotsItemModel doesn't have _loading_states
 
-        assert len(model._thumbnail_cache) == len(test_shots)
+        assert len(model._thumbnail_loader.thumbnail_cache) == len(test_shots)
 
         # Reset model
         # Update the underlying model's shots to empty list

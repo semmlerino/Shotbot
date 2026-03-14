@@ -23,7 +23,6 @@ from PySide6.QtCore import (
     QAbstractListModel,
     QCoreApplication,
     QModelIndex,
-    QMutex,
     QMutexLocker,
     QObject,
     QPersistentModelIndex,
@@ -34,7 +33,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QIcon, QImage, QPixmap
+from PySide6.QtGui import QIcon, QPixmap
 
 # Local application imports
 from config import Config
@@ -193,7 +192,6 @@ class BaseItemModel(
     # Common signals
     items_updated: Signal = Signal()  # Emitted when items list changes
     thumbnail_loaded: Signal = Signal(int)  # row index
-    selection_changed: Signal = Signal(QModelIndex)
     show_filter_changed: Signal = Signal(str)  # show name or "All Shows"
 
     def __init__(
@@ -225,10 +223,6 @@ class BaseItemModel(
             cache_manager = make_default_thumbnail_cache()
         self._cache_manager: ThumbnailCache = cache_manager
 
-        # Selection tracking
-        self._selected_index: QPersistentModelIndex = QPersistentModelIndex()
-        self._selected_item: T | None = None
-
         # Track visible range for lazy loading
         self._visible_start: int = 0
         self._visible_end: int = 0
@@ -247,50 +241,6 @@ class BaseItemModel(
         self.logger.info(
             f"{self.__class__.__name__} initialized with Model/View architecture"
         )
-
-    # ============= Forwarding properties for thumbnail subsystem =============
-    # Tests and subclasses access these attributes directly on the model.
-    # Properties forward them to the ThumbnailLoader without breaking callers.
-
-    @property
-    def _thumbnail_cache(self) -> dict[str, QImage]:
-        return self._thumbnail_loader.thumbnail_cache
-
-    @_thumbnail_cache.setter
-    def _thumbnail_cache(self, value: dict[str, QImage]) -> None:
-        self._thumbnail_loader.thumbnail_cache = value
-
-    @property
-    def _pixmap_cache(self) -> dict[str, QPixmap]:
-        return self._thumbnail_loader.pixmap_cache
-
-    @_pixmap_cache.setter
-    def _pixmap_cache(self, value: dict[str, QPixmap]) -> None:
-        self._thumbnail_loader.pixmap_cache = value
-
-    @property
-    def _loading_states(self) -> dict[str, str]:
-        return self._thumbnail_loader.loading_states
-
-    @_loading_states.setter
-    def _loading_states(self, value: dict[str, str]) -> None:
-        self._thumbnail_loader.loading_states = value
-
-    @property
-    def _cache_mutex(self) -> QMutex:
-        return self._thumbnail_loader.cache_mutex
-
-    @property
-    def _thumbnail_debounce_timer(self) -> QTimer:
-        return self._thumbnail_loader.thumbnail_debounce_timer
-
-    @property
-    def _pending_updates(self) -> dict[int, set[int]]:
-        return self._thumbnail_loader.pending_updates
-
-    @property
-    def _batch_timer(self) -> QTimer:
-        return self._thumbnail_loader.batch_timer
 
     @override
     def rowCount(
@@ -368,11 +318,8 @@ class BaseItemModel(
             return self._get_thumbnail_pixmap(item)
 
         if role == BaseItemRole.LoadingStateRole:
-            with QMutexLocker(self._cache_mutex):
-                return self._loading_states.get(item.full_name, "idle")
-
-        if role == BaseItemRole.IsSelectedRole:
-            return self._selected_index == QPersistentModelIndex(index)
+            with QMutexLocker(self._thumbnail_loader.cache_mutex):
+                return self._thumbnail_loader.loading_states.get(item.full_name, "idle")
 
         if role == Qt.ItemDataRole.DecorationRole:
             # Return thumbnail icon for decoration
@@ -421,24 +368,10 @@ class BaseItemModel(
 
         item = self._items[index.row()]
 
-        # Handle selection state
-        if role == BaseItemRole.IsSelectedRole:
-            if value:
-                self._selected_index = QPersistentModelIndex(index)
-                self._selected_item = item
-                self.selection_changed.emit(index)
-            else:
-                self._selected_index = QPersistentModelIndex()
-                self._selected_item = None
-
-            # Emit dataChanged for selection update
-            self.dataChanged.emit(index, index, [BaseItemRole.IsSelectedRole])
-            return True
-
         # Handle loading state
         if role == BaseItemRole.LoadingStateRole:
-            with QMutexLocker(self._cache_mutex):
-                self._loading_states[item.full_name] = (
+            with QMutexLocker(self._thumbnail_loader.cache_mutex):
+                self._thumbnail_loader.loading_states[item.full_name] = (
                     str(value) if value is not None else ""
                 )
             self.dataChanged.emit(index, index, [BaseItemRole.LoadingStateRole])
@@ -460,7 +393,7 @@ class BaseItemModel(
         self._visible_end = min(len(self._items) - 1, end) if self._items else 0
 
         # Schedule debounced thumbnail check
-        self._thumbnail_debounce_timer.start()  # Restart delays execution
+        self._thumbnail_loader.thumbnail_debounce_timer.start()  # Restart delays execution
 
     def _load_visible_thumbnails(self) -> None:
         """Check if visible range changed and schedule actual load."""
@@ -534,32 +467,6 @@ class BaseItemModel(
             return self._items[index.row()]
         return None
 
-    def get_selected_item(self) -> T | None:
-        """Get currently selected item.
-
-        Note: This getter acquires _cache_mutex for the read, but writes to
-        _selected_item (via setData) happen on the main thread without a lock.
-        The mutex here protects against torn reads from background threads, but
-        does not provide full write-side protection — callers must not rely on
-        this as a fully thread-safe operation.
-
-        Returns:
-            Selected item or None
-
-        """
-        with QMutexLocker(self._cache_mutex):
-            return self._selected_item
-
-    def clear_selection(self) -> None:
-        """Clear the current selection."""
-        if self._selected_item:
-            # Find and update the index
-            for i, item in enumerate(self._items):
-                if item == self._selected_item:
-                    index = self.index(i, 0)
-                    _ = self.setData(index, False, BaseItemRole.IsSelectedRole)
-                    break
-
     def clear_thumbnail_cache(self) -> None:
         """Clear the thumbnail cache to free memory."""
         self._thumbnail_loader.clear_thumbnail_cache()
@@ -602,8 +509,8 @@ class BaseItemModel(
             )
 
         # CRITICAL: Stop timers FIRST (prevents callback races)
-        if self._thumbnail_debounce_timer.isActive():
-            self._thumbnail_debounce_timer.stop()
+        if self._thumbnail_loader.thumbnail_debounce_timer.isActive():
+            self._thumbnail_loader.thumbnail_debounce_timer.stop()
 
         # Build lookup set BEFORE model reset (exception safety)
         new_item_names = {item.full_name for item in items}
@@ -616,24 +523,24 @@ class BaseItemModel(
             self._items = items
 
             # Acquire mutex ONLY for cache filtering (minimize hold time)
-            with QMutexLocker(self._cache_mutex):
-                old_cache_size = len(self._thumbnail_cache)
+            with QMutexLocker(self._thumbnail_loader.cache_mutex):
+                old_cache_size = len(self._thumbnail_loader.thumbnail_cache)
 
                 # Filter thumbnail cache - preserve only items still present
-                self._thumbnail_cache = {
+                self._thumbnail_loader.thumbnail_cache = {
                     name: image
-                    for name, image in self._thumbnail_cache.items()
+                    for name, image in self._thumbnail_loader.thumbnail_cache.items()
                     if name in new_item_names
                 }
 
                 # Filter loading states - preserve only items still present
-                self._loading_states = {
+                self._thumbnail_loader.loading_states = {
                     name: state
-                    for name, state in self._loading_states.items()
+                    for name, state in self._thumbnail_loader.loading_states.items()
                     if name in new_item_names
                 }
 
-                new_cache_size = len(self._thumbnail_cache)
+                new_cache_size = len(self._thumbnail_loader.thumbnail_cache)
             # QMutexLocker automatically releases lock here
 
             preserved = new_cache_size
@@ -642,10 +549,6 @@ class BaseItemModel(
             self.logger.info(
                 f"Model updated: {len(items)} items, thumbnails: {preserved} preserved, {evicted} evicted"
             )
-
-            # Clear selection (existing behavior)
-            self._selected_index = QPersistentModelIndex()
-            self._selected_item = None
 
         finally:
             # CRITICAL: Always complete model reset

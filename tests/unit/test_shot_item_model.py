@@ -94,7 +94,6 @@ class TestInitialization:
 
         assert model._cache_manager is cache_manager
         assert model.rowCount() == 0
-        assert model.get_selected_shot() is None
 
     def test_initialization_with_cache_manager(
         self, qapp: QApplication, cache_manager: object
@@ -118,7 +117,6 @@ class TestInitialization:
 
         # Verify base signals are inherited
         assert hasattr(shot_item_model, "items_updated")
-        assert hasattr(shot_item_model, "selection_changed")
 
     def test_shots_updated_connected_to_items_updated(
         self, shot_item_model: ShotItemModel, qtbot: QtBot, test_shots: list[Shot]
@@ -167,7 +165,7 @@ class TestThumbnailLoading:
 
         # Get initial loading state
         {
-            shot.full_name: shot_item_model._loading_states.get(shot.full_name, "idle")
+            shot.full_name: shot_item_model._thumbnail_loader.loading_states.get(shot.full_name, "idle")
             for shot in test_shots
         }
 
@@ -178,7 +176,7 @@ class TestThumbnailLoading:
 
         # Verify states are consistent (no duplicate loading)
         for shot in test_shots[:2]:
-            state = shot_item_model._loading_states.get(shot.full_name, "idle")
+            state = shot_item_model._thumbnail_loader.loading_states.get(shot.full_name, "idle")
             # State should be either idle or loaded, never stuck in loading
             assert state in ("idle", "loading", "loaded")
 
@@ -194,11 +192,11 @@ class TestThumbnailLoading:
 
         # Check loading states - only visible items should be marked
         visible_states = [
-            shot_item_model._loading_states.get(shot.full_name, "idle")
+            shot_item_model._thumbnail_loader.loading_states.get(shot.full_name, "idle")
             for shot in test_shots[:2]
         ]
         invisible_states = [
-            shot_item_model._loading_states.get(shot.full_name, "idle")
+            shot_item_model._thumbnail_loader.loading_states.get(shot.full_name, "idle")
             for shot in test_shots[2:]
         ]
 
@@ -222,7 +220,7 @@ class TestThumbnailLoading:
         shot = test_shots[0]
 
         # Initial state - no thumbnail
-        assert shot.full_name not in shot_item_model._thumbnail_cache
+        assert shot.full_name not in shot_item_model._thumbnail_loader.thumbnail_cache
 
         # Trigger loading
         shot_item_model.set_visible_range(0, 0)
@@ -230,8 +228,8 @@ class TestThumbnailLoading:
 
         # After loading, thumbnail may be cached (depends on cache manager)
         # We verify the mechanism exists
-        assert hasattr(shot_item_model, "_thumbnail_cache")
-        assert isinstance(shot_item_model._thumbnail_cache, dict)
+        assert hasattr(shot_item_model._thumbnail_loader, "thumbnail_cache")
+        assert isinstance(shot_item_model._thumbnail_loader.thumbnail_cache, dict)
 
 
 class TestShowFiltering:
@@ -315,47 +313,6 @@ class TestShowFiltering:
             shot = shot_item_model.get_shot_at_index(shot_item_model.index(i, 0))
             assert shot is not None
             assert shot.show == "show2"
-
-
-class TestSelectionManagement:
-    """Test selection management."""
-
-    def test_selection_synchronization_with_base(
-        self, shot_item_model: ShotItemModel, qtbot: QtBot, test_shots: list[Shot]
-    ) -> None:
-        """Test selection syncs to underlying model."""
-        shot_item_model.set_shots(test_shots)
-
-        spy = QSignalSpy(shot_item_model.selection_changed)
-
-        # Select first shot
-        index = shot_item_model.index(0, 0)
-        shot_item_model.setData(index, True, BaseItemRole.IsSelectedRole)
-
-        # Verify signal emitted
-        assert spy.count() == 1
-
-        # Verify selection state
-        selected = shot_item_model.get_selected_shot()
-        assert selected is test_shots[0]
-
-    def test_selected_shot_returns_correct_shot(
-        self, shot_item_model: ShotItemModel, qtbot: QtBot, test_shots: list[Shot]
-    ) -> None:
-        """Test get_selected_shot() works."""
-        shot_item_model.set_shots(test_shots)
-
-        # Initially no selection
-        assert shot_item_model.get_selected_shot() is None
-
-        # Select second shot
-        index = shot_item_model.index(1, 0)
-        shot_item_model.setData(index, True, BaseItemRole.IsSelectedRole)
-
-        # Verify correct shot selected
-        selected = shot_item_model.get_selected_shot()
-        assert selected is test_shots[1]
-        assert selected.full_name == "seq01_0020"
 
 
 class TestDataAccess:
@@ -536,8 +493,8 @@ class TestCleanup:
         shot_item_model.cleanup()
 
         # Caches should be cleared
-        assert len(shot_item_model._thumbnail_cache) == 0
-        assert len(shot_item_model._loading_states) == 0
+        assert len(shot_item_model._thumbnail_loader.thumbnail_cache) == 0
+        assert len(shot_item_model._thumbnail_loader.loading_states) == 0
 
     def test_set_items_preserves_matching_cache(
         self, shot_item_model: ShotItemModel, qtbot: QtBot, test_shots: list[Shot]
@@ -554,17 +511,17 @@ class TestCleanup:
 
         # Add to cache
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
-        with QMutexLocker(shot_item_model._cache_mutex):
-            shot_item_model._thumbnail_cache[test_shots[0].full_name] = test_image
+        with QMutexLocker(shot_item_model._thumbnail_loader.cache_mutex):
+            shot_item_model._thumbnail_loader.thumbnail_cache[test_shots[0].full_name] = test_image
 
         # Set new items - test_shots[0] preserved, test_shots[1] removed
         shot_item_model.set_shots([test_shots[0], test_shots[2]])
 
         # Verify preservation
-        assert len(shot_item_model._thumbnail_cache) == 1
-        assert test_shots[0].full_name in shot_item_model._thumbnail_cache
-        with QMutexLocker(shot_item_model._cache_mutex):
-            assert shot_item_model._thumbnail_cache[test_shots[0].full_name] is test_image
+        assert len(shot_item_model._thumbnail_loader.thumbnail_cache) == 1
+        assert test_shots[0].full_name in shot_item_model._thumbnail_loader.thumbnail_cache
+        with QMutexLocker(shot_item_model._thumbnail_loader.cache_mutex):
+            assert shot_item_model._thumbnail_loader.thumbnail_cache[test_shots[0].full_name] is test_image
 
 
 class TestEdgeCases:
@@ -575,7 +532,6 @@ class TestEdgeCases:
         shot_item_model.set_shots([])
 
         assert shot_item_model.rowCount() == 0
-        assert shot_item_model.get_selected_shot() is None
         assert len(shot_item_model.shots) == 0
 
     def test_find_shot_by_full_name(

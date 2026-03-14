@@ -541,9 +541,9 @@ class TestLoadingStates:
         model.set_items(shots)
 
         # Mark specific items as loading
-        model._loading_states["seq01_shot_0002"] = "loading"
-        model._loading_states["seq01_shot_0005"] = "loading"
-        model._loading_states["seq01_shot_0007"] = "loading"
+        model._thumbnail_loader.loading_states["seq01_shot_0002"] = "loading"
+        model._thumbnail_loader.loading_states["seq01_shot_0005"] = "loading"
+        model._thumbnail_loader.loading_states["seq01_shot_0007"] = "loading"
 
         # Get loading rows
         loading_rows = delegate._get_loading_rows()
@@ -600,8 +600,8 @@ class TestLoadingAnimation:
         model.set_items(shots)
 
         # Mark 2 items as loading (typical scenario)
-        model._loading_states["seq01_shot_0000"] = "loading"
-        model._loading_states["seq01_shot_0001"] = "loading"
+        model._thumbnail_loader.loading_states["seq01_shot_0000"] = "loading"
+        model._thumbnail_loader.loading_states["seq01_shot_0001"] = "loading"
 
         # Spy on dataChanged signal to track repaints
         spy = QSignalSpy(model.dataChanged)
@@ -650,7 +650,7 @@ class TestLoadingAnimation:
 
         # Mark the first num_loading shots as loading
         for shot in shots[:num_loading]:
-            model._loading_states[shot.full_name] = "loading"
+            model._thumbnail_loader.loading_states[shot.full_name] = "loading"
 
         spy = QSignalSpy(model.dataChanged)
         delegate._update_loading_animation()

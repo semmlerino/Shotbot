@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QSize, Qt
+from PySide6.QtCore import QModelIndex, QSize, Qt
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtTest import QSignalSpy
 
@@ -56,7 +56,6 @@ class TestBaseItemModelInitialization:
 
         assert model.rowCount() == 0
         assert model._cache_manager is not None
-        assert model.get_selected_item() is None
 
     def test_initialization_with_cache_manager(
         self, qapp: QApplication, cache_manager: CacheManager
@@ -136,7 +135,6 @@ class TestDataMethod:
             (BaseItemRole.FullNameRole, "seq01_0010"),
             (BaseItemRole.WorkspacePathRole, f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
             (BaseItemRole.LoadingStateRole, "idle"),
-            (BaseItemRole.IsSelectedRole, False),
         ],
         ids=[
             "DisplayRole",
@@ -147,7 +145,6 @@ class TestDataMethod:
             "FullNameRole",
             "WorkspacePathRole",
             "LoadingStateRole",
-            "IsSelectedRole",
         ],
     )
     def test_role_data(self, qapp: QApplication, role: object, expected: object) -> None:
@@ -222,37 +219,6 @@ class TestFlags:
 class TestSetData:
     """Test setData() method."""
 
-    def test_set_selection(self, qapp: QApplication, qtbot: QtBot) -> None:
-        """Test setting selection state."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        spy = QSignalSpy(model.selection_changed)
-        index = model.index(0, 0)
-
-        result = model.setData(index, True, BaseItemRole.IsSelectedRole)
-
-        assert result is True
-        assert spy.count() == 1
-        assert model.get_selected_item() is shot
-
-    def test_clear_selection(self, qapp: QApplication) -> None:
-        """Test clearing selection state."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        # First select
-        index = model.index(0, 0)
-        model.setData(index, True, BaseItemRole.IsSelectedRole)
-
-        # Then clear
-        result = model.setData(index, False, BaseItemRole.IsSelectedRole)
-
-        assert result is True
-        assert model.get_selected_item() is None
-
     def test_set_loading_state(self, qapp: QApplication) -> None:
         """Test setting loading state."""
         model = ConcreteTestModel()
@@ -264,14 +230,6 @@ class TestSetData:
 
         assert result is True
         assert model.data(index, BaseItemRole.LoadingStateRole) == "loading"
-
-    def test_invalid_index(self, qapp: QApplication) -> None:
-        """Test setData() returns False for invalid index."""
-        model = ConcreteTestModel()
-        result = model.setData(QModelIndex(), True, BaseItemRole.IsSelectedRole)
-
-        assert result is False
-
 
 class TestVisibleRange:
     """Test visible range and lazy loading."""
@@ -324,13 +282,13 @@ class TestThumbnailCache:
         model.set_items([shot])
 
         # Add to cache
-        model._thumbnail_cache[shot.full_name] = QImage()
-        model._loading_states[shot.full_name] = "loaded"
+        model._thumbnail_loader.thumbnail_cache[shot.full_name] = QImage()
+        model._thumbnail_loader.loading_states[shot.full_name] = "loaded"
 
         model.clear_thumbnail_cache()
 
-        assert len(model._thumbnail_cache) == 0
-        assert len(model._loading_states) == 0
+        assert len(model._thumbnail_loader.thumbnail_cache) == 0
+        assert len(model._thumbnail_loader.loading_states) == 0
 
     def test_get_thumbnail_pixmap_cached(self, qapp: QApplication) -> None:
         """Test getting cached thumbnail pixmap."""
@@ -341,7 +299,7 @@ class TestThumbnailCache:
         # Create and cache a QImage
         image = QImage(100, 100, QImage.Format.Format_RGB32)
         image.fill(Qt.GlobalColor.red)
-        model._thumbnail_cache[shot.full_name] = image
+        model._thumbnail_loader.thumbnail_cache[shot.full_name] = image
 
         pixmap = model._get_thumbnail_pixmap(shot)
 
@@ -386,34 +344,18 @@ class TestSetItems:
         # Add to cache (using QImage, not QPixmap)
         image1 = QImage(100, 100, QImage.Format.Format_RGB888)
         image2 = QImage(100, 100, QImage.Format.Format_RGB888)
-        model._thumbnail_cache[shot1.full_name] = image1
-        model._thumbnail_cache[shot2.full_name] = image2
+        model._thumbnail_loader.thumbnail_cache[shot1.full_name] = image1
+        model._thumbnail_loader.thumbnail_cache[shot2.full_name] = image2
 
         # Set new items - shot1 preserved, shot2 removed
         shot3 = Shot("TEST", "seq02", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq02/seq02_0010")
         model.set_items([shot1, shot3])
 
         # Verify preservation
-        assert len(model._thumbnail_cache) == 1
-        assert shot1.full_name in model._thumbnail_cache
-        assert model._thumbnail_cache[shot1.full_name] is image1  # Same object
-        assert shot2.full_name not in model._thumbnail_cache
-
-    def test_set_items_clears_selection(self, qapp: QApplication) -> None:
-        """Test setting items clears selection."""
-        model = ConcreteTestModel()
-        shot1 = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot1])
-
-        # Select item
-        index = model.index(0, 0)
-        model.setData(index, True, BaseItemRole.IsSelectedRole)
-
-        # Set new items
-        shot2 = Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020")
-        model.set_items([shot2])
-
-        assert model.get_selected_item() is None
+        assert len(model._thumbnail_loader.thumbnail_cache) == 1
+        assert shot1.full_name in model._thumbnail_loader.thumbnail_cache
+        assert model._thumbnail_loader.thumbnail_cache[shot1.full_name] is image1  # Same object
+        assert shot2.full_name not in model._thumbnail_loader.thumbnail_cache
 
     def test_set_items_initializes_visible_range(self, qapp: QApplication) -> None:
         """Test setting items initializes visible range for thumbnail loading.
@@ -475,15 +417,15 @@ class TestSetItems:
             # Wait for timer to fire and thumbnail loading to attempt
             # QTimer.singleShot(100) + processing time
             qtbot.waitUntil(
-                lambda: len(model._loading_states) > 0,
+                lambda: len(model._thumbnail_loader.loading_states) > 0,
                 timeout=500  # 500ms should be plenty
             )
 
             # Verify thumbnail loading was attempted for all shots
             # States will be "failed" since paths don't exist, but loading was attempted
-            assert len(model._loading_states) >= 2
+            assert len(model._thumbnail_loader.loading_states) >= 2
             for shot in shots:
-                assert shot.full_name in model._loading_states
+                assert shot.full_name in model._thumbnail_loader.loading_states
 
     def test_set_items_empty_list_no_thumbnail_load(
         self, qapp: QApplication, qtbot: QtBot
@@ -502,7 +444,7 @@ class TestSetItems:
 
         # Verify no thumbnail loading was triggered
         assert model._visible_end == 0  # No change from initial
-        assert len(model._loading_states) == 0  # No loading attempted
+        assert len(model._thumbnail_loader.loading_states) == 0  # No loading attempted
 
     def test_set_items_loads_only_initial_visible_count(
         self, qapp: QApplication, qtbot: QtBot
@@ -571,13 +513,13 @@ class TestSetItems:
 
         # Wait for thumbnail loading timer to fire
         qtbot.waitUntil(
-            lambda: len(model._loading_states) > 0,
+            lambda: len(model._thumbnail_loader.loading_states) > 0,
             timeout=500
         )
 
         # Verify thumbnail loading was attempted
         # With real CacheManager, states will be set (loading or failed)
-        assert len(model._loading_states) >= 2
+        assert len(model._thumbnail_loader.loading_states) >= 2
 
         # Verify visible range was set correctly
         assert model._visible_end == 1  # len(shots) - 1
@@ -616,31 +558,6 @@ class TestGetItemAtIndex:
         assert item is None
 
 
-class TestSelection:
-    """Test selection management."""
-
-    def test_get_selected_item_none(self, qapp: QApplication) -> None:
-        """Test getting selected item when none selected."""
-        model = ConcreteTestModel()
-        assert model.get_selected_item() is None
-
-    def test_clear_selection(self, qapp: QApplication) -> None:
-        """Test clear_selection() method."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        # Select item
-        index = model.index(0, 0)
-        model.setData(index, True, BaseItemRole.IsSelectedRole)
-
-        # Clear selection
-        model.clear_selection()
-
-        assert model.get_selected_item() is None
-        assert model.data(index, BaseItemRole.IsSelectedRole) is False
-
-
 class TestSignals:
     """Test signal emissions."""
 
@@ -653,19 +570,6 @@ class TestSignals:
         model.set_items([shot])
 
         assert spy.count() == 1
-
-    def test_selection_changed_signal(self, qapp: QApplication, qtbot: QtBot) -> None:
-        """Test selection_changed signal is emitted."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        spy = QSignalSpy(model.selection_changed)
-        index = model.index(0, 0)
-        model.setData(index, True, BaseItemRole.IsSelectedRole)
-
-        assert spy.count() == 1
-
 
 class TestThreadSafety:
     """Test thread safety of cache operations."""
@@ -682,12 +586,12 @@ class TestThreadSafety:
             QMutexLocker,
         )
 
-        with QMutexLocker(model._cache_mutex):
-            model._thumbnail_cache[shot.full_name] = QImage()
-            model._loading_states[shot.full_name] = "loaded"
+        with QMutexLocker(model._thumbnail_loader.cache_mutex):
+            model._thumbnail_loader.thumbnail_cache[shot.full_name] = QImage()
+            model._thumbnail_loader.loading_states[shot.full_name] = "loaded"
 
-        assert shot.full_name in model._thumbnail_cache
-        assert shot.full_name in model._loading_states
+        assert shot.full_name in model._thumbnail_loader.thumbnail_cache
+        assert shot.full_name in model._thumbnail_loader.loading_states
 
 
 class TestAbstractMethods:
@@ -740,36 +644,3 @@ class TestAbstractMethods:
         assert result is False
 
 
-class TestPersistentModelIndex:
-    """Test QPersistentModelIndex handling."""
-
-    def test_selection_uses_persistent_index(self, qapp: QApplication) -> None:
-        """Test that selection uses QPersistentModelIndex."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        index = model.index(0, 0)
-        model.setData(index, True, BaseItemRole.IsSelectedRole)
-
-        assert isinstance(model._selected_index, QPersistentModelIndex)
-        assert model._selected_index.isValid()
-
-    def test_persistent_index_survives_model_changes(self, qapp: QApplication) -> None:
-        """Test QPersistentModelIndex behavior with model changes."""
-        model = ConcreteTestModel()
-        shots = [
-            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
-        ]
-        model.set_items(shots)
-
-        # Select first item
-        index = model.index(0, 0)
-        model.setData(index, True, BaseItemRole.IsSelectedRole)
-
-        # Model reset clears selection
-        model.set_items(shots)
-
-        assert not model._selected_index.isValid()
-        assert model.get_selected_item() is None

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, final
 
-from PySide6.QtCore import QModelIndex, QObject, QPersistentModelIndex, Signal
+from PySide6.QtCore import QModelIndex, QObject, Signal
 
 from base_item_model import BaseItemModel
 from typing_compat import override
@@ -173,25 +173,6 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         """
         self.loading_progress.emit(current, total)
 
-    def set_selected(self, index: QModelIndex) -> None:
-        """Set selected item with proper notification.
-
-        Args:
-            index: Index to select
-
-        """
-        # Convert to QPersistentModelIndex for proper comparison
-        persistent_index = QPersistentModelIndex(index)
-        if self._selected_index != persistent_index:
-            # Set new selection
-            self._selected_index = QPersistentModelIndex(index)
-            if index.isValid():
-                self._selected_item = self.get_item_at_index(index)
-            else:
-                self._selected_item = None
-
-            self.selection_changed.emit(index)
-
     # ============= Properties =============
 
     @property
@@ -218,20 +199,12 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
     def cleanup(self) -> None:
         """Clean up resources before deletion."""
-        # Stop timers
-        if hasattr(self, "_thumbnail_timer"):
-            self._thumbnail_timer.stop()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
-            self._thumbnail_timer.deleteLater()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
-
-        if hasattr(self, "_thumbnail_debounce_timer"):
-            self._thumbnail_debounce_timer.stop()
-            self._thumbnail_debounce_timer.deleteLater()
+        # Stop thumbnail loader timers
+        if hasattr(self, "_thumbnail_loader"):
+            self._thumbnail_loader.shutdown()
 
         # Clear caches
         self.clear_thumbnail_cache()
-
-        # Clear selection
-        self._selected_index = QPersistentModelIndex()
 
         # Disconnect signals safely
         # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
@@ -243,7 +216,6 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             self.items_updated,
             self.scenes_updated,
             self.thumbnail_loaded,
-            self.selection_changed,
             self.loading_started,
             self.loading_progress,
             self.loading_finished,

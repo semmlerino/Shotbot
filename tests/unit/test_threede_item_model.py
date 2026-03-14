@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Third-party imports
 import pytest
-from PySide6.QtCore import QModelIndex, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 from pytestqt.qtbot import QtBot
 
@@ -87,8 +87,8 @@ class TestThreadSafety:
         # Simulate concurrent thumbnail cache access
         def access_cache() -> None:
             # This should be protected by mutex
-            model._thumbnail_cache.get(str(scene.scene_path), None)
-            model._loading_states.get(str(scene.scene_path), "pending")
+            model._thumbnail_loader.thumbnail_cache.get(str(scene.scene_path), None)
+            model._thumbnail_loader.loading_states.get(str(scene.scene_path), "pending")
 
         # Multiple accesses should not corrupt the dictionary
         for _ in range(10):
@@ -131,12 +131,12 @@ class TestThreadSafety:
         )
 
         for _, scene in enumerate(many_scenes[:110]):  # Try to exceed limit
-            if len(model._thumbnail_cache) < 100:  # Respect MAX_CACHE_SIZE
-                with QMutexLocker(model._cache_mutex):
-                    model._thumbnail_cache[str(scene.scene_path)] = test_image
+            if len(model._thumbnail_loader.thumbnail_cache) < 100:  # Respect MAX_CACHE_SIZE
+                with QMutexLocker(model._thumbnail_loader.cache_mutex):
+                    model._thumbnail_loader.thumbnail_cache[str(scene.scene_path)] = test_image
 
         # Cache should not exceed MAX_CACHE_SIZE
-        assert len(model._thumbnail_cache) <= 100
+        assert len(model._thumbnail_loader.thumbnail_cache) <= 100
 
     def test_cleanup_releases_resources(
         self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
@@ -152,9 +152,9 @@ class TestThreadSafety:
             QMutexLocker,
         )
 
-        with QMutexLocker(model._cache_mutex):
-            model._thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
-            model._loading_states[str(test_scenes[0].scene_path)] = "loaded"
+        with QMutexLocker(model._thumbnail_loader.cache_mutex):
+            model._thumbnail_loader.thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
+            model._thumbnail_loader.loading_states[str(test_scenes[0].scene_path)] = "loaded"
 
         # Call cleanup
         model.cleanup()
@@ -188,29 +188,6 @@ class TestThreadSafety:
         assert model.rowCount() == 1
         assert len(model.scenes) == 1
 
-    def test_selection_changes_during_loading(
-        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene], qtbot: QtBot
-    ) -> None:
-        """Test selection changes while thumbnails are loading."""
-        model.set_scenes(test_scenes)
-
-        # Set initial selection
-        # Model doesn't have set_selected_index method, use internal state
-        index = model.index(0, 0)
-        model._selected_index = index
-        assert model._selected_index.row() == 0
-
-        # Change selection while "loading"
-        # Model doesn't have set_selected_index method, use internal state
-        index = model.index(1, 0)
-        model._selected_index = index
-        assert model._selected_index.row() == 1
-
-        # Clear selection
-        # Model doesn't have set_selected_index method, use internal state
-        model._selected_index = QModelIndex()
-        assert not model._selected_index.isValid()
-
     def test_visible_range_boundary_conditions(
         self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
     ) -> None:
@@ -241,11 +218,11 @@ class TestThreadSafety:
         model.set_scenes(test_scenes)
 
         # Debounce timer should not be running initially
-        assert not model._thumbnail_debounce_timer.isActive()
+        assert not model._thumbnail_loader.thumbnail_debounce_timer.isActive()
 
         # Update visible range should start debounce timer (not the deprecated _thumbnail_timer)
         model.set_visible_range(0, 2)
-        assert model._thumbnail_debounce_timer.isActive()
+        assert model._thumbnail_loader.thumbnail_debounce_timer.isActive()
 
         # Loading all visible thumbnails should stop timer
         # Simulate all loaded
@@ -254,9 +231,9 @@ class TestThreadSafety:
             QMutexLocker,
         )
 
-        with QMutexLocker(model._cache_mutex):
+        with QMutexLocker(model._thumbnail_loader.cache_mutex):
             for scene in test_scenes[:3]:
-                model._thumbnail_cache[str(scene.scene_path)] = QImage()
+                model._thumbnail_loader.thumbnail_cache[str(scene.scene_path)] = QImage()
 
         # Manually trigger the check
         model._load_visible_thumbnails()
@@ -318,8 +295,8 @@ class TestDataIntegrity:
             QMutexLocker,
         )
 
-        with QMutexLocker(model._cache_mutex):
-            model._thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
+        with QMutexLocker(model._thumbnail_loader.cache_mutex):
+            model._thumbnail_loader.thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
 
         # Reset with same scenes
         model.set_scenes(test_scenes)

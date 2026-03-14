@@ -408,7 +408,6 @@ class ThreeDEGridView(BaseGridView):
         scene = self._threede_model.get_scene(source_index)
         if scene:
             self._selected_scene = scene
-            self._threede_model.set_selected(source_index)
             self.scene_selected.emit(scene)
 
     @Slot(QModelIndex)  # pyright: ignore[reportAny]
@@ -761,7 +760,6 @@ class ThreeDEGridView(BaseGridView):
                 if isinstance(proxy, QSortFilterProxyModel):
                     view_index = proxy.mapFromSource(index)
                 self.list_view.setCurrentIndex(view_index)
-                self._threede_model.set_selected(index)
                 self._selected_scene = scene
                 self.scene_selected.emit(scene)
                 break

@@ -200,16 +200,6 @@ class ShotItemModel(BaseItemModel["Shot"]):
         """
         return self.get_item_at_index(index)
 
-    def get_selected_shot(self) -> Shot | None:
-        """Get currently selected shot.
-
-        Returns:
-            Selected Shot or None
-
-        """
-        return self.get_selected_item()
-
-
     def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
         """Find a shot by its full name.
 
@@ -266,22 +256,12 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
     def cleanup(self) -> None:
         """Clean up resources before deletion."""
-        # Stop timers
-        if hasattr(self, "_thumbnail_timer"):
-            self._thumbnail_timer.stop()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
-            self._thumbnail_timer.deleteLater()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
-
-        if hasattr(self, "_thumbnail_debounce_timer"):
-            self._thumbnail_debounce_timer.stop()
-            self._thumbnail_debounce_timer.deleteLater()
+        # Stop thumbnail loader timers
+        if hasattr(self, "_thumbnail_loader"):
+            self._thumbnail_loader.shutdown()
 
         # Clear caches
         self.clear_thumbnail_cache()
-
-        # Clear selection
-        from PySide6.QtCore import QPersistentModelIndex
-
-        self._selected_index: QPersistentModelIndex = QPersistentModelIndex()
 
         # Disconnect signals safely
         # Note: We check receivers() before disconnecting to avoid RuntimeWarnings

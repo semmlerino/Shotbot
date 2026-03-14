@@ -168,16 +168,6 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         """
         return self.get_item_at_index(index)
 
-    def get_selected_shot(self) -> Shot | None:
-        """Get currently selected shot.
-
-        Returns:
-            Selected Shot or None
-
-        """
-        return self.get_selected_item()
-
-
     def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
         """Find a shot by its full name.
 
@@ -248,28 +238,12 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
     def cleanup(self) -> None:
         """Clean up resources before deletion."""
-        # Stop timers - wrap in try/except since C++ object may already be deleted
-        if hasattr(self, "_thumbnail_timer"):
-            try:
-                self._thumbnail_timer.stop()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
-                self._thumbnail_timer.deleteLater()  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
-            except RuntimeError:
-                pass  # Timer already deleted at C++ level
-
-        if hasattr(self, "_thumbnail_debounce_timer"):
-            try:
-                self._thumbnail_debounce_timer.stop()
-                self._thumbnail_debounce_timer.deleteLater()
-            except RuntimeError:
-                pass  # Timer already deleted at C++ level
+        # Stop thumbnail loader timers
+        if hasattr(self, "_thumbnail_loader"):
+            self._thumbnail_loader.shutdown()
 
         # Clear caches
         self.clear_thumbnail_cache()
-
-        # Clear selection
-        from PySide6.QtCore import QPersistentModelIndex
-
-        self._selected_index: QPersistentModelIndex = QPersistentModelIndex()
 
         # Disconnect from underlying model
         # Use try/except pattern instead of receivers() check, as PySide6's

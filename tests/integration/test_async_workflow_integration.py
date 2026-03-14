@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
-from base_item_model import BaseItemRole as UnifiedRole
 from runnable_tracker import get_tracker
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
@@ -129,11 +128,6 @@ class TestAsyncWorkflowIntegration:
         # Set up signal spies
         QSignalSpy(item_model.thumbnail_loaded)
 
-        # Select first shot in model
-        first_index = item_model.index(0, 0)
-        success = item_model.setData(first_index, True, UnifiedRole.IsSelectedRole)
-        assert success
-
         # Also set same shot in info panel
         info_panel.set_shot(test_shots[0])
 
@@ -143,7 +137,7 @@ class TestAsyncWorkflowIntegration:
         # Wait for the loading state to be set
         # The timer fires after 100ms and then sets the loading state
         qtbot.waitUntil(
-            lambda: item_model._loading_states.get(test_shots[0].full_name) is not None,
+            lambda: item_model._thumbnail_loader.loading_states.get(test_shots[0].full_name) is not None,
             timeout=2000,
         )
 
@@ -153,7 +147,7 @@ class TestAsyncWorkflowIntegration:
         assert test_shots[0].full_name in info_panel.shot_name_label.text()
 
         # Model should have started async loading
-        loading_state = item_model._loading_states.get(test_shots[0].full_name)
+        loading_state = item_model._thumbnail_loader.loading_states.get(test_shots[0].full_name)
         assert loading_state in ["loading", "loaded", "failed"]
 
         # Cleanup - wait for background threads before deleting widgets
@@ -262,12 +256,12 @@ class TestAsyncWorkflowIntegration:
 
         # Wait for cleanup to complete
         qtbot.waitUntil(
-            lambda: len(item_model._thumbnail_cache) == 0 and info_panel._current_shot is None,
+            lambda: len(item_model._thumbnail_loader.thumbnail_cache) == 0 and info_panel._current_shot is None,
             timeout=2000
         )
 
         # Verify cleanup
-        assert len(item_model._thumbnail_cache) == 0
+        assert len(item_model._thumbnail_loader.thumbnail_cache) == 0
         assert info_panel._current_shot is None
 
     def test_error_propagation_across_components(
@@ -302,13 +296,13 @@ class TestAsyncWorkflowIntegration:
 
         # Wait for the loading state to be set (timer fires after 100ms)
         qtbot.waitUntil(
-            lambda: item_model._loading_states.get(bad_shot.full_name) is not None,
+            lambda: item_model._thumbnail_loader.loading_states.get(bad_shot.full_name) is not None,
             timeout=2000,
         )
 
         # Both components should handle errors gracefully
         # Model should show failed loading state
-        loading_state = item_model._loading_states.get(bad_shot.full_name)
+        loading_state = item_model._thumbnail_loader.loading_states.get(bad_shot.full_name)
         assert loading_state in [
             "failed",
             "idle",
@@ -384,7 +378,7 @@ class TestAsyncCallbackIntegration:
                 # Check that model has been reset to new shots
                 row_count_correct = model.rowCount() == 1
                 # Check that cache has been filtered to match new shots
-                cache_filtered = len(model._thumbnail_cache) <= 1
+                cache_filtered = len(model._thumbnail_loader.thumbnail_cache) <= 1
                 return row_count_correct and cache_filtered
 
             qtbot.waitUntil(model_reset_complete, timeout=5000)
@@ -393,7 +387,7 @@ class TestAsyncCallbackIntegration:
             assert model.rowCount() == 1
             # Cache is filtered - old items removed, new items may have loaded thumbnails
             # The new shot's thumbnail may have been loaded asynchronously
-            assert len(model._thumbnail_cache) <= 1
+            assert len(model._thumbnail_loader.thumbnail_cache) <= 1
 
         finally:
             model.deleteLater()
