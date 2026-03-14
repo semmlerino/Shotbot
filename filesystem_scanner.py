@@ -581,13 +581,13 @@ class FileSystemScanner(LoggingMixin):
                     # fileobj is IO[str] in text mode, read() returns str
                     data = cast("str", key.fileobj.read(8192))  # type: ignore[union-attr]
                     if data:
-                        chunks[key.data].append(data)
+                        chunks[key.data].append(data)  # pyright: ignore[reportAny]
 
             # Process exited - drain any remaining buffered data
             for key, _ in sel.select(timeout=0):
                 remaining = cast("str", key.fileobj.read())  # type: ignore[union-attr]
                 if remaining:
-                    chunks[key.data].append(remaining)
+                    chunks[key.data].append(remaining)  # pyright: ignore[reportAny]
 
             return (
                 process.returncode,

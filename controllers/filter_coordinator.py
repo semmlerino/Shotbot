@@ -85,28 +85,28 @@ class FilterCoordinator(LoggingMixin):
         """Connect filter signals from grid views."""
         # My Shots filter signals
         _ = self.window.shot_grid.show_filter_requested.connect(
-            self._on_shot_show_filter_requested
+            self._on_shot_show_filter_requested  # pyright: ignore[reportAny]
         )
         _ = self.window.shot_grid.text_filter_requested.connect(
-            self._on_shot_text_filter_requested
+            self._on_shot_text_filter_requested  # pyright: ignore[reportAny]
         )
 
         # Previous Shots filter signals
         _ = self.window.previous_shots_grid.show_filter_requested.connect(
-            self._on_previous_show_filter_requested
+            self._on_previous_show_filter_requested  # pyright: ignore[reportAny]
         )
         _ = self.window.previous_shots_grid.text_filter_requested.connect(
-            self._on_previous_text_filter_requested
+            self._on_previous_text_filter_requested  # pyright: ignore[reportAny]
         )
 
         # Previous shots model updates (repopulate show filter when shots change)
         _ = self.window.previous_shots_item_model.shots_updated.connect(
-            self._on_previous_shots_updated
+            self._on_previous_shots_updated  # pyright: ignore[reportAny]
         )
 
         self.logger.debug("FilterCoordinator signals connected")
 
-    @Slot(str)
+    @Slot(str)  # pyright: ignore[reportAny]
     def _on_shot_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from My Shots grid view."""
         show_filter = show or None
@@ -120,7 +120,7 @@ class FilterCoordinator(LoggingMixin):
         )
         self.logger.info(f"Applied My Shots show filter: {filter_desc}")
 
-    @Slot(str)
+    @Slot(str)  # pyright: ignore[reportAny]
     def _on_shot_text_filter_requested(self, text: str) -> None:
         """Handle text filter request from My Shots grid view."""
         filter_text = text.strip() if text else None
@@ -136,7 +136,7 @@ class FilterCoordinator(LoggingMixin):
             self.window.status_bar.showMessage(f"My Shots: {total} shots", 2500)
         self.logger.debug(f"My Shots text filter: '{filter_text}' - {filtered_count} shots")
 
-    @Slot(str)
+    @Slot(str)  # pyright: ignore[reportAny]
     def _on_previous_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from Previous Shots grid view."""
         show_filter = show or None
@@ -150,7 +150,7 @@ class FilterCoordinator(LoggingMixin):
         )
         self.logger.info(f"Applied Previous Shots show filter: {filter_desc}")
 
-    @Slot(str)
+    @Slot(str)  # pyright: ignore[reportAny]
     def _on_previous_text_filter_requested(self, text: str) -> None:
         """Handle text filter request from Previous Shots grid view."""
         filter_text = text.strip() if text else None
@@ -169,7 +169,7 @@ class FilterCoordinator(LoggingMixin):
             )
         self.logger.debug(f"Previous Shots text filter: '{filter_text}' - {filtered_count} shots")
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_previous_shots_updated(self) -> None:
         """Handle previous shots updated signal."""
         # Populate show filter with available shows

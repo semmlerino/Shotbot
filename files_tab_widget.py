@@ -126,7 +126,7 @@ class FileTableModel(QAbstractTableModel):
         return len(self.COLUMNS)
 
     @override
-    def headerData(
+    def headerData(  # pyright: ignore[reportAny]
         self,
         section: int,
         orientation: Qt.Orientation,
@@ -140,7 +140,7 @@ class FileTableModel(QAbstractTableModel):
         return None
 
     @override
-    def data(
+    def data(  # pyright: ignore[reportAny]
         self,
         index: QModelIndex | QPersistentModelIndex,
         role: int = Qt.ItemDataRole.DisplayRole,

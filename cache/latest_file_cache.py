@@ -132,7 +132,7 @@ class LatestFileCache(LoggingMixin):
 
         try:
             with self.latest_files_cache_file.open(encoding="utf-8") as f:
-                data = json.load(f)
+                data: object = json.load(f)  # pyright: ignore[reportAny]
             if isinstance(data, dict):
                 return cast("dict[str, dict[str, object]]", data)
             return None

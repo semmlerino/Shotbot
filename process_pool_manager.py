@@ -152,7 +152,7 @@ class CancellableSubprocess:
                     # Read available data in chunks to avoid blocking
                     data = cast("str", key.fileobj.read(8192))  # type: ignore[union-attr]
                     if data:
-                        if key.data == "stdout":
+                        if key.data == "stdout":  # pyright: ignore[reportAny]
                             stdout_chunks.append(data)
                         else:
                             stderr_chunks.append(data)
@@ -161,7 +161,7 @@ class CancellableSubprocess:
             for key, _ in sel.select(timeout=0):
                 remaining = cast("str", key.fileobj.read())  # type: ignore[union-attr]
                 if remaining:
-                    if key.data == "stdout":
+                    if key.data == "stdout":  # pyright: ignore[reportAny]
                         stdout_chunks.append(remaining)
                     else:
                         stderr_chunks.append(remaining)

@@ -209,7 +209,6 @@ class QRunnableTracker(SingletonMixin):
             cls._instance.cleanup_all()
 
 
-@final
 class TrackedQRunnable(QRunnable):
     """Base class for tracked QRunnables.
 
@@ -226,8 +225,8 @@ class TrackedQRunnable(QRunnable):
         """
         super().__init__()
         self.setAutoDelete(auto_delete)
-        self._tracker = QRunnableTracker()
-        self._metadata = {
+        self._tracker: QRunnableTracker = QRunnableTracker()
+        self._metadata: dict[str, object] = {
             "type": self.__class__.__name__,
             "auto_delete": auto_delete,
         }

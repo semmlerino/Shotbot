@@ -73,18 +73,18 @@ class ThumbnailSizeManager(LoggingMixin):
     def _setup_signals(self) -> None:
         """Connect size slider signals from all grid views."""
         _ = self.window.shot_grid.size_slider.valueChanged.connect(
-            self.sync_thumbnail_sizes
+            self.sync_thumbnail_sizes  # pyright: ignore[reportAny]
         )
         _ = self.window.threede_shot_grid.size_slider.valueChanged.connect(
-            self.sync_thumbnail_sizes
+            self.sync_thumbnail_sizes  # pyright: ignore[reportAny]
         )
         _ = self.window.previous_shots_grid.size_slider.valueChanged.connect(
-            self.sync_thumbnail_sizes
+            self.sync_thumbnail_sizes  # pyright: ignore[reportAny]
         )
 
         self.logger.debug("ThumbnailSizeManager signals connected")
 
-    @Slot(int)
+    @Slot(int)  # pyright: ignore[reportAny]
     def sync_thumbnail_sizes(self, value: int) -> None:
         """Synchronize thumbnail sizes between all tabs.
 

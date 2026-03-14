@@ -124,7 +124,7 @@ class ScrubPreviewManager(QObject):
         # Current active index (only one can be active)
         self._active_index: QModelIndex | None = None
 
-    @Slot(QModelIndex, QRect)
+    @Slot(QModelIndex, QRect)  # pyright: ignore[reportAny]
     def start_scrub(self, index: QModelIndex, rect: QRect) -> None:
         """Start scrub preview for an item.
 
@@ -151,15 +151,15 @@ class ScrubPreviewManager(QObject):
             return
 
         # Try to get the Shot object from the model
-        shot_data = model.data(index, BaseItemRole.ObjectRole)
+        shot_data = model.data(index, BaseItemRole.ObjectRole)  # pyright: ignore[reportAny]
         if shot_data is None:
             logger.info(f"start_scrub: No shot data for index {index.row()}")
             return
 
         # Extract shot info
-        shot_key = self._get_shot_key(shot_data)
-        workspace_path = self._get_workspace_path(shot_data)
-        frame_start, frame_end = self._get_frame_range(shot_data)
+        shot_key = self._get_shot_key(shot_data)  # pyright: ignore[reportAny]
+        workspace_path = self._get_workspace_path(shot_data)  # pyright: ignore[reportAny]
+        frame_start, frame_end = self._get_frame_range(shot_data)  # pyright: ignore[reportAny]
 
         logger.info(f"start_scrub: {shot_key}, frames {frame_start}-{frame_end}, workspace: {workspace_path}")
 
@@ -169,7 +169,7 @@ class ScrubPreviewManager(QObject):
 
         # End any existing scrub
         if self._active_index is not None and self._active_index != index:
-            self.end_scrub(self._active_index)
+            self.end_scrub(self._active_index)  # pyright: ignore[reportAny]
 
         # Discover plate source
         plate_source = self._frame_provider.discover_plate_source(workspace_path)
@@ -205,7 +205,7 @@ class ScrubPreviewManager(QObject):
             shot_key, plate_source, frame_start, self._prefetch_radius
         )
 
-    @Slot(QModelIndex, float)
+    @Slot(QModelIndex, float)  # pyright: ignore[reportAny]
     def update_scrub_position(self, index: QModelIndex, x_ratio: float) -> None:
         """Update scrub position based on mouse x ratio.
 
@@ -271,7 +271,7 @@ class ScrubPreviewManager(QObject):
                     self.request_repaint.emit(index)
                     logger.debug(f"update_scrub_position: showing nearest cached frame {nearest_frame} while waiting for {target_frame}")
 
-    @Slot(QModelIndex)
+    @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def end_scrub(self, index: QModelIndex) -> None:
         """End scrub preview for an item.
 

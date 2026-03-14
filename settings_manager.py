@@ -699,7 +699,7 @@ class SettingsManager(LoggingMixin, QObject):
             with Path(file_path).open() as f:
                 # json.load() is typed as returning Any in type stubs since JSON structure
                 # is dynamic. We annotate as object and immediately narrow with type guard.
-                loaded_data: object = json.load(f)
+                loaded_data: object = json.load(f)  # pyright: ignore[reportAny]
 
             # Type guard: ensure we have a dict at the top level
             if not isinstance(loaded_data, dict):

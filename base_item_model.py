@@ -380,7 +380,7 @@ class BaseItemModel(
         # Let subclass handle model-specific data setting
         return self.set_custom_data(item, value, role)
 
-    @Slot(int, int)  # PySide6 Slot decorator type limitation
+    @Slot(int, int)  # pyright: ignore[reportAny]  # PySide6 Slot decorator type limitation
     def set_visible_range(self, start: int, end: int) -> None:
         """Set the visible range for lazy loading.
 

@@ -64,7 +64,7 @@ def file_lock(cache_file: Path):
         lock_fd = lock_file.open("w")
 
         # Acquire exclusive lock (blocks until available)
-        _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_EX)
+        _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_EX)  # pyright: ignore[reportAny]
         logger.debug(f"Acquired file lock: {lock_file}")
 
         yield
@@ -79,7 +79,7 @@ def file_lock(cache_file: Path):
             try:
                 # Release lock and close file
                 # Note: _fcntl is guaranteed non-None here (early return if None)
-                _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_UN)
+                _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_UN)  # pyright: ignore[reportAny]
                 lock_fd.close()
                 logger.debug(f"Released file lock: {lock_file}")
             except OSError:

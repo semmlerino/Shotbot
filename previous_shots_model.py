@@ -91,7 +91,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
         # Connect directly to cache migration events (bypasses MainWindow relay)
         if hasattr(self._cache_manager, "shots_migrated"):
             _ = self._cache_manager.shots_migrated.connect(
-                self._on_cache_shots_migrated, Qt.ConnectionType.QueuedConnection
+                self._on_cache_shots_migrated,  # pyright: ignore[reportAny]
+                Qt.ConnectionType.QueuedConnection
             )
 
     def _reset_scanning_flag(self) -> None:
@@ -513,7 +514,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 try:
-                    _ = self._cache_manager.shots_migrated.disconnect(self._on_cache_shots_migrated)
+                    _ = self._cache_manager.shots_migrated.disconnect(self._on_cache_shots_migrated)  # pyright: ignore[reportAny]
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
         self._cleanup_worker_safely()  # Use centralized cleanup

@@ -12,7 +12,7 @@ import threading
 import time
 from datetime import UTC, datetime
 from functools import partial
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, cast
 
 import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -483,14 +483,14 @@ class ProcessExecutor(QObject):
                         return
 
                     try:
-                        proc_name = proc.info.get("name", "").lower()
-                        create_time = proc.info.get("create_time", 0)
-                        proc_pid = proc.info.get("pid", 0)
+                        proc_name = cast("str", proc.info.get("name", "")).lower()
+                        create_time = cast("float", proc.info.get("create_time", 0))
+                        proc_pid = cast("int", proc.info.get("pid", 0))
 
                         # Check if process name matches and was created after our command
                         if any(name in proc_name for name in search_names):
                             if create_time >= cutoff_time:
-                                found_pid: int = int(proc_pid) if proc_pid else 0
+                                found_pid: int = proc_pid or 0
                                 self.logger.info(
                                     f"Verified {app_name} process (PID: {found_pid})"
                                 )

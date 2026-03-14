@@ -283,7 +283,7 @@ class TestThreeDESceneModel:
                 plate="FG01",
                 scene_path=p,
             )
-            for user, p in zip(["artist_a", "artist_b"], paths)
+            for user, p in zip(["artist_a", "artist_b"], paths, strict=False)
         ]
 
         model = ThreeDESceneModel(cache_manager=scene_disk_cache)

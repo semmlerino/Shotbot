@@ -58,7 +58,7 @@ class HideManager(LoggingMixin):
                 raw_data: Any = json.load(f)  # pyright: ignore[reportAny]
 
             if not isinstance(raw_data, list):
-                self.logger.warning(f"Invalid hidden shots cache format: {type(raw_data)}")
+                self.logger.warning(f"Invalid hidden shots cache format: {type(raw_data)}")  # pyright: ignore[reportAny]
                 self._hidden_keys = []
                 return
 

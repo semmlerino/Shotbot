@@ -299,9 +299,6 @@ class TestConcurrentEdgeCases:
 
         if Image:
             with patch.object(Image, "open") as mock_open:
-                # Store original open to call it after modifying
-                original_open = Image.open
-
                 def mock_open_side_effect(*args, **kwargs):
                     if exr_file.exists():
                         # Change file content
@@ -309,7 +306,7 @@ class TestConcurrentEdgeCases:
                     try:
                         # Just return None to avoid infinite recursion with patched mock
                         return
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         pass
 
                 mock_open.side_effect = mock_open_side_effect

@@ -995,7 +995,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if index == TAB_MY_SHOTS:
             # Get the current selection from My Shots
             selected_shot = self.shot_grid.selected_shot
-            self.shot_selection_controller.on_shot_selected(selected_shot)
+            self.shot_selection_controller.on_shot_selected(selected_shot)  # pyright: ignore[reportAny]
 
         elif index == TAB_OTHER_3DE:
             # Get the current selection from 3DE scenes
@@ -1003,7 +1003,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             if selected_scene:
                 # Re-apply the scene selection to update context
                 if self.threede_controller:
-                    self.threede_controller.on_scene_selected(selected_scene)
+                    self.threede_controller.on_scene_selected(selected_scene)  # pyright: ignore[reportAny]
             else:
                 # Clear selection
                 self.command_launcher.set_current_shot(None)
@@ -1012,7 +1012,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         elif index == TAB_PREVIOUS:
             # Get the current selection from Previous Shots
             selected_shot = self.previous_shots_grid.selected_shot
-            self.shot_selection_controller.on_shot_selected(selected_shot)
+            self.shot_selection_controller.on_shot_selected(selected_shot)  # pyright: ignore[reportAny]
 
     def _launch_app_opening_scene_file(
         self, app_name: str, scene: ThreeDEScene
@@ -1066,10 +1066,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         from command_launcher import LaunchContext
 
         context = LaunchContext(
-            open_latest_threede=bool(options.get("open_latest_threede", False)),
-            open_latest_maya=bool(options.get("open_latest_maya", False)),
-            open_latest_scene=bool(options.get("open_latest_scene", False)),
-            create_new_file=bool(options.get("create_new_file", False)),
+            open_latest_threede=bool(options.get("open_latest_threede", False)),  # pyright: ignore[reportAny]
+            open_latest_maya=bool(options.get("open_latest_maya", False)),  # pyright: ignore[reportAny]
+            open_latest_scene=bool(options.get("open_latest_scene", False)),  # pyright: ignore[reportAny]
+            create_new_file=bool(options.get("create_new_file", False)),  # pyright: ignore[reportAny]
             selected_plate=options.get("selected_plate"),
             sequence_path=options.get("sequence_path"),
         )
@@ -1171,7 +1171,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def set_thumbnail_size(self, size: int) -> None:
         """Set thumbnail size across all grid tabs via ThumbnailSizeManager."""
-        self.thumbnail_size_manager.sync_thumbnail_sizes(size)
+        self.thumbnail_size_manager.sync_thumbnail_sizes(size)  # pyright: ignore[reportAny]
 
     def get_thumbnail_size(self) -> int:
         """Get current thumbnail size from the shot grid slider."""

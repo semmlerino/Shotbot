@@ -171,16 +171,16 @@ class ShotSelectionController(QObject, LoggingMixin):
     def _setup_signals(self) -> None:
         """Connect UI signals to controller slots."""
         # My Shots grid signals
-        _ = self.window.shot_grid.shot_selected.connect(self.on_shot_selected)
-        _ = self.window.shot_grid.shot_double_clicked.connect(self.on_shot_double_clicked)
+        _ = self.window.shot_grid.shot_selected.connect(self.on_shot_selected)  # pyright: ignore[reportAny]
+        _ = self.window.shot_grid.shot_double_clicked.connect(self.on_shot_double_clicked)  # pyright: ignore[reportAny]
         _ = self.window.shot_grid.recover_crashes_requested.connect(
-            self.on_recover_crashes_requested
+            self.on_recover_crashes_requested  # pyright: ignore[reportAny]
         )
 
         # Previous Shots grid signals (reuses same handlers)
-        _ = self.window.previous_shots_grid.shot_selected.connect(self.on_shot_selected)
+        _ = self.window.previous_shots_grid.shot_selected.connect(self.on_shot_selected)  # pyright: ignore[reportAny]
         _ = self.window.previous_shots_grid.shot_double_clicked.connect(
-            self.on_shot_double_clicked
+            self.on_shot_double_clicked  # pyright: ignore[reportAny]
         )
 
         self.logger.debug("ShotSelectionController signals connected")
@@ -196,7 +196,7 @@ class ShotSelectionController(QObject, LoggingMixin):
             self._discovery_worker = None
         self.logger.debug("ShotSelectionController cleaned up")
 
-    @Slot(object)
+    @Slot(object)  # pyright: ignore[reportAny]
     def on_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selection or deselection.
 
@@ -245,16 +245,16 @@ class ShotSelectionController(QObject, LoggingMixin):
 
             # Start async discovery for plates and files (non-blocking)
             self._discovery_worker = ShotDiscoveryWorker(shot)
-            _ = self._discovery_worker.signals.finished.connect(self._on_discovery_complete)
-            _ = self._discovery_worker.signals.error.connect(self._on_discovery_error)
+            _ = self._discovery_worker.signals.finished.connect(self._on_discovery_complete)  # pyright: ignore[reportAny]
+            _ = self._discovery_worker.signals.error.connect(self._on_discovery_error)  # pyright: ignore[reportAny]
             QThreadPool.globalInstance().start(self._discovery_worker)
 
-    @Slot(object)
+    @Slot(object)  # pyright: ignore[reportAny]
     def on_shot_double_clicked(self, _shot: Shot) -> None:
         """Handle shot double click - launch default app."""
         _ = self.window.command_launcher.launch_app(Config.DEFAULT_APP)
 
-    @Slot(object)
+    @Slot(object)  # pyright: ignore[reportAny]
     def _on_discovery_complete(self, result: dict[str, object]) -> None:
         """Handle completed shot discovery.
 
@@ -288,7 +288,7 @@ class ShotSelectionController(QObject, LoggingMixin):
         # Discover RV sequences (Maya playblasts, Nuke renders)
         self.window.right_panel.discover_rv_sequences(shot)
 
-    @Slot(str)
+    @Slot(str)  # pyright: ignore[reportAny]
     def _on_discovery_error(self, error_message: str) -> None:
         """Handle discovery error.
 
@@ -298,7 +298,7 @@ class ShotSelectionController(QObject, LoggingMixin):
         """
         self.logger.warning(f"Shot discovery failed: {error_message}")
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def on_recover_crashes_requested(self) -> None:
         """Handle recovery crashes request from My Shots grid view.
 

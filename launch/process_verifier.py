@@ -15,7 +15,7 @@ import re
 import time
 from logging import Logger
 from pathlib import Path
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, cast, final
 
 import psutil
 
@@ -210,9 +210,9 @@ class ProcessVerifier:
         while time.monotonic() - start_time < timeout_sec:
             for proc in psutil.process_iter(["name", "create_time", "pid"]):
                 try:
-                    proc_name = proc.info.get("name", "").lower()
-                    create_time = proc.info.get("create_time", 0)
-                    proc_pid = proc.info.get("pid", 0)
+                    proc_name = cast("str", proc.info.get("name", "")).lower()
+                    create_time = cast("float", proc.info.get("create_time", 0))
+                    proc_pid = cast("int", proc.info.get("pid", 0))
 
                     # Check if process name matches and was created after our command
                     if any(name in proc_name for name in search_names):

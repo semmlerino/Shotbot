@@ -174,7 +174,7 @@ class ThreeDEGridView(BaseGridView):
         self.artist_combo.setFixedWidth(130)
         self.artist_combo.setToolTip("Filter by artist")
         _ = self.artist_combo.currentTextChanged.connect(
-            self._on_artist_filter_changed
+            self._on_artist_filter_changed  # pyright: ignore[reportAny]
         )
         layout.addWidget(self.artist_combo)
 

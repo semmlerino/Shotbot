@@ -840,7 +840,7 @@ def pytest_unconfigure(config: pytest.Config) -> None:
         pool = QThreadPool.globalInstance()
         pool.clear()
         pool.waitForDone(2000)
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     # Keep this hook minimal. Per-test cleanup already drains Qt state; extra

@@ -475,23 +475,23 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         # Create and start async loader
         loader = InfoPanelPixmapLoader(self, path)
         _ = loader.signals.loaded.connect(
-            self._on_pixmap_loaded,
+            self._on_pixmap_loaded,  # pyright: ignore[reportAny]
             type=Qt.ConnectionType.QueuedConnection,
         )
         _ = loader.signals.failed.connect(
-            self._on_pixmap_failed,
+            self._on_pixmap_failed,  # pyright: ignore[reportAny]
             type=Qt.ConnectionType.QueuedConnection,
         )
         QThreadPool.globalInstance().start(loader)
 
-    @Slot(QImage)
+    @Slot(QImage)  # pyright: ignore[reportAny]
     def _on_pixmap_loaded(self, image: QImage) -> None:
         """Handle successful image loading - convert to pixmap in main thread."""
         pixmap = QPixmap.fromImage(image)
         pixmap.setDevicePixelRatio(self.devicePixelRatioF())
         self.thumbnail_label.setPixmap(pixmap)
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_pixmap_failed(self) -> None:
         """Handle failed pixmap loading."""
         self._set_placeholder_thumbnail()

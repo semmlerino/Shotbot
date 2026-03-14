@@ -303,9 +303,6 @@ class TestCommonViewBehavior:
         view = view_class(model=model)
         qtbot.addWidget(view)
 
-        # Different views use different timer mechanisms
-        timer_found = False
-
         # All views now use the same single-shot timer from BaseGridView
         assert hasattr(view, "_visibility_timer"), f"View {view_class.__name__} should have _visibility_timer"
         timer = view._visibility_timer

@@ -169,7 +169,7 @@ class FilePinManager(LoggingMixin, QObject):
 
             if not isinstance(raw_data, dict):
                 self.logger.warning(
-                    f"Invalid pinned files cache format: {type(raw_data)}"
+                    f"Invalid pinned files cache format: {type(raw_data)}"  # pyright: ignore[reportAny]
                 )
                 self._pins = {}
                 return
@@ -177,7 +177,7 @@ class FilePinManager(LoggingMixin, QObject):
             # Validate structure and load pins
             self._pins = {}
             data = cast("dict[str, Any]", raw_data)
-            for path, pin_data_raw in data.items():
+            for path, pin_data_raw in data.items():  # pyright: ignore[reportAny]
                 # Runtime check since JSON can have any structure
                 if not isinstance(pin_data_raw, dict):
                     continue

@@ -671,7 +671,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.debug_mode_check.setChecked(self.settings_manager.get_debug_mode())
         self.log_level_combo.setCurrentText(self.settings_manager.get_log_level())
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def update_thumbnail_preview(self) -> None:  # type: ignore[reportAny]
         """Update thumbnail size preview label."""
         size = self.thumbnail_size_slider.value()
@@ -680,7 +680,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Emit preview signal
         self.settings_changed.emit("thumbnail_size_preview", size)
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def update_ui_scale_preview(self) -> None:  # type: ignore[reportAny]
         """Update UI scale preview label and apply live preview."""
         scale_percent = self.ui_scale_slider.value()
@@ -698,7 +698,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Emit preview signal for any listeners
         self.settings_changed.emit("ui_scale_preview", ui_scale)
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def validate_custom_launchers(self) -> None:  # type: ignore[reportAny]
         """Validate custom launchers JSON."""
         try:

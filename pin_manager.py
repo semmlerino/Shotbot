@@ -61,7 +61,7 @@ class PinManager(LoggingMixin):
                 raw_data: Any = json.load(f)  # pyright: ignore[reportAny]
 
             if not isinstance(raw_data, list):
-                self.logger.warning(f"Invalid pinned shots cache format: {type(raw_data)}")
+                self.logger.warning(f"Invalid pinned shots cache format: {type(raw_data)}")  # pyright: ignore[reportAny]
                 self._pinned_keys = []
                 return
 

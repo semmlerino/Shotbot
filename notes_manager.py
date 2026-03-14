@@ -79,7 +79,7 @@ class NotesManager(LoggingMixin, QObject):
                 raw_data: Any = json.load(f)  # pyright: ignore[reportAny]
 
             if not isinstance(raw_data, dict):
-                self.logger.warning(f"Invalid notes cache format: {type(raw_data)}")
+                self.logger.warning(f"Invalid notes cache format: {type(raw_data)}")  # pyright: ignore[reportAny]
                 self._notes_by_key = {}
                 return
 

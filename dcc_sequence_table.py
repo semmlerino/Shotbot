@@ -8,7 +8,7 @@ Extracted from DCCSection to isolate sequence-list concerns.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -212,10 +212,10 @@ class DCCSequenceTable(QWidget):
 
         """
         section_data["expanded"] = not section_data["expanded"]
-        section_data["content"].setVisible(section_data["expanded"])
+        cast("QWidget", section_data["content"]).setVisible(section_data["expanded"])  # pyright: ignore[reportAny]
         indicator = "\u25bc" if section_data["expanded"] else "\u25b6"
-        count = section_data["list_widget"].count()
-        section_data["header_btn"].setText(
+        count = cast("QListWidget", section_data["list_widget"]).count()  # pyright: ignore[reportAny]
+        cast("QPushButton", section_data["header_btn"]).setText(  # pyright: ignore[reportAny]
             f"{indicator}  {section_data['title']} ({count})"
         )
 
@@ -230,7 +230,7 @@ class DCCSequenceTable(QWidget):
             item: The double-clicked list item.
 
         """
-        sequence = item.data(Qt.ItemDataRole.UserRole)
+        sequence = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
         if isinstance(sequence, ImageSequence):
             self._selected_sequence = sequence
             self.sequence_launch_requested.emit(sequence)
@@ -269,7 +269,7 @@ class DCCSequenceTable(QWidget):
             sequences: List of ImageSequence objects to display.
 
         """
-        list_widget: QListWidget = section_data["list_widget"]
+        list_widget: QListWidget = section_data["list_widget"]  # pyright: ignore[reportAny]
         list_widget.clear()
 
         for i, seq in enumerate(sequences):
@@ -285,7 +285,7 @@ class DCCSequenceTable(QWidget):
             list_widget.addItem(item)
 
         indicator = "\u25bc" if section_data["expanded"] else "\u25b6"
-        section_data["header_btn"].setText(
+        cast("QPushButton", section_data["header_btn"]).setText(  # pyright: ignore[reportAny]
             f"{indicator}  {section_data['title']} ({len(sequences)})"
         )
 

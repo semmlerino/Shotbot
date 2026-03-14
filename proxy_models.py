@@ -6,7 +6,7 @@ and sorting without triggering source model resets.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QSortFilterProxyModel
 
@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
     from hide_manager import HideManager
     from pin_manager import PinManager
+    from shot_model import Shot
+    from threede_scene_model import ThreeDEScene
 
 
 class ShotProxyModel(QSortFilterProxyModel):
@@ -76,7 +78,7 @@ class ShotProxyModel(QSortFilterProxyModel):
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex | QPersistentModelIndex) -> bool:
         """Filter rows based on show, text, and hidden state."""
         index = self.sourceModel().index(source_row, 0, source_parent)
-        item = index.data(BaseItemRole.ObjectRole)
+        item = cast("Shot | None", index.data(BaseItemRole.ObjectRole))
         if item is None:
             return False
 
@@ -100,8 +102,8 @@ class ShotProxyModel(QSortFilterProxyModel):
         self, left: QModelIndex | QPersistentModelIndex, right: QModelIndex | QPersistentModelIndex
     ) -> bool:
         """Sort with pinned items first, then alphabetically."""
-        left_item = left.data(BaseItemRole.ObjectRole)
-        right_item = right.data(BaseItemRole.ObjectRole)
+        left_item = cast("Shot | None", left.data(BaseItemRole.ObjectRole))
+        right_item = cast("Shot | None", right.data(BaseItemRole.ObjectRole))
 
         if left_item is None or right_item is None:
             return False
@@ -167,7 +169,7 @@ class PreviousShotsProxyModel(QSortFilterProxyModel):
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex | QPersistentModelIndex) -> bool:
         """Filter by show and text."""
         index = self.sourceModel().index(source_row, 0, source_parent)
-        item = index.data(BaseItemRole.ObjectRole)
+        item = cast("Shot | None", index.data(BaseItemRole.ObjectRole))
         if item is None:
             return False
 
@@ -181,8 +183,8 @@ class PreviousShotsProxyModel(QSortFilterProxyModel):
         self, left: QModelIndex | QPersistentModelIndex, right: QModelIndex | QPersistentModelIndex
     ) -> bool:
         """Sort: pinned first, then by name or date."""
-        left_item = left.data(BaseItemRole.ObjectRole)
-        right_item = right.data(BaseItemRole.ObjectRole)
+        left_item = cast("Shot | None", left.data(BaseItemRole.ObjectRole))
+        right_item = cast("Shot | None", right.data(BaseItemRole.ObjectRole))
 
         if left_item is None or right_item is None:
             return False
@@ -259,7 +261,7 @@ class ThreeDEProxyModel(QSortFilterProxyModel):
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex | QPersistentModelIndex) -> bool:
         """Filter by show, artist, and text."""
         index = self.sourceModel().index(source_row, 0, source_parent)
-        item = index.data(BaseItemRole.ObjectRole)
+        item = cast("ThreeDEScene | None", index.data(BaseItemRole.ObjectRole))
         if item is None:
             return False
 
@@ -276,8 +278,8 @@ class ThreeDEProxyModel(QSortFilterProxyModel):
         self, left: QModelIndex | QPersistentModelIndex, right: QModelIndex | QPersistentModelIndex
     ) -> bool:
         """Sort: pinned first (by workspace_path), then by name or date."""
-        left_item = left.data(BaseItemRole.ObjectRole)
-        right_item = right.data(BaseItemRole.ObjectRole)
+        left_item = cast("ThreeDEScene | None", left.data(BaseItemRole.ObjectRole))
+        right_item = cast("ThreeDEScene | None", right.data(BaseItemRole.ObjectRole))
 
         if left_item is None or right_item is None:
             return False

@@ -134,7 +134,7 @@ class ThreeDEController(LoggingMixin):
     def _setup_signals(self) -> None:
         """Connect UI signals to controller slots."""
         # Connect MainWindow lifecycle signal to track shutdown state
-        _ = self.window.closing_started.connect(self._on_closing)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
+        _ = self.window.closing_started.connect(self._on_closing)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue, reportAny]
 
         # Connect 3DE grid view signals for scene interaction
         grid = self.window.threede_shot_grid

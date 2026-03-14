@@ -280,11 +280,11 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         self.list_view.viewport().installEventFilter(self._scrub_event_filter)
 
         # Connect event filter signals to manager
-        _ = self._scrub_event_filter.scrub_started.connect(self._scrub_manager.start_scrub)
+        _ = self._scrub_event_filter.scrub_started.connect(self._scrub_manager.start_scrub)  # pyright: ignore[reportAny]
         _ = self._scrub_event_filter.scrub_position_changed.connect(
-            self._scrub_manager.update_scrub_position
+            self._scrub_manager.update_scrub_position  # pyright: ignore[reportAny]
         )
-        _ = self._scrub_event_filter.scrub_ended.connect(self._scrub_manager.end_scrub)
+        _ = self._scrub_event_filter.scrub_ended.connect(self._scrub_manager.end_scrub)  # pyright: ignore[reportAny]
 
         # Connect manager signals for view updates
         _ = self._scrub_manager.request_repaint.connect(self._on_scrub_repaint_requested)
