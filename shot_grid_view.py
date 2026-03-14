@@ -301,14 +301,7 @@ class ShotGridView(BaseGridView):
         if not model:
             return
 
-        # Clear previous selection in model
-        if previous.isValid():
-            _ = model.setData(previous, False, ShotRole.IsSelectedRole)
-
-        # Set current selection in model
         if current.isValid():
-            _ = model.setData(current, True, ShotRole.IsSelectedRole)
-
             # Get shot object - index.data() returns Any from Qt API
             shot: Shot | None = cast("Shot | None", current.data(ShotRole.ObjectRole))
 

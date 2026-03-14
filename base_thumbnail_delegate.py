@@ -65,7 +65,6 @@ class ThumbnailItemData(TypedDict, total=False):
     shot: str  # Optional - shot name
     thumbnail: QPixmap | None  # thumbnail image
     loading_state: str  # Loading state string
-    is_selected: bool  # Selection state
     is_pinned: bool  # Pin state
     is_hidden: bool  # Hidden state
     has_note: bool  # Note state
@@ -227,9 +226,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
             # Determine state
             is_hover = bool(state & QStyle.StateFlag.State_MouseOver)
-            is_selected = data.get("is_selected", False) or bool(
-                state & QStyle.StateFlag.State_Selected
-            )
+            is_selected = bool(state & QStyle.StateFlag.State_Selected)
             is_pinned = data.get("is_pinned", False)
             is_hidden = data.get("is_hidden", False)
 

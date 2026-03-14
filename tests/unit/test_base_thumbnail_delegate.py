@@ -78,7 +78,6 @@ class ConcreteThumbnailDelegate(BaseThumbnailDelegate):
             "sequence": item.sequence,
             "thumbnail": index.data(Qt.ItemDataRole.DecorationRole),
             "loading_state": index.data(Qt.ItemDataRole.UserRole + 9),  # LoadingStateRole
-            "is_selected": False,
         }
 
 

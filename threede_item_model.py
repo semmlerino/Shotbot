@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import QModelIndex, QObject, QPersistentModelIndex, Signal
 
-from base_item_model import BaseItemModel, BaseItemRole
+from base_item_model import BaseItemModel
 from typing_compat import override
 
 
@@ -242,19 +242,9 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         # Convert to QPersistentModelIndex for proper comparison
         persistent_index = QPersistentModelIndex(index)
         if self._selected_index != persistent_index:
-            # Clear old selection
-            if self._selected_index.isValid():
-                # QPersistentModelIndex automatically converts to QModelIndex when needed
-                self.dataChanged.emit(
-                    self._selected_index,
-                    self._selected_index,
-                    [BaseItemRole.IsSelectedRole],
-                )
-
             # Set new selection
             self._selected_index = QPersistentModelIndex(index)
             if index.isValid():
-                self.dataChanged.emit(index, index, [BaseItemRole.IsSelectedRole])
                 self._selected_item = self.get_item_at_index(index)
             else:
                 self._selected_item = None

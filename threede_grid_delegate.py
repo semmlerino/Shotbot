@@ -123,7 +123,6 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
             "shot": index.data(ThreeDERole.ItemSpecificRole1),  # Maps to shot
             "thumbnail": index.data(ThreeDERole.ThumbnailPixmapRole),
             "loading_state": index.data(ThreeDERole.LoadingStateRole),
-            "is_selected": index.data(ThreeDERole.IsSelectedRole) or False,
             "user": index.data(
                 ThreeDERole.ItemSpecificRole2
             ),  # Maps to user for THREEDE

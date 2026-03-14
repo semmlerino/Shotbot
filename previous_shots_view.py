@@ -406,14 +406,7 @@ class PreviousShotsView(BaseGridView):
         if not self._unified_model:
             return
 
-        # Clear previous selection in model
-        if previous.isValid():
-            _ = self._unified_model.setData(previous, False, ShotRole.IsSelectedRole)
-
-        # Set current selection in model
         if current.isValid():
-            _ = self._unified_model.setData(current, True, ShotRole.IsSelectedRole)
-
             # Cast needed because QModelIndex.data() returns Any
             shot = cast("Shot | None", current.data(ShotRole.ObjectRole))
             if shot:
