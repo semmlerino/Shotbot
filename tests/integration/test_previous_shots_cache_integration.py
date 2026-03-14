@@ -295,9 +295,7 @@ class TestPreviousShootsCacheIntegration:
             assert shots[0].shot == "cached_shot"
         finally:
             # CRITICAL CLEANUP: Stop and wait for any worker threads
-            if model._worker is not None:
-                model._worker.request_stop()
-                model._worker.wait(2000)
+            model._cleanup_worker_safely()
             process_qt_events()
 
     def test_model_cache_integration_on_refresh(
@@ -371,9 +369,7 @@ class TestPreviousShootsCacheIntegration:
             assert len(model.get_shots()) == 0
         finally:
             # CRITICAL CLEANUP: Stop and wait for any worker threads
-            if model._worker is not None:
-                model._worker.request_stop()
-                model._worker.wait(2000)
+            model._cleanup_worker_safely()
             process_qt_events()
 
     def test_cache_partial_write_recovery(self, temp_cache_dir, cache_manager) -> None:

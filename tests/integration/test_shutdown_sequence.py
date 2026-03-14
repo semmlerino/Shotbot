@@ -260,22 +260,27 @@ class TestAppWideShutdown:
         # Simulate active operations by holding the mutex briefly
         # (This is a simplified test - full integration would need ShotModel)
         active_operations = []
+        lock_acquired = threading.Event()
 
         def simulate_operation() -> None:
             """Simulate an active operation."""
             try:
                 with QMutexLocker(pool._mutex):
+                    lock_acquired.set()
                     active_operations.append("started")
                     time.sleep(0.1)
                     active_operations.append("finished")
             except Exception:  # noqa: BLE001
                 pass
 
-        # Start background "operation"
+        # Concurrent operation and shutdown
         op_thread = threading.Thread(target=simulate_operation)
         op_thread.start()
 
-        # Wait for operation to start
+        # Wait for thread to actually acquire the lock before shutting down
+        lock_acquired.wait(timeout=2.0)
+
+        # Shutdown during operation
         SynchronizationHelpers.wait_for_condition(
             lambda: "started" in active_operations,
             timeout_ms=1000,

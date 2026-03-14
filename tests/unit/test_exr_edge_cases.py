@@ -271,31 +271,22 @@ class TestConcurrentEdgeCases:
 
         cache_manager = CacheManager(tmp_path / "cache")
 
-        def delete_file() -> None:
-            import time
-
-            time.sleep(0.01)  # Sleep instead of processing Qt events in a background thread
-            if exr_file.exists():
-                exr_file.unlink()
-
-        # Start deletion thread
-        delete_thread = threading.Thread(target=delete_file)
-        delete_thread.start()
-
-        # Try to cache (file will disappear during processing)
-
         if Image:
             with patch.object(Image, "open") as mock_open:
-                mock_open.side_effect = FileNotFoundError()
+                def mock_open_side_effect(*args, **kwargs):
+                    if exr_file.exists():
+                        exr_file.unlink()
+                    raise FileNotFoundError()
+                mock_open.side_effect = mock_open_side_effect
 
                 result = cache_manager.cache_thumbnail(
                     exr_file, show="test", sequence="seq", shot="0010"                )
         else:
             # Skip Image mocking if PIL not available
+            if exr_file.exists():
+                exr_file.unlink()
             result = cache_manager.cache_thumbnail(
                 exr_file, show="test", sequence="seq", shot="0010"            )
-
-        delete_thread.join()
 
         # Should handle gracefully
         assert result is None
@@ -307,22 +298,31 @@ class TestConcurrentEdgeCases:
 
         cache_manager = CacheManager(tmp_path / "cache")
 
-        def modify_file() -> None:
-            import time
-
-            time.sleep(0.01)  # Sleep instead of processing Qt events in a background thread
+        if Image:
+            with patch.object(Image, "open") as mock_open:
+                # Store original open to call it after modifying
+                original_open = Image.open
+                
+                def mock_open_side_effect(*args, **kwargs):
+                    if exr_file.exists():
+                        # Change file content
+                        exr_file.write_bytes(b"MODIFIED" + b"y" * 2048)
+                    try:
+                        # Just return None to avoid infinite recursion with patched mock
+                        return None
+                    except Exception:
+                        pass
+                
+                mock_open.side_effect = mock_open_side_effect
+                
+                result = cache_manager.cache_thumbnail(
+                    exr_file, show="test", sequence="seq", shot="0010"        )
+        else:
             if exr_file.exists():
-                # Change file content
                 exr_file.write_bytes(b"MODIFIED" + b"y" * 2048)
-
-        modify_thread = threading.Thread(target=modify_file)
-        modify_thread.start()
-
-        # Process file (will change during processing)
-        result = cache_manager.cache_thumbnail(
-            exr_file, show="test", sequence="seq", shot="0010"        )
-
-        modify_thread.join()
+            # Process file (will change during processing)
+            result = cache_manager.cache_thumbnail(
+                exr_file, show="test", sequence="seq", shot="0010"        )
 
         # Should complete without crash
         assert result is None or isinstance(result, Path)

@@ -410,6 +410,8 @@ def _qt_auto_fixtures(request: pytest.FixtureRequest) -> None:
         request.getfixturevalue("prevent_qapp_exit")
 
 
+_PYSIDE6_FIXTURE_CACHE: dict[str, bool] = {}
+
 def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
     """Check if a fixture or its dependencies use PySide6.
 
@@ -425,12 +427,16 @@ def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
         True if the fixture imports PySide6, False otherwise
 
     """
+    if fixture_name in _PYSIDE6_FIXTURE_CACHE:
+        return _PYSIDE6_FIXTURE_CACHE[fixture_name]
+
     try:
         # Get fixture manager from session
         fm = item.session._fixturemanager
         fixture_defs = fm.getfixturedefs(fixture_name, item)
 
         if not fixture_defs:
+            _PYSIDE6_FIXTURE_CACHE[fixture_name] = False
             return False
 
         for fixture_def in fixture_defs:
@@ -438,6 +444,7 @@ def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
             func = fixture_def.func
             func_module = getattr(func, "__module__", "")
             if isinstance(func_module, str) and func_module.startswith("PySide6"):
+                _PYSIDE6_FIXTURE_CACHE[fixture_name] = True
                 return True
 
             # Check fixture function's source for PySide6 imports
@@ -446,21 +453,26 @@ def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
                 import inspect
 
                 source = inspect.getsource(func)
+                if "PySide6" not in source:
+                    continue
+                    
                 tree = ast.parse(source)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Import):
                         for alias in node.names:
                             if alias.name.startswith("PySide6"):
+                                _PYSIDE6_FIXTURE_CACHE[fixture_name] = True
                                 return True
                     elif isinstance(node, ast.ImportFrom):
                         if node.module and node.module.startswith("PySide6"):
+                            _PYSIDE6_FIXTURE_CACHE[fixture_name] = True
                             return True
             except (TypeError, OSError, SyntaxError):
                 pass
-
-    except (AttributeError, KeyError):
+    except (AttributeError, KeyError, TypeError, OSError, SyntaxError):
         pass
-
+    
+    _PYSIDE6_FIXTURE_CACHE[fixture_name] = False
     return False
 
 
