@@ -696,13 +696,14 @@ class TestVisibilityTracking:
         assert hasattr(grid_view, "_visibility_timer")
         assert grid_view._visibility_timer is not None
 
-    def test_visibility_timer_interval(self, grid_view: ConcreteGridView) -> None:
-        """Test visibility timer interval is configured."""
-        assert grid_view._visibility_timer.interval() == 100
+    def test_visibility_timer_is_single_shot(self, grid_view: ConcreteGridView) -> None:
+        """Test visibility timer is configured as single-shot."""
+        assert grid_view._visibility_timer.isSingleShot()
 
-    def test_visibility_timer_is_active(self, grid_view: ConcreteGridView) -> None:
-        """Test visibility timer is active."""
-        assert grid_view._visibility_timer.isActive()
+    def test_visibility_timer_is_not_active_until_triggered(self, grid_view: ConcreteGridView) -> None:
+        """Test visibility timer is not active until a scroll/resize event triggers it."""
+        # Single-shot timer is not running until _schedule_visible_range_update is called
+        assert not grid_view._visibility_timer.isActive()
 
     def test_update_visible_range_called(
         self, qtbot: QtBot, grid_view: ConcreteGridView

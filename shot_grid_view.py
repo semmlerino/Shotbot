@@ -198,6 +198,7 @@ class ShotGridView(BaseGridView):
         # Store in base class attribute (base type is QAbstractItemModel)
         self._model = model
         self.list_view.setModel(model)
+        self._connect_model_visibility(model)
 
         # Set up selection model
         selection_model = self.list_view.selectionModel()

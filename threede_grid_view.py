@@ -235,6 +235,7 @@ class ThreeDEGridView(BaseGridView):
         self._model = model  # Set base class attribute for visibility tracking
         self._threede_model = model
         self.list_view.setModel(model)
+        self._connect_model_visibility(model)
 
         # Connect model signals
         _ = model.scenes_updated.connect(self._on_scenes_updated)  # pyright: ignore[reportAny]
@@ -310,7 +311,7 @@ class ThreeDEGridView(BaseGridView):
             next_text = current_text if combo.findText(current_text) >= 0 else all_label
             combo.setCurrentText(next_text)
         finally:
-            combo.blockSignals(previous_state)
+            _ = combo.blockSignals(previous_state)
 
     @Slot(str)  # pyright: ignore[reportAny]
     def _on_artist_filter_changed(self, artist_text: str) -> None:

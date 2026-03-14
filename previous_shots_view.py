@@ -16,7 +16,6 @@ from PySide6.QtCore import (
     QModelIndex,
     Qt,
     QThreadPool,
-    QTimer,
     Signal,
     Slot,
 )
@@ -96,7 +95,6 @@ class PreviousShotsView(BaseGridView):
         """
         # Initialize instance variables before super().__init__()
         # These are set in methods called during base class initialization
-        self._update_timer: QTimer | None = None
         self._status_label: QLabel | None = None
         self._refresh_button: QPushButton | None = None
         self._sort_name_btn: QPushButton | None = None
@@ -118,14 +116,6 @@ class PreviousShotsView(BaseGridView):
             self.set_model(model)
 
         self.logger.debug("PreviousShotsView initialized")
-
-    @override
-    def _setup_visibility_tracking(self) -> None:
-        """Override to use scroll-based updates instead of timer."""
-        # Setup scroll-based visibility updates (replaces timer)
-        self._update_timer = QTimer()
-        self._update_timer.setSingleShot(True)
-        _ = self._update_timer.timeout.connect(self._update_visible_range)
 
     @override
     def _add_top_widgets(self, layout: QVBoxLayout) -> None:
@@ -243,6 +233,7 @@ class PreviousShotsView(BaseGridView):
         self._unified_model = model
         self._model = model  # type: ignore[assignment]
         self.list_view.setModel(model)
+        self._connect_model_visibility(model)
 
         # Set up selection model
         selection_model = self.list_view.selectionModel()
@@ -267,11 +258,6 @@ class PreviousShotsView(BaseGridView):
                 self._on_scan_progress,  # pyright: ignore[reportAny]
                 Qt.ConnectionType.QueuedConnection,
             )
-
-        # Connect scroll events for debounced visibility updates
-        _ = self.list_view.verticalScrollBar().valueChanged.connect(
-            self._schedule_visible_range_update  # pyright: ignore[reportAny]
-        )
 
         # Update status with shot count
         self._update_status()
@@ -684,34 +670,11 @@ class PreviousShotsView(BaseGridView):
         """Trigger a refresh of the grid."""
         self._on_refresh_clicked()  # pyright: ignore[reportAny]
 
-    @Slot()  # pyright: ignore[reportAny]
-    def _schedule_visible_range_update(self) -> None:
-        """Schedule a debounced visible range update.
-
-        This is called on scroll events and uses a timer to debounce
-        the updates for better performance.
-        """
-        # Cancel any pending update
-        assert self._update_timer is not None
-        self._update_timer.stop()
-        # Schedule update after 50ms of no scrolling
-        self._update_timer.start(50)
-
     @override
     def closeEvent(self, event: QCloseEvent) -> None:
-        """Handle widget close event to clean up resources.
-
-        Args:
-            event: Close event
-
-        """
-        # Stop the update timer to prevent memory leaks
-        if self._update_timer is not None:
-            self._update_timer.stop()
-
-        # Call parent implementation
+        """Handle widget close event to clean up resources."""
+        self._visibility_timer.stop()
         super().closeEvent(event)
-
         self.logger.debug("PreviousShotsView cleaned up resources on close")
 
     # ============= Sort order methods =============

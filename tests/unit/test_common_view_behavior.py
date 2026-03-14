@@ -306,21 +306,10 @@ class TestCommonViewBehavior:
         # Different views use different timer mechanisms
         timer_found = False
 
-        # Check for visibility timer (ShotGridView, ThreeDEGridView)
-        if hasattr(view, "_visibility_timer"):
-            timer = view._visibility_timer
-            assert timer.isActive(), "Visibility timer should be active"
-            assert timer.interval() == 100, "Timer should fire every 100ms"
-            timer_found = True
-
-        # Check for update timer (PreviousShotsView)
-        elif hasattr(view, "_update_timer"):
-            timer = view._update_timer
-            # This is a single-shot timer, triggered on scroll
-            assert timer.isSingleShot(), "Update timer should be single-shot"
-            timer_found = True
-
-        assert timer_found, f"View {view_class.__name__} should have a timer mechanism"
+        # All views now use the same single-shot timer from BaseGridView
+        assert hasattr(view, "_visibility_timer"), f"View {view_class.__name__} should have _visibility_timer"
+        timer = view._visibility_timer
+        assert timer.isSingleShot(), "Visibility timer should be single-shot"
 
         # Test that scrolling triggers updates
         if hasattr(view, "list_view"):

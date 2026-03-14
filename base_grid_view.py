@@ -68,7 +68,7 @@ from PySide6.QtGui import QKeyEvent
 
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtGui import QWheelEvent
+    from PySide6.QtGui import QResizeEvent, QWheelEvent
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
@@ -227,14 +227,42 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         )
 
     def _setup_visibility_tracking(self) -> None:
-        """Set up visibility tracking for lazy loading.
+        """Set up event-driven visibility tracking for lazy loading.
 
-        Subclasses can override to use different timer strategies.
+        Uses a debounced single-shot timer triggered by scroll and resize
+        events instead of polling. Subclasses connect model signals via
+        _connect_model_visibility() in their set_model() methods.
         """
         self._visibility_timer: QTimer = QTimer()
+        self._visibility_timer.setSingleShot(True)
         _ = self._visibility_timer.timeout.connect(self._update_visible_range)
-        self._visibility_timer.setInterval(100)
-        self._visibility_timer.start()
+
+        # Scrollbar exists from _setup_base_ui() even before a model is set
+        _ = self.list_view.verticalScrollBar().valueChanged.connect(
+            self._schedule_visible_range_update
+        )
+
+    def _schedule_visible_range_update(self) -> None:
+        """Schedule a debounced visible range update.
+
+        Called on scroll/resize events. Stops any pending timer and
+        restarts with 50ms delay for batching rapid events.
+        """
+        self._visibility_timer.stop()
+        self._visibility_timer.start(50)
+
+    def _connect_model_visibility(self, model: QAbstractItemModel) -> None:
+        """Connect model signals for visibility tracking.
+
+        Subclasses should call this from their set_model() methods
+        after setting the model on list_view.
+
+        Args:
+            model: The item model being set
+
+        """
+        _ = model.modelReset.connect(self._schedule_visible_range_update)
+        self._schedule_visible_range_update()
 
     def _setup_scrub_preview(self) -> None:
         """Initialize the scrub preview system.
@@ -526,6 +554,17 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             event.accept()
         else:
             super().wheelEvent(event)
+
+    @override
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        """Handle resize to update visible thumbnails.
+
+        Args:
+            event: Resize event
+
+        """
+        super().resizeEvent(event)
+        self._schedule_visible_range_update()
 
     @override
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
