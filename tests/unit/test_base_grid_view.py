@@ -517,7 +517,12 @@ class TestKeyboardShortcuts:
         """Test that keyboard shortcuts emit app_launch_requested signal."""
         signal_spy = QSignalSpy(grid_view.app_launch_requested)
 
-        QTest.keyPress(grid_view, key)
+        # QAction shortcuts require the widget to be visible to fire
+        grid_view.show()
+        grid_view.list_view.setFocus()
+        process_qt_events()
+
+        QTest.keyPress(grid_view.list_view, key)
         process_qt_events()
 
         assert signal_spy.count() == 1
@@ -533,23 +538,13 @@ class TestKeyboardShortcuts:
             process_qt_events()
             mock_key.assert_called_once()
 
-    def test_event_filter_installed_on_list_view(
+    def test_launch_actions_installed_on_list_view(
         self, grid_view: ConcreteGridView
     ) -> None:
-        """Test that event filter is installed on list_view.
-
-        This is critical for keyboard shortcuts to work when list_view has focus.
-        """
-        # The event filter should be the grid_view itself
-        # We can verify by checking that grid_view receives events from list_view
-        from PySide6.QtCore import QEvent
-
-        # Create a test event
-        test_event = QEvent(QEvent.Type.User)
-
-        # eventFilter should be callable and return False for non-key events
-        result = grid_view.eventFilter(grid_view.list_view, test_event)
-        assert result is False  # Non-key events should pass through
+        """Test that launch QActions are installed on list_view."""
+        actions = grid_view.list_view.actions()
+        # Should have 5 actions: 3, N, M, R, P
+        assert len(actions) == 5
 
     @pytest.mark.allow_dialogs
     @pytest.mark.parametrize(
@@ -562,70 +557,63 @@ class TestKeyboardShortcuts:
             (Qt.Key.Key_P, "publish"),
         ],
     )
-    def test_event_filter_intercepts_shortcuts_from_list_view(
+    def test_shortcuts_fire_when_list_view_focused(
         self,
         qtbot: QtBot,
         grid_view: ConcreteGridView,
         key: Qt.Key,
         expected_app: str,
     ) -> None:
-        """Test that event filter intercepts shortcuts when list_view has focus.
-
-        This tests the fix for the keyboard shortcut bug where shortcuts
-        didn't work because list_view had focus instead of grid_view.
-        """
+        """Test that QAction shortcuts fire when list_view has focus."""
         signal_spy = QSignalSpy(grid_view.app_launch_requested)
 
-        # Set focus on list_view (simulates user clicking on a shot)
+        # QAction shortcuts require the widget to be visible to fire
+        grid_view.show()
         grid_view.list_view.setFocus()
         process_qt_events()
 
-        # Send key event to list_view directly
         QTest.keyPress(grid_view.list_view, key)
         process_qt_events()
 
-        # Event filter should intercept and emit signal
         assert signal_spy.count() == 1
         assert signal_spy.at(0)[0] == expected_app
 
-    def test_event_filter_passes_navigation_keys_to_list_view(
+    def test_navigation_keys_still_work_on_list_view(
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
-        """Test that navigation keys (arrows) are not intercepted by event filter.
+        """Test that arrow keys still navigate the grid.
 
         Arrow keys should reach list_view for item navigation.
         """
-        from PySide6.QtCore import QEvent
-        from PySide6.QtGui import QKeyEvent
+        # Arrow keys should not trigger app_launch_requested
+        signal_spy = QSignalSpy(grid_view.app_launch_requested)
 
-        # Create arrow key event
-        arrow_event = QKeyEvent(
-            QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.NoModifier
-        )
+        grid_view.list_view.setFocus()
+        process_qt_events()
 
-        # Event filter should return False (not handled) for navigation keys
-        result = grid_view.eventFilter(grid_view.list_view, arrow_event)
-        assert result is False
+        QTest.keyPress(grid_view.list_view, Qt.Key.Key_Down)
+        process_qt_events()
 
-    def test_event_filter_ignores_events_from_other_objects(
+        assert signal_spy.count() == 0
+
+    def test_shortcuts_dont_fire_when_search_focused(
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
-        """Test that event filter only processes events from list_view."""
-        from PySide6.QtCore import QEvent
-        from PySide6.QtGui import QKeyEvent
+        """Test that shortcuts don't fire when search field has focus.
 
-        # Create a different widget
-        other_widget = QWidget()
-        qtbot.addWidget(other_widget)
+        Typing 'N' in the search field should type 'N', not launch Nuke.
+        """
+        signal_spy = QSignalSpy(grid_view.app_launch_requested)
 
-        # Create a shortcut key event
-        key_event = QKeyEvent(
-            QEvent.Type.KeyPress, Qt.Key.Key_N, Qt.KeyboardModifier.NoModifier
-        )
+        # Show widget and focus the search field (not list_view)
+        grid_view.show()
+        grid_view.text_filter_input.setFocus()
+        process_qt_events()
 
-        # Event filter should return False for events from other objects
-        result = grid_view.eventFilter(other_widget, key_event)
-        assert result is False
+        QTest.keyPress(grid_view.text_filter_input, Qt.Key.Key_N)
+        process_qt_events()
+
+        assert signal_spy.count() == 0
 
 
 # ============================================================================

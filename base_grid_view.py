@@ -7,14 +7,13 @@ and behavior for ShotGridView, ThreeDEGridView, and PreviousShotsView.
 from __future__ import annotations
 
 # Standard library imports
+from functools import partial
 from typing import TYPE_CHECKING, Protocol
 
 # Third-party imports
 from PySide6.QtCore import (
     QAbstractItemModel,
-    QEvent,
     QModelIndex,
-    QObject,
     QSize,
     Qt,
     QTimer,
@@ -62,8 +61,8 @@ class HasAvailableShows(Protocol):
         ...
 
 
-# Runtime import for event filter (not just type checking)
-from PySide6.QtGui import QKeyEvent
+# Runtime imports (not just type checking)
+from PySide6.QtGui import QAction, QKeyEvent, QKeySequence
 
 
 if TYPE_CHECKING:
@@ -196,12 +195,11 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         # Set focus on list view too
         self.list_view.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-        # Install event filter to intercept key events from list_view
-        # This fixes keyboard shortcuts (3, N, M, R, P) when list_view has focus
-        self.list_view.installEventFilter(self)
-
         # Setup scrub preview system
         self._setup_scrub_preview()
+
+        # Setup QAction-based keyboard shortcuts for app launching
+        self._setup_launch_shortcuts()
 
     def _configure_list_view(self) -> None:
         """Configure the QListView with common settings."""
@@ -297,6 +295,35 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         self._delegate.set_scrub_manager(self._scrub_manager)
 
         self.logger.debug("Scrub preview system initialized")
+
+    def _setup_launch_shortcuts(self) -> None:
+        """Set up QAction-based keyboard shortcuts for app launching.
+
+        Actions are scoped to list_view so they fire when list_view or its
+        viewport has focus, but NOT when the search field or combo has focus.
+        """
+        key_map = {
+            Qt.Key.Key_3: "3de",
+            Qt.Key.Key_N: "nuke",
+            Qt.Key.Key_M: "maya",
+            Qt.Key.Key_R: "rv",
+            Qt.Key.Key_P: "publish",
+        }
+        for key, app_name in key_map.items():
+            action = QAction(self.list_view)
+            action.setShortcut(QKeySequence(key))
+            action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            _ = action.triggered.connect(partial(self._on_shortcut_launch, app_name))
+            self.list_view.addAction(action)
+
+    def _on_shortcut_launch(self, app_name: str) -> None:
+        """Handle shortcut-triggered app launch.
+
+        Args:
+            app_name: Name of the app to launch
+
+        """
+        self.app_launch_requested.emit(app_name)
 
     def _on_scrub_repaint_requested(self, index: QModelIndex) -> None:
         """Handle request to repaint an item during scrub.
@@ -567,63 +594,14 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         self._schedule_visible_range_update()
 
     @override
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        """Filter events from list_view to handle keyboard shortcuts.
-
-        When list_view has focus, key events go to QListView.keyPressEvent
-        instead of BaseGridView.keyPressEvent. This event filter intercepts
-        key events to handle app launch shortcuts (3, N, M, R, P).
-
-        Args:
-            obj: The object that received the event
-            event: The event to filter
-
-        Returns:
-            True if event was handled, False to pass it on
-
-        """
-        if obj is self.list_view and event.type() == QEvent.Type.KeyPress:
-            key_event = QKeyEvent(event)  # type: ignore[arg-type]
-            key_map = {
-                Qt.Key.Key_3: "3de",
-                Qt.Key.Key_N: "nuke",
-                Qt.Key.Key_M: "maya",
-                Qt.Key.Key_R: "rv",
-                Qt.Key.Key_P: "publish",
-            }
-            key = Qt.Key(key_event.key())
-            if key in key_map:
-                self.app_launch_requested.emit(key_map[key])
-                return True  # Event handled, don't propagate
-        return super().eventFilter(obj, event)
-
-    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Handle keyboard shortcuts.
+        """Forward unhandled key events to list_view for navigation.
 
-        This base implementation provides common app launch shortcuts.
-        Subclasses can override and extend.
-
-        Note: When list_view has focus, key events are intercepted by
-        eventFilter() instead of reaching this method.
+        App launch shortcuts are handled by QActions on list_view.
 
         Args:
             event: Key event
 
         """
-        # Application launch shortcuts (common to all views)
-        key_map = {
-            Qt.Key.Key_3: "3de",
-            Qt.Key.Key_N: "nuke",
-            Qt.Key.Key_M: "maya",
-            Qt.Key.Key_R: "rv",
-            Qt.Key.Key_P: "publish",
-        }
-
-        key = Qt.Key(event.key())
-        if key in key_map:
-            self.app_launch_requested.emit(key_map[key])
-            event.accept()
-        else:
-            # Let QListView handle navigation
-            self.list_view.keyPressEvent(event)
+        # Let QListView handle navigation (arrow keys, etc.)
+        self.list_view.keyPressEvent(event)

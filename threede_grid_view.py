@@ -44,7 +44,7 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtGui import QIcon, QKeyEvent
+    from PySide6.QtGui import QIcon
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
@@ -108,6 +108,9 @@ class ThreeDEGridView(BaseGridView):
 
         # Initialize base class (this calls _add_top_widgets and _add_toolbar_widgets)
         super().__init__(parent)
+
+        # Set up Return/Enter shortcut for launching the selected scene
+        self._setup_return_shortcut()
 
         # Update text filter placeholder for 3DE context
         self.text_filter_input.setPlaceholderText("Filter shot name...")
@@ -690,24 +693,25 @@ class ThreeDEGridView(BaseGridView):
         """
         return create_icon(icon_type, color, size)
 
-    @override
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Handle key press events.
+    def _setup_return_shortcut(self) -> None:
+        """Set up Return/Enter QAction for scene launch."""
+        from PySide6.QtGui import QAction, QKeySequence
 
-        Args:
-            event: Key press event
+        for key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            action = QAction(self.list_view)
+            action.setShortcut(QKeySequence(key))
+            action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            _ = action.triggered.connect(self._on_return_pressed)
+            self.list_view.addAction(action)
 
-        """
-        if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
-            # Launch selected scene
-            current = self.list_view.currentIndex()
-            if current.isValid() and self._threede_model:
-                scene = self._threede_model.get_scene(current)
-                if scene:
-                    self.scene_double_clicked.emit(scene)
-                    self.app_launch_requested.emit("3de", scene)
-        else:
-            super().keyPressEvent(event)
+    def _on_return_pressed(self) -> None:
+        """Handle Return/Enter key to launch selected scene."""
+        current = self.list_view.currentIndex()
+        if current.isValid() and self._threede_model:
+            scene = self._threede_model.get_scene(current)
+            if scene:
+                self.scene_double_clicked.emit(scene)
+                self.app_launch_requested.emit("3de", scene)
 
     def select_scene(self, scene: ThreeDEScene) -> None:
         """Select a scene programmatically.

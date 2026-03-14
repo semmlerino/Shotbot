@@ -12,12 +12,13 @@ from pathlib import Path
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtTest import QSignalSpy
+from PySide6.QtTest import QSignalSpy, QTest
 
 # Local application imports
 from config import Config
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
+from tests.test_helpers import process_qt_events
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 
@@ -293,19 +294,14 @@ class TestThreeDEGridViewAppLaunchSignals:
             index = threede_grid._threede_model.index(0, 0)
             threede_grid.list_view.setCurrentIndex(index)
 
-            # Simulate Enter key press
-            from PySide6.QtGui import (
-                QKeyEvent,
-            )
+            # Show widget and focus list_view (QAction requires visible widget)
+            threede_grid.show()
+            threede_grid.list_view.setFocus()
+            process_qt_events()
 
-            # Simulate Enter key press and wait for signal
+            # Simulate Enter key press via QTest on list_view (QAction is scoped there)
             with qtbot.waitSignal(threede_grid.app_launch_requested, timeout=1000):
-                key_event = QKeyEvent(
-                    QKeyEvent.Type.KeyPress,
-                    Qt.Key.Key_Return,
-                    Qt.KeyboardModifier.NoModifier,
-                )
-                threede_grid.keyPressEvent(key_event)
+                QTest.keyPress(threede_grid.list_view, Qt.Key.Key_Return)
 
             # Verify signal was emitted
             assert len(app_launch_signals) == 1
