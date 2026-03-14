@@ -256,18 +256,14 @@ def test_trigger_previous_shots_refresh_skips_when_no_shots(
 def test_refresh_shot_display_debounces_rapid_calls(
     qapp: QApplication, orchestrator: RefreshOrchestrator, mock_main_window: Mock
 ) -> None:
-    """Test that rapid _refresh_shot_display calls are debounced.
+    """Test that rapid refresh_shot_display calls are debounced.
 
     Issue #2 fix: Prevents duplicate set_shots() and populate_show_filter()
     when both shots_loaded and shots_changed signals fire rapidly within 500ms.
 
-    Uses time_machine to advance time deterministically instead of qtbot.wait(),
-    which is susceptible to segfaults from stale Qt events left by prior tests.
+    Simulates cooldown expiry by stopping the QTimer directly (equivalent to
+    the 500ms interval elapsing without a real-time wait).
     """
-    import time
-
-    import time_machine
-
     # Track call count
     call_count = 0
     original_set_shots = mock_main_window.shot_item_model.set_shots
@@ -279,18 +275,17 @@ def test_refresh_shot_display_debounces_rapid_calls(
 
     mock_main_window.shot_item_model.set_shots = counting_set_shots
 
-    with time_machine.travel(time.time(), tick=False) as traveller:
-        # Call refresh multiple times rapidly (within 500ms debounce window)
-        orchestrator.refresh_shot_display()
-        orchestrator.refresh_shot_display()
-        orchestrator.refresh_shot_display()
+    # Call refresh multiple times rapidly (within 500ms debounce window)
+    orchestrator.refresh_shot_display()
+    orchestrator.refresh_shot_display()
+    orchestrator.refresh_shot_display()
 
-        # Should only execute once due to debouncing (first call goes through)
-        assert call_count == 1, "Expected exactly 1 call due to debouncing"
+    # Should only execute once due to debouncing (first call goes through)
+    assert call_count == 1, "Expected exactly 1 call due to debouncing"
 
-        # Advance past debounce interval (500ms + margin)
-        traveller.shift(1.0)
+    # Simulate cooldown expiry by stopping the timer (equivalent to 500ms elapsing)
+    orchestrator._refresh_debounce_timer.stop()
 
-        # Now a new call should execute (debounce window expired)
-        orchestrator.refresh_shot_display()
-        assert call_count == 2, "Expected 2nd call after debounce window expired"
+    # Now a new call should execute (debounce window expired)
+    orchestrator.refresh_shot_display()
+    assert call_count == 2, "Expected 2nd call after debounce window expired"

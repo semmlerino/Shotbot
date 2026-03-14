@@ -4,10 +4,9 @@
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING, Protocol
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
@@ -74,13 +73,16 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         LoggingMixin.__init__(self)
         self.main_window: RefreshOrchestratorMainWindowProtocol = main_window
         # Two-layer refresh guard:
-        # 1. Time-based debounce: prevents rapid-fire display refreshes when
+        # 1. Timer-based debounce: prevents rapid-fire display refreshes when
         #    cached shots arrive followed immediately by fresh shots (< 500ms).
+        #    First call executes immediately; subsequent calls within the 500ms
+        #    cooldown window are dropped.
         # 2. In-progress flag: prevents overlapping async ws -sg subprocess
         #    calls (the flag stays True from _refresh_shots until
         #    handle_refresh_finished completes).
-        self._last_refresh_time: float = 0.0
-        self._refresh_debounce_interval: float = 0.5  # seconds
+        self._refresh_debounce_timer: QTimer = QTimer(self)
+        self._refresh_debounce_timer.setSingleShot(True)
+        self._refresh_debounce_timer.setInterval(500)  # ms, was 0.5s
         self._shots_refresh_in_progress: bool = False
         self.logger.debug("RefreshOrchestrator initialized")
 
@@ -225,18 +227,21 @@ class RefreshOrchestrator(QObject, LoggingMixin):
             self.logger.debug("No active shots loaded, skipping previous shots refresh")
 
     def refresh_shot_display(self) -> None:
+        """Refresh the shot display (debounced).
+
+        First call executes immediately and starts a 500ms cooldown. Subsequent
+        calls within the cooldown window are dropped to deduplicate rapid-fire
+        updates (e.g., cached shots arriving just before fresh shots).
+        """
+        if not self._refresh_debounce_timer.isActive():
+            # First call: execute immediately, start cooldown
+            self._do_refresh_shot_display()
+            self._refresh_debounce_timer.start()
+        else:
+            self.logger.debug("Skipping duplicate refresh (debounce active)")
+
+    def _do_refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
-        # Debounce rapid refresh calls (e.g., cached shots followed by fresh shots)
-        now = time.time()
-        time_since_last_refresh = now - self._last_refresh_time
-        if self._last_refresh_time > 0 and time_since_last_refresh < self._refresh_debounce_interval:
-            self.logger.debug(
-                f"Skipping duplicate refresh (last refresh {time_since_last_refresh:.2f}s ago)"
-            )
-            return
-
-        self._last_refresh_time = now
-
         # Always use Model/View implementation; proxy handles filtering
         self.main_window.shot_item_model.set_shots(
             self.main_window.shot_model.shots

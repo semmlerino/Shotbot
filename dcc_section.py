@@ -223,17 +223,28 @@ class DCCSection(QtWidgetMixin, QWidget):
         container_layout.setSpacing(4)
 
         # Header row (always visible)
-        header = QWidget()
+        header = QPushButton()
+        header.setFlat(True)
+        header.setStyleSheet("""
+            QPushButton {
+                border: none;
+                text-align: left;
+                padding: 0;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.05);
+            }
+        """)
+        _ = header.clicked.connect(self._toggle_expanded)
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(8)
 
-        # Expand/collapse button
+        # Expand/collapse button (visual indicator only)
         self._expand_btn = QToolButton()
         self._expand_btn.setArrowType(Qt.ArrowType.RightArrow)
         self._expand_btn.setMaximumSize(18, 18)
         self._expand_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        _ = self._expand_btn.clicked.connect(self._toggle_expanded)
         header_layout.addWidget(self._expand_btn)
 
         # DCC name
@@ -248,10 +259,6 @@ class DCCSection(QtWidgetMixin, QWidget):
         header_layout.addStretch()
 
         container_layout.addWidget(header)
-
-        # Make header clickable
-        header.setCursor(Qt.CursorShape.PointingHandCursor)
-        header.mousePressEvent = lambda _e: self._toggle_expanded()  # type: ignore[method-assign, assignment]
 
         # Content widget (hidden when collapsed)
         self._content = QWidget()
