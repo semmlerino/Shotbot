@@ -317,12 +317,12 @@ class TestPreviousShootsCacheIntegration:
 
         # Use local import for patch since we removed the global import
         # Standard library imports
+        import time
         from unittest.mock import (
             patch,
         )
 
         from tests.test_helpers import process_qt_events
-        import time
 
         # Need to patch the ParallelShotsFinder class that the worker uses
         with patch(
@@ -339,7 +339,7 @@ class TestPreviousShootsCacheIntegration:
                 while previous_shots_model.is_scanning() and time.time() - start_time < 5.0:
                     process_qt_events()
                     time.sleep(0.01)
-                
+
                 assert not previous_shots_model.is_scanning(), "Timeout waiting for scan to finish"
 
                 # Verify data was cached after scan completes

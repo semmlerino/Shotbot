@@ -27,7 +27,6 @@ from PySide6.QtCore import (
     QMutexLocker,
     QObject,
     QPersistentModelIndex,
-    QRunnable,
     QSize,
     Qt,
     QThread,

@@ -504,9 +504,9 @@ class InfoPanelPixmapLoader(QRunnable):
         loaded: Signal = Signal(QImage)
         failed: Signal = Signal()
 
-    def __init__(self, panel: "ShotInfoPanel", path: str | Path) -> None:
+    def __init__(self, panel: ShotInfoPanel, path: str | Path) -> None:
         super().__init__()
-        self.panel: "ShotInfoPanel" = panel  # Keep reference to prevent GC
+        self.panel: ShotInfoPanel = panel  # Keep reference to prevent GC
         self.path: str | Path = path
         self.signals: InfoPanelPixmapLoader.Signals = self.Signals()
         self._target_dpr: float = max(1.0, panel.devicePixelRatioF())

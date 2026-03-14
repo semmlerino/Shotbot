@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PIL import Image
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, QRunnable, Qt, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
 
 # Local application imports
 from exceptions import ThumbnailError
