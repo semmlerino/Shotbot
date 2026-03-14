@@ -59,9 +59,15 @@ class NukeScriptGenerator:
                 temp_path = Path(temp_file)
                 if temp_path.exists():
                     temp_path.unlink()
-                    logger.debug(f"Cleaned up temporary file: {temp_file}")
+                    try:
+                        logger.debug(f"Cleaned up temporary file: {temp_file}")
+                    except ValueError:
+                        pass  # Stream might be closed during teardown
             except Exception:  # noqa: BLE001
-                logger.warning(f"Could not delete temp file {temp_file}", exc_info=True)
+                try:
+                    logger.warning(f"Could not delete temp file {temp_file}", exc_info=True)
+                except ValueError:
+                    pass  # Stream might be closed
         cls._temp_files.clear()
 
     @classmethod

@@ -517,6 +517,10 @@ class InfoPanelPixmapLoader(QRunnable):
         # Use module-level logger since QRunnable can't inherit from LoggingMixin
         logger = logging.getLogger(__name__)
 
+        from runnable_tracker import get_tracker
+        tracker = get_tracker()
+        tracker.register(self, {"type": self.__class__.__name__})
+
         try:
             # Local application imports
             from PIL import Image
@@ -583,6 +587,8 @@ class InfoPanelPixmapLoader(QRunnable):
         except Exception:
             logger.exception(f"Error loading info panel thumbnail {self.path}")
             self.signals.failed.emit()
+        finally:
+            tracker.unregister(self)
 
 
 class ThumbnailCacheRunnable(QRunnable):
@@ -631,6 +637,11 @@ class ThumbnailCacheRunnable(QRunnable):
     def run(self) -> None:
         """Execute thumbnail caching in background thread."""
         logger = logging.getLogger(__name__)
+
+        from runnable_tracker import get_tracker
+        tracker = get_tracker()
+        tracker.register(self, {"type": self.__class__.__name__})
+
         try:
             _ = self.cache_manager.cache_thumbnail(
                 self.thumbnail_path,
@@ -641,3 +652,5 @@ class ThumbnailCacheRunnable(QRunnable):
         except Exception:  # noqa: BLE001
             # Log but don't propagate - caching failure is non-critical
             logger.debug("Background thumbnail caching failed", exc_info=True)
+        finally:
+            tracker.unregister(self)

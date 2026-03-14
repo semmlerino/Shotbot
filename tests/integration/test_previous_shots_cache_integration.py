@@ -330,15 +330,10 @@ class TestPreviousShootsCacheIntegration:
         ):
             try:
                 # Refresh should trigger cache save
-                result = previous_shots_model.refresh_shots()
+                with qtbot.waitSignal(previous_shots_model.scan_finished, timeout=5000):
+                    result = previous_shots_model.refresh_shots()
 
                 assert result is True
-
-                # Wait for the async scan to complete using signal
-                # waitSignal is the proper Qt pattern for async operations
-                # and is more reliable than waitUntil in parallel execution
-                with qtbot.waitSignal(previous_shots_model.scan_finished, timeout=5000):
-                    pass
 
                 # Verify data was cached after scan completes
                 cached_data = (
@@ -349,9 +344,7 @@ class TestPreviousShootsCacheIntegration:
                 assert cached_data[0]["show"] == "new_show"
             finally:
                 # CRITICAL CLEANUP: Stop and wait for any worker threads
-                if previous_shots_model._worker is not None:
-                    previous_shots_model._worker.request_stop()
-                    previous_shots_model._worker.wait(2000)
+                previous_shots_model._cleanup_worker_safely()
                 process_qt_events()
 
     # Performance test removed to prevent test suite timeout
