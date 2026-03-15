@@ -45,9 +45,7 @@ class ProcessExecutor(QObject):
     execution_error: Signal = Signal(str, str)  # timestamp, error_message
 
     # App verification signals (for GUI app launch verification)
-    app_verification_started: Signal = Signal(str)  # app_name
     app_verified: Signal = Signal(str, int)  # app_name, pid
-    app_verification_failed: Signal = Signal(str, str)  # app_name, error_message
     app_verification_timeout: Signal = Signal(str)  # app_name
     headless_launch_warning: Signal = Signal(str)  # app_name
     launch_crash_detected: Signal = Signal(str)  # app_name
@@ -418,12 +416,6 @@ class ProcessExecutor(QObject):
             timeout_sec = self.config.LAUNCH_VERIFICATION_TIMEOUT_SEC
         if poll_interval_sec is None:
             poll_interval_sec = self.config.LAUNCH_VERIFICATION_POLL_SEC
-
-        # Emit started signal
-        try:
-            self.app_verification_started.emit(app_name)
-        except RuntimeError:
-            return  # Object being cleaned up
 
         # Run verification in background thread
         thread = threading.Thread(

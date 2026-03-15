@@ -100,7 +100,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
     # Signals
     settings_applied: Signal = Signal()  # Emitted when settings are applied
-    settings_changed: Signal = Signal(str, object)  # Setting key, new value
 
     def __init__(
         self,
@@ -677,9 +676,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         size = self.thumbnail_size_slider.value()
         self.thumbnail_size_label.setText(f"{size}px")
 
-        # Emit preview signal
-        self.settings_changed.emit("thumbnail_size_preview", size)
-
     @Slot()  # pyright: ignore[reportAny]
     def update_ui_scale_preview(self) -> None:  # type: ignore[reportAny]
         """Update UI scale preview label and apply live preview."""
@@ -694,9 +690,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         font = self.ui_scale_label.font()
         font.setPixelSize(design_system.typography.size_body)
         self.ui_scale_label.setFont(font)
-
-        # Emit preview signal for any listeners
-        self.settings_changed.emit("ui_scale_preview", ui_scale)
 
     @Slot()  # pyright: ignore[reportAny]
     def validate_custom_launchers(self) -> None:  # type: ignore[reportAny]

@@ -10,7 +10,6 @@ from __future__ import annotations
 # Standard library imports
 from abc import ABC, abstractmethod
 from enum import IntEnum
-from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 
@@ -40,7 +39,6 @@ from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
 from protocols import SceneDataProtocol
 from qt_abc_meta import QABCMeta
-from runnable_tracker import TrackedQRunnable
 from typing_compat import override
 
 
@@ -58,74 +56,6 @@ class QtThreadError(RuntimeError):
     execution is attempted from a different thread, indicating a threading
     violation in the application.
     """
-
-
-class ThumbnailLoaderSignals(QObject):
-    """Signals for ThumbnailLoaderRunnable.
-
-    Provides thread-safe communication from the background thumbnail loader
-    to the main thread via Qt signals.
-    """
-
-    finished: ClassVar[Signal] = Signal(str, Path)  # full_name, cached_path
-    failed: ClassVar[Signal] = Signal(str)  # full_name
-
-
-class ThumbnailLoaderRunnable(TrackedQRunnable):
-    """Background thumbnail loader using QThreadPool.
-
-    Loads and caches thumbnails in a background thread to avoid blocking
-    the main UI thread during thumbnail processing (PIL image decode,
-    resize, and encode operations).
-    """
-
-    def __init__(
-        self,
-        full_name: str,
-        thumbnail_path: Path,
-        show: str,
-        sequence: str,
-        shot: str,
-        cache_manager: ThumbnailCache,
-    ) -> None:
-        """Initialize the thumbnail loader runnable.
-
-        Args:
-            full_name: Unique identifier for the item (e.g., "show/seq/shot")
-            thumbnail_path: Path to the source thumbnail image
-            show: Show name for cache organization
-            sequence: Sequence name for cache organization
-            shot: Shot name for cache organization
-            cache_manager: ThumbnailCache instance for thumbnail caching
-
-        """
-        # Pass auto_delete=False because callbacks need to clean up
-        super().__init__(auto_delete=False)
-        self.full_name: str = full_name
-        self.thumbnail_path: Path = thumbnail_path
-        self.show: str = show
-        self.sequence: str = sequence
-        self.shot: str = shot
-        self.cache_manager: ThumbnailCache = cache_manager
-        self.signals: ThumbnailLoaderSignals = ThumbnailLoaderSignals()
-
-    @override
-    def _do_work(self) -> None:
-        """Execute thumbnail caching in background thread."""
-        try:
-            cached_result = self.cache_manager.cache_thumbnail(
-                self.thumbnail_path,
-                self.show,
-                self.sequence,
-                self.shot,
-            )
-            if isinstance(cached_result, Path) and cached_result.exists():
-                self.signals.finished.emit(self.full_name, cached_result)
-            else:
-                self.signals.failed.emit(self.full_name)
-        except Exception:
-            _logger.exception(f"Thumbnail cache failed for {self.full_name!r}")
-            self.signals.failed.emit(self.full_name)
 
 
 class BaseItemRole(IntEnum):

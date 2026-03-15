@@ -394,7 +394,7 @@ class PreviousShotsView(BaseGridView):
     def _on_selection_changed(
         self,
         current: QModelIndex,
-        previous: QModelIndex,
+        _previous: QModelIndex,
     ) -> None:
         """Handle selection change.
 
