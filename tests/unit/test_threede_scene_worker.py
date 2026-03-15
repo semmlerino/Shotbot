@@ -431,8 +431,11 @@ class TestThreeDESceneWorker:
             # Check discovered scenes (behavior testing, not implementation)
             if len(finished_scenes) > 0:
                 discovered_scenes = finished_scenes[0]
-                # Progressive discovery accumulates scenes from per-shot calls
-                assert len(discovered_scenes) >= 0  # May vary based on test double
+                # Progressive discovery calls find_scenes_for_shot once per shot.
+                # test_shots has 2 shots; the test double returns 2 scenes per shot.
+                assert len(discovered_scenes) == 4, (
+                    f"Expected 4 scenes (2 shots × 2 scenes each), got {len(discovered_scenes)}"
+                )
                 assert all(
                     isinstance(scene, ThreeDEScene) for scene in discovered_scenes
                 )

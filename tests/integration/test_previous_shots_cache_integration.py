@@ -30,7 +30,7 @@ from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.fixtures.test_doubles import TestShot, TestShotModel
-from tests.test_helpers import process_qt_events
+from tests.test_helpers import SynchronizationHelpers, process_qt_events
 
 
 pytestmark = [
@@ -317,12 +317,9 @@ class TestPreviousShootsCacheIntegration:
 
         # Use local import for patch since we removed the global import
         # Standard library imports
-        import time
         from unittest.mock import (
             patch,
         )
-
-        from tests.test_helpers import process_qt_events
 
         # Need to patch the ParallelShotsFinder class that the worker uses
         with patch(
@@ -334,11 +331,13 @@ class TestPreviousShootsCacheIntegration:
                 result = previous_shots_model.refresh_shots()
                 assert result is True
 
-                # Wait for scan to finish, processing Qt events to allow QueuedConnections
-                start_time = time.time()
-                while previous_shots_model.is_scanning() and time.time() - start_time < 5.0:
-                    process_qt_events()
-                    time.sleep(0.01)
+                # Wait for scan to finish
+                SynchronizationHelpers.wait_for_condition(
+                    lambda: not previous_shots_model.is_scanning(),
+                    timeout_ms=5000,
+                    poll_interval_ms=50,
+                )
+                process_qt_events()  # Flush any remaining queued signals
 
                 assert not previous_shots_model.is_scanning(), "Timeout waiting for scan to finish"
 
