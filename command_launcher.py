@@ -10,6 +10,7 @@ from __future__ import annotations
 
 # Standard library imports
 import base64
+import enum
 import os
 import shlex
 import time
@@ -92,6 +93,16 @@ _TIMEOUT_THRESHOLD_FOR_CACHE_RESET: int = 3
 # Using named constants avoids magic (None, bool) tuples at each return site.
 ASYNC_IN_PROGRESS: tuple[None, bool] = (None, True)
 LAUNCH_ERROR: tuple[None, bool] = (None, False)
+
+
+class LaunchPhase(enum.Enum):
+    """Explicit state machine phases for CommandLauncher's async launch lifecycle."""
+
+    IDLE = "idle"
+    VERIFYING_APP = "verifying_app"
+    SEARCHING_FILES = "searching_files"
+    AWAITING_CONFIRMATION = "awaiting_confirmation"
+    EXECUTING = "executing"
 
 
 @final
@@ -205,6 +216,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         # Async file search state
         self._pending_worker: LatestFileFinderWorker | None = None
         self._pending_launch: PendingLaunch | None = None
+
+        # Current launch phase (state machine tracking)
+        self._phase: LaunchPhase = LaunchPhase.IDLE
 
         # Counter for consecutive verification timeouts; reset on success.
         # See _on_app_verification_timeout and _TIMEOUT_THRESHOLD_FOR_CACHE_RESET.
@@ -468,6 +482,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             message: Completion message (empty if success, error if failed)
 
         """
+        self._phase = LaunchPhase.IDLE
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
+
         if not success and message:
             self._emit_error(f"Execution failed: {message}")
 
@@ -496,6 +513,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             app_name: Name of the application that failed verification
 
         """
+        self._phase = LaunchPhase.IDLE
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
+
         self._consecutive_timeout_count += 1
 
         if self._consecutive_timeout_count >= _TIMEOUT_THRESHOLD_FOR_CACHE_RESET:
@@ -572,6 +592,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             command: Base command built so far (before scene path added)
 
         """
+        self._phase = LaunchPhase.SEARCHING_FILES
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
+
         if self.current_shot is None:
             self._emit_error("Cannot search for files - no shot selected")
             return
@@ -628,8 +651,13 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             success: Whether the search completed successfully
 
         """
+        self._phase = LaunchPhase.AWAITING_CONFIRMATION
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
+
         if self._pending_worker is None:
             self.logger.warning("Async search complete but no pending worker")
+            self._phase = LaunchPhase.IDLE
+            self.logger.debug("LaunchPhase: %s", self._phase.value)
             return
 
         # Get results from worker
@@ -658,6 +686,8 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             self.logger.warning("Async file search failed or was cancelled")
             # Clear pending state
             self._clear_pending_state()
+            self._phase = LaunchPhase.IDLE
+            self.logger.debug("LaunchPhase: %s", self._phase.value)
 
     def _continue_launch_after_search(
         self,
@@ -681,6 +711,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             threede_result: Latest 3DE scene found by the worker, or None.
 
         """
+        self._phase = LaunchPhase.EXECUTING
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
+
         launch = self._pending_launch
 
         # Clear pending state
@@ -688,6 +721,8 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
 
         if launch is None:
             self.logger.error("Missing pending state after async search")
+            self._phase = LaunchPhase.IDLE
+            self.logger.debug("LaunchPhase: %s", self._phase.value)
             return
 
         app_name = launch.app_name
@@ -698,12 +733,16 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         if app_name == "3de":
             result = self._apply_file_result("3de", command, threede_result, context.open_latest_threede)
             if result is None:
+                self._phase = LaunchPhase.IDLE
+                self.logger.debug("LaunchPhase: %s", self._phase.value)
                 return
             command = result
 
         if app_name == "maya":
             result = self._apply_file_result("maya", command, maya_result, context.open_latest_maya)
             if result is None:
+                self._phase = LaunchPhase.IDLE
+                self.logger.debug("LaunchPhase: %s", self._phase.value)
                 return
             command = result
 
@@ -813,6 +852,8 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             _ = self._pending_worker.safe_stop(timeout_ms=1000)
             self._pending_worker = None
             self._clear_pending_state()
+            self._phase = LaunchPhase.IDLE
+            self.logger.debug("LaunchPhase: %s", self._phase.value)
             self.launch_ready.emit()  # Clear spinner
             self.logger.debug("Cancelled pending file search")
 
@@ -889,6 +930,10 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             # Clear cache on failure - terminal may have been uninstalled
             self.env_manager.reset_cache()
             return False
+
+        # Process spawned successfully — launcher is now executing
+        self._phase = LaunchPhase.EXECUTING
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
 
         # Start async app verification for GUI apps (runs in background thread)
         # This detects if the actual application (not just terminal) launched successfully
@@ -1023,6 +1068,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         if context is None:
             context = LaunchContext()
 
+        self._phase = LaunchPhase.VERIFYING_APP
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
+
         if not self.current_shot:
             self._emit_error("No shot selected")
             return False
@@ -1053,6 +1101,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             True if launch was successful, False otherwise
 
         """
+        self._phase = LaunchPhase.VERIFYING_APP
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
+
         if not self._validate_app_name(app_name):
             return False
 
@@ -1117,6 +1168,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             True if launch was successful, False otherwise
 
         """
+        self._phase = LaunchPhase.VERIFYING_APP
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
+
         if not self._validate_app_name(app_name):
             return False
 
@@ -1181,6 +1235,9 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             True if launch was successful, False otherwise
 
         """
+        self._phase = LaunchPhase.VERIFYING_APP
+        self.logger.debug("LaunchPhase: %s", self._phase.value)
+
         if not self._validate_app_name(app_name):
             return False
 
