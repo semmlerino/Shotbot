@@ -36,9 +36,18 @@ Shotbot uses three mechanisms:
 
 ## Choosing a Mechanism
 
-- Use `QThread` when you need lifecycle control (`start/stop/pause`) and Qt signal integration.
-- Use `ThreadPoolExecutor` for blocking subprocess and filesystem tasks without Qt object access.
-- Use `QRunnable` for short tasks that benefit from pooled execution.
+| Mechanism | When to Use | Codebase Examples |
+|-----------|-------------|-------------------|
+| `QThread` via `ThreadSafeWorker` | Long-lived, cancellable work needing Qt signal integration and lifecycle control (start/stop/pause) | `AsyncShotLoader` (shot data refresh), `ThreeDESceneWorker` (scene discovery), `LatestFileFinderWorker` (file search), `PreviousShotsWorker` (approved shot scan), `SessionWarmer` (startup preloading) |
+| `ThreadPoolExecutor` via `ProcessPoolManager` | Subprocess execution and filesystem I/O parallelism; no Qt object access allowed | `ws -sg` command execution, parallel show scanning in `SceneDiscoveryCoordinator`, process verification |
+| `QRunnable` via `TrackedQRunnable` | Short, fire-and-forget Qt-adjacent tasks dispatched to `QThreadPool.globalInstance()` | `ThumbnailLoadRunnable` (background image loading), `ThumbnailUnloadRunnable` (deferred cleanup) |
+
+**Decision checklist:**
+1. Does the task need to be cancelled mid-execution? → `QThread` (`ThreadSafeWorker`)
+2. Does the task need to emit Qt signals during execution? → `QThread` (`ThreadSafeWorker`)
+3. Is it a subprocess call or pure I/O with no Qt dependency? → `ThreadPoolExecutor`
+4. Is it a short task (< 1 second) with no cancellation need? → `QRunnable`
+5. Does it need to run multiple parallel instances? → `ThreadPoolExecutor` (pool) or `QRunnable` (thread pool)
 
 ## QRunnable Tracking
 

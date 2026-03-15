@@ -394,6 +394,16 @@ class ThreeDEController(LoggingMixin):
         else:
             self.update_scenes_no_changes()
 
+        # Surface discovery errors so the user knows results may be incomplete
+        with QMutexLocker(self._worker_mutex):
+            worker = self._threede_worker
+        if worker and worker.discovery_errors > 0:
+            n = worker.discovery_errors
+            NotificationManager.info(
+                f"3DE scan: {n} error(s) — some scenes may not be shown",
+                timeout=5000,
+            )
+
     @Slot(str)  # pyright: ignore[reportAny]
     def on_discovery_error(self, error_message: str) -> None:
         """Handle 3DE discovery worker error.

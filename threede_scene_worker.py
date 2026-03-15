@@ -247,6 +247,9 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         # Progress reporter will be created in do_work() to prevent race condition
         self._progress_reporter: QtProgressReporter | None = None
 
+        # Error count from scene discovery coordinator (read by controller after signal fires)
+        self.discovery_errors: int = 0
+
         # Thread safety for finished signal emission (simplified)
         self._finished_mutex = QMutex()
         self._finished_emitted = False
@@ -581,6 +584,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             self.logger.exception("Error in progressive discovery")
             raise
 
+        self.discovery_errors = coordinator.stats["errors"]
         return self._all_scenes
 
     def _discover_all_scenes_in_shows(self) -> list[ThreeDEScene]:
