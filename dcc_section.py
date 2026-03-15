@@ -3,6 +3,9 @@
 Extracted and improved from AppLauncherSection. Provides a collapsible
 section with launch button, options checkboxes, and plate selector.
 Shows version info in collapsed header for quick reference.
+
+VFX Glossary:
+    DCC — Digital Content Creation application (Maya, Nuke, 3DEqualizer, etc.)
 """
 
 from __future__ import annotations

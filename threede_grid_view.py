@@ -3,6 +3,9 @@
 This module provides a QListView-based implementation that replaces the manual
 widget management approach, providing virtualization, efficient scrolling,
 loading indicators, and proper Model/View integration for 3DE scenes.
+
+VFX Glossary:
+    3DE / 3DEqualizer — Camera tracking/matchmove software by Science.D.Visions.
 """
 
 from __future__ import annotations
