@@ -435,7 +435,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _setup_ui(self) -> None:
         """Set up the main UI."""
-        # Set window title with mock indicator if applicable
         if is_mock_mode():
             self.setWindowTitle(
                 f"{Config.APP_NAME} v{Config.APP_VERSION} - 🧪 MOCK MODE"
@@ -453,12 +452,21 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         main_layout.addWidget(self.splitter)
 
-        # Left side - Tab widget for different views
-        self.tab_widget = QTabWidget()
-        # Disable focus indicators on tab bar
-        self.tab_widget.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
-
+        self._setup_tabs()
         self.splitter.addWidget(self.tab_widget)
+
+        right_widget = self._setup_right_panel()
+        self.splitter.addWidget(right_widget)
+
+        self.splitter.setSizes([750, 450])
+
+        self._setup_status_bar()
+        self.update_status("Ready")
+
+    def _setup_tabs(self) -> None:
+        """Create the tab widget and all three shot-view tabs."""
+        self.tab_widget = QTabWidget()
+        self.tab_widget.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         # Tab 1: My Shots
         self.shot_item_model = ShotItemModel(
@@ -483,7 +491,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
 
-        # Tab 2: Other 3DE scenes (using Model/View architecture)
+        # Tab 2: Other 3DE scenes
         self.threede_proxy = ThreeDEProxyModel(self)
         self.threede_proxy.set_pin_manager(self.pin_manager)
         self.threede_proxy.setSourceModel(self.threede_item_model)
@@ -496,7 +504,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
         _ = self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
 
-        # Tab 3: Previous Shots (approved/completed) - using Model/View architecture
+        # Tab 3: Previous Shots (approved/completed)
         self.previous_shots_item_model = PreviousShotsItemModel(
             self.previous_shots_model,
             self.thumbnail_cache,
@@ -517,7 +525,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         self.tab_widget.tabBar().setStyleSheet(_TAB_BAR_STYLESHEET)
 
-        # Right side panel
+    def _setup_right_panel(self) -> QWidget:
+        """Build the right-side panel with RightPanelWidget and log viewer."""
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
@@ -539,11 +548,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         right_layout.addWidget(log_group)
 
-        self.splitter.addWidget(right_widget)
+        return right_widget
 
-        # Set splitter sizes (wider right panel for better visibility)
-        self.splitter.setSizes([750, 450])
-
+    def _setup_status_bar(self) -> None:
+        """Create the status bar and initialize NotificationManager and ProgressManager."""
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
@@ -563,8 +571,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         _ = NotificationManager.initialize(self, self.status_bar)
         _ = ProgressManager.initialize(self.status_bar)
-
-        self.update_status("Ready")
 
     def _setup_menu(self) -> None:
         """Set up menu bar."""
