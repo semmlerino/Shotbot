@@ -113,7 +113,6 @@ class TestInitialization:
         """Test that shot-specific signals are properly defined."""
         # Verify shot-specific signals exist
         assert hasattr(shot_item_model, "shots_updated")
-        assert hasattr(shot_item_model, "show_filter_changed")
 
         # Verify base signals are inherited
         assert hasattr(shot_item_model, "items_updated")
@@ -293,20 +292,11 @@ class TestShowFiltering:
         base_shot_model.shots = test_shots
         shot_item_model.set_shots(test_shots)
 
-        spy = QSignalSpy(shot_item_model.show_filter_changed)
-
         # Filter for show2
         shot_item_model.set_show_filter(base_shot_model, "show2")
 
-        # Verify row count
+        # Verify row count reflects the filter
         assert shot_item_model.rowCount() == 2
-
-        # Verify signal emission
-        assert spy.count() == 1
-        # QSignalSpy is not subscriptable, use .at() method
-        signal_args = spy.at(0)
-        assert len(signal_args) == 1
-        assert signal_args[0] == "show2"
 
         # Verify all visible shots are from show2
         for i in range(shot_item_model.rowCount()):

@@ -333,44 +333,44 @@ class TestEdgeCases:
         assert nm2.get_note(shot) == unicode_note
 
 
-# ============= Signal Tests =============
+# ============= State Change Tests =============
 
 
-class TestSignals:
-    """Tests for Qt signals."""
+class TestStateChanges:
+    """Tests for state changes after mutation operations."""
 
-    def test_notes_changed_signal_emitted_on_set(
+    def test_set_note_stores_note_state(
         self, notes_manager: NotesManager, sample_shots: list[Shot]
     ) -> None:
-        """notes_changed signal should be emitted when note is set."""
+        """set_note should update manager state immediately."""
         shot = sample_shots[0]
-        signal_count: list[int] = []
-        notes_manager.notes_changed.connect(lambda: signal_count.append(1))
         notes_manager.set_note(shot, "New note")
-        assert len(signal_count) == 1
+        assert notes_manager.get_note(shot) == "New note"
+        assert notes_manager.has_note(shot)
 
-    def test_notes_changed_signal_emitted_on_clear(
+    def test_clear_notes_empties_state(
         self, notes_manager: NotesManager, sample_shots: list[Shot]
     ) -> None:
-        """notes_changed signal should be emitted on clear_notes."""
+        """clear_notes should remove all notes from manager state."""
         shot = sample_shots[0]
         notes_manager.set_note(shot, "Note")
-        signal_count: list[int] = []
-        notes_manager.notes_changed.connect(lambda: signal_count.append(1))
-        notes_manager.clear_notes()
-        assert len(signal_count) == 1
+        assert notes_manager.get_notes_count() == 1
 
-    def test_no_signal_when_note_unchanged(
+        notes_manager.clear_notes()
+
+        assert notes_manager.get_notes_count() == 0
+        assert not notes_manager.has_note(shot)
+
+    def test_same_note_does_not_change_state(
         self, notes_manager: NotesManager, sample_shots: list[Shot]
     ) -> None:
-        """notes_changed should not be emitted if note is same."""
+        """Setting the exact same note value should leave state unchanged."""
         shot = sample_shots[0]
         notes_manager.set_note(shot, "Test note")
-
-        # Set the exact same note - should not emit
-        signal_received = []
-        notes_manager.notes_changed.connect(lambda: signal_received.append(True))
+        assert notes_manager.get_notes_count() == 1
 
         notes_manager.set_note(shot, "Test note")  # Same note
 
-        assert len(signal_received) == 0, "Signal should not be emitted for unchanged note"
+        # State should be identical: still one note, same text
+        assert notes_manager.get_notes_count() == 1
+        assert notes_manager.get_note(shot) == "Test note"

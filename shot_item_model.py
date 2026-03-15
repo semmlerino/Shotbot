@@ -33,9 +33,6 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
     # Shot-specific signals
     shots_updated: Signal = Signal()  # Emitted when shots list changes
-    show_filter_changed: Signal = Signal(
-        str
-    )  # Emitted when show filter changes (show name or "All Shows")
 
     def __init__(
         self,
@@ -159,9 +156,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
             filtered_shots: list[Shot] = shot_model.get_filtered_shots()  # type: ignore[union-attr]
             self.set_items(filtered_shots)  # pyright: ignore[reportUnknownArgumentType]
 
-        # Emit filter changed signal for test compatibility
         filter_display = show if show is not None else "All Shows"
-        self.show_filter_changed.emit(filter_display)
         self.logger.info(f"Applied show filter (compat): {filter_display}")
 
     def refresh_shots(self, shots: list[Shot]) -> RefreshResult:

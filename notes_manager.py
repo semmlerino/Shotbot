@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QObject, QTimer
 
 from logging_mixin import LoggingMixin
 
@@ -35,9 +35,6 @@ class NotesManager(LoggingMixin, QObject):
     Uses debounced saving (2 second delay after last edit) to avoid
     disk thrashing during rapid edits.
     """
-
-    # Signal emitted when notes change (for UI refresh)
-    notes_changed: Signal = Signal()
 
     # Debounce delay in milliseconds
     SAVE_DEBOUNCE_MS: int = 2000
@@ -199,10 +196,9 @@ class NotesManager(LoggingMixin, QObject):
         else:
             _ = self._notes_by_key.pop(key, None)  # Remove empty notes
 
-        # Only save and emit if changed
+        # Only save if changed
         if note != old_note:
             self._schedule_save()
-            self.notes_changed.emit()
 
     def has_note(self, shot: Shot) -> bool:
         """Check if a shot has a non-empty note.
@@ -272,7 +268,6 @@ class NotesManager(LoggingMixin, QObject):
 
         if note != old_note:
             self._schedule_save()
-            self.notes_changed.emit()
 
     def _key_from_path(self, workspace_path: str) -> tuple[str, str, str] | None:
         """Extract (show, sequence, shot) key from workspace path.
@@ -317,5 +312,4 @@ class NotesManager(LoggingMixin, QObject):
         """Clear all notes."""
         self._notes_by_key.clear()
         self._schedule_save()
-        self.notes_changed.emit()
         _ = self.logger.info("Cleared all shot notes")

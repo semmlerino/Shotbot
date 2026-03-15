@@ -204,6 +204,36 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
             self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
             return None
 
+    def _filter_approved_shots(
+        self, all_user_shots: list[Shot], active_shots: list[Shot]
+    ) -> list[Shot]:
+        """Filter out active shots to get only approved/completed ones.
+
+        Args:
+            all_user_shots: All shots where user has work.
+            active_shots: Currently active shots from workspace.
+
+        Returns:
+            List of approved shots (user shots minus active shots).
+
+        """
+        # Create a set of active shot identifiers for efficient lookup
+        active_ids = {(shot.show, shot.sequence, shot.shot) for shot in active_shots}
+
+        # Filter out active shots
+        approved_shots = [
+            shot
+            for shot in all_user_shots
+            if (shot.show, shot.sequence, shot.shot) not in active_ids
+        ]
+
+        self.logger.info(
+            f"Filtered {len(all_user_shots)} user shots to "
+            f"{len(approved_shots)} approved shots"
+        )
+
+        return approved_shots
+
     @abstractmethod
     def _get_shot_status(self, shot: Shot) -> str:
         """Get the status of a shot (to be implemented by subclasses).

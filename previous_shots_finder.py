@@ -161,22 +161,8 @@ class PreviousShotsFinder(ShotFinderBase):
             List of approved shots (user shots minus active shots).
 
         """
-        # Create a set of active shot identifiers for efficient lookup
-        active_ids = {(shot.show, shot.sequence, shot.shot) for shot in active_shots}
-
-        # Filter out active shots
-        approved_shots = [
-            shot
-            for shot in all_user_shots
-            if (shot.show, shot.sequence, shot.shot) not in active_ids
-        ]
-
-        self.logger.info(
-            f"Filtered {len(all_user_shots)} user shots to "
-             f"{len(approved_shots)} approved shots"
-        )
-
-        return approved_shots
+        # Delegate to base class implementation
+        return self._filter_approved_shots(all_user_shots, active_shots)
 
     def find_approved_shots(
         self, active_shots: list[Shot], shows_root: Path | None = None

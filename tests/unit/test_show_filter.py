@@ -78,24 +78,20 @@ class TestShotItemModelFiltering:
         shot_model.shots = test_shots
         shot_item_model.set_shots(test_shots)
 
-        # Spy on the show_filter_changed signal
-        signal_spy = QSignalSpy(shot_item_model.show_filter_changed)
-
-        # Filter to show1
+        # Filter to show1 and check model state
         shot_item_model.set_show_filter(shot_model, "show1")
-
-        # Check signal was emitted
-        assert signal_spy.count() == 1
-        assert signal_spy.at(0)[0] == "show1"
-
-        # Check model updated
         assert shot_item_model.rowCount() == 2
+        for i in range(shot_item_model.rowCount()):
+            shot = shot_item_model.get_shot_at_index(shot_item_model.index(i, 0))
+            assert shot is not None
+            assert shot.show == "show1"
 
-        # Filter to show2
+        # Filter to show2 and check model state
         shot_item_model.set_show_filter(shot_model, "show2")
-        assert signal_spy.count() == 2
-        assert signal_spy.at(1)[0] == "show2"
         assert shot_item_model.rowCount() == 1
+        shot = shot_item_model.get_shot_at_index(shot_item_model.index(0, 0))
+        assert shot is not None
+        assert shot.show == "show2"
 
     def test_set_show_filter_none_shows_all(
         self,
@@ -112,12 +108,8 @@ class TestShotItemModelFiltering:
         shot_item_model.set_show_filter(shot_model, "show1")
         assert shot_item_model.rowCount() == 2
 
-        # Clear filter
-        signal_spy = QSignalSpy(shot_item_model.show_filter_changed)
+        # Clear filter — check that all shots are visible again
         shot_item_model.set_show_filter(shot_model, None)
-
-        assert signal_spy.count() == 1
-        assert signal_spy.at(0)[0] == "All Shows"
         assert shot_item_model.rowCount() == 3
 
 
