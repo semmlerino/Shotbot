@@ -280,7 +280,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # 1. Thread/app safety checks (lines below)
         # 2. super().__init__() — QMainWindow + LoggingMixin
         # 3. Infrastructure: ProcessPool, CacheCoordinator, PinManager, NotesManager,
-        #    FilePinManager, CleanupManager, RefreshOrchestrator, SettingsManager
+        #    FilePinManager, RefreshOrchestrator, SettingsManager
         # 4. Models: ThreeDEItemModel, ShotModel (+ async init), ThreeDESceneModel,
         #    PreviousShotsModel, CommandLauncher
         # 5. _setup_ui() — MUST precede controller init (controllers reference widgets)
@@ -327,6 +327,36 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         super().__init__(parent)
 
+        self._init_infrastructure(cache_dir)
+        self._init_models()
+        self._closing = False  # Track shutdown state
+        self._session_warmer: SessionWarmer | None = None
+        self._last_selected_shot_name: str | None = None
+        self._setup_ui()
+        self._init_controllers()
+        self._setup_menu()
+        self._setup_accessibility()
+        self._connect_signals()
+        self.settings_controller.load_settings()
+        self._restore_sort_orders()
+
+        # Skip initial load in test environments if requested
+        if not os.environ.get("SHOTBOT_NO_INITIAL_LOAD"):
+            self._initial_load()
+
+        # No longer need periodic background polling for shots - they use reactive signals now
+        # One-shot timers during initialization are still used for async loading
+        # Only background workers are used for 3DE scene discovery
+        self.logger.info(
+            "Shot model uses reactive signals - periodic polling disabled (async init via QTimer)"
+        )
+        self.logger.info("=" * 60)
+        self.logger.info("MainWindow.__init__() COMPLETE - returning to Qt event loop")
+        self.logger.info("=" * 60)
+
+
+    def _init_infrastructure(self, cache_dir: Path | None) -> None:
+        """Initialize process pool, caches, managers, and settings infrastructure."""
         self._process_pool: ProcessPoolInterface
         if is_mock_mode():
             from mock_workspace_pool import create_mock_pool_from_filesystem
@@ -369,6 +399,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         self.settings_controller = SettingsController(self)
 
+    def _init_models(self) -> None:
+        """Initialize data models and command launcher."""
         self.threede_item_model = ThreeDEItemModel(cache_manager=self.thumbnail_cache)
 
         self.logger.info("Creating ShotModel with 366x faster startup")
@@ -391,13 +423,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             cache_manager=self.latest_file_cache,
         )
 
-        self._closing = False  # Track shutdown state
-        self._session_warmer: SessionWarmer | None = None
-        self._last_selected_shot_name: str | None = None
-
-        # UI setup must come before controller initialization
-        self._setup_ui()
-
+    def _init_controllers(self) -> None:
+        """Initialize controllers that require UI widgets to be set up first."""
         self.threede_controller = ThreeDEController(self)
 
         self.shot_selection_controller: ShotSelectionController = ShotSelectionController(self, parent=self)
@@ -405,26 +432,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.filter_coordinator: FilterCoordinator = FilterCoordinator(self)
 
         self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)
-
-        self._setup_menu()
-        self._setup_accessibility()
-        self._connect_signals()
-        self.settings_controller.load_settings()
-        self._restore_sort_orders()
-
-        # Skip initial load in test environments if requested
-        if not os.environ.get("SHOTBOT_NO_INITIAL_LOAD"):
-            self._initial_load()
-
-        # No longer need periodic background polling for shots - they use reactive signals now
-        # One-shot timers during initialization are still used for async loading
-        # Only background workers are used for 3DE scene discovery
-        self.logger.info(
-            "Shot model uses reactive signals - periodic polling disabled (async init via QTimer)"
-        )
-        self.logger.info("=" * 60)
-        self.logger.info("MainWindow.__init__() COMPLETE - returning to Qt event loop")
-        self.logger.info("=" * 60)
 
     def _setup_ui(self) -> None:
         """Set up the main UI."""
