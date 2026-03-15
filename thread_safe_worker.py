@@ -856,6 +856,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         with QMutexLocker(cls._zombie_mutex):
             if cls._zombie_cleanup_timer is not None:
                 cls._zombie_cleanup_timer.stop()
+                cls._zombie_cleanup_timer.deleteLater()
                 cls._zombie_cleanup_timer = None
 
     @classmethod

@@ -189,6 +189,7 @@ class NotificationManager(QObject):
         if cls._current_progress:
             try:
                 _ = cls._current_progress.close()
+                cls._current_progress.deleteLater()
             except RuntimeError:
                 # Qt C++ object already deleted
                 pass
@@ -209,6 +210,16 @@ class NotificationManager(QObject):
         """
         # Clean up all resources
         cls.cleanup()
+
+        # Schedule the QObject for deletion before clearing the reference.
+        # Without deleteLater(), the C++ object stays alive but unreachable,
+        # causing crashes during Qt's deferred-delete flush at teardown.
+        if cls._instance is not None:
+            try:
+                cls._instance.deleteLater()
+            except RuntimeError:
+                # C++ object already deleted
+                pass
 
         # Reset singleton instance
         cls._instance = None
