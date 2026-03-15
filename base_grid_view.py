@@ -21,9 +21,11 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QComboBox,
     QFrame,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListView,
@@ -34,6 +36,7 @@ from PySide6.QtWidgets import (
 
 # Local application imports
 from config import Config
+from icon_painter import create_icon
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 from scrub_event_filter import ScrubEventFilter
@@ -61,16 +64,32 @@ class HasAvailableShows(Protocol):
         ...
 
 
+class HasRefreshPinOrder(Protocol):
+    """Protocol for item models that support pin-order refresh.
+
+    Both ShotItemModel and PreviousShotsItemModel implement this method.
+    Used by _refresh_with_pins() in BaseGridView to avoid importing
+    concrete model types into the base class.
+    """
+
+    def refresh_pin_order(self) -> None:
+        """Re-sort the model to reflect current pin state."""
+        ...
+
+
 # Runtime imports (not just type checking)
 from PySide6.QtGui import QAction, QKeyEvent, QKeySequence
 
 
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtGui import QResizeEvent, QWheelEvent
+    from PySide6.QtGui import QIcon, QResizeEvent, QWheelEvent
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
+    from notes_manager import NotesManager
+    from pin_manager import PinManager
+    from shot_model import Shot
 
 
 class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
@@ -91,6 +110,13 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
     app_launch_requested: Signal = Signal(str)  # app_name
     show_filter_requested: Signal = Signal(str)  # show name or empty string for all
     text_filter_requested: Signal = Signal(str)  # filter text for real-time search
+    pin_shot_requested: Signal = Signal(object)  # fallback when no pin_manager
+
+    # Manager attribute declarations — subclasses initialize these.
+    # Declared here so shared handler methods (_pin_shot, etc.) type-check correctly.
+    _pin_manager: PinManager | None
+    _notes_manager: NotesManager | None
+
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the base grid view.
@@ -524,6 +550,126 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         # Default implementation - subclasses should override
         # to call their model's set_visible_range or similar
+
+    # Common handler methods shared across all grid view subclasses
+
+    def _create_icon(self, icon_type: str, color: str, size: int = 33) -> QIcon:
+        """Create a coloured shaped icon for menu items.
+
+        Args:
+            icon_type: Icon type - "pin", "folder", "film", "plate", "rocket",
+                      "target", "palette", "cube", "play", "clipboard", "note"
+            color: Hex colour string (e.g., "#FF6B6B")
+            size: Icon size in pixels
+
+        Returns:
+            QIcon with the specified shape and colour
+
+        """
+        return create_icon(icon_type, color, size)
+
+    def _copy_path_to_clipboard(self, path: str) -> None:
+        """Copy a path to the system clipboard.
+
+        Args:
+            path: The path string to copy
+
+        """
+        clipboard = QApplication.clipboard()
+        if clipboard:
+            clipboard.setText(path)
+            self.logger.debug(f"Copied path to clipboard: {path}")
+
+    def _open_main_plate_in_rv(self, item: object) -> None:
+        """Open the main plate in RV.
+
+        Works with any object that has a ``workspace_path`` attribute,
+        including Shot and ThreeDEScene.
+
+        Args:
+            item: Object with a workspace_path attribute
+
+        """
+        from rv_launcher import open_plate_in_rv
+        open_plate_in_rv(item.workspace_path)  # type: ignore[union-attr]
+
+    # Handlers for Shot-based pin/note operations (SGV and PSV only).
+    # ThreeDEGridView uses _pin_scene/_unpin_scene/_edit_scene_note instead.
+
+    @property
+    def _item_model(self) -> HasRefreshPinOrder | None:
+        """Return the underlying item model for pin-order refresh.
+
+        Subclasses that support pin operations must override this property
+        to return their specific model instance.
+
+        Returns:
+            Model implementing refresh_pin_order(), or None
+
+        """
+        msg = (
+            f"{self.__class__.__name__} must override _item_model "
+            "to support _refresh_with_pins()"
+        )
+        raise NotImplementedError(msg)
+
+    def _pin_shot(self, shot: Shot) -> None:
+        """Pin a shot.
+
+        Args:
+            shot: Shot to pin
+
+        """
+        if self._pin_manager:
+            self._pin_manager.pin_shot(shot)
+            self._refresh_with_pins()
+        else:
+            # Fallback: emit signal for external handling
+            self.pin_shot_requested.emit(shot)
+
+    def _unpin_shot(self, shot: Shot) -> None:
+        """Unpin a shot.
+
+        Args:
+            shot: Shot to unpin
+
+        """
+        if self._pin_manager:
+            self._pin_manager.unpin_shot(shot)
+            self._refresh_with_pins()
+
+    def _refresh_with_pins(self) -> None:
+        """Re-sort and refresh grid to reflect pin changes."""
+        from PySide6.QtCore import QSortFilterProxyModel
+        proxy = self.list_view.model()
+        if isinstance(proxy, QSortFilterProxyModel):
+            proxy.invalidate()
+        else:
+            item_model = self._item_model
+            if item_model:
+                item_model.refresh_pin_order()
+        self.list_view.viewport().update()
+
+    def _edit_shot_note(self, shot: Shot) -> None:
+        """Open dialog to edit note for shot.
+
+        Args:
+            shot: Shot to edit note for
+
+        """
+        if not self._notes_manager:
+            return
+
+        current_note = self._notes_manager.get_note(shot)
+        new_note, ok = QInputDialog.getMultiLineText(
+            self,
+            f"Note for {shot.full_name}",
+            "Note:",
+            current_note,
+        )
+        if ok:
+            self._notes_manager.set_note(shot, new_note)
+            self.logger.debug(f"Note updated for shot: {shot.full_name}")
 
     # Common properties
 

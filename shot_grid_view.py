@@ -24,7 +24,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QHBoxLayout,
-    QInputDialog,
     QMenu,
     QPushButton,
     QWidget,
@@ -33,7 +32,6 @@ from PySide6.QtWidgets import (
 # Local application imports
 from base_grid_view import BaseGridView, HasAvailableShows
 from base_item_model import BaseItemRole
-from icon_painter import create_icon
 from runnable_tracker import FolderOpenerWorker
 from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotItemModel
@@ -46,7 +44,7 @@ ShotRole = BaseItemRole
 
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtGui import QContextMenuEvent, QIcon
+    from PySide6.QtGui import QContextMenuEvent
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
@@ -72,7 +70,6 @@ class ShotGridView(BaseGridView):
     shot_selected = Signal(Shot)  # Shot object
     shot_double_clicked = Signal(Shot)  # Shot object
     recover_crashes_requested = Signal()  # User clicked recover crashes button
-    pin_shot_requested = Signal(Shot)  # User wants to pin a shot
     shot_visibility_changed = Signal()  # Shot was hidden or unhidden
     show_hidden_changed = Signal(bool)  # Show Hidden checkbox toggled
 
@@ -375,21 +372,6 @@ class ShotGridView(BaseGridView):
         self.list_view.viewport().update()
         self._update_visible_range()
 
-    def _create_icon(self, icon_type: str, color: str, size: int = 33) -> QIcon:
-        """Create a coloured shaped icon for menu items.
-
-        Args:
-            icon_type: Icon type - "pin", "folder", "film", "plate", "rocket",
-                      "target", "palette", "cube", "play", "clipboard", "note"
-            color: Hex colour string (e.g., "#FF6B6B")
-            size: Icon size in pixels
-
-        Returns:
-            QIcon with the specified shape and colour
-
-        """
-        return create_icon(icon_type, color, size)
-
     @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu.
@@ -570,77 +552,16 @@ class ShotGridView(BaseGridView):
         """Handle successful folder opening."""
         self.logger.debug("Folder opened successfully")
 
-    def _open_main_plate_in_rv(self, shot: Shot) -> None:
-        """Open the main plate in RV."""
-        from rv_launcher import open_plate_in_rv
-        open_plate_in_rv(shot.workspace_path)
+    @property
+    @override
+    def _item_model(self) -> ShotItemModel | None:
+        """Return the underlying ShotItemModel for pin-order refresh.
 
-    def _copy_path_to_clipboard(self, path: str) -> None:
-        """Copy a path to the system clipboard.
-
-        Args:
-            path: The path string to copy
+        Returns:
+            The ShotItemModel, or None if not set
 
         """
-        clipboard = QApplication.clipboard()
-        if clipboard:
-            clipboard.setText(path)
-            self.logger.debug(f"Copied path to clipboard: {path}")
-
-    def _edit_shot_note(self, shot: Shot) -> None:
-        """Open dialog to edit note for shot.
-
-        Args:
-            shot: Shot to edit note for
-
-        """
-        if not self._notes_manager:
-            return
-
-        current_note = self._notes_manager.get_note(shot)
-        new_note, ok = QInputDialog.getMultiLineText(
-            self,
-            f"Note for {shot.full_name}",
-            "Note:",
-            current_note,
-        )
-        if ok:
-            self._notes_manager.set_note(shot, new_note)
-            self.logger.debug(f"Note updated for shot: {shot.full_name}")
-
-    def _pin_shot(self, shot: Shot) -> None:
-        """Pin a shot.
-
-        Args:
-            shot: Shot to pin
-
-        """
-        if self._pin_manager:
-            self._pin_manager.pin_shot(shot)
-            self._refresh_with_pins()
-        else:
-            # Fallback: emit signal for external handling
-            self.pin_shot_requested.emit(shot)
-
-    def _unpin_shot(self, shot: Shot) -> None:
-        """Unpin a shot.
-
-        Args:
-            shot: Shot to unpin
-
-        """
-        if self._pin_manager:
-            self._pin_manager.unpin_shot(shot)
-            self._refresh_with_pins()
-
-    def _refresh_with_pins(self) -> None:
-        """Re-sort and refresh grid to reflect pin changes."""
-        proxy = self.list_view.model()
-        if isinstance(proxy, QSortFilterProxyModel):
-            proxy.invalidate()
-        elif self._model:
-            cast("ShotItemModel", self._model).refresh_pin_order()
-        self.list_view.viewport().update()
+        return cast("ShotItemModel | None", self._model)
 
     def set_pin_manager(self, pin_manager: PinManager) -> None:
         """Set the pin manager.

@@ -37,7 +37,6 @@ from PySide6.QtWidgets import (
 
 # Local application imports
 from base_grid_view import BaseGridView
-from icon_painter import create_icon
 from runnable_tracker import FolderOpenerWorker
 from threede_grid_delegate import ThreeDEGridDelegate
 from typing_compat import override
@@ -45,7 +44,6 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtGui import QIcon
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
@@ -618,18 +616,6 @@ class ThreeDEGridView(BaseGridView):
         clipboard.setText(str(scene.scene_path))
         self.logger.info(f"Copied path to clipboard: {scene.scene_path}")
 
-    def _copy_path_to_clipboard(self, path: str) -> None:
-        """Copy a path to the system clipboard.
-
-        Args:
-            path: The path string to copy
-
-        """
-        clipboard = QApplication.clipboard()
-        if clipboard:
-            clipboard.setText(path)
-            self.logger.debug(f"Copied path to clipboard: {path}")
-
     def _open_shot_folder(self, scene: ThreeDEScene) -> None:
         """Open the shot's workspace folder in system file manager.
 
@@ -649,11 +635,6 @@ class ThreeDEGridView(BaseGridView):
         worker = FolderOpenerWorker(workspace_path)
         QThreadPool.globalInstance().start(worker)
         self.logger.info(f"Opening folder: {workspace_path}")
-
-    def _open_main_plate_in_rv(self, scene: ThreeDEScene) -> None:
-        """Open the main plate in RV."""
-        from rv_launcher import open_plate_in_rv
-        open_plate_in_rv(scene.workspace_path)
 
     def _pin_scene(self, scene: ThreeDEScene) -> None:
         """Pin a scene (by workspace path).
@@ -699,21 +680,6 @@ class ThreeDEGridView(BaseGridView):
         if ok:
             self._notes_manager.set_note_by_path(scene.workspace_path, new_note)
             self.logger.debug(f"Note updated for scene: {shot_name}")
-
-    def _create_icon(self, icon_type: str, color: str, size: int = 33) -> QIcon:
-        """Create a coloured shaped icon for menu items.
-
-        Args:
-            icon_type: Icon type - "pin", "folder", "rocket", "target",
-                      "palette", "cube", "play", "clipboard", "note"
-            color: Hex colour string (e.g., "#FF6B6B")
-            size: Icon size in pixels
-
-        Returns:
-            QIcon with the specified shape and colour
-
-        """
-        return create_icon(icon_type, color, size)
 
     def _setup_return_shortcut(self) -> None:
         """Set up Return/Enter QAction for scene launch."""
