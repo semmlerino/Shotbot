@@ -39,7 +39,7 @@ from path_validators import (  # type: ignore[reportPrivateUsage]
 )
 from thumbnail_finders import ThumbnailFinders
 from type_definitions import Shot
-from utils import VersionUtils
+from version_utils import VersionUtils
 
 
 class TestConcurrentThumbnailRaceConditions:

@@ -42,7 +42,7 @@ _logger = logging.getLogger(__name__)
 def clear_all_caches() -> None:
     """Clear all utility caches — useful for test isolation."""
     from path_validators import clear_path_cache
-    from utils import VersionUtils
+    from version_utils import VersionUtils
 
     clear_path_cache()
     VersionUtils.clear_version_cache()

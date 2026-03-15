@@ -31,16 +31,16 @@ import pytest
 
 # Local application imports
 from config import Config
+from image_utils import ImageUtils
 from path_validators import PathValidators
 from tests.fixtures.caching import clear_all_caches
 from thumbnail_finders import ThumbnailFinders
 from utils import (
     FileUtils,
-    ImageUtils,
     ValidationUtils,
-    VersionUtils,
     get_cache_stats,
 )
+from version_utils import VersionUtils
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]

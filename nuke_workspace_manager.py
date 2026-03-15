@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from logging_mixin import ContextualLogger
 
 # Local application imports
-from utils import VersionUtils
+from version_utils import VersionUtils
 
 
 class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
