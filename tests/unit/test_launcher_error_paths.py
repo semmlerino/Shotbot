@@ -27,7 +27,7 @@ from config import Config
 from launch.process_executor import ProcessExecutor
 from launch.process_verifier import ProcessVerifier
 from shot_model import Shot
-from tests.fixtures.process_doubles import PopenDouble
+from tests.fixtures.process_fixtures import PopenDouble
 from tests.test_helpers import process_qt_events
 from threede_scene_model import ThreeDEScene
 

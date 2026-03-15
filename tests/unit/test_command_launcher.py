@@ -22,7 +22,7 @@ from command_launcher import CommandLauncher, LaunchContext
 from config import Config
 from launch import CommandBuilder
 from shot_model import Shot
-from tests.fixtures.process_doubles import PopenDouble
+from tests.fixtures.process_fixtures import PopenDouble
 from tests.test_helpers import process_qt_events
 from threede_scene_model import ThreeDEScene
 
@@ -36,7 +36,7 @@ pytestmark = [
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-    from tests.fixtures.subprocess_mocking import SubprocessMock
+    from tests.fixtures.process_fixtures import SubprocessMock
 
 
 def _running_process_double(*args: str) -> PopenDouble:

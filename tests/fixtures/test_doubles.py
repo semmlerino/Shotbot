@@ -1,28 +1,23 @@
 """Test doubles - re-export shim for backward compatibility.
 
-All test doubles have been split into domain-specific modules:
-- signal_doubles: SignalDouble
-- process_doubles: TestProcessPool, TestCompletedProcess, TestSubprocess, PopenDouble,
-                   simulate_work_without_sleep
-- model_doubles: TestShot, TestShotModel, TestCacheManager, TestFileSystem,
-                 FakeShotModel, FakePreviousShotsFinder, FakePreviousShotsWorker,
-                 create_test_shot, create_test_shots
-- cache_doubles: TestProgressOperation, TestProgressManager, test_process_pool
+All test doubles have been consolidated into domain-specific modules:
+- model_fixtures:   SignalDouble, TestShot, TestShotModel, TestCacheManager,
+                    TestFileSystem, FakeShotModel, FakePreviousShotsFinder,
+                    FakePreviousShotsWorker, create_test_shot, create_test_shots
+- process_fixtures: TestProcessPool, TestCompletedProcess, TestSubprocess,
+                    PopenDouble, simulate_work_without_sleep,
+                    TestProgressManager, TestProgressOperation, test_process_pool
 
 Import directly from domain modules for new code.
 """
 
 from __future__ import annotations
 
-from tests.fixtures.cache_doubles import (
-    TestProgressManager,
-    TestProgressOperation,
-    test_process_pool,
-)
-from tests.fixtures.model_doubles import (
+from tests.fixtures.model_fixtures import (
     FakePreviousShotsFinder,
     FakePreviousShotsWorker,
     FakeShotModel,
+    SignalDouble,
     TestCacheManager,
     TestFileSystem,
     TestShot,
@@ -30,15 +25,15 @@ from tests.fixtures.model_doubles import (
     create_test_shot,
     create_test_shots,
 )
-from tests.fixtures.process_doubles import (
+from tests.fixtures.process_fixtures import (
     PopenDouble,
     TestCompletedProcess,
     TestProcessPool,
+    TestProgressManager,
+    TestProgressOperation,
     TestSubprocess,
     simulate_work_without_sleep,
-)
-from tests.fixtures.signal_doubles import (
-    SignalDouble,
+    test_process_pool,
 )
 
 

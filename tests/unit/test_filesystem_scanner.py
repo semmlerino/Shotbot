@@ -24,7 +24,7 @@ from filesystem_scanner import FileSystemScanner
 
 
 if TYPE_CHECKING:
-    from tests.fixtures.subprocess_mocking import SubprocessMock
+    from tests.fixtures.process_fixtures import SubprocessMock
 
 
 pytestmark = [pytest.mark.unit]

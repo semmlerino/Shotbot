@@ -20,7 +20,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from shot_model import Shot
-from tests.fixtures.integration_doubles import (
+from tests.fixtures.model_fixtures import (
     MainWindowTestProgressManager,
     ProgressOperationDouble,
     TestNotificationManager,
@@ -118,7 +118,7 @@ def _close_windows(windows: list[Any], qtbot: Any) -> None:
         process_qt_events()
 
 
-# Test doubles are imported from tests.fixtures.integration_doubles above.
+# Test doubles are imported from tests.fixtures.model_fixtures above.
 
 
 # ---------------------------------------------------------------------------

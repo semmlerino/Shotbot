@@ -51,7 +51,7 @@ class TestCacheIsolationContext:
 
     def test_cache_isolation_clears_and_disables(self, tmp_path: Path) -> None:
         """CacheIsolation provides a clean, cache-disabled environment inside the block."""
-        from tests.fixtures.caching import CacheIsolation
+        from tests.fixtures.environment_fixtures import CacheIsolation
 
         test_path = tmp_path / "test"
         test_path.mkdir()
@@ -73,7 +73,7 @@ class TestCacheIsolationContext:
     def test_cache_isolation_reenables_caching_on_exit(self, tmp_path: Path) -> None:
         """Caching is re-enabled after CacheIsolation block exits."""
         from path_validators import clear_path_cache
-        from tests.fixtures.caching import CacheIsolation
+        from tests.fixtures.environment_fixtures import CacheIsolation
 
         clear_path_cache()
 

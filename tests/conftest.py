@@ -351,14 +351,10 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
 pytest_plugins = [
     # NOTE: Qt fixtures (qapp, _patch_qtbot_short_waits) are now in conftest.py
     # above, not in qt_bootstrap.py - this ensures they have access to _GLOBAL_QAPP
-    "tests.fixtures.temp_directories",
-    "tests.fixtures.test_doubles",
-    "tests.fixtures.subprocess_mocking",
-    "tests.fixtures.qt_safety",
-    "tests.fixtures.qt_cleanup",
-    "tests.fixtures.singleton_isolation",
-    "tests.fixtures.caching",
-    "tests.fixtures.data_factories",
+    "tests.fixtures.qt_fixtures",
+    "tests.fixtures.process_fixtures",
+    "tests.fixtures.singleton_fixtures",
+    "tests.fixtures.environment_fixtures",
 ]
 
 
@@ -739,7 +735,7 @@ def pytest_configure(config: pytest.Config) -> None:
     # FAIL-FAST: Verify all registered singletons have reset() methods
     # This catches cases where new singletons are added without proper reset support
     # Hard failure ensures tests cannot run with improper singleton isolation
-    from tests.fixtures.singleton_registry import SingletonRegistry
+    from tests.fixtures.singleton_fixtures import SingletonRegistry
 
     missing = SingletonRegistry.verify_all_have_reset()
     if missing:
@@ -764,7 +760,7 @@ def pytest_configure(config: pytest.Config) -> None:
             f"are NOT registered in SingletonRegistry: {unregistered}\n\n"
             f"Every SingletonMixin subclass MUST be registered for proper test isolation.\n"
             f"See CLAUDE.md 'Singleton Pattern & Test Isolation' section.\n\n"
-            f"To fix: Add a registration in tests/fixtures/singleton_registry.py:\n"
+            f"To fix: Add a registration in tests/fixtures/singleton_fixtures.py:\n"
             f"    SingletonRegistry.register(\n"
             f'        "module_name.ClassName",\n'
             f"        cleanup_order=XX,  # Lower = earlier cleanup (10-19: UI, 20-29: Workers, 30-39: Pools)\n"
@@ -817,7 +813,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     Only active when STRICT_CLEANUP or FAIL_ON_THREAD_LEAK is enabled
     (CI environments, GitHub Actions, or explicit env vars).
     """
-    from tests.fixtures.qt_cleanup import get_thread_leak_summary
+    from tests.fixtures.qt_fixtures import get_thread_leak_summary
 
     summary = get_thread_leak_summary()
     if summary:

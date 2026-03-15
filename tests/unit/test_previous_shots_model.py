@@ -26,7 +26,7 @@ from PySide6.QtTest import QSignalSpy
 # Local application imports
 from cache.shot_cache import ShotDataCache
 from previous_shots_model import PreviousShotsModel
-from tests.fixtures.model_doubles import (
+from tests.fixtures.model_fixtures import (
     FakePreviousShotsFinder,
     FakeShotModel,
     create_test_shot,
@@ -202,7 +202,7 @@ class TestPreviousShotsModel:
         """
         # Mock PreviousShotsWorker creation to use test double
         # Local application imports
-        from tests.fixtures.model_doubles import (
+        from tests.fixtures.model_fixtures import (
             FakePreviousShotsWorker,
         )
 
@@ -330,7 +330,7 @@ class TestPreviousShotsModel:
     ) -> None:
         """Test error handling during refresh."""
         # Local application imports
-        from tests.fixtures.model_doubles import (
+        from tests.fixtures.model_fixtures import (
             FakePreviousShotsWorker,
         )
 
@@ -404,7 +404,7 @@ class TestPreviousShotsModel:
     ) -> None:
         """Test cache saving and loading with real CacheManager."""
         # Local application imports
-        from tests.fixtures.model_doubles import (
+        from tests.fixtures.model_fixtures import (
             FakePreviousShotsWorker,
         )
 
@@ -472,7 +472,7 @@ class TestPreviousShotsModel:
     ) -> None:
         """Test cache clearing functionality."""
         # Local application imports
-        from tests.fixtures.model_doubles import (
+        from tests.fixtures.model_fixtures import (
             FakePreviousShotsWorker,
         )
 
@@ -518,7 +518,7 @@ class TestPreviousShotsModel:
     ) -> None:
         """Test incremental cache merge behavior."""
         # Local application imports
-        from tests.fixtures.model_doubles import (
+        from tests.fixtures.model_fixtures import (
             FakePreviousShotsWorker,
         )
 
@@ -598,7 +598,7 @@ class TestPreviousShotsModelIntegration:
     ) -> None:
         """Test complete workflow with real components."""
         # Local application imports
-        from tests.fixtures.model_doubles import (
+        from tests.fixtures.model_fixtures import (
             FakePreviousShotsWorker,
         )
 

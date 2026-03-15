@@ -1,30 +1,129 @@
-"""Shot and model test doubles.
+"""Model, signal, and integration test doubles.
 
-Classes:
-    TestShot: Test double for Shot objects
-    TestShotModel: Test double for ShotModel with real Qt signals
-    TestCacheManager: Test double for CacheManager with real Qt signals
-    TestFileSystem: Test double for file system operations
-    FakeShotModel: Test double for ShotModel (Previous Shots feature)
+Consolidated from:
+- model_doubles.py:       Shot, ShotModel, CacheManager, FileSystem doubles
+- signal_doubles.py:      SignalDouble lightweight signal test double
+- integration_doubles.py: MainWindow integration test doubles
+
+Classes (model_doubles):
+    TestShot:                Test double for Shot objects
+    TestShotModel:           Test double for ShotModel with real Qt signals
+    TestCacheManager:        Test double for CacheManager with real Qt signals
+    TestFileSystem:          Test double for file system operations
+    FakeShotModel:           Test double for ShotModel (Previous Shots feature)
     FakePreviousShotsFinder: Test double for PreviousShotsFinder
     FakePreviousShotsWorker: Test double for PreviousShotsWorker
 
-Functions:
-    create_test_shot: Factory function for creating test shots
-    create_test_shots: Factory function for creating multiple test shots
+Functions (model_doubles):
+    create_test_shot:  Factory for creating test shots
+    create_test_shots: Factory for creating multiple test shots
+
+Classes (signal_doubles):
+    SignalDouble: Lightweight signal test double for non-Qt objects
+
+Classes (integration_doubles):
+    TestProgressContext:             Test double for ProgressManager context
+    MainWindowTestProgressManager:   Test double for ProgressManager (MainWindow scope)
+    TestNotificationManager:         Test double for NotificationManager
+    TestMessageBox:                  Test double for QMessageBox dialog capture
+    ProgressOperationDouble:         Test double for progress operations
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
+# ---------------------------------------------------------------------------
+# signal_doubles contents
+# ---------------------------------------------------------------------------
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import QObject, Signal
 
-from tests.fixtures.signal_doubles import (
-    SignalDouble,  # noqa: F401  (re-exported for consumers)
-)
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+class SignalDouble:
+    """Lightweight signal test double for non-Qt objects.
+
+    Use this instead of trying to use QSignalSpy on Mock objects,
+    which will crash. This provides a simple interface for testing
+    signal emissions and connections.
+
+    Example:
+        signal = SignalDouble()
+        results = []
+        signal.connect(lambda *args: results.append(args))
+        signal.emit("test", 123)
+        assert signal.was_emitted
+        assert results == [("test", 123)]
+
+    """
+
+    __test__ = False  # Prevent pytest from collecting this as a test class
+
+    def __init__(self) -> None:
+        """Initialize the test signal."""
+        self.emissions: list[tuple[Any, ...]] = []
+        self.callbacks: list[Callable[..., Any]] = []
+
+    def emit(self, *args: Any) -> None:
+        """Emit the signal with arguments."""
+        self.emissions.append(args)
+        for callback in self.callbacks:
+            try:
+                callback(*args)
+            except Exception as e:  # noqa: BLE001
+                print(f"SignalDouble callback error: {e}")
+
+    def connect(self, callback: Callable[..., Any], connection_type: Any = None) -> None:
+        """Connect a callback to the signal.
+
+        Args:
+            callback: Callable to invoke on emit.
+            connection_type: Ignored; accepted for Qt API compatibility.
+        """
+        self.callbacks.append(callback)
+
+    def disconnect(self, callback: Callable[..., Any] | None = None) -> None:
+        """Disconnect a callback or all callbacks."""
+        if callback is None:
+            self.callbacks.clear()
+        elif callback in self.callbacks:
+            self.callbacks.remove(callback)
+
+    @property
+    def was_emitted(self) -> bool:
+        """Check if the signal was emitted at least once."""
+        return len(self.emissions) > 0
+
+    @property
+    def emit_count(self) -> int:
+        """Get the number of times the signal was emitted."""
+        return len(self.emissions)
+
+    def get_last_emission(self) -> tuple[Any, ...] | None:
+        """Get the arguments from the last emission."""
+        if self.emissions:
+            return self.emissions[-1]
+        return None
+
+    def clear(self) -> None:
+        """Clear emission history and callbacks."""
+        self.emissions.clear()
+        self.callbacks.clear()
+
+    def reset(self) -> None:
+        """Reset emission history (keeps callbacks)."""
+        self.emissions.clear()
+
+
+# ---------------------------------------------------------------------------
+# model_doubles contents
+# ---------------------------------------------------------------------------
+
+from dataclasses import dataclass
+from pathlib import Path
+
+from PySide6.QtCore import QObject, Signal
 
 
 if TYPE_CHECKING:
@@ -33,7 +132,7 @@ if TYPE_CHECKING:
 
 # Imported here to avoid circular import; used only in simulate_work_without_sleep calls
 def _simulate_work(duration_ms: int = 10) -> None:
-    from tests.fixtures.process_doubles import simulate_work_without_sleep
+    from tests.fixtures.process_fixtures import simulate_work_without_sleep
     simulate_work_without_sleep(duration_ms)
 
 
@@ -670,3 +769,157 @@ def create_test_shots(count: int = 3, show: str = "test") -> list[Any]:
         for i in range(count)
     ]
 
+
+# ---------------------------------------------------------------------------
+# integration_doubles contents
+# ---------------------------------------------------------------------------
+
+from typing import ClassVar
+
+
+if TYPE_CHECKING:
+    from PySide6.QtCore import QObject as _QObject
+
+
+class TestProgressContext:
+    """Test double for ProgressManager context."""
+
+    __test__ = False
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.args = args
+        self.kwargs = kwargs
+        self.progress_updates: list[dict[str, Any]] = []
+
+    def __enter__(self) -> TestProgressContext:
+        return self
+
+    def __exit__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def update(self, value: int, message: str = "") -> None:
+        self.progress_updates.append({"value": value, "message": message})
+
+    def set_indeterminate(self) -> None:
+        self.progress_updates.append(
+            {"type": "indeterminate", "value": -1, "message": "Indeterminate"}
+        )
+
+
+class MainWindowTestProgressManager:
+    """Test double for ProgressManager following UNIFIED_TESTING_GUIDE."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self.operations: list[dict[str, Any]] = []
+        self.active_operations: dict[str, TestProgressContext] = {}
+        self._next_operation_id = 0
+
+    def operation(self, *args: Any, **kwargs: Any) -> TestProgressContext:
+        return TestProgressContext(*args, **kwargs)
+
+    def start_operation(self, config: Any) -> TestProgressContext:
+        operation_id = config.title if hasattr(config, "title") else str(config)
+        self._next_operation_id += 1
+        key = f"{operation_id}_{self._next_operation_id}"
+        self.operations.append({"type": "start", "id": operation_id})
+        ctx = TestProgressContext()
+        self.active_operations[key] = ctx
+        return ctx
+
+    def finish_operation(self, success: bool = True, error_message: str = "") -> None:
+        self.operations.append({"type": "finish", "success": success})
+        if self.active_operations:
+            key = list(self.active_operations.keys())[-1]
+            del self.active_operations[key]
+
+    def clear(self) -> None:
+        self.operations.clear()
+        self.active_operations.clear()
+        self._next_operation_id = 0
+
+
+class TestNotificationManager:
+    """Test double for NotificationManager following UNIFIED_TESTING_GUIDE.
+
+    All methods are @classmethod to match the real NotificationManager interface.
+    """
+
+    __test__ = False
+
+    _notifications: ClassVar[list[dict[str, Any]]] = []
+
+    @classmethod
+    def _record_notification(
+        cls, notif_type: str, title: str, message: str = "", **kwargs: Any
+    ) -> None:
+        cls._notifications.append(
+            {"type": notif_type, "title": title, "message": message, **kwargs}
+        )
+
+    @classmethod
+    def error(cls, title: str, message: str = "", details: str = "") -> None:
+        cls._record_notification("error", title, message, details=details)
+
+    @classmethod
+    def warning(cls, title: str, message: str = "", details: str = "") -> None:
+        cls._record_notification("warning", title, message, details=details)
+
+    @classmethod
+    def info(cls, message: str, timeout: int = 3000) -> None:
+        cls._record_notification("info", "", message, timeout=timeout)
+
+    @classmethod
+    def success(cls, message: str, timeout: int = 3000) -> None:
+        cls._record_notification("success", "", message, timeout=timeout)
+
+    @classmethod
+    def get_last_notification(cls) -> dict[str, Any] | None:
+        return cls._notifications[-1] if cls._notifications else None
+
+    @classmethod
+    def clear(cls) -> None:
+        cls._notifications.clear()
+
+
+class TestMessageBox:
+    """Test double for QMessageBox to capture dialogs."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self.messages: list[dict[str, Any]] = []
+
+    def warning(self, parent: _QObject | None, title: str, message: str) -> None:
+        self.messages.append(
+            {"type": "warning", "parent": parent, "title": title, "message": message}
+        )
+
+    def get_last_message(self) -> dict[str, Any] | None:
+        return self.messages[-1] if self.messages else None
+
+    def clear(self) -> None:
+        self.messages.clear()
+
+
+class ProgressOperationDouble:
+    """Test double for progress operations with real behavior."""
+
+    def __init__(self) -> None:
+        self.is_indeterminate = False
+        self.progress_value = 0
+        self.is_finished = False
+        self.operations: list[tuple] = []
+
+    def set_indeterminate(self, indeterminate: bool = True) -> None:
+        self.is_indeterminate = indeterminate
+        self.operations.append(("set_indeterminate", indeterminate))
+
+    def update(self, progress: int) -> None:
+        self.progress_value = progress
+        self.operations.append(("update", progress))
+
+    def finish(self) -> None:
+        self.is_finished = True
+        self.operations.append(("finish",))

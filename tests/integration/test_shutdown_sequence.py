@@ -166,7 +166,7 @@ class TestSingletonResetOrdering:
 
     def test_singleton_registry_cleanup_order(self) -> None:
         """Singletons are reset in defined order."""
-        from tests.fixtures.singleton_registry import SingletonRegistry
+        from tests.fixtures.singleton_fixtures import SingletonRegistry
 
         # Verify registry has expected entries with ordering
         entries = SingletonRegistry._entries
@@ -193,7 +193,7 @@ class TestSingletonResetOrdering:
 
     def test_all_singletons_have_reset_method(self) -> None:
         """All registered singletons implement reset()."""
-        from tests.fixtures.singleton_registry import SingletonRegistry
+        from tests.fixtures.singleton_fixtures import SingletonRegistry
 
         missing_reset = SingletonRegistry.verify_all_have_reset()
 

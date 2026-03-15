@@ -28,11 +28,12 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import QApplication
 
+from tests.fixtures.model_fixtures import SignalDouble  # noqa: F401 (re-export)
+
 # Import canonical doubles - these are the recommended implementations
-from tests.fixtures.process_doubles import (
+from tests.fixtures.process_fixtures import (
     simulate_work_without_sleep,  # noqa: F401 (re-export from canonical location)
 )
-from tests.fixtures.test_doubles import SignalDouble  # noqa: F401 (re-export)
 
 
 if TYPE_CHECKING:
