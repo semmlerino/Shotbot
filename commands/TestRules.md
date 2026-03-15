@@ -14,4 +14,4 @@
   13. If test is skipped, fix or delete
   14. Don't create scripts, fix systematically
   15. Timeouts/aborts are failures. Investigate those.
-  16. Ensure all tests follow best practices from UNIFIED_TESTING_V2.md
+  16. Ensure all tests follow best practices from CLAUDE.md and `tests/fixtures/README.md`

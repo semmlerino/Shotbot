@@ -71,7 +71,7 @@ Test policy: serial is the default local run and the main correctness gate in CI
 Parallel is retained as a secondary isolation check for shared-state and teardown bugs,
 not because it is dramatically faster.
 
-For full testing policy and troubleshooting, see `UNIFIED_TESTING_V2.md`.
+For full testing policy and troubleshooting, see `tests/fixtures/README.md` and `pyproject.toml`.
 
 ## Documentation
 
