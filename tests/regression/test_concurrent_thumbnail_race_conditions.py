@@ -20,16 +20,11 @@ After thread-safety fixes, this test should pass with:
 from __future__ import annotations
 
 import concurrent.futures
-import sys
 import threading
 import time
 from pathlib import Path
 
 import pytest
-
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Local application imports
 from path_validators import (  # type: ignore[reportPrivateUsage]
@@ -42,6 +37,7 @@ from type_definitions import Shot
 from version_utils import VersionUtils
 
 
+@pytest.mark.thread_leak_ok
 class TestConcurrentThumbnailRaceConditions:
     """Test suite for concurrent thumbnail loading race conditions."""
 
@@ -79,11 +75,6 @@ class TestConcurrentThumbnailRaceConditions:
                     # Record result
                     with paths_lock:
                         paths_checked.append((path_str, result))
-
-                    # Small delay to increase interleaving using threading.Event
-                    # Create a local event for this iteration to simulate async delay
-                    interleave_event = threading.Event()
-                    interleave_event.wait(timeout=0.001)
 
                     # Every 30 iterations, one thread triggers cleanup
                     if i % 30 == 0 and worker_id == 1:
@@ -154,10 +145,6 @@ class TestConcurrentThumbnailRaceConditions:
                     # Record result
                     with versions_lock:
                         versions_checked.append(versions)
-
-                    # Small delay to increase interleaving using threading.Event
-                    interleave_event = threading.Event()
-                    interleave_event.wait(timeout=0.001)
 
                     # Trigger cleanup on worker 1
                     if i % 20 == 0 and worker_id == 1:
@@ -232,9 +219,6 @@ class TestConcurrentThumbnailRaceConditions:
             nonlocal discovery_count
             with discovery_lock:
                 discovery_count += 1
-            # Simulate expensive operation with threading.Event instead of sleep
-            expensive_event = threading.Event()
-            expensive_event.wait(timeout=0.01)
             return original_find(shows_root, show, sequence, shot)
 
         ThumbnailFinders.find_shot_thumbnail = counting_find  # type: ignore[method-assign]
@@ -252,10 +236,6 @@ class TestConcurrentThumbnailRaceConditions:
 
                         with results_lock:
                             results.append((worker_id, thumbnail))
-
-                        # Small delay to increase interleaving using threading.Event
-                        interleave_event = threading.Event()
-                        interleave_event.wait(timeout=0.001)
 
                 except Exception as e:
                     print(f"Worker {worker_id} failed: {e}")
@@ -415,34 +395,3 @@ class TestConcurrentThumbnailRaceConditions:
 
         assert not corruption_detected.is_set()
         print(f"✓ {num_workers} workers x {num_iterations} iterations = no corruption")
-
-
-if __name__ == "__main__":
-    # Run tests manually for development
-    test_suite = TestConcurrentThumbnailRaceConditions()
-
-    print("\n" + "="*70)
-    print("CONCURRENT THUMBNAIL LOADING RACE CONDITION TESTS")
-    print("="*70)
-
-    print("\n[1/5] Testing concurrent path cache access...")
-    test_suite.test_concurrent_path_cache_access()
-
-    print("\n[2/5] Testing concurrent version cache access...")
-    test_suite.test_concurrent_version_cache_access()
-
-    print("\n[3/5] Testing concurrent Shot thumbnail caching...")
-    test_suite.test_concurrent_shot_thumbnail_caching()
-
-    print("\n[4/5] Testing massive concurrent load (production scenario)...")
-    test_suite.test_massive_concurrent_load_stress_test()
-
-    print("\n[5/5] Testing variable concurrency levels...")
-    test_suite.test_variable_concurrency_levels(2, 50)
-    test_suite.test_variable_concurrency_levels(5, 100)
-    test_suite.test_variable_concurrency_levels(10, 50)
-
-    print("\n" + "="*70)
-    print("ALL TESTS PASSED ✅")
-    print("Race conditions successfully fixed!")
-    print("="*70)

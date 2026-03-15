@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import pytest
 from PySide6.QtCore import QObject
 
-from tests.test_helpers import process_qt_events
+from tests.test_helpers import cleanup_qthread_properly, process_qt_events
 from thread_safe_worker import ThreadSafeWorker, WorkerState
 
 
@@ -90,14 +90,6 @@ class SignalReceiver(QObject):
 # ---------------------------------------------------------------------------
 
 
-def _stop_and_wait(worker: ThreadSafeWorker, timeout_ms: int = 2000) -> None:
-    """Stop a worker and wait for it to finish — used in teardown."""
-    if worker.isRunning():
-        worker.request_stop()
-        worker.quit()
-        worker.wait(timeout_ms)
-
-
 # ---------------------------------------------------------------------------
 # a) Worker Lifecycle Tests
 # ---------------------------------------------------------------------------
@@ -131,7 +123,7 @@ class TestWorkerLifecycle:
             # (_on_finished may run and transition to DELETED before we check)
             assert worker.get_state() in {WorkerState.STOPPED, WorkerState.DELETED}
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
     @pytest.mark.timeout(10)
     def test_worker_ran_do_work(self, qtbot: QtBot) -> None:
@@ -144,7 +136,7 @@ class TestWorkerLifecycle:
 
             assert worker.work_ran is True
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
     @pytest.mark.timeout(10)
     def test_worker_started_signal_emitted(self, qtbot: QtBot) -> None:
@@ -155,7 +147,7 @@ class TestWorkerLifecycle:
             with qtbot.waitSignal(worker.worker_started, timeout=3000):
                 worker.start()
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
     @pytest.mark.timeout(10)
     def test_worker_stopped_signal_emitted(self, qtbot: QtBot) -> None:
@@ -172,7 +164,7 @@ class TestWorkerLifecycle:
             process_qt_events()
             assert stopped_received, "worker_stopped signal was not received"
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
     @pytest.mark.timeout(10)
     def test_worker_transitions_through_running(self, qtbot: QtBot) -> None:
@@ -194,7 +186,7 @@ class TestWorkerLifecycle:
             process_qt_events()
             assert any(observed_running), "Worker never observed in RUNNING state"
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +240,7 @@ class TestCancellation:
 
             assert worker.get_state() in {WorkerState.STOPPED, WorkerState.DELETED}
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
     @pytest.mark.timeout(10)
     def test_safe_stop_returns_true_on_success(self, qtbot: QtBot) -> None:
@@ -265,7 +257,7 @@ class TestCancellation:
             assert result is True
             assert worker.get_state() in {WorkerState.STOPPED, WorkerState.DELETED}
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
     @pytest.mark.timeout(10)
     def test_request_stop_before_start_prevents_run(self, qtbot: QtBot) -> None:
@@ -310,7 +302,7 @@ class TestErrorHandling:
             emitted_message: str = blocker.args[0]
             assert worker.error_message in emitted_message
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
     @pytest.mark.timeout(10)
     def test_exception_transitions_to_error_state(self, qtbot: QtBot) -> None:
@@ -342,7 +334,7 @@ class TestErrorHandling:
                 f"Worker never observed in ERROR state; captured: {error_states}"
             )
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
     @pytest.mark.timeout(10)
     def test_worker_reaches_stopped_after_error(self, qtbot: QtBot) -> None:
@@ -357,7 +349,7 @@ class TestErrorHandling:
             process_qt_events()
             assert worker.get_state() in {WorkerState.STOPPED, WorkerState.DELETED}
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
     @pytest.mark.timeout(10)
     def test_error_message_matches_exception(self, qtbot: QtBot) -> None:
@@ -375,7 +367,7 @@ class TestErrorHandling:
             assert len(received) == 1
             assert "deliberate failure" in received[0]
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
 
 
 # ---------------------------------------------------------------------------
@@ -407,7 +399,7 @@ class TestSignalConnections:
             process_qt_events()
             assert receiver.called, "Slot was not called after safe_connect()"
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
             receiver.deleteLater()
             process_qt_events()
 
@@ -463,7 +455,7 @@ class TestSignalConnections:
                 "Slot was called even after disconnect_all()"
             )
         finally:
-            _stop_and_wait(worker)
+            cleanup_qthread_properly(worker)
             receiver.deleteLater()
             process_qt_events()
 
