@@ -298,6 +298,18 @@ class ShotSelectionController(QObject, LoggingMixin):
         """
         self.logger.warning(f"Shot discovery failed: {error_message}")
 
+    @Slot(int)  # pyright: ignore[reportAny]
+    def on_tab_activated(self, tab_index: int) -> None:
+        """Handle tab activation — update right panel when shot tabs are selected."""
+        from main_window import TAB_MY_SHOTS, TAB_PREVIOUS
+
+        if tab_index == TAB_MY_SHOTS:
+            selected_shot = self.window.shot_grid.selected_shot
+            self.on_shot_selected(selected_shot)  # pyright: ignore[reportAny]
+        elif tab_index == TAB_PREVIOUS:
+            selected_shot = self.window.previous_shots_grid.selected_shot
+            self.on_shot_selected(selected_shot)  # pyright: ignore[reportAny]
+
     @Slot()  # pyright: ignore[reportAny]
     def on_recover_crashes_requested(self) -> None:
         """Handle recovery crashes request from My Shots grid view.

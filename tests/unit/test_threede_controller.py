@@ -461,9 +461,7 @@ class TestSignalSetup:
             ("scene_selected", "on_scene_selected"),
             ("scene_double_clicked", "on_scene_double_clicked"),
             ("recover_crashes_requested", "on_recover_crashes_clicked"),
-            ("show_filter_requested", "_on_show_filter_requested"),
             ("artist_filter_requested", "_on_artist_filter_requested"),
-            ("text_filter_requested", "_on_text_filter_requested"),
         ],
     )
     def test_signal_connected(

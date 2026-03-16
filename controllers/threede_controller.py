@@ -143,20 +143,10 @@ class ThreeDEController(LoggingMixin):
         _ = grid.scene_double_clicked.connect(self.on_scene_double_clicked)  # pyright: ignore[reportAny]
 
         # Crash recovery
-        if hasattr(grid, "recover_crashes_requested"):
-            _ = grid.recover_crashes_requested.connect(self.on_recover_crashes_clicked)  # pyright: ignore[reportAny]
+        _ = grid.recover_crashes_requested.connect(self.on_recover_crashes_clicked)  # pyright: ignore[reportAny]
 
-        # Show filtering (if available)
-        if hasattr(grid, "show_filter_requested"):
-            _ = grid.show_filter_requested.connect(self._on_show_filter_requested)  # pyright: ignore[reportAny]
-
-        # Artist filtering (if available)
-        if hasattr(grid, "artist_filter_requested"):
-            _ = grid.artist_filter_requested.connect(self._on_artist_filter_requested)  # pyright: ignore[reportAny]
-
-        # Text filtering (if available)
-        if hasattr(grid, "text_filter_requested"):
-            _ = grid.text_filter_requested.connect(self._on_text_filter_requested)  # pyright: ignore[reportAny]
+        # Artist filtering
+        _ = grid.artist_filter_requested.connect(self._on_artist_filter_requested)  # pyright: ignore[reportAny]
 
         self.logger.debug("ThreeDEController signals connected")
 
@@ -517,6 +507,21 @@ class ThreeDEController(LoggingMixin):
         """Handle 3DE scene double click - launch 3de with the scene."""
         self.logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
         _ = self.window.command_launcher.launch_app_opening_scene_file("3de", scene)
+
+    @Slot(int)  # pyright: ignore[reportAny]
+    def on_tab_activated(self, tab_index: int) -> None:
+        """Handle tab activation — update right panel when 3DE tab is selected."""
+        from main_window import TAB_OTHER_3DE
+
+        if tab_index != TAB_OTHER_3DE:
+            return
+
+        selected_scene = self.window.threede_shot_grid.selected_scene
+        if selected_scene is not None:
+            self.on_scene_selected(selected_scene)  # pyright: ignore[reportAny]
+        else:
+            self.window.command_launcher.set_current_shot(None)
+            self.window.right_panel.set_shot(None)
 
     @Slot()  # pyright: ignore[reportAny]
     def on_recover_crashes_clicked(self) -> None:

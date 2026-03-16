@@ -85,6 +85,7 @@ if TYPE_CHECKING:
     from protocols import ProcessPoolInterface
     from scene_file import SceneFile
     from settings_dialog import SettingsDialog
+    from type_definitions import Shot, ThreeDEScene
 
 # Runtime imports (needed at runtime)
 # Local application imports
@@ -131,7 +132,6 @@ from startup_coordinator import SessionWarmer
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDESceneModel
-from type_definitions import Shot, ThreeDEScene
 
 
 # Set up logger for this module
@@ -750,7 +750,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.threede_controller.refresh_threede_scenes
         )
 
-        _ = self.tab_widget.currentChanged.connect(self._on_tab_changed)
+        _ = self.tab_widget.currentChanged.connect(self.shot_selection_controller.on_tab_activated)  # pyright: ignore[reportAny]
+        _ = self.tab_widget.currentChanged.connect(self.threede_controller.on_tab_activated)  # pyright: ignore[reportAny]
         _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
         _ = self.right_panel.status_message.connect(self.update_status)
 
@@ -995,38 +996,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _on_cache_updated(self) -> None:
         """Handle cache updated signal from model."""
         self.logger.debug("Shot cache updated")
-
-    def _on_tab_changed(self, index: int) -> None:
-        """Handle tab widget tab changes.
-
-        When switching tabs, update the shot context based on the
-        currently selected item in the new tab.
-
-        Args:
-            index: Index of the newly selected tab
-
-        """
-        if index == TAB_MY_SHOTS:
-            # Get the current selection from My Shots
-            selected_shot = self.shot_grid.selected_shot
-            self.shot_selection_controller.on_shot_selected(selected_shot)  # pyright: ignore[reportAny]
-
-        elif index == TAB_OTHER_3DE:
-            # Get the current selection from 3DE scenes
-            selected_scene = self.threede_shot_grid.selected_scene
-            if selected_scene:
-                # Re-apply the scene selection to update context
-                if self.threede_controller:
-                    self.threede_controller.on_scene_selected(selected_scene)  # pyright: ignore[reportAny]
-            else:
-                # Clear selection
-                self.command_launcher.set_current_shot(None)
-                self.right_panel.set_shot(None)
-
-        elif index == TAB_PREVIOUS:
-            # Get the current selection from Previous Shots
-            selected_shot = self.previous_shots_grid.selected_shot
-            self.shot_selection_controller.on_shot_selected(selected_shot)  # pyright: ignore[reportAny]
 
     def _launch_app_opening_scene_file(
         self, app_name: str, scene: ThreeDEScene
