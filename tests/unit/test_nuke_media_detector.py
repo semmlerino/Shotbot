@@ -6,7 +6,7 @@ and media properties from file paths.
 
 from unittest.mock import MagicMock, patch
 
-from nuke_media_detector import NukeMediaDetector
+from nuke.media_detector import NukeMediaDetector
 
 
 class TestNukeMediaDetector:

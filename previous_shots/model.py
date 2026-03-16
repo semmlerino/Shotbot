@@ -13,8 +13,8 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal, Slot
 # Local application imports
 from cache.shot_cache import ShotDataCache
 from logging_mixin import LoggingMixin
-from previous_shots_finder import ParallelShotsFinder
-from previous_shots_worker import PreviousShotsWorker
+from previous_shots.finder import ParallelShotsFinder
+from previous_shots.worker import PreviousShotsWorker
 from shot_filter import compose_filters, get_available_shows
 from type_definitions import Shot
 

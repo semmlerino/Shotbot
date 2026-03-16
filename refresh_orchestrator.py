@@ -16,7 +16,7 @@ from progress_manager import ProgressManager
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QTabWidget
 
-    from previous_shots_model import PreviousShotsModel
+    from previous_shots.model import PreviousShotsModel
     from shot_grid_view import ShotGridView
     from shot_item_model import ShotItemModel
     from shot_model import ShotModel

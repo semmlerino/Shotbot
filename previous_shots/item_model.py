@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
     from notes_manager import NotesManager
     from pin_manager import PinManager
-    from previous_shots_model import PreviousShotsModel
+    from previous_shots.model import PreviousShotsModel
     from type_definitions import Shot
 
 

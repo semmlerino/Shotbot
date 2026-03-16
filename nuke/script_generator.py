@@ -16,8 +16,8 @@ from typing import ClassVar, final
 # Local application imports
 from config import Config
 from logging_mixin import get_module_logger
-from nuke_media_detector import NukeMediaDetector
-from nuke_script_templates import NukeScriptTemplates
+from nuke.media_detector import NukeMediaDetector
+from nuke.script_templates import NukeScriptTemplates
 from plate_discovery import PlateDiscovery
 
 
@@ -197,7 +197,7 @@ class NukeScriptGenerator:
         """
         try:
             # Local application imports
-            from nuke_workspace_manager import NukeWorkspaceManager
+            from nuke.workspace_manager import NukeWorkspaceManager
 
             # Get user from environment if not provided
             if user is None:

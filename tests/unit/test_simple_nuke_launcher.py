@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from simple_nuke_launcher import SimpleNukeLauncher
+from nuke.simple_launcher import SimpleNukeLauncher
 from type_definitions import Shot
 
 
@@ -34,8 +34,8 @@ class TestSimpleNukeLauncher:
         assert simple_launcher is not None
 
     @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("simple_nuke_launcher.Path.exists")
-    @patch("simple_nuke_launcher.Path.glob")
+    @patch("nuke.simple_launcher.Path.exists")
+    @patch("nuke.simple_launcher.Path.glob")
     def test_open_latest_script_found(
         self, mock_glob, mock_exists, simple_launcher, mock_shot
     ) -> None:
@@ -57,7 +57,7 @@ class TestSimpleNukeLauncher:
         assert any("Opening:" in msg for msg in messages)
 
     @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("simple_nuke_launcher.Path.exists")
+    @patch("nuke.simple_launcher.Path.exists")
     def test_open_latest_script_not_found(
         self, mock_exists, simple_launcher, mock_shot
     ) -> None:
@@ -72,9 +72,9 @@ class TestSimpleNukeLauncher:
         assert any("Opening empty Nuke" in msg for msg in messages)
 
     @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("simple_nuke_launcher.Path.mkdir")
-    @patch("simple_nuke_launcher.Path.exists")
-    @patch("simple_nuke_launcher.Path.glob")
+    @patch("nuke.simple_launcher.Path.mkdir")
+    @patch("nuke.simple_launcher.Path.exists")
+    @patch("nuke.simple_launcher.Path.glob")
     @patch("builtins.open", create=True)
     def test_open_latest_script_create_v001(
         self,
@@ -103,9 +103,9 @@ class TestSimpleNukeLauncher:
         assert any("onCreate hooks" in msg for msg in messages)
 
     @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("simple_nuke_launcher.Path.mkdir")
-    @patch("simple_nuke_launcher.Path.exists")
-    @patch("simple_nuke_launcher.Path.glob")
+    @patch("nuke.simple_launcher.Path.mkdir")
+    @patch("nuke.simple_launcher.Path.exists")
+    @patch("nuke.simple_launcher.Path.glob")
     @patch("builtins.open", create=True)
     def test_create_new_version(
         self, mock_open, mock_glob, mock_exists, mock_mkdir, simple_launcher, mock_shot
@@ -129,9 +129,9 @@ class TestSimpleNukeLauncher:
         assert any("onCreate hooks" in msg for msg in messages)
 
     @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("simple_nuke_launcher.Path.mkdir")
-    @patch("simple_nuke_launcher.Path.exists")
-    @patch("simple_nuke_launcher.Path.glob")
+    @patch("nuke.simple_launcher.Path.mkdir")
+    @patch("nuke.simple_launcher.Path.exists")
+    @patch("nuke.simple_launcher.Path.glob")
     @patch("builtins.open", create=True)
     def test_create_new_version_first(
         self,
@@ -158,9 +158,9 @@ class TestSimpleNukeLauncher:
         assert any("onCreate hooks" in msg for msg in messages)
 
     @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("simple_nuke_launcher.Path.mkdir")
-    @patch("simple_nuke_launcher.Path.exists")
-    @patch("simple_nuke_launcher.Path.glob")
+    @patch("nuke.simple_launcher.Path.mkdir")
+    @patch("nuke.simple_launcher.Path.exists")
+    @patch("nuke.simple_launcher.Path.glob")
     @patch("builtins.open", create=True)
     def test_version_parsing(
         self, mock_open, mock_glob, mock_exists, mock_mkdir, simple_launcher, mock_shot
@@ -185,9 +185,9 @@ class TestSimpleNukeLauncher:
         assert any("v011" in msg for msg in messages)  # Should increment from v010
 
     @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("simple_nuke_launcher.Path.exists")
-    @patch("simple_nuke_launcher.Path.glob")
-    @patch("simple_nuke_launcher.Path.mkdir")
+    @patch("nuke.simple_launcher.Path.exists")
+    @patch("nuke.simple_launcher.Path.glob")
+    @patch("nuke.simple_launcher.Path.mkdir")
     @patch("builtins.open", create=True)
     def test_create_directory_if_missing(
         self,
@@ -210,9 +210,9 @@ class TestSimpleNukeLauncher:
         assert command.startswith("export NUKE_PATH=")
 
     @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("simple_nuke_launcher.Path.mkdir")
-    @patch("simple_nuke_launcher.Path.exists")
-    @patch("simple_nuke_launcher.Path.glob")
+    @patch("nuke.simple_launcher.Path.mkdir")
+    @patch("nuke.simple_launcher.Path.exists")
+    @patch("nuke.simple_launcher.Path.glob")
     def test_create_fails_gracefully(
         self,
         mock_glob,

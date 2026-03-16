@@ -24,9 +24,9 @@ import pytest
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QLineEdit
 
-from previous_shots_item_model import PreviousShotsItemModel
-from previous_shots_model import PreviousShotsModel
-from previous_shots_view import PreviousShotsView
+from previous_shots.item_model import PreviousShotsItemModel
+from previous_shots.model import PreviousShotsModel
+from previous_shots.view import PreviousShotsView
 from shot_grid_view import ShotGridView
 
 # Local application imports

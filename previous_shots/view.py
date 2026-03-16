@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from notes_manager import NotesManager
     from pin_manager import PinManager
-    from previous_shots_item_model import PreviousShotsItemModel
+    from previous_shots.item_model import PreviousShotsItemModel
     from type_definitions import Shot
 
 
@@ -275,7 +275,7 @@ class PreviousShotsView(BaseGridView):
         # Handle model object (for compatibility with base signature)
         if not isinstance(shows, list):
             # Import needed for runtime check
-            from previous_shots_model import PreviousShotsModel
+            from previous_shots.model import PreviousShotsModel
 
             if isinstance(shows, PreviousShotsModel):
                 show_list = list(shows.get_available_shows())

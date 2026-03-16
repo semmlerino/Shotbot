@@ -20,8 +20,8 @@ from tempfile import TemporaryDirectory
 import pytest
 
 # Local application imports
-from nuke_media_detector import NukeMediaDetector
-from nuke_script_generator import NukeScriptGenerator
+from nuke.media_detector import NukeMediaDetector
+from nuke.script_generator import NukeScriptGenerator
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]

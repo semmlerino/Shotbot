@@ -39,7 +39,7 @@ from PySide6.QtTest import QSignalSpy
 from config import Config
 
 # Local application imports
-from previous_shots_worker import PreviousShotsWorker
+from previous_shots.worker import PreviousShotsWorker
 from tests.fixtures.test_doubles import TestCompletedProcess
 from tests.test_helpers import SynchronizationHelpers
 from type_definitions import Shot
@@ -195,7 +195,7 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Replace finder with base class that uses Path.rglob() (not subprocess)
         # ParallelShotsFinder uses subprocess.run which requires different mocking
-        from previous_shots_finder import PreviousShotsFinder
+        from previous_shots.finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
 
@@ -255,7 +255,7 @@ class TestPreviousShotsWorkerWorkflow:
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses Path.rglob()
-        from previous_shots_finder import PreviousShotsFinder
+        from previous_shots.finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
 
@@ -311,7 +311,7 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Replace finder with base class that uses subprocess.run for testing
         # Local application imports
-        from previous_shots_finder import (
+        from previous_shots.finder import (
             PreviousShotsFinder,
         )
 
@@ -352,7 +352,7 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Replace finder with base class that uses subprocess.run for testing
         # Local application imports
-        from previous_shots_finder import (
+        from previous_shots.finder import (
             PreviousShotsFinder,
         )
 
@@ -419,7 +419,7 @@ class TestPreviousShotsWorkerWorkflow:
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses Path.rglob()
-        from previous_shots_finder import PreviousShotsFinder
+        from previous_shots.finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
 
@@ -542,7 +542,7 @@ class TestPreviousShotsWorkerIntegration:
 
         # Replace finder with base class that uses subprocess.run for testing
         # Local application imports
-        from previous_shots_finder import (
+        from previous_shots.finder import (
             PreviousShotsFinder,
         )
 

@@ -22,9 +22,9 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QStatusBar
 
-    from previous_shots_item_model import PreviousShotsItemModel
-    from previous_shots_model import PreviousShotsModel
-    from previous_shots_view import PreviousShotsView
+    from previous_shots.item_model import PreviousShotsItemModel
+    from previous_shots.model import PreviousShotsModel
+    from previous_shots.view import PreviousShotsView
     from proxy_models import PreviousShotsProxyModel, ShotProxyModel
     from shot_grid_view import ShotGridView
     from shot_item_model import ShotItemModel

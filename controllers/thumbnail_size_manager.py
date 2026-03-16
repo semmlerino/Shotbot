@@ -23,7 +23,7 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QTabWidget
 
-    from previous_shots_view import PreviousShotsView
+    from previous_shots.view import PreviousShotsView
     from shot_grid_view import ShotGridView
     from threede_grid_view import ThreeDEGridView
 

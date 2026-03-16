@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, final
 from PySide6.QtCore import QObject, Signal
 
 # Local application imports
-from previous_shots_finder import ParallelShotsFinder
+from previous_shots.finder import ParallelShotsFinder
 from thread_safe_worker import ThreadSafeWorker
 from typing_compat import override
 

@@ -25,7 +25,7 @@ from PySide6.QtTest import QSignalSpy
 
 # Local application imports
 from cache.shot_cache import ShotDataCache
-from previous_shots_model import PreviousShotsModel
+from previous_shots.model import PreviousShotsModel
 from tests.fixtures.model_fixtures import (
     FakePreviousShotsFinder,
     FakeShotModel,
@@ -217,7 +217,7 @@ class TestPreviousShotsModel:
 
         # Mock worker creation to return our test double
         with patch(
-            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+            "previous_shots.model.PreviousShotsWorker", return_value=test_worker
         ):
             # Trigger refresh - will create and use our test worker
             result = model.refresh_shots()
@@ -341,7 +341,7 @@ class TestPreviousShotsModel:
 
         # Mock worker creation and simulate error in worker
         with patch(
-            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+            "previous_shots.model.PreviousShotsWorker", return_value=test_worker
         ):
             result = model.refresh_shots()
 
@@ -422,7 +422,7 @@ class TestPreviousShotsModel:
 
         # Mock worker creation and simulate successful completion
         with patch(
-            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+            "previous_shots.model.PreviousShotsWorker", return_value=test_worker
         ):
             # Refresh should save to cache
             model.refresh_shots()
@@ -487,7 +487,7 @@ class TestPreviousShotsModel:
         test_worker.shots_to_find = [test_shot]
 
         with patch(
-            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+            "previous_shots.model.PreviousShotsWorker", return_value=test_worker
         ):
             model.refresh_shots()
 
@@ -543,7 +543,7 @@ class TestPreviousShotsModel:
 
         # Mock worker creation and trigger refresh
         with patch(
-            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+            "previous_shots.model.PreviousShotsWorker", return_value=test_worker
         ):
             model.refresh_shots()
 
@@ -617,7 +617,7 @@ class TestPreviousShotsModelIntegration:
 
         # Mock worker creation and trigger workflow
         with patch(
-            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+            "previous_shots.model.PreviousShotsWorker", return_value=test_worker
         ):
             success = model.refresh_shots()
 

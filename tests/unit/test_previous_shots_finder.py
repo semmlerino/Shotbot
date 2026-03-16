@@ -19,7 +19,7 @@ import pytest
 from config import Config
 
 # Local application imports
-from previous_shots_finder import PreviousShotsFinder
+from previous_shots.finder import PreviousShotsFinder
 from type_definitions import Shot
 
 

@@ -4,7 +4,7 @@ Tests template generation methods for Nuke script components including
 Root nodes, Read nodes, Grade nodes, Viewer nodes, and utility functions.
 """
 
-from nuke_script_templates import NukeScriptTemplates
+from nuke.script_templates import NukeScriptTemplates
 
 
 class TestNukeScriptTemplates:

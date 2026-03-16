@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from nuke_launch_handler import NukeLaunchHandler
+    from nuke.launch_handler import NukeLaunchHandler
 
 
 def build_nuke_environment_prefix(nuke_env: NukeLaunchHandler, app_name: str) -> str:

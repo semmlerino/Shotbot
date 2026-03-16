@@ -37,9 +37,8 @@ from launch import (
 )
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
-from nuke_launch_handler import NukeLaunchHandler
+from nuke import NukeLaunchHandler, SimpleNukeLauncher
 from settings_manager import SettingsManager
-from simple_nuke_launcher import SimpleNukeLauncher
 
 
 if TYPE_CHECKING:
@@ -214,7 +213,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Initialize scene/file finders (created internally, not injected)
         # Local application imports
         from maya_latest_finder import MayaLatestFinder
-        from nuke_script_generator import NukeScriptGenerator
+        from nuke import NukeScriptGenerator
         from threede_latest_finder import ThreeDELatestFinder
 
         self._nuke_script_generator = NukeScriptGenerator()

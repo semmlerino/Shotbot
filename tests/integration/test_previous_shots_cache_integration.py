@@ -25,7 +25,7 @@ import pytest
 # Local application imports
 from cache.shot_cache import ShotDataCache
 from config import Config
-from previous_shots_model import PreviousShotsModel
+from previous_shots.model import PreviousShotsModel
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.fixtures.test_doubles import TestShot, TestShotModel
@@ -323,7 +323,7 @@ class TestPreviousShootsCacheIntegration:
 
         # Need to patch the ParallelShotsFinder class that the worker uses
         with patch(
-            "previous_shots_worker.ParallelShotsFinder.find_approved_shots_targeted",
+            "previous_shots.worker.ParallelShotsFinder.find_approved_shots_targeted",
             return_value=mock_approved,
         ):
             try:

@@ -15,7 +15,7 @@ from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtGui import QWheelEvent
 
 from config import Config
-from previous_shots_view import PreviousShotsView
+from previous_shots.view import PreviousShotsView
 from shot_grid_view import ShotGridView
 from threede_grid_view import ThreeDEGridView
 
@@ -23,7 +23,7 @@ from threede_grid_view import ThreeDEGridView
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-    from previous_shots_item_model import PreviousShotsItemModel
+    from previous_shots.item_model import PreviousShotsItemModel
     from shot_item_model import ShotItemModel
     from threede_item_model import ThreeDEItemModel
     from type_definitions import Shot
@@ -130,10 +130,10 @@ def make_model(
             return item_model
 
         if model_class_name == "PreviousShotsItemModel":
-            from previous_shots_item_model import (
+            from previous_shots.item_model import (
                 PreviousShotsItemModel,
             )
-            from previous_shots_model import (
+            from previous_shots.model import (
                 PreviousShotsModel,
             )
             from shot_model import (

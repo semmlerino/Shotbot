@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
-from nuke_workspace_manager import NukeWorkspaceManager
+from nuke.workspace_manager import NukeWorkspaceManager
 
 
 # =============================================================================

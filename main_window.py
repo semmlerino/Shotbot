@@ -114,9 +114,7 @@ from design_system import design_system
 from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger
 from notification_manager import NotificationManager
-from previous_shots_item_model import PreviousShotsItemModel
-from previous_shots_model import PreviousShotsModel
-from previous_shots_view import PreviousShotsView
+from previous_shots import PreviousShotsItemModel, PreviousShotsModel, PreviousShotsView
 from process_pool_manager import ProcessPoolManager
 from progress_manager import ProgressManager
 from proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
