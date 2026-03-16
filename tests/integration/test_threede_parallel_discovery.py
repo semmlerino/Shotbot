@@ -22,8 +22,8 @@ import pytest
 # Local application imports
 from filesystem_scanner import FileSystemScanner
 from scene_discovery_coordinator import SceneDiscoveryCoordinator
-from shot_model import Shot
 from tests.integration.conftest import create_test_vfx_structure
+from type_definitions import Shot
 
 
 pytestmark = [

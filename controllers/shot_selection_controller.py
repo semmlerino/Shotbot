@@ -28,8 +28,8 @@ if TYPE_CHECKING:
     from right_panel import RightPanelWidget
     from scene_file import FileType, SceneFile  # used in cast()
     from shot_grid_view import ShotGridView
-    from shot_model import Shot
     from threede_grid_view import ThreeDEGridView
+    from type_definitions import Shot
 
 
 # Module-level logger for non-class code
@@ -263,7 +263,7 @@ class ShotSelectionController(QObject, LoggingMixin):
 
         """
         # Import Shot type for runtime checks
-        from shot_model import Shot
+        from type_definitions import Shot
 
         shot = result.get("shot")
         plates = result.get("plates", [])

@@ -641,8 +641,8 @@ class TestProgressiveDiscoveryFallback:
 
 
 
-from shot_model import Shot
 from threede_scene_worker import ThreeDESceneWorker
+from type_definitions import Shot
 
 
 @pytest.mark.qt

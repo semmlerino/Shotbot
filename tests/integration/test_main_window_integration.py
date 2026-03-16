@@ -19,7 +19,6 @@ from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
-from shot_model import Shot
 from tests.fixtures.model_fixtures import (
     MainWindowTestProgressManager,
     ProgressOperationDouble,
@@ -32,7 +31,7 @@ from tests.fixtures.test_doubles import (
     TestSubprocess,
 )
 from tests.test_helpers import process_qt_events
-from threede_scene_model import ThreeDEScene
+from type_definitions import Shot, ThreeDEScene
 
 
 if TYPE_CHECKING:

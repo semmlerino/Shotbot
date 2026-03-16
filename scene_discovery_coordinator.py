@@ -7,12 +7,6 @@ maintaining backward compatibility.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
-# pyright: reportImportCycles=false
-# Import cycles are broken at runtime by lazy imports in __init__ and methods.
-# The cycles exist at module level due to: scene_cache → threede_scene_model → threede_scene_finder
-# → threede_scene_finder_optimized → scene_discovery_coordinator → scene_cache (and similar chains
-# through filesystem_scanner and scene_parser). All imports are deferred to method execution time.
-
 from __future__ import annotations
 
 # Standard library imports
@@ -36,8 +30,7 @@ if TYPE_CHECKING:
     # Local application imports
     from filesystem_scanner import FileSystemScanner
     from scene_parser import SceneParser
-    from shot_model import Shot
-    from threede_scene_model import ThreeDEScene
+    from type_definitions import Shot, ThreeDEScene
 
 
 @final

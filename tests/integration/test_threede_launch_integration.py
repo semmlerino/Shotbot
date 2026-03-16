@@ -22,8 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from command_launcher import CommandLauncher, LaunchContext
-from shot_model import Shot
-from threede_scene_model import ThreeDEScene
+from type_definitions import Shot, ThreeDEScene
 
 
 # ============================================================================

@@ -21,11 +21,11 @@ import pytest
 from controllers.threede_controller import ThreeDEController
 from progress_manager import ProgressManager
 from tests.fixtures.test_doubles import SignalDouble
-from threede_scene_model import ThreeDEScene
+from type_definitions import ThreeDEScene
 
 
 if TYPE_CHECKING:
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 pytestmark = [

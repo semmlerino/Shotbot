@@ -20,8 +20,7 @@ if TYPE_CHECKING:
     from hide_manager import HideManager
     from notes_manager import NotesManager
     from pin_manager import PinManager
-    from shot_model import Shot
-    from type_definitions import RefreshResult
+    from type_definitions import RefreshResult, Shot
 
 
 class ShotItemModel(BaseItemModel["Shot"]):

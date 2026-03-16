@@ -29,8 +29,9 @@ from shot_grid_view import ShotGridView
 
 # Local application imports
 from shot_item_model import ShotItemModel
-from shot_model import Shot, ShotModel
+from shot_model import ShotModel
 from tests.fixtures.test_doubles import TestCacheManager, TestProcessPool
+from type_definitions import Shot
 
 
 if TYPE_CHECKING:

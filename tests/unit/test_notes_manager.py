@@ -19,7 +19,7 @@ import pytest
 # Local application imports
 from config import Config
 from notes_manager import SHOT_NOTES_CACHE_KEY, NotesManager
-from shot_model import Shot
+from type_definitions import Shot
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]

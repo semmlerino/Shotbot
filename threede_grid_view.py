@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from notes_manager import NotesManager
     from pin_manager import PinManager
     from threede_item_model import ThreeDEItemModel
-    from threede_scene_model import ThreeDEScene
+    from type_definitions import ThreeDEScene
 
 
 @final

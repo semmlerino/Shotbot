@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING
 from config import Config, ThreadingConfig
 from process_pool_manager import CancellableSubprocess
 from shot_finder_base import FindShotsKwargs, ShotFinderBase
-from shot_model import Shot
 from timeout_config import TimeoutConfig
+from type_definitions import Shot
 from typing_compat import override
 
 

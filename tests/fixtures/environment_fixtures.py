@@ -290,7 +290,7 @@ def make_test_shot(tmp_path: Path):
             shot = make_test_shot(show="TestShow", with_thumbnail=True)
 
     """
-    from shot_model import Shot
+    from type_definitions import Shot
 
     def _make_shot(
         show: str = "test",

@@ -14,8 +14,8 @@ import pytest
 from config import Config
 
 # Local application imports
-from shot_model import Shot
 from targeted_shot_finder import TargetedShotsFinder
+from type_definitions import Shot
 
 
 class TestTargetedShotsFinderInitialization:

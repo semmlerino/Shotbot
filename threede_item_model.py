@@ -16,7 +16,7 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
-    from threede_scene_model import ThreeDEScene
+    from type_definitions import ThreeDEScene
 
 
 @final

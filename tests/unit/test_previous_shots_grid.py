@@ -33,7 +33,6 @@ from config import Config
 from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
-from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.fixtures.test_doubles import (
@@ -41,6 +40,7 @@ from tests.fixtures.test_doubles import (
     TestProgressManager,
 )
 from tests.test_helpers import SynchronizationHelpers, process_qt_events
+from type_definitions import Shot
 
 
 if TYPE_CHECKING:

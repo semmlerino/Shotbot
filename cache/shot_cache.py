@@ -26,8 +26,7 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from shot_model import Shot
-    from type_definitions import ShotDict
+    from type_definitions import Shot, ShotDict
 
 # TypeVar for _build_merge_lookups generic helper
 _D = TypeVar("_D")

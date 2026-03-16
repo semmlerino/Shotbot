@@ -127,7 +127,7 @@ from PySide6.QtCore import QObject, Signal
 
 
 if TYPE_CHECKING:
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 # Imported here to avoid circular import; used only in simulate_work_without_sleep calls
@@ -756,7 +756,7 @@ class FakePreviousShotsWorker(QObject):
 
 def create_test_shot(show: str = "test", seq: str = "seq01", shot: str = "0010", path: str | None = None) -> Any:
     """Factory function for creating test shots."""
-    from shot_model import Shot
+    from type_definitions import Shot
     if path is None:
         path = f"/shows/{show}/shots/{seq}/{shot}"
     return Shot(show=show, sequence=seq, shot=shot, workspace_path=path)

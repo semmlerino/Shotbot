@@ -6,26 +6,20 @@ patterns and parsing logic.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
-# pyright: reportImportCycles=false
-# Import cycle is broken at runtime by lazy imports in threede_scene_finder_optimized.py
-# and threede_scene_model.py. The TYPE_CHECKING import is only for type annotations.
-
 from __future__ import annotations
 
 # Standard library imports
 import logging
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 # Local application imports
 from logging_mixin import LoggingMixin
+from type_definitions import ThreeDEScene
 
 
 _logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    from threede_scene_model import ThreeDEScene
 
 
 class SceneParser(LoggingMixin):
@@ -244,7 +238,6 @@ class SceneParser(LoggingMixin):
         """
         # Local application imports
         from frame_range_extractor import extract_frame_range
-        from threede_scene_model import ThreeDEScene
 
         # Get file modification time for sorting (0.0 if unavailable)
         try:

@@ -21,10 +21,9 @@ from hypothesis import strategies as st
 from command_launcher import CommandLauncher, LaunchContext
 from config import Config
 from launch import CommandBuilder
-from shot_model import Shot
 from tests.fixtures.process_fixtures import PopenDouble
 from tests.test_helpers import process_qt_events
-from threede_scene_model import ThreeDEScene
+from type_definitions import Shot, ThreeDEScene
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)

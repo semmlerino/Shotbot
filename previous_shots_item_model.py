@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from notes_manager import NotesManager
     from pin_manager import PinManager
     from previous_shots_model import PreviousShotsModel
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 class PreviousShotsItemModel(BaseItemModel["Shot"]):

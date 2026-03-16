@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from shot_model import Shot
 from simple_nuke_launcher import SimpleNukeLauncher
+from type_definitions import Shot
 
 
 @pytest.fixture

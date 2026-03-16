@@ -15,7 +15,7 @@ import pytest
 
 from config import Config
 from hide_manager import HIDDEN_SHOTS_CACHE_KEY, HideManager
-from shot_model import Shot
+from type_definitions import Shot
 
 
 pytestmark = [

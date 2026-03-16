@@ -20,7 +20,7 @@ from config import Config
 
 # Local application imports
 from previous_shots_finder import PreviousShotsFinder
-from shot_model import Shot
+from type_definitions import Shot
 
 
 # Import test helpers

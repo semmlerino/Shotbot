@@ -15,8 +15,8 @@ from typing import TypedDict
 from config import Config
 from finder_utils import FinderUtils
 from progress_mixin import ProgressReportingMixin
-from shot_model import Shot
 from shot_parser import OptimizedShotParser
+from type_definitions import Shot
 from utils import get_current_username
 
 

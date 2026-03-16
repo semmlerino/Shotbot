@@ -35,7 +35,7 @@ from base_item_model import BaseItemRole
 from runnable_tracker import FolderOpenerWorker
 from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotItemModel
-from shot_model import Shot
+from type_definitions import Shot
 from typing_compat import override
 
 
@@ -622,7 +622,7 @@ if __name__ == "__main__":
     from PySide6.QtWidgets import QApplication
 
     # Local application imports
-    from shot_model import Shot
+    from type_definitions import Shot
 
     app = QApplication(sys.argv)
 

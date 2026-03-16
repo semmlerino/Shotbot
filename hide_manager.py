@@ -16,7 +16,7 @@ from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 # Cache key for hidden shots

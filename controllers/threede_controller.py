@@ -50,9 +50,8 @@ from config import Config
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from progress_manager import ProgressManager
-from shot_model import Shot
-from threede_scene_model import ThreeDEScene
 from threede_scene_worker import ThreeDESceneWorker
+from type_definitions import Shot, ThreeDEScene
 
 
 class ThreeDETarget(Protocol):

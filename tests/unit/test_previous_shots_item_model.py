@@ -13,10 +13,10 @@ from config import Config
 
 # Local application imports
 from previous_shots_item_model import PreviousShotsItemModel
-from shot_model import Shot
 
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.fixtures.test_doubles import SignalDouble, TestCacheManager
+from type_definitions import Shot
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]

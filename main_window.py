@@ -126,11 +126,12 @@ from scene_file import SceneFile
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
-from shot_model import Shot, ShotModel
+from shot_model import ShotModel
 from startup_coordinator import SessionWarmer
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
-from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+from threede_scene_model import ThreeDESceneModel
+from type_definitions import Shot, ThreeDEScene
 
 
 # Set up logger for this module

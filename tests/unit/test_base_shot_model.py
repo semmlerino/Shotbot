@@ -14,8 +14,7 @@ from PySide6.QtTest import QSignalSpy
 
 from base_shot_model import BaseShotModel
 from config import Config
-from shot_model import Shot
-from type_definitions import RefreshResult
+from type_definitions import RefreshResult, Shot
 
 
 pytestmark = [

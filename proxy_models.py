@@ -19,8 +19,7 @@ if TYPE_CHECKING:
 
     from hide_manager import HideManager
     from pin_manager import PinManager
-    from shot_model import Shot
-    from threede_scene_model import ThreeDEScene
+    from type_definitions import Shot, ThreeDEScene
 
 
 class ShotProxyModel(QSortFilterProxyModel):

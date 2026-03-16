@@ -18,7 +18,7 @@ from PySide6.QtTest import QSignalSpy
 
 from base_item_model import BaseItemModel, BaseItemRole
 from config import Config
-from shot_model import Shot
+from type_definitions import Shot
 
 
 if TYPE_CHECKING:

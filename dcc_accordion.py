@@ -23,7 +23,7 @@ from qt_widget_mixin import QtWidgetMixin
 if TYPE_CHECKING:
     from scene_file import SceneFile
     from settings_manager import SettingsManager
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 @final

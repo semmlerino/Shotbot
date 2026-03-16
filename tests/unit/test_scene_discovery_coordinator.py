@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from threede_scene_model import ThreeDEScene
+from type_definitions import ThreeDEScene
 
 
 pytestmark = [

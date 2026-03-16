@@ -4,11 +4,6 @@ This module handles efficient filesystem scanning operations for finding .3de fi
 with various optimization strategies including caching, subprocess fallback, and
 progressive discovery.
 """
-# pyright: reportImportCycles=false
-# Import cycles are broken at runtime through lazy imports in scene_discovery_coordinator.py
-# and scene_discovery_strategy.py. The module-level imports here only include standard library
-# and LoggingMixin. All local imports (FilesystemCoordinator, SceneParser) are lazy or TYPE_CHECKING.
-
 from __future__ import annotations
 
 # Standard library imports

@@ -31,8 +31,7 @@ from utils import get_excluded_users
 
 if TYPE_CHECKING:
     # Local application imports
-    from shot_model import Shot
-    from threede_scene_model import ThreeDEScene
+    from type_definitions import Shot, ThreeDEScene
 
 # Set up logger for this module
 

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, cast, final
 from config import Config, ThreadingConfig
 from process_pool_manager import CancellableSubprocess
 from shot_finder_base import FindShotsKwargs, ShotFinderBase
-from shot_model import Shot
+from type_definitions import Shot
 from typing_compat import override
 
 

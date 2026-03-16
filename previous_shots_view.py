@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from notes_manager import NotesManager
     from pin_manager import PinManager
     from previous_shots_item_model import PreviousShotsItemModel
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 class PreviousShotsView(BaseGridView):

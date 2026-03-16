@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     # Local application imports
     from file_pin_manager import FilePinManager
     from notes_manager import NotesManager
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 class ShotInfoPanel(QtWidgetMixin, QWidget):

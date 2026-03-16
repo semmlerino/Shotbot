@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 # Local application imports
-from shot_model import Shot
+from type_definitions import Shot
 
 
 # Markers are registered in pyproject.toml [tool.pytest.ini_options] markers

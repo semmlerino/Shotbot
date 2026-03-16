@@ -16,7 +16,7 @@ from logging_mixin import LoggingMixin
 from previous_shots_finder import ParallelShotsFinder
 from previous_shots_worker import PreviousShotsWorker
 from shot_filter import compose_filters, get_available_shows
-from shot_model import Shot
+from type_definitions import Shot
 
 
 if TYPE_CHECKING:

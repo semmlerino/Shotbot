@@ -18,7 +18,7 @@ from shot_filter import (
     filter_by_text,
     get_available_shows,
 )
-from shot_model import Shot
+from type_definitions import Shot
 
 
 pytestmark = [pytest.mark.smoke]

@@ -30,8 +30,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from runnable_tracker import get_tracker
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
-from shot_model import Shot
 from tests.test_helpers import process_qt_events
+from type_definitions import Shot
 
 
 pytestmark = [

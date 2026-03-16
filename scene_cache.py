@@ -6,11 +6,6 @@ invalidation strategies, and cache warming capabilities.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
-# pyright: reportImportCycles=false
-# Import cycle: scene_cache → threede_scene_model → threede_scene_finder → threede_scene_finder_optimized
-# → scene_discovery_coordinator → scene_cache (and similar chains through scene_discovery_strategy)
-# Broken at runtime by lazy imports in scene_discovery_coordinator.__init__() and scene_discovery_strategy.__init__()
-
 from __future__ import annotations
 
 # Standard library imports
@@ -27,7 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     # Local application imports
-    from threede_scene_model import ThreeDEScene
+    from type_definitions import ThreeDEScene
 
 
 @final

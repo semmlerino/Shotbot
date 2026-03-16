@@ -29,7 +29,7 @@ from shot_file_finder import ShotFileFinder
 
 if TYPE_CHECKING:
     from settings_manager import SettingsManager
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 @final

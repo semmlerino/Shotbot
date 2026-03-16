@@ -75,7 +75,7 @@ class TestShotPathProperties:
         asserts every field reflects the original inputs exactly.
         """
         # Local application imports
-        from shot_model import Shot
+        from type_definitions import Shot
 
         workspace = f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
         shot_obj = Shot(show, seq, f"{seq}_{shot}", workspace)

@@ -26,7 +26,7 @@ from PIL import Image
 # Local application imports
 from cache.shot_cache import ShotDataCache
 from config import Config
-from shot_model import Shot
+from type_definitions import Shot
 
 
 if TYPE_CHECKING:

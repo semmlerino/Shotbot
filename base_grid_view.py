@@ -89,7 +89,7 @@ if TYPE_CHECKING:
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from notes_manager import NotesManager
     from pin_manager import PinManager
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):

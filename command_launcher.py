@@ -46,8 +46,7 @@ from simple_nuke_launcher import SimpleNukeLauncher
 if TYPE_CHECKING:
     # Local application imports
     from cache.latest_file_cache import LatestFileCache
-    from shot_model import Shot
-    from threede_scene_model import ThreeDEScene
+    from type_definitions import Shot, ThreeDEScene
 
 
 @dataclass(frozen=True)

@@ -26,11 +26,8 @@ import pytest
 from config import Config
 
 # Local application imports
-from shot_model import Shot
-
-# Test doubles for behavior testing
-from threede_scene_model import ThreeDEScene
 from threede_scene_worker import ProgressCalculator, ThreeDESceneWorker
+from type_definitions import Shot, ThreeDEScene
 
 
 if TYPE_CHECKING:

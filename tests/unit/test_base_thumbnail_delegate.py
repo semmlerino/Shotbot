@@ -44,7 +44,7 @@ from base_thumbnail_delegate import (
 )
 from config import Config
 from shot_item_model import ShotItemModel
-from shot_model import Shot
+from type_definitions import Shot
 
 
 pytestmark = [

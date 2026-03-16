@@ -16,7 +16,7 @@ from typing_compat import override
 
 
 if TYPE_CHECKING:
-    from shot_model import Shot
+    from type_definitions import Shot
 
 
 @final

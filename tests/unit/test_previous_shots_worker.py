@@ -40,9 +40,9 @@ from config import Config
 
 # Local application imports
 from previous_shots_worker import PreviousShotsWorker
-from shot_model import Shot
 from tests.fixtures.test_doubles import TestCompletedProcess
 from tests.test_helpers import SynchronizationHelpers
+from type_definitions import Shot
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)

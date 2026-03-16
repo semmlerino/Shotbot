@@ -40,13 +40,13 @@ from shot_grid_view import ShotGridView  # Modern Model/View
 
 # from shot_grid import ShotGrid  # Module deleted during Model/View migration
 from shot_item_model import ShotItemModel
-from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.fixtures.test_doubles import (
     TestCacheManager,
     TestShot,
 )
+from type_definitions import Shot
 
 
 if TYPE_CHECKING:
