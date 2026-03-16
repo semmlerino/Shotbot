@@ -10,7 +10,7 @@ from typing_extensions import override
 
 from maya_latest_finder import MayaLatestFinder
 from thread_safe_worker import ThreadSafeWorker
-from threede_latest_finder import ThreeDELatestFinder
+from threede import ThreeDELatestFinder
 
 
 if TYPE_CHECKING:

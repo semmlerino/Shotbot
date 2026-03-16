@@ -35,8 +35,8 @@ def execute_crash_recovery(
 
     """
     from notification_manager import NotificationManager
-    from threede_recovery import CrashFileInfo, ThreeDERecoveryManager
-    from threede_recovery_dialog import (
+    from threede.recovery import CrashFileInfo, ThreeDERecoveryManager
+    from threede.recovery_dialog import (
         ThreeDERecoveryDialog,
         ThreeDERecoveryResultDialog,
     )

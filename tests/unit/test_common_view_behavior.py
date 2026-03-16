@@ -17,7 +17,7 @@ from PySide6.QtGui import QWheelEvent
 from config import Config
 from previous_shots.view import PreviousShotsView
 from shot_grid_view import ShotGridView
-from threede_grid_view import ThreeDEGridView
+from threede import ThreeDEGridView
 
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
     from previous_shots.item_model import PreviousShotsItemModel
     from shot_item_model import ShotItemModel
-    from threede_item_model import ThreeDEItemModel
+    from threede import ThreeDEItemModel
     from type_definitions import Shot
 
 pytestmark = [
@@ -100,10 +100,8 @@ def make_model(
             return item_model
 
         if model_class_name == "ThreeDEItemModel":
-            from threede_scene_model import (
-                ThreeDEScene,
-                ThreeDESceneModel,
-            )
+            from threede import ThreeDESceneModel
+            from threede.scene_model import ThreeDEScene
 
             scene_model = ThreeDESceneModel(load_cache=False)
             # Convert shots to scenes for testing
@@ -120,9 +118,7 @@ def make_model(
                 for s in shots
             ]
             scene_model.scenes = scenes
-            from threede_item_model import (
-                ThreeDEItemModel,
-            )
+            from threede import ThreeDEItemModel as ThreeDEItemModel
 
             item_model = ThreeDEItemModel(cache_manager=None)
             # Properly initialize the item model with scenes

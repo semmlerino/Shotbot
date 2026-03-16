@@ -52,7 +52,7 @@ import pytest
 
 # Local application imports
 from tests.integration.conftest import create_test_vfx_structure
-from threede_scene_worker import ThreeDESceneWorker
+from threede import ThreeDESceneWorker
 
 
 pytestmark = [

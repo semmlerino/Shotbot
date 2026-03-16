@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from logging_mixin import LoggingMixin
 from maya_latest_finder import MayaLatestFinder
 from scene_file import FileType, SceneFile
-from threede_latest_finder import ThreeDELatestFinder
+from threede import ThreeDELatestFinder
 
 
 if TYPE_CHECKING:

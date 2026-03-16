@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from threede_recovery import CrashFileInfo, ThreeDERecoveryManager
+from threede import CrashFileInfo, ThreeDERecoveryManager
 
 
 class TestThreeDERecoveryManager:

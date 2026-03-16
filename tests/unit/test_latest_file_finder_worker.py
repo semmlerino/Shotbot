@@ -306,7 +306,7 @@ class TestLatestFileFinderWorkerCancellation:
 
         def stop_after_threede(*args, **kwargs):
             """Finder that also requests stop on the worker."""
-            from threede_latest_finder import ThreeDELatestFinder
+            from threede import ThreeDELatestFinder
             finder = ThreeDELatestFinder()
             result = finder.find_latest_threede_scene(*args, **kwargs)
             worker.request_stop()

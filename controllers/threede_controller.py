@@ -41,16 +41,16 @@ if TYPE_CHECKING:
 
     # Local type imports
     from right_panel import RightPanelWidget
-    from threede_grid_view import ThreeDEGridView
-    from threede_item_model import ThreeDEItemModel
-    from threede_scene_model import ThreeDESceneModel
+    from threede.grid_view import ThreeDEGridView
+    from threede.item_model import ThreeDEItemModel
+    from threede.scene_model import ThreeDESceneModel
 
 # Runtime imports (needed at runtime)
 from config import Config
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from progress_manager import ProgressManager
-from threede_scene_worker import ThreeDESceneWorker
+from threede import ThreeDESceneWorker
 from type_definitions import Shot, ThreeDEScene
 
 

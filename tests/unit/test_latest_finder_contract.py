@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 from maya_latest_finder import MayaLatestFinder
-from threede_latest_finder import ThreeDELatestFinder
+from threede import ThreeDELatestFinder
 from version_mixin import VersionHandlingMixin
 
 

@@ -23,7 +23,7 @@ import pytest
 from config import Config
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from threede_scene_model import ThreeDESceneModel
+from threede import ThreeDESceneModel
 from type_definitions import ThreeDEScene
 
 

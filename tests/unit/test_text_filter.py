@@ -34,9 +34,7 @@ from shot_item_model import ShotItemModel
 from shot_model import ShotModel
 from tests.fixtures.test_doubles import TestCacheManager, TestProcessPool
 from tests.test_helpers import process_qt_events
-from threede_grid_view import ThreeDEGridView
-from threede_item_model import ThreeDEItemModel
-from threede_scene_model import ThreeDESceneModel
+from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
 from type_definitions import Shot, ThreeDEScene
 
 

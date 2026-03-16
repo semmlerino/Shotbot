@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
     from previous_shots.view import PreviousShotsView
     from shot_grid_view import ShotGridView
-    from threede_grid_view import ThreeDEGridView
+    from threede.grid_view import ThreeDEGridView
 
 
 class ThumbnailSizeTarget(Protocol):

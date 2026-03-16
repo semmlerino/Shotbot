@@ -214,7 +214,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Local application imports
         from maya_latest_finder import MayaLatestFinder
         from nuke import NukeScriptGenerator
-        from threede_latest_finder import ThreeDELatestFinder
+        from threede import ThreeDELatestFinder
 
         self._nuke_script_generator = NukeScriptGenerator()
         self._threede_latest_finder = ThreeDELatestFinder()

@@ -26,7 +26,8 @@ import pytest
 from config import Config
 
 # Local application imports
-from threede_scene_worker import ProgressCalculator, ThreeDESceneWorker
+from threede import ThreeDESceneWorker
+from threede.scene_worker import ProgressCalculator
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -259,8 +260,8 @@ class TestThreeDESceneWorker:
         # Patch FileSystemScanner and SceneDiscoveryCoordinator in the worker module
         # so that both boundary classes delegate to our test double.
         with (
-            patch("threede_scene_worker.FileSystemScanner", return_value=test_finder),
-            patch("threede_scene_worker.SceneDiscoveryCoordinator", return_value=test_finder),
+            patch("threede.scene_worker.FileSystemScanner", return_value=test_finder),
+            patch("threede.scene_worker.SceneDiscoveryCoordinator", return_value=test_finder),
         ):
             yield worker
 
@@ -410,8 +411,8 @@ class TestThreeDESceneWorker:
 
         try:
             with (
-                patch("threede_scene_worker.FileSystemScanner", return_value=test_finder),
-                patch("threede_scene_worker.SceneDiscoveryCoordinator", return_value=test_finder),
+                patch("threede.scene_worker.FileSystemScanner", return_value=test_finder),
+                patch("threede.scene_worker.SceneDiscoveryCoordinator", return_value=test_finder),
             ):
                 # Start worker
                 worker.start()
@@ -472,8 +473,8 @@ class TestThreeDESceneWorker:
 
         try:
             with (
-                patch("threede_scene_worker.FileSystemScanner", return_value=test_finder),
-                patch("threede_scene_worker.SceneDiscoveryCoordinator", return_value=test_finder),
+                patch("threede.scene_worker.FileSystemScanner", return_value=test_finder),
+                patch("threede.scene_worker.SceneDiscoveryCoordinator", return_value=test_finder),
             ):
                 worker.start()
 
@@ -540,8 +541,8 @@ class TestWorkerInterruption:
 
         try:
             with (
-                patch("threede_scene_worker.FileSystemScanner", return_value=NullScanner()),
-                patch("threede_scene_worker.SceneDiscoveryCoordinator", return_value=CountingCoordinator()),
+                patch("threede.scene_worker.FileSystemScanner", return_value=NullScanner()),
+                patch("threede.scene_worker.SceneDiscoveryCoordinator", return_value=CountingCoordinator()),
             ):
                 worker.start()
 

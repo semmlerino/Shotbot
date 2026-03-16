@@ -7,7 +7,7 @@ from pathlib import Path
 
 # Third-party imports
 # Local application imports
-from threede_latest_finder import ThreeDELatestFinder
+from threede import ThreeDELatestFinder
 
 
 class TestFindLatestThreeDEScene:

@@ -641,7 +641,7 @@ class TestProgressiveDiscoveryFallback:
 
 
 
-from threede_scene_worker import ThreeDESceneWorker
+from threede import ThreeDESceneWorker
 from type_definitions import Shot
 
 
@@ -680,7 +680,7 @@ class TestThreeDEWorkerStopAndCancel:
         )
 
         with patch(
-            "threede_scene_worker.SceneDiscoveryCoordinator"
+            "threede.scene_worker.SceneDiscoveryCoordinator"
             ".find_all_scenes_in_shows_truly_efficient_parallel"
         ) as mock_find:
             scan_started_event = threading.Event()
@@ -722,7 +722,7 @@ class TestThreeDEWorkerStopAndCancel:
         multiple times in quick succession.
         """
         with patch(
-            "threede_scene_worker.SceneDiscoveryCoordinator"
+            "threede.scene_worker.SceneDiscoveryCoordinator"
             ".find_all_scenes_in_shows_truly_efficient_parallel",
             return_value=[],
         ):
@@ -784,7 +784,7 @@ class TestThreeDEWorkerStopAndCancel:
             return []
 
         with patch(
-            "threede_scene_worker.SceneDiscoveryCoordinator"
+            "threede.scene_worker.SceneDiscoveryCoordinator"
             ".find_all_scenes_in_shows_truly_efficient_parallel",
             side_effect=mock_find,
         ):

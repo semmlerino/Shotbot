@@ -41,7 +41,7 @@ from PySide6.QtWidgets import (
 # Local application imports
 from base_grid_view import BaseGridView
 from runnable_tracker import FolderOpenerWorker
-from threede_grid_delegate import ThreeDEGridDelegate
+from threede.grid_delegate import ThreeDEGridDelegate
 from typing_compat import override
 
 
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from notes_manager import NotesManager
     from pin_manager import PinManager
-    from threede_item_model import ThreeDEItemModel
+    from threede.item_model import ThreeDEItemModel
     from type_definitions import ThreeDEScene
 
 
@@ -269,7 +269,7 @@ class ThreeDEGridView(BaseGridView):
         if isinstance(shows, list):
             shows_list = cast("list[str]", shows)
         else:
-            from threede_scene_model import ThreeDESceneModel
+            from threede.scene_model import ThreeDESceneModel
 
             assert isinstance(shows, ThreeDESceneModel)
             shows_list = shows.get_unique_shows()
@@ -289,7 +289,7 @@ class ThreeDEGridView(BaseGridView):
         if isinstance(artists, list):
             artist_list = cast("list[str]", artists)
         else:
-            from threede_scene_model import ThreeDESceneModel
+            from threede.scene_model import ThreeDESceneModel
 
             assert isinstance(artists, ThreeDESceneModel)
             artist_list = artists.get_unique_artists()

@@ -67,7 +67,7 @@ def setup_qt_imports() -> None:
     from shot_model import (
         Shot,
     )
-    from threede_scene_model import (
+    from threede.scene_model import (
         ThreeDEScene,
     )
 
@@ -392,11 +392,11 @@ class TestCrashRecovery:
         mock_crash_info = MagicMock()
         mock_crash_info.crash_path.name = "test_scene.3de.crash"
 
-        with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
+        with patch("threede.recovery.ThreeDERecoveryManager") as mock_manager_class:
             mock_manager = mock_manager_class.return_value
             mock_manager.find_crash_files.return_value = [mock_crash_info]
 
-            with patch("threede_recovery_dialog.ThreeDERecoveryDialog") as mock_dialog_class:
+            with patch("threede.recovery_dialog.ThreeDERecoveryDialog") as mock_dialog_class:
                 mock_dialog = mock_dialog_class.return_value
                 mock_dialog.exec.return_value = 0  # Dialog rejected
 
@@ -445,11 +445,11 @@ class TestCrashRecovery:
         mock_crash_info = MagicMock()
         mock_crash_info.crash_path.name = "test_scene.3de.crash"
 
-        with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
+        with patch("threede.recovery.ThreeDERecoveryManager") as mock_manager_class:
             mock_manager = mock_manager_class.return_value
             mock_manager.find_crash_files.return_value = [mock_crash_info]
 
-            with patch("threede_recovery_dialog.ThreeDERecoveryDialog") as mock_dialog_class:
+            with patch("threede.recovery_dialog.ThreeDERecoveryDialog") as mock_dialog_class:
                 mock_dialog = mock_dialog_class.return_value
                 mock_dialog.exec.return_value = 0
 
@@ -495,7 +495,7 @@ class TestCrashRecovery:
         main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Mock recovery manager to return no crash files
-        with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
+        with patch("threede.recovery.ThreeDERecoveryManager") as mock_manager_class:
             mock_manager = mock_manager_class.return_value
             mock_manager.find_crash_files.return_value = []  # No crash files
 
@@ -520,7 +520,7 @@ class TestCrashRecovery:
         main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Mock recovery manager to raise an error
-        with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
+        with patch("threede.recovery.ThreeDERecoveryManager") as mock_manager_class:
             mock_manager = mock_manager_class.return_value
             mock_manager.find_crash_files.side_effect = Exception("Test error")
 

@@ -127,9 +127,7 @@ from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
 from shot_model import ShotModel
 from startup_coordinator import SessionWarmer
-from threede_grid_view import ThreeDEGridView
-from threede_item_model import ThreeDEItemModel
-from threede_scene_model import ThreeDESceneModel
+from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
 
 
 # Set up logger for this module
