@@ -1,7 +1,7 @@
 """SceneDiscoveryCoordinator - Template Method Pattern implementation
 
 This module provides the main coordinator that orchestrates scene discovery using
-all the extracted components (FileSystemScanner, SceneParser, SceneCache).
+all the extracted components (FileSystemScanner, SceneParser).
 It implements the Template Method pattern to provide a unified interface while
 maintaining backward compatibility.
 
@@ -52,15 +52,11 @@ class SceneDiscoveryCoordinator(LoggingMixin):
     def __init__(
         self,
         strategy_type: str = "local",
-        enable_caching: bool = True,
-        cache_ttl: int = 1800,  # 30 minutes
     ) -> None:
         """Initialize scene discovery coordinator.
 
         Args:
             strategy_type: Discovery strategy to use ("local", "progressive")
-            enable_caching: Whether to enable result caching
-            cache_ttl: Cache TTL in seconds
 
         """
         super().__init__()
@@ -79,7 +75,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         from filesystem_scanner import (
             FileSystemScanner,
         )
-        from scene_cache import SceneCache
         from scene_parser import (
             SceneParser,
         )
@@ -87,15 +82,10 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         # Core components
         self.scanner = FileSystemScanner()
         self.parser = SceneParser()
-        self.cache = SceneCache(default_ttl=cache_ttl) if enable_caching else None
-
-        self.enable_caching = enable_caching
 
         # Statistics
         self.stats = {
             "scenes_discovered": 0,
-            "cache_hits": 0,
-            "cache_misses": 0,
             "errors": 0,
         }
 
@@ -412,11 +402,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         This method defines the algorithm structure:
         1. Validate input
-        2. Check cache (if enabled)
-        3. Discover scenes using strategy
-        4. Parse and validate results
-        5. Update cache (if enabled)
-        6. Return results
+        2. Discover scenes using strategy
+        3. Parse and validate results
+        4. Return results
 
         Args:
             shot_workspace_path: Path to shot workspace
@@ -434,23 +422,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             if not self._validate_shot_input(shot_workspace_path, show, sequence, shot):
                 return []
 
-            # Normalize excluded_users for cache key
-            frozen_excluded = frozenset(excluded_users) if excluded_users else None
-
-            # Step 2: Check cache (if enabled)
-            if self.enable_caching and self.cache:
-                cached_result = self.cache.get_scenes_for_shot(
-                    show, sequence, shot,
-                    shot_workspace_path=shot_workspace_path,
-                    excluded_users=frozen_excluded,
-                )
-                if cached_result is not None:
-                    self.stats["cache_hits"] += 1
-                    self.logger.debug(f"Cache hit for {show}/{sequence}/{shot}")
-                    return cached_result
-                self.stats["cache_misses"] += 1
-
-            # Step 3: Discover scenes using strategy
+            # Step 2: Discover scenes using strategy
             with self.logger.context(
                 operation="scene_discovery", shot=f"{show}/{sequence}/{shot}"
             ):
@@ -459,18 +431,10 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                     shot_workspace_path, show, sequence, shot, excluded_users
                 )
 
-            # Step 4: Validate and filter results
+            # Step 3: Validate and filter results
             valid_scenes = self._validate_and_filter_scenes(scenes)
 
-            # Step 5: Update cache (if enabled)
-            if self.enable_caching and self.cache:
-                self.cache.cache_scenes_for_shot(
-                    show, sequence, shot, valid_scenes,
-                    shot_workspace_path=shot_workspace_path,
-                    excluded_users=frozen_excluded,
-                )
-
-            # Step 6: Update statistics and return results
+            # Step 4: Update statistics and return results
             self.stats["scenes_discovered"] += len(valid_scenes)
             self.logger.info(
                 f"Discovered {len(valid_scenes)} scenes for {show}/{sequence}/{shot}"
@@ -513,21 +477,8 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
             # Process each show
             for show_root, shows in show_info.items():
-                excluded_frozen = frozenset(excluded_users) if excluded_users else None
                 for show in shows:
                     with self.logger.context(operation="show_discovery", show=show):
-                        # Check cache first (if enabled)
-                        if self.cache:
-                            cached_result = self.cache.get_scenes_for_show(
-                                show, show_root=show_root, excluded_users=excluded_frozen
-                            )
-                            if cached_result is not None:
-                                self.stats["cache_hits"] += 1
-                                self.logger.debug(f"Cache hit for show {show}")
-                                all_scenes.extend(cached_result)
-                                continue
-                            self.stats["cache_misses"] += 1
-
                         # Discover scenes using strategy
                         if self._use_progressive:
                             show_scenes = self._find_all_scenes_in_show_progressive(
@@ -540,13 +491,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
                         # Validate and filter results
                         valid_scenes = self._validate_and_filter_scenes(show_scenes)
-
-                        # Update cache (if enabled)
-                        if self.cache:
-                            self.cache.cache_scenes_for_show(
-                                show, valid_scenes,
-                                show_root=show_root, excluded_users=excluded_frozen,
-                            )
 
                         all_scenes.extend(valid_scenes)
                         self.stats["scenes_discovered"] += len(valid_scenes)
@@ -652,60 +596,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
     def get_statistics(self) -> dict[str, int]:
         """Get discovery statistics."""
-        stats = self.stats.copy()
-
-        # Add cache statistics if caching is enabled
-        if self.enable_caching and self.cache:
-            cache_stats = self.cache.get_cache_stats()
-            cache_updates = {
-                f"cache_{k}": int(v)
-                for k, v in cache_stats.items()
-                if k not in ["hit_rate_percent", "average_age_seconds"]
-            }
-            stats.update(cache_updates)
-
-        return stats
-
-    def clear_cache(self) -> int:
-        """Clear all cached results.
-
-        Returns:
-            Number of entries cleared
-
-        """
-        if self.enable_caching and self.cache:
-            return self.cache.clear_cache()
-        return 0
-
-    def invalidate_shot(
-        self,
-        show: str,
-        sequence: str,
-        shot: str,
-        shot_workspace_path: str | None = None,
-    ) -> bool:
-        """Invalidate cached results for a specific shot.
-
-        Returns:
-            True if entry was invalidated, False if not found
-
-        """
-        if self.enable_caching and self.cache:
-            return self.cache.invalidate_shot(
-                show, sequence, shot, shot_workspace_path=shot_workspace_path
-            )
-        return False
-
-    def invalidate_show(self, show: str) -> int:
-        """Invalidate all cached results for a show.
-
-        Returns:
-            Number of entries invalidated
-
-        """
-        if self.enable_caching and self.cache:
-            return self.cache.invalidate_show(show)
-        return 0
+        return self.stats.copy()
 
     @staticmethod
     def _resolve_shows_root(user_shots: list[Shot]) -> str:

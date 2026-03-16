@@ -78,36 +78,26 @@ class TestDirectoryCacheCoherence:
 
 
 class TestSceneDiscoverySingleCache:
-    """Verify coordinator caching works correctly after strategy inlining."""
+    """Verify coordinator discovery calls through to the filesystem on every call."""
 
-    def test_clear_cache_leaves_no_stale_data(self) -> None:
-        """After coordinator.clear_cache(), re-discovery hits the filesystem."""
-        coordinator = SceneDiscoveryCoordinator(enable_caching=True)
+    def test_every_call_hits_filesystem(self) -> None:
+        """Without in-memory caching, every find_scenes_for_shot call invokes discovery."""
+        coordinator = SceneDiscoveryCoordinator()
 
         # Mock the inlined discovery method to track calls
         with patch.object(
             coordinator, "_find_scenes_for_shot_local", return_value=[]
         ) as mock_find:
-            # First call should miss cache and call method
+            # Each call should invoke the discovery method
             _ = coordinator.find_scenes_for_shot(
                 "/workspace", "SHOW", "SEQ", "0010"
             )
             assert mock_find.call_count == 1
 
-            # Second call should hit cache (no additional call)
             _ = coordinator.find_scenes_for_shot(
                 "/workspace", "SHOW", "SEQ", "0010",
             )
-            assert mock_find.call_count == 1  # Still 1
-
-            # Clear cache
-            coordinator.clear_cache()
-
-            # Third call should miss cache again
-            _ = coordinator.find_scenes_for_shot(
-                "/workspace", "SHOW", "SEQ", "0010",
-            )
-            assert mock_find.call_count == 2  # Now 2
+            assert mock_find.call_count == 2  # Always calls through
 
 
 # =============================================================================

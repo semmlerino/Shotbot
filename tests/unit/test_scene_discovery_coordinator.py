@@ -6,7 +6,7 @@ using the Template Method pattern.
 Following UNIFIED_TESTING_V2.md best practices:
 - Test behavior using injected test doubles
 - Mock lazy imports to isolate tests
-- Test cache interactions, validation, and discovery workflow
+- Test validation and discovery workflow
 """
 
 from __future__ import annotations
@@ -54,84 +54,6 @@ class SceneParserDouble:
 
     def __init__(self) -> None:
         pass
-
-
-class SceneCacheDouble:
-    """Test double for SceneCache."""
-
-    __test__ = False
-
-    def __init__(self) -> None:
-        self._shot_cache: dict[tuple[str, str, str], list[ThreeDEScene]] = {}
-        self._show_cache: dict[str, list[ThreeDEScene]] = {}
-        self._invalidated_shots: list[tuple[str, str, str]] = []
-        self._invalidated_shows: list[str] = []
-        self._cleared = False
-
-    def get_scenes_for_shot(
-        self, show: str, sequence: str, shot: str, **kwargs: object
-    ) -> list[ThreeDEScene] | None:
-        """Get cached scenes for a shot."""
-        key = (show, sequence, shot)
-        return self._shot_cache.get(key)
-
-    def cache_scenes_for_shot(
-        self, show: str, sequence: str, shot: str, scenes: list[ThreeDEScene], **kwargs: object
-    ) -> None:
-        """Cache scenes for a shot."""
-        key = (show, sequence, shot)
-        self._shot_cache[key] = scenes
-
-    def get_scenes_for_show(self, show: str, **kwargs: object) -> list[ThreeDEScene] | None:
-        """Get cached scenes for a show."""
-        return self._show_cache.get(show)
-
-    def cache_scenes_for_show(self, show: str, scenes: list[ThreeDEScene], **kwargs: object) -> None:
-        """Cache scenes for a show."""
-        self._show_cache[show] = scenes
-
-    def invalidate_shot(self, show: str, sequence: str, shot: str, **kwargs: object) -> bool:
-        """Invalidate cached scenes for a shot."""
-        key = (show, sequence, shot)
-        if key in self._shot_cache:
-            del self._shot_cache[key]
-            self._invalidated_shots.append(key)
-            return True
-        return False
-
-    def invalidate_show(self, show: str) -> int:
-        """Invalidate all cached scenes for a show."""
-        count = 0
-        if show in self._show_cache:
-            del self._show_cache[show]
-            count += 1
-        # Also invalidate matching shots
-        keys_to_remove = [k for k in self._shot_cache if k[0] == show]
-        for key in keys_to_remove:
-            del self._shot_cache[key]
-            count += 1
-        if count > 0:
-            self._invalidated_shows.append(show)
-        return count
-
-    def clear_cache(self) -> int:
-        """Clear all cached scenes."""
-        count = len(self._shot_cache) + len(self._show_cache)
-        self._shot_cache.clear()
-        self._show_cache.clear()
-        self._cleared = True
-        return count
-
-    def get_cache_stats(self) -> dict[str, int]:
-        """Get cache statistics."""
-        return {
-            "entries": len(self._shot_cache) + len(self._show_cache),
-            "shot_entries": len(self._shot_cache),
-            "show_entries": len(self._show_cache),
-        }
-
-    def warm_cache(self, *args, **kwargs) -> None:
-        """Warm cache (no-op for test double)."""
 
 
 class SceneDiscoveryStrategyDouble:
@@ -218,12 +140,6 @@ def scanner_double() -> FileSystemScannerDouble:
 
 
 @pytest.fixture
-def cache_double() -> SceneCacheDouble:
-    """Create a SceneCache test double."""
-    return SceneCacheDouble()
-
-
-@pytest.fixture
 def strategy_double() -> SceneDiscoveryStrategyDouble:
     """Create a SceneDiscoveryStrategy test double."""
     return SceneDiscoveryStrategyDouble()
@@ -232,26 +148,20 @@ def strategy_double() -> SceneDiscoveryStrategyDouble:
 @pytest.fixture
 def coordinator(
     scanner_double: FileSystemScannerDouble,
-    cache_double: SceneCacheDouble,
 ):
     """Create a SceneDiscoveryCoordinator with test doubles injected."""
-    # Patch the lazy imports used by __init__
     with patch.dict(
         "sys.modules",
         {
             "filesystem_scanner": MagicMock(FileSystemScanner=lambda: scanner_double),
-            "scene_cache": MagicMock(SceneCache=lambda **_kwargs: cache_double),
             "scene_parser": MagicMock(SceneParser=lambda: MagicMock()),
         },
     ):
         from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
-        coord = SceneDiscoveryCoordinator(
-            strategy_type="local", enable_caching=True, cache_ttl=1800
-        )
+        coord = SceneDiscoveryCoordinator(strategy_type="local")
         # Inject test doubles
         coord.scanner = scanner_double
-        coord.cache = cache_double
         return coord
 
 
@@ -269,18 +179,8 @@ class TestSceneDiscoveryCoordinatorInitialization:
     ) -> None:
         """Test that initialization sets up statistics dictionary."""
         assert "scenes_discovered" in coordinator.stats
-        assert "cache_hits" in coordinator.stats
-        assert "cache_misses" in coordinator.stats
         assert "errors" in coordinator.stats
         assert coordinator.stats["scenes_discovered"] == 0
-
-    def test_init_with_caching_enabled(
-        self,
-        coordinator,
-    ) -> None:
-        """Test that initialization with caching enabled sets cache."""
-        assert coordinator.enable_caching is True
-        assert coordinator.cache is not None
 
 
 # ============================================================================
@@ -328,52 +228,6 @@ class TestFindScenesForShot:
             result = coordinator.find_scenes_for_shot("", "SHOW", "SEQ", "0010")
 
         assert result == []
-
-    def test_find_scenes_uses_cache_on_hit(
-        self,
-        coordinator,
-        cache_double: SceneCacheDouble,
-    ) -> None:
-        """Test that find_scenes_for_shot uses cached results."""
-        cached_scene = create_test_scene(show="SHOW", sequence="SEQ", shot="0010")
-        cache_double.cache_scenes_for_shot("SHOW", "SEQ", "0010", [cached_scene])
-
-        with patch(
-            "utils.ValidationUtils.validate_shot_components",
-            return_value=True,
-        ):
-            result = coordinator.find_scenes_for_shot(
-                "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
-            )
-
-        assert len(result) == 1
-        assert coordinator.stats["cache_hits"] == 1
-
-    def test_find_scenes_updates_cache_on_miss(
-        self,
-        coordinator,
-        cache_double: SceneCacheDouble,
-        scanner_double: FileSystemScannerDouble,
-    ) -> None:
-        """Test that find_scenes_for_shot updates cache on miss."""
-        scene = create_test_scene(show="SHOW", sequence="SEQ", shot="0010")
-        scanner_double.set_valid_paths(str(scene.scene_path))
-
-        with patch(
-            "utils.ValidationUtils.validate_shot_components",
-            return_value=True,
-        ), patch.object(
-            coordinator, "_find_scenes_for_shot_local", return_value=[scene]
-        ):
-            coordinator.find_scenes_for_shot(
-                "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
-            )
-
-        assert coordinator.stats["cache_misses"] == 1
-        # Check cache was updated
-        cached = cache_double.get_scenes_for_shot("SHOW", "SEQ", "0010")
-        assert cached is not None
-        assert len(cached) == 1
 
     def test_find_scenes_filters_invalid_scenes(
         self,
@@ -428,67 +282,6 @@ class TestFindScenesForShot:
 
 
 # ============================================================================
-# Test Cache Management
-# ============================================================================
-
-
-class TestCacheManagement:
-    """Test cache management methods."""
-
-    def test_clear_cache_empties_all_caches(
-        self,
-        coordinator,
-        cache_double: SceneCacheDouble,
-    ) -> None:
-        """Test that clear_cache empties all cached data."""
-        # Populate cache
-        scene = create_test_scene()
-        cache_double.cache_scenes_for_shot("SHOW", "SEQ", "0010", [scene])
-        cache_double.cache_scenes_for_show("SHOW", [scene])
-
-        coordinator.clear_cache()
-
-        assert cache_double._cleared is True
-
-    def test_invalidate_shot_removes_specific_shot(
-        self,
-        coordinator,
-        cache_double: SceneCacheDouble,
-    ) -> None:
-        """Test that invalidate_shot removes only the specified shot."""
-        scene1 = create_test_scene(shot="0010")
-        scene2 = create_test_scene(shot="0020")
-        cache_double.cache_scenes_for_shot("SHOW", "SEQ", "0010", [scene1])
-        cache_double.cache_scenes_for_shot("SHOW", "SEQ", "0020", [scene2])
-
-        result = coordinator.invalidate_shot("SHOW", "SEQ", "0010")
-
-        assert result is True
-        assert cache_double.get_scenes_for_shot("SHOW", "SEQ", "0010") is None
-        assert cache_double.get_scenes_for_shot("SHOW", "SEQ", "0020") is not None
-
-    def test_invalidate_show_removes_all_shots_in_show(
-        self,
-        coordinator,
-        cache_double: SceneCacheDouble,
-    ) -> None:
-        """Test that invalidate_show removes all shots in the show."""
-        scene1 = create_test_scene(show="SHOW1", shot="0010")
-        scene2 = create_test_scene(show="SHOW1", shot="0020")
-        scene3 = create_test_scene(show="SHOW2", shot="0010")
-        cache_double.cache_scenes_for_shot("SHOW1", "SEQ", "0010", [scene1])
-        cache_double.cache_scenes_for_shot("SHOW1", "SEQ", "0020", [scene2])
-        cache_double.cache_scenes_for_shot("SHOW2", "SEQ", "0010", [scene3])
-
-        result = coordinator.invalidate_show("SHOW1")
-
-        assert result == 2  # Two entries invalidated
-        assert cache_double.get_scenes_for_shot("SHOW1", "SEQ", "0010") is None
-        assert cache_double.get_scenes_for_shot("SHOW1", "SEQ", "0020") is None
-        assert cache_double.get_scenes_for_shot("SHOW2", "SEQ", "0010") is not None
-
-
-# ============================================================================
 # Test Statistics
 # ============================================================================
 
@@ -504,8 +297,6 @@ class TestStatistics:
         stats = coordinator.get_statistics()
 
         assert "scenes_discovered" in stats
-        assert "cache_hits" in stats
-        assert "cache_misses" in stats
         assert "errors" in stats
 
     def test_statistics_track_discovered_scenes(
@@ -533,5 +324,3 @@ class TestStatistics:
 # ============================================================================
 # Test Strategy Management
 # ============================================================================
-
-
