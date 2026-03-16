@@ -9,10 +9,8 @@ This module provides the production launcher system for Shotbot, handling:
 from __future__ import annotations
 
 # Standard library imports
-import base64
 import enum
 import os
-import shlex
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -23,6 +21,7 @@ from typing import TYPE_CHECKING, final
 from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 
 # Local application imports
+from commands import maya_commands, nuke_commands, rv_commands
 from config import Config, RezMode
 from latest_file_finder_worker import LatestFileFinderWorker
 from launch import (
@@ -116,73 +115,6 @@ class CommandLauncher(LoggingMixin, QObject):
     launch_pending = Signal()  # Emitted when async file search starts
     launch_ready = Signal()  # Emitted when async search completes (ready to launch)
 
-    # Maya bootstrap script that upgrades SGTK context from Shot → Shot+Task.
-    # Uses a background thread to poll for SGTK engine availability with real
-    # time.sleep() delays (immune to event-loop blocking during plugin loading),
-    # then dispatches the context update to the main thread.
-    _MAYA_BOOTSTRAP_SCRIPT = """
-import maya.cmds
-import maya.utils
-import traceback
-import threading
-import time
-
-def _shotbot_wait_for_sgtk():
-    for _ in range(50):
-        time.sleep(0.5)
-        try:
-            import sgtk
-            if sgtk.platform.current_engine():
-                maya.utils.executeDeferred(_shotbot_update_context)
-                return
-        except ImportError:
-            return
-    maya.utils.executeDeferred(
-        lambda: print("[Shotbot] No SGTK engine available after retries")
-    )
-
-def _shotbot_update_context():
-    try:
-        import sgtk
-    except ImportError:
-        return
-
-    engine = sgtk.platform.current_engine()
-    if not engine:
-        return
-
-    scene_path = maya.cmds.file(query=True, sceneName=True)
-    if not scene_path:
-        print("[Shotbot] No scene file loaded")
-        return
-
-    if engine.context.task:
-        return
-
-    try:
-        new_context = engine.sgtk.context_from_path(scene_path)
-    except Exception as e:
-        print(f"[Shotbot] Error deriving context from path: {e}")
-        return
-
-    if not new_context:
-        print(f"[Shotbot] Could not derive context from: {scene_path}")
-        return
-
-    if not new_context.task:
-        print(f"[Shotbot] File path doesn't match task template: {scene_path}")
-        return
-
-    try:
-        sgtk.platform.change_context(new_context)
-        print(f"[Shotbot] Context updated to: {new_context}")
-    except Exception as e:
-        print(f"[Shotbot] Error changing context: {e}")
-        traceback.print_exc()
-
-threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
-"""
-
     def __init__(
         self,
         parent: QObject | None = None,
@@ -236,7 +168,7 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
         self._app_handlers: dict[str, AppHandler] = {
             "nuke": NukeAppHandler(scripts_dir=Config.SCRIPTS_DIR),
             "3de": ThreeDEAppHandler(scripts_dir=Config.SCRIPTS_DIR),
-            "maya": MayaAppHandler(bootstrap_script=self._MAYA_BOOTSTRAP_SCRIPT),
+            "maya": MayaAppHandler(bootstrap_script=maya_commands.MAYA_BOOTSTRAP_SCRIPT),
             "rv": RVAppHandler(),
         }
         self._default_handler: AppHandler = GenericAppHandler()
@@ -309,14 +241,7 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             Environment fix prefix string (empty if not Nuke or no fixes needed)
 
         """
-        if app_name != "nuke":
-            return ""
-
-        env_fixes = self.nuke_env.get_environment_fixes()
-        if not env_fixes:
-            return ""
-
-        return env_fixes
+        return nuke_commands.build_nuke_environment_prefix(self.nuke_env, app_name)
 
     def _build_maya_context_command(
         self,
@@ -334,25 +259,13 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             base_command: Base maya command (e.g., "maya")
             file_path: Path to Maya file to open
             context_script: Python script to execute after file loads.
-                            If None, uses self._MAYA_BOOTSTRAP_SCRIPT.
+                            If None, uses maya_commands.MAYA_BOOTSTRAP_SCRIPT.
 
         Returns:
             Full command string with env var export and maya invocation
 
         """
-        script_to_run = context_script if context_script is not None else self._MAYA_BOOTSTRAP_SCRIPT
-        encoded = base64.b64encode(script_to_run.encode()).decode()
-        # Static bootstrap - reads from env var, no dynamic content in -c argument
-        # This avoids the quote escaping nightmare when passing through bash -ilc
-        mel_bootstrap = (
-            'python("import os,base64;'
-            "s=os.environ.get('SHOTBOT_MAYA_SCRIPT','');"
-            'exec(base64.b64decode(s).decode()) if s else None")'
-        )
-        return (
-            f"export SHOTBOT_MAYA_SCRIPT={encoded} && "
-            f"{base_command} -file {file_path} -c {shlex.quote(mel_bootstrap)}"
-        )
+        return maya_commands.build_maya_context_command(base_command, file_path, context_script)
 
     def _apply_file_result(
         self,
@@ -959,17 +872,12 @@ threading.Thread(target=_shotbot_wait_for_sgtk, daemon=True).start()
             Complete RV command string, or None if the sequence path is invalid.
 
         """
-        command = f"{command} -fps 12 -play -eval 'setPlayMode(2)'"
-        if context.sequence_path:
-            try:
-                safe_sequence_path = CommandBuilder.validate_path(context.sequence_path)
-                command = f"{command} {safe_sequence_path}"
-            except ValueError as e:
-                self._emit_error(
-                    f"Cannot launch RV: Invalid sequence path '{context.sequence_path}': {e!s}"
-                )
-                return None
-        return command
+        result = rv_commands.build_rv_command(command, context.sequence_path)
+        if result is None:
+            self._emit_error(
+                f"Cannot launch RV: Invalid sequence path '{context.sequence_path}'"
+            )
+        return result
 
     def _build_app_command(
         self,
