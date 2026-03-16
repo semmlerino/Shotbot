@@ -18,7 +18,7 @@ import pytest
 
 # Local application imports
 from config import Config
-from pin_manager import PINNED_SHOTS_CACHE_KEY, PinManager
+from shot_pin_manager import PINNED_SHOTS_CACHE_KEY, PinManager
 from type_definitions import Shot
 
 

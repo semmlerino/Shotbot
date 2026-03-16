@@ -18,8 +18,8 @@ from typing_compat import override
 if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
     from notes_manager import NotesManager
-    from pin_manager import PinManager
     from previous_shots.model import PreviousShotsModel
+    from shot_pin_manager import PinManager
     from type_definitions import Shot
 
 

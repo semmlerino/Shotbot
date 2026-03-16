@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
     from hide_manager import HideManager
     from notes_manager import NotesManager
-    from pin_manager import PinManager
+    from shot_pin_manager import PinManager
     from type_definitions import RefreshResult, Shot
 
 

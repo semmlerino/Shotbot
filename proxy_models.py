@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from PySide6.QtCore import QObject
 
     from hide_manager import HideManager
-    from pin_manager import PinManager
+    from shot_pin_manager import PinManager
     from type_definitions import Shot, ThreeDEScene
 
 

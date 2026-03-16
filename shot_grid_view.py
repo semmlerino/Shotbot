@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from hide_manager import HideManager
     from notes_manager import NotesManager
-    from pin_manager import PinManager
+    from shot_pin_manager import PinManager
 
 
 @final

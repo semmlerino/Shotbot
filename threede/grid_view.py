@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from notes_manager import NotesManager
-    from pin_manager import PinManager
+    from shot_pin_manager import PinManager
     from threede.item_model import ThreeDEItemModel
     from type_definitions import ThreeDEScene
 

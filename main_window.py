@@ -71,7 +71,7 @@ from PySide6.QtWidgets import (
 from file_pin_manager import FilePinManager
 from hide_manager import HideManager
 from notes_manager import NotesManager
-from pin_manager import PinManager
+from shot_pin_manager import PinManager
 from typing_compat import override
 
 

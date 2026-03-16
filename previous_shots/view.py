@@ -50,8 +50,8 @@ if TYPE_CHECKING:
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from notes_manager import NotesManager
-    from pin_manager import PinManager
     from previous_shots.item_model import PreviousShotsItemModel
+    from shot_pin_manager import PinManager
     from type_definitions import Shot
 
 
