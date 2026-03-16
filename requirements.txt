@@ -81,7 +81,7 @@ httpx==0.28.1
     #   openai
 huggingface-hub==1.4.1
     # via tokenizers
-hypothesis==6.100.8
+hypothesis==6.151.9
 idna==3.11
     # via
     #   anyio
