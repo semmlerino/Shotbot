@@ -10,12 +10,16 @@ Shotbot is a PySide6 GUI for matchmove workflow execution at BlueBolt (`3DEquali
 
 ## Project Layout
 
-**Flat structure** — all application modules live at the repository root (no `src/` package). Key directories:
+Application modules live at the repository root (no `src/` package), organized into domain packages. Key directories:
 
 - `cache/` — cache abstraction layer (shot, thumbnail, scene, latest-file)
 - `controllers/` — business logic orchestrators for UI coordination
+- `deploy/` — bundle, encode, and decode for deployment pipeline
+- `discovery/` — file/thumbnail/plate discovery and latest-file finding
 - `launch/` — DCC launcher implementations
 - `commands/` — command builders for DCC execution
+- `paths/` — path construction, validation, and filesystem coordination
+- `ui/` — base grid views, item models, delegates, design system, dialogs
 - `tests/` — test suite (`unit/`, `integration/`, `advanced/`, `regression/`)
 - `tests/fixtures/` — shared fixture modules (see `tests/fixtures/README.md`)
 - `docs/` — architecture and design documentation
@@ -54,8 +58,8 @@ uv run skylos . --table --exclude-folder tests --exclude-folder archive
 
 These form the encoded-releases deployment pipeline. Deleting any breaks automated deployment:
 
-- `bundle_app.py` — bundles application files for encoding
-- `transfer_cli.py` — base64 encodes bundles (called by `bundle_app.py`)
+- `deploy/bundle_app.py` — bundles application files for encoding
+- `deploy/transfer_cli.py` — base64 encodes bundles (called by `bundle_app.py`)
 - `transfer_config.json` — bundle inclusion/exclusion rules
 - `.git/hooks/post-commit` — triggers bundle creation on commit
 - `.git/hooks/push_bundle_background.sh` — pushes bundle to `encoded-releases` branch
