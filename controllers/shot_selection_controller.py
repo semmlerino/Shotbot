@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol, cast, final
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
+from PySide6.QtCore import QObject, QThreadPool, Signal, Slot
 
 from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
@@ -34,6 +34,9 @@ if TYPE_CHECKING:
 
 # Module-level logger for non-class code
 logger = get_module_logger(__name__)
+
+
+from workers.runnable_tracker import TrackedQRunnable
 
 
 class ShotSelectionTarget(Protocol):
@@ -76,7 +79,7 @@ class ShotDiscoverySignals(QObject):
 
 
 @final
-class ShotDiscoveryWorker(QRunnable):
+class ShotDiscoveryWorker(TrackedQRunnable):
     """Background worker for discovering shot files and plates.
 
     This worker runs filesystem operations off the main thread to prevent
@@ -94,7 +97,7 @@ class ShotDiscoveryWorker(QRunnable):
             shot: Shot to discover files for
 
         """
-        super().__init__()
+        super().__init__(auto_delete=True)
         self.shot = shot
         self.signals = ShotDiscoverySignals()
         self._cancelled = False
@@ -104,7 +107,7 @@ class ShotDiscoveryWorker(QRunnable):
         self._cancelled = True
 
     @override
-    def run(self) -> None:
+    def _do_work(self) -> None:
         """Run discovery in background thread."""
         if self._cancelled:
             return

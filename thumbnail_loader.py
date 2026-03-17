@@ -18,7 +18,6 @@ from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
     QObject,
-    QRunnable,
     Qt,
     QThreadPool,
     QTimer,
@@ -37,12 +36,15 @@ _logger = get_module_logger(__name__)
 T = TypeVar("T", bound=SceneDataProtocol)
 
 
+from workers.runnable_tracker import TrackedQRunnable
+
+
 class _ThumbnailLoaderSignals(QObject):
     finished: ClassVar[Signal] = Signal(str, Path)
     failed: ClassVar[Signal] = Signal(str)
 
 
-class _ThumbnailLoaderRunnable(QRunnable):
+class _ThumbnailLoaderRunnable(TrackedQRunnable):
     def __init__(
         self,
         full_name: str,
@@ -52,7 +54,7 @@ class _ThumbnailLoaderRunnable(QRunnable):
         shot: str,
         cache_manager: ThumbnailCache,
     ) -> None:
-        super().__init__()
+        super().__init__(auto_delete=False)
         self.full_name: str = full_name
         self.thumbnail_path: Path = thumbnail_path
         self.show: str = show
@@ -60,10 +62,9 @@ class _ThumbnailLoaderRunnable(QRunnable):
         self.shot: str = shot
         self.cache_manager: ThumbnailCache = cache_manager
         self.signals: _ThumbnailLoaderSignals = _ThumbnailLoaderSignals()
-        self.setAutoDelete(False)
 
     @override
-    def run(self) -> None:
+    def _do_work(self) -> None:
         try:
             cached_result = self.cache_manager.cache_thumbnail(
                 self.thumbnail_path,

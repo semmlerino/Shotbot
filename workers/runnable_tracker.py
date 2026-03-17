@@ -282,7 +282,7 @@ class FolderOpenerSignals(QObject):
     success: Signal = Signal()
 
 
-class FolderOpenerWorker(QRunnable):
+class FolderOpenerWorker(TrackedQRunnable):
     """Worker to open folders in a non-blocking way."""
 
     def __init__(self, folder_path: str) -> None:
@@ -292,20 +292,13 @@ class FolderOpenerWorker(QRunnable):
             folder_path: Path to the folder to open
 
         """
-        super().__init__()
+        super().__init__(auto_delete=True)
         self.folder_path: str = folder_path
         self.signals: FolderOpenerSignals = FolderOpenerSignals()
 
     @override
-    def run(self) -> None:
+    def _do_work(self) -> None:
         """Open the folder using the appropriate method for the platform."""
-        tracker = get_tracker()
-        metadata = {
-            "type": "FolderOpenerWorker",
-            "folder_path": self.folder_path,
-        }
-        tracker.register(self, metadata)
-
         try:
             # Ensure we have a proper absolute path
             folder_path = self.folder_path
@@ -372,6 +365,3 @@ class FolderOpenerWorker(QRunnable):
             if hasattr(self, "signals") and self.signals:
                 with contextlib.suppress(RuntimeError):
                     self.signals.error.emit(error_msg)
-        finally:
-            # Always unregister from tracker when done
-            tracker.unregister(self)

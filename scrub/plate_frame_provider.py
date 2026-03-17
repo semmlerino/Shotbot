@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
+from PySide6.QtCore import QObject, QThreadPool, Signal
 from PySide6.QtGui import QImage
 
 import ui.image_utils as utils_module
@@ -21,6 +21,9 @@ from typing_compat import override
 
 
 logger = logging.getLogger(__name__)
+
+
+from workers.runnable_tracker import TrackedQRunnable
 
 
 @dataclass(frozen=True)
@@ -98,7 +101,7 @@ class FrameExtractionSignals(QObject):
     failed: ClassVar[Signal] = Signal(str, int, str)  # shot_key, frame, error
 
 
-class FrameExtractionRunnable(QRunnable):
+class FrameExtractionRunnable(TrackedQRunnable):
     """Background worker for extracting a single frame from a plate source."""
 
     def __init__(
@@ -117,17 +120,15 @@ class FrameExtractionRunnable(QRunnable):
             thumbnail_width: Width to scale extracted frame to
 
         """
-        super().__init__()
+        super().__init__(auto_delete=False)
         self.shot_key: str = shot_key
         self.frame: int = frame
         self.plate_source: PlateSource = plate_source
         self.thumbnail_width: int = thumbnail_width
         self.signals: FrameExtractionSignals = FrameExtractionSignals()
-        # CRITICAL: Do NOT use setAutoDelete(True) - signals must survive
-        self.setAutoDelete(False)
 
     @override
-    def run(self) -> None:
+    def _do_work(self) -> None:
         """Execute frame extraction in background thread."""
         try:
             extracted_path: Path | None = None

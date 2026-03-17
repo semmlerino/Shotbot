@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import (
     QCoreApplication,
     QObject,
-    QRunnable,
     Qt,
     QThreadPool,
     Signal,
@@ -44,6 +43,9 @@ if TYPE_CHECKING:
     from managers.file_pin_manager import FilePinManager
     from managers.notes_manager import NotesManager
     from type_definitions import Shot
+
+
+from workers.runnable_tracker import TrackedQRunnable
 
 
 class ShotInfoPanel(QtWidgetMixin, QWidget):
@@ -497,7 +499,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         self._set_placeholder_thumbnail()
 
 
-class InfoPanelPixmapLoader(QRunnable):
+class InfoPanelPixmapLoader(TrackedQRunnable):
     """Async loader for info panel thumbnails."""
 
     class Signals(QObject):
@@ -505,22 +507,17 @@ class InfoPanelPixmapLoader(QRunnable):
         failed: Signal = Signal()
 
     def __init__(self, panel: ShotInfoPanel, path: str | Path) -> None:
-        super().__init__()
+        super().__init__(auto_delete=False)
         self.panel: ShotInfoPanel = panel  # Keep reference to prevent GC
         self.path: str | Path = path
         self.signals: InfoPanelPixmapLoader.Signals = self.Signals()
         self._target_dpr: float = max(1.0, panel.devicePixelRatioF())
-        from workers.runnable_tracker import get_tracker
-        get_tracker().register(self, {"type": self.__class__.__name__})
 
     @override
-    def run(self) -> None:
+    def _do_work(self) -> None:
         """Load pixmap in background thread."""
         # Use module-level logger since QRunnable can't inherit from LoggingMixin
         logger = logging.getLogger(__name__)
-
-        from workers.runnable_tracker import get_tracker
-        tracker = get_tracker()
 
         try:
             # Local application imports
@@ -588,11 +585,9 @@ class InfoPanelPixmapLoader(QRunnable):
         except Exception:
             logger.exception(f"Error loading info panel thumbnail {self.path}")
             self.signals.failed.emit()
-        finally:
-            tracker.unregister(self)
 
 
-class ThumbnailCacheRunnable(QRunnable):
+class ThumbnailCacheRunnable(TrackedQRunnable):
     """Background runnable for caching thumbnails without blocking the UI.
 
     This runnable performs the potentially slow thumbnail caching operation
@@ -625,24 +620,17 @@ class ThumbnailCacheRunnable(QRunnable):
             cache_manager: ThumbnailCache instance for thumbnail caching
 
         """
-        super().__init__()
+        super().__init__(auto_delete=True)
         self.thumbnail_path = thumbnail_path
         self.show = show
         self.sequence = sequence
         self.shot = shot
         self.cache_manager = cache_manager
-        # Auto-delete when done since we don't need callbacks
-        self.setAutoDelete(True)
-        from workers.runnable_tracker import get_tracker
-        get_tracker().register(self, {"type": self.__class__.__name__})
 
     @override
-    def run(self) -> None:
+    def _do_work(self) -> None:
         """Execute thumbnail caching in background thread."""
         logger = logging.getLogger(__name__)
-
-        from workers.runnable_tracker import get_tracker
-        tracker = get_tracker()
 
         try:
             _ = self.cache_manager.cache_thumbnail(
@@ -654,5 +642,3 @@ class ThumbnailCacheRunnable(QRunnable):
         except Exception:  # noqa: BLE001
             # Log but don't propagate - caching failure is non-critical
             logger.debug("Background thumbnail caching failed", exc_info=True)
-        finally:
-            tracker.unregister(self)
