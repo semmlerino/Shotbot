@@ -33,7 +33,12 @@ from PySide6.QtWidgets import (
 
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FileType, ImageSequence, SceneFile
-from ui.design_system import design_system
+from ui.design_system import (
+    darken_color,
+    design_system,
+    get_tinted_background,
+    lighten_color,
+)
 
 from .dcc_file_table import DCCFileTable
 from .dcc_sequence_table import DCCSequenceTable
@@ -214,7 +219,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._container = QWidget()
         self._container.setStyleSheet(f"""
             QWidget#dccContainer {{
-                background-color: {self._get_tinted_background()};
+                background-color: {get_tinted_background(self.config.color)};
                 border: 1px solid #333;
                 border-left: 3px solid {self.config.color};
                 border-radius: 4px;
@@ -390,10 +395,10 @@ class DCCSection(QtWidgetMixin, QWidget):
                 font-size: {design_system.typography.size_tiny}px;
             }}
             QPushButton:hover {{
-                background-color: {self._lighten_color(self.config.color)};
+                background-color: {lighten_color(self.config.color)};
             }}
             QPushButton:pressed {{
-                background-color: {self._darken_color(self.config.color)};
+                background-color: {darken_color(self.config.color)};
             }}
             QPushButton:disabled {{
                 background-color: #2a2a2a;
@@ -474,55 +479,6 @@ class DCCSection(QtWidgetMixin, QWidget):
         """Return whether the section is expanded."""
         return self._expanded
 
-    def _lighten_color(self, color: str) -> str:
-        """Lighten a hex color for hover effect."""
-        if color.startswith("#"):
-            r = int(color[1:3], 16)
-            g = int(color[3:5], 16)
-            b = int(color[5:7], 16)
-            r = min(255, int(r * 1.2))
-            g = min(255, int(g * 1.2))
-            b = min(255, int(b * 1.2))
-            return f"#{r:02x}{g:02x}{b:02x}"
-        return color
-
-    def _get_tinted_background(self, base: str = "#252525", blend: float = 0.12) -> str:
-        """Generate a subtle tint of the DCC color blended with base background.
-
-        Args:
-            base: Base background color (dark gray).
-            blend: Blend factor (0.0 = base only, 1.0 = full DCC color).
-
-        Returns:
-            Hex color string with subtle DCC color tint.
-
-        """
-        color = self.config.color
-        if not color.startswith("#") or not base.startswith("#"):
-            return base
-
-        # Parse colors
-        br, bg, bb = int(base[1:3], 16), int(base[3:5], 16), int(base[5:7], 16)
-        cr, cg, cb = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
-
-        # Blend: result = base * (1 - blend) + color * blend
-        r = int(br * (1 - blend) + cr * blend)
-        g = int(bg * (1 - blend) + cg * blend)
-        b = int(bb * (1 - blend) + cb * blend)
-
-        return f"#{r:02x}{g:02x}{b:02x}"
-
-    def _darken_color(self, color: str) -> str:
-        """Darken a hex color for pressed effect."""
-        if color.startswith("#"):
-            r = int(color[1:3], 16)
-            g = int(color[3:5], 16)
-            b = int(color[5:7], 16)
-            r = int(r * 0.8)
-            g = int(g * 0.8)
-            b = int(b * 0.8)
-            return f"#{r:02x}{g:02x}{b:02x}"
-        return color
 
     def _on_launch_clicked(self) -> None:
         """Handle launch button click."""

@@ -27,7 +27,7 @@ from config import Config
 
 # Local application imports
 from threede import ThreeDESceneWorker
-from threede.scene_worker import ProgressCalculator
+from threede.progress_tracker import ProgressCalculator
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -432,7 +432,7 @@ class TestThreeDESceneWorker:
                 # Progressive discovery calls find_scenes_for_shot once per shot.
                 # test_shots has 2 shots; the test double returns 2 scenes per shot.
                 assert len(discovered_scenes) == 4, (
-                    f"Expected 4 scenes (2 shots × 2 scenes each), got {len(discovered_scenes)}"
+                    f"Expected 4 scenes (2 shots x 2 scenes each), got {len(discovered_scenes)}"
                 )
                 assert all(
                     isinstance(scene, ThreeDEScene) for scene in discovered_scenes

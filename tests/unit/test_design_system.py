@@ -31,7 +31,10 @@ from ui.design_system import (
     Shadows,
     Spacing,
     Typography,
+    darken_color,
     design_system,
+    get_tinted_background,
+    lighten_color,
 )
 
 
@@ -409,3 +412,31 @@ def test_all_colors_are_valid_hex_or_rgba() -> None:
                 is_hex = hex_pattern.match(value) is not None
                 is_rgba = rgba_pattern.match(value.replace(" ", "")) is not None
                 assert is_hex or is_rgba, f"{field}={value} is not valid hex or rgba"
+
+
+class TestColorUtilities:
+    def test_lighten_increases_rgb(self) -> None:
+        result = lighten_color("#404040")
+        assert int(result[1:3], 16) > 0x40
+
+    def test_lighten_clamps_at_255(self) -> None:
+        assert lighten_color("#ffffff") == "#ffffff"
+
+    def test_lighten_passthrough_non_hex(self) -> None:
+        assert lighten_color("red") == "red"
+
+    def test_darken_reduces_rgb(self) -> None:
+        result = darken_color("#ffffff")
+        assert int(result[1:3], 16) < 255
+
+    def test_darken_passthrough_non_hex(self) -> None:
+        assert darken_color("red") == "red"
+
+    def test_tint_zero_blend_returns_base(self) -> None:
+        assert get_tinted_background("#ff0000", base="#252525", blend=0.0) == "#252525"
+
+    def test_tint_full_blend_returns_accent(self) -> None:
+        assert get_tinted_background("#ff0000", base="#000000", blend=1.0) == "#ff0000"
+
+    def test_tint_invalid_accent_returns_base(self) -> None:
+        assert get_tinted_background("red", base="#252525") == "#252525"

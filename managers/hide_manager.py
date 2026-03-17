@@ -8,11 +8,12 @@ This module provides HideManager which handles:
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from cache._json_store import atomic_json_write
 from logging_mixin import LoggingMixin
+from managers._shot_key import shot_key
 
 
 if TYPE_CHECKING:
@@ -89,39 +90,14 @@ class HideManager(LoggingMixin):
     def _save_hidden(self) -> None:
         """Save hidden shots to cache."""
         cache_file = self._cache_dir / f"{HIDDEN_SHOTS_CACHE_KEY}.json"
-
-        hidden_dicts = [
-            {"show": show, "sequence": seq, "shot": shot}
-            for show, seq, shot in self._hidden_keys
-        ]
-
+        hidden_dicts = [{"show": s, "sequence": q, "shot": t} for s, q, t in self._hidden_keys]
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                dir=cache_file.parent,
-                suffix=".tmp",
-                delete=False,
-            ) as f:
-                json.dump(hidden_dicts, f, indent=2)
-                temp_path = f.name
-
-            _ = Path(temp_path).replace(cache_file)
+            atomic_json_write(cache_file, hidden_dicts, indent=2, fsync=False)
             self.logger.debug(f"Saved {len(self._hidden_keys)} hidden shots to cache")
         except OSError:
             self.logger.exception("Failed to save hidden shots")
 
-    def _get_key(self, shot: Shot) -> tuple[str, str, str]:
-        """Get composite key for shot.
-
-        Args:
-            shot: Shot object
-
-        Returns:
-            Tuple of (show, sequence, shot) for uniqueness
-
-        """
-        return (shot.show, shot.sequence, shot.shot)
 
     def hide_shot(self, shot: Shot) -> None:
         """Hide a shot.
@@ -132,7 +108,7 @@ class HideManager(LoggingMixin):
             shot: Shot to hide
 
         """
-        key = self._get_key(shot)
+        key = shot_key(shot)
 
         if key not in self._hidden_keys:
             self.logger.info(f"Hiding shot: {shot.full_name}")
@@ -146,7 +122,7 @@ class HideManager(LoggingMixin):
             shot: Shot to unhide
 
         """
-        key = self._get_key(shot)
+        key = shot_key(shot)
 
         if key in self._hidden_keys:
             self._hidden_keys.remove(key)
@@ -163,7 +139,7 @@ class HideManager(LoggingMixin):
             True if shot is hidden
 
         """
-        return self._get_key(shot) in self._hidden_keys
+        return shot_key(shot) in self._hidden_keys
 
     def get_hidden_count(self) -> int:
         """Get the number of hidden shots.

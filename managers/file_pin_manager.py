@@ -7,13 +7,13 @@ to mark important file versions with optional comments.
 from __future__ import annotations
 
 import json
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 from PySide6.QtCore import QObject, Signal
 
+from cache._json_store import atomic_json_write
 from logging_mixin import LoggingMixin
 
 
@@ -201,16 +201,7 @@ class FilePinManager(LoggingMixin, QObject):
 
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                dir=cache_file.parent,
-                suffix=".tmp",
-                delete=False,
-            ) as f:
-                json.dump(self._pins, f, indent=2)
-                temp_path = f.name
-
-            _ = Path(temp_path).replace(cache_file)
+            atomic_json_write(cache_file, self._pins, indent=2, fsync=False)
             self.logger.debug(f"Saved {len(self._pins)} pinned files to cache")
         except OSError:
             self.logger.exception("Failed to save pinned files")

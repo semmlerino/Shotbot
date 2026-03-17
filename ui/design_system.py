@@ -660,6 +660,38 @@ class DesignSystem(QObject):
         return self._ui_scale
 
 
+def lighten_color(color: str) -> str:
+    """Lighten a hex color by 20% (for hover states)."""
+    if color.startswith("#"):
+        r = min(255, int(int(color[1:3], 16) * 1.2))
+        g = min(255, int(int(color[3:5], 16) * 1.2))
+        b = min(255, int(int(color[5:7], 16) * 1.2))
+        return f"#{r:02x}{g:02x}{b:02x}"
+    return color
+
+
+def darken_color(color: str) -> str:
+    """Darken a hex color by 20% (for pressed states)."""
+    if color.startswith("#"):
+        r = int(int(color[1:3], 16) * 0.8)
+        g = int(int(color[3:5], 16) * 0.8)
+        b = int(int(color[5:7], 16) * 0.8)
+        return f"#{r:02x}{g:02x}{b:02x}"
+    return color
+
+
+def get_tinted_background(accent: str, base: str = "#252525", blend: float = 0.12) -> str:
+    """Blend an accent color into a dark base for a subtle tint."""
+    if not accent.startswith("#") or not base.startswith("#"):
+        return base
+    br, bg, bb = int(base[1:3], 16), int(base[3:5], 16), int(base[5:7], 16)
+    cr, cg, cb = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
+    r = int(br * (1 - blend) + cr * blend)
+    g = int(bg * (1 - blend) + cg * blend)
+    b = int(bb * (1 - blend) + cb * blend)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
 # Global instance
 design_system = DesignSystem()
 

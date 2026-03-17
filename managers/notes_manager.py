@@ -9,13 +9,14 @@ This module provides NotesManager which handles:
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import QObject, QTimer
 
+from cache._json_store import atomic_json_write
 from logging_mixin import LoggingMixin
+from managers._shot_key import shot_key
 
 
 if TYPE_CHECKING:
@@ -127,18 +128,8 @@ class NotesManager(LoggingMixin, QObject):
         }
 
         try:
-            # Atomic write via temp file
             cache_file.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                dir=cache_file.parent,
-                suffix=".tmp",
-                delete=False,
-            ) as f:
-                json.dump(data, f, indent=2)
-                temp_path = f.name
-
-            _ = Path(temp_path).replace(cache_file)
+            atomic_json_write(cache_file, data, indent=2, fsync=False)
             self.logger.debug(f"Saved {len(self._notes_by_key)} shot notes to cache")
         except OSError:
             self.logger.exception("Failed to save shot notes")
@@ -153,18 +144,6 @@ class NotesManager(LoggingMixin, QObject):
         if self._save_pending:
             self._do_save()
 
-    def _get_key(self, shot: Shot) -> tuple[str, str, str]:
-        """Get composite key for shot.
-
-        Args:
-            shot: Shot object
-
-        Returns:
-            Tuple of (show, sequence, shot) for uniqueness
-
-        """
-        return (shot.show, shot.sequence, shot.shot)
-
     def get_note(self, shot: Shot) -> str:
         """Get note for a shot.
 
@@ -175,7 +154,7 @@ class NotesManager(LoggingMixin, QObject):
             Note text, or empty string if no note
 
         """
-        return self._notes_by_key.get(self._get_key(shot), "")
+        return self._notes_by_key.get(shot_key(shot), "")
 
     def set_note(self, shot: Shot, note: str) -> None:
         """Set note for a shot.
@@ -188,7 +167,7 @@ class NotesManager(LoggingMixin, QObject):
             note: Note text (empty string removes note)
 
         """
-        key = self._get_key(shot)
+        key = shot_key(shot)
         old_note = self._notes_by_key.get(key, "")
 
         if note.strip():
@@ -212,7 +191,7 @@ class NotesManager(LoggingMixin, QObject):
             True if shot has a note
 
         """
-        key = self._get_key(shot)
+        key = shot_key(shot)
         note = self._notes_by_key.get(key, "")
         return bool(note.strip())
 

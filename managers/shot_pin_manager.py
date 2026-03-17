@@ -9,11 +9,12 @@ This module provides ShotPinManager which handles:
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from cache._json_store import atomic_json_write
 from logging_mixin import LoggingMixin
+from managers._shot_key import shot_key
 
 
 if TYPE_CHECKING:
@@ -96,41 +97,14 @@ class ShotPinManager(LoggingMixin):
     def _save_pins(self) -> None:
         """Save pinned shots to cache."""
         cache_file = self._cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
-
-        # Convert keys to dicts for JSON serialization
-        pin_dicts = [
-            {"show": show, "sequence": seq, "shot": shot}
-            for show, seq, shot in self._pinned_keys
-        ]
-
+        pin_dicts = [{"show": s, "sequence": q, "shot": t} for s, q, t in self._pinned_keys]
         try:
-            # Atomic write via temp file
             cache_file.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                dir=cache_file.parent,
-                suffix=".tmp",
-                delete=False,
-            ) as f:
-                json.dump(pin_dicts, f, indent=2)
-                temp_path = f.name
-
-            _ = Path(temp_path).replace(cache_file)
+            atomic_json_write(cache_file, pin_dicts, indent=2, fsync=False)
             self.logger.debug(f"Saved {len(self._pinned_keys)} pinned shots to cache")
         except OSError:
             self.logger.exception("Failed to save pinned shots")
 
-    def _get_key(self, shot: Shot) -> tuple[str, str, str]:
-        """Get composite key for shot.
-
-        Args:
-            shot: Shot object
-
-        Returns:
-            Tuple of (show, sequence, shot) for uniqueness
-
-        """
-        return (shot.show, shot.sequence, shot.shot)
 
     def pin_shot(self, shot: Shot) -> None:
         """Pin a shot (adds to front of list).
@@ -141,7 +115,7 @@ class ShotPinManager(LoggingMixin):
             shot: Shot to pin
 
         """
-        key = self._get_key(shot)
+        key = shot_key(shot)
 
         # Remove if already present (will re-add at front)
         if key in self._pinned_keys:
@@ -161,7 +135,7 @@ class ShotPinManager(LoggingMixin):
             shot: Shot to unpin
 
         """
-        key = self._get_key(shot)
+        key = shot_key(shot)
 
         if key in self._pinned_keys:
             self._pinned_keys.remove(key)
@@ -178,7 +152,7 @@ class ShotPinManager(LoggingMixin):
             True if shot is pinned
 
         """
-        return self._get_key(shot) in self._pinned_keys
+        return shot_key(shot) in self._pinned_keys
 
     def is_pinned_by_path(self, workspace_path: str) -> bool:
         """Check if a shot is pinned by workspace path.
@@ -271,7 +245,7 @@ class ShotPinManager(LoggingMixin):
             Pin order (0 = most recent), or -1 if not pinned
 
         """
-        key = self._get_key(shot)
+        key = shot_key(shot)
         try:
             return self._pinned_keys.index(key)
         except ValueError:
