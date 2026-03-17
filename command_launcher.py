@@ -23,7 +23,6 @@ from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 # Local application imports
 from commands import maya_commands, nuke_commands, rv_commands
 from config import Config, RezMode
-from latest_file_finder_worker import LatestFileFinderWorker
 from launch import (
     AppHandler,
     CommandBuilder,
@@ -35,6 +34,7 @@ from launch import (
     RVAppHandler,
     ThreeDEAppHandler,
 )
+from launch.file_search_coordinator import FileSearchCoordinator
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from managers.settings_manager import SettingsManager
@@ -110,7 +110,7 @@ class CommandLauncher(LoggingMixin, QObject):
     Dependencies are passed as constructor parameters rather than imported directly.
     """
 
-    # Signals
+    # Signals — forwarded from FileSearchCoordinator so callers need not change.
     launch_pending = Signal()  # Emitted when async file search starts
     launch_ready = Signal()  # Emitted when async search completes (ready to launch)
 
@@ -143,9 +143,10 @@ class CommandLauncher(LoggingMixin, QObject):
             cache_manager = make_default_latest_file_cache()
         self._cache_manager = cache_manager
 
-        # Async file search state
-        self._pending_worker: LatestFileFinderWorker | None = None
-        self._pending_launch: PendingLaunch | None = None
+        # Async file search coordinator — owns the worker and pending state
+        self._file_search_coordinator = FileSearchCoordinator(
+            cache_manager=self._cache_manager, parent=self
+        )
 
         # Current launch phase (state machine tracking)
         self._phase: LaunchPhase = LaunchPhase.IDLE
@@ -205,6 +206,22 @@ class CommandLauncher(LoggingMixin, QObject):
             )
         )
 
+        # Forward coordinator signals onto CommandLauncher so callers don't change
+        self._signal_connections.append(
+            self._file_search_coordinator.launch_pending.connect(
+                self.launch_pending, Qt.ConnectionType.QueuedConnection
+            )
+        )
+        self._signal_connections.append(
+            self._file_search_coordinator.launch_ready.connect(
+                self.launch_ready, Qt.ConnectionType.QueuedConnection
+            )
+        )
+        self._signal_connections.append(
+            self._file_search_coordinator.search_result_ready.connect(
+                self._on_search_result_ready, Qt.ConnectionType.QueuedConnection
+            )
+        )
 
     @property
     def timestamp(self) -> str:
@@ -302,14 +319,12 @@ class CommandLauncher(LoggingMixin, QObject):
                     pass
             self._signal_connections.clear()
 
-        # Cancel any pending async file search
-        if hasattr(self, "_pending_worker") and self._pending_worker is not None:
+        # Cancel any pending async file search via coordinator
+        if hasattr(self, "_file_search_coordinator"):
             try:
-                _ = self._pending_worker.request_stop()
-                _ = self._pending_worker.safe_stop(timeout_ms=500)
+                self._file_search_coordinator.cancel_pending_search()
             except (RuntimeError, TypeError):
                 pass
-            self._pending_worker = None
 
         # Cleanup ProcessExecutor's signal connections
         try:
@@ -427,7 +442,7 @@ class CommandLauncher(LoggingMixin, QObject):
         )
 
     # ========================================================================
-    # Async Latest File Search Methods
+    # Async Latest File Search — Coordinator Interface
     # ========================================================================
 
     def _start_async_file_search(
@@ -436,7 +451,7 @@ class CommandLauncher(LoggingMixin, QObject):
         context: LaunchContext,
         command: str,
     ) -> None:
-        """Start async file search for latest Maya/3DE scenes.
+        """Delegate async file search to FileSearchCoordinator.
 
         Args:
             app_name: Application being launched ("3de" or "maya")
@@ -451,125 +466,34 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error("Cannot search for files - no shot selected")
             return
 
-        # Store pending state
-        self._pending_launch = PendingLaunch(app_name=app_name, context=context, command=command)
+        pending = PendingLaunch(app_name=app_name, context=context, command=command)
+        self._file_search_coordinator.start_async_file_search(pending, self.current_shot)
 
-        # Determine what to search for
-        find_threede = app_name == "3de" and context.open_latest_threede
-        find_maya = app_name == "maya" and context.open_latest_maya
-
-        # Create and start worker
-        self._pending_worker = LatestFileFinderWorker(
-            workspace_path=self.current_shot.workspace_path,
-            shot_name=self.current_shot.full_name,
-            find_maya=find_maya,
-            find_threede=find_threede,
-            parent=self,
-        )
-
-        # Connect signals
-        _ = self._pending_worker.search_complete.connect(
-            self._on_async_search_complete,
-            Qt.ConnectionType.QueuedConnection,
-        )
-
-        # Emit pending signal to update UI (show spinner)
-        self.launch_pending.emit()
-
-        # Start search
-        self._pending_worker.start()
-        self.logger.debug(f"Started async file search for {app_name}")
-
-    def _on_async_search_complete(self, success: bool) -> None:
-        """Handle async file search completion (Qt slot, QueuedConnection).
-
-        This is the second half of the async launch lifecycle initiated by
-        _start_async_file_search. It is connected to
-        LatestFileFinderWorker.search_complete and called on the main thread
-        via QueuedConnection after the worker thread finishes.
-
-        Pending state when this fires:
-          - self._pending_worker   — the worker that just completed
-          - self._pending_app_name — "3de" or "maya"
-          - self._pending_context  — original LaunchContext
-          - self._pending_command  — base command built before async started
-
-        Cleanup: this method always clears the pending worker and emits
-        launch_ready to hide the UI spinner regardless of success. On
-        success it delegates to _continue_launch_after_search; on failure
-        it clears all pending state and returns without launching.
-
-        Args:
-            success: Whether the search completed successfully
-
-        """
-        self._phase = LaunchPhase.AWAITING_CONFIRMATION
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
-
-        if self._pending_worker is None:
-            self.logger.warning("Async search complete but no pending worker")
-            self._phase = LaunchPhase.IDLE
-            self.logger.debug("LaunchPhase: %s", self._phase.value)
-            return
-
-        # Get results from worker
-        maya_result = self._pending_worker.maya_result
-        threede_result = self._pending_worker.threede_result
-
-        # Cache results (even None results to avoid re-searching)
-        if self.current_shot is not None:
-            workspace = self.current_shot.workspace_path
-            if self._pending_launch and self._pending_launch.context.open_latest_maya:
-                self._cache_manager.cache_latest_file(workspace, "maya", maya_result)
-            if self._pending_launch and self._pending_launch.context.open_latest_threede:
-                self._cache_manager.cache_latest_file(workspace, "threede", threede_result)
-
-        # Clean up worker
-        self._pending_worker.deleteLater()
-        self._pending_worker = None
-
-        # Emit ready signal (hide spinner)
-        self.launch_ready.emit()
-
-        # Continue with launch using cached results
-        if success:
-            self._continue_launch_after_search(maya_result, threede_result)
-        else:
-            self.logger.warning("Async file search failed or was cancelled")
-            # Clear pending state
-            self._clear_pending_state()
-            self._phase = LaunchPhase.IDLE
-            self.logger.debug("LaunchPhase: %s", self._phase.value)
-
-    def _continue_launch_after_search(
+    def _on_search_result_ready(
         self,
-        maya_result: Path | None,
-        threede_result: Path | None,
+        pending_launch: object,
+        maya_result: object,
+        threede_result: object,
     ) -> None:
-        """Finish the launch sequence after an async file search succeeds.
+        """Handle a successful async search result from FileSearchCoordinator.
 
-        Called from _on_async_search_complete only when success=True. By the
-        time this runs, the pending worker has already been cleaned up and the
-        UI spinner hidden.
-
-        This method consumes and clears the remaining pending state
-        (app_name, context, command), then calls _append_scene_to_command to
-        build the final command and _finish_launch to execute it. If any
-        pending state is missing (shouldn't happen in normal flow), it logs an
-        error and returns without launching.
+        This is the second half of the async launch lifecycle. It is connected
+        to FileSearchCoordinator.search_result_ready (QueuedConnection) and
+        called on the main thread after the coordinator has cleaned up the
+        worker and emitted launch_ready to hide the UI spinner.
 
         Args:
-            maya_result: Latest Maya scene found by the worker, or None.
-            threede_result: Latest 3DE scene found by the worker, or None.
+            pending_launch: The PendingLaunch stored before the search started.
+            maya_result: Latest Maya scene found, or None.
+            threede_result: Latest 3DE scene found, or None.
 
         """
         self._phase = LaunchPhase.EXECUTING
         self.logger.debug("LaunchPhase: %s", self._phase.value)
 
-        launch = self._pending_launch
-
-        # Clear pending state
-        self._clear_pending_state()
+        launch: PendingLaunch | None = pending_launch  # type: ignore[assignment]
+        maya: Path | None = maya_result  # type: ignore[assignment]
+        threede: Path | None = threede_result  # type: ignore[assignment]
 
         if launch is None:
             self.logger.error("Missing pending state after async search")
@@ -583,7 +507,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Add scene path to command based on results
         if app_name == "3de":
-            result = self._apply_file_result("3de", command, threede_result, context.open_latest_threede)
+            result = self._apply_file_result("3de", command, threede, context.open_latest_threede)
             if result is None:
                 self._phase = LaunchPhase.IDLE
                 self.logger.debug("LaunchPhase: %s", self._phase.value)
@@ -591,7 +515,7 @@ class CommandLauncher(LoggingMixin, QObject):
             command = result
 
         if app_name == "maya":
-            result = self._apply_file_result("maya", command, maya_result, context.open_latest_maya)
+            result = self._apply_file_result("maya", command, maya, context.open_latest_maya)
             if result is None:
                 self._phase = LaunchPhase.IDLE
                 self.logger.debug("LaunchPhase: %s", self._phase.value)
@@ -693,26 +617,17 @@ class CommandLauncher(LoggingMixin, QObject):
             full_command, app_name, error_context, has_rez_wrapper=has_rez_wrapper
         )
 
-    def _clear_pending_state(self) -> None:
-        """Clear pending async launch state."""
-        self._pending_launch = None
-
     def cancel_pending_search(self) -> None:
         """Cancel any pending async file search."""
-        if self._pending_worker is not None:
-            _ = self._pending_worker.request_stop()
-            _ = self._pending_worker.safe_stop(timeout_ms=1000)
-            self._pending_worker = None
-            self._clear_pending_state()
+        if self._file_search_coordinator.is_search_pending:
             self._phase = LaunchPhase.IDLE
             self.logger.debug("LaunchPhase: %s", self._phase.value)
-            self.launch_ready.emit()  # Clear spinner
-            self.logger.debug("Cancelled pending file search")
+            self._file_search_coordinator.cancel_pending_search()
 
     @property
     def is_search_pending(self) -> bool:
         """Check if an async file search is in progress."""
-        return self._pending_worker is not None
+        return self._file_search_coordinator.is_search_pending
 
     # Methods removed - now using launch components:
     # - _is_rez_available() → self.env_manager.is_rez_available(Config)
