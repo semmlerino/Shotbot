@@ -6,20 +6,22 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from pathlib import Path
+from typing import ClassVar
 
 # Local application imports
-from version_mixin import VersionHandlingMixin
+from latest_finder_base import BaseLatestFinder
 
 
-_MAYA_DCC_SUBPATH = "mm/maya/scenes"
-_MAYA_GLOB_PATTERNS = ["**/*.ma", "**/*.mb"]
-
-
-class MayaLatestFinder(VersionHandlingMixin):
+class MayaLatestFinder(BaseLatestFinder):
     """Finds the latest Maya scene file in a workspace.
 
-    Uses VersionHandlingMixin for version extraction and sorting.
+    Uses BaseLatestFinder for the common search loop and VersionHandlingMixin
+    (inherited via BaseLatestFinder) for version extraction and sorting.
     """
+
+    _DCC_SUBPATH: str = "mm/maya/scenes"
+    _GLOB_PATTERNS: ClassVar[list[str]] = ["**/*.ma", "**/*.mb"]
+    _DCC_LABEL: str = "Maya"
 
     # Pattern to match version in Maya filenames (e.g., _v001, _v002)
     VERSION_PATTERN: re.Pattern[str] = re.compile(r"_v(\d{3})\.(ma|mb)$")
@@ -49,45 +51,7 @@ class MayaLatestFinder(VersionHandlingMixin):
             Path to the latest Maya scene file, or None if not found or cancelled
 
         """
-        if not workspace_path:
-            self.logger.debug("No workspace path provided")
-            return None
-
-        workspace = Path(workspace_path)
-        if not workspace.exists():
-            self.logger.debug(f"Workspace does not exist: {workspace_path}")
-            return None
-
-        user_base = workspace / "user"
-        if not user_base.exists():
-            self.logger.debug(f"No user directory in workspace: {workspace_path}")
-            return None
-
-        maya_files = self._collect_scene_files(
-            user_base, _MAYA_DCC_SUBPATH, _MAYA_GLOB_PATTERNS, cancel_flag
-        )
-        if maya_files is None:
-            # Cancelled
-            self.logger.debug("Maya scene search cancelled")
-            return None
-
-        if not maya_files:
-            self.logger.debug(
-                f"No Maya files found in workspace: {shot_name or workspace_path}"
-            )
-            return None
-
-        latest_file = self._find_latest_by_version(maya_files)
-        if latest_file is None:
-            self.logger.debug(
-                f"No versioned Maya files found in workspace: {shot_name or workspace_path}"
-            )
-            return None
-
-        self.logger.info(
-            f"Found latest Maya scene for {shot_name or 'shot'}: {latest_file.name}"
-        )
-        return latest_file
+        return self.find_latest_scene(workspace_path, shot_name, cancel_flag)
 
     # Version extraction is handled by VersionHandlingMixin._extract_version()
     # The mixin respects our VERSION_PATTERN and provides fallback patterns
@@ -122,7 +86,10 @@ class MayaLatestFinder(VersionHandlingMixin):
 
         finder = MayaLatestFinder()
         collected = finder._collect_scene_files(
-            user_base, _MAYA_DCC_SUBPATH, _MAYA_GLOB_PATTERNS, cancel_flag
+            user_base,
+            MayaLatestFinder._DCC_SUBPATH,
+            MayaLatestFinder._GLOB_PATTERNS,
+            cancel_flag,
         )
         if collected is None:
             return []

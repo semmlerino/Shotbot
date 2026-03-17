@@ -6,20 +6,22 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from pathlib import Path
+from typing import ClassVar
 
 # Local application imports
-from version_mixin import VersionHandlingMixin
+from latest_finder_base import BaseLatestFinder
 
 
-_THREEDE_DCC_SUBPATH = "mm/3de/mm-default/scenes/scene"
-_THREEDE_GLOB_PATTERNS = ["*/*.3de"]
-
-
-class ThreeDELatestFinder(VersionHandlingMixin):
+class ThreeDELatestFinder(BaseLatestFinder):
     """Finds the latest 3DE scene file in a workspace.
 
-    Uses VersionHandlingMixin for version extraction and sorting.
+    Uses BaseLatestFinder for the common search loop and VersionHandlingMixin
+    (inherited via BaseLatestFinder) for version extraction and sorting.
     """
+
+    _DCC_SUBPATH: str = "mm/3de/mm-default/scenes/scene"
+    _GLOB_PATTERNS: ClassVar[list[str]] = ["*/*.3de"]
+    _DCC_LABEL: str = "3DE"
 
     # Pattern to match version in 3DE filenames (e.g., _v001, _v002)
     VERSION_PATTERN: re.Pattern[str] = re.compile(r"_v(\d{3})\.3de$")
@@ -48,45 +50,7 @@ class ThreeDELatestFinder(VersionHandlingMixin):
             Path to the latest 3DE scene file, or None if not found or cancelled
 
         """
-        if not workspace_path:
-            self.logger.debug("No workspace path provided")
-            return None
-
-        workspace = Path(workspace_path)
-        if not workspace.exists():
-            self.logger.debug(f"Workspace does not exist: {workspace_path}")
-            return None
-
-        user_base = workspace / "user"
-        if not user_base.exists():
-            self.logger.debug(f"No user directory in workspace: {workspace_path}")
-            return None
-
-        threede_files = self._collect_scene_files(
-            user_base, _THREEDE_DCC_SUBPATH, _THREEDE_GLOB_PATTERNS, cancel_flag
-        )
-        if threede_files is None:
-            # Cancelled
-            self.logger.debug("3DE scene search cancelled")
-            return None
-
-        if not threede_files:
-            self.logger.debug(
-                f"No 3DE files found in workspace: {shot_name or workspace_path}"
-            )
-            return None
-
-        latest_file = self._find_latest_by_version(threede_files)
-        if latest_file is None:
-            self.logger.debug(
-                f"No versioned 3DE files found in workspace: {shot_name or workspace_path}"
-            )
-            return None
-
-        self.logger.info(
-            f"Found latest 3DE scene for {shot_name or 'shot'}: {latest_file.name}"
-        )
-        return latest_file
+        return self.find_latest_scene(workspace_path, shot_name, cancel_flag)
 
     # Version extraction is handled by VersionHandlingMixin._extract_version()
     # The mixin respects our VERSION_PATTERN and provides fallback patterns
@@ -106,22 +70,4 @@ class ThreeDELatestFinder(VersionHandlingMixin):
             List of all 3DE scene file paths, sorted by version (empty if cancelled)
 
         """
-        if not workspace_path:
-            return []
-
-        workspace = Path(workspace_path)
-        if not workspace.exists():
-            return []
-
-        user_base = workspace / "user"
-        if not user_base.exists():
-            return []
-
-        finder = ThreeDELatestFinder()
-        collected = finder._collect_scene_files(
-            user_base, _THREEDE_DCC_SUBPATH, _THREEDE_GLOB_PATTERNS, cancel_flag
-        )
-        if collected is None:
-            return []
-
-        return finder._sort_files_by_version(collected)
+        return ThreeDELatestFinder.find_all_scenes(workspace_path, cancel_flag)

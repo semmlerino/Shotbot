@@ -13,7 +13,6 @@ import pytest
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication
 
-
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

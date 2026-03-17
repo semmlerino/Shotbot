@@ -9,7 +9,7 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QModelIndex, QObject, Signal
+from PySide6.QtCore import QObject, Signal
 
 from base_item_model import BaseItemModel
 from typing_compat import override
@@ -53,8 +53,8 @@ class ShotItemModel(BaseItemModel["Shot"]):
         """
         super().__init__(cache_manager, parent)
 
-        self._pin_manager: ShotPinManager | None = pin_manager
-        self._notes_manager: NotesManager | None = notes_manager
+        self._pin_manager = pin_manager
+        self._notes_manager = notes_manager
         self._hide_manager: HideManager | None = hide_manager
 
         # Connect generic items_updated to shot-specific signal
@@ -62,33 +62,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         self.logger.debug("ShotItemModel initialized")
 
-    # ============= Implement abstract methods =============
-
-    @override
-    def get_display_role_data(self, item: Shot) -> str:
-        """Get display text for a shot.
-
-        Args:
-            item: The shot to get display text for
-
-        Returns:
-            Shot's full name (show/sequence/shot)
-
-        """
-        return item.full_name
-
-    @override
-    def get_tooltip_data(self, item: Shot) -> str:
-        """Get tooltip text for a shot.
-
-        Args:
-            item: The shot to get tooltip for
-
-        Returns:
-            Formatted tooltip with shot details
-
-        """
-        return f"{item.show} / {item.sequence} / {item.shot}\n{item.workspace_path}"
+    # ============= Shot-specific custom roles =============
 
     @override
     def get_custom_role_data(self, item: Shot, role: int) -> object:
@@ -104,16 +78,6 @@ class ShotItemModel(BaseItemModel["Shot"]):
         """
         from base_item_model import BaseItemRole
 
-        if role == BaseItemRole.IsPinnedRole:
-            if self._pin_manager:
-                return self._pin_manager.is_pinned(item)
-            return False
-
-        if role == BaseItemRole.HasNoteRole:
-            if self._notes_manager:
-                return self._notes_manager.has_note(item)
-            return False
-
         if role == BaseItemRole.FrameRangeRole:
             return item.frame_range_display
 
@@ -122,18 +86,9 @@ class ShotItemModel(BaseItemModel["Shot"]):
                 return self._hide_manager.is_hidden(item)
             return False
 
-        return None
+        return super().get_custom_role_data(item, role)
 
     # ============= Shot-specific methods =============
-
-    def set_shots(self, shots: list[Shot]) -> None:
-        """Set the shots list.
-
-        Args:
-            shots: List of Shot objects
-
-        """
-        self.set_items(shots)
 
     def set_show_filter(self, shot_model: object, show: str | None) -> None:
         """Apply show filter to item model (legacy compatibility).
@@ -182,42 +137,6 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
         return RefreshResult(success=True, has_changes=has_changes)
 
-    def get_shot_at_index(self, index: QModelIndex) -> Shot | None:
-        """Get shot at the given index.
-
-        Args:
-            index: Model index
-
-        Returns:
-            Shot object or None if invalid
-
-        """
-        return self.get_item_at_index(index)
-
-    def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
-        """Find a shot by its full name.
-
-        Args:
-            full_name: The full name to search for
-
-        Returns:
-            Tuple of (Shot, row_index) if found, None otherwise
-
-        """
-        for row, item in enumerate(self._items):
-            if item.full_name == full_name:
-                return (item, row)
-        return None
-
-    def set_pin_manager(self, pin_manager: ShotPinManager) -> None:
-        """Set the pin manager.
-
-        Args:
-            pin_manager: Pin manager for tracking pinned shots
-
-        """
-        self._pin_manager = pin_manager
-
     def set_hide_manager(self, hide_manager: HideManager) -> None:
         """Set the hide manager.
 
@@ -227,35 +146,11 @@ class ShotItemModel(BaseItemModel["Shot"]):
         """
         self._hide_manager = hide_manager
 
-    def refresh_pin_order(self) -> None:
-        """Re-sort shots to reflect pin changes.
-
-        Note: With proxy models, call proxy.refresh_sort() instead.
-        Kept for backward compatibility with tests.
-        """
-
-    # ============= Properties =============
-
-    @property
-    def shots(self) -> list[Shot]:
-        """Get shots list.
-
-        Returns:
-            List of Shot objects
-
-        """
-        return self._items
-
     # ============= Cleanup =============
 
     def cleanup(self) -> None:
         """Clean up resources before deletion."""
-        # Stop thumbnail loader timers
-        if hasattr(self, "_thumbnail_loader"):
-            self._thumbnail_loader.shutdown()
-
-        # Clear caches
-        self.clear_thumbnail_cache()
+        super().cleanup()
 
         # Disconnect signals safely
         # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
@@ -269,9 +164,3 @@ class ShotItemModel(BaseItemModel["Shot"]):
                 _ = self.shots_updated.disconnect()
 
         self.logger.debug("ShotItemModel cleanup complete")
-
-    @override
-    def deleteLater(self) -> None:
-        """Override deleteLater to ensure cleanup."""
-        self.cleanup()
-        super().deleteLater()

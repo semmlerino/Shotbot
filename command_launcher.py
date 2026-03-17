@@ -175,11 +175,6 @@ class CommandLauncher(LoggingMixin, QObject):
         # Connect process executor signals (track for cleanup)
         # Use QueuedConnection for thread-safe cross-thread signal handling
         self._signal_connections.append(
-            self.process_executor.execution_progress.connect(
-                self._on_execution_progress, Qt.ConnectionType.QueuedConnection
-            )
-        )
-        self._signal_connections.append(
             self.process_executor.execution_completed.connect(
                 self._on_execution_completed, Qt.ConnectionType.QueuedConnection
             )
@@ -210,15 +205,6 @@ class CommandLauncher(LoggingMixin, QObject):
             )
         )
 
-        # Initialize scene/file finders (created internally, not injected)
-        # Local application imports
-        from maya_latest_finder import MayaLatestFinder
-        from nuke import NukeScriptGenerator
-        from threede import ThreeDELatestFinder
-
-        self._nuke_script_generator = NukeScriptGenerator()
-        self._threede_latest_finder = ThreeDELatestFinder()
-        self._maya_latest_finder = MayaLatestFinder()
 
     @property
     def timestamp(self) -> str:
@@ -375,15 +361,6 @@ class CommandLauncher(LoggingMixin, QObject):
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context."""
         self.current_shot = shot
-
-    def _on_execution_progress(self, operation: str, message: str) -> None:
-        """Handle execution progress from ProcessExecutor.
-
-        Args:
-            operation: Name of the operation
-            message: Progress status message
-
-        """
 
     def _on_execution_completed(self, success: bool, message: str) -> None:
         """Handle execution completion from ProcessExecutor.
@@ -1124,43 +1101,6 @@ class CommandLauncher(LoggingMixin, QObject):
             log_suffix=f" (File: {file_path.name})",
             error_context=" with file",
             command_prefix=sgtk_export,
-        )
-
-    def launch_app_with_workspace_context(
-        self,
-        app_name: str,
-        scene: ThreeDEScene,
-    ) -> bool:
-        """Launch an application using shot context from a 3DE scene (no scene file opened).
-
-        Args:
-            app_name: Name of the application to launch
-            scene: The 3DE scene providing workspace/shot context
-
-        Returns:
-            True if launch was successful, False otherwise
-
-        """
-        self._phase = LaunchPhase.VERIFYING_APP
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
-
-        if not self._validate_app_name(app_name):
-            return False
-
-        # Get the command
-        command = Config.APPS[app_name]
-
-        # Validate workspace before attempting launch
-        if not self._validate_workspace_before_launch(scene.workspace_path, app_name):
-            return False
-
-        return self._finish_launch(
-            app_name,
-            command,
-            workspace_path=scene.workspace_path,
-            nuke_env_context="scene context launch",
-            log_suffix=f" (Context: {scene.user}'s {scene.plate})",
-            error_context=" in scene context",
         )
 
     # Methods removed - now using launch components:

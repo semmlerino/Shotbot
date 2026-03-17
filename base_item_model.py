@@ -8,13 +8,15 @@ code duplication by ~70-80%.
 from __future__ import annotations
 
 # Standard library imports
-from abc import ABC, abstractmethod
+from abc import ABC
 from enum import IntEnum
 from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 
 if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
+    from managers.notes_manager import NotesManager
+    from managers.shot_pin_manager import ShotPinManager
     from thumbnail_loader import ThumbnailLoader
 
 # Third-party imports
@@ -156,6 +158,10 @@ class BaseItemModel(
         # Track visible range for lazy loading
         self._visible_start: int = 0
         self._visible_end: int = 0
+
+        # Shared pin/notes managers (used by Shot-based subclasses)
+        self._pin_manager: ShotPinManager | None = None
+        self._notes_manager: NotesManager | None = None
 
         # Thumbnail subsystem — owns all async loading state and timers
         from thumbnail_loader import ThumbnailLoader as _ThumbnailLoader
@@ -497,9 +503,8 @@ class BaseItemModel(
             self.logger.debug(f"Scheduling thumbnail load timer for {initial_load_count} items (total: {len(self._items)})")
             QTimer.singleShot(self._INITIAL_LOAD_DELAY_MS, self._do_load_visible_thumbnails)
 
-    # ============= Abstract methods for subclasses =============
+    # ============= Shared shot-model methods =============
 
-    @abstractmethod
     def get_display_role_data(self, item: T) -> str:
         """Get display text for an item.
 
@@ -507,11 +512,11 @@ class BaseItemModel(
             item: The item to get display text for
 
         Returns:
-            Display text string
+            Item's full name (show/sequence/shot)
 
         """
+        return item.full_name
 
-    @abstractmethod
     def get_tooltip_data(self, item: T) -> str:
         """Get tooltip text for an item.
 
@@ -519,26 +524,81 @@ class BaseItemModel(
             item: The item to get tooltip for
 
         Returns:
-            Tooltip text string
+            Formatted tooltip with item details
 
         """
+        return f"{item.show} / {item.sequence} / {item.shot}\n{item.workspace_path}"
 
-    def get_size_hint(self) -> QSize:
-        """Get size hint for items.
+    def set_shots(self, shots: list[T]) -> None:
+        """Set the shots list.
+
+        Args:
+            shots: List of Shot objects
+
+        """
+        self.set_items(shots)
+
+    def get_shot_at_index(self, index: QModelIndex) -> T | None:
+        """Get shot at the given index.
+
+        Args:
+            index: Model index
 
         Returns:
-            QSize object or None
-
-        Can be overridden by subclasses for custom sizing.
+            Shot object or None if invalid
 
         """
-        return QSize(
-            Config.DEFAULT_THUMBNAIL_SIZE,
-            Config.DEFAULT_THUMBNAIL_SIZE + 40,
-        )
+        return self.get_item_at_index(index)
+
+    def _find_shot_by_full_name(self, full_name: str) -> tuple[T, int] | None:
+        """Find a shot by its full name.
+
+        Args:
+            full_name: The full name to search for
+
+        Returns:
+            Tuple of (item, row_index) if found, None otherwise
+
+        """
+        for row, item in enumerate(self._items):
+            if item.full_name == full_name:
+                return (item, row)
+        return None
+
+    def set_pin_manager(self, pin_manager: ShotPinManager) -> None:
+        """Set the pin manager.
+
+        Args:
+            pin_manager: Pin manager for tracking pinned shots
+
+        """
+        self._pin_manager = pin_manager
+
+    def refresh_pin_order(self) -> None:
+        """Re-sort shots to reflect pin changes.
+
+        Note: With proxy models, call proxy.refresh_sort() instead.
+        Kept for backward compatibility with tests.
+        """
+
+    @property
+    def shots(self) -> list[T]:
+        """Get shots list.
+
+        Returns:
+            List of Shot objects
+
+        """
+        return self._items
+
+    # ============= Custom role hooks =============
 
     def get_custom_role_data(self, item: T, role: int) -> object | None:
         """Handle model-specific custom roles.
+
+        Handles IsPinnedRole and HasNoteRole using the shared pin/notes managers.
+        Override in subclasses to add additional model-specific roles; call
+        super().get_custom_role_data(item, role) for unhandled roles.
 
         Args:
             item: The item
@@ -547,9 +607,17 @@ class BaseItemModel(
         Returns:
             Data for the role or None
 
-        Override in subclasses to handle model-specific roles.
-
         """
+        if role == BaseItemRole.IsPinnedRole:
+            if self._pin_manager:
+                return self._pin_manager.is_pinned(item)  # pyright: ignore[reportArgumentType]
+            return False
+
+        if role == BaseItemRole.HasNoteRole:
+            if self._notes_manager:
+                return self._notes_manager.has_note(item)  # pyright: ignore[reportArgumentType]
+            return False
+
         return None
 
     def set_custom_data(self, _item: T, _value: object | None, _role: int) -> bool:
@@ -611,3 +679,39 @@ class BaseItemModel(
 
         """
         return self._sort_order
+
+    def get_size_hint(self) -> QSize:
+        """Get size hint for items.
+
+        Returns:
+            QSize object or None
+
+        Can be overridden by subclasses for custom sizing.
+
+        """
+        return QSize(
+            Config.DEFAULT_THUMBNAIL_SIZE,
+            Config.DEFAULT_THUMBNAIL_SIZE + 40,
+        )
+
+    # ============= Cleanup =============
+
+    def cleanup(self) -> None:
+        """Clean up shared resources before deletion.
+
+        Stops the thumbnail loader and clears the thumbnail cache.
+        Subclasses should call super().cleanup() then perform their own
+        signal disconnections and additional teardown.
+        """
+        # Stop thumbnail loader timers
+        if hasattr(self, "_thumbnail_loader"):
+            self._thumbnail_loader.shutdown()
+
+        # Clear caches
+        self.clear_thumbnail_cache()
+
+    @override
+    def deleteLater(self) -> None:
+        """Override deleteLater to ensure cleanup."""
+        self.cleanup()
+        super().deleteLater()

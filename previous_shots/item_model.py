@@ -9,7 +9,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QModelIndex, QObject, Qt, Signal
+from PySide6.QtCore import QObject, Qt, Signal
 
 from base_item_model import BaseItemModel
 from typing_compat import override
@@ -61,8 +61,8 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         super().__init__(cache_manager, parent)
 
         self._underlying_model: PreviousShotsModel = underlying_model
-        self._pin_manager: ShotPinManager | None = pin_manager
-        self._notes_manager: NotesManager | None = notes_manager
+        self._pin_manager = pin_manager
+        self._notes_manager = notes_manager
 
         # Connect generic items_updated to shot-specific signal
         _ = self.items_updated.connect(self.shots_updated)
@@ -85,33 +85,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         self.logger.debug("PreviousShotsItemModel initialized")
 
-    # ============= Implement abstract methods =============
-
-    @override
-    def get_display_role_data(self, item: Shot) -> str:
-        """Get display text for a shot.
-
-        Args:
-            item: The shot to get display text for
-
-        Returns:
-            Shot's full name (show/sequence/shot)
-
-        """
-        return item.full_name
-
-    @override
-    def get_tooltip_data(self, item: Shot) -> str:
-        """Get tooltip text for a shot.
-
-        Args:
-            item: The shot to get tooltip for
-
-        Returns:
-            Formatted tooltip with shot details
-
-        """
-        return f"{item.show} / {item.sequence} / {item.shot}\n{item.workspace_path}"
+    # ============= Previous shots-specific custom roles =============
 
     @override
     def get_custom_role_data(self, item: Shot, role: int) -> object:
@@ -125,79 +99,15 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             Data for the role or None
 
         """
-        # Import here to avoid circular dependency
         from base_item_model import BaseItemRole
-
-        if role == BaseItemRole.IsPinnedRole:
-            if self._pin_manager:
-                return self._pin_manager.is_pinned(item)
-            return False
-
-        if role == BaseItemRole.HasNoteRole:
-            if self._notes_manager:
-                return self._notes_manager.has_note(item)
-            return False
 
         # Handle item-specific roles for backward compatibility
         if role == BaseItemRole.ItemSpecificRole1:
             return item.shot  # Shot number/ID
 
-        return None
+        return super().get_custom_role_data(item, role)
 
     # ============= Previous shots-specific methods =============
-
-    def set_shots(self, shots: list[Shot]) -> None:
-        """Set the shots list.
-
-        Args:
-            shots: List of Shot objects
-
-        """
-        self.set_items(shots)
-
-
-    def get_shot_at_index(self, index: QModelIndex) -> Shot | None:
-        """Get shot at the given index.
-
-        Args:
-            index: Model index
-
-        Returns:
-            Shot object or None if invalid
-
-        """
-        return self.get_item_at_index(index)
-
-    def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
-        """Find a shot by its full name.
-
-        Args:
-            full_name: The full name to search for
-
-        Returns:
-            Tuple of (Shot, row_index) if found, None otherwise
-
-        """
-        for row, item in enumerate(self._items):
-            if item.full_name == full_name:
-                return (item, row)
-        return None
-
-    def set_pin_manager(self, pin_manager: ShotPinManager) -> None:
-        """Set the pin manager.
-
-        Args:
-            pin_manager: Pin manager for tracking pinned shots
-
-        """
-        self._pin_manager = pin_manager
-
-    def refresh_pin_order(self) -> None:
-        """Re-sort shots to reflect pin changes.
-
-        Note: With proxy models, call proxy.refresh_sort() instead.
-        Kept for backward compatibility with tests.
-        """
 
     def _on_underlying_shots_updated(self) -> None:
         """Handle shots update from underlying model."""
@@ -222,28 +132,11 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         """
         return self._underlying_model
 
-    # ============= Properties =============
-
-    @property
-    def shots(self) -> list[Shot]:
-        """Get shots list.
-
-        Returns:
-            List of Shot objects
-
-        """
-        return self._items
-
     # ============= Cleanup =============
 
     def cleanup(self) -> None:
         """Clean up resources before deletion."""
-        # Stop thumbnail loader timers
-        if hasattr(self, "_thumbnail_loader"):
-            self._thumbnail_loader.shutdown()
-
-        # Clear caches
-        self.clear_thumbnail_cache()
+        super().cleanup()
 
         # Disconnect from underlying model
         # Use try/except pattern instead of receivers() check, as PySide6's
@@ -271,9 +164,3 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
                 pass  # No connections to disconnect
 
         self.logger.debug("PreviousShotsItemModel cleanup complete")
-
-    @override
-    def deleteLater(self) -> None:
-        """Override deleteLater to ensure cleanup."""
-        self.cleanup()
-        super().deleteLater()

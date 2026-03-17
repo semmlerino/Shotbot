@@ -6,14 +6,12 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 
 | Module | Autouse | Key Fixtures | Purpose |
 |--------|---------|-------------|---------|
-| `temp_directories.py` | No | `temp_shows_root`, `temp_cache_dir`, `cache_manager` | Temporary paths and cache instances |
-| `test_doubles.py` | No | `TestProcessPool`, `test_process_pool` | Convenience re-export of `cache_doubles.py`, `model_doubles.py`, `signal_doubles.py`, `process_doubles.py` — import from either |
-| `subprocess_mocking.py` | Yes | `mock_process_pool_manager`, `mock_subprocess_popen`, `subprocess_mock` | Global subprocess interception; `subprocess_mock` for controllable error paths |
-| `qt_safety.py` | Yes | `suppress_qmessagebox`, `prevent_qapp_exit` | Prevent modal dialogs and app-exit from blocking tests |
-| `qt_cleanup.py` | Via `_qt_auto_fixtures` dispatcher | `qt_cleanup` | Clears Qt event queue, QThreadPool, QPixmapCache between tests |
-| `singleton_isolation.py` | Yes (lite) / Qt only (heavy) | `reset_caches`, `cleanup_state_heavy` | Resets singleton state; lite runs for all tests, heavy for Qt tests only |
-| `caching.py` | No | `caching_enabled`, `isolated_cache_manager` | Cache isolation and controlled cache enablement |
-| `data_factories.py` | No | `make_test_shot`, `make_real_3de_file`, `sample_shot_data` | Factories for building test data objects |
+| `qt_fixtures.py` | Yes | `suppress_qmessagebox`, `prevent_qapp_exit`, `cleanup_qt_state` | Qt safety (prevent modal dialogs/app-exit), Qt cleanup (event queue, pixmap cache) |
+| `process_fixtures.py` | Yes | `subprocess_mock`, `mock_process_pool_manager` | Subprocess interception and process pool mocking |
+| `singleton_fixtures.py` | Yes | `reset_caches`, `cleanup_state_heavy` | Reset singleton state; lite runs for all tests, heavy for Qt tests only |
+| `environment_fixtures.py` | No | `temp_shows_root`, `isolated_cache_manager` | Temporary paths and isolated cache instances |
+| `model_fixtures.py` | No | `make_test_shot`, `sample_shot_data`, `test_thde_scene` | Factories for building test data objects |
+| `test_doubles.py` | No | `TestProcessPool`, `TestSubprocess`, `PopenDouble` | Test doubles for subprocess and process pool |
 
 ## Session-Scoped (in conftest.py)
 
@@ -33,16 +31,16 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 
 ## Adding a Fixture
 
-1. Put it in the right module (data? → `data_factories.py`; subprocess? → `subprocess_mocking.py`; Qt? → `qt_safety.py` or `qt_cleanup.py`)
+1. Put it in the right module (data? → `model_fixtures.py`; subprocess? → `process_fixtures.py`; Qt? → `qt_fixtures.py`; environment? → `environment_fixtures.py`)
 2. Default scope is `function`; use `session` only for expensive immutable fixtures
-3. New singletons: inherit `SingletonMixin`, register in `singleton_registry.py`
+3. New singletons: inherit `SingletonMixin`, register in `singleton_fixtures.py`
 4. Update this table
 
 ## Subprocess Mocking Strategy
 
 ### Unit Tests: `subprocess_mock` fixture (monkeypatch)
 
-Use `SubprocessMock` from `subprocess_mocking.py` via the `subprocess_mock` fixture.
+Use `subprocess_mock` from `process_fixtures.py`.
 
 - **Strict-by-default**: Any unpatched `subprocess.run()` or `subprocess.Popen()` call raises `AssertionError`
 - Catches accidental real subprocess calls
