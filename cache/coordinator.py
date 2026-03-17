@@ -6,8 +6,6 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
-from cache.latest_file_cache import LatestFileCache
-from cache.scene_cache_disk import SceneDiskCache
 from cache.shot_cache import DEFAULT_TTL_MINUTES, ShotDataCache
 from cache.thumbnail_cache import THUMBNAIL_SIZE, ThumbnailCache
 from logging_mixin import LoggingMixin
@@ -15,6 +13,9 @@ from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from cache.latest_file_cache import LatestFileCache
+    from cache.scene_cache_disk import SceneDiskCache
 
 
 @final

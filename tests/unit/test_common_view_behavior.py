@@ -118,7 +118,7 @@ def make_model(
                 for s in shots
             ]
             scene_model.scenes = scenes
-            from threede import ThreeDEItemModel as ThreeDEItemModel
+            from threede import ThreeDEItemModel
 
             item_model = ThreeDEItemModel(cache_manager=None)
             # Properly initialize the item model with scenes

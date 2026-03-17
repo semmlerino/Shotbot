@@ -197,6 +197,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
     # ============= Cleanup =============
 
+    @override
     def cleanup(self) -> None:
         """Clean up resources before deletion."""
         # Stop thumbnail loader timers
