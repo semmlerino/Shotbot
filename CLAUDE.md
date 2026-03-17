@@ -15,9 +15,11 @@ Application modules live at the repository root (no `src/` package), organized i
 - `cache/` — cache abstraction layer (shot, thumbnail, scene, latest-file)
 - `controllers/` — business logic orchestrators for UI coordination
 - `deploy/` — bundle, encode, and decode for deployment pipeline
-- `discovery/` — file/thumbnail/plate discovery and latest-file finding
-- `launch/` — DCC launcher implementations
+- `dcc/` — DCC file table and integration components
+- `discovery/` — file/thumbnail/plate discovery, latest-file finding, scene parsing, filesystem scanning
+- `launch/` — DCC launcher implementations, command launching, RV integration
 - `commands/` — command builders for DCC execution
+- `workers/` — threading infrastructure (ThreadSafeWorker, ProcessPoolManager, QRunnableTracker, diagnostics)
 - `paths/` — path construction, validation, and filesystem coordination
 - `ui/` — base grid views, item models, delegates, design system, dialogs
 - `tests/` — test suite (`unit/`, `integration/`, `advanced/`, `regression/`)
