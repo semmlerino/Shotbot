@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from user_sequence_finder import UserSequenceFinder
+from discovery.user_sequence_finder import UserSequenceFinder
 
 
 class TestFindMayaPlayblasts:
@@ -98,7 +98,7 @@ class TestFindMayaPlayblasts:
         version_dir.mkdir(parents=True)
         (version_dir / "Test.1001.png").touch()
 
-        with patch("user_sequence_finder.get_current_username", return_value="testuser"):
+        with patch("discovery.user_sequence_finder.get_current_username", return_value="testuser"):
             result = UserSequenceFinder.find_maya_playblasts(str(workspace))
 
         assert len(result) == 1

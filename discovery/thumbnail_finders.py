@@ -15,7 +15,7 @@ from pathlib import Path
 from config import (
     Config,  # noqa: F401  # pyright: ignore[reportUnusedImport] — monkeypatched by tests
 )
-from file_discovery import FileDiscovery
+from discovery.file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
 from paths.builders import PathBuilders
 from paths.validators import PathValidators

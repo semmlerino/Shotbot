@@ -111,7 +111,7 @@ class ShotDiscoveryWorker(QRunnable):
 
         try:
             # Import here to avoid circular imports
-            from plate_discovery import PlateDiscovery
+            from discovery.plate_discovery import PlateDiscovery
             from shots.shot_file_finder import ShotFileFinder
 
             # Discover plates

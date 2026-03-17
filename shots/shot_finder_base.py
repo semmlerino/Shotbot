@@ -13,7 +13,7 @@ from typing import TypedDict
 
 # Local application imports
 from config import Config
-from finder_utils import FinderUtils
+from discovery.finder_utils import FinderUtils
 from progress_mixin import ProgressReportingMixin
 from shots.shot_parser import OptimizedShotParser
 from type_definitions import Shot
@@ -171,7 +171,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         """
         # Local application imports
-        from thumbnail_finders import ThumbnailFinders
+        from discovery.thumbnail_finders import ThumbnailFinders
         from utils import FileUtils
 
         try:

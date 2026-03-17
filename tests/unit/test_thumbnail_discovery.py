@@ -14,12 +14,13 @@ from pathlib import Path
 # Third-party imports
 import pytest
 
+from discovery.thumbnail_finders import ThumbnailFinders
+
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.fixtures.test_doubles import (
     TestSubprocess,
 )
-from thumbnail_finders import ThumbnailFinders
 
 
 pytestmark = [

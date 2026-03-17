@@ -33,9 +33,9 @@ try:
     from shot_model import Shot
 
     from config import Config
+    from discovery.thumbnail_finders import ThumbnailFinders
     from paths.builders import PathBuilders
     from paths.validators import PathValidators
-    from thumbnail_finders import ThumbnailFinders
     from utils import FileUtils, get_cache_stats
 
     shotbot_available = True

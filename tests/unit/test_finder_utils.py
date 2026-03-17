@@ -11,7 +11,7 @@ import pytest
 
 # Local application imports
 from config import Config
-from finder_utils import FinderUtils
+from discovery.finder_utils import FinderUtils
 
 
 class TestSanitizeUsername:
@@ -365,8 +365,8 @@ class TestGetWorkspaceFromPath:
         """Test extracting workspace from full path."""
         # Patch both references used by FinderUtils without reloading modules.
         # Deleting/reimporting modules leaks global state into later tests.
-        import finder_utils
         from config import Config
+        from discovery import finder_utils
 
         test_shows_root = "/tmp/mock_vfx/shows"
         monkeypatch.setattr(Config, "SHOWS_ROOT", test_shows_root)

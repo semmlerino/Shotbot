@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from maya_latest_finder import MayaLatestFinder
+from discovery.maya_latest_finder import MayaLatestFinder
 from threede import ThreeDELatestFinder
 from version_mixin import VersionHandlingMixin
 

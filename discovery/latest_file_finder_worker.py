@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Signal
 from typing_extensions import override
 
-from maya_latest_finder import MayaLatestFinder
+from discovery.maya_latest_finder import MayaLatestFinder
 from thread_safe_worker import ThreadSafeWorker
 from threede import ThreeDELatestFinder
 

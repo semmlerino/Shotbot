@@ -31,7 +31,7 @@ def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
         (1001, 1150)
 
     """
-    from publish_plate_finder import find_main_plate
+    from discovery.publish_plate_finder import find_main_plate
 
     # Get plate path pattern (returns path with @@@@ for frame numbers)
     plate_pattern = find_main_plate(workspace_path)

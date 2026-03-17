@@ -20,7 +20,7 @@ import pytest
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
-from latest_file_finder_worker import LatestFileFinderWorker
+from discovery.latest_file_finder_worker import LatestFileFinderWorker
 from tests.test_helpers import process_qt_events
 
 
@@ -312,7 +312,7 @@ class TestLatestFileFinderWorkerCancellation:
             worker.request_stop()
             return result
 
-        with patch("latest_file_finder_worker.ThreeDELatestFinder") as mock_cls:
+        with patch("discovery.latest_file_finder_worker.ThreeDELatestFinder") as mock_cls:
             mock_instance = MagicMock()
             mock_instance.find_latest_threede_scene.side_effect = stop_after_threede
             mock_cls.return_value = mock_instance
@@ -350,7 +350,7 @@ class TestLatestFileFinderWorkerErrorHandling:
 
         # Mock the finder creation to raise an error
         with patch(
-            "latest_file_finder_worker.MayaLatestFinder"
+            "discovery.latest_file_finder_worker.MayaLatestFinder"
         ) as mock_finder_class:
             mock_finder = MagicMock()
             mock_finder.find_latest_maya_scene.side_effect = RuntimeError(
@@ -382,7 +382,7 @@ class TestLatestFileFinderWorkerErrorHandling:
         worker.search_complete.connect(lambda s: complete_results.append(s))
 
         with patch(
-            "latest_file_finder_worker.ThreeDELatestFinder"
+            "discovery.latest_file_finder_worker.ThreeDELatestFinder"
         ) as mock_finder_class:
             mock_finder = MagicMock()
             mock_finder.find_latest_threede_scene.side_effect = RuntimeError(

@@ -26,13 +26,14 @@ from pathlib import Path
 
 import pytest
 
+from discovery.thumbnail_finders import ThumbnailFinders
+
 # Local application imports
 from paths.validators import (  # type: ignore[reportPrivateUsage]
     PathValidators,
     _path_cache,
     _path_cache_lock,
 )
-from thumbnail_finders import ThumbnailFinders
 from type_definitions import Shot
 from version_utils import VersionUtils
 

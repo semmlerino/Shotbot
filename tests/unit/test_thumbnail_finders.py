@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from thumbnail_finders import (
+from discovery.thumbnail_finders import (
     ThumbnailFinders,
     _extract_frame_number,
     _find_first_jpeg_in_version_tree,
@@ -84,7 +84,7 @@ class TestFindFirstJpegInVersionTree:
         jpeg_file = jpeg_dir / "frame.0001.jpeg"
         jpeg_file.write_bytes(b"JPEG_DATA")
 
-        with patch("thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"):
+        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"):
             result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result == jpeg_file
@@ -94,7 +94,7 @@ class TestFindFirstJpegInVersionTree:
         base_path = tmp_path / "undistorted_plate"
         base_path.mkdir()
 
-        with patch("thumbnail_finders.VersionUtils.get_latest_version", return_value=None):
+        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value=None):
             result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result is None
@@ -105,7 +105,7 @@ class TestFindFirstJpegInVersionTree:
         # Create version dir but not the jpeg subdir
         (base_path / "v001").mkdir(parents=True)
 
-        with patch("thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"):
+        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"):
             result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result is None
@@ -118,7 +118,7 @@ class TestFindFirstJpegInVersionTree:
         jpg_file = jpg_dir / "cutref.0001.jpg"
         jpg_file.write_bytes(b"JPG_DATA")
 
-        with patch("thumbnail_finders.VersionUtils.get_latest_version", return_value="v002"):
+        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v002"):
             result = _find_first_jpeg_in_version_tree(base_path, image_subdir="jpg")
 
         assert result == jpg_file
@@ -131,10 +131,10 @@ class TestFindFirstJpegInVersionTree:
         (jpeg_dir / "frame.0001.exr").write_bytes(b"EXR_DATA")
 
         with (
-            patch("thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"),
+            patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"),
             # get_first_image_file needs to return a non-jpeg
             patch(
-                "thumbnail_finders.FileUtils.get_first_image_file",
+                "discovery.thumbnail_finders.FileUtils.get_first_image_file",
                 return_value=jpeg_dir / "frame.0001.exr",
             ),
         ):
@@ -149,7 +149,7 @@ class TestFindFirstJpegInVersionTree:
         jpeg_base.mkdir(parents=True)
 
         with (
-            patch("thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"),
+            patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"),
             patch.object(Path, "iterdir", side_effect=OSError("permission denied")),
         ):
             result = _find_first_jpeg_in_version_tree(base_path)
@@ -444,7 +444,7 @@ class TestFindAnyPublishThumbnail:
         publish = self._make_publish_dir(tmp_path)
         (publish / "shot.1001.exr").write_bytes(b"EXR")
 
-        with patch("thumbnail_finders.os.walk", side_effect=OSError("permission denied")):
+        with patch("discovery.thumbnail_finders.os.walk", side_effect=OSError("permission denied")):
             result = ThumbnailFinders.find_any_publish_thumbnail(
                 str(tmp_path / "shows"), "show", "seq01", "shot01"
             )
@@ -469,7 +469,7 @@ class TestFindShotThumbnail:
 
         with (
             patch(
-                "thumbnail_finders.PathValidators.validate_path_exists",
+                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
                 return_value=True,
             ),
             patch.object(
@@ -488,7 +488,7 @@ class TestFindShotThumbnail:
 
         with (
             patch(
-                "thumbnail_finders.PathValidators.validate_path_exists",
+                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
                 return_value=False,
             ),
             patch.object(
@@ -512,7 +512,7 @@ class TestFindShotThumbnail:
 
         with (
             patch(
-                "thumbnail_finders.PathValidators.validate_path_exists",
+                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
                 return_value=False,
             ),
             patch.object(
@@ -534,7 +534,7 @@ class TestFindShotThumbnail:
         """Returns None when all three finders fail."""
         with (
             patch(
-                "thumbnail_finders.PathValidators.validate_path_exists",
+                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
                 return_value=False,
             ),
             patch.object(
@@ -559,7 +559,7 @@ class TestFindShotThumbnail:
 
         with (
             patch(
-                "thumbnail_finders.PathValidators.validate_path_exists",
+                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
                 return_value=True,
             ),
             patch.object(
@@ -595,7 +595,7 @@ class TestFindEditorialCutrefThumbnail:
         jpg_file = jpg_dir / "cutref.0001.jpg"
         jpg_file.write_bytes(b"JPG_DATA")
 
-        with patch("thumbnail_finders.VersionUtils.get_latest_version", return_value="v003"):
+        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v003"):
             result = ThumbnailFinders._find_editorial_cutref_thumbnail(editorial_base)
 
         assert result == jpg_file
@@ -605,7 +605,7 @@ class TestFindEditorialCutrefThumbnail:
         editorial_base = tmp_path / "cutref"
         editorial_base.mkdir()
 
-        with patch("thumbnail_finders.VersionUtils.get_latest_version", return_value=None):
+        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value=None):
             result = ThumbnailFinders._find_editorial_cutref_thumbnail(editorial_base)
 
         assert result is None
@@ -641,15 +641,15 @@ class TestFindUndistortedJpegThumbnail:
 
         with (
             patch(
-                "thumbnail_finders.FileDiscovery.discover_plate_directories",
+                "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
                 return_value=[("FG01", 0)],
             ),
             patch(
-                "thumbnail_finders.find_path_case_insensitive",
+                "discovery.thumbnail_finders.find_path_case_insensitive",
                 side_effect=lambda base, name: base / name,
             ),
             patch(
-                "thumbnail_finders.VersionUtils.get_latest_version",
+                "discovery.thumbnail_finders.VersionUtils.get_latest_version",
                 return_value="v001",
             ),
         ):
@@ -669,7 +669,7 @@ class TestFindUndistortedJpegThumbnail:
         mm_default.mkdir(parents=True)
 
         with patch(
-            "thumbnail_finders.FileDiscovery.discover_plate_directories",
+            "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
             return_value=[],
         ):
             result = ThumbnailFinders.find_undistorted_jpeg_thumbnail(
@@ -710,19 +710,19 @@ class TestFindUserWorkspaceJpegThumbnail:
 
         with (
             patch(
-                "thumbnail_finders.FileDiscovery.discover_plate_directories",
+                "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
                 return_value=[("FG01", 0)],
             ),
             patch(
-                "thumbnail_finders.find_path_case_insensitive",
+                "discovery.thumbnail_finders.find_path_case_insensitive",
                 side_effect=lambda base, name: base / name,
             ),
             patch(
-                "thumbnail_finders.VersionUtils.get_latest_version",
+                "discovery.thumbnail_finders.VersionUtils.get_latest_version",
                 return_value="v001",
             ),
             patch(
-                "thumbnail_finders.FileUtils.get_first_image_file",
+                "discovery.thumbnail_finders.FileUtils.get_first_image_file",
                 return_value=jpeg_file,
             ),
         ):

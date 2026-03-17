@@ -7,8 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from discovery.maya_latest_finder import MayaLatestFinder
 from logging_mixin import LoggingMixin
-from maya_latest_finder import MayaLatestFinder
 from scene_file import FileType, SceneFile
 from threede import ThreeDELatestFinder
 

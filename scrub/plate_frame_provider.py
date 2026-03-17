@@ -235,7 +235,7 @@ class PlateFrameProvider(QObject):
 
         """
         # Lazy import to avoid circular import with utils -> file_discovery
-        from file_discovery import FileDiscovery
+        from discovery.file_discovery import FileDiscovery
 
         # Check cache first
         if workspace_path in self._plate_sources:

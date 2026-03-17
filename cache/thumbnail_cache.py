@@ -235,7 +235,7 @@ class ThumbnailCache(LoggingMixin):
             Path to the created thumbnail on success, or None on any failure
 
         """
-        from file_discovery import FileDiscovery
+        from discovery.file_discovery import FileDiscovery
         from image_utils import ImageUtils
 
         mov_path = FileDiscovery.find_mov_file_for_path(source)

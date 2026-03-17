@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt, Signal
 
-from latest_file_finder_worker import LatestFileFinderWorker
+from discovery.latest_file_finder_worker import LatestFileFinderWorker
 from logging_mixin import LoggingMixin
 
 

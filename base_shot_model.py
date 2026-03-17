@@ -227,7 +227,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                         frame_start, frame_end = cached_frame_ranges[workspace_path]
                     else:
                         # Extract frame range from turnover plate (only for new shots)
-                        from frame_range_extractor import extract_frame_range
+                        from discovery.frame_range_extractor import extract_frame_range
 
                         frame_range = extract_frame_range(workspace_path)
                         frame_start = frame_range[0] if frame_range else None

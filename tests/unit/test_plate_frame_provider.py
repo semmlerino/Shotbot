@@ -505,8 +505,8 @@ class TestDiscoverPlateSource:
 
         assert result == cached_source
 
-    @patch("file_discovery.FileDiscovery.find_plate_mov_proxy")
-    @patch("file_discovery.FileDiscovery.find_plate_exr_sequence")
+    @patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
+    @patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
     @patch("scrub.plate_frame_provider.utils_module.ImageUtils.get_mov_duration")
     def test_discover_finds_mov_proxy(
         self,
@@ -531,8 +531,8 @@ class TestDiscoverPlateSource:
         assert result.frame_start == 1001
         assert result.frame_end == 1100
 
-    @patch("file_discovery.FileDiscovery.find_plate_mov_proxy")
-    @patch("file_discovery.FileDiscovery.find_plate_exr_sequence")
+    @patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
+    @patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
     def test_discover_falls_back_to_exr(
         self,
         mock_exr_seq: MagicMock,
@@ -552,8 +552,8 @@ class TestDiscoverPlateSource:
         assert result.source_type == "exr"
         assert result.source_path == exr_path
 
-    @patch("file_discovery.FileDiscovery.find_plate_mov_proxy")
-    @patch("file_discovery.FileDiscovery.find_plate_exr_sequence")
+    @patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
+    @patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
     def test_discover_caches_none_if_not_found(
         self,
         mock_exr_seq: MagicMock,

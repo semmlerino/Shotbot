@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Local application imports
 from config import Config
-from file_discovery import FileDiscovery
+from discovery.file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
 from paths.builders import PathBuilders
 from paths.validators import PathValidators

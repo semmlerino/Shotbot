@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import ClassVar
 
 # Local application imports
-from latest_finder_base import BaseLatestFinder
+from discovery.latest_finder_base import BaseLatestFinder
 
 
 class MayaLatestFinder(BaseLatestFinder):
