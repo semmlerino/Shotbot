@@ -525,7 +525,7 @@ class TestMainWindowErrorScenarios:
 
         When refresh fails, the error propagates through:
         1. ShotModel emits error_occurred → MainWindow updates status bar
-        2. ShotModel emits refresh_finished(False) → RefreshOrchestrator
+        2. ShotModel emits refresh_finished(False) → RefreshCoordinator
            updates status bar and records a NotificationManager error
         """
         window = main_window_with_real_components
@@ -775,7 +775,7 @@ class TestUserWorkflows:
 
         all_shots = [shot_1, shot_2]
         main_window.shot_model.shots = all_shots
-        main_window.refresh_orchestrator.handle_shots_changed(all_shots)
+        main_window.refresh_coordinator.handle_shots_changed(all_shots)
 
         qtbot.waitUntil(
             lambda: main_window.shot_item_model.rowCount() > 0,

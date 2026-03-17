@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from notes_manager import NotesManager
     from previous_shots.item_model import PreviousShotsItemModel
-    from shot_pin_manager import PinManager
+    from shot_pin_manager import ShotPinManager
     from type_definitions import Shot
 
 
@@ -78,7 +78,7 @@ class PreviousShotsView(BaseGridView):
         self,
         model: PreviousShotsItemModel | None = None,
         proxy: QSortFilterProxyModel | None = None,
-        pin_manager: PinManager | None = None,
+        pin_manager: ShotPinManager | None = None,
         notes_manager: NotesManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
@@ -106,7 +106,7 @@ class PreviousShotsView(BaseGridView):
 
         # PreviousShotsView-specific attributes
         self._selected_shot: Shot | None = None
-        self._pin_manager: PinManager | None = pin_manager
+        self._pin_manager: ShotPinManager | None = pin_manager
         # Note: Don't redefine _model - it's inherited from BaseGridView
         # We store the typed reference separately for type safety
         self._unified_model: PreviousShotsItemModel | None = model
@@ -666,7 +666,7 @@ class PreviousShotsView(BaseGridView):
         """
         return self._unified_model
 
-    def set_pin_manager(self, pin_manager: PinManager) -> None:
+    def set_pin_manager(self, pin_manager: ShotPinManager) -> None:
         """Set the pin manager.
 
         Args:

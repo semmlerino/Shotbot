@@ -1,4 +1,4 @@
-"""Refresh orchestrator for coordinating refresh operations across tabs."""
+"""Refresh coordinator for coordinating refresh operations across tabs."""
 
 # pyright: reportExplicitAny=false, reportAny=false
 
@@ -23,8 +23,8 @@ if TYPE_CHECKING:
     from type_definitions import Shot
 
 
-class RefreshOrchestratorMainWindowProtocol(Protocol):
-    """Protocol defining the MainWindow interface needed by RefreshOrchestrator.
+class RefreshCoordinatorMainWindowProtocol(Protocol):
+    """Protocol defining the MainWindow interface needed by RefreshCoordinator.
 
     This avoids circular imports while providing proper type safety.
     TYPE_CHECKING imports provide proper types without creating circular
@@ -44,7 +44,7 @@ class RefreshOrchestratorMainWindowProtocol(Protocol):
         ...
 
 
-class RefreshOrchestrator(QObject, LoggingMixin):
+class RefreshCoordinator(QObject, LoggingMixin):
     """Orchestrates refresh operations across different tabs in MainWindow.
 
     This class extracts the refresh coordination logic from MainWindow,
@@ -63,7 +63,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
     threede_refresh_requested: Signal = Signal()
 
-    def __init__(self, main_window: RefreshOrchestratorMainWindowProtocol) -> None:
+    def __init__(self, main_window: RefreshCoordinatorMainWindowProtocol) -> None:
         """Initialize refresh orchestrator.
 
         Args:
@@ -72,7 +72,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         """
         super().__init__()
         LoggingMixin.__init__(self)
-        self.main_window: RefreshOrchestratorMainWindowProtocol = main_window
+        self.main_window: RefreshCoordinatorMainWindowProtocol = main_window
         # Two-layer refresh guard:
         # 1. Timer-based debounce: prevents rapid-fire display refreshes when
         #    cached shots arrive followed immediately by fresh shots (< 500ms).
@@ -85,7 +85,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         self._refresh_debounce_timer.setSingleShot(True)
         self._refresh_debounce_timer.setInterval(500)  # ms, was 0.5s
         self._shots_refresh_in_progress: bool = False
-        self.logger.debug("RefreshOrchestrator initialized")
+        self.logger.debug("RefreshCoordinator initialized")
 
     def refresh_current_tab(self) -> None:
         """Refresh based on the currently active tab."""

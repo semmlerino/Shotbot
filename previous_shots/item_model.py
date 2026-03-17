@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
     from notes_manager import NotesManager
     from previous_shots.model import PreviousShotsModel
-    from shot_pin_manager import PinManager
+    from shot_pin_manager import ShotPinManager
     from type_definitions import Shot
 
 
@@ -44,7 +44,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         self,
         underlying_model: PreviousShotsModel,
         cache_manager: ThumbnailCache | None = None,
-        pin_manager: PinManager | None = None,
+        pin_manager: ShotPinManager | None = None,
         notes_manager: NotesManager | None = None,
         parent: QObject | None = None,
     ) -> None:
@@ -61,7 +61,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         super().__init__(cache_manager, parent)
 
         self._underlying_model: PreviousShotsModel = underlying_model
-        self._pin_manager: PinManager | None = pin_manager
+        self._pin_manager: ShotPinManager | None = pin_manager
         self._notes_manager: NotesManager | None = notes_manager
 
         # Connect generic items_updated to shot-specific signal
@@ -183,7 +183,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
                 return (item, row)
         return None
 
-    def set_pin_manager(self, pin_manager: PinManager) -> None:
+    def set_pin_manager(self, pin_manager: ShotPinManager) -> None:
         """Set the pin manager.
 
         Args:

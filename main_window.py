@@ -71,7 +71,7 @@ from PySide6.QtWidgets import (
 from file_pin_manager import FilePinManager
 from hide_manager import HideManager
 from notes_manager import NotesManager
-from shot_pin_manager import PinManager
+from shot_pin_manager import ShotPinManager
 from typing_compat import override
 
 
@@ -119,14 +119,14 @@ from process_pool_manager import ProcessPoolManager
 from progress_manager import ProgressManager
 from proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
 from qt_widget_mixin import QtWidgetMixin
-from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
+from refresh_coordinator import RefreshCoordinator  # Extracted refresh logic
 from right_panel import RightPanelWidget  # New redesigned right panel
 from scene_file import SceneFile
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
 from shot_model import ShotModel
-from startup_coordinator import SessionWarmer
+from startup_coordinator import StartupCoordinator
 from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
 
 
@@ -276,8 +276,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # === Initialization Order (do not reorder) ===
         # 1. Thread/app safety checks (lines below)
         # 2. super().__init__() — QMainWindow + LoggingMixin
-        # 3. Infrastructure: ProcessPool, CacheCoordinator, PinManager, NotesManager,
-        #    FilePinManager, RefreshOrchestrator, SettingsManager
+        # 3. Infrastructure: ProcessPool, CacheCoordinator, ShotPinManager, NotesManager,
+        #    FilePinManager, RefreshCoordinator, SettingsManager
         # 4. Models: ThreeDEItemModel, ShotModel (+ async init), ThreeDESceneModel,
         #    PreviousShotsModel, CommandLauncher
         # 5. _setup_ui() — MUST precede controller init (controllers reference widgets)
@@ -327,7 +327,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._init_infrastructure(cache_dir)
         self._init_models()
         self._closing = False  # Track shutdown state
-        self._session_warmer: SessionWarmer | None = None
+        self._session_warmer: StartupCoordinator | None = None
         self._last_selected_shot_name: str | None = None
         self._setup_ui()
         self._init_controllers()
@@ -382,12 +382,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             on_cleared=lambda: self._process_pool.invalidate_cache(),
         )
 
-        self.pin_manager = PinManager(_cache_dir)
+        self.pin_manager = ShotPinManager(_cache_dir)
         self.hide_manager = HideManager(_cache_dir)
         self.notes_manager = NotesManager(_cache_dir, parent=self)
         self.file_pin_manager = FilePinManager(_cache_dir, parent=self)
 
-        self.refresh_orchestrator = RefreshOrchestrator(self)
+        self.refresh_coordinator = RefreshCoordinator(self)
 
         self.settings_manager = SettingsManager()
         saved_scale = self.settings_manager.get_ui_scale()
@@ -672,24 +672,24 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _connect_signals(self) -> None:
         """Connect signals."""
-        # Connect shot model signals directly to RefreshOrchestrator (no proxy)
+        # Connect shot model signals directly to RefreshCoordinator (no proxy)
         _ = self.shot_model.shots_loaded.connect(
-            self.refresh_orchestrator.handle_shots_loaded
+            self.refresh_coordinator.handle_shots_loaded
         )
         _ = self.shot_model.shots_loaded.connect(
-            self.refresh_orchestrator.trigger_previous_shots_refresh
+            self.refresh_coordinator.trigger_previous_shots_refresh
         )
         _ = self.shot_model.shots_changed.connect(
-            self.refresh_orchestrator.handle_shots_changed
+            self.refresh_coordinator.handle_shots_changed
         )
         _ = self.shot_model.shots_changed.connect(
-            self.refresh_orchestrator.trigger_previous_shots_refresh
+            self.refresh_coordinator.trigger_previous_shots_refresh
         )
         _ = self.shot_model.refresh_started.connect(
-            self.refresh_orchestrator.handle_refresh_started
+            self.refresh_coordinator.handle_refresh_started
         )
         _ = self.shot_model.refresh_finished.connect(
-            self.refresh_orchestrator.handle_refresh_finished
+            self.refresh_coordinator.handle_refresh_finished
         )
         _ = self.shot_model.error_occurred.connect(self._on_shot_error)
         # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
@@ -742,7 +742,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.shot_selection_controller.settings_save_requested.connect(
             self.settings_controller.save_settings
         )
-        _ = self.refresh_orchestrator.threede_refresh_requested.connect(
+        _ = self.refresh_coordinator.threede_refresh_requested.connect(
             self.threede_controller.refresh_threede_scenes
         )
 
@@ -803,9 +803,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Pre-warm bash sessions in background to avoid first-command delay
         # Only warm real process pools (test doubles don't spawn subprocesses)
         if isinstance(self._process_pool, ProcessPoolManager):
-            self._session_warmer = SessionWarmer(self._process_pool)
+            self._session_warmer = StartupCoordinator(self._process_pool)
             self._session_warmer.start()
-            logger.debug("SessionWarmer started")
+            logger.debug("StartupCoordinator started")
 
         has_cached_shots = bool(self.shot_model.shots)
         has_cached_scenes = bool(self.threede_scene_model.scenes)
@@ -888,15 +888,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
-        self.logger.debug("Refreshing shots via RefreshOrchestrator")
-        self.refresh_orchestrator.refresh_tab(0)
+        self.logger.debug("Refreshing shots via RefreshCoordinator")
+        self.refresh_coordinator.refresh_tab(0)
 
     # Note: Background refresh methods removed - now handled by reactive signals
 
     def _refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
-        # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator.refresh_shot_display()
+        # Delegate to RefreshCoordinator
+        self.refresh_coordinator.refresh_shot_display()
 
     def get_splitter_state(self) -> QByteArray:
         """Get the main splitter state for settings persistence."""
@@ -952,7 +952,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Handle background load finished signal from model.
 
         Intentionally empty: completion status is handled by the shots_loaded /
-        shots_changed signals via RefreshOrchestrator.
+        shots_changed signals via RefreshCoordinator.
         """
         pass  # noqa: PIE790
 
@@ -1169,12 +1169,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._closing = value
 
     @property
-    def session_warmer(self) -> SessionWarmer | None:
+    def session_warmer(self) -> StartupCoordinator | None:
         """Public property to access the session warmer thread."""
         return self._session_warmer
 
     @session_warmer.setter
-    def session_warmer(self, value: SessionWarmer | None) -> None:
+    def session_warmer(self, value: StartupCoordinator | None) -> None:
         """Set the session warmer thread."""
         self._session_warmer = value
 

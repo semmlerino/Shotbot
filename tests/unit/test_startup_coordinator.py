@@ -1,4 +1,4 @@
-"""Tests for SessionWarmer."""
+"""Tests for StartupCoordinator."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from startup_coordinator import SessionWarmer
+from startup_coordinator import StartupCoordinator
 
 
 pytestmark = [
@@ -15,19 +15,19 @@ pytestmark = [
 
 
 # ============================================================================
-# SessionWarmer Tests
+# StartupCoordinator Tests
 # ============================================================================
 
 
-class TestSessionWarmer:
-    """Tests for the SessionWarmer background thread."""
+class TestStartupCoordinator:
+    """Tests for the StartupCoordinator background thread."""
 
     def test_do_work_executes_warming_command(self) -> None:
-        """SessionWarmer calls execute_workspace_command to warm the session."""
+        """StartupCoordinator calls execute_workspace_command to warm the session."""
         mock_pool = Mock()
         mock_pool.execute_workspace_command = Mock(return_value="warming")
 
-        warmer = SessionWarmer(mock_pool)
+        warmer = StartupCoordinator(mock_pool)
         warmer.do_work()
 
         mock_pool.execute_workspace_command.assert_called_once()
@@ -35,22 +35,22 @@ class TestSessionWarmer:
         assert call_args[0][0] == "echo warming"
 
     def test_do_work_stops_early_if_should_stop(self) -> None:
-        """SessionWarmer skips the command when should_stop() returns True."""
+        """StartupCoordinator skips the command when should_stop() returns True."""
         mock_pool = Mock()
 
-        warmer = SessionWarmer(mock_pool)
+        warmer = StartupCoordinator(mock_pool)
         warmer.request_stop()  # Signal stop before work starts
         warmer.do_work()
 
         mock_pool.execute_workspace_command.assert_not_called()
 
     def test_do_work_swallows_exception_without_raising(self) -> None:
-        """SessionWarmer does not propagate exceptions from the warming command."""
+        """StartupCoordinator does not propagate exceptions from the warming command."""
         mock_pool = Mock()
         mock_pool.execute_workspace_command = Mock(
             side_effect=RuntimeError("subprocess failed")
         )
 
-        warmer = SessionWarmer(mock_pool)
+        warmer = StartupCoordinator(mock_pool)
         # Should not raise
         warmer.do_work()

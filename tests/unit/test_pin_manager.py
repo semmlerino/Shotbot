@@ -1,4 +1,4 @@
-"""Comprehensive tests for PinManager.
+"""Comprehensive tests for ShotPinManager.
 
 This test suite validates pin_manager.py following
 UNIFIED_TESTING_GUIDE.md principles:
@@ -18,7 +18,7 @@ import pytest
 
 # Local application imports
 from config import Config
-from shot_pin_manager import PINNED_SHOTS_CACHE_KEY, PinManager
+from shot_pin_manager import PINNED_SHOTS_CACHE_KEY, ShotPinManager
 from type_definitions import Shot
 
 
@@ -39,9 +39,9 @@ def cache_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def pin_manager(cache_dir: Path) -> PinManager:
-    """Create PinManager with test cache directory."""
-    return PinManager(cache_dir)
+def pin_manager(cache_dir: Path) -> ShotPinManager:
+    """Create ShotPinManager with test cache directory."""
+    return ShotPinManager(cache_dir)
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ class TestPinShot:
     """Tests for pin_shot() method."""
 
     def test_pin_shot_adds_to_front(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
+        self, pin_manager: ShotPinManager, sample_shots: list[Shot]
     ) -> None:
         """Pinning a shot should add it to the front of the list."""
         shot1, shot2, shot3 = sample_shots
@@ -76,7 +76,7 @@ class TestPinShot:
         assert pin_manager.get_pin_order(shot1) == 2
 
     def test_pin_shot_moves_existing_to_front(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
+        self, pin_manager: ShotPinManager, sample_shots: list[Shot]
     ) -> None:
         """Re-pinning an already pinned shot should move it to the front."""
         shot1, shot2, shot3 = sample_shots
@@ -98,7 +98,7 @@ class TestUnpinShot:
     """Tests for unpin_shot() method."""
 
     def test_unpin_shot_updates_order(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
+        self, pin_manager: ShotPinManager, sample_shots: list[Shot]
     ) -> None:
         """Unpinning should update order of remaining pins."""
         shot1, shot2, shot3 = sample_shots
@@ -119,14 +119,14 @@ class TestGetPinOrder:
     """Tests for get_pin_order() method."""
 
     def test_get_pin_order_returns_negative_for_unpinned(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
+        self, pin_manager: ShotPinManager, sample_shots: list[Shot]
     ) -> None:
         """Unpinned shots should return -1."""
         shot = sample_shots[0]
         assert pin_manager.get_pin_order(shot) == -1
 
     def test_get_pin_order_returns_correct_index(
-        self, pin_manager: PinManager, sample_shots: list[Shot]
+        self, pin_manager: ShotPinManager, sample_shots: list[Shot]
     ) -> None:
         """Pin order should reflect position in list."""
         shot1, shot2, shot3 = sample_shots
@@ -154,13 +154,13 @@ class TestPersistence:
         shot1, shot2, shot3 = sample_shots
 
         # Pin shots in specific order
-        pm1 = PinManager(cache_dir)
+        pm1 = ShotPinManager(cache_dir)
         pm1.pin_shot(shot1)
         pm1.pin_shot(shot2)
         pm1.pin_shot(shot3)
 
         # Create new instance
-        pm2 = PinManager(cache_dir)
+        pm2 = ShotPinManager(cache_dir)
 
         # Order should be preserved (most recent first)
         assert pm2.get_pin_order(shot3) == 0
@@ -173,7 +173,7 @@ class TestPersistence:
         """Cache file should be valid JSON with expected format."""
         shot = sample_shots[0]
 
-        pm = PinManager(cache_dir)
+        pm = ShotPinManager(cache_dir)
         pm.pin_shot(shot)
 
         # Read the cache file
@@ -203,7 +203,7 @@ class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
     def test_different_shot_objects_same_key(
-        self, pin_manager: PinManager
+        self, pin_manager: ShotPinManager
     ) -> None:
         """Different Shot objects with same key should be treated as same."""
         shot1 = Shot("show", "seq", "shot", "/path1")

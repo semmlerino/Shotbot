@@ -1,6 +1,6 @@
 """Pin manager for tracking and persisting pinned shots.
 
-This module provides PinManager which handles:
+This module provides ShotPinManager which handles:
 - Tracking which shots are pinned
 - Persistence to cache (survives application restarts)
 - Pin ordering (most recently pinned first)
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 PINNED_SHOTS_CACHE_KEY = "pinned_shots"
 
 
-class PinManager(LoggingMixin):
+class ShotPinManager(LoggingMixin):
     """Manages pinned shot tracking and persistence.
 
     Tracks shots by composite key (show, sequence, shot) to handle

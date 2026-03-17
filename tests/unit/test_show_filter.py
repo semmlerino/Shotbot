@@ -391,12 +391,12 @@ class TestMainWindowFilterHandlers:
         )
         qtbot.addWidget(window.previous_shots_grid)
 
-        # Add RefreshOrchestrator for refactored MainWindow
-        from refresh_orchestrator import (
-            RefreshOrchestrator,
+        # Add RefreshCoordinator for refactored MainWindow
+        from refresh_coordinator import (
+            RefreshCoordinator,
         )
 
-        window.refresh_orchestrator = RefreshOrchestrator(window)
+        window.refresh_coordinator = RefreshCoordinator(window)
 
         # Add mock status bar for filter feedback
         from unittest.mock import Mock

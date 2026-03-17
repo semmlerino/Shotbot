@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class SessionWarmer(ThreadSafeWorker):
+class StartupCoordinator(ThreadSafeWorker):
     """Background thread for pre-warming bash sessions without blocking UI.
 
     This thread runs during idle time after the UI is displayed, initializing

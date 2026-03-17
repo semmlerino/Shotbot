@@ -1,4 +1,4 @@
-"""Tests for RefreshOrchestrator class."""
+"""Tests for RefreshCoordinator class."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtCore import QObject
 
-from refresh_orchestrator import RefreshOrchestrator
+from refresh_coordinator import RefreshCoordinator
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
@@ -71,7 +71,7 @@ def mock_main_window() -> Mock:
 @pytest.fixture
 def mock_progress_manager() -> Generator[Mock, None, None]:
     """Mock ProgressManager at system boundary."""
-    with patch("refresh_orchestrator.ProgressManager") as mock:
+    with patch("refresh_coordinator.ProgressManager") as mock:
         progress_op = Mock()
         progress_op.set_indeterminate = Mock()
 
@@ -88,7 +88,7 @@ def mock_progress_manager() -> Generator[Mock, None, None]:
 @pytest.fixture
 def mock_notification_manager() -> Generator[Mock, None, None]:
     """Mock NotificationManager at system boundary."""
-    with patch("refresh_orchestrator.NotificationManager") as mock:
+    with patch("refresh_coordinator.NotificationManager") as mock:
         mock.info = Mock()
         mock.success = Mock()
         mock.error = Mock()
@@ -96,9 +96,9 @@ def mock_notification_manager() -> Generator[Mock, None, None]:
 
 
 @pytest.fixture
-def orchestrator(qapp: QApplication, mock_main_window: Mock) -> RefreshOrchestrator:
-    """Create RefreshOrchestrator instance."""
-    return RefreshOrchestrator(mock_main_window)
+def orchestrator(qapp: QApplication, mock_main_window: Mock) -> RefreshCoordinator:
+    """Create RefreshCoordinator instance."""
+    return RefreshCoordinator(mock_main_window)
 
 
 # ============================================================================
@@ -107,8 +107,8 @@ def orchestrator(qapp: QApplication, mock_main_window: Mock) -> RefreshOrchestra
 
 
 def test_initialization(qapp: QApplication, mock_main_window: Mock) -> None:
-    """Test RefreshOrchestrator initialization."""
-    orchestrator = RefreshOrchestrator(mock_main_window)
+    """Test RefreshCoordinator initialization."""
+    orchestrator = RefreshCoordinator(mock_main_window)
 
     assert orchestrator.main_window is mock_main_window
     assert isinstance(orchestrator, QObject)
@@ -120,7 +120,7 @@ def test_initialization(qapp: QApplication, mock_main_window: Mock) -> None:
 
 
 def test_refresh_current_tab_gets_current_index(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+    orchestrator: RefreshCoordinator, mock_main_window: Mock
 ) -> None:
     """Test refresh_current_tab routes to refresh_tab with the current tab index."""
     mock_main_window.tab_widget.currentIndex.return_value = 1
@@ -132,7 +132,7 @@ def test_refresh_current_tab_gets_current_index(
 
 
 def test_refresh_tab_ignores_invalid_index(
-    orchestrator: RefreshOrchestrator,
+    orchestrator: RefreshCoordinator,
 ) -> None:
     """Test refresh_tab ignores invalid tab indices gracefully."""
     # Invalid indices should emit signal but not call any refresh method
@@ -161,7 +161,7 @@ def test_refresh_tab_ignores_invalid_index(
 
 
 def test_handle_refresh_finished_with_success_and_changes(
-    orchestrator: RefreshOrchestrator,
+    orchestrator: RefreshCoordinator,
     mock_main_window: Mock,
     mock_notification_manager: Mock,
 ) -> None:
@@ -175,7 +175,7 @@ def test_handle_refresh_finished_with_success_and_changes(
 
 
 def test_handle_refresh_finished_with_success_no_changes(
-    orchestrator: RefreshOrchestrator,
+    orchestrator: RefreshCoordinator,
     mock_main_window: Mock,
     mock_notification_manager: Mock,
 ) -> None:
@@ -189,7 +189,7 @@ def test_handle_refresh_finished_with_success_no_changes(
 
 
 def test_handle_refresh_finished_restores_last_selected_shot(
-    orchestrator: RefreshOrchestrator,
+    orchestrator: RefreshCoordinator,
     mock_main_window: Mock,
     mock_notification_manager: Mock,
 ) -> None:
@@ -208,7 +208,7 @@ def test_handle_refresh_finished_restores_last_selected_shot(
 
 
 def test_handle_refresh_finished_shows_error_on_failure(
-    orchestrator: RefreshOrchestrator,
+    orchestrator: RefreshCoordinator,
     mock_main_window: Mock,
     mock_notification_manager: Mock,
 ) -> None:
@@ -229,7 +229,7 @@ def test_handle_refresh_finished_shows_error_on_failure(
 
 
 def test_trigger_previous_shots_refresh_when_shots_exist(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+    orchestrator: RefreshCoordinator, mock_main_window: Mock
 ) -> None:
     """Test trigger_previous_shots_refresh triggers refresh when shots exist."""
     shots = [Mock(), Mock()]
@@ -240,7 +240,7 @@ def test_trigger_previous_shots_refresh_when_shots_exist(
 
 
 def test_trigger_previous_shots_refresh_skips_when_no_shots(
-    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+    orchestrator: RefreshCoordinator, mock_main_window: Mock
 ) -> None:
     """Test trigger_previous_shots_refresh skips when no shots."""
     orchestrator.trigger_previous_shots_refresh([])
@@ -254,7 +254,7 @@ def test_trigger_previous_shots_refresh_skips_when_no_shots(
 
 
 def test_refresh_shot_display_debounces_rapid_calls(
-    qapp: QApplication, orchestrator: RefreshOrchestrator, mock_main_window: Mock
+    qapp: QApplication, orchestrator: RefreshCoordinator, mock_main_window: Mock
 ) -> None:
     """Test that rapid refresh_shot_display calls are debounced.
 

@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from notes_manager import NotesManager
-    from shot_pin_manager import PinManager
+    from shot_pin_manager import ShotPinManager
     from threede.item_model import ThreeDEItemModel
     from type_definitions import ThreeDEScene
 
@@ -83,7 +83,7 @@ class ThreeDEGridView(BaseGridView):
         self,
         model: ThreeDEItemModel | None = None,
         proxy: QSortFilterProxyModel | None = None,
-        pin_manager: PinManager | None = None,
+        pin_manager: ShotPinManager | None = None,
         notes_manager: NotesManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
@@ -107,7 +107,7 @@ class ThreeDEGridView(BaseGridView):
         self.sort_name_btn: QPushButton
         self.sort_date_btn: QPushButton
         self._sort_button_group: QButtonGroup
-        self._pin_manager: PinManager | None = pin_manager
+        self._pin_manager: ShotPinManager | None = pin_manager
         self._notes_manager: NotesManager | None = notes_manager
 
         # Initialize base class (this calls _add_top_widgets and _add_toolbar_widgets)

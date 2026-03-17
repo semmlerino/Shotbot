@@ -88,7 +88,7 @@ if TYPE_CHECKING:
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from notes_manager import NotesManager
-    from shot_pin_manager import PinManager
+    from shot_pin_manager import ShotPinManager
     from type_definitions import Shot
 
 
@@ -114,7 +114,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
     # Manager attribute declarations — subclasses initialize these.
     # Declared here so shared handler methods (_pin_shot, etc.) type-check correctly.
-    _pin_manager: PinManager | None
+    _pin_manager: ShotPinManager | None
     _notes_manager: NotesManager | None
 
 

@@ -37,7 +37,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
     Circular Import Rationale:
         This base module is separate from shot_model.py to allow other modules
-        (like refresh_orchestrator.py) to reference the base type via TYPE_CHECKING
+        (like refresh_coordinator.py) to reference the base type via TYPE_CHECKING
         without importing the full ShotModel implementation, breaking circular deps.
     """
 

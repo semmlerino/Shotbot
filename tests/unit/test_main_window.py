@@ -218,7 +218,7 @@ class TestShotRefresh:
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        with patch.object(main_window.refresh_orchestrator, "refresh_tab") as mock_refresh_tab:
+        with patch.object(main_window.refresh_coordinator, "refresh_tab") as mock_refresh_tab:
             main_window._refresh_shots()
 
         mock_refresh_tab.assert_called_once_with(0)
@@ -238,7 +238,7 @@ class TestShotRefresh:
         main_window.hide_manager.hide_shot(shot_hidden)
 
         # Simulate a data-refresh event (e.g. shots_loaded / F5)
-        main_window.refresh_orchestrator.refresh_shot_display()
+        main_window.refresh_coordinator.refresh_shot_display()
 
         # Item model holds all shots; proxy applies hide filter
         all_shots = main_window.shot_item_model.shots

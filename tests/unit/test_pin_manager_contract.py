@@ -1,6 +1,6 @@
 """Parameterized contract tests for pin managers.
 
-Tests shared behavioral contracts of FilePinManager and PinManager via
+Tests shared behavioral contracts of FilePinManager and ShotPinManager via
 adapter fixtures. Each contract test runs twice — once for each manager type.
 """
 
@@ -15,7 +15,7 @@ import pytest
 
 from config import Config
 from file_pin_manager import PINNED_FILES_CACHE_KEY, FilePinManager
-from shot_pin_manager import PINNED_SHOTS_CACHE_KEY, PinManager
+from shot_pin_manager import PINNED_SHOTS_CACHE_KEY, ShotPinManager
 from type_definitions import Shot
 
 
@@ -69,9 +69,9 @@ def _make_file_adapter(cache_dir: Path) -> tuple[PinManagerAdapter, FilePinManag
     return adapter, mgr
 
 
-def _make_shot_adapter(cache_dir: Path) -> tuple[PinManagerAdapter, PinManager]:
+def _make_shot_adapter(cache_dir: Path) -> tuple[PinManagerAdapter, ShotPinManager]:
     cache_dir.mkdir(parents=True, exist_ok=True)
-    mgr = PinManager(cache_dir)
+    mgr = ShotPinManager(cache_dir)
     items: list[Any] = [
         Shot("test_show", "seq01", "shot010", f"{Config.SHOWS_ROOT}/test_show/seq01/shot010"),
         Shot("test_show", "seq01", "shot020", f"{Config.SHOWS_ROOT}/test_show/seq01/shot020"),
@@ -96,7 +96,7 @@ def _make_shot_adapter(cache_dir: Path) -> tuple[PinManagerAdapter, PinManager]:
 
 @pytest.fixture(params=["file", "shot"])
 def pin_adapter(request: pytest.FixtureRequest, tmp_path: Path) -> Generator[PinManagerAdapter, None, None]:
-    """Yield a PinManagerAdapter for either FilePinManager or PinManager."""
+    """Yield a PinManagerAdapter for either FilePinManager or ShotPinManager."""
     cache_dir = tmp_path / "cache"
 
     if request.param == "file":
@@ -124,7 +124,7 @@ def pin_factory(
         def factory(cache_dir: Path) -> tuple[PinManagerAdapter, FilePinManager]:
             return _make_file_adapter(cache_dir)
         return param, factory
-    def factory(cache_dir: Path) -> tuple[PinManagerAdapter, PinManager]:  # type: ignore[misc]
+    def factory(cache_dir: Path) -> tuple[PinManagerAdapter, ShotPinManager]:  # type: ignore[misc]
         return _make_shot_adapter(cache_dir)
     return param, factory
 
@@ -304,7 +304,7 @@ class TestPinPersistenceContract:
         cache_key = PINNED_FILES_CACHE_KEY if param == "file" else PINNED_SHOTS_CACHE_KEY
         cache_file = cache_dir / f"{cache_key}.json"
 
-        # FilePinManager expects a dict; PinManager expects a list — give each the wrong type
+        # FilePinManager expects a dict; ShotPinManager expects a list — give each the wrong type
         wrong_content = json.dumps([{"wrong": "format"}] if param == "file" else {"wrong": "format"})
         cache_file.write_text(wrong_content)
 
@@ -337,7 +337,7 @@ class TestPinPersistenceContract:
             adapter, mgr = factory(cache_dir)
             assert adapter.get_count() == 2
         else:
-            # PinManager: list format, one entry is missing required fields
+            # ShotPinManager: list format, one entry is missing required fields
             data = [
                 {"show": "show1", "sequence": "seq01", "shot": "shot010"},
                 {"show": "show2"},  # Missing sequence and shot

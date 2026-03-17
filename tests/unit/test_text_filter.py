@@ -331,12 +331,12 @@ class TestMainWindowTextFilterHandlers:
             window.previous_shots_model, TestCacheManager(cache_dir=tmp_path / "cache4")
         )
 
-        # Add RefreshOrchestrator for refactored MainWindow
-        from refresh_orchestrator import (
-            RefreshOrchestrator,
+        # Add RefreshCoordinator for refactored MainWindow
+        from refresh_coordinator import (
+            RefreshCoordinator,
         )
 
-        window.refresh_orchestrator = RefreshOrchestrator(window)
+        window.refresh_coordinator = RefreshCoordinator(window)
 
         # Add mock status bar for filter feedback
         from unittest.mock import Mock

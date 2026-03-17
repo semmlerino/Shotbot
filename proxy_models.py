@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from PySide6.QtCore import QObject
 
     from hide_manager import HideManager
-    from shot_pin_manager import PinManager
+    from shot_pin_manager import ShotPinManager
     from type_definitions import Shot, ThreeDEScene
 
 
@@ -34,7 +34,7 @@ class ShotProxyModel(QSortFilterProxyModel):
         self._show_filter: str | None = None
         self._text_filter: str | None = None
         self._hide_manager: HideManager | None = None
-        self._pin_manager: PinManager | None = None
+        self._pin_manager: ShotPinManager | None = None
         self._show_hidden: bool = False
         self.setDynamicSortFilter(False)
 
@@ -63,7 +63,7 @@ class ShotProxyModel(QSortFilterProxyModel):
         """Set the hide manager."""
         self._hide_manager = manager
 
-    def set_pin_manager(self, manager: PinManager | None) -> None:
+    def set_pin_manager(self, manager: ShotPinManager | None) -> None:
         """Set the pin manager for pin-aware sorting."""
         self._pin_manager = manager
 
@@ -133,7 +133,7 @@ class PreviousShotsProxyModel(QSortFilterProxyModel):
         super().__init__(parent)
         self._show_filter: str | None = None
         self._text_filter: str | None = None
-        self._pin_manager: PinManager | None = None
+        self._pin_manager: ShotPinManager | None = None
         self._sort_order: str = "date"
         self.setDynamicSortFilter(False)
 
@@ -150,7 +150,7 @@ class PreviousShotsProxyModel(QSortFilterProxyModel):
             self._text_filter = normalized
             self.invalidate()
 
-    def set_pin_manager(self, manager: PinManager | None) -> None:
+    def set_pin_manager(self, manager: ShotPinManager | None) -> None:
         """Set pin manager."""
         self._pin_manager = manager
 
@@ -219,7 +219,7 @@ class ThreeDEProxyModel(QSortFilterProxyModel):
         self._show_filter: str | None = None
         self._artist_filter: str | None = None
         self._text_filter: str | None = None
-        self._pin_manager: PinManager | None = None
+        self._pin_manager: ShotPinManager | None = None
         self._sort_order: str = "date"
         self.setDynamicSortFilter(False)
 
@@ -242,7 +242,7 @@ class ThreeDEProxyModel(QSortFilterProxyModel):
             self._text_filter = normalized
             self.invalidate()
 
-    def set_pin_manager(self, manager: PinManager | None) -> None:
+    def set_pin_manager(self, manager: ShotPinManager | None) -> None:
         """Set pin manager."""
         self._pin_manager = manager
 
