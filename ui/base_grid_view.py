@@ -57,7 +57,7 @@ class HasAvailableShows(Protocol):
     Used for test compatibility and flexible API design.
     """
 
-    def get_available_shows(self) -> list[str]:
+    def get_available_shows(self) -> set[str]:
         """Return list of available show names.
 
         Returns:

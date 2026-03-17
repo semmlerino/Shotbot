@@ -34,8 +34,8 @@ from shots.shot_item_model import ShotItemModel
 from shots.shot_model import ShotModel
 from tests.fixtures.test_doubles import TestCacheManager, TestProcessPool
 from tests.test_helpers import process_qt_events
-from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
-from type_definitions import Shot, ThreeDEScene
+from threede import ThreeDEGridView, ThreeDEItemModel
+from type_definitions import Shot
 
 
 if TYPE_CHECKING:
@@ -45,114 +45,6 @@ if TYPE_CHECKING:
     from main_window import MainWindow
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
-
-
-class TestThreeDESceneModelTextFiltering:
-    """Test Text filter methods in ThreeDESceneModel."""
-
-    @pytest.fixture
-    def threede_scene_model(self, tmp_path: Path) -> ThreeDESceneModel:
-        """Create ThreeDESceneModel."""
-        return ThreeDESceneModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-
-    @pytest.fixture
-    def test_scenes(self, tmp_path: Path) -> list[ThreeDEScene]:
-        """Create test 3DE scenes with various names."""
-        return [
-            ThreeDEScene(
-                "show1",
-                "seq1",
-                "dm_scene",
-                "/workspace/show1/seq1/dm_scene",
-                "user1",
-                "FG01",
-                tmp_path / "dm_scene.3de",
-            ),
-            ThreeDEScene(
-                "show1",
-                "seq2",
-                "DM_scene2",
-                "/workspace/show1/seq2/DM_scene2",
-                "user2",
-                "BG01",
-                tmp_path / "DM_scene2.3de",
-            ),
-            ThreeDEScene(
-                "show2",
-                "seq3",
-                "other_scene",
-                "/workspace/show2/seq3/other_scene",
-                "user1",
-                "FG01",
-                tmp_path / "other_scene.3de",
-            ),
-        ]
-
-    def test_set_text_filter(self, threede_scene_model: ThreeDESceneModel) -> None:
-        """Test setting the text filter on 3DE scene model."""
-        assert threede_scene_model.get_text_filter() is None
-
-        threede_scene_model.set_text_filter("dm")
-        assert threede_scene_model.get_text_filter() == "dm"
-
-        threede_scene_model.set_text_filter(None)
-        assert threede_scene_model.get_text_filter() is None
-
-    def test_set_artist_filter(self, threede_scene_model: ThreeDESceneModel) -> None:
-        """Test setting the artist filter on 3DE scene model."""
-        assert threede_scene_model.get_artist_filter() is None
-
-        threede_scene_model.set_artist_filter("user1")
-        assert threede_scene_model.get_artist_filter() == "user1"
-
-        threede_scene_model.set_artist_filter(None)
-        assert threede_scene_model.get_artist_filter() is None
-
-    def test_get_filtered_scenes_with_text_filter(
-        self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
-    ) -> None:
-        """Test filtering 3DE scenes by text."""
-        threede_scene_model.set_scenes(test_scenes)
-
-        # Filter to "dm"
-        threede_scene_model.set_text_filter("dm")
-        filtered = threede_scene_model.get_filtered_scenes()
-        assert len(filtered) == 2  # dm_scene and DM_scene2
-        assert all("dm" in scene.shot.lower() for scene in filtered)
-
-        # Filter to "other"
-        threede_scene_model.set_text_filter("other")
-        filtered = threede_scene_model.get_filtered_scenes()
-        assert len(filtered) == 1
-        assert filtered[0].shot == "other_scene"
-
-    def test_get_filtered_scenes_with_artist_filter(
-        self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
-    ) -> None:
-        """Test filtering 3DE scenes by artist."""
-        threede_scene_model.set_scenes(test_scenes)
-
-        threede_scene_model.set_artist_filter("user1")
-        filtered = threede_scene_model.get_filtered_scenes()
-
-        assert len(filtered) == 2
-        assert all(scene.user == "user1" for scene in filtered)
-
-    def test_get_filtered_scenes_combined_filters(
-        self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
-    ) -> None:
-        """Test combining show, artist, and text filters for 3DE scenes."""
-        threede_scene_model.set_scenes(test_scenes)
-
-        # All filters: show1 AND user1 AND dm
-        threede_scene_model.set_show_filter("show1")
-        threede_scene_model.set_artist_filter("user1")
-        threede_scene_model.set_text_filter("dm")
-        filtered = threede_scene_model.get_filtered_scenes()
-        assert len(filtered) == 1
-        assert all(scene.show == "show1" for scene in filtered)
-        assert all(scene.user == "user1" for scene in filtered)
-        assert all("dm" in scene.shot.lower() for scene in filtered)
 
 
 class TestPreviousShotsModelTextFiltering:

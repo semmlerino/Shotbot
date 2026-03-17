@@ -128,8 +128,8 @@ class ShowProviderDouble:
     def __init__(self, shows: list[str]) -> None:
         self._shows = shows
 
-    def get_available_shows(self) -> list[str]:
-        return self._shows
+    def get_available_shows(self) -> set[str]:
+        return set(self._shows)
 
 
 # ============================================================================
@@ -750,11 +750,11 @@ class TestHasAvailableShowsProtocol:
         provider = ShowProviderDouble(["Show1", "Show2"])
 
         # Verify structural typing works
-        def accepts_protocol(obj: HasAvailableShows) -> list[str]:
+        def accepts_protocol(obj: HasAvailableShows) -> set[str]:
             return obj.get_available_shows()
 
         result = accepts_protocol(provider)
-        assert result == ["Show1", "Show2"]
+        assert result == {"Show1", "Show2"}
 
     def test_protocol_method_signature(self) -> None:
         """Test protocol defines correct method signature."""
@@ -765,4 +765,4 @@ class TestHasAvailableShowsProtocol:
 
         # Check return type annotation
         hints = get_type_hints(HasAvailableShows.get_available_shows)
-        assert hints.get("return") == list[str]
+        assert hints.get("return") == set[str]
