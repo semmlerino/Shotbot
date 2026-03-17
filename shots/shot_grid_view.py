@@ -29,7 +29,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from runnable_tracker import FolderOpenerWorker
 from shots.shot_grid_delegate import ShotGridDelegate
 from shots.shot_item_model import ShotItemModel
 from type_definitions import Shot
@@ -38,6 +37,7 @@ from typing_compat import override
 # Local application imports
 from ui.base_grid_view import BaseGridView, HasAvailableShows
 from ui.base_item_model import BaseItemRole
+from workers.runnable_tracker import FolderOpenerWorker
 
 
 # Backward compatibility alias

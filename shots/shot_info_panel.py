@@ -510,7 +510,7 @@ class InfoPanelPixmapLoader(QRunnable):
         self.path: str | Path = path
         self.signals: InfoPanelPixmapLoader.Signals = self.Signals()
         self._target_dpr: float = max(1.0, panel.devicePixelRatioF())
-        from runnable_tracker import get_tracker
+        from workers.runnable_tracker import get_tracker
         get_tracker().register(self, {"type": self.__class__.__name__})
 
     @override
@@ -519,7 +519,7 @@ class InfoPanelPixmapLoader(QRunnable):
         # Use module-level logger since QRunnable can't inherit from LoggingMixin
         logger = logging.getLogger(__name__)
 
-        from runnable_tracker import get_tracker
+        from workers.runnable_tracker import get_tracker
         tracker = get_tracker()
 
         try:
@@ -633,7 +633,7 @@ class ThumbnailCacheRunnable(QRunnable):
         self.cache_manager = cache_manager
         # Auto-delete when done since we don't need callbacks
         self.setAutoDelete(True)
-        from runnable_tracker import get_tracker
+        from workers.runnable_tracker import get_tracker
         get_tracker().register(self, {"type": self.__class__.__name__})
 
     @override
@@ -641,7 +641,7 @@ class ThumbnailCacheRunnable(QRunnable):
         """Execute thumbnail caching in background thread."""
         logger = logging.getLogger(__name__)
 
-        from runnable_tracker import get_tracker
+        from workers.runnable_tracker import get_tracker
         tracker = get_tracker()
 
         try:

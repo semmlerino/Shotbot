@@ -6,8 +6,8 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from thread_safe_worker import ThreadSafeWorker
 from typing_compat import override
+from workers.thread_safe_worker import ThreadSafeWorker
 
 
 if TYPE_CHECKING:

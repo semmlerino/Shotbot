@@ -38,12 +38,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from runnable_tracker import FolderOpenerWorker
 from threede.grid_delegate import ThreeDEGridDelegate
 from typing_compat import override
 
 # Local application imports
 from ui.base_grid_view import BaseGridView
+from workers.runnable_tracker import FolderOpenerWorker
 
 
 if TYPE_CHECKING:

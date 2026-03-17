@@ -316,7 +316,7 @@ Environment Variables:
     window = MainWindow()
 
     # Start periodic zombie thread cleanup (prevents memory leaks)
-    from thread_safe_worker import ThreadSafeWorker
+    from workers.thread_safe_worker import ThreadSafeWorker
 
     ThreadSafeWorker.start_zombie_cleanup_timer()
 

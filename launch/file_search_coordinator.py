@@ -21,7 +21,7 @@ from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from cache.latest_file_cache import LatestFileCache
-    from command_launcher import PendingLaunch
+    from launch.command_launcher import PendingLaunch
     from type_definitions import Shot
 
 

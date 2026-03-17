@@ -33,7 +33,7 @@ from PySide6.QtCore import (
 if TYPE_CHECKING:
     # Local application imports
     from cache.scene_cache_disk import SceneDiskCache
-    from command_launcher import CommandLauncher
+    from launch.command_launcher import CommandLauncher
     from managers.progress_manager import (
         _Operation as _ProgressOperation,  # pyright: ignore[reportPrivateUsage]
     )

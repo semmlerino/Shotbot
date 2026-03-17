@@ -25,8 +25,8 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
 # Local application imports
 from exceptions import ThumbnailError
 from logging_mixin import LoggingMixin
-from runnable_tracker import TrackedQRunnable
 from typing_compat import override
+from workers.runnable_tracker import TrackedQRunnable
 
 
 if TYPE_CHECKING:

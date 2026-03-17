@@ -41,10 +41,10 @@ if TYPE_CHECKING:
 # Local application imports
 from cache.types import ShotMergeResult
 from exceptions import WorkspaceError
-from thread_safe_worker import ThreadSafeWorker
 from timeout_config import TimeoutConfig
 from type_definitions import RefreshResult, Shot
 from ui.base_shot_model import BaseShotModel
+from workers.thread_safe_worker import ThreadSafeWorker
 
 
 # Re-export Shot for backward compatibility with existing imports

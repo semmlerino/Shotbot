@@ -31,7 +31,6 @@ from PySide6.QtWidgets import (
 )
 
 from managers.progress_manager import ProgressManager
-from runnable_tracker import FolderOpenerWorker
 from shots.shot_grid_delegate import ShotGridDelegate
 from typing_compat import override
 
@@ -39,6 +38,7 @@ from typing_compat import override
 from ui.base_grid_view import BaseGridView
 from ui.base_item_model import BaseItemRole
 from ui.design_system import design_system
+from workers.runnable_tracker import FolderOpenerWorker
 
 
 # Backward compatibility alias

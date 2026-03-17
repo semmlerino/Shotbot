@@ -668,7 +668,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             item: Object with a workspace_path attribute
 
         """
-        from rv_launcher import open_plate_in_rv
+        from launch.rv_launcher import open_plate_in_rv
         open_plate_in_rv(item.workspace_path)  # type: ignore[union-attr]
 
     # Handlers for Shot-based pin/note operations (SGV and PSV only).

@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING, cast, final
 
 # Local application imports
 from config import Config, ThreadingConfig
-from process_pool_manager import CancellableSubprocess
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from type_definitions import Shot
 from typing_compat import override
+from workers.process_pool_manager import CancellableSubprocess
 
 
 if TYPE_CHECKING:

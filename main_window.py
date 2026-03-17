@@ -79,7 +79,7 @@ if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QByteArray
 
-    from command_launcher import CommandLauncher
+    from launch.command_launcher import CommandLauncher
     from protocols import ProcessPoolInterface
     from scene_file import SceneFile
     from type_definitions import Shot, ThreeDEScene
@@ -98,7 +98,6 @@ from cache import (
     ThumbnailCache,
     resolve_default_cache_dir,
 )
-from command_launcher import CommandLauncher  # Need at runtime
 from config import Config, is_mock_mode
 from controllers.filter_coordinator import FilterCoordinator
 from controllers.settings_controller import (
@@ -111,12 +110,12 @@ from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
 from controllers.thumbnail_size_manager import ThumbnailSizeManager
+from launch.command_launcher import CommandLauncher  # Need at runtime
 from logging_mixin import LoggingMixin, get_module_logger
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
 from managers.settings_manager import SettingsManager
 from previous_shots import PreviousShotsItemModel, PreviousShotsModel, PreviousShotsView
-from process_pool_manager import ProcessPoolManager
 from qt_widget_mixin import QtWidgetMixin
 from refresh_coordinator import RefreshCoordinator  # Extracted refresh logic
 from scene_file import SceneFile
@@ -129,6 +128,7 @@ from ui.design_system import design_system
 from ui.log_viewer import LogViewer
 from ui.proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
 from ui.right_panel import RightPanelWidget  # New redesigned right panel
+from workers.process_pool_manager import ProcessPoolManager
 
 
 # Set up logger for this module
@@ -351,7 +351,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Initialize process pool, caches, managers, and settings infrastructure."""
         self._process_pool: ProcessPoolInterface
         if is_mock_mode():
-            from mock_workspace_pool import create_mock_pool_from_filesystem
+            from tests.fixtures.mock_workspace_pool import (
+                create_mock_pool_from_filesystem,
+            )
 
             self._process_pool = create_mock_pool_from_filesystem()
             self.logger.info("Using MockWorkspacePool for process execution")
@@ -1037,7 +1039,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             return
 
         # Standard launch without specific file
-        from command_launcher import LaunchContext
+        from launch.command_launcher import LaunchContext
 
         context = LaunchContext(
             open_latest_threede=bool(options.get("open_latest_threede", False)),  # pyright: ignore[reportAny]
@@ -1312,7 +1314,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if app:
             app.processEvents()
 
-        from runnable_tracker import cleanup_all_runnables
+        from workers.runnable_tracker import cleanup_all_runnables
         self.logger.debug("Cleaning up tracked QRunnables")
         cleanup_all_runnables()
 

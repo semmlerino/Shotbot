@@ -23,7 +23,7 @@ from typing_compat import override
 
 
 if TYPE_CHECKING:
-    from command_launcher import CommandLauncher
+    from launch.command_launcher import CommandLauncher
     from previous_shots.view import PreviousShotsView
     from scene_file import FileType, SceneFile  # used in cast()
     from shots.shot_grid_view import ShotGridView

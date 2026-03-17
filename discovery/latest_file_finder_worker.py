@@ -9,8 +9,8 @@ from PySide6.QtCore import Signal
 from typing_extensions import override
 
 from discovery.maya_latest_finder import MayaLatestFinder
-from thread_safe_worker import ThreadSafeWorker
 from threede import ThreeDELatestFinder
+from workers.thread_safe_worker import ThreadSafeWorker
 
 
 if TYPE_CHECKING:

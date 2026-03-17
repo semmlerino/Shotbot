@@ -19,12 +19,12 @@ from PySide6.QtCore import (
 
 # Local application imports
 from config import Config
-from filesystem_scanner import FileSystemScanner
-from scene_discovery_coordinator import SceneDiscoveryCoordinator
-from thread_safe_worker import ThreadSafeWorker
+from discovery.filesystem_scanner import FileSystemScanner
+from discovery.scene_discovery_coordinator import SceneDiscoveryCoordinator
 from threede.progress_tracker import ProgressCalculator, QtProgressReporter
 from typing_compat import override
 from utils import get_excluded_users
+from workers.thread_safe_worker import ThreadSafeWorker
 
 
 if TYPE_CHECKING:

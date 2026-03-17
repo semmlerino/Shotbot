@@ -16,11 +16,11 @@ from typing import TYPE_CHECKING
 
 # Local application imports
 from config import Config, ThreadingConfig
-from process_pool_manager import CancellableSubprocess
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
 from type_definitions import Shot
 from typing_compat import override
+from workers.process_pool_manager import CancellableSubprocess
 
 
 if TYPE_CHECKING:

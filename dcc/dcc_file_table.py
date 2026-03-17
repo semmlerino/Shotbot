@@ -343,7 +343,7 @@ class DCCFileTable(QWidget):
 
         from PySide6.QtCore import QThreadPool
 
-        from runnable_tracker import FolderOpenerWorker
+        from workers.runnable_tracker import FolderOpenerWorker
 
         file_path = Path(file.path)
         if file_path.exists():
