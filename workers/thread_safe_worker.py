@@ -644,7 +644,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 ):  # Extended timeout
                     # CAPTURE DIAGNOSTICS BEFORE ABANDONMENT
                     # Import here to avoid circular imports
-                    from thread_diagnostics import ThreadDiagnostics
+                    from workers.thread_diagnostics import ThreadDiagnostics
 
                     start_time = ThreadSafeWorker._thread_start_times.get(id(self))
                     report = ThreadDiagnostics.capture_thread_state(self, start_time)
@@ -737,7 +737,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 elif age > cls._ZOMBIE_TERMINATE_AGE_SECONDS:
                     # CAPTURE DIAGNOSTICS BEFORE ANY TERMINATE
                     # Import here to avoid issues during shutdown
-                    from thread_diagnostics import ThreadDiagnostics
+                    from workers.thread_diagnostics import ThreadDiagnostics
 
                     start_time = cls._thread_start_times.get(zombie_id)
                     report = ThreadDiagnostics.capture_thread_state(zombie, start_time)

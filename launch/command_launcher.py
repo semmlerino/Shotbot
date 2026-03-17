@@ -23,18 +23,18 @@ from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 # Local application imports
 from commands import maya_commands, nuke_commands, rv_commands
 from config import Config, RezMode
-from launch import (
+from launch.app_handlers import (
     AppHandler,
-    CommandBuilder,
-    EnvironmentManager,
     GenericAppHandler,
     MayaAppHandler,
     NukeAppHandler,
-    ProcessExecutor,
     RVAppHandler,
     ThreeDEAppHandler,
 )
+from launch.command_builder import CommandBuilder
+from launch.environment_manager import EnvironmentManager
 from launch.file_search_coordinator import FileSearchCoordinator
+from launch.process_executor import ProcessExecutor
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from managers.settings_manager import SettingsManager

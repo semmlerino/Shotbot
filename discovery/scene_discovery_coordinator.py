@@ -28,8 +28,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     # Local application imports
-    from filesystem_scanner import FileSystemScanner
-    from scene_parser import SceneParser
+    from discovery.filesystem_scanner import FileSystemScanner
+    from discovery.scene_parser import SceneParser
     from type_definitions import Shot, ThreeDEScene
 
 
@@ -72,10 +72,10 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         # Lazy imports to break circular dependencies
         # Import only when needed at runtime, not at module load time
-        from filesystem_scanner import (
+        from discovery.filesystem_scanner import (
             FileSystemScanner,
         )
-        from scene_parser import (
+        from discovery.scene_parser import (
             SceneParser,
         )
 
@@ -659,8 +659,8 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         from pathlib import Path
 
         # Local application imports
-        from filesystem_scanner import FileSystemScanner
-        from scene_parser import SceneParser
+        from discovery.filesystem_scanner import FileSystemScanner
+        from discovery.scene_parser import SceneParser
 
         show_scenes: list[ThreeDEScene] = []
 
