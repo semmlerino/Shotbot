@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from bundle_app import ApplicationBundler, GitIgnoreParser
+from deploy.bundle_app import ApplicationBundler, GitIgnoreParser
 
 
 class TestGitIgnoreParser:

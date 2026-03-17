@@ -63,8 +63,8 @@ exclude = [
     "fix_*.py",
     "run_*.py",
     "verify_*.py",
-    "bundle_app.py",
-    "decode_app.py",
+    "deploy/bundle_app.py",
+    "deploy/decode_app.py",
     "recreate_vfx_structure.py",
     "capture_vfx_structure.py",
 ]

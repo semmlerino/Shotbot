@@ -21,8 +21,6 @@
     "*_test.py",
     "tests/",
     "Transfer.py",
-    "transfer_cli.py",
-    "bundle_app.py",
     "setup_transfer_hook.py",
     "*.log",
     "*.tmp",
@@ -52,7 +50,6 @@
     "recreate_vfx_structure.py",
     "recreate_mock_environment.bat",
     "join_and_recreate.py",
-    "decode_app.py",
     "run_mock_*.py",
     "verify_*.py",
     "shotbot_mock.py",
@@ -113,7 +110,8 @@
     ".post-commit-output",
     ".github",
     ".claude",
-    ".serena"
+    ".serena",
+    "deploy"
   ],
   "max_file_size_mb": 10,
   "chunk_size_kb": 5120,
