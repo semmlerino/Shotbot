@@ -43,11 +43,11 @@ class FileSearchCoordinator(LoggingMixin, QObject):
 
     """
 
-    launch_pending = Signal()
-    launch_ready = Signal()
+    launch_pending: Signal = Signal()
+    launch_ready: Signal = Signal()
     # Emitted only on success: (pending_launch, maya_result, threede_result)
     # Types are object because PySide6 Signal doesn't accept Path | None directly.
-    search_result_ready = Signal(object, object, object)
+    search_result_ready: Signal = Signal(object, object, object)
 
     def __init__(
         self,
@@ -63,7 +63,7 @@ class FileSearchCoordinator(LoggingMixin, QObject):
 
         """
         super().__init__(parent)
-        self._cache_manager = cache_manager
+        self._cache_manager: LatestFileCache = cache_manager
         self._pending_worker: LatestFileFinderWorker | None = None
         self._pending_launch: PendingLaunch | None = None
         # Workspace stored alongside pending_launch for result caching.

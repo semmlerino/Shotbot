@@ -53,8 +53,8 @@ class ShotItemModel(BaseItemModel["Shot"]):
         """
         super().__init__(cache_manager, parent)
 
-        self._pin_manager = pin_manager
-        self._notes_manager = notes_manager
+        self._pin_manager: ShotPinManager | None = pin_manager
+        self._notes_manager: NotesManager | None = notes_manager
         self._hide_manager: HideManager | None = hide_manager
 
         # Connect generic items_updated to shot-specific signal
@@ -148,6 +148,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
     # ============= Cleanup =============
 
+    @override
     def cleanup(self) -> None:
         """Clean up resources before deletion."""
         super().cleanup()

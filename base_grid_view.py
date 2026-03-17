@@ -644,7 +644,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         for label, icon_type, color, cb in actions_config:
             action = menu.addAction(label)
             action.setIcon(self._create_icon(icon_type, color))
-            _ = action.triggered.connect(lambda checked=False, f=cb: f())  # noqa: ARG005
+            _ = action.triggered.connect(lambda checked=False, f=cb: f())  # noqa: ARG005  # pyright: ignore[reportUnknownLambdaType,reportUnknownArgumentType]
 
     def _copy_path_to_clipboard(self, path: str) -> None:
         """Copy a path to the system clipboard.
