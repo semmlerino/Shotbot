@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from discovery.filesystem_scanner import FileSystemScanner
+from threede.filesystem_scanner import FileSystemScanner
 
 
 if TYPE_CHECKING:
@@ -236,7 +236,7 @@ class TestSubprocessTimeoutCancellation:
         def raise_exc(*args: object, **kwargs: object) -> None:
             raise exc
 
-        monkeypatch.setattr("discovery.filesystem_scanner.subprocess.Popen", raise_exc)
+        monkeypatch.setattr("threede.filesystem_scanner.subprocess.Popen", raise_exc)
 
         result = scanner_with_parser._run_find_and_parse(
             find_cmd=["find", "/test"],
@@ -401,7 +401,7 @@ class TestLazyImportThreadSafety:
                 # We'll access parser directly instead to avoid filesystem ops
                 with scanner._parser_lock:
                     if scanner.parser is None:
-                        from discovery.scene_parser import SceneParser
+                        from threede.scene_parser import SceneParser
                         scanner.parser = SceneParser()
                 parser_ids.append(id(scanner.parser))
             except Exception as e:  # noqa: BLE001

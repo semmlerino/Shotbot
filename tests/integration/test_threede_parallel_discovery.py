@@ -19,10 +19,11 @@ from pathlib import Path
 # Third-party imports
 import pytest
 
-# Local application imports
-from discovery.filesystem_scanner import FileSystemScanner
-from discovery.scene_discovery_coordinator import SceneDiscoveryCoordinator
 from tests.integration.conftest import create_test_vfx_structure
+
+# Local application imports
+from threede.filesystem_scanner import FileSystemScanner
+from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
 from type_definitions import Shot
 
 

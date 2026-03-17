@@ -24,12 +24,11 @@ if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Generator
 
-    from discovery.scene_parser import (
-        SceneParser,  # Import for string literal type hint
-    )
-
     # Local application imports - TYPE_CHECKING to break import cycles
     from paths.filesystem_coordinator import FilesystemCoordinator
+    from threede.scene_parser import (
+        SceneParser,  # Import for string literal type hint
+    )
 
 
 @final
@@ -678,7 +677,7 @@ class FileSystemScanner(LoggingMixin):
         if self.parser is None:
             with self._parser_lock:
                 if self.parser is None:
-                    from discovery.scene_parser import SceneParser
+                    from threede.scene_parser import SceneParser
 
                     self.parser = SceneParser()
 
@@ -746,7 +745,7 @@ class FileSystemScanner(LoggingMixin):
                 return None
 
             if returncode == 0 and stdout:
-                from discovery.scene_parser import SceneParser
+                from threede.scene_parser import SceneParser
 
                 for line in stdout.strip().split("\n"):
                     if not line:

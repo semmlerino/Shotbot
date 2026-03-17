@@ -157,7 +157,7 @@ def coordinator(
             "scene_parser": MagicMock(SceneParser=lambda: MagicMock()),
         },
     ):
-        from discovery.scene_discovery_coordinator import SceneDiscoveryCoordinator
+        from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
 
         coord = SceneDiscoveryCoordinator(strategy_type="local")
         # Inject test doubles

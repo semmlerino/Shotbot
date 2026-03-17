@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from discovery.filesystem_scanner import FileSystemScanner
-from discovery.scene_discovery_coordinator import SceneDiscoveryCoordinator
+from threede.filesystem_scanner import FileSystemScanner
+from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
 
 
 pytestmark = pytest.mark.performance
