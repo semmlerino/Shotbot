@@ -468,24 +468,7 @@ class ThreeDEGridView(BaseGridView):
 
         # Create context menu with enlarged styling (50% larger)
         menu = QMenu(self)
-        menu_style = """
-            QMenu {
-                font-size: 18px;
-                padding: 8px;
-            }
-            QMenu::item {
-                padding: 12px 24px 12px 12px;
-                min-width: 200px;
-            }
-            QMenu::item:selected {
-                background-color: #3daee9;
-            }
-            QMenu::separator {
-                height: 2px;
-                margin: 6px 12px;
-            }
-        """
-        menu.setStyleSheet(menu_style)
+        menu.setStyleSheet(self.CONTEXT_MENU_STYLE)
 
         # Pin/Unpin shot action (at the top for quick access)
         # Use workspace_path as the key for pinning
@@ -514,74 +497,48 @@ class ThreeDEGridView(BaseGridView):
         open_3de_action.setIcon(self._create_icon("target", "#00CED1"))
         _ = open_3de_action.triggered.connect(lambda: self._open_scene_in_3de(scene))
 
-        # Open Scene Folder (scene file's directory)
+        # Open Scene Folder (scene file's directory — scene-specific, not shared)
         open_scene_folder_action = menu.addAction("Open Scene Folder")
         open_scene_folder_action.setIcon(self._create_icon("folder", "#95A5A6"))
         _ = open_scene_folder_action.triggered.connect(
             lambda: self._open_scene_folder(scene)
         )
 
-        # Open Shot Folder (workspace directory)
-        open_shot_folder_action = menu.addAction("Open Shot Folder")
-        open_shot_folder_action.setIcon(self._create_icon("folder", "#FFB347"))
-        _ = open_shot_folder_action.triggered.connect(
-            lambda: self._open_shot_folder(scene)
-        )
-
-        # Open Main Plate in RV
-        open_plate_action = menu.addAction("Open Main Plate in RV")
-        open_plate_action.setIcon(self._create_icon("play", "#FF4757"))
-        _ = open_plate_action.triggered.connect(
-            lambda: self._open_main_plate_in_rv(scene)
-        )
-
         _ = menu.addSeparator()
 
-        # Launch Application submenu (with keyboard shortcuts visible)
-        launch_menu = menu.addMenu("Launch Application")
-        launch_menu.setStyleSheet(menu_style)
-        launch_menu.setIcon(self._create_icon("rocket", "#95D5B2"))
         launch_apps = [
             ("3DEqualizer", "3", "3de", "target", "#00CED1"),
             ("Nuke", "N", "nuke", "palette", "#FF8C00"),
             ("Maya", "M", "maya", "cube", "#9B59B6"),
             ("RV", "R", "rv", "play", "#2ECC71"),
         ]
-        for label, shortcut, app_id, icon_type, color in launch_apps:
-            action = launch_menu.addAction(f"{label}  ({shortcut})")
-            action.setIcon(self._create_icon(icon_type, color))
-            # Emit signal with app_id and scene for context
-            _ = action.triggered.connect(
-                lambda checked=False, a=app_id, s=scene: self.app_launch_requested.emit(a, s)  # noqa: ARG005
-            )
-
-        _ = menu.addSeparator()
-
-        # Copy Scene Path (scene file path)
-        copy_scene_action = menu.addAction("Copy Scene Path")
-        copy_scene_action.setIcon(self._create_icon("clipboard", "#95A5A6"))
-        _ = copy_scene_action.triggered.connect(lambda: self._copy_scene_path(scene))
-
-        # Copy Shot Path (workspace path)
-        copy_shot_action = menu.addAction("Copy Shot Path")
-        copy_shot_action.setIcon(self._create_icon("clipboard", "#95A5A6"))
-        _ = copy_shot_action.triggered.connect(
-            lambda: self._copy_path_to_clipboard(scene.workspace_path)
+        self._build_launch_submenu(
+            menu,
+            launch_apps,
+            lambda app_id, s=scene: self.app_launch_requested.emit(app_id, s),
         )
 
         _ = menu.addSeparator()
 
-        # Edit/Add Note action
+        # Copy Scene Path (scene file path — scene-specific, not shared)
+        copy_scene_action = menu.addAction("Copy Scene Path")
+        copy_scene_action.setIcon(self._create_icon("clipboard", "#95A5A6"))
+        _ = copy_scene_action.triggered.connect(lambda: self._copy_scene_path(scene))
+
         has_note = (
             self._notes_manager.has_note_by_path(scene.workspace_path)
             if self._notes_manager
             else False
         )
         note_label = "Edit Note" if has_note else "Add Note"
-        edit_note_action = menu.addAction(note_label)
-        edit_note_action.setIcon(self._create_icon("note", "#F1C40F"))
-        _ = edit_note_action.triggered.connect(
-            lambda checked=False, s=scene: self._edit_scene_note(s)  # noqa: ARG005
+        self._build_standard_actions(
+            menu,
+            [
+                ("Open Shot Folder", "folder", "#FFB347", lambda: self._open_shot_folder(scene)),
+                ("Open Main Plate in RV", "play", "#FF4757", lambda: self._open_main_plate_in_rv(scene)),
+                ("Copy Shot Path", "clipboard", "#95A5A6", lambda: self._copy_path_to_clipboard(scene.workspace_path)),
+                (note_label, "note", "#F1C40F", lambda s=scene: self._edit_scene_note(s)),
+            ],
         )
 
         _ = menu.exec(self.list_view.mapToGlobal(pos))

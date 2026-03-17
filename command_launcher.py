@@ -216,42 +216,6 @@ class CommandLauncher(LoggingMixin, QObject):
         """
         return datetime.now(tz=UTC).strftime("%H:%M:%S")
 
-    def _build_nuke_environment_prefix(self, app_name: str) -> str:
-        """Return the Nuke environment fix prefix string for use in launch commands.
-
-        Args:
-            app_name: The application name (only applies fixes if "nuke")
-
-        Returns:
-            Environment fix prefix string (empty if not Nuke or no fixes needed)
-
-        """
-        return nuke_commands.build_nuke_environment_prefix(self.nuke_env, app_name)
-
-    def _build_maya_context_command(
-        self,
-        base_command: str,
-        file_path: str,
-        context_script: str | None = None,
-    ) -> str:
-        """Build Maya launch command with SGTK context update.
-
-        Uses environment variable approach to avoid complex quote escaping.
-        The base64-encoded script is passed via SHOTBOT_MAYA_SCRIPT env var,
-        and a static bootstrap command reads and executes it.
-
-        Args:
-            base_command: Base maya command (e.g., "maya")
-            file_path: Path to Maya file to open
-            context_script: Python script to execute after file loads.
-                            If None, uses maya_commands.MAYA_BOOTSTRAP_SCRIPT.
-
-        Returns:
-            Full command string with env var export and maya invocation
-
-        """
-        return maya_commands.build_maya_context_command(base_command, file_path, context_script)
-
     def _apply_file_result(
         self,
         app_name: str,
@@ -309,7 +273,7 @@ class CommandLauncher(LoggingMixin, QObject):
             return f"{tde_scripts_export}{sgtk_export}{command} -open {safe_scene_path}"
 
         if app_name == "maya":
-            updated = self._build_maya_context_command(command, safe_scene_path)
+            updated = maya_commands.build_maya_context_command(command, safe_scene_path)
             return f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {updated}"
 
         # Unsupported app — caller should not reach this path
@@ -686,7 +650,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Build app command first; workspace setup stays outside the Rez wrapper.
         try:
             safe_workspace_path = CommandBuilder.validate_path(workspace_path)
-            env_fixes = self._build_nuke_environment_prefix(app_name)
+            env_fixes = nuke_commands.build_nuke_environment_prefix(self.nuke_env, app_name)
             app_command = f"{command_prefix}{env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
@@ -830,31 +794,6 @@ class CommandLauncher(LoggingMixin, QObject):
         return True
 
 
-    def _build_rv_command(
-        self,
-        command: str,
-        context: LaunchContext,
-    ) -> str | None:
-        """Build the RV playback command with default flags and optional sequence path.
-
-        Appends standard RV playback flags and, when a sequence path is provided,
-        validates and appends it to the command.
-
-        Args:
-            command: Base RV command string (e.g. "rv").
-            context: Launch context; only sequence_path is used here.
-
-        Returns:
-            Complete RV command string, or None if the sequence path is invalid.
-
-        """
-        result = rv_commands.build_rv_command(command, context.sequence_path)
-        if result is None:
-            self._emit_error(
-                f"Cannot launch RV: Invalid sequence path '{context.sequence_path}'"
-            )
-        return result
-
     def _build_app_command(
         self,
         app_name: str,
@@ -926,8 +865,11 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Handle RV with default settings and optional sequence path
         if app_name == "rv":
-            rv_command = self._build_rv_command(command, context)
+            rv_command = rv_commands.build_rv_command(command, context.sequence_path)
             if rv_command is None:
+                self._emit_error(
+                    f"Cannot launch RV: Invalid sequence path '{context.sequence_path}'"
+                )
                 return LAUNCH_ERROR
             command = rv_command
 

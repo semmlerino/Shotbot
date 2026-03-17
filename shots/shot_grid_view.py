@@ -399,24 +399,7 @@ class ShotGridView(BaseGridView):
 
         # Create context menu with enlarged styling (50% larger)
         menu = QMenu(self)
-        menu_style = """
-            QMenu {
-                font-size: 18px;
-                padding: 8px;
-            }
-            QMenu::item {
-                padding: 12px 24px 12px 12px;
-                min-width: 200px;
-            }
-            QMenu::item:selected {
-                background-color: #3daee9;
-            }
-            QMenu::separator {
-                height: 2px;
-                margin: 6px 12px;
-            }
-        """
-        menu.setStyleSheet(menu_style)
+        menu.setStyleSheet(self.CONTEXT_MENU_STYLE)
 
         # Pin/Unpin shot action (at the top for quick access)
         if self._pin_manager and self._pin_manager.is_pinned(shot):
@@ -448,24 +431,6 @@ class ShotGridView(BaseGridView):
 
         _ = menu.addSeparator()
 
-        # Primary action: Open Shot Folder
-        open_folder_action = menu.addAction("Open Shot Folder")
-        open_folder_action.setIcon(self._create_icon("folder", "#FFB347"))
-        _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
-
-        # Open Main Plate in RV
-        open_plate_action = menu.addAction("Open Main Plate in RV")
-        open_plate_action.setIcon(self._create_icon("play", "#FF4757"))
-        _ = open_plate_action.triggered.connect(
-            lambda: self._open_main_plate_in_rv(shot)
-        )
-
-        _ = menu.addSeparator()
-
-        # Launch Application submenu (with keyboard shortcuts visible)
-        launch_menu = menu.addMenu("Launch Application")
-        launch_menu.setStyleSheet(menu_style)
-        launch_menu.setIcon(self._create_icon("rocket", "#95D5B2"))
         launch_apps = [
             ("3DEqualizer", "3", "3de", "target", "#00CED1"),
             ("Nuke", "N", "nuke", "palette", "#FF8C00"),
@@ -473,34 +438,24 @@ class ShotGridView(BaseGridView):
             ("RV", "R", "rv", "play", "#2ECC71"),
             ("Publish", "P", "publish", "clipboard", "#5D8A5E"),
         ]
-        for label, shortcut, app_id, icon_type, color in launch_apps:
-            action = launch_menu.addAction(f"{label}  ({shortcut})")
-            action.setIcon(self._create_icon(icon_type, color))
-            # Use default parameter to capture app_id correctly in lambda
-            _ = action.triggered.connect(
-                lambda checked=False, a=app_id: self.app_launch_requested.emit(a)  # noqa: ARG005
-            )
-
-        _ = menu.addSeparator()
-
-        # Copy Shot Path action
-        copy_path_action = menu.addAction("Copy Shot Path")
-        copy_path_action.setIcon(self._create_icon("clipboard", "#95A5A6"))
-        _ = copy_path_action.triggered.connect(
-            lambda: self._copy_path_to_clipboard(shot.workspace_path)
+        self._build_launch_submenu(
+            menu, launch_apps, lambda app_id: self.app_launch_requested.emit(app_id)
         )
 
         _ = menu.addSeparator()
 
-        # Edit/Add Note action
         has_note = (
             self._notes_manager.has_note(shot) if self._notes_manager else False
         )
         note_label = "Edit Note" if has_note else "Add Note"
-        edit_note_action = menu.addAction(note_label)
-        edit_note_action.setIcon(self._create_icon("note", "#F1C40F"))
-        _ = edit_note_action.triggered.connect(
-            lambda checked=False, s=shot: self._edit_shot_note(s)  # noqa: ARG005
+        self._build_standard_actions(
+            menu,
+            [
+                ("Open Shot Folder", "folder", "#FFB347", lambda: self._open_shot_folder(shot)),
+                ("Open Main Plate in RV", "play", "#FF4757", lambda: self._open_main_plate_in_rv(shot)),
+                ("Copy Shot Path", "clipboard", "#95A5A6", lambda: self._copy_path_to_clipboard(shot.workspace_path)),
+                (note_label, "note", "#F1C40F", lambda s=shot: self._edit_shot_note(s)),
+            ],
         )
 
         # Show menu at cursor position

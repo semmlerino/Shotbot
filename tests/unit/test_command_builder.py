@@ -393,25 +393,14 @@ class TestMayaCommandMustSurviveBashParsing:
         CURRENTLY FAILS with old implementation (demonstrates the bug).
         Will PASS when we implement the env var approach.
         """
-        # Import the real command launcher to test actual implementation
-        from command_launcher import CommandLauncher
-
-        # We need to test the launch_with_file method's Maya handling
-        # For now, test the helper method if it exists, otherwise use old logic
-        launcher = CommandLauncher.__new__(CommandLauncher)
+        # Test the maya_commands.build_maya_context_command function directly
+        from commands import maya_commands
 
         context_script = "print('hello')"
         file_path = "/shows/test/scene.ma"
 
-        # Check if new helper method exists
-        if hasattr(launcher, "_build_maya_context_command"):
-            # NEW implementation
-            command = launcher._build_maya_context_command("maya", file_path, context_script)
-        else:
-            # OLD implementation (this is what we're testing against)
-            encoded = base64.b64encode(context_script.encode()).decode()
-            mel_cmd = f'python "import base64; exec(base64.b64decode(\\"{encoded}\\").decode())"'
-            command = f"maya -file {file_path} -c {shlex.quote(mel_cmd)}"
+        # Call the underlying function directly
+        command = maya_commands.build_maya_context_command("maya", file_path, context_script)
 
         # Wrap for bash -ilc (as ProcessExecutor does)
         wrapped = f"bash -ilc {shlex.quote(command)}"
