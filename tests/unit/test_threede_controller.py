@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from controllers.threede_controller import ThreeDEController
-from progress_manager import ProgressManager
+from managers.progress_manager import ProgressManager
 from tests.fixtures.test_doubles import SignalDouble
 from type_definitions import ThreeDEScene
 

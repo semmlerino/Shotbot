@@ -21,8 +21,8 @@ from qt_widget_mixin import QtWidgetMixin
 
 
 if TYPE_CHECKING:
+    from managers.settings_manager import SettingsManager
     from scene_file import SceneFile
-    from settings_manager import SettingsManager
     from type_definitions import Shot
 
 

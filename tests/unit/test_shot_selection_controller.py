@@ -241,7 +241,7 @@ class TestShotSelectionController:
 
         controller = ShotSelectionController(target)  # type: ignore[arg-type]
 
-        with patch("notification_manager.NotificationManager") as mock_notif:
+        with patch("managers.notification_manager.NotificationManager") as mock_notif:
             controller.on_recover_crashes_requested()
             mock_notif.warning.assert_called_once()
 

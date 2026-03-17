@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from notification_manager import NotificationManager
+from managers.notification_manager import NotificationManager
 from rv_launcher import open_plate_in_rv
 
 

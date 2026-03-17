@@ -36,9 +36,9 @@ from launch import (
     ThreeDEAppHandler,
 )
 from logging_mixin import LoggingMixin
-from notification_manager import NotificationManager
+from managers.notification_manager import NotificationManager
+from managers.settings_manager import SettingsManager
 from nuke import NukeLaunchHandler, SimpleNukeLauncher
-from settings_manager import SettingsManager
 
 
 if TYPE_CHECKING:
@@ -445,7 +445,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Show user-visible notification for GUI apps that may have failed to start
         if self.process_executor.is_gui_app(app_name):
             # Local application imports
-            from notification_manager import NotificationManager
+            from managers.notification_manager import NotificationManager
             NotificationManager.warning(
                 "Launch Verification Failed",
                 f"{app_name} may have failed to start. "
@@ -470,7 +470,7 @@ class CommandLauncher(LoggingMixin, QObject):
     def _on_headless_launch_warning(self, app_name: str) -> None:
         """Handle headless launch warning from ProcessExecutor."""
         # Local application imports
-        from notification_manager import NotificationManager
+        from managers.notification_manager import NotificationManager
         NotificationManager.warning(
             "Headless Launch",
             f"No terminal found. {app_name} will run without terminal window. "
@@ -480,7 +480,7 @@ class CommandLauncher(LoggingMixin, QObject):
     def _on_launch_crash_detected(self, app_name: str) -> None:
         """Handle launch crash detection from ProcessExecutor."""
         # Local application imports
-        from notification_manager import NotificationManager
+        from managers.notification_manager import NotificationManager
         NotificationManager.error(
             "Launch Failed", f"{app_name} crashed immediately"
         )

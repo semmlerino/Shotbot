@@ -64,9 +64,9 @@ def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
     This fixture resets all singleton manager instances that might be used
     by the code under test, ensuring test isolation in parallel execution.
     """
-    from notification_manager import NotificationManager
+    from managers.notification_manager import NotificationManager
+    from managers.progress_manager import ProgressManager
     from process_pool_manager import ProcessPoolManager
-    from progress_manager import ProgressManager
 
     # Reset singleton instances
     monkeypatch.setattr(NotificationManager, "_instance", None)

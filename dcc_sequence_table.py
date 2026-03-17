@@ -20,13 +20,13 @@ from PySide6.QtWidgets import (
 )
 
 from design_system import design_system
+from managers.settings_manager import get_stored_height
 from resizable_frame import ResizableFrame
 from scene_file import ImageSequence
-from settings_manager import get_stored_height
 
 
 if TYPE_CHECKING:
-    from settings_manager import SettingsManager
+    from managers.settings_manager import SettingsManager
 
 
 class DCCSequenceTable(QWidget):

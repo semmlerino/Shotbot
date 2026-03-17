@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
 from base_grid_view import BaseGridView
 from base_item_model import BaseItemRole
 from design_system import design_system
-from progress_manager import ProgressManager
+from managers.progress_manager import ProgressManager
 from runnable_tracker import FolderOpenerWorker
 from shots.shot_grid_delegate import ShotGridDelegate
 from typing_compat import override
@@ -49,9 +49,9 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
-    from notes_manager import NotesManager
+    from managers.notes_manager import NotesManager
+    from managers.shot_pin_manager import ShotPinManager
     from previous_shots.item_model import PreviousShotsItemModel
-    from shot_pin_manager import ShotPinManager
     from type_definitions import Shot
 
 

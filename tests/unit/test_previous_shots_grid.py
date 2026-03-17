@@ -216,11 +216,11 @@ class TestPreviousShotsView:
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
         with (
             patch(
-                "progress_manager.ProgressManager.start_operation",
+                "previous_shots.view.ProgressManager.start_operation",
                 TestProgressManager.start_operation,
             ),
             patch(
-                "progress_manager.ProgressManager.finish_operation",
+                "previous_shots.view.ProgressManager.finish_operation",
                 TestProgressManager.finish_operation,
             ),
         ):
@@ -241,11 +241,11 @@ class TestPreviousShotsView:
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
         with (
             patch(
-                "progress_manager.ProgressManager.start_operation",
+                "previous_shots.view.ProgressManager.start_operation",
                 TestProgressManager.start_operation,
             ),
             patch(
-                "progress_manager.ProgressManager.finish_operation",
+                "previous_shots.view.ProgressManager.finish_operation",
                 TestProgressManager.finish_operation,
             ),
         ):
@@ -493,11 +493,11 @@ class TestPreviousShotsView:
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
         with (
             patch(
-                "progress_manager.ProgressManager.start_operation",
+                "previous_shots.view.ProgressManager.start_operation",
                 TestProgressManager.start_operation,
             ),
             patch(
-                "progress_manager.ProgressManager.finish_operation",
+                "previous_shots.view.ProgressManager.finish_operation",
                 TestProgressManager.finish_operation,
             ),
         ):

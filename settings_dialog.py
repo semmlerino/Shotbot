@@ -82,14 +82,14 @@ from PySide6.QtWidgets import (
 from config import Config
 from design_system import design_system
 from logging_mixin import LoggingMixin
-from notification_manager import NotificationManager
+from managers.notification_manager import NotificationManager
 from qt_widget_mixin import QtWidgetMixin
 from typing_compat import override
 
 
 if TYPE_CHECKING:
     # Local application imports
-    from settings_manager import SettingsManager
+    from managers.settings_manager import SettingsManager
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)

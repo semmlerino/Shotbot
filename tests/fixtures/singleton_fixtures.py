@@ -242,12 +242,12 @@ class SingletonRegistry:
 
 # 10-19: Qt UI Singletons (must clean up first)
 SingletonRegistry.register(
-    "notification_manager.NotificationManager",
+    "managers.notification_manager.NotificationManager",
     cleanup_order=10,
     description="Toast notifications and status bar messaging",
 )
 SingletonRegistry.register(
-    "progress_manager.ProgressManager",
+    "managers.progress_manager.ProgressManager",
     cleanup_order=15,
     description="Progress dialogs and operation tracking",
 )

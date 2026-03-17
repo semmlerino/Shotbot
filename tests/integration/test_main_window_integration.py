@@ -154,7 +154,7 @@ def main_window_with_real_components(
     from process_pool_manager import ProcessPoolManager
     monkeypatch.setattr(ProcessPoolManager, "get_instance", mock_get_instance)
 
-    from notification_manager import NotificationManager
+    from managers.notification_manager import NotificationManager
     TestNotificationManager.clear()
 
     original_notification_methods = {
@@ -168,7 +168,7 @@ def main_window_with_real_components(
     NotificationManager.info = TestNotificationManager.info
     NotificationManager.success = TestNotificationManager.success
 
-    from progress_manager import ProgressManager
+    from managers.progress_manager import ProgressManager
     test_progress_manager = MainWindowTestProgressManager()
     original_operation = ProgressManager.operation
     original_start_operation = ProgressManager.start_operation
@@ -609,7 +609,7 @@ class TestUserWorkflows:
         self.signal_events: list[tuple] = []
 
         self.progress_operation = ProgressOperationDouble()
-        self.progress_patcher = patch("progress_manager.ProgressManager.start_operation")
+        self.progress_patcher = patch("managers.progress_manager.ProgressManager.start_operation")
         self.mock_progress = self.progress_patcher.start()
         self.mock_progress.return_value = self.progress_operation
 
@@ -618,7 +618,7 @@ class TestUserWorkflows:
         with contextlib.suppress(Exception):
             self.progress_patcher.stop()
 
-        from progress_manager import ProgressManager
+        from managers.progress_manager import ProgressManager
         with contextlib.suppress(Exception):
             ProgressManager.clear_all_operations()
 
@@ -900,7 +900,7 @@ if __name__ == "__main__":
             test_instance.test_processes["nuke"].pid = 11111
             test_instance.signal_events = []
             test_instance.progress_operation = ProgressOperationDouble()
-            test_instance.progress_patcher = patch("progress_manager.ProgressManager.start_operation")
+            test_instance.progress_patcher = patch("managers.progress_manager.ProgressManager.start_operation")
             test_instance.mock_progress = test_instance.progress_patcher.start()
             test_instance.mock_progress.return_value = test_instance.progress_operation
 

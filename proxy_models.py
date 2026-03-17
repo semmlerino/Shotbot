@@ -17,8 +17,8 @@ from typing_compat import override
 if TYPE_CHECKING:
     from PySide6.QtCore import QObject
 
-    from hide_manager import HideManager
-    from shot_pin_manager import ShotPinManager
+    from managers.hide_manager import HideManager
+    from managers.shot_pin_manager import ShotPinManager
     from type_definitions import Shot, ThreeDEScene
 
 

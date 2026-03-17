@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     # Local application imports
     from cache.scene_cache_disk import SceneDiskCache
     from command_launcher import CommandLauncher
-    from progress_manager import (
+    from managers.progress_manager import (
         _Operation as _ProgressOperation,  # pyright: ignore[reportPrivateUsage]
     )
     from proxy_models import ThreeDEProxyModel
@@ -48,8 +48,8 @@ if TYPE_CHECKING:
 # Runtime imports (needed at runtime)
 from config import Config
 from logging_mixin import LoggingMixin
-from notification_manager import NotificationManager
-from progress_manager import ProgressManager
+from managers.notification_manager import NotificationManager
+from managers.progress_manager import ProgressManager
 from threede import ThreeDESceneWorker
 from type_definitions import Shot, ThreeDEScene
 

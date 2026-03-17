@@ -34,7 +34,7 @@ def execute_crash_recovery(
             (e.g., refresh 3DE scenes).
 
     """
-    from notification_manager import NotificationManager
+    from managers.notification_manager import NotificationManager
     from threede.recovery import CrashFileInfo, ThreeDERecoveryManager
     from threede.recovery_dialog import (
         ThreeDERecoveryDialog,

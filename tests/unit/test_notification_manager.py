@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QStatusBar,
 )
 
-from notification_manager import (
+from managers.notification_manager import (
     NotificationManager,
     NotificationType,
 )

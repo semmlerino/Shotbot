@@ -40,8 +40,8 @@ if TYPE_CHECKING:
 
     # Local application imports
     from cache import CacheCoordinator
+    from managers.settings_manager import SettingsManager
     from settings_dialog import SettingsDialog
-    from settings_manager import SettingsManager
 
 
 class SettingsTarget(Protocol):

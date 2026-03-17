@@ -28,7 +28,7 @@ from shot_file_finder import ShotFileFinder
 if TYPE_CHECKING:
     from PySide6.QtCore import QPoint
 
-    from file_pin_manager import FilePinManager
+    from managers.file_pin_manager import FilePinManager
     from type_definitions import Shot
 
 

@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtWidgets import QStatusBar
 
-from progress_manager import ProgressManager, _Operation
+from managers.progress_manager import ProgressManager, _Operation
 
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ pytestmark = [
 @pytest.fixture
 def mock_notification_manager() -> Generator[Mock, None, None]:
     """Mock NotificationManager at system boundary."""
-    with patch("progress_manager.NotificationManager") as mock:
+    with patch("managers.progress_manager.NotificationManager") as mock:
         mock.get_status_bar.return_value = None
         mock.close_progress.return_value = None
         mock.success.return_value = None
@@ -344,7 +344,7 @@ class TestUIIntegration:
             "wrapped C/C++ object has been deleted"
         )
 
-        with patch("progress_manager.NotificationManager") as mock_nm:
+        with patch("managers.progress_manager.NotificationManager") as mock_nm:
             mock_nm.get_status_bar.return_value = mock_status_bar
 
             op = ProgressManager.start_operation("Test")

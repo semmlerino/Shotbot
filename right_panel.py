@@ -28,7 +28,7 @@ from shot_file_finder import ShotFileFinder
 
 
 if TYPE_CHECKING:
-    from settings_manager import SettingsManager
+    from managers.settings_manager import SettingsManager
     from type_definitions import Shot
 
 

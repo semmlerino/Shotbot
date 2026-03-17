@@ -6,11 +6,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
+from managers.notification_manager import NotificationManager
+from managers.progress_manager import ProgressManager
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from logging_mixin import LoggingMixin
-from notification_manager import NotificationManager
-from progress_manager import ProgressManager
 
 
 if TYPE_CHECKING:

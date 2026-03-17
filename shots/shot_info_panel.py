@@ -41,8 +41,8 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     # Local application imports
-    from file_pin_manager import FilePinManager
-    from notes_manager import NotesManager
+    from managers.file_pin_manager import FilePinManager
+    from managers.notes_manager import NotesManager
     from type_definitions import Shot
 
 

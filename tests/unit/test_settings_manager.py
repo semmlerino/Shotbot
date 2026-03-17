@@ -15,7 +15,7 @@ import pytest
 from PySide6.QtCore import QByteArray, QSettings, QSize
 
 from config import Config
-from settings_manager import SettingsManager
+from managers.settings_manager import SettingsManager
 
 
 # Test markers for categorization and parallel safety

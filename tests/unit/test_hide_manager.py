@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from config import Config
-from hide_manager import HIDDEN_SHOTS_CACHE_KEY, HideManager
+from managers.hide_manager import HIDDEN_SHOTS_CACHE_KEY, HideManager
 from type_definitions import Shot
 
 

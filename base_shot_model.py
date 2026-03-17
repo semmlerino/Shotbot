@@ -12,7 +12,7 @@ from PySide6.QtCore import QObject, Signal
 
 if TYPE_CHECKING:
     from cache.shot_cache import ShotDataCache
-    from hide_manager import HideManager
+    from managers.hide_manager import HideManager
     from protocols import ProcessPoolInterface
     from type_definitions import PerformanceMetricsDict, RefreshResult, Shot
 

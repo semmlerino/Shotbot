@@ -18,7 +18,7 @@ import pytest
 
 # Local application imports
 from config import Config
-from notes_manager import SHOT_NOTES_CACHE_KEY, NotesManager
+from managers.notes_manager import SHOT_NOTES_CACHE_KEY, NotesManager
 from type_definitions import Shot
 
 
@@ -313,7 +313,7 @@ class TestEdgeCases:
         notes_manager.flush()
 
         # Reload and verify
-        from notes_manager import NotesManager as NotesManagerReload
+        from managers.notes_manager import NotesManager as NotesManagerReload
         nm2 = NotesManagerReload(notes_manager._cache_dir)
         assert nm2.get_note(shot) == multiline_note
 
@@ -328,7 +328,7 @@ class TestEdgeCases:
         notes_manager.flush()
 
         # Reload and verify
-        from notes_manager import NotesManager as NotesManagerReload
+        from managers.notes_manager import NotesManager as NotesManagerReload
         nm2 = NotesManagerReload(notes_manager._cache_dir)
         assert nm2.get_note(shot) == unicode_note
 

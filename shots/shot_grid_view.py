@@ -48,9 +48,9 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
-    from hide_manager import HideManager
-    from notes_manager import NotesManager
-    from shot_pin_manager import ShotPinManager
+    from managers.hide_manager import HideManager
+    from managers.notes_manager import NotesManager
+    from managers.shot_pin_manager import ShotPinManager
 
 
 @final

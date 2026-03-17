@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, ClassVar, final
 
 from PySide6.QtCore import QMutex, QMutexLocker
 
-from notification_manager import NotificationManager
+from managers.notification_manager import NotificationManager
 
 
 if TYPE_CHECKING:

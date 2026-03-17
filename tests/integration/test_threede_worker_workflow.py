@@ -85,9 +85,9 @@ def reset_threede_singletons() -> None:
     - ProgressManager._instance (used for operation tracking)
     """
     # Import here to avoid circular dependencies
-    from notification_manager import NotificationManager
+    from managers.notification_manager import NotificationManager
+    from managers.progress_manager import ProgressManager
     from process_pool_manager import ProcessPoolManager
-    from progress_manager import ProgressManager
 
     # Reset ProcessPoolManager
     if ProcessPoolManager._instance is not None:

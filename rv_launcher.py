@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import subprocess
 
-from notification_manager import NotificationManager
+from managers.notification_manager import NotificationManager
 
 
 logger = logging.getLogger(__name__)

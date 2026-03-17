@@ -68,10 +68,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from file_pin_manager import FilePinManager
-from hide_manager import HideManager
-from notes_manager import NotesManager
-from shot_pin_manager import ShotPinManager
+from managers.file_pin_manager import FilePinManager
+from managers.hide_manager import HideManager
+from managers.notes_manager import NotesManager
+from managers.shot_pin_manager import ShotPinManager
 from typing_compat import override
 
 
@@ -113,16 +113,16 @@ from controllers.thumbnail_size_manager import ThumbnailSizeManager
 from design_system import design_system
 from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger
-from notification_manager import NotificationManager
+from managers.notification_manager import NotificationManager
+from managers.progress_manager import ProgressManager
+from managers.settings_manager import SettingsManager
 from previous_shots import PreviousShotsItemModel, PreviousShotsModel, PreviousShotsView
 from process_pool_manager import ProcessPoolManager
-from progress_manager import ProgressManager
 from proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
 from qt_widget_mixin import QtWidgetMixin
 from refresh_coordinator import RefreshCoordinator  # Extracted refresh logic
 from right_panel import RightPanelWidget  # New redesigned right panel
 from scene_file import SceneFile
-from settings_manager import SettingsManager
 from shots.shot_grid_view import ShotGridView  # Model/View implementation
 from shots.shot_item_model import ShotItemModel
 from shots.shot_model import ShotModel

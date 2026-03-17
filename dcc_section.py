@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, final
 
 if TYPE_CHECKING:
     from files_tab_widget import FileTableModel
-    from settings_manager import SettingsManager
+    from managers.settings_manager import SettingsManager
 
 from PySide6.QtCore import QModelIndex, QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import (

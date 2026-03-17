@@ -87,8 +87,8 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
-    from notes_manager import NotesManager
-    from shot_pin_manager import ShotPinManager
+    from managers.notes_manager import NotesManager
+    from managers.shot_pin_manager import ShotPinManager
     from type_definitions import Shot
 
 

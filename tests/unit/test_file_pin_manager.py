@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 # Local application imports
-from file_pin_manager import PINNED_FILES_CACHE_KEY, FilePinManager
+from managers.file_pin_manager import PINNED_FILES_CACHE_KEY, FilePinManager
 
 
 # Test fixtures following UNIFIED_TESTING_GUIDE patterns

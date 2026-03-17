@@ -18,7 +18,7 @@ from PySide6.QtCore import QByteArray, QSettings, QSize
 
 from config import Config
 from controllers.settings_controller import SettingsController
-from settings_manager import SettingsManager
+from managers.settings_manager import SettingsManager
 from tests.unit.test_settings_controller import (
     CacheCoordinatorDouble,
     GridWidgetDouble,

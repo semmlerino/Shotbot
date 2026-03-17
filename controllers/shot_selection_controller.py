@@ -324,7 +324,7 @@ class ShotSelectionController(QObject, LoggingMixin):
 
         if not current_shot and not current_scene:
             # Local application imports
-            from notification_manager import NotificationManager
+            from managers.notification_manager import NotificationManager
             NotificationManager.warning(
                 "No Shot Selected",
                 "Please select a shot before attempting crash recovery."

@@ -17,9 +17,9 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
-    from hide_manager import HideManager
-    from notes_manager import NotesManager
-    from shot_pin_manager import ShotPinManager
+    from managers.hide_manager import HideManager
+    from managers.notes_manager import NotesManager
+    from managers.shot_pin_manager import ShotPinManager
     from type_definitions import RefreshResult, Shot
 
 
