@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
+from collections import defaultdict
 from pathlib import Path
 
 # Local application imports
@@ -42,6 +43,9 @@ class ThreeDESceneModel:
         self.cache_manager: SceneDiskCache = cache_manager
         # Get excluded users dynamically (current user + any additional)
         self._excluded_users: set[str] = get_excluded_users()
+        # Show/artist filtering
+        self._filter_show: str | None = None
+        self._filter_artist: str | None = None
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
             _ = self._load_from_cache()
@@ -75,6 +79,64 @@ class ThreeDESceneModel:
 
         """
         self.scenes = scenes
+
+    def to_dict(self) -> list[dict[str, str | float | Path | int | None]]:
+        """Convert scenes to dictionary format for caching."""
+        return [scene.to_dict() for scene in self.scenes]
+
+    def set_show_filter(self, show: str | None) -> None:
+        """Set the show filter."""
+        self._filter_show = show
+
+    def get_show_filter(self) -> str | None:
+        """Get the current show filter."""
+        return self._filter_show
+
+    def set_artist_filter(self, artist: str | None) -> None:
+        """Set the artist filter."""
+        self._filter_artist = artist
+
+    def get_artist_filter(self) -> str | None:
+        """Get the current artist filter."""
+        return self._filter_artist
+
+    def deduplicate_scenes_by_shot(
+        self,
+        scenes: list[ThreeDEScene],
+    ) -> list[ThreeDEScene]:
+        """Keep only the latest/best scene per shot.
+
+        Priority: latest mtime, then plate preference (FG01 > BG01 > others).
+        """
+        scenes_by_shot: dict[str, list[ThreeDEScene]] = defaultdict(list)
+        for scene in scenes:
+            shot_key = f"{scene.show}/{scene.sequence}/{scene.shot}"
+            scenes_by_shot[shot_key].append(scene)
+
+        deduplicated: list[ThreeDEScene] = []
+        for shot_scenes in scenes_by_shot.values():
+            if len(shot_scenes) == 1:
+                deduplicated.append(shot_scenes[0])
+            else:
+                best_scene = self._select_best_scene(shot_scenes)
+                deduplicated.append(best_scene)
+                logger.debug(
+                    f"Selected {best_scene.display_name} from {len(shot_scenes)} scenes",
+                )
+        return deduplicated
+
+    def _select_best_scene(self, scenes: list[ThreeDEScene]) -> ThreeDEScene:
+        """Select the best scene from multiple options for the same shot."""
+        plate_priority: dict[str, int] = {"fg01": 3, "bg01": 2}
+
+        def scene_score(scene: ThreeDEScene) -> tuple[float, int, str]:
+            try:
+                mtime = scene.scene_path.stat().st_mtime
+            except (OSError, AttributeError):
+                mtime = 0.0
+            return (mtime, plate_priority.get(scene.plate.lower(), 1), scene.plate)
+
+        return max(scenes, key=scene_score)
 
     def get_unique_shows(self) -> list[str]:
         """Get sorted list of unique shows from all scenes."""
