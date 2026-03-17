@@ -13,7 +13,7 @@ from typing import Any, cast
 
 from PySide6.QtCore import QObject, Signal
 
-from cache._json_store import atomic_json_write
+from cache import atomic_json_write
 from logging_mixin import LoggingMixin
 
 

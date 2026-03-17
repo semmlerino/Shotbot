@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import QObject, QTimer
 
-from cache._json_store import atomic_json_write
+from cache import atomic_json_write
 from logging_mixin import LoggingMixin
 from managers._shot_key import shot_key
 

@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from cache._json_store import atomic_json_write
+from cache import atomic_json_write
 from logging_mixin import LoggingMixin
 from managers._shot_key import shot_key
 

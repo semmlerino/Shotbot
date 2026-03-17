@@ -1,23 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar, cast, final
+from typing import TYPE_CHECKING, cast, final
 
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 
 from cache._json_store import read_json_cache, write_json_cache
+from cache._merge import build_merge_lookups
 from cache.types import SceneMergeResult, get_scene_key, scene_to_dict
 from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
-
     from type_definitions import ThreeDESceneDict
-
-# TypeVar for _build_merge_lookups generic helper
-_D = TypeVar("_D")
 
 DEFAULT_TTL_MINUTES = 30
 
@@ -90,36 +87,6 @@ class SceneDiskCache(LoggingMixin, QObject):
                 "Failed to write 3DE scenes cache - data may not persist across restarts"
             )
 
-    @staticmethod
-    def _build_merge_lookups(
-        cached: Sequence[object] | None,
-        fresh: Sequence[object],
-        to_dict_fn: Callable[[object], _D],
-        get_key_fn: Callable[[_D], tuple[str, str, str]],
-    ) -> tuple[list[_D], list[_D], dict[tuple[str, str, str], _D], set[tuple[str, str, str]]]:
-        """Build lookup structures for merge_scenes_incremental.
-
-        Lock acquisition is NOT done here — callers are responsible for holding
-        the lock and passing already-copied sequences. This helper operates
-        purely on local data.
-
-        Args:
-            cached: Previously cached items (objects or dicts), or None
-            fresh: Fresh items from discovery
-            to_dict_fn: Converts each item to its dict representation
-            get_key_fn: Extracts the composite (show, sequence, shot) key
-
-        Returns:
-            Tuple of (cached_dicts, fresh_dicts, cached_by_key, fresh_keys)
-
-        """
-        cached_dicts = [to_dict_fn(s) for s in (cached or [])]
-        fresh_dicts = [to_dict_fn(s) for s in fresh]
-        cached_by_key: dict[tuple[str, str, str], _D] = {
-            get_key_fn(item): item for item in cached_dicts
-        }
-        fresh_keys = {get_key_fn(item) for item in fresh_dicts}
-        return cached_dicts, fresh_dicts, cached_by_key, fresh_keys
 
     def merge_scenes_incremental(
         self,
@@ -159,7 +126,7 @@ class SceneDiskCache(LoggingMixin, QObject):
         # Phase 1: Convert and build lookups under lock (minimal critical section)
         with QMutexLocker(self._lock):
             _, fresh_dicts, cached_by_key, fresh_keys = (
-                self._build_merge_lookups(cached, fresh, scene_to_dict, get_scene_key)
+                build_merge_lookups(cached, fresh, scene_to_dict, get_scene_key)
             )
 
         # Phase 2: All CPU-bound merge logic OUTSIDE lock

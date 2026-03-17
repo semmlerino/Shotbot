@@ -6,7 +6,6 @@ from typing import (
     Literal,
     NamedTuple,
     Protocol,
-    TypeVar,
     cast,
 )
 
@@ -20,8 +19,6 @@ if TYPE_CHECKING:
         def to_dict(self) -> ThreeDESceneDict: ...
 
 
-# TypeVar for _build_merge_lookups generic helper
-_D = TypeVar("_D")
 
 
 # Incremental merging support
