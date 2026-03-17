@@ -9,12 +9,13 @@ from PySide6.QtCore import Signal
 from typing_extensions import override
 
 from discovery.maya_latest_finder import MayaLatestFinder
-from threede import ThreeDELatestFinder
 from workers.thread_safe_worker import ThreadSafeWorker
 
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QObject
+
+    from threede import ThreeDELatestFinder
 
 
 class LatestFileFinderWorker(ThreadSafeWorker):
@@ -91,6 +92,8 @@ class LatestFileFinderWorker(ThreadSafeWorker):
         Searches for Maya and/or 3DE scene files based on configuration.
         Passes should_stop to finders for cancellation during filesystem operations.
         """
+        from threede import ThreeDELatestFinder
+
         success = True
 
         try:

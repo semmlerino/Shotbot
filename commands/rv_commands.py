@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import logging
 
-from launch import CommandBuilder
-
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +22,8 @@ def build_rv_command(command: str, sequence_path: str | None) -> str | None:
         Complete RV command string, or None if the sequence path is invalid.
 
     """
+    from launch.command_builder import CommandBuilder
+
     command = f"{command} -fps 12 -play -eval 'setPlayMode(2)'"
     if sequence_path:
         try:

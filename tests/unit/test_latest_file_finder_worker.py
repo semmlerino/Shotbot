@@ -312,7 +312,7 @@ class TestLatestFileFinderWorkerCancellation:
             worker.request_stop()
             return result
 
-        with patch("discovery.latest_file_finder_worker.ThreeDELatestFinder") as mock_cls:
+        with patch("threede.ThreeDELatestFinder") as mock_cls:
             mock_instance = MagicMock()
             mock_instance.find_latest_threede_scene.side_effect = stop_after_threede
             mock_cls.return_value = mock_instance
@@ -382,7 +382,7 @@ class TestLatestFileFinderWorkerErrorHandling:
         worker.search_complete.connect(lambda s: complete_results.append(s))
 
         with patch(
-            "discovery.latest_file_finder_worker.ThreeDELatestFinder"
+            "threede.ThreeDELatestFinder"
         ) as mock_finder_class:
             mock_finder = MagicMock()
             mock_finder.find_latest_threede_scene.side_effect = RuntimeError(
