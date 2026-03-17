@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
-from scene_file import FileType, SceneFile
+from dcc.scene_file import FileType, SceneFile
 from tests.test_helpers import process_qt_events
 from ui.right_panel import RightPanelWidget
 

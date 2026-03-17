@@ -27,11 +27,11 @@ from PySide6.QtWidgets import (
 )
 
 from logging_mixin import LoggingMixin
-from qt_widget_mixin import QtWidgetMixin
 from threede.recovery import CrashFileInfo
 
 # Local application imports
 from ui.design_system import design_system
+from ui.qt_widget_mixin import QtWidgetMixin
 
 
 @final

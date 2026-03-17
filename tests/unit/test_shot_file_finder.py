@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scene_file import FileType, SceneFile
+from dcc.scene_file import FileType, SceneFile
 from shots.shot_file_finder import ShotFileFinder
 
 

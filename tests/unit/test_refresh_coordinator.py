@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtCore import QObject
 
-from refresh_coordinator import RefreshCoordinator
+from controllers.refresh_coordinator import RefreshCoordinator
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
@@ -71,7 +71,7 @@ def mock_main_window() -> Mock:
 @pytest.fixture
 def mock_progress_manager() -> Generator[Mock, None, None]:
     """Mock ProgressManager at system boundary."""
-    with patch("refresh_coordinator.ProgressManager") as mock:
+    with patch("controllers.refresh_coordinator.ProgressManager") as mock:
         progress_op = Mock()
         progress_op.set_indeterminate = Mock()
 
@@ -88,7 +88,7 @@ def mock_progress_manager() -> Generator[Mock, None, None]:
 @pytest.fixture
 def mock_notification_manager() -> Generator[Mock, None, None]:
     """Mock NotificationManager at system boundary."""
-    with patch("refresh_coordinator.NotificationManager") as mock:
+    with patch("controllers.refresh_coordinator.NotificationManager") as mock:
         mock.info = Mock()
         mock.success = Mock()
         mock.error = Mock()

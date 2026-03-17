@@ -31,11 +31,11 @@ from PySide6.QtWidgets import (
 
 # Local application imports
 from cache.thumbnail_cache import ThumbnailCache
-from qt_widget_mixin import QtWidgetMixin
 from shots.shot_files_panel import ShotFilesPanel
 from typing_compat import override
 from ui.design_system import design_system
 from ui.image_utils import ImageUtils
+from ui.qt_widget_mixin import QtWidgetMixin
 
 
 if TYPE_CHECKING:

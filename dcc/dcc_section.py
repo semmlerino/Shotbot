@@ -31,17 +31,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from qt_widget_mixin import QtWidgetMixin
-from scene_file import FileType, ImageSequence, SceneFile
 from ui.design_system import (
     darken_color,
     design_system,
     get_tinted_background,
     lighten_color,
 )
+from ui.qt_widget_mixin import QtWidgetMixin
 
 from .dcc_file_table import DCCFileTable
 from .dcc_sequence_table import DCCSequenceTable
+from .scene_file import FileType, ImageSequence, SceneFile
 
 
 @final

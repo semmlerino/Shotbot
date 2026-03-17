@@ -28,8 +28,9 @@ from ui.resizable_frame import ResizableFrame
 
 if TYPE_CHECKING:
     from managers.settings_manager import SettingsManager
-    from scene_file import SceneFile
     from ui.files_tab_widget import FileTableModel
+
+    from .scene_file import SceneFile
 
 
 class DCCFileTable(QWidget):

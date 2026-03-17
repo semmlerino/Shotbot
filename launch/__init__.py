@@ -8,6 +8,7 @@ This package contains focused components for managing application launches:
 - CommandLauncher: Production launcher orchestrator
 - LaunchContext: Value object for launch parameters
 - open_plate_in_rv: Utility for opening plates in RV
+- HeadlessMode: Headless operation support for CI/CD and testing
 """
 
 from launch.app_handlers import (
@@ -21,6 +22,7 @@ from launch.app_handlers import (
 from launch.command_builder import CommandBuilder
 from launch.command_launcher import CommandLauncher, LaunchContext
 from launch.environment_manager import EnvironmentManager
+from launch.headless_mode import HeadlessMode
 from launch.process_executor import ProcessExecutor
 from launch.rv_launcher import open_plate_in_rv
 
@@ -31,6 +33,7 @@ __all__ = [
     "CommandLauncher",
     "EnvironmentManager",
     "GenericAppHandler",
+    "HeadlessMode",
     "LaunchContext",
     "MayaAppHandler",
     "NukeAppHandler",

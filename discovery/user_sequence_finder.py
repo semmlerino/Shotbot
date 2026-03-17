@@ -14,8 +14,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from dcc.scene_file import ImageSequence
 from logging_mixin import get_module_logger
-from scene_file import ImageSequence
 from utils import get_current_username
 
 

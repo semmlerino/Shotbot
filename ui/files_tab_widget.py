@@ -25,10 +25,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from qt_widget_mixin import QtWidgetMixin
-from scene_file import FILE_TYPE_COLORS, FileType, SceneFile
+from dcc.scene_file import FILE_TYPE_COLORS, FileType, SceneFile
 from typing_compat import override
 from ui.design_system import design_system
+from ui.qt_widget_mixin import QtWidgetMixin
 
 
 @final

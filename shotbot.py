@@ -227,7 +227,7 @@ Environment Variables:
     if headless_mode:
         logger.debug("Headless mode enabled")
         # Local application imports
-        from headless_mode import HeadlessMode
+        from launch.headless_mode import HeadlessMode
 
         HeadlessMode.configure_qt_for_headless()
 
@@ -251,7 +251,7 @@ Environment Variables:
     # Create application (headless-aware)
     if headless_mode:
         # Local application imports
-        from headless_mode import HeadlessMode
+        from launch.headless_mode import HeadlessMode
 
         app = HeadlessMode.create_headless_application(sys.argv)
     else:
@@ -323,7 +323,7 @@ Environment Variables:
     # In headless mode, patch the window to prevent display operations
     if headless_mode:
         # Local application imports
-        from headless_mode import HeadlessMode
+        from launch.headless_mode import HeadlessMode
 
         HeadlessMode.patch_for_headless(window)
 

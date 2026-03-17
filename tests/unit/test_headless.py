@@ -28,7 +28,7 @@ def test_headless_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from headless_mode import (
+    from launch.headless_mode import (
         HeadlessMode,
     )
 
@@ -67,7 +67,7 @@ def test_headless_qt_config(monkeypatch: pytest.MonkeyPatch) -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from headless_mode import (
+    from launch.headless_mode import (
         HeadlessMode,
     )
 
@@ -101,7 +101,7 @@ def test_headless_app_creation() -> None:
     )
 
     # Local application imports
-    from headless_mode import (
+    from launch.headless_mode import (
         HeadlessMode,
     )
 
@@ -172,7 +172,7 @@ def test_decorators(monkeypatch: pytest.MonkeyPatch) -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from headless_mode import (
+    from launch.headless_mode import (
         HeadlessMode,
     )
 

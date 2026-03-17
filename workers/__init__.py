@@ -12,6 +12,7 @@ from workers.runnable_tracker import (
     cleanup_all_runnables,
     get_tracker,
 )
+from workers.startup_coordinator import StartupCoordinator
 from workers.thread_diagnostics import ThreadDiagnosticReport, ThreadDiagnostics
 from workers.thread_safe_worker import ThreadSafeWorker, WorkerState
 
@@ -22,6 +23,7 @@ __all__ = [
     "FolderOpenerWorker",
     "ProcessPoolManager",
     "QRunnableTracker",
+    "StartupCoordinator",
     "ThreadDiagnosticReport",
     "ThreadDiagnostics",
     "ThreadSafeWorker",

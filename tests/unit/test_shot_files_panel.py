@@ -27,7 +27,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication
 
-from scene_file import FileType, SceneFile
+from dcc.scene_file import FileType, SceneFile
 from shots.shot_files_panel import FileListItem, FileTypeSection, ShotFilesPanel
 from tests.test_helpers import process_qt_events
 

@@ -21,6 +21,7 @@ from cache.thumbnail_cache import (
     ThumbnailCacheLoaderSignals,
     make_default_thumbnail_cache,
 )
+from cache.thumbnail_loader import ThumbnailLoader
 from cache.types import LatestFileCacheResult, SceneMergeResult, ShotMergeResult
 
 
@@ -35,6 +36,7 @@ __all__ = [
     "ThumbnailCache",
     "ThumbnailCacheLoader",
     "ThumbnailCacheLoaderSignals",
+    "ThumbnailLoader",
     "atomic_json_write",
     "make_default_latest_file_cache",
     "make_default_shot_cache",

@@ -23,9 +23,9 @@ from typing_compat import override
 
 
 if TYPE_CHECKING:
+    from dcc.scene_file import FileType, SceneFile  # used in cast()
     from launch.command_launcher import CommandLauncher
     from previous_shots.view import PreviousShotsView
-    from scene_file import FileType, SceneFile  # used in cast()
     from shots.shot_grid_view import ShotGridView
     from threede.grid_view import ThreeDEGridView
     from type_definitions import Shot
@@ -304,7 +304,7 @@ class ShotSelectionController(QObject, LoggingMixin):
     @Slot(int)  # pyright: ignore[reportAny]
     def on_tab_activated(self, tab_index: int) -> None:
         """Handle tab activation — update right panel when shot tabs are selected."""
-        from tab_constants import TAB_MY_SHOTS, TAB_PREVIOUS
+        from ui.tab_constants import TAB_MY_SHOTS, TAB_PREVIOUS
 
         if tab_index == TAB_MY_SHOTS:
             selected_shot = self.window.shot_grid.selected_shot

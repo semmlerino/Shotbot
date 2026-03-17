@@ -7,8 +7,8 @@ from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout, 
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
-from qt_widget_mixin import QtWidgetMixin
 from ui.design_system import design_system
+from ui.qt_widget_mixin import QtWidgetMixin
 
 
 class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):

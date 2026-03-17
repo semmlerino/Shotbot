@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from startup_coordinator import StartupCoordinator
+from workers.startup_coordinator import StartupCoordinator
 
 
 pytestmark = [

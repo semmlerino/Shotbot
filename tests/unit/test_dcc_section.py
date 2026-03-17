@@ -381,7 +381,7 @@ class TestDCCSectionEmbeddedFiles:
     @pytest.fixture
     def config_with_files(self) -> DCCConfig:
         """Create config with embedded files section enabled."""
-        from scene_file import FileType
+        from dcc.scene_file import FileType
 
         return DCCConfig(
             name="test_dcc",
@@ -410,7 +410,7 @@ class TestDCCSectionEmbeddedFiles:
         from datetime import datetime
         from pathlib import Path
 
-        from scene_file import FileType, SceneFile
+        from dcc.scene_file import FileType, SceneFile
 
         now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
         return [
@@ -542,7 +542,7 @@ class TestDCCSectionFileDoubleClick:
     @pytest.fixture
     def config_with_files(self) -> DCCConfig:
         """Create config with embedded files section enabled."""
-        from scene_file import FileType
+        from dcc.scene_file import FileType
 
         return DCCConfig(
             name="test_dcc",
@@ -559,7 +559,7 @@ class TestDCCSectionFileDoubleClick:
         from datetime import datetime
         from pathlib import Path
 
-        from scene_file import FileType, SceneFile
+        from dcc.scene_file import FileType, SceneFile
 
         now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
         return [
@@ -681,7 +681,7 @@ class TestDCCSectionFileContextMenu:
     @pytest.fixture
     def config_with_files(self) -> DCCConfig:
         """Create config with embedded files section enabled."""
-        from scene_file import FileType
+        from dcc.scene_file import FileType
 
         return DCCConfig(
             name="test_dcc",
@@ -698,7 +698,7 @@ class TestDCCSectionFileContextMenu:
         from datetime import datetime
         from pathlib import Path
 
-        from scene_file import FileType, SceneFile
+        from dcc.scene_file import FileType, SceneFile
 
         now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
         return [
@@ -790,7 +790,7 @@ class TestDCCSectionFileCopyPath:
     @pytest.fixture
     def config_with_files(self) -> DCCConfig:
         """Create config with embedded files section enabled."""
-        from scene_file import FileType
+        from dcc.scene_file import FileType
 
         return DCCConfig(
             name="test_dcc",
@@ -807,7 +807,7 @@ class TestDCCSectionFileCopyPath:
         from datetime import datetime
         from pathlib import Path
 
-        from scene_file import FileType, SceneFile
+        from dcc.scene_file import FileType, SceneFile
 
         now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
         return SceneFile(

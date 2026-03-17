@@ -57,12 +57,12 @@ def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
     global MainWindow, Shot, ThreeDEScene, SceneFile, FileType  # noqa: PLW0603
     # Local application imports
-    from main_window import (
-        MainWindow,
-    )
-    from scene_file import (
+    from dcc.scene_file import (
         FileType,
         SceneFile,
+    )
+    from main_window import (
+        MainWindow,
     )
     from shots.shot_model import (
         Shot,

@@ -392,7 +392,7 @@ class TestMainWindowFilterHandlers:
         qtbot.addWidget(window.previous_shots_grid)
 
         # Add RefreshCoordinator for refactored MainWindow
-        from refresh_coordinator import (
+        from controllers.refresh_coordinator import (
             RefreshCoordinator,
         )
 

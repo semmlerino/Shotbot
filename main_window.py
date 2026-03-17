@@ -81,7 +81,7 @@ if TYPE_CHECKING:
 
     from launch.command_launcher import CommandLauncher
     from protocols import ProcessPoolInterface
-    from scene_file import SceneFile
+    from dcc.scene_file import SceneFile
     from type_definitions import Shot, ThreeDEScene
 
     # Local application imports
@@ -116,13 +116,13 @@ from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
 from managers.settings_manager import SettingsManager
 from previous_shots import PreviousShotsItemModel, PreviousShotsModel, PreviousShotsView
-from qt_widget_mixin import QtWidgetMixin
-from refresh_coordinator import RefreshCoordinator  # Extracted refresh logic
-from scene_file import SceneFile
+from ui.qt_widget_mixin import QtWidgetMixin
+from controllers.refresh_coordinator import RefreshCoordinator  # Extracted refresh logic
+from dcc.scene_file import SceneFile
 from shots.shot_grid_view import ShotGridView  # Model/View implementation
 from shots.shot_item_model import ShotItemModel
 from shots.shot_model import ShotModel
-from startup_coordinator import StartupCoordinator
+from workers.startup_coordinator import StartupCoordinator
 from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
 from ui.design_system import design_system
 from ui.log_viewer import LogViewer

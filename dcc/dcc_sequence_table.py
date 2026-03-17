@@ -20,9 +20,10 @@ from PySide6.QtWidgets import (
 )
 
 from managers.settings_manager import get_stored_height
-from scene_file import ImageSequence
 from ui.design_system import design_system
 from ui.resizable_frame import ResizableFrame
+
+from .scene_file import ImageSequence
 
 
 if TYPE_CHECKING:

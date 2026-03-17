@@ -82,9 +82,9 @@ from PySide6.QtWidgets import (
 from config import Config
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
-from qt_widget_mixin import QtWidgetMixin
 from typing_compat import override
 from ui.design_system import design_system
+from ui.qt_widget_mixin import QtWidgetMixin
 
 
 if TYPE_CHECKING:

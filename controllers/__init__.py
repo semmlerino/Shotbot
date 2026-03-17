@@ -15,6 +15,7 @@ This refactoring follows the established plan in MAINWINDOW_SAFE_REFACTORING_PLA
 """
 
 from .filter_coordinator import FilterCoordinator
+from .refresh_coordinator import RefreshCoordinator
 from .settings_controller import SettingsController, SettingsTarget
 from .shot_selection_controller import ShotSelectionController, ShotSelectionTarget
 from .threede_controller import ThreeDEController
@@ -23,6 +24,7 @@ from .thumbnail_size_manager import ThumbnailSizeManager
 
 __all__ = [
     "FilterCoordinator",
+    "RefreshCoordinator",
     "SettingsController",
     "SettingsTarget",
     "ShotSelectionController",

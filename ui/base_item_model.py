@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
+    from cache.thumbnail_loader import ThumbnailLoader
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
-    from thumbnail_loader import ThumbnailLoader
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -164,7 +164,7 @@ class BaseItemModel(
         self._notes_manager: NotesManager | None = None
 
         # Thumbnail subsystem — owns all async loading state and timers
-        from thumbnail_loader import ThumbnailLoader as _ThumbnailLoader
+        from cache.thumbnail_loader import ThumbnailLoader as _ThumbnailLoader
         self._thumbnail_loader: ThumbnailLoader[T] = _ThumbnailLoader(
             cache_manager,
             get_items=lambda: self._items,
@@ -337,7 +337,7 @@ class BaseItemModel(
 
     def _do_load_visible_thumbnails(self) -> None:
         """Actually load thumbnails for visible range."""
-        self._thumbnail_loader.do_load_visible_thumbnails()
+        self._thumbnail_loader.do_load_visible_thumbnails()  # pyright: ignore[reportAny]
 
     def _get_thumbnail_pixmap(self, item: T) -> QPixmap | None:
         """Get cached thumbnail pixmap for an item.

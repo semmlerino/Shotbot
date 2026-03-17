@@ -22,9 +22,9 @@ from PySide6.QtWidgets import (
 )
 
 from dcc.dcc_accordion import DCCAccordion
-from qt_widget_mixin import QtWidgetMixin
-from scene_file import FileType, SceneFile
+from dcc.scene_file import FileType, SceneFile
 from shots.shot_file_finder import ShotFileFinder
+from ui.qt_widget_mixin import QtWidgetMixin
 
 
 if TYPE_CHECKING:

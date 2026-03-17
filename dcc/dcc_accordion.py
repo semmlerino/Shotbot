@@ -16,15 +16,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from qt_widget_mixin import QtWidgetMixin
+from ui.qt_widget_mixin import QtWidgetMixin
 
 from .dcc_section import DEFAULT_DCC_CONFIGS, DCCConfig, DCCSection
 
 
 if TYPE_CHECKING:
     from managers.settings_manager import SettingsManager
-    from scene_file import SceneFile
     from type_definitions import Shot
+
+    from .scene_file import SceneFile
 
 
 @final

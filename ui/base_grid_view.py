@@ -40,13 +40,13 @@ from PySide6.QtWidgets import (
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
-from qt_widget_mixin import QtWidgetMixin
 from scrub.scrub_event_filter import ScrubEventFilter
 from scrub.scrub_preview_manager import ScrubPreviewManager
 
 # Local imports
 from typing_compat import override
 from ui.icon_painter import create_icon
+from ui.qt_widget_mixin import QtWidgetMixin
 
 
 class HasAvailableShows(Protocol):

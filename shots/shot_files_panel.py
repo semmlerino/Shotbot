@@ -19,10 +19,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from qt_widget_mixin import QtWidgetMixin
-from scene_file import FILE_TYPE_COLORS, FileType, SceneFile
+from dcc.scene_file import FILE_TYPE_COLORS, FileType, SceneFile
 from shots.shot_file_finder import ShotFileFinder
 from ui.design_system import design_system
+from ui.qt_widget_mixin import QtWidgetMixin
 
 
 if TYPE_CHECKING:
