@@ -174,7 +174,7 @@ def verify_patches() -> bool:
         checks.append(("CacheManager RLock usage", has_rlock))
 
     # Check ProcessPoolManager
-    pool_file = Path("process_pool_manager.py")
+    pool_file = Path("workers/process_pool_manager.py")
     if pool_file.exists():
         content = pool_file.read_text()
         has_singleton_lock = "_lock = threading.RLock()" in content

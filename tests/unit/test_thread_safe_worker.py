@@ -16,7 +16,7 @@ import pytest
 from PySide6.QtCore import QObject
 
 from tests.test_helpers import cleanup_qthread_properly, process_qt_events
-from thread_safe_worker import ThreadSafeWorker, WorkerState
+from workers.thread_safe_worker import ThreadSafeWorker, WorkerState
 
 
 if TYPE_CHECKING:

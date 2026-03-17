@@ -81,7 +81,7 @@ class TestLauncherStackSmoke:
         """ProcessPoolManager.execute_workspace_command works with real bash."""
         import threading
 
-        from process_pool_manager import ProcessPoolManager
+        from workers.process_pool_manager import ProcessPoolManager
 
         result_container: dict = {"output": None, "error": None}
 

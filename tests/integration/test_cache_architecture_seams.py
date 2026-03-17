@@ -12,9 +12,9 @@ from unittest.mock import patch
 import pytest
 
 from cache.latest_file_cache import LatestFileCache
-from filesystem_scanner import FileSystemScanner
+from discovery.filesystem_scanner import FileSystemScanner
+from discovery.scene_discovery_coordinator import SceneDiscoveryCoordinator
 from paths.filesystem_coordinator import FilesystemCoordinator
-from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
 
 @pytest.fixture

@@ -154,7 +154,7 @@ def mock_process_pool_manager(
 
     # Patch the singleton instance directly - get_instance() checks this first
     monkeypatch.setattr(
-        "process_pool_manager.ProcessPoolManager._instance",
+        "workers.process_pool_manager.ProcessPoolManager._instance",
         internal_pool,
     )
 

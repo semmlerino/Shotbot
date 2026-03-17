@@ -20,8 +20,8 @@ from pathlib import Path
 import pytest
 
 # Local application imports
-from filesystem_scanner import FileSystemScanner
-from scene_discovery_coordinator import SceneDiscoveryCoordinator
+from discovery.filesystem_scanner import FileSystemScanner
+from discovery.scene_discovery_coordinator import SceneDiscoveryCoordinator
 from tests.integration.conftest import create_test_vfx_structure
 from type_definitions import Shot
 

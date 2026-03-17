@@ -35,7 +35,7 @@ _logger = logging.getLogger(__name__)
 def cleanup_process_pool():
     """Ensure ProcessPoolManager is shut down after test."""
     yield
-    from process_pool_manager import ProcessPoolManager
+    from workers.process_pool_manager import ProcessPoolManager
     if ProcessPoolManager._instance:
         ProcessPoolManager._instance.shutdown(timeout=5.0)
         ProcessPoolManager._instance = None
@@ -51,7 +51,7 @@ def test_process_pool_manager_race_condition() -> None:
     """
     # Clear any existing instance first
     # Local application imports
-    from process_pool_manager import (
+    from workers.process_pool_manager import (
         ProcessPoolManager,
     )
 

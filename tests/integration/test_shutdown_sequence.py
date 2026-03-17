@@ -39,7 +39,7 @@ class TestProcessPoolManagerShutdown:
     @pytest.mark.real_subprocess
     def test_shutdown_with_hung_task_uses_timeout(self) -> None:
         """Shutdown uses timeout when task is stuck."""
-        from process_pool_manager import ProcessPoolManager
+        from workers.process_pool_manager import ProcessPoolManager
 
         # Reset to get fresh instance
         ProcessPoolManager.reset()
@@ -72,7 +72,7 @@ class TestProcessPoolManagerShutdown:
 
     def test_shutdown_is_idempotent(self) -> None:
         """Multiple shutdown calls don't cause errors."""
-        from process_pool_manager import ProcessPoolManager
+        from workers.process_pool_manager import ProcessPoolManager
 
         ProcessPoolManager.reset()
         pool = ProcessPoolManager.get_instance()
@@ -208,8 +208,8 @@ class TestAppWideShutdown:
     @pytest.mark.skip_if_parallel
     def test_multiple_manager_shutdown_no_deadlock(self, qtbot: QtBot) -> None:
         """Shutting down multiple managers concurrently doesn't deadlock."""
-        from process_pool_manager import ProcessPoolManager
-        from thread_safe_worker import ThreadSafeWorker
+        from workers.process_pool_manager import ProcessPoolManager
+        from workers.thread_safe_worker import ThreadSafeWorker
 
         # Reset both managers
         ProcessPoolManager.reset()
@@ -252,7 +252,7 @@ class TestAppWideShutdown:
 
     def test_shutdown_during_active_refresh_no_crash(self, qtbot: QtBot) -> None:
         """Shutdown while refresh is active doesn't crash."""
-        from process_pool_manager import ProcessPoolManager
+        from workers.process_pool_manager import ProcessPoolManager
 
         ProcessPoolManager.reset()
         pool = ProcessPoolManager.get_instance()

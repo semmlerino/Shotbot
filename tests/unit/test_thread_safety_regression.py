@@ -23,7 +23,7 @@ from cache.shot_cache import ShotDataCache
 from shots.shot_model import AsyncShotLoader, RefreshResult, ShotModel
 from tests.fixtures.test_doubles import TestProcessPool
 from tests.test_helpers import process_qt_events
-from thread_safe_worker import ThreadSafeWorker, WorkerState
+from workers.thread_safe_worker import ThreadSafeWorker, WorkerState
 
 
 logger = logging.getLogger(__name__)

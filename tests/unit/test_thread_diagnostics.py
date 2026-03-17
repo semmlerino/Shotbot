@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from thread_diagnostics import ThreadDiagnosticReport, ThreadDiagnostics
+from workers.thread_diagnostics import ThreadDiagnosticReport, ThreadDiagnostics
 
 
 class TestThreadDiagnosticReport:

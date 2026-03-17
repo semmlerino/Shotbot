@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from scene_discovery_coordinator import (
+from discovery.scene_discovery_coordinator import (
     SceneDiscoveryCoordinator as OptimizedThreeDESceneFinder,
 )
 
@@ -82,7 +82,7 @@ class TestPythonMethodPerformance:
             (threede_dir / f"{user}_fg01.3de").write_text("# FG scene")
 
         # Test Python method using the refactored FileSystemScanner
-        from filesystem_scanner import FileSystemScanner
+        from discovery.filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
 

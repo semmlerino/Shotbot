@@ -54,7 +54,7 @@ def profile_subprocess_call() -> dict[str, float]:
 def profile_process_pool_manager() -> dict[str, float]:
     """Profile ProcessPoolManager overhead."""
     # Local application imports
-    from process_pool_manager import ProcessPoolManager
+    from workers.process_pool_manager import ProcessPoolManager
 
     timings = {}
 
@@ -87,8 +87,9 @@ def profile_process_pool_manager() -> dict[str, float]:
 def profile_shot_model_refresh() -> dict[str, Any]:
     """Profile ShotModel refresh with detailed breakdown."""
     # Local application imports
-    from cache.shot_cache import ShotDataCache
     from shot_model import ShotModel
+
+    from cache.shot_cache import ShotDataCache
 
     timings = {}
 
@@ -159,7 +160,7 @@ workspace /shows/TEST/seq02/0010"""
 
     # Test connection pooling benefit
     # Local application imports
-    from process_pool_manager import ProcessPoolManager
+    from workers.process_pool_manager import ProcessPoolManager
 
     pool = ProcessPoolManager()
 

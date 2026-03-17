@@ -18,9 +18,9 @@ import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from command_launcher import CommandLauncher, LaunchContext
 from config import Config
 from launch import CommandBuilder
+from launch.command_launcher import CommandLauncher, LaunchContext
 from tests.fixtures.process_fixtures import PopenDouble
 from tests.test_helpers import process_qt_events
 from type_definitions import Shot, ThreeDEScene
@@ -69,7 +69,7 @@ def stable_terminal_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     Tests that need headless behavior explicitly patch detect_terminal to None.
     """
     monkeypatch.setattr(
-        "command_launcher.EnvironmentManager.detect_terminal",
+        "launch.command_launcher.EnvironmentManager.detect_terminal",
         lambda _self: "gnome-terminal",
     )
 
@@ -83,7 +83,7 @@ def disable_environment_warm_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     state across tests and destabilize long serial runs.
     """
     monkeypatch.setattr(
-        "command_launcher.EnvironmentManager.warm_cache_async",
+        "launch.command_launcher.EnvironmentManager.warm_cache_async",
         lambda _self: None,
     )
 
@@ -144,7 +144,7 @@ class TestCommandLauncher:
             patch.object(
                 CommandLauncher, "_validate_workspace_before_launch", return_value=True
             ),
-            patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
+            patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
         ):
             mock_popen.return_value = _running_process_double(app_name)
@@ -170,7 +170,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_nuke_with_scene_sets_sgtk_file_to_open(
         self,
@@ -206,7 +206,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_3de_with_scene(
         self,
@@ -246,7 +246,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_rv_default_settings(
         self,
@@ -285,7 +285,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
     def test_subprocess_failure(
         self,
@@ -318,8 +318,8 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
-    @patch("command_launcher.EnvironmentManager.detect_terminal", return_value=None)
+    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch("launch.command_launcher.EnvironmentManager.detect_terminal", return_value=None)
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_headless_mode_when_no_terminal(
         self,
@@ -360,7 +360,7 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_gui_app_background_setting(
         self,
@@ -419,7 +419,7 @@ class TestCommandLauncherSignals:
                 CommandLauncher, "_validate_workspace_before_launch", return_value=True
             ),
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
-            patch("command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
+            patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
         ):
             mock_popen.return_value = _running_process_double("nuke")
 
@@ -693,7 +693,7 @@ class TestSubprocessErrorHandling:
         This test verifies that the autouse mock_process_pool_manager fixture
         properly patches the singleton, preventing real subprocess execution.
         """
-        from process_pool_manager import ProcessPoolManager
+        from workers.process_pool_manager import ProcessPoolManager
 
         # Get the singleton instance (should be mocked by autouse fixture)
         pool = ProcessPoolManager.get_instance()

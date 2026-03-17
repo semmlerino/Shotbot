@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from command_launcher import CommandLauncher, LaunchContext
+from launch.command_launcher import CommandLauncher, LaunchContext
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -69,8 +69,8 @@ def sample_scene() -> ThreeDEScene:
 @pytest.fixture
 def launcher(qapp: Any) -> CommandLauncher:
     """Create a CommandLauncher instance with mocked dependencies."""
-    with patch("command_launcher.EnvironmentManager.warm_cache_async"), \
-         patch("command_launcher.SettingsManager") as mock_settings:
+    with patch("launch.command_launcher.EnvironmentManager.warm_cache_async"), \
+         patch("launch.command_launcher.SettingsManager") as mock_settings:
         mock_settings.return_value.get_terminal_emulator.return_value = "gnome-terminal"
 
         launcher = CommandLauncher()

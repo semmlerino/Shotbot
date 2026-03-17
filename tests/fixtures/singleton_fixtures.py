@@ -255,14 +255,14 @@ SingletonRegistry.register(
 # 20-29: Worker/Runnable Tracking
 # QRunnableTracker auto-registers via _cleanup_order=20 on the class.
 SingletonRegistry.register(
-    "thread_safe_worker.ThreadSafeWorker",
+    "workers.thread_safe_worker.ThreadSafeWorker",
     cleanup_order=25,
     description="Zombie worker cleanup timer",
 )
 
 # 30-39: Process Pools
 SingletonRegistry.register(
-    "process_pool_manager.ProcessPoolManager",
+    "workers.process_pool_manager.ProcessPoolManager",
     cleanup_order=30,
     description="Subprocess execution and caching",
 )

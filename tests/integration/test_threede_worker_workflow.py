@@ -87,7 +87,7 @@ def reset_threede_singletons() -> None:
     # Import here to avoid circular dependencies
     from managers.notification_manager import NotificationManager
     from managers.progress_manager import ProgressManager
-    from process_pool_manager import ProcessPoolManager
+    from workers.process_pool_manager import ProcessPoolManager
 
     # Reset ProcessPoolManager
     if ProcessPoolManager._instance is not None:

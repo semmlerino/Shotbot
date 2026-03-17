@@ -194,7 +194,7 @@ class TestSceneFinderProperties:
         import tempfile
 
         # Local application imports
-        from scene_discovery_coordinator import (
+        from discovery.scene_discovery_coordinator import (
             SceneDiscoveryCoordinator as ThreeDESceneFinder,
         )
 

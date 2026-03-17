@@ -24,7 +24,7 @@ import time
 
 import pytest
 
-from process_pool_manager import ProcessPoolManager
+from workers.process_pool_manager import ProcessPoolManager
 
 
 def _run_in_background(

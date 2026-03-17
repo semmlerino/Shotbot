@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from command_launcher import CommandLauncher
 from config import Config
+from launch.command_launcher import CommandLauncher
 from launch.process_executor import ProcessExecutor
 from launch.process_verifier import ProcessVerifier
 from tests.fixtures.process_fixtures import PopenDouble
@@ -56,7 +56,7 @@ def ensure_qt_cleanup(qtbot: QtBot) -> None:
 def stable_terminal_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     """Default all tests to a known terminal; individual tests override as needed."""
     monkeypatch.setattr(
-        "command_launcher.EnvironmentManager.detect_terminal",
+        "launch.command_launcher.EnvironmentManager.detect_terminal",
         lambda _self: "gnome-terminal",
     )
 

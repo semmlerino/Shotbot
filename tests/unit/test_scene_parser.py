@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from scene_parser import SceneParser
+from discovery.scene_parser import SceneParser
 
 
 pytestmark = [pytest.mark.smoke]

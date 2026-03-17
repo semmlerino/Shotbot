@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
+from launch.rv_launcher import open_plate_in_rv
 from managers.notification_manager import NotificationManager
-from rv_launcher import open_plate_in_rv
 
 
 @pytest.mark.unit
@@ -22,7 +22,7 @@ class TestOpenPlateInRV:
             mock_notify.assert_called_once()
             assert "No Plate Found" in mock_notify.call_args[0][0]
 
-    @patch("rv_launcher.subprocess.Popen")
+    @patch("launch.rv_launcher.subprocess.Popen")
     @patch("discovery.publish_plate_finder.find_main_plate", return_value="/path/to/plate.exr")
     def test_launches_rv_with_correct_command(self, mock_find, mock_popen):
         """Successfully launches RV through Rez with correct flags."""
@@ -58,7 +58,7 @@ class TestOpenPlateInRV:
         mock_notify.assert_called_once()
         assert "RV Launch Failed" in mock_notify.call_args[0][0]
 
-    @patch("rv_launcher.subprocess.Popen", side_effect=FileNotFoundError)
+    @patch("launch.rv_launcher.subprocess.Popen", side_effect=FileNotFoundError)
     @patch("discovery.publish_plate_finder.find_main_plate", return_value="/path/to/plate.exr")
     def test_rv_not_found_error(self, mock_find, mock_popen):
         """FileNotFoundError shows RV Not Found notification."""
@@ -70,7 +70,7 @@ class TestOpenPlateInRV:
             mock_notify.assert_called_once()
             assert "RV Not Found" in mock_notify.call_args[0][0]
 
-    @patch("rv_launcher.subprocess.Popen", side_effect=RuntimeError("boom"))
+    @patch("launch.rv_launcher.subprocess.Popen", side_effect=RuntimeError("boom"))
     @patch("discovery.publish_plate_finder.find_main_plate", return_value="/path/to/plate.exr")
     def test_generic_launch_error(self, mock_find, mock_popen):
         """Generic exception shows RV Launch Failed notification."""

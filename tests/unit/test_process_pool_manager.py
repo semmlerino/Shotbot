@@ -24,7 +24,7 @@ from typing import Self
 import pytest
 
 # Local application imports
-from process_pool_manager import (
+from workers.process_pool_manager import (
     CommandCache,
     ProcessPoolManager,
 )

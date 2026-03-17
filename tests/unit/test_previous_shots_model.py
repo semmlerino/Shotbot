@@ -66,7 +66,7 @@ def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     from managers.notification_manager import NotificationManager
     from managers.progress_manager import ProgressManager
-    from process_pool_manager import ProcessPoolManager
+    from workers.process_pool_manager import ProcessPoolManager
 
     # Reset singleton instances
     monkeypatch.setattr(NotificationManager, "_instance", None)

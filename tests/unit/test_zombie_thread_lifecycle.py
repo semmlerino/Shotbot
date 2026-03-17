@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 import pytest
 from PySide6.QtCore import QMutexLocker, QObject
 
-from thread_safe_worker import ThreadSafeWorker
+from workers.thread_safe_worker import ThreadSafeWorker
 
 
 if TYPE_CHECKING:

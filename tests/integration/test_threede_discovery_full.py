@@ -166,7 +166,7 @@ class TestThreeDEDiscoveryIntegration:
         from config import (
             Config,
         )
-        from scene_discovery_coordinator import (
+        from discovery.scene_discovery_coordinator import (
             SceneDiscoveryCoordinator,
         )
 
@@ -215,7 +215,7 @@ class TestThreeDEDiscoveryIntegration:
     def test_scene_filtering_with_real_parser(self, temp_vfx_structure) -> None:
         """Test scene filtering using the real SceneParser component."""
         # Local application imports
-        from scene_parser import (
+        from discovery.scene_parser import (
             SceneParser,
         )
 
@@ -245,7 +245,7 @@ class TestThreeDEDiscoveryIntegration:
     def test_end_to_end_with_filesystem_scanner(self, temp_vfx_structure) -> None:
         """Test complete end-to-end with FileSystemScanner."""
         # Local application imports
-        from filesystem_scanner import (
+        from discovery.filesystem_scanner import (
             FileSystemScanner,
         )
 
@@ -300,7 +300,7 @@ class TestThreeDEDiscoveryIntegration:
         from config import (
             Config,
         )
-        from scene_discovery_coordinator import (
+        from discovery.scene_discovery_coordinator import (
             SceneDiscoveryCoordinator,
         )
 

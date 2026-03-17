@@ -27,11 +27,11 @@ if TYPE_CHECKING:
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
-from runnable_tracker import get_tracker
 from shots.shot_info_panel import ShotInfoPanel
 from shots.shot_item_model import ShotItemModel
 from tests.test_helpers import process_qt_events
 from type_definitions import Shot
+from workers.runnable_tracker import get_tracker
 
 
 pytestmark = [

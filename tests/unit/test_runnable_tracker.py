@@ -19,7 +19,7 @@ from unittest.mock import patch
 import pytest
 from PySide6.QtCore import QRunnable, QThreadPool
 
-from runnable_tracker import (
+from workers.runnable_tracker import (
     QRunnableTracker,
     TrackedQRunnable,
     cleanup_all_runnables,

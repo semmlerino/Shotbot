@@ -151,7 +151,7 @@ def main_window_with_real_components(
     def mock_get_instance() -> TestProcessPool:
         return test_pool
 
-    from process_pool_manager import ProcessPoolManager
+    from workers.process_pool_manager import ProcessPoolManager
     monkeypatch.setattr(ProcessPoolManager, "get_instance", mock_get_instance)
 
     from managers.notification_manager import NotificationManager
@@ -698,7 +698,7 @@ class TestUserWorkflows:
             ) as mock_popen,
             patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}),
             patch(
-                "command_launcher.EnvironmentManager.is_ws_available",
+                "launch.command_launcher.EnvironmentManager.is_ws_available",
                 return_value=True,
             ),
         ):
@@ -730,7 +730,7 @@ class TestUserWorkflows:
         monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
 
         with patch(
-            "process_pool_manager.ProcessPoolManager.get_instance",
+            "workers.process_pool_manager.ProcessPoolManager.get_instance",
             return_value=test_pool,
         ):
             main_window = MainWindow(cache_dir=self.cache_dir)
