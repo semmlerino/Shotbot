@@ -15,16 +15,11 @@ a focused, testable component. It handles:
 from __future__ import annotations
 
 # Standard library imports
-import sys
 import time
-import warnings
 from typing import TYPE_CHECKING, Protocol
 
 # Third-party imports
 from PySide6.QtCore import (
-    QMutex,
-    QMutexLocker,
-    Qt,
     Signal,
     Slot,
 )
@@ -47,10 +42,10 @@ if TYPE_CHECKING:
 
 # Runtime imports (needed at runtime)
 from config import Config
+from controllers.threede_worker_manager import ThreeDEWorkerManager
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
-from threede import ThreeDESceneWorker
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -98,8 +93,7 @@ class ThreeDEController(LoggingMixin):
     Attributes:
         window: The target window that implements ThreeDETarget protocol
         logger: Logger instance for this controller
-        _threede_worker: Current background worker thread (if any)
-        _worker_mutex: Mutex for thread-safe worker access
+        _worker_manager: Manages the background worker lifecycle
 
     """
 
@@ -113,9 +107,15 @@ class ThreeDEController(LoggingMixin):
         super().__init__()
         self.window: ThreeDETarget = window
 
-        # Thread management - mirrors MainWindow's approach
-        self._threede_worker: ThreeDESceneWorker | None = None
-        self._worker_mutex: QMutex = QMutex()
+        # Worker lifecycle management — owns the worker instance and mutex
+        self._worker_manager: ThreeDEWorkerManager = ThreeDEWorkerManager(
+            on_discovery_started=self.on_discovery_started,  # pyright: ignore[reportAny]
+            on_discovery_progress=self.on_discovery_progress,  # pyright: ignore[reportAny]
+            on_discovery_finished=self.on_discovery_finished,  # pyright: ignore[reportAny]
+            on_discovery_error=self.on_discovery_error,  # pyright: ignore[reportAny]
+            on_batch_ready=self.on_batch_ready,  # pyright: ignore[reportAny]
+            on_scan_progress=self.on_scan_progress,  # pyright: ignore[reportAny]
+        )
 
         # Shutdown state - set to True when closing_started signal is received
         self._closing: bool = False
@@ -176,10 +176,9 @@ class ThreeDEController(LoggingMixin):
 
         # GUARD: If worker is already running, skip this request entirely
         # This prevents duplicate progress operations during rapid refresh calls
-        with QMutexLocker(self._worker_mutex):
-            if self._threede_worker and not self._threede_worker.isFinished():
-                self.logger.debug("3DE worker already running, skipping duplicate refresh request")
-                return
+        if self._worker_manager.has_active_worker:
+            self.logger.debug("3DE worker already running, skipping duplicate refresh request")
+            return
 
         # DEBOUNCE: Prevent scan restart spam (e.g., rapid shot refreshes)
         now = time.time()
@@ -196,57 +195,28 @@ class ThreeDEController(LoggingMixin):
         # INSTANT UI UPDATE: Load persistent cache first (no TTL check)
         cached_scenes = self._load_cached_scenes()
 
-        # Store worker reference for cleanup outside mutex
-        worker_to_stop = None
-
-        # Use mutex only for critical section
-        with QMutexLocker(self._worker_mutex):
-            # Double-check closing state with mutex held
-            if self._closing:
-                return
-
-            # Check existing worker state
-            if self._threede_worker and not self._threede_worker.isFinished():
-                self.logger.debug(
-                    "3DE worker still running, will stop before starting new one",
-                )
-                worker_to_stop = self._threede_worker
-                # Don't clear the reference yet - prevents race condition
-
-        # Stop old worker outside of mutex to avoid deadlock
-        if worker_to_stop:
-            self._stop_existing_worker(worker_to_stop)
+        # Stop any still-running worker before starting a new one
+        if self._worker_manager.has_active_worker:
+            self.logger.debug(
+                "3DE worker still running, will stop before starting new one",
+            )
+            self._worker_manager.stop_worker()
 
         # Check once more if closing (could have changed while stopping worker)
         if self._closing:
             return
 
-        # Now create new worker with mutex protection
-        with QMutexLocker(self._worker_mutex):
-            # Final check before creating new worker
-            if self._closing or self._threede_worker:
-                return
+        # Final check before creating new worker
+        if self._closing or self._worker_manager.has_active_worker:
+            return
 
-            # Show loading state
-            self.window.threede_item_model.set_loading_state(True)
-            status_msg = "Scanning for 3DE scene updates..." if cached_scenes else "Starting enhanced 3DE scene discovery..."
-            self.window.update_status(status_msg)
+        # Show loading state
+        self.window.threede_item_model.set_loading_state(True)
+        status_msg = "Scanning for 3DE scene updates..." if cached_scenes else "Starting enhanced 3DE scene discovery..."
+        self.window.update_status(status_msg)
 
-            # Create enhanced worker with progressive scanning enabled
-            # Pass user's shots so the worker knows which shows to scan
-            # The worker will scan ALL shots in those shows, not just the user's shots
-            self._threede_worker = ThreeDESceneWorker(
-                shots=self.window.get_active_shots(),  # Used to determine which shows to scan
-                enable_progressive=True,  # Enable progressive scanning for better UI responsiveness
-                batch_size=None,  # Use config default
-                scan_all_shots=True,  # Scan ALL shots in the shows, not just user's shots
-            )
-
-        # Connect worker signals outside of mutex (signals are thread-safe)
-        self._setup_worker_signals(self._threede_worker)
-
-        # Start the worker
-        self._threede_worker.start()
+        # Delegate worker creation, signal wiring, and start to the manager
+        _ = self._worker_manager.start_worker(shots=self.window.get_active_shots())
 
     def cleanup_worker(self) -> None:
         """Clean up the 3DE scene discovery worker.
@@ -254,30 +224,6 @@ class ThreeDEController(LoggingMixin):
         Called during application shutdown to ensure proper cleanup
         of background threads and prevent zombie threads.
         """
-        with QMutexLocker(self._worker_mutex):
-            worker_to_cleanup = self._threede_worker
-
-        if not worker_to_cleanup:
-            return
-
-        if not worker_to_cleanup.isFinished():
-            self.logger.debug("Stopping 3DE worker during shutdown")
-            worker_to_cleanup.stop()
-
-            # Use shorter timeout in test environments
-            is_test_environment = "pytest" in sys.modules
-            worker_timeout_ms = (
-                500 if is_test_environment else Config.WORKER_STOP_TIMEOUT_MS
-            )
-
-            if not worker_to_cleanup.wait(worker_timeout_ms):
-                self.logger.warning(
-                    f"3DE worker didn't stop gracefully within {worker_timeout_ms}ms, using safe termination"
-                )
-                worker_to_cleanup.safe_terminate()
-                final_timeout_ms = 200 if is_test_environment else 1000
-                _ = worker_to_cleanup.wait(final_timeout_ms)
-
         # Ensure any open progress operation is finished
         # This handles cases where worker is terminated without emitting finished/error signals
         if self._current_progress_operation is not None:
@@ -296,21 +242,8 @@ class ThreeDEController(LoggingMixin):
                 )
             self._current_progress_operation = None
 
-        # Disconnect signals after worker has stopped
-        self._disconnect_worker_signals(worker_to_cleanup)
-
-        # Clear reference and clean up
-        with QMutexLocker(self._worker_mutex):
-            if self._threede_worker == worker_to_cleanup:
-                self._threede_worker = None
-
-        # Only delete if not a zombie thread
-        if hasattr(worker_to_cleanup, "is_zombie") and worker_to_cleanup.is_zombie():
-            self.logger.warning(
-                "3DE worker thread is a zombie and will not be deleted to prevent crash"
-            )
-        else:
-            worker_to_cleanup.deleteLater()
+        # Delegate worker stopping, signal disconnection, and deletion to the manager
+        self._worker_manager.cleanup()
 
     # ============================================================================
     # Worker Signal Handlers (Phase 3.4)
@@ -384,8 +317,7 @@ class ThreeDEController(LoggingMixin):
             self.update_scenes_no_changes()
 
         # Surface discovery errors so the user knows results may be incomplete
-        with QMutexLocker(self._worker_mutex):
-            worker = self._threede_worker
+        worker = self._worker_manager.current_worker
         if worker and worker.discovery_errors > 0:
             n = worker.discovery_errors
             NotificationManager.info(
@@ -726,109 +658,6 @@ class ThreeDEController(LoggingMixin):
 
         return scenes
 
-    def _stop_existing_worker(self, worker_to_stop: ThreeDESceneWorker) -> None:
-        """Stop a running worker thread and release its resources.
-
-        Requests a graceful stop, waits up to the configured timeout, falls
-        back to safe termination if the worker does not respond in time, then
-        schedules the worker for deletion (unless it is a zombie thread) and
-        clears the internal worker reference under mutex protection.
-
-        Args:
-            worker_to_stop: The worker thread to stop.  Must not be ``None``.
-
-        """
-        worker_to_stop.stop()
-        if not worker_to_stop.wait(
-            Config.WORKER_STOP_TIMEOUT_MS
-        ):  # Wait up to 5 seconds
-            self.logger.warning(
-                "Failed to stop 3DE worker gracefully, using safe termination",
-            )
-            # Use safe_terminate which avoids dangerous terminate() call
-            worker_to_stop.safe_terminate()
-
-        # Only delete if not a zombie (prevents crash)
-        if hasattr(worker_to_stop, "is_zombie") and worker_to_stop.is_zombie():
-            self.logger.warning(
-                "3DE worker thread is a zombie and will not be deleted"
-            )
-        else:
-            worker_to_stop.deleteLater()
-
-        # Clear reference after worker is stopped, with mutex protection
-        with QMutexLocker(self._worker_mutex):
-            if self._threede_worker == worker_to_stop:
-                self._threede_worker = None
-
-    def _setup_worker_signals(self, worker: ThreeDESceneWorker) -> None:
-        """Connect all worker signals to controller slots.
-
-        Args:
-            worker: The worker thread to connect signals from
-
-        """
-        # Connect enhanced worker signals using safe_connect method for proper cleanup
-        _ = worker.safe_connect(
-            worker.worker_discovery_started,
-            self.on_discovery_started,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        _ = worker.safe_connect(
-            worker.batch_ready,
-            self.on_batch_ready,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        _ = worker.safe_connect(
-            worker.progress,
-            self.on_discovery_progress,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        _ = worker.safe_connect(
-            worker.scan_progress,
-            self.on_scan_progress,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        _ = worker.safe_connect(
-            worker.discovery_finished,
-            self.on_discovery_finished,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        _ = worker.safe_connect(
-            worker.error,
-            self.on_discovery_error,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        self.logger.debug("Connected all worker signals to controller")
-
-    def _disconnect_worker_signals(self, worker: ThreeDESceneWorker) -> None:
-        """Safely disconnect worker signals.
-
-        Args:
-            worker: The worker thread to disconnect signals from
-
-        """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
-            signals_to_disconnect = [
-                worker.worker_discovery_started,
-                worker.batch_ready,
-                worker.progress,
-                worker.scan_progress,
-                worker.discovery_finished,
-                worker.error,
-            ]
-
-            for signal in signals_to_disconnect:
-                try:
-                    if hasattr(signal, "disconnect"):
-                        _ = signal.disconnect()
-                except (RuntimeError, TypeError):
-                    # Signal may already be disconnected or deleted
-                    pass
-
-        self.logger.debug("Disconnected worker signals")
-
     # ============================================================================
     # Properties and State Access
     # ============================================================================
@@ -841,8 +670,4 @@ class ThreeDEController(LoggingMixin):
     @property
     def has_active_worker(self) -> bool:
         """Check if there's an active worker thread."""
-        with QMutexLocker(self._worker_mutex):
-            return (
-                self._threede_worker is not None
-                and not self._threede_worker.isFinished()
-            )
+        return self._worker_manager.has_active_worker

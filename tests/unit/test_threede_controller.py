@@ -442,8 +442,8 @@ class TestThreeDEControllerInitialization:
         """Test that init sets all expected constructor state."""
         controller = ThreeDEController(window_double)  # type: ignore[arg-type]
         assert controller.window is window_double
-        assert controller._worker_mutex is not None
-        assert controller._threede_worker is None
+        assert controller._worker_manager is not None
+        assert controller._worker_manager._threede_worker is None
         assert controller._current_progress_operation is None
 
 
@@ -869,10 +869,10 @@ class TestRefreshGuards:
         controller._closing = True
 
         # Should return early without creating worker
-        with patch.object(controller, "_setup_worker_signals") as mock_setup:
+        with patch.object(controller._worker_manager, "start_worker") as mock_start:
             controller.refresh_threede_scenes()
 
-            mock_setup.assert_not_called()
+            mock_start.assert_not_called()
 
     def test_refresh_debounced_when_called_too_soon(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
@@ -882,11 +882,11 @@ class TestRefreshGuards:
         controller._last_scan_time = time.time()
 
         # Try to refresh immediately
-        with patch.object(controller, "_setup_worker_signals") as mock_setup:
+        with patch.object(controller._worker_manager, "start_worker") as mock_start:
             controller.refresh_threede_scenes()
 
             # Should be debounced - no new worker created
-            mock_setup.assert_not_called()
+            mock_start.assert_not_called()
 
     def test_refresh_proceeds_after_interval(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
@@ -895,9 +895,9 @@ class TestRefreshGuards:
         # Set last scan time to long ago
         controller._last_scan_time = time.time() - 60  # 60 seconds ago
 
-        # Mock the worker creation path
+        # Mock the worker creation path through the manager
         with patch(
-            "controllers.threede_controller.ThreeDESceneWorker"
+            "controllers.threede_worker_manager.ThreeDESceneWorker"
         ) as mock_worker_class:
             mock_worker = MagicMock()
             mock_worker.isFinished.return_value = True
@@ -912,22 +912,20 @@ class TestRefreshGuards:
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
         """Test that concurrent refresh calls are blocked."""
-        # Set up a mock worker that appears to be running
+        # Set up a mock worker that appears to be running via the manager
         mock_worker = MagicMock()
         mock_worker.isFinished.return_value = False
-        controller._threede_worker = mock_worker
+        controller._worker_manager._threede_worker = mock_worker
 
         # Reset last scan time to allow refresh based on timing
         controller._last_scan_time = 0
 
         # Try to refresh while worker is running
-        with patch(
-            "controllers.threede_controller.ThreeDESceneWorker"
-        ) as mock_worker_class:
+        with patch.object(controller._worker_manager, "start_worker") as mock_start:
             controller.refresh_threede_scenes()
 
             # Should NOT create a new worker
-            mock_worker_class.assert_not_called()
+            mock_start.assert_not_called()
 
 
 # ============================================================================
