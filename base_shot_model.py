@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 from logging_mixin import LoggingMixin
 from process_pool_manager import ProcessPoolManager
 from qt_abc_meta import QABCMeta
-from shot_filter import compose_filters, get_available_shows
-from shot_parser import OptimizedShotParser
+from shots.shot_filter import compose_filters, get_available_shows
+from shots.shot_parser import OptimizedShotParser
 from utils import ValidationUtils
 
 

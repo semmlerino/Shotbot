@@ -15,7 +15,7 @@ from cache.shot_cache import ShotDataCache
 from logging_mixin import LoggingMixin
 from previous_shots.finder import ParallelShotsFinder
 from previous_shots.worker import PreviousShotsWorker
-from shot_filter import compose_filters, get_available_shows
+from shots.shot_filter import compose_filters, get_available_shows
 from type_definitions import Shot
 
 

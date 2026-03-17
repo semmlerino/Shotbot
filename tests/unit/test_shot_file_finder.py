@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from scene_file import FileType, SceneFile
-from shot_file_finder import ShotFileFinder
+from shots.shot_file_finder import ShotFileFinder
 
 
 class TestSceneFile:

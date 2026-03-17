@@ -21,10 +21,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from dcc_accordion import DCCAccordion
+from dcc.dcc_accordion import DCCAccordion
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FileType, SceneFile
-from shot_file_finder import ShotFileFinder
+from shots.shot_file_finder import ShotFileFinder
 
 
 if TYPE_CHECKING:

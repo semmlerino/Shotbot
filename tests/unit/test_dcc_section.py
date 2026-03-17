@@ -11,7 +11,7 @@ from PySide6.QtCore import Qt
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
-from dcc_section import (
+from dcc.dcc_section import (
     DEFAULT_DCC_CONFIGS,
     CheckboxConfig,
     DCCConfig,

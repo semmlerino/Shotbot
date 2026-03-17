@@ -31,11 +31,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from dcc_file_table import DCCFileTable
-from dcc_sequence_table import DCCSequenceTable
 from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FileType, ImageSequence, SceneFile
+
+from .dcc_file_table import DCCFileTable
+from .dcc_sequence_table import DCCSequenceTable
 
 
 @final

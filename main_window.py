@@ -133,12 +133,6 @@ from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
 # Set up logger for this module
 logger = get_module_logger(__name__)
 
-
-# Tab index constants for the main tab widget
-TAB_MY_SHOTS = 0
-TAB_OTHER_3DE = 1
-TAB_PREVIOUS = 2
-
 _TAB_BAR_STYLESHEET = """
     /* Tab bar - disable focus indicators */
     QTabBar {

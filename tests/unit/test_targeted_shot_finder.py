@@ -14,7 +14,7 @@ import pytest
 from config import Config
 
 # Local application imports
-from targeted_shot_finder import TargetedShotsFinder
+from shots.targeted_shot_finder import TargetedShotsFinder
 from type_definitions import Shot
 
 
@@ -33,7 +33,7 @@ class TestTargetedShotsFinderInitialization:
 
     def test_shot_pattern_initialization(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that shot pattern is initialized correctly."""
-        import targeted_shot_finder
+        from shots import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/test/shows")
         finder = TargetedShotsFinder()
@@ -114,7 +114,7 @@ class TestScanShowForUser:
         mock_proc = MagicMock()
         mock_proc.run.return_value = mock_result
 
-        with patch("targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
+        with patch("shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
             shots = finder._scan_show_for_user("test_show", shows_root)
 
             assert len(shots) > 0
@@ -163,7 +163,7 @@ class TestScanShowForUser:
         else:
             mock_proc.run.side_effect = Exception("Process failed")
 
-        with patch("targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
+        with patch("shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
             shots = finder._scan_show_for_user("test_show", shows_root)
 
         assert shots == []
@@ -196,7 +196,7 @@ class TestScanShowForUser:
         mock_proc = MagicMock()
         mock_proc.run.return_value = mock_result
 
-        with patch("targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
+        with patch("shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
             shots = finder._scan_show_for_user("myshow", shows_root)
 
             assert len(shots) == 3
@@ -210,7 +210,7 @@ class TestParseShotFromPath:
 
     def test_parse_standard_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test parsing standard VFX shot path."""
-        import targeted_shot_finder
+        from shots import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -228,7 +228,7 @@ class TestParseShotFromPath:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test parsing path where shot dir has no underscore."""
-        import targeted_shot_finder
+        from shots import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -243,7 +243,7 @@ class TestParseShotFromPath:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test parsing path with complex shot name."""
-        import targeted_shot_finder
+        from shots import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -269,7 +269,7 @@ class TestParseShotFromPath:
             patch,
         )
 
-        import targeted_shot_finder
+        from shots import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -292,7 +292,7 @@ class TestParseShotFromPath:
             patch,
         )
 
-        import targeted_shot_finder
+        from shots import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -301,7 +301,7 @@ class TestParseShotFromPath:
 
         with (
             patch(
-                "targeted_shot_finder.Shot",
+                "shots.targeted_shot_finder.Shot",
                 side_effect=Exception("Shot creation failed"),
             ),
             patch.object(finder.logger, "debug") as mock_debug,
@@ -320,7 +320,7 @@ class TestFindUserShotsInShows:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """Test finding shots in targeted shows."""
-        import targeted_shot_finder
+        from shots import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder(username="john")

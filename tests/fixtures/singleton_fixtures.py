@@ -516,7 +516,7 @@ def reset_caches(request: pytest.FixtureRequest) -> Iterator[None]:
 
     # Clear OptimizedShotParser pattern cache
     try:
-        import shot_parser
+        from shots import shot_parser
 
         shot_parser._PATTERN_CACHE.clear()
     except (RuntimeError, AttributeError, ImportError) as e:

@@ -12,8 +12,8 @@ from PySide6.QtCore import Qt
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
-from dcc_accordion import DCCAccordion
-from dcc_section import DEFAULT_DCC_CONFIGS, DCCConfig, DCCSection
+from dcc.dcc_accordion import DCCAccordion
+from dcc.dcc_section import DEFAULT_DCC_CONFIGS, DCCConfig, DCCSection
 from tests.test_helpers import process_qt_events
 
 

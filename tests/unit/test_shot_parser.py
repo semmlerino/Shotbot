@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-import shot_parser
-from shot_parser import OptimizedShotParser, ParseResult
+from shots import shot_parser
+from shots.shot_parser import OptimizedShotParser, ParseResult
 
 
 # ---------------------------------------------------------------------------

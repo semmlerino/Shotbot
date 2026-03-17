@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from shot_filter import (
+from shots.shot_filter import (
     compose_filters,
     filter_by_show,
     filter_by_text,

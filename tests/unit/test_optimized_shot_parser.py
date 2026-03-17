@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import pytest
 
-import shot_parser
 from config import Config
-from shot_parser import (
+from shots import shot_parser
+from shots.shot_parser import (
     OptimizedShotParser,
     ParseResult,
 )

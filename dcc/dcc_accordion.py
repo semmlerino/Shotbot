@@ -16,8 +16,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from dcc_section import DEFAULT_DCC_CONFIGS, DCCConfig, DCCSection
 from qt_widget_mixin import QtWidgetMixin
+
+from .dcc_section import DEFAULT_DCC_CONFIGS, DCCConfig, DCCSection
 
 
 if TYPE_CHECKING:

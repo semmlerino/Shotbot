@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, cast, final
 # Local application imports
 from config import Config, ThreadingConfig
 from process_pool_manager import CancellableSubprocess
-from shot_finder_base import FindShotsKwargs, ShotFinderBase
+from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from type_definitions import Shot
 from typing_compat import override
 
@@ -519,7 +519,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         """
         # Local application imports
-        from targeted_shot_finder import TargetedShotsFinder
+        from shots.targeted_shot_finder import TargetedShotsFinder
 
         # Ensure shows_root is always a Path object
         if shows_root is None:

@@ -511,7 +511,7 @@ class ThreeDEController(LoggingMixin):
     @Slot(int)  # pyright: ignore[reportAny]
     def on_tab_activated(self, tab_index: int) -> None:
         """Handle tab activation — update right panel when 3DE tab is selected."""
-        from main_window import TAB_OTHER_3DE
+        from tab_constants import TAB_OTHER_3DE
 
         if tab_index != TAB_OTHER_3DE:
             return

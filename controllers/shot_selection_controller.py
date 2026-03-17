@@ -112,7 +112,7 @@ class ShotDiscoveryWorker(QRunnable):
         try:
             # Import here to avoid circular imports
             from plate_discovery import PlateDiscovery
-            from shot_file_finder import ShotFileFinder
+            from shots.shot_file_finder import ShotFileFinder
 
             # Discover plates
             plates: list[str] = []
@@ -301,7 +301,7 @@ class ShotSelectionController(QObject, LoggingMixin):
     @Slot(int)  # pyright: ignore[reportAny]
     def on_tab_activated(self, tab_index: int) -> None:
         """Handle tab activation — update right panel when shot tabs are selected."""
-        from main_window import TAB_MY_SHOTS, TAB_PREVIOUS
+        from tab_constants import TAB_MY_SHOTS, TAB_PREVIOUS
 
         if tab_index == TAB_MY_SHOTS:
             selected_shot = self.window.shot_grid.selected_shot

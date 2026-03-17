@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FILE_TYPE_COLORS, FileType, SceneFile
-from shot_file_finder import ShotFileFinder
+from shots.shot_file_finder import ShotFileFinder
 
 
 if TYPE_CHECKING:
