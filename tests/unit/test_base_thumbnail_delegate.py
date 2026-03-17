@@ -43,7 +43,7 @@ from base_thumbnail_delegate import (
     ThumbnailItemData,
 )
 from config import Config
-from shot_item_model import ShotItemModel
+from shots.shot_item_model import ShotItemModel
 from type_definitions import Shot
 
 

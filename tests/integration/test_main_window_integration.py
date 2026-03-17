@@ -70,7 +70,7 @@ def stable_main_window_startup(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
     monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
-    monkeypatch.setattr("shot_model.ShotModel.initialize_async", _skip_async_init)
+    monkeypatch.setattr("shots.shot_model.ShotModel.initialize_async", _skip_async_init)
     monkeypatch.setattr(
         "launch.environment_manager.EnvironmentManager.warm_cache_async",
         lambda _self: None,
@@ -334,7 +334,7 @@ class TestCrossTabSynchronization:
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test that show filtering propagates correctly within a tab."""
-        from shot_model import AsyncShotLoader
+        from shots.shot_model import AsyncShotLoader
         original_init_async = AsyncShotLoader.__init__
 
         def no_op_init(self: Any, *args: Any, **kwargs: Any) -> None:

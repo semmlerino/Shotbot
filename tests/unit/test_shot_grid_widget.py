@@ -35,11 +35,11 @@ from PySide6.QtTest import QTest
 from config import Config
 
 # Local application imports
-from shot_grid_delegate import ShotGridDelegate
-from shot_grid_view import ShotGridView  # Modern Model/View
+from shots.shot_grid_delegate import ShotGridDelegate
+from shots.shot_grid_view import ShotGridView  # Modern Model/View
 
 # from shot_grid import ShotGrid  # Module deleted during Model/View migration
-from shot_item_model import ShotItemModel
+from shots.shot_item_model import ShotItemModel
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.fixtures.test_doubles import (

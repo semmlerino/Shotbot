@@ -411,7 +411,7 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
         cache_manager: CacheCoordinator fixture from temp_directories
 
     """
-    from shot_model import ShotModel
+    from shots.shot_model import ShotModel
 
     # Create shows root
     shows_root = tmp_path / "shows"

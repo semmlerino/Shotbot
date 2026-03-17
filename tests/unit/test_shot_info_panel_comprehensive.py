@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
-from shot_info_panel import ShotInfoPanel
+from shots.shot_info_panel import ShotInfoPanel
 from tests.fixtures.test_doubles import TestCacheManager
 from type_definitions import Shot
 

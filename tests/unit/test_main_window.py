@@ -64,7 +64,7 @@ def setup_qt_imports() -> None:
         FileType,
         SceneFile,
     )
-    from shot_model import (
+    from shots.shot_model import (
         Shot,
     )
     from threede.scene_model import (
@@ -82,7 +82,7 @@ def stable_main_window_startup(monkeypatch: pytest.MonkeyPatch) -> None:
         return RefreshResult(success=True, has_changes=False)
 
     monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
-    monkeypatch.setattr("shot_model.ShotModel.initialize_async", _skip_async_init)
+    monkeypatch.setattr("shots.shot_model.ShotModel.initialize_async", _skip_async_init)
     monkeypatch.setattr(
         "launch.environment_manager.EnvironmentManager.warm_cache_async",
         lambda _self: None,

@@ -35,7 +35,7 @@ from cache.thumbnail_cache import ThumbnailCache
 from design_system import design_system
 from image_utils import ImageUtils
 from qt_widget_mixin import QtWidgetMixin
-from shot_files_panel import ShotFilesPanel
+from shots.shot_files_panel import ShotFilesPanel
 from typing_compat import override
 
 

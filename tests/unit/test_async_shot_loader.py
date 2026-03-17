@@ -12,7 +12,7 @@ from PySide6.QtTest import QSignalSpy
 # Local application imports
 from base_shot_model import BaseShotModel
 from config import Config
-from shot_model import AsyncShotLoader, ShotModel
+from shots.shot_model import AsyncShotLoader, ShotModel
 from tests.fixtures.test_doubles import TestProcessPool
 
 

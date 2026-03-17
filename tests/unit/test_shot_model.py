@@ -25,7 +25,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 # Local application imports
 from cache.types import ShotMergeResult
 from config import Config
-from shot_model import RefreshResult, ShotModel
+from shots.shot_model import RefreshResult, ShotModel
 from tests.fixtures.test_doubles import TestProcessPool
 from type_definitions import Shot
 

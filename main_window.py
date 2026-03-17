@@ -123,9 +123,9 @@ from refresh_coordinator import RefreshCoordinator  # Extracted refresh logic
 from right_panel import RightPanelWidget  # New redesigned right panel
 from scene_file import SceneFile
 from settings_manager import SettingsManager
-from shot_grid_view import ShotGridView  # Model/View implementation
-from shot_item_model import ShotItemModel
-from shot_model import ShotModel
+from shots.shot_grid_view import ShotGridView  # Model/View implementation
+from shots.shot_item_model import ShotItemModel
+from shots.shot_model import ShotModel
 from startup_coordinator import StartupCoordinator
 from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
 

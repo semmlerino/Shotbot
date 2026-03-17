@@ -25,11 +25,11 @@ from PySide6.QtWidgets import QComboBox
 from previous_shots.item_model import PreviousShotsItemModel
 from previous_shots.model import PreviousShotsModel
 from previous_shots.view import PreviousShotsView
-from shot_grid_view import ShotGridView
+from shots.shot_grid_view import ShotGridView
 
 # Local application imports
-from shot_item_model import ShotItemModel
-from shot_model import ShotModel
+from shots.shot_item_model import ShotItemModel
+from shots.shot_model import ShotModel
 from tests.fixtures.test_doubles import TestCacheManager, TestProcessPool
 from type_definitions import Shot
 

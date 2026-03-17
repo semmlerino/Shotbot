@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from cache.shot_cache import ShotDataCache
-from shot_model import ShotModel
+from shots.shot_model import ShotModel
 
 
 pytestmark = pytest.mark.qt  # CRITICAL: Qt state must be serialized

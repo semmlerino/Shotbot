@@ -548,7 +548,7 @@ class TestPreviousShotsViewIntegration:
     ) -> Generator[PreviousShotsView, None, None]:
         """Create view with all real components for integration testing."""
         # Local application imports
-        from shot_model import (
+        from shots.shot_model import (
             ShotModel,
         )
 

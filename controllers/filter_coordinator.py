@@ -26,9 +26,9 @@ if TYPE_CHECKING:
     from previous_shots.model import PreviousShotsModel
     from previous_shots.view import PreviousShotsView
     from proxy_models import PreviousShotsProxyModel, ShotProxyModel
-    from shot_grid_view import ShotGridView
-    from shot_item_model import ShotItemModel
-    from shot_model import ShotModel
+    from shots.shot_grid_view import ShotGridView
+    from shots.shot_item_model import ShotItemModel
+    from shots.shot_model import ShotModel
 
 
 class FilterTarget(Protocol):

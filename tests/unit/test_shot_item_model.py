@@ -18,7 +18,7 @@ from PySide6.QtTest import QSignalSpy
 
 from base_item_model import BaseItemRole
 from config import Config
-from shot_item_model import ShotItemModel
+from shots.shot_item_model import ShotItemModel
 from tests.test_helpers import process_qt_events
 from type_definitions import Shot
 

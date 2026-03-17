@@ -36,7 +36,7 @@ from base_item_model import BaseItemRole
 from design_system import design_system
 from progress_manager import ProgressManager
 from runnable_tracker import FolderOpenerWorker
-from shot_grid_delegate import ShotGridDelegate
+from shots.shot_grid_delegate import ShotGridDelegate
 from typing_compat import override
 
 

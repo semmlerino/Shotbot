@@ -97,7 +97,7 @@ class TestWorkspaceCommandProperties:
         import tempfile
 
         # Local application imports
-        from shot_model import (
+        from shots.shot_model import (
             ShotModel,
         )
 
@@ -145,7 +145,7 @@ class TestWorkspaceCommandProperties:
     def test_invalid_workspace_line_handling(self, line: str) -> None:
         """Invalid workspace lines should be handled gracefully."""
         # Local application imports
-        from shot_model import (
+        from shots.shot_model import (
             ShotModel,
         )
 

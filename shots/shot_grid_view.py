@@ -33,8 +33,8 @@ from PySide6.QtWidgets import (
 from base_grid_view import BaseGridView, HasAvailableShows
 from base_item_model import BaseItemRole
 from runnable_tracker import FolderOpenerWorker
-from shot_grid_delegate import ShotGridDelegate
-from shot_item_model import ShotItemModel
+from shots.shot_grid_delegate import ShotGridDelegate
+from shots.shot_item_model import ShotItemModel
 from type_definitions import Shot
 from typing_compat import override
 
@@ -633,7 +633,7 @@ if __name__ == "__main__":
     ]
 
     # Create model and view
-    from shot_item_model import ShotItemModel
+    from shots.shot_item_model import ShotItemModel
 
     model = ShotItemModel()
     model.set_shots(shots)
