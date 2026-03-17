@@ -8,6 +8,7 @@ suitable for use in automated workflows and git hooks.
 # Standard library imports
 import argparse
 import base64
+import hashlib
 import io
 import json
 import os
@@ -16,6 +17,11 @@ import tarfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
+
+
+def _sanitize_name(name: str) -> str:
+    """Sanitize archive name to prevent breaking V2 header parsing."""
+    return name.replace("|", "_").replace("\n", "_").replace("\r", "_")
 
 
 class FolderEncoder:
@@ -100,9 +106,9 @@ class FolderEncoder:
         if self.verbose:
             print(f"Encoding folder: {folder_path} ({folder_size_mb:.1f}MB)", file=sys.stderr)
 
-        # Create tar archive in memory
+        # Create tar archive in memory (bzip2 matches Transfer V2 decoder)
         tar_buffer = io.BytesIO()
-        with tarfile.open(fileobj=tar_buffer, mode="w:gz") as tar:
+        with tarfile.open(fileobj=tar_buffer, mode="w:bz2") as tar:
             tar.add(folder_path, arcname=Path(folder_path).name)
 
         # Encode to base64
@@ -121,14 +127,14 @@ class FolderEncoder:
         return encoded, chunks
 
     def _split_into_chunks(self, encoded: str, folder_path: str) -> list[str]:
-        """Split encoded data into chunks.
+        """Split encoded data into V2 chunks with SHA-256 checksums.
 
         Args:
             encoded: The base64 encoded string
             folder_path: Original folder path for metadata
 
         Returns:
-            List of chunk strings with headers
+            List of chunk strings with V2 headers
 
         """
         chunk_size_chars = self.chunk_size_kb * 1024
@@ -141,16 +147,16 @@ class FolderEncoder:
             )
 
         chunks: list[str] = []
-        folder_name = Path(folder_path).name
+        folder_name = _sanitize_name(Path(folder_path).name)
 
         for i in range(total_chunks):
             start = i * chunk_size_chars
             end = min((i + 1) * chunk_size_chars, len(encoded))
             chunk_data = encoded[start:end]
 
-            # Add header with chunk info (compatible with Transfer.py format)
+            chunk_hash = hashlib.sha256(chunk_data.encode("utf-8")).hexdigest()
             chunk_with_header = (
-                f"FOLDER_TRANSFER_V1|{i + 1}|{total_chunks}|{folder_name}\n{chunk_data}"
+                f"FOLDER_TRANSFER_V2|{i + 1}|{total_chunks}|{folder_name}|{chunk_hash}\n{chunk_data}"
             )
             chunks.append(chunk_with_header)
 
@@ -353,9 +359,10 @@ def main() -> None:
                 # Use first chunk if chunking was done but no special output requested
                 output_content += chunks[0]
             else:
-                # Add header for compatibility with Transfer.py
-                folder_name = Path(folder_path).name
-                output_content += f"FOLDER_TRANSFER_V1|1|1|{folder_name}\n{encoded}"
+                # Single V2 chunk with SHA-256 checksum
+                folder_name = _sanitize_name(Path(folder_path).name)
+                chunk_hash = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+                output_content += f"FOLDER_TRANSFER_V2|1|1|{folder_name}|{chunk_hash}\n{encoded}"
 
             if output_file:
                 with Path(output_file).open("w") as f:

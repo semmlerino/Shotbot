@@ -36,6 +36,10 @@ detect_python() {
 mkdir -p "$HOOK_OUTPUT_DIR"
 exec > "$LOG_FILE" 2>&1
 
+# Serialize concurrent pushes — if another push is running, skip this one
+exec 9>"$HOOK_OUTPUT_DIR/push.lock"
+flock -n 9 || { printf '[%s] Push already in progress, skipping\n' "$(date)"; exit 0; }
+
 printf '[%s] Starting background bundle push...\n' "$(date)"
 
 CURRENT_BRANCH="$(cat "$HOOK_OUTPUT_DIR/current_branch.txt" 2>/dev/null || echo main)"

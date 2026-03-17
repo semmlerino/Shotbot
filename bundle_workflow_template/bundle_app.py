@@ -36,86 +36,6 @@ class BundleConfig(TypedDict):
 ConfigValue = list[str] | int | str
 
 
-class GitIgnoreParser:
-    """Parse and apply .gitignore patterns."""
-
-    def __init__(self, gitignore_path: str | None = None) -> None:
-        """Initialize with optional .gitignore file path."""
-        super().__init__()
-        self.patterns: list[str] = []
-        self.always_exclude: set[str] = {
-            "__pycache__",
-            ".git",
-            ".pytest_cache",
-            "venv",
-            "env",
-            ".venv",
-            ".env",
-            "*.pyc",
-            "*.pyo",
-            "*.pyd",
-            ".DS_Store",
-            "Thumbs.db",
-            ".coverage",
-            "htmlcov",
-            ".hypothesis",
-        }
-
-        if gitignore_path and Path(gitignore_path).exists():
-            self._parse_gitignore(gitignore_path)
-
-    def _parse_gitignore(self, gitignore_path: str) -> None:
-        """Parse .gitignore file and extract patterns."""
-        with Path(gitignore_path).open() as f:
-            for line in f:
-                stripped_line = line.strip()
-                # Skip comments and empty lines
-                if stripped_line and not stripped_line.startswith("#"):
-                    self.patterns.append(stripped_line)
-
-    def should_exclude(self, path: str, is_dir: bool = False) -> bool:  # skylos: ignore
-        """Check if a path should be excluded based on patterns.
-
-        Args:
-            path: Relative path to check
-            is_dir: Whether the path is a directory
-
-        Returns:
-            True if the path should be excluded
-
-        """
-        path_parts = Path(path).parts
-        path_name = Path(path).name
-
-        # Check always exclude patterns
-        for pattern in self.always_exclude:
-            if pattern.startswith("*."):
-                # File extension pattern
-                extension = pattern[1:]
-                if path.endswith(extension) or path_name.endswith(extension):
-                    return True
-            elif pattern in path_parts or path_name == pattern:
-                return True
-
-        # Check gitignore patterns
-        for pattern in self.patterns:
-            # Simple pattern matching (not full gitignore spec)
-            if pattern.endswith("/"):
-                # Directory pattern
-                if is_dir and (pattern[:-1] in path_parts or path_name == pattern[:-1]):
-                    return True
-            elif "*" in pattern:
-                # Wildcard pattern
-                regex_pattern = pattern.replace(".", r"\.").replace("*", ".*")
-                if re.match(regex_pattern, path) or re.match(regex_pattern, path_name):
-                    return True
-            # Exact match or path contains pattern
-            elif pattern in path_parts or pattern in {path_name, path}:
-                return True
-
-        return False
-
-
 class ApplicationBundler:
     """Bundle application files for transfer."""
 
@@ -130,7 +50,7 @@ class ApplicationBundler:
         super().__init__()
         self.verbose: bool = verbose
         self.config: BundleConfig = self._load_config(config_path)
-        self.gitignore_parser: GitIgnoreParser = GitIgnoreParser(".gitignore")
+        self._git_files: set[str] | None = self._load_git_files()
 
     def _load_config(self, config_path: str | None) -> BundleConfig:
         """Load configuration from file or use defaults.
@@ -217,6 +137,37 @@ class ApplicationBundler:
 
         return default_config
 
+    def _load_git_files(self) -> set[str] | None:
+        """Get the set of files known to git (tracked + untracked-not-ignored).
+
+        Returns None if not in a git repository or git is unavailable.
+        """
+        try:
+            result = subprocess.run(
+                ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return set(result.stdout.splitlines())
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            if self.verbose:
+                print(
+                    "Warning: git ls-files unavailable, skipping gitignore filtering",
+                    file=sys.stderr,
+                )
+            return None
+
+    def _is_git_known(self, relative_path: str) -> bool:
+        """Check if a file is known to git (not gitignored).
+
+        Returns True if git info is unavailable (permissive fallback).
+        """
+        if self._git_files is None:
+            return True
+        normalized = relative_path.replace(os.sep, "/")
+        return normalized in self._git_files
+
     def should_include_file(self, file_path: str) -> bool:
         """Check if a file should be included in the bundle.
 
@@ -227,8 +178,8 @@ class ApplicationBundler:
             True if file should be included
 
         """
-        # Check gitignore patterns first
-        if self.gitignore_parser.should_exclude(file_path):
+        # Check if file is known to git (respects .gitignore)
+        if not self._is_git_known(file_path):
             return False
 
         file_name = Path(file_path).name
@@ -309,7 +260,6 @@ class ApplicationBundler:
                 d
                 for d in dirs
                 if d not in self.config["exclude_dirs"]
-                and not self.gitignore_parser.should_exclude(d, is_dir=True)
             ]
 
             for file in files:
