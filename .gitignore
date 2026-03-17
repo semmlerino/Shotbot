@@ -21,6 +21,8 @@ build/
 .pytest_cache/
 .coverage
 coverage_html/
+htmlcov/
+test_venv/
 .hypothesis/
 
 # Logs
