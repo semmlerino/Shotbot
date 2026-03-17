@@ -16,9 +16,9 @@ from PySide6.QtCore import QModelIndex, QSize, Qt
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtTest import QSignalSpy
 
-from base_item_model import BaseItemModel, BaseItemRole
 from config import Config
 from type_definitions import Shot
+from ui.base_item_model import BaseItemModel, BaseItemRole
 
 
 if TYPE_CHECKING:

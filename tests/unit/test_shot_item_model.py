@@ -16,11 +16,11 @@ import pytest
 from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtTest import QSignalSpy
 
-from base_item_model import BaseItemRole
 from config import Config
 from shots.shot_item_model import ShotItemModel
 from tests.test_helpers import process_qt_events
 from type_definitions import Shot
+from ui.base_item_model import BaseItemRole
 
 
 if TYPE_CHECKING:
@@ -28,8 +28,8 @@ if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
-    from base_shot_model import BaseShotModel
     from tests.fixtures.test_doubles import TestProcessPool
+    from ui.base_shot_model import BaseShotModel
 
 pytestmark = [
     pytest.mark.unit,
@@ -67,7 +67,7 @@ def base_shot_model(
     cache_manager: object, test_process_pool: TestProcessPool
 ) -> BaseShotModel:
     """Create a real BaseShotModel with test process pool."""
-    from base_shot_model import (
+    from ui.base_shot_model import (
         BaseShotModel,
     )
 

@@ -12,9 +12,9 @@ from __future__ import annotations
 import pytest
 from PySide6.QtTest import QSignalSpy
 
-from base_shot_model import BaseShotModel
 from config import Config
 from type_definitions import RefreshResult, Shot
+from ui.base_shot_model import BaseShotModel
 
 
 pytestmark = [

@@ -9,11 +9,12 @@ Follows UNIFIED_TESTING_GUIDE patterns with real components and TestProcessPool 
 import pytest
 from PySide6.QtTest import QSignalSpy
 
-# Local application imports
-from base_shot_model import BaseShotModel
 from config import Config
 from shots.shot_model import AsyncShotLoader, ShotModel
 from tests.fixtures.test_doubles import TestProcessPool
+
+# Local application imports
+from ui.base_shot_model import BaseShotModel
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)

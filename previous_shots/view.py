@@ -30,14 +30,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-# Local application imports
-from base_grid_view import BaseGridView
-from base_item_model import BaseItemRole
-from design_system import design_system
 from managers.progress_manager import ProgressManager
 from runnable_tracker import FolderOpenerWorker
 from shots.shot_grid_delegate import ShotGridDelegate
 from typing_compat import override
+
+# Local application imports
+from ui.base_grid_view import BaseGridView
+from ui.base_item_model import BaseItemRole
+from ui.design_system import design_system
 
 
 # Backward compatibility alias
@@ -45,14 +46,14 @@ ShotRole = BaseItemRole
 
 if TYPE_CHECKING:
     # Third-party imports
+    # Local application imports
     from PySide6.QtGui import QCloseEvent, QContextMenuEvent
 
-    # Local application imports
-    from base_thumbnail_delegate import BaseThumbnailDelegate
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
     from previous_shots.item_model import PreviousShotsItemModel
     from type_definitions import Shot
+    from ui.base_thumbnail_delegate import BaseThumbnailDelegate
 
 
 class PreviousShotsView(BaseGridView):

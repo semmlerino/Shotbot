@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     # Local application imports
     from cache import CacheCoordinator
     from managers.settings_manager import SettingsManager
-    from settings_dialog import SettingsDialog
+    from ui.settings_dialog import SettingsDialog
 
 
 class SettingsTarget(Protocol):
@@ -226,7 +226,7 @@ class SettingsController(LoggingMixin):
     def show_preferences(self) -> None:
         """Show the preferences dialog."""
         # Lazy import to avoid circular dependencies - only needed when showing dialog
-        from settings_dialog import SettingsDialog
+        from ui.settings_dialog import SettingsDialog
 
         if self.window.settings_dialog is None:
             # MainWindow implements both SettingsTarget and QWidget protocols

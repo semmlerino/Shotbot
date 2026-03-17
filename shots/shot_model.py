@@ -39,12 +39,12 @@ if TYPE_CHECKING:
     from type_definitions import PerformanceMetricsDict
 
 # Local application imports
-from base_shot_model import BaseShotModel
 from cache.types import ShotMergeResult
 from exceptions import WorkspaceError
 from thread_safe_worker import ThreadSafeWorker
 from timeout_config import TimeoutConfig
 from type_definitions import RefreshResult, Shot
+from ui.base_shot_model import BaseShotModel
 
 
 # Re-export Shot for backward compatibility with existing imports

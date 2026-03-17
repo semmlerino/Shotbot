@@ -784,7 +784,7 @@ class TestUserWorkflows:
 
         assert main_window.shot_item_model.rowCount() > 0, "No shots in item model"
 
-        from base_item_model import BaseItemRole as UnifiedRole
+        from ui.base_item_model import BaseItemRole as UnifiedRole
         for i in range(main_window.shot_item_model.rowCount()):
             index = main_window.shot_item_model.index(i, 0)
             shot_data = main_window.shot_item_model.data(index, UnifiedRole.ObjectRole)

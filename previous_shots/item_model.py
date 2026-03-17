@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt, Signal
 
-from base_item_model import BaseItemModel
 from typing_compat import override
+from ui.base_item_model import BaseItemModel
 
 
 if TYPE_CHECKING:
@@ -99,7 +99,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             Data for the role or None
 
         """
-        from base_item_model import BaseItemRole
+        from ui.base_item_model import BaseItemRole
 
         # Handle item-specific roles for backward compatibility
         if role == BaseItemRole.ItemSpecificRole1:

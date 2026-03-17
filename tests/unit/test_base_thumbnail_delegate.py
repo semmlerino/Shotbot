@@ -37,14 +37,14 @@ from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QListView, QStyleOptionViewItem
 
-from base_thumbnail_delegate import (
+from config import Config
+from shots.shot_item_model import ShotItemModel
+from type_definitions import Shot
+from ui.base_thumbnail_delegate import (
     BaseThumbnailDelegate,
     DelegateTheme,
     ThumbnailItemData,
 )
-from config import Config
-from shots.shot_item_model import ShotItemModel
-from type_definitions import Shot
 
 
 pytestmark = [

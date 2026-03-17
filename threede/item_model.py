@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import QModelIndex, QObject, Signal
 
-from base_item_model import BaseItemModel
 from typing_compat import override
+from ui.base_item_model import BaseItemModel
 
 
 if TYPE_CHECKING:

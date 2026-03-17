@@ -41,11 +41,12 @@ from PySide6.QtWidgets import (
 )
 from typing_extensions import TypedDict
 
-# Local application imports
-from base_item_model import BaseItemRole
 from config import Config
 from logging_mixin import get_module_logger
 from typing_compat import override
+
+# Local application imports
+from ui.base_item_model import BaseItemRole
 
 
 if TYPE_CHECKING:

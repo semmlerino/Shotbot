@@ -236,7 +236,7 @@ class ThumbnailCache(LoggingMixin):
 
         """
         from discovery.file_discovery import FileDiscovery
-        from image_utils import ImageUtils
+        from ui.image_utils import ImageUtils
 
         mov_path = FileDiscovery.find_mov_file_for_path(source)
         if not mov_path:

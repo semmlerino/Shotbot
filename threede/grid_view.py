@@ -38,22 +38,23 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-# Local application imports
-from base_grid_view import BaseGridView
 from runnable_tracker import FolderOpenerWorker
 from threede.grid_delegate import ThreeDEGridDelegate
 from typing_compat import override
+
+# Local application imports
+from ui.base_grid_view import BaseGridView
 
 
 if TYPE_CHECKING:
     # Third-party imports
 
     # Local application imports
-    from base_thumbnail_delegate import BaseThumbnailDelegate
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
     from threede.item_model import ThreeDEItemModel
     from type_definitions import ThreeDEScene
+    from ui.base_thumbnail_delegate import BaseThumbnailDelegate
 
 
 @final

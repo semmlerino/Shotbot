@@ -21,8 +21,8 @@ from type_definitions import Shot
 
 if TYPE_CHECKING:
     # Local application imports
-    from base_shot_model import BaseShotModel
     from type_definitions import ShotDict
+    from ui.base_shot_model import BaseShotModel
 
 
 @final

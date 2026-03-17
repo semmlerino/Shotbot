@@ -29,14 +29,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-# Local application imports
-from base_grid_view import BaseGridView, HasAvailableShows
-from base_item_model import BaseItemRole
 from runnable_tracker import FolderOpenerWorker
 from shots.shot_grid_delegate import ShotGridDelegate
 from shots.shot_item_model import ShotItemModel
 from type_definitions import Shot
 from typing_compat import override
+
+# Local application imports
+from ui.base_grid_view import BaseGridView, HasAvailableShows
+from ui.base_item_model import BaseItemRole
 
 
 # Backward compatibility alias
@@ -44,13 +45,13 @@ ShotRole = BaseItemRole
 
 if TYPE_CHECKING:
     # Third-party imports
+    # Local application imports
     from PySide6.QtGui import QContextMenuEvent
 
-    # Local application imports
-    from base_thumbnail_delegate import BaseThumbnailDelegate
     from managers.hide_manager import HideManager
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
+    from ui.base_thumbnail_delegate import BaseThumbnailDelegate
 
 
 @final

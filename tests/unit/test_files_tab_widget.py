@@ -13,9 +13,9 @@ from PySide6.QtCore import Qt
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
-from files_tab_widget import FilesTabWidget, FileTableModel
 from scene_file import FileType, SceneFile
 from tests.test_helpers import process_qt_events
+from ui.files_tab_widget import FilesTabWidget, FileTableModel
 
 
 if TYPE_CHECKING:

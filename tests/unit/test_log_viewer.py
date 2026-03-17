@@ -19,8 +19,8 @@ from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout
 
 # Local application imports
 from config import Config
-from log_viewer import LogViewer
 from tests.test_helpers import process_qt_events
+from ui.log_viewer import LogViewer
 
 
 pytestmark = [

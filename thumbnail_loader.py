@@ -259,7 +259,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
             self._load_thumbnail_async(row, item)
 
     def _load_thumbnail_async(self, row: int, item: T) -> None:
-        from base_item_model import BaseItemRole
+        from ui.base_item_model import BaseItemRole
 
         self._schedule_data_changed(row, [BaseItemRole.LoadingStateRole])
 
@@ -342,7 +342,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
         with QMutexLocker(self._cache_mutex):
             self._loading_states[full_name] = "failed"
 
-        from base_item_model import BaseItemRole
+        from ui.base_item_model import BaseItemRole
 
         items = self._get_items()
         if row < len(items):
@@ -351,7 +351,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
     def _load_cached_pixmap(
         self, cached_path: Path, row: int, item: T
     ) -> None:
-        from base_item_model import BaseItemRole
+        from ui.base_item_model import BaseItemRole
 
         pixmap = QPixmap(str(cached_path))
         if not pixmap.isNull():

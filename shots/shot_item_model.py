@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
 
-from base_item_model import BaseItemModel
 from typing_compat import override
+from ui.base_item_model import BaseItemModel
 
 
 if TYPE_CHECKING:
@@ -76,7 +76,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
             Data for the role or None
 
         """
-        from base_item_model import BaseItemRole
+        from ui.base_item_model import BaseItemRole
 
         if role == BaseItemRole.FrameRangeRole:
             return item.frame_range_display

@@ -264,7 +264,7 @@ class TestDataIntegrity:
     ) -> None:
         """Test that all data roles return consistent data."""
         # Local application imports
-        from base_item_model import (
+        from ui.base_item_model import (
             BaseItemRole as ThreeDERole,
         )
 

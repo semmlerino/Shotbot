@@ -142,7 +142,7 @@ class ScrubPreviewManager(QObject):
             return
 
         # Get shot data from model
-        from base_item_model import BaseItemRole
+        from ui.base_item_model import BaseItemRole
 
         model = index.model()
         # Note: model() theoretically never returns None per Qt docs, but check anyway

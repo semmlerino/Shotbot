@@ -39,7 +39,6 @@ from PySide6.QtWidgets import (
 
 # Local application imports
 from config import Config
-from icon_painter import create_icon
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 from scrub.scrub_event_filter import ScrubEventFilter
@@ -47,6 +46,7 @@ from scrub.scrub_preview_manager import ScrubPreviewManager
 
 # Local imports
 from typing_compat import override
+from ui.icon_painter import create_icon
 
 
 class HasAvailableShows(Protocol):
@@ -86,13 +86,13 @@ from PySide6.QtGui import QAction, QKeyEvent, QKeySequence
 
 if TYPE_CHECKING:
     # Third-party imports
+    # Local application imports
     from PySide6.QtGui import QIcon, QResizeEvent, QWheelEvent
 
-    # Local application imports
-    from base_thumbnail_delegate import BaseThumbnailDelegate
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
     from type_definitions import Shot
+    from ui.base_thumbnail_delegate import BaseThumbnailDelegate
 
 
 class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):

@@ -21,15 +21,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from design_system import design_system
 from managers.settings_manager import get_stored_height
-from resizable_frame import ResizableFrame
+from ui.design_system import design_system
+from ui.resizable_frame import ResizableFrame
 
 
 if TYPE_CHECKING:
-    from files_tab_widget import FileTableModel
     from managers.settings_manager import SettingsManager
     from scene_file import SceneFile
+    from ui.files_tab_widget import FileTableModel
 
 
 class DCCFileTable(QWidget):
@@ -90,7 +90,7 @@ class DCCFileTable(QWidget):
 
     def _setup_ui(self) -> None:
         """Build the collapsible files subsection."""
-        from files_tab_widget import FileTableModel
+        from ui.files_tab_widget import FileTableModel
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 8, 0, 0)

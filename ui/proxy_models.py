@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QSortFilterProxyModel
 
-from base_item_model import BaseItemRole
 from typing_compat import override
+from ui.base_item_model import BaseItemRole
 
 
 if TYPE_CHECKING:

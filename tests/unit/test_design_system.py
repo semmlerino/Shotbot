@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from design_system import (
+from ui.design_system import (
     Animation,
     Borders,
     ColorPalette,

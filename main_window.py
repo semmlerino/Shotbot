@@ -79,13 +79,14 @@ if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QByteArray
 
-    # Local application imports
-    from base_shot_model import BaseShotModel  # used in cast()
     from command_launcher import CommandLauncher
     from protocols import ProcessPoolInterface
     from scene_file import SceneFile
-    from settings_dialog import SettingsDialog
     from type_definitions import Shot, ThreeDEScene
+
+    # Local application imports
+    from ui.base_shot_model import BaseShotModel  # used in cast()
+    from ui.settings_dialog import SettingsDialog
 
 # Runtime imports (needed at runtime)
 # Local application imports
@@ -110,24 +111,24 @@ from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
 from controllers.thumbnail_size_manager import ThumbnailSizeManager
-from design_system import design_system
-from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
 from managers.settings_manager import SettingsManager
 from previous_shots import PreviousShotsItemModel, PreviousShotsModel, PreviousShotsView
 from process_pool_manager import ProcessPoolManager
-from proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
 from qt_widget_mixin import QtWidgetMixin
 from refresh_coordinator import RefreshCoordinator  # Extracted refresh logic
-from right_panel import RightPanelWidget  # New redesigned right panel
 from scene_file import SceneFile
 from shots.shot_grid_view import ShotGridView  # Model/View implementation
 from shots.shot_item_model import ShotItemModel
 from shots.shot_model import ShotModel
 from startup_coordinator import StartupCoordinator
 from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
+from ui.design_system import design_system
+from ui.log_viewer import LogViewer
+from ui.proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
+from ui.right_panel import RightPanelWidget  # New redesigned right panel
 
 
 # Set up logger for this module
@@ -643,7 +644,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _setup_accessibility(self) -> None:
         """Set up accessibility features for screen readers and keyboard navigation."""
         # Local application imports
-        from accessibility_manager import AccessibilityManager
+        from ui.accessibility_manager import AccessibilityManager
 
         # Set up main window accessibility
         AccessibilityManager.setup_main_window_accessibility(self)

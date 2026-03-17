@@ -32,9 +32,9 @@ import pytest
 # Local application imports
 from config import Config
 from discovery.thumbnail_finders import ThumbnailFinders
-from image_utils import ImageUtils
 from paths.validators import PathValidators
 from tests.fixtures.environment_fixtures import clear_all_caches
+from ui.image_utils import ImageUtils
 from utils import (
     FileUtils,
     ValidationUtils,

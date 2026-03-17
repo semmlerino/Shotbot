@@ -25,11 +25,11 @@ from typing_compat import override
 if TYPE_CHECKING:
     from command_launcher import CommandLauncher
     from previous_shots.view import PreviousShotsView
-    from right_panel import RightPanelWidget
     from scene_file import FileType, SceneFile  # used in cast()
     from shots.shot_grid_view import ShotGridView
     from threede.grid_view import ThreeDEGridView
     from type_definitions import Shot
+    from ui.right_panel import RightPanelWidget
 
 
 # Module-level logger for non-class code

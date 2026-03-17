@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING, final
 
 
 if TYPE_CHECKING:
-    from files_tab_widget import FileTableModel
     from managers.settings_manager import SettingsManager
+    from ui.files_tab_widget import FileTableModel
 
 from PySide6.QtCore import QModelIndex, QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
@@ -31,9 +31,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from design_system import design_system
 from qt_widget_mixin import QtWidgetMixin
 from scene_file import FileType, ImageSequence, SceneFile
+from ui.design_system import design_system
 
 from .dcc_file_table import DCCFileTable
 from .dcc_sequence_table import DCCSequenceTable

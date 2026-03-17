@@ -32,10 +32,10 @@ from PySide6.QtGui import QWheelEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QWidget
 
-from base_grid_view import BaseGridView, HasAvailableShows
-from base_thumbnail_delegate import BaseThumbnailDelegate, DelegateTheme
 from config import Config
 from tests.test_helpers import process_qt_events
+from ui.base_grid_view import BaseGridView, HasAvailableShows
+from ui.base_thumbnail_delegate import BaseThumbnailDelegate, DelegateTheme
 
 
 if TYPE_CHECKING:

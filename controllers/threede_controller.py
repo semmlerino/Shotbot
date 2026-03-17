@@ -37,13 +37,13 @@ if TYPE_CHECKING:
     from managers.progress_manager import (
         _Operation as _ProgressOperation,  # pyright: ignore[reportPrivateUsage]
     )
-    from proxy_models import ThreeDEProxyModel
-
-    # Local type imports
-    from right_panel import RightPanelWidget
     from threede.grid_view import ThreeDEGridView
     from threede.item_model import ThreeDEItemModel
     from threede.scene_model import ThreeDESceneModel
+    from ui.proxy_models import ThreeDEProxyModel
+
+    # Local type imports
+    from ui.right_panel import RightPanelWidget
 
 # Runtime imports (needed at runtime)
 from config import Config

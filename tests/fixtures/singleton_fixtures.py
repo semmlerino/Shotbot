@@ -269,7 +269,7 @@ SingletonRegistry.register(
 
 # 40-49: Infrastructure
 SingletonRegistry.register(
-    "design_system.DesignSystem",
+    "ui.design_system.DesignSystem",
     cleanup_order=40,
     description="Design system with colors, typography, spacing, borders, shadows, and animation",
 )
