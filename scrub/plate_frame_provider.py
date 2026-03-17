@@ -16,7 +16,7 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 from PySide6.QtGui import QImage
 
 import image_utils as utils_module
-from scrub_frame_cache import ScrubFrameCache
+from scrub.scrub_frame_cache import ScrubFrameCache
 from typing_compat import override
 
 

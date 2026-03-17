@@ -13,7 +13,7 @@ from typing import ClassVar
 from PySide6.QtCore import QModelIndex, QObject, QRect, Signal, Slot
 from PySide6.QtGui import QImage, QPixmap
 
-from plate_frame_provider import PlateFrameProvider, PlateSource
+from scrub.plate_frame_provider import PlateFrameProvider, PlateSource
 
 
 logger = logging.getLogger(__name__)

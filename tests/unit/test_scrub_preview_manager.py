@@ -17,8 +17,8 @@ import pytest
 from PySide6.QtCore import QModelIndex
 from PySide6.QtGui import QImage, QPixmap
 
-from plate_frame_provider import PlateSource
-from scrub_preview_manager import ScrubPreviewManager, ScrubState
+from scrub.plate_frame_provider import PlateSource
+from scrub.scrub_preview_manager import ScrubPreviewManager, ScrubState
 from tests.test_helpers import process_qt_events
 
 

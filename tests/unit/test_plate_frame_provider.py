@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PySide6.QtGui import QImage
 
-from plate_frame_provider import (
+from scrub.plate_frame_provider import (
     FrameExtractionRunnable,
     PlateFrameProvider,
     PlateSource,
@@ -507,7 +507,7 @@ class TestDiscoverPlateSource:
 
     @patch("file_discovery.FileDiscovery.find_plate_mov_proxy")
     @patch("file_discovery.FileDiscovery.find_plate_exr_sequence")
-    @patch("plate_frame_provider.utils_module.ImageUtils.get_mov_duration")
+    @patch("scrub.plate_frame_provider.utils_module.ImageUtils.get_mov_duration")
     def test_discover_finds_mov_proxy(
         self,
         mock_get_duration: MagicMock,

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import pytest
 from PySide6.QtGui import QImage
 
-from scrub_frame_cache import ScrubFrameCache
+from scrub.scrub_frame_cache import ScrubFrameCache
 
 
 if TYPE_CHECKING:

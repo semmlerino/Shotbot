@@ -19,7 +19,7 @@ from PySide6.QtCore import QEvent, QModelIndex, QPoint, QRect, Qt
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QListView, QWidget
 
-from scrub_event_filter import ScrubEventFilter
+from scrub.scrub_event_filter import ScrubEventFilter
 from tests.test_helpers import process_qt_events
 
 

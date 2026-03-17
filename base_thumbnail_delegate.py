@@ -49,7 +49,7 @@ from typing_compat import override
 
 
 if TYPE_CHECKING:
-    from scrub_preview_manager import ScrubPreviewManager
+    from scrub.scrub_preview_manager import ScrubPreviewManager
 
 
 # Module-level logger

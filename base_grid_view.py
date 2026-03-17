@@ -39,8 +39,8 @@ from config import Config
 from icon_painter import create_icon
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
-from scrub_event_filter import ScrubEventFilter
-from scrub_preview_manager import ScrubPreviewManager
+from scrub.scrub_event_filter import ScrubEventFilter
+from scrub.scrub_preview_manager import ScrubPreviewManager
 
 # Local imports
 from typing_compat import override
