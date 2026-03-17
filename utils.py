@@ -17,8 +17,8 @@ from logging_mixin import get_module_logger
 logger = get_module_logger(__name__)
 
 # Import path validation internals needed by this module (not re-exported)
-from path_validators import PathValidators
-from path_validators import get_cache_stats as get_path_cache_stats
+from paths.validators import PathValidators
+from paths.validators import get_cache_stats as get_path_cache_stats
 from version_utils import VersionUtils  # used in get_cache_stats(); not re-exported
 
 

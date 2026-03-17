@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from config import Config
-from path_builders import PathBuilders
+from paths.builders import PathBuilders
 
 
 pytestmark = [pytest.mark.smoke]

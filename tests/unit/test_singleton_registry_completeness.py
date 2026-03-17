@@ -17,7 +17,7 @@ from __future__ import annotations
 # SingletonMixin._known_subclasses. Without explicit imports the subclasses
 # may not be registered yet when the test runs.
 # ---------------------------------------------------------------------------
-import filesystem_coordinator  # noqa: F401 — side-effect: registers FilesystemCoordinator
+import paths.filesystem_coordinator  # noqa: F401 — side-effect: registers FilesystemCoordinator
 import runnable_tracker  # noqa: F401 — side-effect: registers QRunnableTracker
 from tests.fixtures.singleton_fixtures import SingletonRegistry
 

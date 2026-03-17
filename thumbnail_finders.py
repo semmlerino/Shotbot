@@ -17,8 +17,8 @@ from config import (
 )
 from file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
-from path_builders import PathBuilders
-from path_validators import PathValidators
+from paths.builders import PathBuilders
+from paths.validators import PathValidators
 from utils import FileUtils, find_path_case_insensitive
 from version_utils import VersionUtils
 

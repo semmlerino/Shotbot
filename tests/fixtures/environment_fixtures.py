@@ -58,7 +58,7 @@ _logger = logging.getLogger(__name__)
 
 def clear_all_caches() -> None:
     """Clear all utility caches — useful for test isolation."""
-    from path_validators import clear_path_cache
+    from paths.validators import clear_path_cache
     from version_utils import VersionUtils
 
     clear_path_cache()
@@ -69,7 +69,7 @@ def clear_all_caches() -> None:
 
 def disable_caching() -> None:
     """Disable caching completely for a test."""
-    from path_validators import disable_path_caching
+    from paths.validators import disable_path_caching
 
     disable_path_caching()
     clear_all_caches()
@@ -78,7 +78,7 @@ def disable_caching() -> None:
 
 def enable_caching() -> None:
     """Re-enable caching after a test."""
-    from path_validators import enable_path_caching
+    from paths.validators import enable_path_caching
 
     enable_path_caching()
     _logger.debug("Caching re-enabled after testing")

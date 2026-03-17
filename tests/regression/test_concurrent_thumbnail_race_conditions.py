@@ -27,7 +27,7 @@ from pathlib import Path
 import pytest
 
 # Local application imports
-from path_validators import (  # type: ignore[reportPrivateUsage]
+from paths.validators import (  # type: ignore[reportPrivateUsage]
     PathValidators,
     _path_cache,
     _path_cache_lock,

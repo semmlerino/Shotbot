@@ -30,10 +30,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 try:
     # Local application imports
-    from config import Config
-    from path_builders import PathBuilders
-    from path_validators import PathValidators
     from shot_model import Shot
+
+    from config import Config
+    from paths.builders import PathBuilders
+    from paths.validators import PathValidators
     from thumbnail_finders import ThumbnailFinders
     from utils import FileUtils, get_cache_stats
 

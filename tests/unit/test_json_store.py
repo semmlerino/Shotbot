@@ -28,14 +28,14 @@ pytestmark = [
 
 def _validate_path(path: Path | str, description: str = "Path") -> bool:
     """Call PathValidators.validate_path_exists."""
-    from path_validators import PathValidators
+    from paths.validators import PathValidators
 
     return PathValidators.validate_path_exists(path, description)
 
 
 def _get_path_cache_stats() -> dict[str, int]:
     """Return path cache size with a stable key."""
-    from path_validators import get_cache_stats
+    from paths.validators import get_cache_stats
 
     stats = get_cache_stats()
     return {"size": stats.get("path_cache_size", stats.get("size", 0))}
@@ -72,7 +72,7 @@ class TestCacheIsolationContext:
 
     def test_cache_isolation_reenables_caching_on_exit(self, tmp_path: Path) -> None:
         """Caching is re-enabled after CacheIsolation block exits."""
-        from path_validators import clear_path_cache
+        from paths.validators import clear_path_cache
         from tests.fixtures.environment_fixtures import CacheIsolation
 
         clear_path_cache()

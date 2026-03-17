@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     # Local application imports - TYPE_CHECKING to break import cycles
-    from filesystem_coordinator import FilesystemCoordinator
+    from paths.filesystem_coordinator import FilesystemCoordinator
     from scene_parser import SceneParser  # Import for string literal type hint
 
 
@@ -72,7 +72,7 @@ class FileSystemScanner(LoggingMixin):
     @classmethod
     def get_cache_stats(cls) -> dict[str, int | float]:
         """Get directory cache statistics from FilesystemCoordinator."""
-        from filesystem_coordinator import FilesystemCoordinator
+        from paths.filesystem_coordinator import FilesystemCoordinator
         return FilesystemCoordinator().get_cache_stats()
 
     @classmethod
@@ -85,7 +85,7 @@ class FileSystemScanner(LoggingMixin):
         Returns:
             Number of entries cleared.
         """
-        from filesystem_coordinator import FilesystemCoordinator
+        from paths.filesystem_coordinator import FilesystemCoordinator
         return FilesystemCoordinator().invalidate_all()
 
     def get_directory_listing_cached(self, path: Path) -> list[tuple[str, bool, bool]]:
@@ -96,7 +96,7 @@ class FileSystemScanner(LoggingMixin):
         # Thread-safe lazy init — FilesystemCoordinator is a SingletonMixin
         # so its __new__ already serializes; no external lock needed.
         if self._fs_coordinator is None:
-            from filesystem_coordinator import FilesystemCoordinator
+            from paths.filesystem_coordinator import FilesystemCoordinator
 
             self._fs_coordinator = FilesystemCoordinator()
 

@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 import pytest
 
-from filesystem_coordinator import FilesystemCoordinator
+from paths.filesystem_coordinator import FilesystemCoordinator
 
 
 # Test markers
@@ -292,7 +292,7 @@ class TestSharedCaching:
         listing1 = coord1.get_directory_listing(test_dir)
 
         # Track if other models hit cache (mock scandir to detect)
-        with patch("filesystem_coordinator.os.scandir") as mock_scandir:
+        with patch("paths.filesystem_coordinator.os.scandir") as mock_scandir:
             # Other models should use cache, not scan
             listing2 = coord2.get_directory_listing(test_dir)
             listing3 = coord3.get_directory_listing(test_dir)
@@ -557,7 +557,7 @@ class TestErrorHandling:
 
         # Mock OSError for permission denied
         with patch(
-            "filesystem_coordinator.os.scandir",
+            "paths.filesystem_coordinator.os.scandir",
             side_effect=PermissionError("Access denied"),
         ):
             listing = coordinator.get_directory_listing(restricted_dir)

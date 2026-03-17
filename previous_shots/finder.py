@@ -259,7 +259,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         self._cache_ttl = ThreadingConfig.PREVIOUS_SHOTS_CACHE_TTL
 
         # Use FilesystemCoordinator for shared directory caching
-        from filesystem_coordinator import FilesystemCoordinator
+        from paths.filesystem_coordinator import FilesystemCoordinator
 
         self._fs_coordinator = FilesystemCoordinator()
 

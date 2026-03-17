@@ -12,7 +12,7 @@ from typing import ClassVar
 
 # Local application imports
 from logging_mixin import get_module_logger
-from path_validators import (
+from paths.validators import (
     _PATH_CACHE_TTL,  # pyright: ignore[reportPrivateUsage]
     PathValidators,
 )

@@ -40,7 +40,7 @@ class TestCacheDelegation:
 
     def test_clear_cache_delegates_to_coordinator(self) -> None:
         """clear_cache() delegates to FilesystemCoordinator.invalidate_all()."""
-        with patch("filesystem_coordinator.FilesystemCoordinator") as mock_coord_cls:
+        with patch("paths.filesystem_coordinator.FilesystemCoordinator") as mock_coord_cls:
             mock_instance = MagicMock()
             mock_instance.invalidate_all.return_value = 5
             mock_coord_cls.return_value = mock_instance
@@ -60,7 +60,7 @@ class TestCacheDelegation:
             "hit_rate": 90.9,
             "ttl_seconds": 300,
         }
-        with patch("filesystem_coordinator.FilesystemCoordinator") as mock_coord_cls:
+        with patch("paths.filesystem_coordinator.FilesystemCoordinator") as mock_coord_cls:
             mock_instance = MagicMock()
             mock_instance.get_cache_stats.return_value = expected_stats
             mock_coord_cls.return_value = mock_instance

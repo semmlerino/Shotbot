@@ -109,7 +109,7 @@ class Shot:
         """Get thumbnail directory path."""
         # Import here to avoid circular dependency at module level
         from config import Config
-        from path_builders import PathBuilders
+        from paths.builders import PathBuilders
 
         return PathBuilders.build_thumbnail_path(
             Config.SHOWS_ROOT,
@@ -244,7 +244,7 @@ class ThreeDEScene:
         """Get thumbnail directory path (same as regular shots)."""
         # Import here to avoid circular dependency at module level
         from config import Config
-        from path_builders import PathBuilders
+        from paths.builders import PathBuilders
 
         return PathBuilders.build_thumbnail_path(
             Config.SHOWS_ROOT,

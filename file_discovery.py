@@ -13,7 +13,7 @@ from pathlib import Path
 # Local application imports
 from config import Config
 from logging_mixin import get_module_logger
-from path_validators import PathValidators
+from paths.validators import PathValidators
 from utils import normalize_plate_id
 
 

@@ -19,7 +19,7 @@ import pytest
 # Lazy imports to avoid Qt initialization at module level
 # from PySide6.QtCore import QCoreApplication
 # from cache_manager import CacheManager
-from path_validators import PathValidators
+from paths.validators import PathValidators
 from utils import FileUtils
 
 

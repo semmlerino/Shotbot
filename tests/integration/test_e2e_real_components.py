@@ -180,7 +180,7 @@ class TestFilesystemDiscoveryE2E:
         self, mock_vfx_structure: Path
     ) -> None:
         """Verify shot discovery works with real filesystem."""
-        from path_validators import PathValidators
+        from paths.validators import PathValidators
 
         shows_dir = mock_vfx_structure / "shows" / "TESTSHOW" / "shots"
 
@@ -252,7 +252,7 @@ class TestPathValidationE2E:
 
     def test_validate_nonexistent_path(self) -> None:
         """Verify validation correctly identifies non-existent paths."""
-        from path_validators import PathValidators
+        from paths.validators import PathValidators
 
         nonexistent = Path("/this/path/definitely/does/not/exist/12345")
         result = PathValidators.validate_path_exists(nonexistent, "test")
@@ -260,7 +260,7 @@ class TestPathValidationE2E:
 
     def test_validate_existing_path(self, tmp_path: Path) -> None:
         """Verify validation correctly identifies existing paths."""
-        from path_validators import PathValidators
+        from paths.validators import PathValidators
 
         existing = tmp_path / "real_dir"
         existing.mkdir()
@@ -270,7 +270,7 @@ class TestPathValidationE2E:
 
     def test_validate_symlink(self, tmp_path: Path) -> None:
         """Verify validation works with symlinks."""
-        from path_validators import PathValidators
+        from paths.validators import PathValidators
 
         # Create real directory
         real_dir = tmp_path / "real"

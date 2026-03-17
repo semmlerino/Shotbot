@@ -53,7 +53,7 @@ def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     across tests, causing subsequent tests to see incorrect cache behavior.
     This fixture ensures each test starts with a clean state.
     """
-    import path_validators
+    import paths.validators as path_validators
 
     monkeypatch.setattr(path_validators, "_cache_disabled", False)
 
