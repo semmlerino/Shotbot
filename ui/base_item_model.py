@@ -22,14 +22,12 @@ if TYPE_CHECKING:
 # Third-party imports
 from PySide6.QtCore import (
     QAbstractListModel,
-    QCoreApplication,
     QModelIndex,
     QMutexLocker,
     QObject,
     QPersistentModelIndex,
     QSize,
     Qt,
-    QThread,
     QTimer,
     Signal,
     Slot,
@@ -42,6 +40,7 @@ from logging_mixin import LoggingMixin, get_module_logger
 from protocols import SceneDataProtocol
 from qt_abc_meta import QABCMeta
 from typing_compat import override
+from ui.qt_widget_mixin import require_main_thread
 
 
 # Module-level logger for non-LoggingMixin classes in this module
@@ -126,6 +125,7 @@ class BaseItemModel(
     thumbnail_loaded: Signal = Signal(int)  # row index
     show_filter_changed: Signal = Signal(str)  # show name or "All Shows"
 
+    @require_main_thread
     def __init__(
         self,
         cache_manager: ThumbnailCache | None = None,
@@ -138,13 +138,6 @@ class BaseItemModel(
             parent: Optional parent QObject
 
         """
-        # Ensure we're in the main thread for Qt model creation
-        app = QCoreApplication.instance()
-        if app and QThread.currentThread() != app.thread():
-            msg = f"{self.__class__.__name__} must be created in the main thread. Current thread: {QThread.currentThread()}, Main thread: {app.thread()}"
-            raise RuntimeError(
-                msg
-            )
         super().__init__(parent)
 
         # Core data storage
@@ -339,6 +332,7 @@ class BaseItemModel(
         """Actually load thumbnails for visible range."""
         self._thumbnail_loader.do_load_visible_thumbnails()  # pyright: ignore[reportAny]
 
+    @require_main_thread
     def _get_thumbnail_pixmap(self, item: T) -> QPixmap | None:
         """Get cached thumbnail pixmap for an item.
 
@@ -351,18 +345,9 @@ class BaseItemModel(
             QPixmap converted from cached QImage or None
 
         Raises:
-            QtThreadError: If called from non-main thread
+            RuntimeError: If called from non-main thread
 
         """
-        app = QCoreApplication.instance()
-        if app and QThread.currentThread() != app.thread():
-            msg = (
-                f"_get_thumbnail_pixmap() must be called from main thread. "
-                f"Current: {QThread.currentThread()}, Main: {app.thread()}"
-            )
-            raise QtThreadError(
-                msg
-            )
         return self._thumbnail_loader.get_pixmap(item)
 
     def _on_thumbnail_data_changed(self, updates: dict[int, set[int]]) -> None:
@@ -415,6 +400,7 @@ class BaseItemModel(
                 [BaseItemRole.ThumbnailPixmapRole, Qt.ItemDataRole.DecorationRole],
             )
 
+    @require_main_thread
     def set_items(self, items: list[T]) -> None:
         """Set items with thumbnail cache preservation.
 
@@ -433,17 +419,9 @@ class BaseItemModel(
             items: New list of items to display. Can be empty list.
 
         Raises:
-            QtThreadError: If called outside Qt main thread
+            RuntimeError: If called outside Qt main thread
 
         """
-        # CRITICAL: Verify main thread (Qt requirement)
-        app = QCoreApplication.instance()
-        if app and QThread.currentThread() != app.thread():
-            msg = f"set_items() must be called from main thread. Current: {QThread.currentThread()}, Main: {app.thread()}"
-            raise QtThreadError(
-                msg
-            )
-
         # CRITICAL: Stop timers FIRST (prevents callback races)
         if self._thumbnail_loader.thumbnail_debounce_timer.isActive():
             self._thumbnail_loader.thumbnail_debounce_timer.stop()

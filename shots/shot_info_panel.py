@@ -35,7 +35,7 @@ from shots.shot_files_panel import ShotFilesPanel
 from typing_compat import override
 from ui.design_system import design_system
 from ui.image_utils import ImageUtils
-from ui.qt_widget_mixin import QtWidgetMixin
+from ui.qt_widget_mixin import QtWidgetMixin, require_main_thread
 
 
 if TYPE_CHECKING:
@@ -58,6 +58,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
     _file_pin_manager: FilePinManager | None
     _notes_edit: QTextEdit
 
+    @require_main_thread
     def __init__(
         self,
         cache_manager: ThumbnailCache | None = None,
@@ -65,36 +66,14 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         file_pin_manager: FilePinManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
-        # Ensure we're in the main thread for Qt widget creation
-        # Third-party imports
-        from PySide6.QtCore import (
-            QCoreApplication,
-            QThread,
-        )
-        from PySide6.QtWidgets import (
-            QApplication,
-        )
-
         # Check if QApplication exists
         app_instance = QCoreApplication.instance()
         if app_instance is None:
             msg = "ShotInfoPanel: No QApplication instance found"
             raise RuntimeError(msg)
 
-        # Check if we're in the main thread
-        current_thread = QThread.currentThread()
-        main_thread = app_instance.thread()
-        if current_thread != main_thread:
-            msg = (
-                f"ShotInfoPanel must be created in the main thread. "
-                f"Current thread: {current_thread}, "
-                f"Main thread: {main_thread}"
-            )
-            raise RuntimeError(msg)
-
         # Additional safety check for QApplication type (relaxed for tests)
         # In test environments, QCoreApplication is acceptable since pytest-qt may create it
-        # Standard library imports
         is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
 
         if not isinstance(app_instance, QApplication) and not is_test_environment:

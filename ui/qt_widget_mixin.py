@@ -19,23 +19,46 @@ Part of Phase 2 refactoring to eliminate duplicate Qt patterns.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast
+import functools
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 # Third-party imports
-from PySide6.QtCore import QByteArray, QPoint, QSettings, QSize
+from PySide6.QtCore import (
+    QByteArray,
+    QCoreApplication,
+    QPoint,
+    QSettings,
+    QSize,
+    QThread,
+)
 
 # Local application imports
 from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    # Standard library imports
-    from collections.abc import Callable
-
     # Third-party imports
     from PySide6.QtGui import (
         QCloseEvent,
     )
+
+T = TypeVar("T")
+
+
+def require_main_thread(func: Callable[..., T]) -> Callable[..., T]:
+    """Decorator that raises RuntimeError if called from non-main thread."""
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> T:
+        app = QCoreApplication.instance()
+        if app and QThread.currentThread() != app.thread():
+            msg = (
+                f"{func.__qualname__} must be called from the main thread. "
+                f"Current: {QThread.currentThread()}, Main: {app.thread()}"
+            )
+            raise RuntimeError(msg)
+        return func(*args, **kwargs)
+    return wrapper
 
 
 class QtWidgetMixin(LoggingMixin):

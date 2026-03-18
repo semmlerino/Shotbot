@@ -73,6 +73,9 @@ from managers.hide_manager import HideManager
 from managers.notes_manager import NotesManager
 from managers.shot_pin_manager import ShotPinManager
 from typing_compat import override
+from ui.qt_widget_mixin import (
+    require_main_thread,
+)
 
 
 if TYPE_CHECKING:
@@ -265,6 +268,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     _PAINT_YIELD_MS: int = 500  # Delay to let Qt paint initial UI before refresh
     _EVENT_LOOP_YIELD_MS: int = 100  # Delay to yield to event loop between operations
 
+    @require_main_thread
     def __init__(
         self,
         parent: QWidget | None = None,
@@ -285,25 +289,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # 8. settings_controller.load_settings(), _restore_sort_orders()
         # 9. _initial_load() — deferred data loading with QTimer scheduling
 
-        # Ensure we're in the main thread for Qt widget creation
-        from PySide6.QtCore import QCoreApplication, QThread
+        from PySide6.QtCore import QCoreApplication
 
         app_instance = QCoreApplication.instance()
         if app_instance is None:
             msg = "MainWindow: No QApplication instance found"
             raise RuntimeError(msg)
-
-        current_thread = QThread.currentThread()
-        main_thread = app_instance.thread()
-        if current_thread != main_thread:
-            msg = (
-                "MainWindow must be created in the main thread. "
-                 f"Current thread: {current_thread}, "
-                 f"Main thread: {main_thread}"
-            )
-            raise RuntimeError(
-                msg
-            )
 
         # Additional safety check for QApplication type (relaxed for tests)
         # In test environments, QCoreApplication is acceptable since pytest-qt may create it

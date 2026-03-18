@@ -134,39 +134,27 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         # Use base class thread-safe stop FIRST (sets _stop_requested = True)
         _ = self.request_stop()
         # Then wake up paused thread so it can check stop condition and exit
-        self._pause_mutex.lock()
-        try:
+        with QMutexLocker(self._pause_mutex):
             self._pause_condition.wakeAll()
-        finally:
-            self._pause_mutex.unlock()
 
     def pause(self) -> None:
         """Request the worker to pause processing."""
         self.logger.debug("Pause requested for 3DE scene worker")
-        self._pause_mutex.lock()
-        try:
+        with QMutexLocker(self._pause_mutex):
             self._is_paused = True
-        finally:
-            self._pause_mutex.unlock()
 
     def resume(self) -> None:
         """Resume processing if paused."""
         self.logger.debug("Resume requested for 3DE scene worker")
-        self._pause_mutex.lock()
-        try:
+        with QMutexLocker(self._pause_mutex):
             if self._is_paused:
                 self._is_paused = False
                 self._pause_condition.wakeAll()
-        finally:
-            self._pause_mutex.unlock()
 
     def is_paused(self) -> bool:
         """Check if worker is currently paused."""
-        self._pause_mutex.lock()
-        try:
+        with QMutexLocker(self._pause_mutex):
             return self._is_paused
-        finally:
-            self._pause_mutex.unlock()
 
     @override
     def run(self) -> None:
@@ -260,16 +248,13 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             return False
 
         # Check for pause
-        self._pause_mutex.lock()
-        try:
+        with QMutexLocker(self._pause_mutex):
             while self._is_paused and not self.should_stop():
                 self.logger.debug("Worker paused, waiting for resume...")
                 _ = self._pause_condition.wait(
                     self._pause_mutex,
                     TimeoutConfig.WORKER_PAUSE_CHECK_MS,
                 )
-        finally:
-            self._pause_mutex.unlock()
 
         # Check cancellation again after pause
         return not self.should_stop()
