@@ -499,7 +499,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
     def clear_cache(self) -> None:
         """Clear the cached previous shots."""
         try:
-            self._cache_manager.clear_cached_data("previous_shots")
+            self._cache_manager.clear_previous_shots_cache()
             self.logger.info("Cleared previous shots cache")
         except Exception:
             self.logger.exception("Error clearing previous shots cache")

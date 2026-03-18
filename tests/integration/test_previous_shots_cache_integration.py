@@ -258,7 +258,7 @@ class TestPreviousShootsCacheIntegration:
         assert cache_manager.get_cached_previous_shots() is not None
 
         # Clear cache
-        cache_manager.clear_cached_data("previous_shots")
+        cache_manager.clear_previous_shots_cache()
 
         # Should be cleared
         cache_file = temp_cache_dir / "previous_shots.json"

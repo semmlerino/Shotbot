@@ -132,101 +132,13 @@ class SettingsManager(LoggingMixin, QObject):
         self.settings.setValue(self._REGISTRY[key].qsettings_key, value)
 
     def _initialize_defaults(self) -> None:
-        """Initialize default values for all settings if they don't exist."""
-        defaults = self._get_default_settings()
-
-        for category, settings_dict in defaults.items():
-            for key, setting_value in settings_dict.items():
-                full_key = f"{category}/{key}"
-                if not self.settings.contains(full_key):
-                    self.settings.setValue(full_key, setting_value)
-                    self.logger.debug(
-                        f"Initialized default setting: {full_key} = {setting_value}"
-                    )
-
-    def _get_default_settings(self) -> dict[str, dict[str, object]]:
-        """Get default settings organized by category."""
-        return {
-            "window": {
-                "geometry": QByteArray(),
-                "state": QByteArray(),
-                "splitter_main": QByteArray(),
-                "splitter_right": QByteArray(),
-                "current_tab": 0,
-                "maximized": False,
-                "size": QSize(
-                    Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT
-                ),
-            },
-            "preferences": {
-                "refresh_interval": Config.CACHE_REFRESH_INTERVAL_MINUTES,
-                "background_refresh": Config.ENABLE_BACKGROUND_REFRESH,
-                "thumbnail_size": Config.DEFAULT_THUMBNAIL_SIZE,
-                "show_status_tips": True,
-                "auto_refresh_on_focus": True,
-                "confirm_delete": True,
-                "remember_last_directory": True,
-                "last_directory": str(Config.SHOWS_ROOT),
-                "show_hidden_files": False,
-                "auto_launch_delay": 0,  # Seconds before auto-launching application
-                "preferred_terminal": "gnome-terminal",  # Default terminal emulator
-                "double_click_action": "launch_default",  # or "show_info"
-            },
-            "performance": {
-                "max_thumbnail_threads": Config.MAX_THUMBNAIL_THREADS,
-                "max_cache_memory_mb": Config.MAX_THUMBNAIL_MEMORY_MB,
-                "cache_expiry_minutes": Config.CACHE_EXPIRY_MINUTES,
-                "max_concurrent_operations": 4,
-                "enable_animations": True,
-                "lazy_loading": True,
-                "preload_thumbnails": True,
-                "background_priority": "low",  # Thread priority for background operations
-                "cache_compression": True,
-                "progressive_loading": True,
-            },
-            "applications": {
-                "default_app": Config.DEFAULT_APP,
-                "custom_launchers": [],  # List of custom launcher definitions
-                "file_associations": dict(Config.APPS),  # Copy default apps
-                "terminal_command": "gnome-terminal",
-                "environment_variables": {},  # Additional env vars for launches
-                "working_directory": "",  # Default working directory
-                "background_gui_apps": True,  # Close terminal after launching GUI apps
-            },
-            "ui": {
-                "grid_columns": Config.GRID_COLUMNS,
-                "show_grid_lines": False,
-                "show_tooltips": True,
-                "icon_text_visible": True,
-                "status_bar_visible": True,
-                "toolbar_visible": True,
-                "compact_mode": False,
-                "font_size": 9,
-                "ui_scale": 1.0,  # UI scale factor (0.8 to 1.5, default 1.0 = 100%)
-                "thumbnail_spacing": Config.THUMBNAIL_SPACING,
-                "selection_highlight": True,
-                "hover_effects": True,
-                "expanded_sections": {
-                    "files": False,  # Files section default collapsed
-                    "3de": True,  # DCC sections default expanded
-                    "nuke": True,
-                    "maya": True,
-                    "rv": True,
-                },
-            },
-            "advanced": {
-                "debug_mode": False,
-                "log_level": "INFO",
-                "enable_profiling": False,
-                "crash_reporting": True,
-                "beta_features": False,
-                "cache_debug": False,
-                "threading_debug": False,
-                "memory_monitoring": False,
-                "performance_overlay": False,
-                "experimental_caching": False,
-            },
-        }
+        """Initialize default values for all registry settings if they don't exist."""
+        for defn in self._REGISTRY.values():
+            if not self.settings.contains(defn.qsettings_key):
+                self.settings.setValue(defn.qsettings_key, defn.default)
+                self.logger.debug(
+                    f"Initialized default setting: {defn.qsettings_key} = {defn.default}"
+                )
 
     def _migrate_old_settings(self) -> None:
         """Migrate settings from old format to new organized format."""
@@ -731,12 +643,24 @@ class SettingsManager(LoggingMixin, QObject):
         self.logger.info("All settings reset to defaults")
 
     def reset_category(self, category: str) -> None:
-        """Reset a specific category to defaults."""
-        defaults = self._get_default_settings()
+        """Reset a specific category to defaults.
 
-        if category in defaults:
-            self.set_category(category, defaults[category])
-            self.logger.info(f"Category '{category}' reset to defaults")
+        Removes all stored keys under the category so QSettings falls back to
+        in-code defaults, then re-writes the registry-defined defaults for the
+        category so they are persisted explicitly.
+        """
+        # Clear all stored keys under this category group
+        self.settings.beginGroup(category)
+        self.settings.remove("")  # removes all keys in the current group
+        self.settings.endGroup()
+
+        # Re-write registry defaults for this category
+        prefix = f"{category}/"
+        for defn in self._REGISTRY.values():
+            if defn.qsettings_key.startswith(prefix):
+                self.settings.setValue(defn.qsettings_key, defn.default)
+
+        self.logger.info(f"Category '{category}' reset to defaults")
 
     def sync(self) -> None:
         """Synchronize settings to disk."""

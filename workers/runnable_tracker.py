@@ -307,10 +307,8 @@ class FolderOpenerWorker(TrackedQRunnable):
 
             # Check if path exists
             if not Path(folder_path).exists():
-                # Safe signal emission
-                if hasattr(self, "signals") and self.signals:
-                    with contextlib.suppress(RuntimeError):
-                        self.signals.error.emit(f"Path does not exist: {folder_path}")
+                with contextlib.suppress(RuntimeError):
+                    self.signals.error.emit(f"Path does not exist: {folder_path}")
                 return
 
             # Try Qt method first (cross-platform)
@@ -339,29 +337,21 @@ class FolderOpenerWorker(TrackedQRunnable):
                         # Try gio as fallback
                         _ = subprocess.run(["gio", "open", folder_path], check=True)
 
-            # Safe signal emission
-            if hasattr(self, "signals") and self.signals:
-                with contextlib.suppress(RuntimeError):
-                    self.signals.success.emit()
+            with contextlib.suppress(RuntimeError):
+                self.signals.success.emit()
 
         except subprocess.CalledProcessError as e:
             error_msg = f"Failed to open folder: {e}"
             logger.error(error_msg)
-            # Safe signal emission
-            if hasattr(self, "signals") and self.signals:
-                with contextlib.suppress(RuntimeError):
-                    self.signals.error.emit(error_msg)
+            with contextlib.suppress(RuntimeError):
+                self.signals.error.emit(error_msg)
         except FileNotFoundError as e:
             error_msg = f"File manager not found: {e}"
             logger.error(error_msg)
-            # Safe signal emission
-            if hasattr(self, "signals") and self.signals:
-                with contextlib.suppress(RuntimeError):
-                    self.signals.error.emit(error_msg)
+            with contextlib.suppress(RuntimeError):
+                self.signals.error.emit(error_msg)
         except Exception as e:  # noqa: BLE001
             error_msg = f"Unexpected error opening folder: {e}"
             logger.error(error_msg)
-            # Safe signal emission
-            if hasattr(self, "signals") and self.signals:
-                with contextlib.suppress(RuntimeError):
-                    self.signals.error.emit(error_msg)
+            with contextlib.suppress(RuntimeError):
+                self.signals.error.emit(error_msg)

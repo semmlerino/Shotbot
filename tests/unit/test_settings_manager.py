@@ -229,7 +229,6 @@ class TestSettingsManager:
         assert isinstance(window_settings, dict)
         assert "geometry" in window_settings
         assert "state" in window_settings
-        assert "size" in window_settings
         assert "current_tab" in window_settings
 
     def test_set_category(self, settings_manager: SettingsManager) -> None:

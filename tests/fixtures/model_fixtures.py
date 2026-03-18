@@ -428,17 +428,9 @@ class TestCacheManager(QObject):
         self._cached_previous_shots = None
         self.cache_updated.emit()
 
-    def clear_cached_data(self, key: str) -> None:
-        """Clear cached generic data by key (for backward compatibility).
-
-        Args:
-            key: Cache key identifier
-
-        """
-        if key == "previous_shots":
-            self._cached_previous_shots = None
-        # For compatibility with other potential keys, we could extend this
-        # but for now we only need previous_shots support
+    def clear_previous_shots_cache(self) -> None:
+        """Clear the previous shots cache."""
+        self._cached_previous_shots = None
         self.cache_updated.emit()
 
     def get_shots_archive(self) -> list[dict[str, Any]] | None:

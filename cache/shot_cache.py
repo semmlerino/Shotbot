@@ -311,73 +311,10 @@ class ShotDataCache(LoggingMixin, QObject):
             has_changes=has_changes,
         )
 
-    # ========================================================================
-    # Generic key-based caching (backward compatibility)
-    # ========================================================================
-
-    def cache_data(self, key: str, data: object) -> None:
-        """Cache generic data with a key.
-
-        Special case: the ``"previous_shots"`` key is routed through
-        cache_previous_shots(), which persists the data to
-        ``previous_shots.json`` on disk and does not apply a TTL.
-        All other keys are written to ``<key>.json`` in the cache directory.
-
-        Args:
-            key: Cache key identifier
-            data: Data to cache
-
-        """
-        if key == "previous_shots":
-            # Runtime validation: data must be a sequence of shots or dicts
-            if isinstance(data, list | tuple):
-                self.cache_previous_shots(
-                    cast("Sequence[Shot] | Sequence[ShotDict]", data)
-                )
-            else:
-                self.logger.error(f"Invalid data type for previous_shots: {type(data)}")
-        else:
-            cache_file = self.cache_dir / f"{key}.json"
-            _ = write_json_cache(cache_file, data)
-
-    def get_cached_data(self, key: str) -> object | None:
-        """Get cached generic data by key.
-
-        Special case: the ``"previous_shots"`` key is routed through
-        get_cached_previous_shots(), which applies TTL checking against the
-        persistent ``previous_shots.json`` file. All other keys read from
-        ``<key>.json`` with the standard TTL check.
-
-        Args:
-            key: Cache key identifier
-
-        Returns:
-            Cached data or None if not found/expired
-
-        """
-        if key == "previous_shots":
-            return self.get_cached_previous_shots()
-        cache_file = self.cache_dir / f"{key}.json"
-        return read_json_cache(cache_file, self._cache_ttl)
-
-    def clear_cached_data(self, key: str) -> None:
-        """Clear cached generic data by key.
-
-        Special case: the ``"previous_shots"`` key deletes the persistent
-        ``previous_shots.json`` file directly. All other keys delete
-        ``<key>.json`` from the cache directory.
-
-        Args:
-            key: Cache key identifier
-
-        """
-        if key == "previous_shots":
-            if self.previous_shots_cache_file.exists():
-                self.previous_shots_cache_file.unlink()
-        else:
-            cache_file = self.cache_dir / f"{key}.json"
-            if cache_file.exists():
-                cache_file.unlink()
+    def clear_previous_shots_cache(self) -> None:
+        """Clear the previous shots cache file from disk."""
+        if self.previous_shots_cache_file.exists():
+            self.previous_shots_cache_file.unlink()
 
     # ========================================================================
     # Cache management

@@ -225,16 +225,14 @@ class CommandCache:
             Cached result or None if not found/expired
 
         """
-        key = self._make_key(command)
-
         with QMutexLocker(self._lock):
-            if key in self._cache:
-                entry = self._cache[key]
+            if command in self._cache:
+                entry = self._cache[command]
                 if time.time() - entry.timestamp < entry.ttl:
                     self._hits += 1
                     logger.debug(f"Cache hit for command: {command[:50]}...")
                     return entry.result
-                del self._cache[key]
+                del self._cache[command]
 
             self._misses += 1
             return None
@@ -251,10 +249,8 @@ class CommandCache:
         if ttl is None:
             ttl = self._default_ttl
 
-        key = self._make_key(command)
-
         with QMutexLocker(self._lock):
-            self._cache[key] = _CacheEntry(result, time.time(), ttl, command)
+            self._cache[command] = _CacheEntry(result, time.time(), ttl, command)
             self._cleanup_expired()
 
     def invalidate(self, pattern: str | None = None) -> None:
@@ -297,18 +293,6 @@ class CommandCache:
                 "size": len(self._cache),
                 "total_requests": total,
             }
-
-    def _make_key(self, command: str) -> str:
-        """Return the command string as cache key.
-
-        Args:
-            command: Command string
-
-        Returns:
-            The command string itself
-
-        """
-        return command
 
     def _cleanup_expired(self) -> None:
         """Remove expired entries and enforce max size with LRU eviction."""

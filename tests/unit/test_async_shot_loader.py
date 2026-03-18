@@ -289,7 +289,7 @@ class TestShotModelSignals:
         shots_loaded was only emitted once.
         """
         # Clear cache to simulate first run without cached data
-        shot_cache.clear_cached_data("shots")
+        shot_cache.clear_cache()
 
         # Create model with empty cache
         model = ShotModel(shot_cache)

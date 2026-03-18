@@ -87,13 +87,14 @@ def file_lock(cache_file: Path):
 
 
 def read_json_cache(
-    cache_file: Path, cache_ttl: timedelta, check_ttl: bool = True
+    cache_file: Path, cache_ttl: timedelta | None = None, check_ttl: bool = True
 ) -> list[ShotDict | ThreeDESceneDict] | None:
     """Read and validate JSON cache file.
 
     Args:
         cache_file: Path to cache file
-        cache_ttl: Maximum age before the cache is considered expired
+        cache_ttl: Maximum age before the cache is considered expired.
+            Required when check_ttl=True; ignored when check_ttl=False.
         check_ttl: Whether to check TTL expiration (default True)
 
     Returns:
@@ -115,6 +116,9 @@ def read_json_cache(
     try:
         # Check TTL (if enabled)
         if check_ttl:
+            if cache_ttl is None:
+                msg = "cache_ttl is required when check_ttl=True"
+                raise ValueError(msg)
             age = datetime.now(tz=UTC) - datetime.fromtimestamp(
                 cache_file.stat().st_mtime, tz=UTC
             )
@@ -136,16 +140,15 @@ def read_json_cache(
 
         if isinstance(raw_data, dict):
             # Handle wrapped format: {"data": [...], "cached_at": "..."}
-            # Try nested keys: data.data, data.shots, data.scenes
+            # "shots" is retained for legacy cache files written before the "data" key was canonical.
             result: JSONValue = next(
-                (raw_data[k] for k in ("data", "shots", "scenes") if k in raw_data),
-                None,
+                (raw_data[k] for k in ("data", "shots") if k in raw_data), None
             )
 
             if result is None:
                 logger.warning(
                     f"Unknown cache schema in {cache_file}: "
-                    f"no 'data', 'shots', or 'scenes' key found"
+                    f"no 'data' or 'shots' key found"
                 )
                 return None
 
