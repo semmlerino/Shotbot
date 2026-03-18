@@ -16,16 +16,14 @@ from typing import TYPE_CHECKING, final
 
 if TYPE_CHECKING:
     from managers.settings_manager import SettingsManager
-    from ui.files_tab_widget import FileTableModel
 
-from PySide6.QtCore import QModelIndex, QPoint, Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QTableView,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -696,47 +694,6 @@ class DCCSection(QtWidgetMixin, QWidget):
         options["sequence_path"] = str(sequence.path)
         self.launch_requested.emit(self.config.name, options)
 
-    # ========== Delegation to DCCFileTable ==========
-
-    @property
-    def _files_section(self) -> QWidget | None:  # pyright: ignore[reportUnusedFunction]
-        """The files subsection widget (backward compat)."""
-        return self._dcc_file_table
-
-    @property
-    def _file_table(self) -> QTableView | None:  # pyright: ignore[reportUnusedFunction]
-        """The QTableView inside the file table (backward compat)."""
-        if self._dcc_file_table is not None:
-            return self._dcc_file_table.file_table
-        return None
-
-    @property
-    def _file_model(self) -> FileTableModel | None:  # pyright: ignore[reportUnusedFunction]
-        """The FileTableModel inside the file table (backward compat)."""
-        if self._dcc_file_table is not None:
-            return self._dcc_file_table.file_model
-        return None
-
-    @property
-    def _files_header_btn(self) -> QPushButton | None:  # pyright: ignore[reportUnusedFunction]
-        """The header button for the files subsection (backward compat)."""
-        if self._dcc_file_table is not None:
-            return self._dcc_file_table.files_header_btn
-        return None
-
-    @property
-    def _current_selected_file(self) -> SceneFile | None:
-        """Currently selected file (backward compat)."""
-        if self._dcc_file_table is not None:
-            return self._dcc_file_table.current_selected_file
-        return None
-
-    @_current_selected_file.setter
-    def _current_selected_file(self, value: SceneFile | None) -> None:
-        """Set currently selected file (backward compat)."""
-        if self._dcc_file_table is not None:
-            self._dcc_file_table.current_selected_file = value
-
     def set_files(self, files: list[SceneFile]) -> None:
         """Set files for the embedded files sub-section.
 
@@ -788,46 +745,6 @@ class DCCSection(QtWidgetMixin, QWidget):
         if self._dcc_file_table is not None:
             return self._dcc_file_table.is_files_expanded()
         return False
-
-    def _on_file_double_clicked(self, index: QModelIndex) -> None:  # pyright: ignore[reportUnusedFunction]
-        """Delegate double-click handling to file table (backward compat).
-
-        Args:
-            index: The double-clicked model index.
-
-        """
-        if self._dcc_file_table is not None:
-            self._dcc_file_table.on_file_double_clicked(index)
-
-    def _show_file_context_menu(self, pos: QPoint) -> None:  # pyright: ignore[reportUnusedFunction]
-        """Delegate context menu to file table (backward compat).
-
-        Args:
-            pos: Position where context menu was requested.
-
-        """
-        if self._dcc_file_table is not None:
-            self._dcc_file_table.show_file_context_menu(pos)
-
-    def _launch_file(self, file: SceneFile) -> None:  # pyright: ignore[reportUnusedFunction]
-        """Delegate file launch to file table (backward compat).
-
-        Args:
-            file: SceneFile to launch.
-
-        """
-        if self._dcc_file_table is not None:
-            self._dcc_file_table.launch_file(file)
-
-    def _copy_file_path(self, file: SceneFile) -> None:  # pyright: ignore[reportUnusedFunction]
-        """Delegate copy path to file table (backward compat).
-
-        Args:
-            file: SceneFile whose path to copy.
-
-        """
-        if self._dcc_file_table is not None:
-            self._dcc_file_table.copy_file_path(file)
 
     # ========== Delegation to DCCSequenceTable ==========
 

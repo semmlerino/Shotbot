@@ -136,7 +136,6 @@ class TestProgressManagerOperationStack:
 
         assert op is not None
         assert op.label == "Test Operation"
-        assert ProgressManager.is_operation_active()
 
     def test_start_operation_with_total(self, mock_notification_manager: Mock) -> None:
         """start_operation() accepts an optional total."""
@@ -146,18 +145,17 @@ class TestProgressManagerOperationStack:
     def test_finish_operation_pops_stack(self, mock_notification_manager: Mock) -> None:
         """finish_operation() removes the current operation."""
         ProgressManager.start_operation("Test")
-        assert ProgressManager.is_operation_active()
 
         ProgressManager.finish_operation(success=True)
 
-        assert not ProgressManager.is_operation_active()
+        assert ProgressManager.get_current_operation() is None
 
     def test_finish_operation_empty_stack_is_safe(
         self, mock_notification_manager: Mock
     ) -> None:
         """Finishing on an empty stack logs a warning but does not raise."""
         ProgressManager.finish_operation(success=True)
-        assert not ProgressManager.is_operation_active()
+        assert ProgressManager.get_current_operation() is None
 
     def test_get_current_operation(self, mock_notification_manager: Mock) -> None:
         """get_current_operation() returns the top-of-stack operation."""
@@ -192,7 +190,7 @@ class TestProgressManagerOperationStack:
         ProgressManager.start_operation("Test")
         ProgressManager.finish_operation(success=True)
         ProgressManager.finish_operation(success=True)  # Should not crash
-        assert not ProgressManager.is_operation_active()
+        assert ProgressManager.get_current_operation() is None
 
 
 # =============================================================================
@@ -207,9 +205,9 @@ class TestProgressManagerContextManager:
         """Context manager starts and finishes the operation automatically."""
         with ProgressManager.operation("Test Operation") as op:
             assert op is not None
-            assert ProgressManager.is_operation_active()
+            assert ProgressManager.get_current_operation() is op
 
-        assert not ProgressManager.is_operation_active()
+        assert ProgressManager.get_current_operation() is None
 
     def test_context_manager_with_updates(
         self, mock_notification_manager: Mock
@@ -232,7 +230,7 @@ class TestProgressManagerContextManager:
         with pytest.raises(ValueError, match="Test error"):
             raise_in_context()
 
-        assert not ProgressManager.is_operation_active()
+        assert ProgressManager.get_current_operation() is None
         mock_notification_manager.error.assert_called()
 
     def test_context_manager_success_notification(
@@ -267,45 +265,21 @@ class TestProgressManagerContextManager:
 class TestProgressCancellation:
     """Test operation cancellation behavior."""
 
-    def test_cancel_current_operation_when_active(
-        self, mock_notification_manager: Mock
-    ) -> None:
-        """cancel_current_operation() cancels the active operation."""
-        ProgressManager.start_operation("Test")
-
-        result = ProgressManager.cancel_current_operation()
-
-        assert result is True
-        assert ProgressManager.get_current_operation().is_cancelled() is True  # type: ignore[union-attr]
-
-    def test_cancel_with_no_active_operation(self) -> None:
-        """cancel_current_operation() returns False when no operation is active."""
-        result = ProgressManager.cancel_current_operation()
-        assert result is False
 
     def test_is_cancelled_reflects_state(
         self, mock_notification_manager: Mock
     ) -> None:
         """ProgressManager.is_cancelled() mirrors the current operation's state."""
-        ProgressManager.start_operation("Test")
+        op = ProgressManager.start_operation("Test")
         assert not ProgressManager.is_cancelled()
 
-        ProgressManager.cancel_current_operation()
+        op.cancel()
         assert ProgressManager.is_cancelled() is True
 
     def test_is_cancelled_with_no_operation(self) -> None:
         """ProgressManager.is_cancelled() returns False when no operation is active."""
         assert ProgressManager.is_cancelled() is False
 
-    def test_clear_all_operations(self, mock_notification_manager: Mock) -> None:
-        """clear_all_operations() empties the stack."""
-        ProgressManager.start_operation("Op1")
-        ProgressManager.start_operation("Op2")
-
-        ProgressManager.clear_all_operations()
-
-        assert not ProgressManager.is_operation_active()
-        mock_notification_manager.close_progress.assert_called()
 
 
 # =============================================================================

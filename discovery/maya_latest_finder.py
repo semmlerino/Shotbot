@@ -26,10 +26,6 @@ class MayaLatestFinder(BaseLatestFinder):
     # Pattern to match version in Maya filenames (e.g., _v001, _v002)
     VERSION_PATTERN: re.Pattern[str] = re.compile(r"_v(\d{3})\.(ma|mb)$")
 
-    def __init__(self) -> None:
-        """Initialize the Maya finder with version handling capabilities."""
-        super().__init__()
-
     def find_latest_maya_scene(
         self,
         workspace_path: str,

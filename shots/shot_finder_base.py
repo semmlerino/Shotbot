@@ -15,7 +15,7 @@ from typing_extensions import Unpack
 
 # Local application imports
 from config import Config
-from discovery.finder_utils import FinderUtils
+from discovery.finder_utils import sanitize_username
 from progress_mixin import ProgressReportingMixin
 from shots.shot_parser import OptimizedShotParser
 from type_definitions import Shot
@@ -79,8 +79,8 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         # Get raw username, falling back to the canonical resolver
         raw_username = username or get_current_username()
 
-        # Use FinderUtils for username sanitization
-        self.username: str = FinderUtils.sanitize_username(raw_username)
+        # Sanitize username to prevent security issues
+        self.username: str = sanitize_username(raw_username)
         self.user_path_pattern: str = f"/user/{self.username}"
 
         # Use OptimizedShotParser for improved performance

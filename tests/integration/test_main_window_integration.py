@@ -618,10 +618,6 @@ class TestUserWorkflows:
         with contextlib.suppress(Exception):
             self.progress_patcher.stop()
 
-        from managers.progress_manager import ProgressManager
-        with contextlib.suppress(Exception):
-            ProgressManager.clear_all_operations()
-
         _close_windows(self.test_windows, qtbot)
 
     def _create_test_process(self, pid: int, name: str) -> PopenDouble:

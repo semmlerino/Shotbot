@@ -70,13 +70,11 @@ class SceneDiskCache(LoggingMixin, QObject):
     def cache_threede_scenes(
         self,
         scenes: list[ThreeDESceneDict],
-        _metadata: dict[str, object] | None = None,
     ) -> None:
         """Cache 3DE scene list to file.
 
         Args:
             scenes: List of scene dictionaries
-            _metadata: Optional metadata (ignored)
 
         """
         success = write_json_cache(self.threede_cache_file, scenes)
@@ -191,5 +189,3 @@ class SceneDiskCache(LoggingMixin, QObject):
             self.threede_cache_file.unlink()
             self.logger.debug("Cleared 3DE scenes cache")
 
-    def shutdown(self) -> None:
-        """Shutdown stub (no-op)."""

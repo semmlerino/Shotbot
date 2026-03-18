@@ -102,10 +102,6 @@ class ProgressManager:
         ProgressManager._status_bar = None
         logger.debug("ProgressManager initialized")
 
-    @classmethod
-    def get_instance(cls) -> ProgressManager:
-        """Return the singleton instance."""
-        return cls()
 
     @classmethod
     def initialize(cls, status_bar: QStatusBar) -> ProgressManager:
@@ -226,19 +222,16 @@ class ProgressManager:
         cls,
         label: str,
         total: int = 0,
-        cancelable: bool = False,
     ) -> Iterator[ProgressOperation]:
         """Context manager for a progress operation.
 
         Args:
             label: Human-readable description.
             total: Total steps (0 = indeterminate).
-            cancelable: Unused; kept for call-site compatibility.
 
         Yields:
             The operation object.
         """
-        del cancelable  # no modal dialog; all operations use the status bar
         op = cls.start_operation(label, total)
         try:
             yield op
@@ -254,39 +247,8 @@ class ProgressManager:
         with QMutexLocker(cls._stack_lock):
             return cls._operation_stack[-1] if cls._operation_stack else None
 
-    @classmethod
-    def cancel_current_operation(cls) -> bool:
-        """Cancel the current operation.
 
-        Returns:
-            True if an operation was cancelled, False if no operation was active.
-        """
-        op = cls.get_current_operation()
-        if op is not None:
-            op.cancel()
-            return True
-        return False
 
-    @classmethod
-    def is_operation_active(cls) -> bool:
-        """Return True if at least one operation is on the stack."""
-        _ = cls()  # ensure singleton is initialized
-        with QMutexLocker(cls._stack_lock):
-            return len(cls._operation_stack) > 0
-
-    @classmethod
-    def clear_all_operations(cls) -> None:
-        """Cancel and clear all active operations (emergency cleanup)."""
-        _ = cls()  # ensure singleton is initialized
-        with QMutexLocker(cls._stack_lock):
-            snapshot = list(cls._operation_stack)
-            cls._operation_stack.clear()
-
-        for op in snapshot:
-            op.cancel()
-
-        NotificationManager.close_progress()
-        logger.warning("All progress operations cleared (emergency cleanup)")
 
     @classmethod
     def reset(cls) -> None:

@@ -115,10 +115,6 @@ def reset_threede_singletons() -> None:
 
     # Reset ProgressManager
     if ProgressManager._instance is not None:
-        try:
-            ProgressManager.clear_all_operations()
-        except (RuntimeError, AttributeError):
-            pass
         if hasattr(ProgressManager._instance, "_initialized"):
             delattr(ProgressManager._instance, "_initialized")
     ProgressManager._instance = None

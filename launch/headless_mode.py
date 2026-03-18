@@ -22,7 +22,6 @@ from logging_mixin import get_module_logger
 
 if TYPE_CHECKING:
     # Standard library imports
-    from collections.abc import Callable
 
     # Third-party imports
     from PySide6.QtWidgets import QApplication
@@ -176,26 +175,3 @@ class HeadlessMode:
                     f"Patched {obj.__class__.__name__}.{method_name} for headless"
                 )
 
-    @staticmethod
-    def skip_if_headless(func: Callable[P, T]) -> Callable[P, T | None]:
-        """Decorator to skip function execution in headless mode.
-
-        Useful for UI operations that should be skipped when no display.
-
-        Args:
-            func: Function to wrap
-
-        Returns:
-            Wrapped function that skips in headless mode
-
-        """
-
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
-            if HeadlessMode.is_headless_environment():
-                logger.debug(f"Skipping {func.__name__} in headless mode")
-                return None
-            return func(*args, **kwargs)
-
-        wrapper.__name__ = func.__name__
-        wrapper.__doc__ = func.__doc__
-        return wrapper

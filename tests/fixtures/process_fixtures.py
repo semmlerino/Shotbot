@@ -1167,12 +1167,6 @@ class TestProgressManager:
         """Get the current progress operation."""
         return cls._current_operation
 
-    @classmethod
-    def clear_all_operations(cls) -> None:
-        """Clear all operations for testing."""
-        cls._current_operation = None
-        cls._operations_started.clear()
-        cls._operations_finished.clear()
 
     @classmethod
     def get_operations_started_count(cls) -> int:

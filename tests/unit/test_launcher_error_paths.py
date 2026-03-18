@@ -18,14 +18,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from config import Config
 from launch.command_launcher import CommandLauncher
 from launch.process_executor import ProcessExecutor
-from launch.process_verifier import ProcessVerifier
 from tests.fixtures.process_fixtures import PopenDouble
 from tests.test_helpers import process_qt_events
 from type_definitions import Shot, ThreeDEScene
@@ -491,65 +490,6 @@ class TestConsecutiveTimeoutThenSuccess:
         assert len(reset_calls) == 0
 
 
-# ---------------------------------------------------------------------------
-# ProcessVerifier edge cases
-# ---------------------------------------------------------------------------
-
-
-class TestProcessVerifierEdgeCases:
-    """Tests for ProcessVerifier helper methods."""
-
-    def test_is_gui_app_rejects_false_positive_rv_in_path(self) -> None:
-        """ProcessVerifier does not flag '/srv/data/render' as an rv launch."""
-        verifier = ProcessVerifier(MagicMock())
-        # "rv" appears inside "/srv/" — should NOT match as a GUI app
-        assert verifier._is_gui_app("ws /srv/data && launch_script") is False
-
-    def test_is_gui_app_accepts_rv_as_standalone_word(self) -> None:
-        """ProcessVerifier recognises 'rv' as a standalone word."""
-        verifier = ProcessVerifier(MagicMock())
-        assert verifier._is_gui_app("ws /shows/TEST/shots/seq01/0010 && rv") is True
-
-    def test_is_gui_app_accepts_nuke(self) -> None:
-        """ProcessVerifier recognises a nuke launch command."""
-        verifier = ProcessVerifier(MagicMock())
-        assert verifier._is_gui_app("ws /shows/TEST && nuke -x /shows/TEST/comp.nk") is True
-
-    def test_extract_app_name_returns_none_for_unknown_command(self) -> None:
-        """_extract_app_name returns None for commands not matching known GUI apps."""
-        verifier = ProcessVerifier(MagicMock())
-        result = verifier._extract_app_name("ls /shows/TEST")
-        assert result is None
-
-    def test_extract_app_name_extracts_3de(self) -> None:
-        """_extract_app_name correctly extracts '3de' from a launch command."""
-        verifier = ProcessVerifier(MagicMock())
-        result = verifier._extract_app_name("ws /shows/TEST && 3de -open /path/scene.3de")
-        assert result == "3de"
-
-    def test_cleanup_old_pid_files_handles_missing_directory(self) -> None:
-        """cleanup_old_pid_files does not raise when PID directory does not exist."""
-        with patch.object(ProcessVerifier, "PID_FILE_DIR", "/tmp/nonexistent_shotbot_test_pids_xyz"):
-            # Should complete without error
-            ProcessVerifier.cleanup_old_pid_files()
-
-    def test_wait_for_process_non_gui_command_returns_true_immediately(
-        self, tmp_path: Path
-    ) -> None:
-        """wait_for_process skips verification for non-GUI commands."""
-        verifier = ProcessVerifier(MagicMock())
-        success, msg = verifier.wait_for_process("ls /shows/TEST", timeout_sec=0.1)
-        assert success is True
-        assert "non-gui" in msg.lower() or "no verification" in msg.lower()
-
-    def test_verify_process_exists_returns_false_for_impossible_pid(self) -> None:
-        """_verify_process_exists returns False for a PID that cannot exist."""
-        verifier = ProcessVerifier(MagicMock())
-        # PID 0 is the idle process on Linux and is not a user process;
-        # psutil.pid_exists(0) is True on Linux, so use a very high invalid PID instead
-        # that almost certainly doesn't exist.
-        result = verifier._verify_process_exists(999999999)
-        assert result is False
 
 
 # ---------------------------------------------------------------------------

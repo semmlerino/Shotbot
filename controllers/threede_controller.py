@@ -349,16 +349,6 @@ class ThreeDEController(LoggingMixin):
             "Check that you have read permissions for the scan directories.",
         )
 
-    @Slot()  # pyright: ignore[reportAny]
-    def on_discovery_paused(self) -> None:
-        """Handle worker pause signal."""
-        self.window.update_status("3DE scene discovery paused")
-
-    @Slot()  # pyright: ignore[reportAny]
-    def on_discovery_resumed(self) -> None:
-        """Handle worker resume signal."""
-        self.window.update_status("3DE scene discovery resumed")
-
     @Slot(list)  # pyright: ignore[reportAny]
     def on_batch_ready(self, scene_batch: list[ThreeDEScene]) -> None:
         """Handle batch of scenes ready from progressive scanning.

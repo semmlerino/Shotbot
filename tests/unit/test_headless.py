@@ -165,38 +165,6 @@ def test_headless_shotbot_command() -> None:
         logger.error(f"❌ Error running headless: {e}")
 
 
-def test_decorators(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test headless decorators."""
-    logger.info("=" * 50)
-    logger.info("Testing headless decorators")
-    logger.info("=" * 50)
-
-    # Local application imports
-    from launch.headless_mode import (
-        HeadlessMode,
-    )
-
-    # Test skip_if_headless decorator
-    @HeadlessMode.skip_if_headless
-    def ui_operation() -> str:
-        return "UI operation executed"
-
-    # In normal mode - explicitly ensure we're not in headless mode
-    monkeypatch.delenv("SHOTBOT_HEADLESS", raising=False)
-    monkeypatch.delenv("CI", raising=False)
-    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
-    monkeypatch.delenv("QT_QPA_PLATFORM", raising=False)
-
-    result = ui_operation()
-    assert result == "UI operation executed", "Should execute normally"
-    logger.info("✅ skip_if_headless executes in normal mode")
-
-    # In headless mode
-    monkeypatch.setenv("SHOTBOT_HEADLESS", "1")
-    result = ui_operation()
-    assert result is None, "Should skip in headless mode"
-    logger.info("✅ skip_if_headless skips in headless mode")
-
 
 def main() -> None:
     """Run all tests."""
@@ -206,7 +174,6 @@ def main() -> None:
         test_headless_detection()
         test_headless_qt_config()
         test_headless_app_creation()
-        test_decorators()
         test_headless_shotbot_command()
 
         logger.info("")

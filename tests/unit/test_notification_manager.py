@@ -26,10 +26,7 @@ from PySide6.QtWidgets import (
     QStatusBar,
 )
 
-from managers.notification_manager import (
-    NotificationManager,
-    NotificationType,
-)
+from managers.notification_manager import NotificationManager
 
 
 # Test markers for categorization and parallel safety
@@ -250,16 +247,3 @@ class TestNotificationManager:
         assert NotificationManager._current_progress is None
         mock_progress.close.assert_called_once()
 
-    def test_notification_types_enum(self) -> None:
-        """Test NotificationType enum values."""
-        # Check all expected types exist
-        expected_types = [
-            NotificationType.ERROR,
-            NotificationType.WARNING,
-            NotificationType.INFO,
-            NotificationType.SUCCESS,
-            NotificationType.PROGRESS,
-        ]
-
-        for notif_type in expected_types:
-            assert isinstance(notif_type, NotificationType)

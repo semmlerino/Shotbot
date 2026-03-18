@@ -35,7 +35,6 @@ from __future__ import annotations
 from collections.abc import Callable
 
 # Standard library imports
-from enum import Enum, auto
 from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
@@ -61,16 +60,6 @@ logger = get_module_logger(__name__)
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable
-
-
-class NotificationType(Enum):
-    """Enumeration of notification types with associated styling."""
-
-    ERROR = auto()
-    WARNING = auto()
-    INFO = auto()
-    SUCCESS = auto()
-    PROGRESS = auto()
 
 
 @final

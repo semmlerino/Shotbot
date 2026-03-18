@@ -87,17 +87,3 @@ class PathBuilders:
         """
         return PathBuilders.build_path(workspace_path, *Config.RAW_PLATE_SEGMENTS)
 
-    @staticmethod
-    def build_threede_scene_path(workspace_path: str, username: str) -> Path:
-        """Build 3DE scene base path.
-
-        Args:
-            workspace_path: Shot workspace path
-            username: Username for the path
-
-        Returns:
-            Path to 3DE scene directory
-
-        """
-        segments = ["user", username, *Config.THREEDE_SCENE_SEGMENTS]
-        return PathBuilders.build_path(workspace_path, *segments)

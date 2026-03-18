@@ -6,8 +6,6 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
-from cache.shot_cache import DEFAULT_TTL_MINUTES, ShotDataCache
-from cache.thumbnail_cache import THUMBNAIL_SIZE, ThumbnailCache
 from logging_mixin import LoggingMixin
 
 
@@ -16,6 +14,8 @@ if TYPE_CHECKING:
 
     from cache.latest_file_cache import LatestFileCache
     from cache.scene_cache_disk import SceneDiskCache
+    from cache.shot_cache import ShotDataCache
+    from cache.thumbnail_cache import ThumbnailCache
 
 
 @final
@@ -42,18 +42,6 @@ class CacheCoordinator(LoggingMixin):
         self.scene_disk_cache = scene_disk_cache
         self.latest_file_cache = latest_file_cache
         self._on_cleared = on_cleared
-
-    # ------------------------------------------------------------------
-    # Properties for backward compatibility
-    # ------------------------------------------------------------------
-
-    @property
-    def CACHE_THUMBNAIL_SIZE(self) -> int:
-        return THUMBNAIL_SIZE
-
-    @property
-    def CACHE_EXPIRY_MINUTES(self) -> int:
-        return DEFAULT_TTL_MINUTES
 
     # ------------------------------------------------------------------
     # Cross-cutting operations
@@ -118,8 +106,4 @@ class CacheCoordinator(LoggingMixin):
             return {"total_mb": 0.0, "file_count": 0, "thumbnail_count": 0, "thumbnail_dir": ""}
 
     def shutdown(self) -> None:
-        """Shutdown all sub-managers."""
-        self.shot_cache.shutdown()
-        self.scene_disk_cache.shutdown()
-        self.latest_file_cache.shutdown()
-        self.logger.debug("All cache managers shut down")
+        """Shutdown all sub-managers (no-op)."""

@@ -166,8 +166,6 @@ class LatestFileCache(LoggingMixin):
             self.logger.exception("Failed to write latest files cache")
             return False
 
-    def shutdown(self) -> None:
-        """Shutdown stub (no-op)."""
 
 
 def make_default_latest_file_cache(base_dir: Path | None = None) -> LatestFileCache:

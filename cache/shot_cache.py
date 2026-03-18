@@ -426,13 +426,6 @@ class ShotDataCache(LoggingMixin, QObject):
         self._cache_ttl = timedelta(minutes=expiry_minutes)
         self.logger.debug(f"Cache TTL set to {expiry_minutes} minutes")
 
-    def shutdown(self) -> None:
-        """Shutdown stub for backward compatibility.
-
-        ShotDataCache has no background threads or file handles to clean up.
-        This method exists so callers that shut down CacheManager continue to work.
-        """
-        self.logger.debug("ShotDataCache shutdown called (no-op)")
 
 
 def make_default_shot_cache(base_dir: Path | None = None) -> ShotDataCache:
