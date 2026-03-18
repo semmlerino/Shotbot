@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 from dcc.scene_file import FILE_TYPE_COLORS, FileType, SceneFile
 from shots.shot_file_finder import ShotFileFinder
-from ui.design_system import design_system
+from ui.design_system import design_system, lighten_color
 from ui.qt_widget_mixin import QtWidgetMixin
 
 
@@ -285,7 +285,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
                 border: 2px solid #fff;
             }}
             QPushButton:hover {{
-                background-color: {self._lighten_color(color, 20)};
+                background-color: {lighten_color(color, percent=20)};
             }}
         """)
         layout.addWidget(self._chip_button)
@@ -319,29 +319,6 @@ class FileTypeSection(QtWidgetMixin, QWidget):
         }
         name = type_names[self._file_type]
         return f"{name} ({count})"
-
-    def _lighten_color(self, hex_color: str, percent: int) -> str:
-        """Lighten a hex color by a percentage.
-
-        Args:
-            hex_color: Hex color like '#c0392b'
-            percent: Percentage to lighten (0-100)
-
-        Returns:
-            Lightened hex color
-
-        """
-        hex_color = hex_color.lstrip("#")
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        # Lighten
-        r = min(255, r + int((255 - r) * percent / 100))
-        g = min(255, g + int((255 - g) * percent / 100))
-        b = min(255, b + int((255 - b) * percent / 100))
-
-        return f"#{r:02x}{g:02x}{b:02x}"
 
     def _toggle_expanded(self) -> None:
         """Toggle expanded/collapsed state."""

@@ -264,14 +264,30 @@ class DesignSystem(QObject):
         return self._ui_scale
 
 
-def lighten_color(color: str) -> str:
-    """Lighten a hex color by 20% (for hover states)."""
-    if color.startswith("#"):
-        r = min(255, int(int(color[1:3], 16) * 1.2))
-        g = min(255, int(int(color[3:5], 16) * 1.2))
-        b = min(255, int(int(color[5:7], 16) * 1.2))
-        return f"#{r:02x}{g:02x}{b:02x}"
-    return color
+def lighten_color(color: str, percent: int = 20) -> str:
+    """Lighten a hex color by interpolating toward white.
+
+    Args:
+        color: Hex color like '#c0392b'
+        percent: Percentage to lighten (0-100), defaults to 20 (for hover states)
+
+    Returns:
+        Lightened hex color
+    """
+    if not color.startswith("#"):
+        return color
+
+    hex_color = color.lstrip("#")
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+
+    # Lighten by interpolating toward white (255)
+    r = min(255, r + int((255 - r) * percent / 100))
+    g = min(255, g + int((255 - g) * percent / 100))
+    b = min(255, b + int((255 - b) * percent / 100))
+
+    return f"#{r:02x}{g:02x}{b:02x}"
 
 
 def darken_color(color: str) -> str:

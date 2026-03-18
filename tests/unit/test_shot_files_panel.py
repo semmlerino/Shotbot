@@ -486,40 +486,6 @@ class TestShotFilesPanelSignalRouting:
     """Test signal routing through ShotFilesPanel."""
 
 
-# ============================================================================
-# Test Color Utilities
-# ============================================================================
-
-
-class TestColorUtilities:
-    """Test color utility methods."""
-
-    def test_lighten_color_increases_rgb_values(
-        self, qtbot: QtBot, file_type_section: FileTypeSection
-    ) -> None:
-        """Test that lighten_color increases RGB values."""
-        original = "#800000"  # Dark red
-        lightened = file_type_section._lighten_color(original, 50)
-
-        # Parse results
-        orig_r = int(original[1:3], 16)
-        light_r = int(lightened[1:3], 16)
-
-        assert light_r > orig_r
-
-    def test_lighten_color_caps_at_255(
-        self, qtbot: QtBot, file_type_section: FileTypeSection
-    ) -> None:
-        """Test that lighten_color doesn't exceed 255."""
-        white_ish = "#ffffff"
-        lightened = file_type_section._lighten_color(white_ish, 100)
-
-        # Should still be valid hex and not exceed 255
-        assert lightened.startswith("#")
-        assert len(lightened) == 7
-        for i in range(3):
-            value = int(lightened[1 + i * 2:3 + i * 2], 16)
-            assert value <= 255
 
 
 # ============================================================================

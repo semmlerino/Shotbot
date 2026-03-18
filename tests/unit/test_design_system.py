@@ -144,6 +144,29 @@ class TestColorUtilities:
     def test_lighten_passthrough_non_hex(self) -> None:
         assert lighten_color("red") == "red"
 
+    def test_lighten_with_custom_percent(self) -> None:
+        """Test lighten_color with custom percent parameter (interpolation toward white)."""
+        original = "#800000"  # Dark red
+        lightened = lighten_color(original, percent=50)
+
+        # Parse results
+        orig_r = int(original[1:3], 16)
+        light_r = int(lightened[1:3], 16)
+
+        assert light_r > orig_r
+
+    def test_lighten_percent_clamps_at_255(self) -> None:
+        """Test that lighten_color with percent doesn't exceed 255."""
+        white_ish = "#ffffff"
+        lightened = lighten_color(white_ish, percent=100)
+
+        # Should still be valid hex and not exceed 255
+        assert lightened.startswith("#")
+        assert len(lightened) == 7
+        for i in range(3):
+            value = int(lightened[1 + i * 2:3 + i * 2], 16)
+            assert value <= 255
+
     def test_darken_reduces_rgb(self) -> None:
         result = darken_color("#ffffff")
         assert int(result[1:3], 16) < 255

@@ -38,6 +38,39 @@ FILE_TYPE_COLORS: dict[FileType, str] = {
 }
 
 
+def _relative_age(modified_time: datetime) -> str:
+    """Return human-readable relative age (e.g., '2 hours ago', 'yesterday')."""
+    now = datetime.now()  # noqa: DTZ005 - Comparing with naive local time from filesystem
+    delta = now - modified_time
+
+    seconds = int(delta.total_seconds())
+    if seconds < 0:
+        return "just now"
+
+    minutes = seconds // 60
+    hours = minutes // 60
+    days = delta.days
+
+    if seconds < 60:
+        return "just now"
+    if minutes < 60:
+        return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+    if hours < 24:
+        return f"{hours} hour{'s' if hours != 1 else ''} ago"
+    if days == 1:
+        return "yesterday"
+    if days < 7:
+        return f"{days} days ago"
+    if days < 30:
+        weeks = days // 7
+        return f"{weeks} week{'s' if weeks != 1 else ''} ago"
+    if days < 365:
+        months = days // 30
+        return f"{months} month{'s' if months != 1 else ''} ago"
+    years = days // 365
+    return f"{years} year{'s' if years != 1 else ''} ago"
+
+
 @dataclass(frozen=True, slots=True)
 class SceneFile:
     """Represents a scene file for display and launching.
@@ -73,35 +106,7 @@ class SceneFile:
 
         Returns a user-friendly string describing when the file was last modified.
         """
-        now = datetime.now()  # noqa: DTZ005 - Comparing with naive local time from filesystem
-        delta = now - self.modified_time
-
-        seconds = int(delta.total_seconds())
-        if seconds < 0:
-            return "just now"
-
-        minutes = seconds // 60
-        hours = minutes // 60
-        days = delta.days
-
-        if seconds < 60:
-            return "just now"
-        if minutes < 60:
-            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-        if hours < 24:
-            return f"{hours} hour{'s' if hours != 1 else ''} ago"
-        if days == 1:
-            return "yesterday"
-        if days < 7:
-            return f"{days} days ago"
-        if days < 30:
-            weeks = days // 7
-            return f"{weeks} week{'s' if weeks != 1 else ''} ago"
-        if days < 365:
-            months = days // 30
-            return f"{months} month{'s' if months != 1 else ''} ago"
-        years = days // 365
-        return f"{years} year{'s' if years != 1 else ''} ago"
+        return _relative_age(self.modified_time)
 
     @property
     def formatted_time(self) -> str:
@@ -156,35 +161,7 @@ class ImageSequence:
     @property
     def relative_age(self) -> str:
         """Return human-readable relative age (e.g., '2 hours ago', 'yesterday')."""
-        now = datetime.now()  # noqa: DTZ005 - Comparing with naive local time from filesystem
-        delta = now - self.modified_time
-
-        seconds = int(delta.total_seconds())
-        if seconds < 0:
-            return "just now"
-
-        minutes = seconds // 60
-        hours = minutes // 60
-        days = delta.days
-
-        if seconds < 60:
-            return "just now"
-        if minutes < 60:
-            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-        if hours < 24:
-            return f"{hours} hour{'s' if hours != 1 else ''} ago"
-        if days == 1:
-            return "yesterday"
-        if days < 7:
-            return f"{days} days ago"
-        if days < 30:
-            weeks = days // 7
-            return f"{weeks} week{'s' if weeks != 1 else ''} ago"
-        if days < 365:
-            months = days // 30
-            return f"{months} month{'s' if months != 1 else ''} ago"
-        years = days // 365
-        return f"{years} year{'s' if years != 1 else ''} ago"
+        return _relative_age(self.modified_time)
 
     @property
     def formatted_time(self) -> str:

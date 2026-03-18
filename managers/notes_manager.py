@@ -16,7 +16,7 @@ from PySide6.QtCore import QObject, QTimer
 
 from cache import atomic_json_write
 from logging_mixin import LoggingMixin
-from managers._shot_key import shot_key
+from managers._shot_key import key_from_workspace_path, shot_key
 
 
 if TYPE_CHECKING:
@@ -260,23 +260,10 @@ class NotesManager(LoggingMixin, QObject):
             Tuple key or None if path can't be parsed
 
         """
-        from pathlib import Path as PathLib
-
-        path = PathLib(workspace_path)
-        parts = path.parts
-
-        # Find 'shots' in path and extract show/seq/shot
-        try:
-            shots_idx = parts.index("shots")
-            show = parts[shots_idx - 1]  # Show is before 'shots'
-            seq = parts[shots_idx + 1]   # Sequence is after 'shots'
-            seq_shot = parts[shots_idx + 2]  # seq_shot folder
-            # Extract shot from seq_shot (format: seq_shot)
-            shot = seq_shot.split("_", 1)[1] if "_" in seq_shot else seq_shot
-            return (show, seq, shot)
-        except (ValueError, IndexError):
+        key = key_from_workspace_path(workspace_path)
+        if key is None:
             _ = self.logger.warning(f"Could not parse workspace path: {workspace_path}")
-            return None
+        return key
 
     def get_notes_count(self) -> int:
         """Get the number of shots with notes.
