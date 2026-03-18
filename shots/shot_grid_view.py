@@ -12,19 +12,14 @@ from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtCore import (
-    QModelIndex,
     QSortFilterProxyModel,
-    Qt,
-    QThreadPool,
     Signal,
     Slot,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QApplication,
     QCheckBox,
     QHBoxLayout,
-    QMenu,
     QPushButton,
     QWidget,
 )
@@ -35,9 +30,8 @@ from type_definitions import Shot
 from typing_compat import override
 
 # Local application imports
-from ui.base_grid_view import BaseGridView, HasAvailableShows
 from ui.base_item_model import BaseItemRole
-from workers.runnable_tracker import FolderOpenerWorker
+from ui.base_shot_grid_view import BaseShotGridView
 
 
 # Backward compatibility alias
@@ -46,16 +40,17 @@ ShotRole = BaseItemRole
 if TYPE_CHECKING:
     # Third-party imports
     # Local application imports
-    from PySide6.QtGui import QContextMenuEvent
+    from PySide6.QtWidgets import QMenu
 
     from managers.hide_manager import HideManager
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
+    from ui.base_grid_view import HasAvailableShows
     from ui.base_thumbnail_delegate import BaseThumbnailDelegate
 
 
 @final
-class ShotGridView(BaseGridView):
+class ShotGridView(BaseShotGridView):
     """Optimized grid view for displaying shot thumbnails.
 
     This view provides:
@@ -68,8 +63,6 @@ class ShotGridView(BaseGridView):
     """
 
     # Additional signals specific to ShotGridView
-    shot_selected = Signal(Shot)  # Shot object
-    shot_double_clicked = Signal(Shot)  # Shot object
     recover_crashes_requested = Signal()  # User clicked recover crashes button
     shot_visibility_changed = Signal()  # Shot was hidden or unhidden
     show_hidden_changed = Signal(bool)  # Show Hidden checkbox toggled
@@ -102,7 +95,6 @@ class ShotGridView(BaseGridView):
         super().__init__(parent)
 
         # ShotGridView-specific attributes
-        self._selected_shot: Shot | None = None
         self._pin_manager: ShotPinManager | None = pin_manager
         self._notes_manager: NotesManager | None = notes_manager
         self._hide_manager: HideManager | None = hide_manager
@@ -188,7 +180,6 @@ class ShotGridView(BaseGridView):
         """
         return self._thumbnail_size
 
-
     def set_model(self, model: ShotItemModel, proxy: QSortFilterProxyModel | None = None) -> None:
         """Set the data model for the view.
 
@@ -197,21 +188,7 @@ class ShotGridView(BaseGridView):
             proxy: Optional proxy model for filtering/sorting
 
         """
-
-        # Store in base class attribute (base type is QAbstractItemModel)
-        self._model = model
-        self.list_view.setModel(proxy if proxy is not None else model)
-        self._connect_model_visibility(model)
-
-        # Set up selection model
-        selection_model = self.list_view.selectionModel()
-        if selection_model:
-            _ = selection_model.currentChanged.connect(self._on_selection_changed)  # pyright: ignore[reportAny]
-
-        # Connect to model signals
-        _ = model.shots_updated.connect(self._on_model_updated)  # pyright: ignore[reportAny]
-
-        self.logger.debug(f"Model set with {model.rowCount()} items")
+        self._set_model_common(model, proxy)
 
     @override
     def populate_show_filter(self, shows: list[str] | HasAvailableShows) -> None:
@@ -244,7 +221,7 @@ class ShotGridView(BaseGridView):
             self.logger.info(f"Populated show filter with {show_count} {show_word}")
 
     @Slot()  # pyright: ignore[reportAny]
-    def _on_model_updated(self) -> None:
+    def _on_model_updated(self) -> None:  # pyright: ignore[reportUnusedFunction]
         """Handle model updates."""
         # Update grid layout based on new item count
         self._update_grid_size()
@@ -252,82 +229,37 @@ class ShotGridView(BaseGridView):
         # Reset visible range tracking
         self._update_visible_range()
 
-    @Slot(QModelIndex)  # pyright: ignore[reportAny]
-    def _on_item_clicked(self, index: QModelIndex) -> None:
-        """Handle item click.
-
-        This is a stub implementation. Qt's selection model will trigger
-        _on_selection_changed automatically, which handles all selection logic.
-        This avoids duplicate signal emissions.
-
-        Args:
-            index: Clicked model index
-
-        """
-        # Qt's selection model automatically handles the click
-        # _on_selection_changed will be triggered with the full selection logic
-        _ = index
-
-    @Slot(QModelIndex)  # pyright: ignore[reportAny]
-    def _on_item_double_clicked(self, index: QModelIndex) -> None:
-        """Handle item double-click.
-
-        Args:
-            index: Double-clicked model index
-
-        """
-        model = cast("ShotItemModel | None", self._model)
-        if not index.isValid() or not model:
-            return
-
-        # Get shot object - index.data() returns Any from Qt API
-        shot: Shot | None = cast("Shot | None", index.data(ShotRole.ObjectRole))
-
-        if shot:
-            self.shot_double_clicked.emit(shot)
-            self.logger.debug(f"Shot double-clicked: {shot.full_name}")
-
-    @Slot(QModelIndex, QModelIndex)  # pyright: ignore[reportAny]
-    def _on_selection_changed(
-        self,
-        current: QModelIndex,
-        _previous: QModelIndex,
-    ) -> None:
-        """Handle selection change.
-
-        Args:
-            current: Current selection index
-            previous: Previous selection index
-
-        """
-        model = cast("ShotItemModel | None", self._model)
-        if not model:
-            return
-
-        if current.isValid():
-            # Get shot object - index.data() returns Any from Qt API
-            shot: Shot | None = cast("Shot | None", current.data(ShotRole.ObjectRole))
-
-            if shot:
-                self._selected_shot = shot
-                self.shot_selected.emit(shot)
-                self.publish_button.setEnabled(True)
-                return
-
-        self.publish_button.setEnabled(False)
+    @override
+    def on_selected_shot_changed(self, shot: Shot | None) -> None:
+        """Update publish button enabled state when selection changes."""
+        self.publish_button.setEnabled(shot is not None)
 
     @override
-    def _handle_visible_range_update(self, start: int, end: int) -> None:
-        """Handle the visible range update for lazy loading.
+    def _get_launch_apps(self) -> list[tuple[str, str, str, str, str]]:
+        """Return launch apps including Publish."""
+        return [
+            ("3DEqualizer", "3", "3de", "target", "#00CED1"),
+            ("Nuke", "N", "nuke", "palette", "#FF8C00"),
+            ("Maya", "M", "maya", "cube", "#9B59B6"),
+            ("RV", "R", "rv", "play", "#2ECC71"),
+            ("Publish", "P", "publish", "clipboard", "#5D8A5E"),
+        ]
 
-        Args:
-            start: Start row index
-            end: End row index (exclusive)
-
-        """
-        model = cast("ShotItemModel | None", self._model)
-        if model:
-            model.set_visible_range(start, end)  # pyright: ignore[reportAny]
+    @override
+    def _add_shot_specific_menu_actions(self, menu: QMenu, shot: Shot) -> None:
+        """Add hide/unhide action to context menu."""
+        if self._hide_manager and self._hide_manager.is_hidden(shot):
+            unhide_action = menu.addAction("Unhide Shot")
+            unhide_action.setIcon(self._create_icon("note", "#888888"))
+            _ = unhide_action.triggered.connect(
+                lambda checked=False, s=shot: self._unhide_shot(s)  # noqa: ARG005
+            )
+        else:
+            hide_action = menu.addAction("Hide Shot")
+            hide_action.setIcon(self._create_icon("note", "#888888"))
+            _ = hide_action.triggered.connect(
+                lambda checked=False, s=shot: self._hide_shot(s)  # noqa: ARG005
+            )
 
     def select_shot_by_name(self, shot_name: str) -> None:
         """Select a shot by its full name.
@@ -373,141 +305,6 @@ class ShotGridView(BaseGridView):
         self.list_view.viewport().update()
         self._update_visible_range()
 
-    @override
-    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
-        """Handle right-click context menu.
-
-        Args:
-            event: Context menu event
-
-        """
-        # Convert global position to list view coordinates
-        list_view_pos = self.list_view.mapFromGlobal(event.globalPos())
-
-        # Get the index at the clicked position
-        index = self.list_view.indexAt(list_view_pos)
-
-        model = cast("ShotItemModel | None", self._model)
-        if not index.isValid() or not model:
-            # No item clicked, show no menu
-            return
-
-        # Get shot object - index.data() returns Any from Qt API
-        shot: Shot | None = cast("Shot | None", index.data(ShotRole.ObjectRole))
-
-        if not shot:
-            return
-
-        # Create context menu with enlarged styling (50% larger)
-        menu = QMenu(self)
-        menu.setStyleSheet(self.CONTEXT_MENU_STYLE)
-
-        # Pin/Unpin shot action (at the top for quick access)
-        if self._pin_manager and self._pin_manager.is_pinned(shot):
-            unpin_action = menu.addAction("Unpin Shot")
-            unpin_action.setIcon(self._create_icon("pin", "#FF6B6B"))
-            _ = unpin_action.triggered.connect(
-                lambda checked=False, s=shot: self._unpin_shot(s)  # noqa: ARG005
-            )
-        else:
-            pin_action = menu.addAction("Pin Shot")
-            pin_action.setIcon(self._create_icon("pin", "#FF6B6B"))
-            _ = pin_action.triggered.connect(
-                lambda checked=False, s=shot: self._pin_shot(s)  # noqa: ARG005
-            )
-
-        # Hide/Unhide shot action
-        if self._hide_manager and self._hide_manager.is_hidden(shot):
-            unhide_action = menu.addAction("Unhide Shot")
-            unhide_action.setIcon(self._create_icon("note", "#888888"))
-            _ = unhide_action.triggered.connect(
-                lambda checked=False, s=shot: self._unhide_shot(s)  # noqa: ARG005
-            )
-        else:
-            hide_action = menu.addAction("Hide Shot")
-            hide_action.setIcon(self._create_icon("note", "#888888"))
-            _ = hide_action.triggered.connect(
-                lambda checked=False, s=shot: self._hide_shot(s)  # noqa: ARG005
-            )
-
-        _ = menu.addSeparator()
-
-        launch_apps = [
-            ("3DEqualizer", "3", "3de", "target", "#00CED1"),
-            ("Nuke", "N", "nuke", "palette", "#FF8C00"),
-            ("Maya", "M", "maya", "cube", "#9B59B6"),
-            ("RV", "R", "rv", "play", "#2ECC71"),
-            ("Publish", "P", "publish", "clipboard", "#5D8A5E"),
-        ]
-        self._build_launch_submenu(
-            menu, launch_apps, lambda app_id: self.app_launch_requested.emit(app_id)
-        )
-
-        _ = menu.addSeparator()
-
-        has_note = (
-            self._notes_manager.has_note(shot) if self._notes_manager else False
-        )
-        note_label = "Edit Note" if has_note else "Add Note"
-        self._build_standard_actions(
-            menu,
-            [
-                ("Open Shot Folder", "folder", "#FFB347", lambda: self._open_shot_folder(shot)),
-                ("Open Main Plate in RV", "play", "#FF4757", lambda: self._open_main_plate_in_rv(shot)),
-                ("Copy Shot Path", "clipboard", "#95A5A6", lambda: self._copy_path_to_clipboard(shot.workspace_path)),
-                (note_label, "note", "#F1C40F", lambda s=shot: self._edit_shot_note(s)),
-            ],
-        )
-
-        # Show menu at cursor position
-        _ = menu.exec(event.globalPos())
-
-        self.logger.debug(f"Context menu shown for shot: {shot.full_name}")
-
-    def _open_shot_folder(self, shot: Shot) -> None:
-        """Open the shot's workspace folder in system file manager (non-blocking).
-
-        Args:
-            shot: Shot object containing workspace path
-
-        """
-        folder_path = shot.workspace_path
-
-        # Create worker to open folder in background
-        worker = FolderOpenerWorker(folder_path)
-
-        # Connect signals with QueuedConnection for thread safety
-        # Note: Slot decorators cause type checker to see methods as Any
-        _ = worker.signals.error.connect(
-            self._on_folder_open_error,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        _ = worker.signals.success.connect(
-            self._on_folder_open_success,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-
-        # Start the worker
-        QThreadPool.globalInstance().start(worker)
-
-        self.logger.info(f"Opening folder: {folder_path}")
-
-    @Slot(str)  # pyright: ignore[reportAny]
-    def _on_folder_open_error(self, error_msg: str) -> None:
-        """Handle folder open error.
-
-        Args:
-            error_msg: Error message from worker
-
-        """
-        self.logger.error(f"Failed to open folder: {error_msg}")
-        # Could show a QMessageBox here if desired
-
-    @Slot()  # pyright: ignore[reportAny]
-    def _on_folder_open_success(self) -> None:
-        """Handle successful folder opening."""
-        self.logger.debug("Folder opened successfully")
-
     @property
     @override
     def _item_model(self) -> ShotItemModel | None:
@@ -518,15 +315,6 @@ class ShotGridView(BaseGridView):
 
         """
         return cast("ShotItemModel | None", self._model)
-
-    def set_pin_manager(self, pin_manager: ShotPinManager) -> None:
-        """Set the pin manager.
-
-        Args:
-            pin_manager: Pin manager for pinning shots
-
-        """
-        self._pin_manager = pin_manager
 
     def set_hide_manager(self, hide_manager: HideManager) -> None:
         """Set the hide manager.

@@ -13,10 +13,8 @@ from typing import TYPE_CHECKING, ClassVar, cast
 # Third-party imports
 from PySide6.QtCore import (
     QAbstractItemModel,
-    QModelIndex,
     QSortFilterProxyModel,
     Qt,
-    QThreadPool,
     Signal,
     Slot,
 )
@@ -24,7 +22,6 @@ from PySide6.QtWidgets import (
     QButtonGroup,
     QHBoxLayout,
     QLabel,
-    QMenu,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -35,10 +32,9 @@ from shots.shot_grid_delegate import ShotGridDelegate
 from typing_compat import override
 
 # Local application imports
-from ui.base_grid_view import BaseGridView
 from ui.base_item_model import BaseItemRole
+from ui.base_shot_grid_view import BaseShotGridView
 from ui.design_system import design_system
-from workers.runnable_tracker import FolderOpenerWorker
 
 
 # Backward compatibility alias
@@ -47,7 +43,7 @@ ShotRole = BaseItemRole
 if TYPE_CHECKING:
     # Third-party imports
     # Local application imports
-    from PySide6.QtGui import QCloseEvent, QContextMenuEvent
+    from PySide6.QtGui import QCloseEvent
 
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
@@ -56,7 +52,7 @@ if TYPE_CHECKING:
     from ui.base_thumbnail_delegate import BaseThumbnailDelegate
 
 
-class PreviousShotsView(BaseGridView):
+class PreviousShotsView(BaseShotGridView):
     """Optimized view for displaying previous/approved shot thumbnails.
 
     This view provides:
@@ -68,8 +64,6 @@ class PreviousShotsView(BaseGridView):
     """
 
     # Additional signals specific to PreviousShotsView
-    shot_selected: ClassVar[Signal] = Signal(object)  # Shot object
-    shot_double_clicked: ClassVar[Signal] = Signal(object)  # Shot object
     sort_order_changed: ClassVar[Signal] = Signal(str)  # "name" or "date"
 
     # Class-level type annotation for base class _model attribute
@@ -106,7 +100,6 @@ class PreviousShotsView(BaseGridView):
         super().__init__(parent)
 
         # PreviousShotsView-specific attributes
-        self._selected_shot: Shot | None = None
         self._pin_manager: ShotPinManager | None = pin_manager
         # Note: Don't redefine _model - it's inherited from BaseGridView
         # We store the typed reference separately for type safety
@@ -223,29 +216,16 @@ class PreviousShotsView(BaseGridView):
         """
         return self._thumbnail_size
 
-    def set_model(self, model: PreviousShotsItemModel, proxy: QSortFilterProxyModel | None = None) -> None:
-        """Set the data model for the view.
+    @override
+    def _get_shot_model(self) -> QAbstractItemModel | None:
+        """Return _unified_model as the model for shot operations."""
+        return self._unified_model
 
-        Args:
-            model: Previous shots item model
-            proxy: Optional proxy model for filtering/sorting
-
-        """
-        self._unified_model = model
-        self._model = model  # type: ignore[assignment]
-        self.list_view.setModel(proxy if proxy is not None else model)
-        self._connect_model_visibility(model)
-
-        # Set up selection model
-        selection_model = self.list_view.selectionModel()
-        if selection_model:
-            _ = selection_model.currentChanged.connect(self._on_selection_changed)  # pyright: ignore[reportAny]
-
-        # Connect to model signals
-        _ = model.shots_updated.connect(self._on_model_updated)  # pyright: ignore[reportAny]
-
-        # Connect to underlying model's scan signals using accessor method
-        underlying_model = model.get_underlying_model()
+    @override
+    def _connect_model_extras(self, model: QAbstractItemModel) -> None:
+        """Connect scan signals from the underlying model."""
+        psv_model = cast("PreviousShotsItemModel", model)
+        underlying_model = psv_model.get_underlying_model()
         if underlying_model:  # Type guard to satisfy basedpyright
             _ = underlying_model.scan_started.connect(
                 self._on_scan_started,  # pyright: ignore[reportAny]
@@ -260,10 +240,18 @@ class PreviousShotsView(BaseGridView):
                 Qt.ConnectionType.QueuedConnection,
             )
 
+    def set_model(self, model: PreviousShotsItemModel, proxy: QSortFilterProxyModel | None = None) -> None:
+        """Set the data model for the view.
+
+        Args:
+            model: Previous shots item model
+            proxy: Optional proxy model for filtering/sorting
+
+        """
+        self._unified_model = model
+        self._set_model_common(model, proxy)
         # Update status with shot count
         self._update_status()
-
-        self.logger.debug(f"Model set with {model.rowCount()} items")
 
     @override
     def populate_show_filter(self, shows: list[str] | object) -> None:
@@ -358,201 +346,6 @@ class PreviousShotsView(BaseGridView):
         # Reset visible range tracking
         self._update_visible_range()
 
-    @Slot(QModelIndex)  # pyright: ignore[reportAny]
-    def _on_item_clicked(self, index: QModelIndex) -> None:
-        """Handle item click.
-
-        This is a stub implementation. Qt's selection model will trigger
-        _on_selection_changed automatically, which handles all selection logic.
-        This avoids duplicate signal emissions.
-
-        Args:
-            index: Clicked model index
-
-        """
-        # Qt's selection model automatically handles the click
-        # _on_selection_changed will be triggered with the full selection logic
-        _ = index
-
-    @Slot(QModelIndex)  # pyright: ignore[reportAny]
-    def _on_item_double_clicked(self, index: QModelIndex) -> None:
-        """Handle item double-click.
-
-        Args:
-            index: Double-clicked model index
-
-        """
-        if not index.isValid() or not self._unified_model:
-            return
-
-        # Cast needed because QModelIndex.data() returns Any
-        shot = cast("Shot | None", index.data(ShotRole.ObjectRole))
-        if shot:
-            self.shot_double_clicked.emit(shot)
-            self.logger.debug(f"Shot double-clicked: {shot.full_name}")
-
-    @Slot(QModelIndex, QModelIndex)  # pyright: ignore[reportAny]
-    def _on_selection_changed(
-        self,
-        current: QModelIndex,
-        _previous: QModelIndex,
-    ) -> None:
-        """Handle selection change.
-
-        Args:
-            current: Current selection index
-            previous: Previous selection index
-
-        """
-        if not self._unified_model:
-            return
-
-        if current.isValid():
-            # Cast needed because QModelIndex.data() returns Any
-            shot = cast("Shot | None", current.data(ShotRole.ObjectRole))
-            if shot:
-                self._selected_shot = shot
-                self.shot_selected.emit(shot)
-
-    @override
-    def _handle_visible_range_update(self, start: int, end: int) -> None:
-        """Handle the visible range update for lazy loading.
-
-        Args:
-            start: Start row index
-            end: End row index (exclusive)
-
-        """
-        if self._unified_model:
-            self._unified_model.set_visible_range(start, end)  # pyright: ignore[reportAny]
-
-    @override
-    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
-        """Handle right-click context menu.
-
-        Args:
-            event: Context menu event
-
-        """
-        # Convert global position to list view coordinates
-        list_view_pos = self.list_view.mapFromGlobal(event.globalPos())
-
-        # Get the index at the clicked position
-        index = self.list_view.indexAt(list_view_pos)
-
-        if not index.isValid() or not self._unified_model:
-            return
-
-        # Cast needed because QModelIndex.data() returns Any
-        shot = cast("Shot | None", index.data(ShotRole.ObjectRole))
-        if not shot:
-            return
-
-        # Create context menu with enlarged styling (50% larger)
-        menu = QMenu(self)
-        menu.setStyleSheet(self.CONTEXT_MENU_STYLE)
-
-        # Pin/Unpin shot action (at the top for quick access)
-        if self._pin_manager and self._pin_manager.is_pinned(shot):
-            unpin_action = menu.addAction("Unpin Shot")
-            unpin_action.setIcon(self._create_icon("pin", "#FF6B6B"))
-            _ = unpin_action.triggered.connect(
-                lambda checked=False, s=shot: self._unpin_shot(s)  # noqa: ARG005
-            )
-        else:
-            pin_action = menu.addAction("Pin Shot")
-            pin_action.setIcon(self._create_icon("pin", "#FF6B6B"))
-            _ = pin_action.triggered.connect(
-                lambda checked=False, s=shot: self._pin_shot(s)  # noqa: ARG005
-            )
-
-        _ = menu.addSeparator()
-
-        launch_apps = [
-            ("3DEqualizer", "3", "3de", "target", "#00CED1"),
-            ("Nuke", "N", "nuke", "palette", "#FF8C00"),
-            ("Maya", "M", "maya", "cube", "#9B59B6"),
-            ("RV", "R", "rv", "play", "#2ECC71"),
-        ]
-        self._build_launch_submenu(
-            menu, launch_apps, lambda app_id: self.app_launch_requested.emit(app_id)
-        )
-
-        _ = menu.addSeparator()
-
-        has_note = (
-            self._notes_manager.has_note(shot) if self._notes_manager else False
-        )
-        note_label = "Edit Note" if has_note else "Add Note"
-        self._build_standard_actions(
-            menu,
-            [
-                ("Open Shot Folder", "folder", "#FFB347", lambda: self._open_shot_folder(shot)),
-                ("Open Main Plate in RV", "play", "#FF4757", lambda: self._open_main_plate_in_rv(shot)),
-                ("Copy Shot Path", "clipboard", "#95A5A6", lambda: self._copy_path_to_clipboard(shot.workspace_path)),
-                (note_label, "note", "#F1C40F", lambda s=shot: self._edit_shot_note(s)),
-            ],
-        )
-
-        # Show menu at cursor position
-        _ = menu.exec(event.globalPos())
-
-        self.logger.debug(f"Context menu shown for shot: {shot.full_name}")
-
-    def _open_shot_folder(self, shot: Shot) -> None:
-        """Open the shot's workspace folder in system file manager.
-
-        Args:
-            shot: Shot object containing workspace path
-
-        """
-        folder_path = shot.workspace_path
-
-        # Validate folder path
-        if not folder_path:
-            self.logger.error(f"No workspace path for shot: {shot.full_name}")
-            return
-
-        # Standard library imports
-        from pathlib import Path
-
-        if not Path(folder_path).exists():
-            self.logger.error(f"Workspace path does not exist: {folder_path}")
-            return
-
-        # Create worker to open folder in background
-        worker = FolderOpenerWorker(folder_path)
-
-        # Connect signals
-        _ = worker.signals.error.connect(
-            self._on_folder_open_error,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        _ = worker.signals.success.connect(
-            self._on_folder_open_success,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-
-        # Start the worker
-        QThreadPool.globalInstance().start(worker)
-
-        self.logger.info(f"Opening folder: {folder_path}")
-
-    @Slot(str)  # pyright: ignore[reportAny]
-    def _on_folder_open_error(self, error_msg: str) -> None:
-        """Handle folder open error.
-
-        Args:
-            error_msg: Error message from worker
-
-        """
-        self.logger.error(f"Failed to open folder: {error_msg}")
-
-    @Slot()  # pyright: ignore[reportAny]
-    def _on_folder_open_success(self) -> None:
-        """Handle successful folder opening."""
-        self.logger.debug("Folder opened successfully")
-
     def get_selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
 
@@ -621,12 +414,3 @@ class PreviousShotsView(BaseGridView):
 
         """
         return self._unified_model
-
-    def set_pin_manager(self, pin_manager: ShotPinManager) -> None:
-        """Set the pin manager.
-
-        Args:
-            pin_manager: Pin manager for pinning shots
-
-        """
-        self._pin_manager = pin_manager
