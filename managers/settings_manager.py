@@ -16,6 +16,8 @@ Architecture:
     The SettingsManager acts as a facade over QSettings, providing a strongly-typed
     interface while maintaining backward compatibility. Settings are organized into
     categories (window, preferences, performance, etc.) with validation and defaults.
+    Domain sub-objects (``self.window``, ``self.refresh``, etc.) group related methods;
+    the existing flat methods delegate to them for full backward compatibility.
 
 Settings Categories:
     - Window: Geometry, splitter positions, tab selection, dock states
@@ -41,6 +43,14 @@ Examples:
         >>> settings.export_settings("/path/to/backup.json")
         >>> settings.import_settings("/path/to/backup.json")
 
+    Domain sub-object access:
+        >>> settings.window.get_window_geometry()
+        >>> settings.refresh.get_refresh_interval()
+        >>> settings.ui.get_thumbnail_size()
+        >>> settings.launch.get_preferred_terminal()
+        >>> settings.performance.get_max_thumbnail_threads()
+        >>> settings.debug.get_debug_mode()
+
 Type Safety:
     All methods include comprehensive type annotations and runtime validation.
     Invalid values are rejected with clear error messages and safe fallbacks.
@@ -62,6 +72,14 @@ from PySide6.QtCore import QByteArray, QObject, QSettings, QSize
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
+from managers.settings_domains import (
+    DebugSettings,
+    LaunchPreferenceSettings,
+    PerformanceSettings,
+    RefreshSettings,
+    UIAppearanceSettings,
+    WindowStateSettings,
+)
 
 
 # Set up logger for this module
@@ -79,6 +97,16 @@ class SettingsManager(LoggingMixin, QObject):
 
     Provides a comprehensive settings management system with automatic
     migration, validation, and organized access to application preferences.
+
+    Domain sub-objects expose the same methods grouped by concern:
+
+    Attributes:
+        window: Window geometry, splitter, tab, and maximized-state settings.
+        refresh: Refresh interval and background-refresh toggle.
+        ui: Thumbnail size, UI scale, animations, sections, and sort order.
+        launch: Terminal, double-click action, app, file associations, launchers.
+        performance: Thread limits, cache memory, and cache expiry.
+        debug: Debug mode and log level.
     """
 
     _REGISTRY: ClassVar[dict[str, _SettingDef]] = {
@@ -122,7 +150,42 @@ class SettingsManager(LoggingMixin, QObject):
         # Migrate old settings if needed
         self._migrate_old_settings()
 
+        # Domain sub-objects — group related methods by concern.
+        self._init_domain_objects()
+
         self.logger.debug(f"SettingsManager initialized: {self.settings.fileName()}")
+
+    _DOMAIN_ATTRS: ClassVar[frozenset[str]] = frozenset(
+        {"window", "refresh", "ui", "launch", "performance", "debug"}
+    )
+
+    def __getattr__(self, name: str) -> object:
+        """Lazily initialize domain sub-objects on first access.
+
+        This handles the case where ``__new__`` is used to bypass ``__init__``
+        (e.g. in test helpers) and ``_init_domain_objects`` has not yet been
+        called.  It is only invoked when the normal attribute lookup fails, so
+        it does not interfere with regular attribute access.
+        """
+        if name in self._DOMAIN_ATTRS and "settings" in self.__dict__:
+            self._init_domain_objects()
+            return object.__getattribute__(self, name)
+        msg = f"'{type(self).__name__}' object has no attribute '{name}'"
+        raise AttributeError(msg)
+
+    def _init_domain_objects(self) -> None:
+        """Create domain sub-objects that group related settings methods.
+
+        Called by ``__init__`` and, lazily, by ``__getattr__`` when a domain
+        attribute is accessed before ``__init__`` has run (e.g. in tests that
+        bypass ``__init__`` via ``__new__``).
+        """
+        self.window = WindowStateSettings(self._get, self._set, self.settings)
+        self.refresh = RefreshSettings(self._get, self._set)
+        self.ui = UIAppearanceSettings(self._get, self._set, self.settings)
+        self.launch = LaunchPreferenceSettings(self._get, self._set, self.settings)
+        self.performance = PerformanceSettings(self._get, self._set)
+        self.debug = DebugSettings(self._get, self._set)
 
     def _get(self, key: str) -> object:
         defn = self._REGISTRY[key]
@@ -168,195 +231,165 @@ class SettingsManager(LoggingMixin, QObject):
         self.settings.setValue("migration_version", 1)
         self.logger.info("Settings migration completed")
 
-    # Window Settings
+    # -----------------------------------------------------------------------
+    # Window Settings — delegate to self.window
+    # -----------------------------------------------------------------------
+
     def get_window_geometry(self) -> QByteArray:
         """Get window geometry."""
-        value = self._get("window_geometry")
-        return value if isinstance(value, QByteArray) else QByteArray()
+        return self.window.get_window_geometry()
 
     def set_window_geometry(self, geometry: QByteArray) -> None:
         """Set window geometry."""
-        self._set("window_geometry", geometry)
+        self.window.set_window_geometry(geometry)
 
     def get_window_state(self) -> QByteArray:
         """Get window state (dock widgets, toolbars)."""
-        value = self._get("window_state")
-        return value if isinstance(value, QByteArray) else QByteArray()
+        return self.window.get_window_state()
 
     def set_window_state(self, state: QByteArray) -> None:
         """Set window state."""
-        self._set("window_state", state)
+        self.window.set_window_state(state)
 
     def get_window_size(self) -> QSize:
         """Get window size."""
-        default_size = QSize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
-        value = self.settings.value("window/size", default_size, type=QSize)
-        return value if isinstance(value, QSize) else default_size
+        return self.window.get_window_size()
 
     def set_window_size(self, size: QSize) -> None:
         """Set window size."""
-        # Validate minimum size
-        min_width = max(size.width(), Config.MIN_WINDOW_WIDTH)
-        min_height = max(size.height(), Config.MIN_WINDOW_HEIGHT)
-        validated_size = QSize(min_width, min_height)
-
-        self.settings.setValue("window/size", validated_size)
+        self.window.set_window_size(size)
 
     def get_splitter_state(self, splitter_name: str) -> QByteArray:
         """Get splitter state by name."""
-        key = f"window/splitter_{splitter_name}"
-        value = self.settings.value(key, QByteArray(), type=QByteArray)
-        return value if isinstance(value, QByteArray) else QByteArray()
+        return self.window.get_splitter_state(splitter_name)
 
     def set_splitter_state(self, splitter_name: str, state: QByteArray) -> None:
         """Set splitter state by name."""
-        key = f"window/splitter_{splitter_name}"
-        self.settings.setValue(key, state)
+        self.window.set_splitter_state(splitter_name, state)
 
     def get_current_tab(self) -> int:
         """Get current tab index."""
-        value = self._get("current_tab")
-        return value if isinstance(value, int) else 0
+        return self.window.get_current_tab()
 
     def set_current_tab(self, index: int) -> None:
         """Set current tab index."""
-        self._set("current_tab", max(0, index))
+        self.window.set_current_tab(index)
 
     def is_window_maximized(self) -> bool:
         """Check if window was maximized."""
-        value = self._get("window_maximized")
-        return value if isinstance(value, bool) else False
+        return self.window.is_window_maximized()
 
     def set_window_maximized(self, maximized: bool) -> None:
         """Set window maximized state."""
-        self._set("window_maximized", maximized)
+        self.window.set_window_maximized(maximized)
 
-    # Preference Settings
+    # -----------------------------------------------------------------------
+    # Preference Settings — delegate to self.refresh / self.launch / self.ui
+    # -----------------------------------------------------------------------
+
     def get_refresh_interval(self) -> int:
         """Get refresh interval in minutes."""
-        value = self._get("refresh_interval")
-        return value if isinstance(value, int) else Config.CACHE_REFRESH_INTERVAL_MINUTES
+        return self.refresh.get_refresh_interval()
 
     def set_refresh_interval(self, minutes: int) -> None:
         """Set refresh interval in minutes."""
-        self._set("refresh_interval", max(1, min(minutes, 1440)))
+        self.refresh.set_refresh_interval(minutes)
 
     def get_background_refresh(self) -> bool:
         """Get background refresh enabled state."""
-        value = self._get("background_refresh")
-        return value if isinstance(value, bool) else Config.ENABLE_BACKGROUND_REFRESH
+        return self.refresh.get_background_refresh()
 
     def set_background_refresh(self, enabled: bool) -> None:
         """Set background refresh enabled state."""
-        self._set("background_refresh", enabled)
+        self.refresh.set_background_refresh(enabled)
 
     def get_thumbnail_size(self) -> int:
         """Get thumbnail size."""
-        value = self._get("thumbnail_size")
-        return value if isinstance(value, int) else Config.DEFAULT_THUMBNAIL_SIZE
+        return self.ui.get_thumbnail_size()
 
     def set_thumbnail_size(self, size: int) -> None:
         """Set thumbnail size with validation."""
-        self._set("thumbnail_size", max(Config.MIN_THUMBNAIL_SIZE, min(size, Config.MAX_THUMBNAIL_SIZE)))
+        self.ui.set_thumbnail_size(size)
 
     def get_last_directory(self) -> str:
         """Get last used directory."""
-        value = self._get("last_directory")
-        return value if isinstance(value, str) else str(Config.SHOWS_ROOT)
+        return self.launch.get_last_directory()
 
     def set_last_directory(self, directory: str) -> None:
         """Set last used directory."""
-        # Validate directory exists
-        if Path(directory).is_dir():
-            self._set("last_directory", directory)
+        self.launch.set_last_directory(directory)
 
     def get_preferred_terminal(self) -> str:
         """Get preferred terminal emulator."""
-        value = self._get("preferred_terminal")
-        return value if isinstance(value, str) else "gnome-terminal"
+        return self.launch.get_preferred_terminal()
 
     def set_preferred_terminal(self, terminal: str) -> None:
         """Set preferred terminal emulator."""
-        self._set("preferred_terminal", terminal)
+        self.launch.set_preferred_terminal(terminal)
 
     def get_double_click_action(self) -> str:
         """Get double click action."""
-        value = self._get("double_click_action")
-        return value if isinstance(value, str) else "launch_default"
+        return self.launch.get_double_click_action()
 
     def set_double_click_action(self, action: str) -> None:
         """Set double click action."""
-        valid_actions = ["launch_default", "show_info", "open_folder"]
-        if action in valid_actions:
-            self._set("double_click_action", action)
+        self.launch.set_double_click_action(action)
 
-    # Performance Settings
+    # -----------------------------------------------------------------------
+    # Performance Settings — delegate to self.performance / self.ui
+    # -----------------------------------------------------------------------
+
     def get_max_thumbnail_threads(self) -> int:
         """Get maximum thumbnail loading threads."""
-        value = self._get("max_thumbnail_threads")
-        return value if isinstance(value, int) else Config.MAX_THUMBNAIL_THREADS
+        return self.performance.get_max_thumbnail_threads()
 
     def set_max_thumbnail_threads(self, threads: int) -> None:
         """Set maximum thumbnail loading threads."""
-        self._set("max_thumbnail_threads", max(1, min(threads, 16)))
+        self.performance.set_max_thumbnail_threads(threads)
 
     def get_max_cache_memory_mb(self) -> int:
         """Get maximum cache memory in MB."""
-        value = self._get("max_cache_memory_mb")
-        return value if isinstance(value, int) else Config.MAX_THUMBNAIL_MEMORY_MB
+        return self.performance.get_max_cache_memory_mb()
 
     def set_max_cache_memory_mb(self, memory_mb: int) -> None:
         """Set maximum cache memory in MB."""
-        self._set("max_cache_memory_mb", max(10, min(memory_mb, 1024)))
+        self.performance.set_max_cache_memory_mb(memory_mb)
 
     def get_cache_expiry_minutes(self) -> int:
         """Get cache expiry time in minutes."""
-        value = self._get("cache_expiry_minutes")
-        return value if isinstance(value, int) else Config.CACHE_EXPIRY_MINUTES
+        return self.performance.get_cache_expiry_minutes()
 
     def set_cache_expiry_minutes(self, minutes: int) -> None:
         """Set cache expiry time in minutes."""
-        self._set("cache_expiry_minutes", max(5, min(minutes, 10080)))
+        self.performance.set_cache_expiry_minutes(minutes)
 
     def get_enable_animations(self) -> bool:
         """Get animation enabled state."""
-        value = self._get("enable_animations")
-        return value if isinstance(value, bool) else True
+        return self.ui.get_enable_animations()
 
     def set_enable_animations(self, enabled: bool) -> None:
         """Set animation enabled state."""
-        self._set("enable_animations", enabled)
+        self.ui.set_enable_animations(enabled)
 
-    # Application Settings
+    # -----------------------------------------------------------------------
+    # Application Settings — delegate to self.launch
+    # -----------------------------------------------------------------------
+
     def get_default_app(self) -> str:
         """Get default application."""
-        value = self._get("default_app")
-        return value if isinstance(value, str) else Config.DEFAULT_APP
+        return self.launch.get_default_app()
 
     def set_default_app(self, app: str) -> None:
         """Set default application."""
-        # Validate app exists in available apps
-        available_apps = list(Config.APPS.keys())
-        if app in available_apps:
-            self._set("default_app", app)
+        self.launch.set_default_app(app)
 
     def get_file_associations(self) -> dict[str, str]:
         """Get file type associations."""
-        default_associations = dict(Config.APPS)
-        stored_value = self.settings.value(
-            "applications/file_associations", default_associations
-        )
-        # Type guard: QSettings.value can return various types depending on stored data
-        if isinstance(stored_value, dict):
-            # Ensure all keys and values are strings
-            # Cast to help type checker understand the dict iteration
-            typed_dict = cast("dict[object, object]", stored_value)
-            return {str(k): str(v) for k, v in typed_dict.items()}
-        return default_associations
+        return self.launch.get_file_associations()
 
     def set_file_associations(self, associations: dict[str, str]) -> None:
         """Set file type associations."""
-        self.settings.setValue("applications/file_associations", associations)
+        self.launch.set_file_associations(associations)
 
     def get_background_gui_apps(self) -> bool:
         """Get whether to run GUI apps in background (close terminal immediately).
@@ -364,37 +397,26 @@ class SettingsManager(LoggingMixin, QObject):
         When True, launching 3DE, Nuke, Maya etc. will background the process
         and close the terminal window immediately, reducing desktop clutter.
         """
-        value = self._get("background_gui_apps")
-        return bool(value)
+        return self.launch.get_background_gui_apps()
 
     def set_background_gui_apps(self, enabled: bool) -> None:
         """Set whether to run GUI apps in background."""
-        self._set("background_gui_apps", enabled)
+        self.launch.set_background_gui_apps(enabled)
 
     def get_custom_launchers(self) -> list[dict[str, object]]:
         """Get custom launcher definitions."""
-        stored_value = self.settings.value(
-            "applications/custom_launchers", [], type=list
-        )
-        # Type guard: QSettings.value can return various types
-        if isinstance(stored_value, list):
-            # Ensure each item is a dict and cast for type safety
-            typed_list = cast("list[object]", stored_value)
-            return [
-                cast("dict[str, object]", item)
-                for item in typed_list
-                if isinstance(item, dict)
-            ]
-        return []
+        return self.launch.get_custom_launchers()
 
     def set_custom_launchers(self, launchers: list[dict[str, object]]) -> None:
         """Set custom launcher definitions."""
-        self.settings.setValue("applications/custom_launchers", launchers)
+        self.launch.set_custom_launchers(launchers)
 
-    # UI Settings
+    # -----------------------------------------------------------------------
+    # UI Settings — delegate to self.ui
     # Dead settings removed: grid_columns, show_tooltips, dark_theme
     # These were never applied by settings_controller.py
     # Dark theme is always enabled unconditionally in shotbot.py
+    # -----------------------------------------------------------------------
 
     def get_ui_scale(self) -> float:
         """Get UI scale factor.
@@ -403,11 +425,7 @@ class SettingsManager(LoggingMixin, QObject):
             Scale factor (0.8 to 1.5, default 1.0 = 100%)
 
         """
-        value = self._get("ui_scale")
-        if isinstance(value, (int, float)):
-            # Clamp to valid range
-            return max(0.8, min(float(value), 1.5))
-        return 1.0
+        return self.ui.get_ui_scale()
 
     def set_ui_scale(self, scale: float) -> None:
         """Set UI scale factor.
@@ -416,28 +434,15 @@ class SettingsManager(LoggingMixin, QObject):
             scale: Scale factor (0.8 to 1.5)
 
         """
-        self._set("ui_scale", max(0.8, min(scale, 1.5)))
+        self.ui.set_ui_scale(scale)
 
     def get_expanded_sections(self) -> dict[str, bool]:
         """Get expanded state for all sections."""
-        default_sections = {
-            "files": False,
-            "3de": True,
-            "nuke": True,
-            "maya": True,
-            "rv": True,
-        }
-        stored_value = self.settings.value("ui/expanded_sections", default_sections)
-        if isinstance(stored_value, dict):
-            typed_dict = cast("dict[object, object]", stored_value)
-            return {str(k): bool(v) for k, v in typed_dict.items()}
-        return default_sections
+        return self.ui.get_expanded_sections()
 
     def set_section_expanded(self, section_id: str, expanded: bool) -> None:
         """Set expanded state for a single section."""
-        sections = self.get_expanded_sections()
-        sections[section_id] = expanded
-        self.settings.setValue("ui/expanded_sections", sections)
+        self.ui.set_section_expanded(section_id, expanded)
 
     def is_section_expanded(self, section_id: str) -> bool:
         """Check if a section is expanded.
@@ -449,9 +454,7 @@ class SettingsManager(LoggingMixin, QObject):
             True if section is expanded, False otherwise
 
         """
-        sections = self.get_expanded_sections()
-        # Default to False for unknown sections
-        return sections.get(section_id, False)
+        return self.ui.is_section_expanded(section_id)
 
     # Sort Order Settings (per-tab)
     def get_sort_order(self, tab_id: str) -> str:
@@ -464,13 +467,7 @@ class SettingsManager(LoggingMixin, QObject):
             Sort order string ("name" or "date")
 
         """
-        # Default sort orders: name for my_shots, date for others
-        defaults = {"my_shots": "name", "threede_scenes": "date", "previous_shots": "date"}
-        stored = self.settings.value(f"ui/sort_order_{tab_id}", defaults.get(tab_id, "name"))
-        # Validate stored value
-        if stored in ("name", "date"):
-            return str(stored)
-        return defaults.get(tab_id, "name")
+        return self.ui.get_sort_order(tab_id)
 
     def set_sort_order(self, tab_id: str, order: str) -> None:
         """Set sort order for a tab.
@@ -483,30 +480,32 @@ class SettingsManager(LoggingMixin, QObject):
         if order not in ("name", "date"):
             self.logger.warning(f"Invalid sort order '{order}', ignoring")
             return
-        self.settings.setValue(f"ui/sort_order_{tab_id}", order)
+        self.ui.set_sort_order(tab_id, order)
 
-    # Advanced Settings
+    # -----------------------------------------------------------------------
+    # Advanced Settings — delegate to self.debug
+    # -----------------------------------------------------------------------
+
     def get_debug_mode(self) -> bool:
         """Get debug mode state."""
-        value = self._get("debug_mode")
-        return value if isinstance(value, bool) else False
+        return self.debug.get_debug_mode()
 
     def set_debug_mode(self, enabled: bool) -> None:
         """Set debug mode state."""
-        self._set("debug_mode", enabled)
+        self.debug.set_debug_mode(enabled)
 
     def get_log_level(self) -> str:
         """Get logging level."""
-        value = self._get("log_level")
-        return value if isinstance(value, str) else "INFO"
+        return self.debug.get_log_level()
 
     def set_log_level(self, level: str) -> None:
         """Set logging level."""
-        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        if level in valid_levels:
-            self._set("log_level", level)
+        self.debug.set_log_level(level)
 
+    # -----------------------------------------------------------------------
     # Category Access
+    # -----------------------------------------------------------------------
+
     def get_category(self, category: str) -> dict[str, object]:
         """Get all settings for a category."""
         category_settings: dict[str, object] = {}
@@ -534,8 +533,10 @@ class SettingsManager(LoggingMixin, QObject):
         finally:
             self.settings.endGroup()
 
-
+    # -----------------------------------------------------------------------
     # Bulk Operations
+    # -----------------------------------------------------------------------
+
     def export_settings(self, file_path: str) -> bool:
         """Export all settings to JSON file.
 
