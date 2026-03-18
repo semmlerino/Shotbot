@@ -30,6 +30,8 @@ class SceneDataProtocol(Protocol):
     sequence: str
     shot: str
     workspace_path: str
+    frame_start: int | None
+    frame_end: int | None
 
     @property
     def full_name(self) -> str:

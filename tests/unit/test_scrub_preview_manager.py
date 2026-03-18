@@ -537,12 +537,15 @@ class TestShotDataExtraction:
     def test_get_shot_key_fallback(
         self, qapp: QApplication
     ) -> None:
-        """Test _get_shot_key falls back to id for unknown objects."""
+        """Test _get_shot_key works with protocol-conforming object."""
         manager = ScrubPreviewManager()
 
-        obj = object()
-        key = manager._get_shot_key(obj)
-        assert str(id(obj)) in key
+        shot = MagicMock()
+        shot.show = "show"
+        shot.sequence = "seq"
+        shot.shot = "shot"
+        key = manager._get_shot_key(shot)
+        assert key == "show/seq/shot"
 
     def test_get_workspace_path_with_shot_object(
         self, qapp: QApplication
@@ -559,11 +562,12 @@ class TestShotDataExtraction:
     def test_get_workspace_path_returns_empty_for_missing(
         self, qapp: QApplication
     ) -> None:
-        """Test _get_workspace_path returns empty string if missing."""
+        """Test _get_workspace_path returns empty string if workspace_path is empty."""
         manager = ScrubPreviewManager()
 
-        obj = object()
-        path = manager._get_workspace_path(obj)
+        shot = MagicMock()
+        shot.workspace_path = ""
+        path = manager._get_workspace_path(shot)
         assert path == ""
 
     def test_get_frame_range_with_shot_object(
@@ -583,11 +587,13 @@ class TestShotDataExtraction:
     def test_get_frame_range_returns_none_for_missing(
         self, qapp: QApplication
     ) -> None:
-        """Test _get_frame_range returns None if missing."""
+        """Test _get_frame_range returns None if frame_start/frame_end are None."""
         manager = ScrubPreviewManager()
 
-        obj = object()
-        start, end = manager._get_frame_range(obj)
+        shot = MagicMock()
+        shot.frame_start = None
+        shot.frame_end = None
+        start, end = manager._get_frame_range(shot)
         assert start is None
         assert end is None
 

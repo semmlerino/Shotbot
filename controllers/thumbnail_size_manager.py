@@ -21,7 +21,7 @@ from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    from PySide6.QtWidgets import QTabWidget
+    from PySide6.QtWidgets import QSlider, QTabWidget
 
     from previous_shots.view import PreviousShotsView
     from shots.shot_grid_view import ShotGridView
@@ -69,6 +69,20 @@ class ThumbnailSizeManager(LoggingMixin):
         self.window: ThumbnailSizeTarget = window
         self._setup_signals()
         self.logger.debug("ThumbnailSizeManager initialized")
+
+    def _active_slider(self) -> QSlider:
+        """Get the size slider for the currently active tab.
+
+        Returns:
+            The QSlider for the active tab (shot, 3DE, or previous shots)
+
+        """
+        tab_index = self.window.tab_widget.currentIndex()
+        if tab_index == 0:
+            return self.window.shot_grid.size_slider
+        if tab_index == 1:
+            return self.window.threede_shot_grid.size_slider
+        return self.window.previous_shots_grid.size_slider
 
     def _setup_signals(self) -> None:
         """Connect size slider signals from all grid views."""
@@ -129,45 +143,17 @@ class ThumbnailSizeManager(LoggingMixin):
 
         Called by View menu action (Ctrl++ keyboard shortcut).
         """
-        # Get current size from active tab
-        tab_index = self.window.tab_widget.currentIndex()
-        if tab_index == 0:
-            current = self.window.shot_grid.size_slider.value()
-        elif tab_index == 1:
-            current = self.window.threede_shot_grid.size_slider.value()
-        else:
-            current = self.window.previous_shots_grid.size_slider.value()
-
+        slider = self._active_slider()
+        current = slider.value()
         new_size = min(current + 20, Config.MAX_THUMBNAIL_SIZE)
-
-        # Setting the slider value triggers sync_thumbnail_sizes via signal
-        if tab_index == 0:
-            self.window.shot_grid.size_slider.setValue(new_size)
-        elif tab_index == 1:
-            self.window.threede_shot_grid.size_slider.setValue(new_size)
-        else:
-            self.window.previous_shots_grid.size_slider.setValue(new_size)
+        slider.setValue(new_size)
 
     def decrease_size(self) -> None:
         """Decrease thumbnail size by 20px (floored at MIN_THUMBNAIL_SIZE).
 
         Called by View menu action (Ctrl+- keyboard shortcut).
         """
-        # Get current size from active tab
-        tab_index = self.window.tab_widget.currentIndex()
-        if tab_index == 0:
-            current = self.window.shot_grid.size_slider.value()
-        elif tab_index == 1:
-            current = self.window.threede_shot_grid.size_slider.value()
-        else:
-            current = self.window.previous_shots_grid.size_slider.value()
-
+        slider = self._active_slider()
+        current = slider.value()
         new_size = max(current - 20, Config.MIN_THUMBNAIL_SIZE)
-
-        # Setting the slider value triggers sync_thumbnail_sizes via signal
-        if tab_index == 0:
-            self.window.shot_grid.size_slider.setValue(new_size)
-        elif tab_index == 1:
-            self.window.threede_shot_grid.size_slider.setValue(new_size)
-        else:
-            self.window.previous_shots_grid.size_slider.setValue(new_size)
+        slider.setValue(new_size)

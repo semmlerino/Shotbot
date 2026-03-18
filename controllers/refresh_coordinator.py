@@ -142,7 +142,7 @@ class RefreshCoordinator(QObject, LoggingMixin):
         """
         self.logger.info(f"Shots loaded signal received: {len(shots)} shots")
         self.refresh_shot_display()
-        self._update_status(f"Loaded {len(shots)} shots")
+        self.main_window.update_status(f"Loaded {len(shots)} shots")
         NotificationManager.info(f"{len(shots)} shots loaded")
 
     def handle_shots_changed(self, shots: list[Shot]) -> None:
@@ -154,13 +154,13 @@ class RefreshCoordinator(QObject, LoggingMixin):
         """
         self.logger.info(f"Shots changed signal received: {len(shots)} shots")
         self.refresh_shot_display()
-        self._update_status(f"Shot list updated: {len(shots)} shots")
+        self.main_window.update_status(f"Shot list updated: {len(shots)} shots")
         NotificationManager.success(f"Refreshed {len(shots)} shots")
 
     def handle_refresh_started(self) -> None:
         """Handle refresh started signal from model."""
         # Update status bar to show refresh in progress
-        self._update_status("Refreshing shots...")
+        self.main_window.update_status("Refreshing shots...")
 
     def handle_refresh_finished(self, success: bool, has_changes: bool) -> None:
         """Handle refresh finished signal from model.
@@ -185,7 +185,7 @@ class RefreshCoordinator(QObject, LoggingMixin):
                 self.logger.debug("Refresh completed with changes")
             else:
                 shot_count = len(self.main_window.shot_model.shots)
-                self._update_status(f"{shot_count} shots (no changes)")
+                self.main_window.update_status(f"{shot_count} shots (no changes)")
                 NotificationManager.info(f"{shot_count} shots (no changes)")
                 self.logger.debug("Refresh completed without changes")
 
@@ -200,7 +200,7 @@ class RefreshCoordinator(QObject, LoggingMixin):
             if self.main_window.shot_model.shots:
                 self.threede_refresh_requested.emit()
         else:
-            self._update_status("Failed to refresh shots")
+            self.main_window.update_status("Failed to refresh shots")
             NotificationManager.error(
                 "Failed to Load Shots",
                 "Unable to retrieve shot data from the workspace.",
@@ -253,11 +253,3 @@ class RefreshCoordinator(QObject, LoggingMixin):
             sorted(self.main_window.shot_model.get_available_shows())
         )
 
-    def _update_status(self, message: str) -> None:
-        """Update the status bar with a message.
-
-        Args:
-            message: The status message to display
-
-        """
-        self.main_window.update_status(message)

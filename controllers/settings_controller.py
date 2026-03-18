@@ -110,6 +110,9 @@ class SettingsController(LoggingMixin):
         """
         super().__init__()
         self.window: SettingsTarget = window
+        # MainWindow implements both SettingsTarget and QWidget protocols
+        # Cast through object first to satisfy type checker
+        self._window_widget: QWidget = cast("QWidget", cast("object", self.window))
         self.logger.debug("SettingsController initialized")
 
     def load_settings(self) -> None:
@@ -229,12 +232,9 @@ class SettingsController(LoggingMixin):
         from ui.settings_dialog import SettingsDialog
 
         if self.window.settings_dialog is None:
-            # MainWindow implements both SettingsTarget and QWidget protocols
-            # Cast through object first to satisfy type checker
-            parent_widget = cast("QWidget", cast("object", self.window))
             self.window.settings_dialog = SettingsDialog(
                 self.window.settings_manager,
-                parent_widget,
+                self._window_widget,
             )
             _ = self.window.settings_dialog.settings_applied.connect(
                 self.on_settings_applied
@@ -258,12 +258,8 @@ class SettingsController(LoggingMixin):
 
     def import_settings(self) -> None:
         """Import settings from file."""
-        # Cast to QWidget for dialog parent - MainWindow implements both protocols
-        # Cast through object first to satisfy type checker
-        parent_widget = cast("QWidget", cast("object", self.window))
-
         file_path, _ = QFileDialog.getOpenFileName(
-            parent_widget,
+            self._window_widget,
             "Import Settings",
             "",
             "JSON Files (*.json);;All Files (*)",
@@ -274,25 +270,21 @@ class SettingsController(LoggingMixin):
                 # Reload settings
                 self.apply_cache_settings()
                 _ = QMessageBox.information(
-                    parent_widget,
+                    self._window_widget,
                     "Import Success",
                     "Settings imported successfully.",
                 )
             else:
                 _ = QMessageBox.warning(
-                    parent_widget,
+                    self._window_widget,
                     "Import Error",
                     "Failed to import settings. Check the file format.",
                 )
 
     def export_settings(self) -> None:
         """Export settings to file."""
-        # Cast to QWidget for dialog parent - MainWindow implements both protocols
-        # Cast through object first to satisfy type checker
-        parent_widget = cast("QWidget", cast("object", self.window))
-
         file_path, _ = QFileDialog.getSaveFileName(
-            parent_widget,
+            self._window_widget,
             "Export Settings",
             "shotbot_settings.json",
             "JSON Files (*.json);;All Files (*)",
@@ -301,25 +293,21 @@ class SettingsController(LoggingMixin):
         if file_path:
             if self.window.settings_manager.export_settings(file_path):
                 _ = QMessageBox.information(
-                    parent_widget,
+                    self._window_widget,
                     "Export Success",
                     f"Settings exported to:\n{file_path}",
                 )
             else:
                 _ = QMessageBox.warning(
-                    parent_widget,
+                    self._window_widget,
                     "Export Error",
                     "Failed to export settings.",
                 )
 
     def reset_layout(self) -> None:
         """Reset window layout to defaults."""
-        # Cast to QWidget for dialog parent - MainWindow implements both protocols
-        # Cast through object first to satisfy type checker
-        parent_widget = cast("QWidget", cast("object", self.window))
-
         reply = QMessageBox.question(
-            parent_widget,
+            self._window_widget,
             "Reset Layout",
             "Reset window layout to defaults?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

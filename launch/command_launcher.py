@@ -238,7 +238,6 @@ class CommandLauncher(LoggingMixin, QObject):
         app_name: str,
         command: str,
         file_result: Path | None,
-        wanted: bool,
     ) -> str | None:
         """Apply a scene file search result to the launch command.
 
@@ -246,7 +245,6 @@ class CommandLauncher(LoggingMixin, QObject):
             app_name: Application name ("3de" or "maya")
             command: Current command string
             file_result: Path found by search, or None
-            wanted: Whether the user requested this file type
 
         Returns:
             Updated command string, or None if _append_scene_to_command failed.
@@ -502,12 +500,11 @@ class CommandLauncher(LoggingMixin, QObject):
             return
 
         app_name = launch.app_name
-        context = launch.context
         command = launch.command
 
         # Add scene path to command based on results
         if app_name == "3de":
-            result = self._apply_file_result("3de", command, threede, context.open_latest_threede)
+            result = self._apply_file_result("3de", command, threede)
             if result is None:
                 self._phase = LaunchPhase.IDLE
                 self.logger.debug("LaunchPhase: %s", self._phase.value)
@@ -515,7 +512,7 @@ class CommandLauncher(LoggingMixin, QObject):
             command = result
 
         if app_name == "maya":
-            result = self._apply_file_result("maya", command, maya, context.open_latest_maya)
+            result = self._apply_file_result("maya", command, maya)
             if result is None:
                 self._phase = LaunchPhase.IDLE
                 self.logger.debug("LaunchPhase: %s", self._phase.value)
@@ -763,7 +760,6 @@ class CommandLauncher(LoggingMixin, QObject):
         if needs_file_search:
             workspace = self.current_shot.workspace_path
             file_type = "threede" if app_name == "3de" else "maya"
-            wanted = context.open_latest_threede if app_name == "3de" else context.open_latest_maya
             cache_result = self._cache_manager.get_latest_file_cache_result(workspace, file_type)
 
             if cache_result.status == "miss":
@@ -773,7 +769,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 return ASYNC_IN_PROGRESS
 
             # Cache hit (or "not_found") - apply result immediately
-            applied = self._apply_file_result(app_name, command, cache_result.path, wanted)
+            applied = self._apply_file_result(app_name, command, cache_result.path)
             if applied is None:
                 return LAUNCH_ERROR
             command = applied

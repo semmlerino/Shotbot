@@ -8,7 +8,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+
+if TYPE_CHECKING:
+    from protocols import SceneDataProtocol
 
 from PySide6.QtCore import QModelIndex, QObject, QRect, Signal, Slot
 from PySide6.QtGui import QImage, QPixmap
@@ -444,7 +448,7 @@ class ScrubPreviewManager(QObject):
         """
         logger.debug(f"Frame extraction failed for {shot_key}:{frame} - {error}")
 
-    def _get_shot_key(self, shot_data: object) -> str:
+    def _get_shot_key(self, shot_data: SceneDataProtocol) -> str:
         """Extract shot key from shot data.
 
         Args:
@@ -454,17 +458,9 @@ class ScrubPreviewManager(QObject):
             Unique shot key string
 
         """
-        # Handle Shot
-        if hasattr(shot_data, "show") and hasattr(shot_data, "sequence"):
-            show = getattr(shot_data, "show", "")
-            sequence = getattr(shot_data, "sequence", "")
-            shot = getattr(shot_data, "shot", "")
-            return f"{show}/{sequence}/{shot}"
+        return f"{shot_data.show}/{shot_data.sequence}/{shot_data.shot}"
 
-        # Fallback
-        return str(id(shot_data))
-
-    def _get_workspace_path(self, shot_data: object) -> str:
+    def _get_workspace_path(self, shot_data: SceneDataProtocol) -> str:
         """Extract workspace path from shot data.
 
         Args:
@@ -474,11 +470,9 @@ class ScrubPreviewManager(QObject):
             Workspace path string
 
         """
-        if hasattr(shot_data, "workspace_path"):
-            return str(getattr(shot_data, "workspace_path", ""))
-        return ""
+        return shot_data.workspace_path
 
-    def _get_frame_range(self, shot_data: object) -> tuple[int | None, int | None]:
+    def _get_frame_range(self, shot_data: SceneDataProtocol) -> tuple[int | None, int | None]:
         """Extract frame range from shot data.
 
         Args:
@@ -488,6 +482,4 @@ class ScrubPreviewManager(QObject):
             Tuple of (frame_start, frame_end)
 
         """
-        frame_start = getattr(shot_data, "frame_start", None)
-        frame_end = getattr(shot_data, "frame_end", None)
-        return frame_start, frame_end
+        return shot_data.frame_start, shot_data.frame_end
