@@ -16,8 +16,8 @@ Application modules live at the repository root (no `src/` package), organized i
 - `controllers/` — business logic orchestrators for UI coordination
 - `deploy/` — bundle, encode, and decode for deployment pipeline
 - `dcc/` — DCC file table and integration components
-- `discovery/` — file/thumbnail/plate discovery, latest-file finding, scene parsing, filesystem scanning
-- `nuke/` — Nuke launch routing, script generation, workspace management
+- `discovery/` — file/thumbnail/plate discovery, latest-file finding, frame range extraction
+- `nuke/` — Nuke launch handling, script generation, workspace management
 - `launch/` — DCC launcher implementations, command launching, RV integration
 - `commands/` — command builders for DCC execution
 - `managers/` — persistence managers (pins, notes, hide, settings, notifications, progress)

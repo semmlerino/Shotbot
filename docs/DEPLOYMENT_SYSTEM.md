@@ -53,7 +53,7 @@ All hook output is written to `.post-commit-output/`:
 ### Create Bundle Manually
 
 ```bash
-uv run python bundle_app.py -c transfer_config.json
+uv run python deploy/bundle_app.py -c transfer_config.json
 ```
 
 ### Deploy on Remote VFX Host
@@ -61,7 +61,7 @@ uv run python bundle_app.py -c transfer_config.json
 ```bash
 git checkout encoded-releases
 git pull origin encoded-releases
-python decode_app.py shotbot_latest.txt
+python deploy/decode_app.py shotbot_latest.txt
 cd shotbot_bundle_temp
 export SHOTBOT_SCRIPTS_DIR="$PWD/scripts"
 python shotbot.py
@@ -98,8 +98,8 @@ Minimal recovery loop:
 
 ```bash
 uv run python -c "from config import Config; print('OK')"
-uv run python bundle_app.py -c transfer_config.json
-python decode_app.py shotbot_latest.txt
+uv run python deploy/bundle_app.py -c transfer_config.json
+python deploy/decode_app.py shotbot_latest.txt
 ```
 
 ### Missing Toolkit Apps or Startup Hooks in DCC

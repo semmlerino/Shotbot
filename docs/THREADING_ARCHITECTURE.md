@@ -51,7 +51,7 @@ Shotbot uses three mechanisms:
 
 ## QRunnable Tracking
 
-`TrackedQRunnable` (`runnable_tracker.py`) is the base class for QRunnable tasks dispatched to `QThreadPool.globalInstance()`. The companion `RunnableTracker` singleton tracks active runnables, enabling graceful shutdown and leak detection in tests.
+`TrackedQRunnable` (`runnable_tracker.py`) is the base class for QRunnable tasks dispatched to `QThreadPool.globalInstance()`. The companion `QRunnableTracker` singleton tracks active runnables, enabling graceful shutdown and leak detection in tests.
 
 ## Testing Expectations
 

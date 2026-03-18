@@ -36,7 +36,7 @@ Changes to cache write paths should preserve these signals.
 
 ## Clearing Cache
 
-Use `CacheCoordinator.clear_cache()` to clear managed caches.
+Use `CacheCoordinator.clear_cache()` to clear managed caches. Note: `migrated_shots.json` is explicitly preserved across cache clears to maintain Previous Shots migration history.
 
 ## Configuration
 

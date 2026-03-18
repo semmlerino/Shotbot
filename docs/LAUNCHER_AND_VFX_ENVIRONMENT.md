@@ -8,7 +8,7 @@ This document defines launcher behavior assumptions for the BlueBolt environment
 It coordinates workspace setup, environment handling, and app dispatch.
 Internally, it delegates to the `launch/` subpackage: `CommandBuilder`, `EnvironmentManager`, `ProcessExecutor`, and `FileSearchCoordinator`.
 
-Supported DCCs: `3de`, `maya`, `nuke`, `rv`, `publish`.
+Supported DCCs: `3de`, `maya`, `nuke`, `rv`.
 
 ## Environment Assumptions
 
