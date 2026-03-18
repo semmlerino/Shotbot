@@ -832,14 +832,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
                 command = f"{command} -open {safe_scene_path}"
                 command_prefix = f"{tde_scripts_export}{sgtk_export}"
-            elif app_name == "nuke":
-                # Nuke gets context-only launch with NUKE_PATH for startup hooks
-                nuke_path_export = f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
-                sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
-                command_prefix = f"{nuke_path_export}{sgtk_export}"
-            elif app_name == "maya":
-                # Maya gets context-only launch with SGTK_FILE_TO_OPEN
-                command_prefix = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
+
         except ValueError as e:
             self._emit_error(f"Invalid scene path: {e!s}")
             return False

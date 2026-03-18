@@ -257,13 +257,12 @@ class TestLaunchWithScene:
 
         assert result is True
 
-        # Verify Maya uses -file flag
+        # Maya gets plain workspace launch (no scene file, no SGTK_FILE_TO_OPEN)
         call_args = mock_execute.call_args
         full_command = call_args[0][0]
-
-        # Maya gets context-only launch (no -file flag)
+        assert "SGTK_FILE_TO_OPEN" not in full_command
         assert "-file" not in full_command
-        assert "SGTK_FILE_TO_OPEN" in full_command
+        assert "scene.ma" not in full_command
 
     def test_launch_with_scene_rejects_unknown_app(
         self, launcher: CommandLauncher, sample_scene: ThreeDEScene

@@ -172,7 +172,7 @@ class TestCommandLauncher:
     )
     @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
     @patch("launch.process_executor.subprocess.Popen")
-    def test_launch_nuke_with_scene_sets_sgtk_file_to_open(
+    def test_launch_nuke_with_scene_gets_plain_workspace_launch(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
@@ -180,7 +180,7 @@ class TestCommandLauncher:
         launcher: CommandLauncher,
         qtbot: QtBot,
     ) -> None:
-        """Nuke scene launches should export SGTK_FILE_TO_OPEN for PTR bootstrap."""
+        """Nuke scene launch gets plain workspace launch without SGTK_FILE_TO_OPEN."""
         mock_popen.return_value = _running_process_double("nuke")
         nuke_scene = ThreeDEScene(
             show="TEST",
@@ -198,10 +198,9 @@ class TestCommandLauncher:
         process_qt_events()
         assert mock_popen.called
         command_str = " ".join(mock_popen.call_args[0][0])
-        assert "NUKE_PATH" in command_str
-        assert "SGTK_FILE_TO_OPEN=/path/to/scene.nk" in command_str
-        # Nuke should NOT have the scene file as a command argument
-        assert "nuke /path/to/scene.nk" not in command_str
+        # Non-3DE scene launches should NOT export SGTK_FILE_TO_OPEN
+        assert "SGTK_FILE_TO_OPEN" not in command_str
+        assert "NUKE_PATH" not in command_str
 
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
