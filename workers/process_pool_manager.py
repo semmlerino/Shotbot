@@ -16,6 +16,7 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
+import gc
 import selectors
 import subprocess
 import threading
@@ -40,8 +41,6 @@ from logging_mixin import LoggingMixin, get_module_logger
 
 # Module-level logger
 logger = get_module_logger(__name__)
-
-
 
 
 @dataclass
@@ -192,7 +191,6 @@ class _CacheEntry(NamedTuple):
     result: str
     timestamp: float
     ttl: int
-    command: str  # Original command string for pattern-based invalidation
 
 
 @final
@@ -230,7 +228,7 @@ class CommandCache:
                 entry = self._cache[command]
                 if time.time() - entry.timestamp < entry.ttl:
                     self._hits += 1
-                    logger.debug(f"Cache hit for command: {command[:50]}...")
+                    logger.debug(f"Cache hit for command: {command[:50]}{'...' if len(command) > 50 else ''}")
                     return entry.result
                 del self._cache[command]
 
@@ -250,8 +248,9 @@ class CommandCache:
             ttl = self._default_ttl
 
         with QMutexLocker(self._lock):
-            self._cache[command] = _CacheEntry(result, time.time(), ttl, command)
-            self._cleanup_expired()
+            self._cache[command] = _CacheEntry(result, time.time(), ttl)
+            if len(self._cache) > self.MAX_CACHE_SIZE:
+                self._cleanup_expired()
 
     def invalidate(self, pattern: str | None = None) -> None:
         """Invalidate cache entries.
@@ -265,10 +264,7 @@ class CommandCache:
                 self._cache.clear()
                 logger.info("Cleared entire command cache")
             else:
-                keys_to_remove: list[str] = []
-                for key, entry in self._cache.items():
-                    if pattern in entry.command:
-                        keys_to_remove.append(key)
+                keys_to_remove = [key for key in self._cache if pattern in key]
                 for key in keys_to_remove:
                     del self._cache[key]
                 logger.info(
@@ -555,7 +551,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """
         self._cache.invalidate(pattern)
 
-
     def shutdown(self, timeout: float = 5.0) -> None:
         """Shutdown the process pool manager with enhanced error handling.
 
@@ -645,7 +640,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         # Stage 3: Force garbage collection to clean up circular references
         try:
-            import gc
             _ = gc.collect()
         except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Error during garbage collection: {e}")

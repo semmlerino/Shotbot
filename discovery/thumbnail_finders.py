@@ -34,6 +34,69 @@ def _extract_frame_number(path: Path) -> int:
     return 99999  # Sort non-matching files last
 
 
+def _plate_priority(plate_dir: Path) -> tuple[int, str]:
+    """Return priority tuple for sorting plates.
+
+    Preference order: FG > BG > others.
+    """
+    name = plate_dir.name.upper()
+    # Priority: (order, name)
+    # Lower order = higher priority
+    if name.startswith("FG"):
+        return (0, name)  # FG plates highest priority
+    if name.startswith("BG"):
+        return (1, name)  # BG plates second priority
+    return (2, name)  # All others lowest priority
+
+
+def _find_jpeg_in_resolution_dirs(
+    potential_jpeg_path: Path,
+    output_type: str,
+    user_path: Path,
+    plate_name: str,
+    latest_version: str,
+) -> Path | None:
+    """Search resolution directories for a JPEG file.
+
+    Iterates through resolution subdirectories (e.g. 4312x2304) looking for
+    the first JPEG file.
+
+    Args:
+        potential_jpeg_path: Path to iterate (either version/jpeg or version)
+        output_type: "undistort" or "scene" for logging
+        user_path: User workspace root (for logging)
+        plate_name: Plate name (for logging)
+        latest_version: Version string (for logging)
+
+    Returns:
+        Path to first JPEG found, or None if not found or error occurs
+
+    """
+    try:
+        for resolution_dir in potential_jpeg_path.iterdir():
+            if not resolution_dir.is_dir():
+                continue
+
+            jpeg_dir = (
+                resolution_dir / "jpeg"
+                if (resolution_dir / "jpeg").exists()
+                else resolution_dir
+            )
+
+            jpeg_file = FileUtils.get_first_image_file(jpeg_dir)
+            if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
+                logger.info(
+                    f"Found user workspace JPEG: {jpeg_file.name}"
+                    f" (user: {user_path.name}, output_type: {output_type},"
+                    f" plate: {plate_name}, version: {latest_version})"
+                )
+                return jpeg_file
+    except (OSError, PermissionError):
+        pass
+
+    return None
+
+
 def _find_first_jpeg_in_version_tree(
     base_path: Path,
     image_subdir: str = "jpeg",
@@ -147,18 +210,7 @@ class ThumbnailFinders:
             return None
 
         # Sort plates by preference
-        def plate_priority(plate_dir: Path) -> tuple[int, str]:
-            """Return priority tuple for sorting plates."""
-            name = plate_dir.name.upper()
-            # Priority: (order, name)
-            # Lower order = higher priority
-            if name.startswith("FG"):
-                return (0, name)  # FG plates highest priority
-            if name.startswith("BG"):
-                return (1, name)  # BG plates second priority
-            return (2, name)  # All others lowest priority
-
-        sorted_plates = sorted(plate_dirs, key=plate_priority)
+        sorted_plates = sorted(plate_dirs, key=_plate_priority)
 
         # Try each plate in priority order
         for plate_dir in sorted_plates:
@@ -358,27 +410,11 @@ class ThumbnailFinders:
                 if not potential_jpeg_path.exists():
                     continue
 
-                try:
-                    for resolution_dir in potential_jpeg_path.iterdir():
-                        if not resolution_dir.is_dir():
-                            continue
-
-                        jpeg_dir = (
-                            resolution_dir / "jpeg"
-                            if (resolution_dir / "jpeg").exists()
-                            else resolution_dir
-                        )
-
-                        jpeg_file = FileUtils.get_first_image_file(jpeg_dir)
-                        if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
-                            logger.info(
-                                f"Found user workspace JPEG: {jpeg_file.name}"
-                                f" (user: {user_path.name}, output_type: {output_type},"
-                                f" plate: {plate_name}, version: {latest_version})"
-                            )
-                            return jpeg_file
-                except (OSError, PermissionError):
-                    continue
+                result = _find_jpeg_in_resolution_dirs(
+                    potential_jpeg_path, output_type, user_path, plate_name, latest_version
+                )
+                if result is not None:
+                    return result
 
         return None
 
