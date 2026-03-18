@@ -43,7 +43,11 @@ def _shotbot_update_context():
 
     scene_path = maya.cmds.file(query=True, sceneName=True)
     if not scene_path:
-        print("[Shotbot] No scene file loaded")
+        # File not yet loaded — hook into Maya's scene-open event
+        maya.cmds.scriptJob(
+            event=["SceneOpened", _shotbot_update_context],
+            runOnce=True,
+        )
         return
 
     if engine.context.task:
