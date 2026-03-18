@@ -34,7 +34,6 @@ try:
 
     from config import Config
     from discovery.thumbnail_finders import ThumbnailFinders
-    from paths.builders import PathBuilders
     from paths.validators import PathValidators
     from utils import FileUtils, get_cache_stats
 
@@ -181,9 +180,8 @@ class ThumbnailBottleneckProfiler:
         for show, sequence, shot in test_shots:
             # Stage 1: Editorial thumbnails
             start = time.perf_counter()
-            thumbnail_dir = PathBuilders.build_thumbnail_path(
-                Config.SHOWS_ROOT, show, sequence, shot
-            )
+            shot_dir = f"{sequence}_{shot}"
+            thumbnail_dir = Path(Config.SHOWS_ROOT, show, "shots", sequence, shot_dir, *Config.THUMBNAIL_SEGMENTS)
             editorial_exists = PathValidators.validate_path_exists(
                 thumbnail_dir, "Thumbnail dir"
             )

@@ -323,7 +323,7 @@ class TestStatusBar:
         main_window.shot_item_model.set_shots(test_shots)
 
         # Apply filter via the filter coordinator (new proxy-based interface)
-        main_window.filter_coordinator._on_shot_show_filter_requested("TestShow")
+        main_window._on_shot_show_filter_requested("TestShow")
 
         # Verify status bar shows filter result
         message = main_window.status_bar.currentMessage()

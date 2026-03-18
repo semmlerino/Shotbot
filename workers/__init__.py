@@ -2,7 +2,6 @@
 
 from workers.process_pool_manager import (
     CancellableSubprocess,
-    CommandCache,
     ProcessPoolManager,
 )
 from workers.runnable_tracker import (
@@ -19,7 +18,6 @@ from workers.thread_safe_worker import ThreadSafeWorker, WorkerState
 
 __all__ = [
     "CancellableSubprocess",
-    "CommandCache",
     "FolderOpenerWorker",
     "ProcessPoolManager",
     "QRunnableTracker",

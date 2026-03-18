@@ -17,7 +17,6 @@ from config import (
 )
 from discovery.file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
-from paths.builders import PathBuilders
 from paths.validators import PathValidators
 from utils import FileUtils, find_path_case_insensitive
 from version_utils import VersionUtils
@@ -154,7 +153,7 @@ class ThumbnailFinders:
     ) -> Path:
         """Build a path rooted at the shot directory, with optional suffix components."""
         shot_dir = f"{sequence}_{shot}"
-        return PathBuilders.build_path(shows_root, show, "shots", sequence, shot_dir, *suffix)
+        return Path(shows_root, show, "shots", sequence, shot_dir, *suffix)
 
     @staticmethod
     def find_turnover_plate_thumbnail(

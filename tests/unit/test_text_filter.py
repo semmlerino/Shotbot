@@ -233,21 +233,7 @@ class TestMainWindowTextFilterHandlers:
         # Add mock status bar for filter feedback
         from unittest.mock import Mock
         window.status_bar = Mock()
-
-        # Add mock grid views for FilterCoordinator signal connections
-        # Mock signals with connect() method that does nothing
-        mock_signal = Mock()
-        mock_signal.connect = Mock(return_value=None)
-
-        mock_shot_grid = Mock()
-        mock_shot_grid.show_filter_requested = mock_signal
-        mock_shot_grid.text_filter_requested = mock_signal
-        window.shot_grid = mock_shot_grid
-
-        mock_previous_grid = Mock()
-        mock_previous_grid.show_filter_requested = mock_signal
-        mock_previous_grid.text_filter_requested = mock_signal
-        window.previous_shots_grid = mock_previous_grid
+        window._contextual_logger = Mock()
 
         # Add proxy model doubles (filtering moved to proxy in Phase 3)
         class _ProxyDouble:
@@ -273,10 +259,6 @@ class TestMainWindowTextFilterHandlers:
         window.shot_proxy = _ProxyDouble()
         window.previous_shots_proxy = _ProxyDouble()
 
-        # Add FilterCoordinator for filter handling
-        from controllers.filter_coordinator import FilterCoordinator
-        window.filter_coordinator = FilterCoordinator(window)  # pyright: ignore[reportArgumentType]
-
         return window
 
         # Cleanup
@@ -284,38 +266,37 @@ class TestMainWindowTextFilterHandlers:
 
     def test_on_shot_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for My Shots text filter request."""
-        # Call the handler with "dm" filter via filter_coordinator
-        mock_main_window.filter_coordinator._on_shot_text_filter_requested("dm")
+        from main_window import MainWindow
+        MainWindow._on_shot_text_filter_requested(mock_main_window, "dm")
 
         # Verify the filter was applied to the proxy (proxy handles filtering)
         assert mock_main_window.shot_proxy._text_filter == "dm"  # type: ignore[attr-defined]
 
         # Test clearing filter
-        mock_main_window.filter_coordinator._on_shot_text_filter_requested("")
+        MainWindow._on_shot_text_filter_requested(mock_main_window, "")
         assert mock_main_window.shot_proxy._text_filter is None  # type: ignore[attr-defined]
 
     def test_on_previous_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for Previous Shots text filter request."""
-        # Call the handler with "dm" filter via filter_coordinator
-        mock_main_window.filter_coordinator._on_previous_text_filter_requested("dm")
+        from main_window import MainWindow
+        MainWindow._on_previous_text_filter_requested(mock_main_window, "dm")
 
         # Verify the filter was applied to the proxy
         assert mock_main_window.previous_shots_proxy._text_filter == "dm"  # type: ignore[attr-defined]
 
     def test_text_and_show_filters_together(self, mock_main_window: MainWindow) -> None:
         """Test that text and show filters work together via proxy."""
-        # Apply show filter first via filter_coordinator
-        mock_main_window.filter_coordinator._on_shot_show_filter_requested("show1")
+        from main_window import MainWindow
+        MainWindow._on_shot_show_filter_requested(mock_main_window, "show1")
         assert mock_main_window.shot_proxy._show_filter == "show1"  # type: ignore[attr-defined]
 
-        # Then apply text filter via filter_coordinator
-        mock_main_window.filter_coordinator._on_shot_text_filter_requested("dm")
+        MainWindow._on_shot_text_filter_requested(mock_main_window, "dm")
         assert mock_main_window.shot_proxy._text_filter == "dm"  # type: ignore[attr-defined]
 
     def test_text_filter_updates_status_bar(self, mock_main_window: MainWindow) -> None:
         """Test that applying text filter updates status bar."""
-        # Call the handler with "dm" filter via filter_coordinator
-        mock_main_window.filter_coordinator._on_shot_text_filter_requested("dm")
+        from main_window import MainWindow
+        MainWindow._on_shot_text_filter_requested(mock_main_window, "dm")
 
         # Verify status bar was updated with filter info
         mock_main_window.status_bar.showMessage.assert_called()

@@ -10,11 +10,11 @@ Controllers:
     - ThreeDEController: Manages 3DE scene discovery and handling
     - ShotController: Handles shot management and model operations
     - LauncherCoordinator: Manages application launching and custom launchers
+    - RefreshCoordinator: Coordinates shot refresh across tabs
 
 This refactoring follows the established plan in MAINWINDOW_SAFE_REFACTORING_PLAN_DO_NOT_DELETE.md
 """
 
-from .filter_coordinator import FilterCoordinator
 from .refresh_coordinator import RefreshCoordinator
 from .settings_controller import SettingsController, SettingsTarget
 from .shot_selection_controller import ShotSelectionController, ShotSelectionTarget
@@ -23,7 +23,6 @@ from .thumbnail_size_manager import ThumbnailSizeManager
 
 
 __all__ = [
-    "FilterCoordinator",
     "RefreshCoordinator",
     "SettingsController",
     "SettingsTarget",

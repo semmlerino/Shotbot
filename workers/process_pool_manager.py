@@ -23,9 +23,10 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ClassVar, Final, NamedTuple, cast, final
+from typing import ClassVar, cast, final
 
 # Third-party imports
+from cachetools import TTLCache
 from PySide6.QtCore import (
     QCoreApplication,
     QMutex,
@@ -185,140 +186,6 @@ class CancellableSubprocess:
             self._process.kill()
 
 
-class _CacheEntry(NamedTuple):
-    """Single entry in CommandCache._cache."""
-
-    result: str
-    timestamp: float
-    ttl: int
-
-
-@final
-class CommandCache:
-    """TTL-based cache for command results with LRU eviction."""
-
-    MAX_CACHE_SIZE: Final[int] = 500  # Maximum entries before LRU eviction
-
-    def __init__(self, default_ttl: int = 30) -> None:
-        """Initialize command cache.
-
-        Args:
-            default_ttl: Default time-to-live in seconds
-
-        """
-        super().__init__()
-        self._cache: dict[str, _CacheEntry] = {}
-        self._lock = QMutex()  # Use Qt mutex for consistency
-        self._default_ttl = default_ttl
-        self._hits = 0
-        self._misses = 0
-
-    def get(self, command: str) -> str | None:
-        """Get cached result if not expired.
-
-        Args:
-            command: Command string to look up
-
-        Returns:
-            Cached result or None if not found/expired
-
-        """
-        with QMutexLocker(self._lock):
-            if command in self._cache:
-                entry = self._cache[command]
-                if time.time() - entry.timestamp < entry.ttl:
-                    self._hits += 1
-                    logger.debug(f"Cache hit for command: {command[:50]}{'...' if len(command) > 50 else ''}")
-                    return entry.result
-                del self._cache[command]
-
-            self._misses += 1
-            return None
-
-    def set(self, command: str, result: str, ttl: int | None = None) -> None:
-        """Cache command result with TTL.
-
-        Args:
-            command: Command string
-            result: Result to cache
-            ttl: Time-to-live in seconds (uses default if None)
-
-        """
-        if ttl is None:
-            ttl = self._default_ttl
-
-        with QMutexLocker(self._lock):
-            self._cache[command] = _CacheEntry(result, time.time(), ttl)
-            if len(self._cache) > self.MAX_CACHE_SIZE:
-                self._cleanup_expired()
-
-    def invalidate(self, pattern: str | None = None) -> None:
-        """Invalidate cache entries.
-
-        Args:
-            pattern: pattern to match (invalidates all if None)
-
-        """
-        with QMutexLocker(self._lock):
-            if pattern is None:
-                self._cache.clear()
-                logger.info("Cleared entire command cache")
-            else:
-                keys_to_remove = [key for key in self._cache if pattern in key]
-                for key in keys_to_remove:
-                    del self._cache[key]
-                logger.info(
-                    f"Invalidated {len(keys_to_remove)} cache entries matching '{pattern}'",
-                )
-
-    def get_stats(self) -> dict[str, int | float]:
-        """Get cache statistics.
-
-        Returns:
-            Dictionary with cache stats
-
-        """
-        with QMutexLocker(self._lock):
-            total = self._hits + self._misses
-            hit_rate = (self._hits / total * 100) if total > 0 else 0
-
-            return {
-                "hits": self._hits,
-                "misses": self._misses,
-                "hit_rate": hit_rate,
-                "size": len(self._cache),
-                "total_requests": total,
-            }
-
-    def _cleanup_expired(self) -> None:
-        """Remove expired entries and enforce max size with LRU eviction."""
-        current_time = time.time()
-
-        # Remove expired entries
-        expired = [
-            key
-            for key, entry in self._cache.items()
-            if current_time - entry.timestamp >= entry.ttl
-        ]
-        for key in expired:
-            del self._cache[key]
-
-        if expired:
-            logger.debug(f"Cleaned up {len(expired)} expired cache entries")
-
-        # Enforce max size with LRU eviction (evict oldest entries)
-        if len(self._cache) > self.MAX_CACHE_SIZE:
-            # Sort by timestamp (oldest first) and evict excess entries
-            entries_by_age = sorted(
-                self._cache.items(),
-                key=lambda x: x[1].timestamp,
-            )
-            excess_count = len(self._cache) - self.MAX_CACHE_SIZE
-            for key, _ in entries_by_age[:excess_count]:
-                del self._cache[key]
-            logger.debug(f"LRU evicted {excess_count} cache entries (max size: {self.MAX_CACHE_SIZE})")
-
-
 @final
 class ProcessPoolManager(LoggingMixin, QObject):
     """Centralized process management with thread pooling and caching.
@@ -399,7 +266,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
         self._executor = concurrent.futures.ThreadPoolExecutor(
             max_workers=max_workers,
         )
-        self._cache = CommandCache(default_ttl=30)
+        self._cache: TTLCache[str, str] = TTLCache(maxsize=500, ttl=30)
+        self._cache_lock = QMutex()
         # Instance-level mutex and shutdown flag for thread-safe shutdown
         self._mutex = QMutex()
         self._shutdown_requested = False
@@ -483,7 +351,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
             timeout = int(TimeoutConfig.SUBPROCESS_SEC)
 
         # Check cache first
-        cached = self._cache.get(command)
+        with QMutexLocker(self._cache_lock):
+            cached = self._cache.get(command)
         if cached is not None:
             return cached
 
@@ -533,7 +402,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
             result = proc_result.stdout
 
             # Cache result
-            self._cache.set(command, result, ttl=cache_ttl)
+            with QMutexLocker(self._cache_lock):
+                self._cache[command] = result
 
             return result
 
@@ -546,10 +416,20 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """Invalidate command cache.
 
         Args:
-            pattern: pattern to match
+            pattern: pattern to match (invalidates all if None)
 
         """
-        self._cache.invalidate(pattern)
+        with QMutexLocker(self._cache_lock):
+            if pattern is None:
+                self._cache.clear()
+                logger.info("Cleared entire command cache")
+            else:
+                keys = [k for k in self._cache if pattern in k]
+                for k in keys:
+                    del self._cache[k]
+                logger.info(
+                    f"Invalidated {len(keys)} cache entries matching '{pattern}'",
+                )
 
     def shutdown(self, timeout: float = 5.0) -> None:
         """Shutdown the process pool manager with enhanced error handling.
@@ -629,9 +509,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         # Stage 2: Clean up any remaining resources
         try:
-            stats = self._cache.get_stats()
-            cache_size = stats["size"]
-            self._cache.invalidate()
+            cache_size = len(self._cache)
+            self._cache.clear()
             if cache_size > 0:
                 self.logger.debug(f"Cleared {cache_size} command cache entries")
 

@@ -25,7 +25,6 @@ import pytest
 
 # Local application imports
 from workers.process_pool_manager import (
-    CommandCache,
     ProcessPoolManager,
 )
 
@@ -136,7 +135,9 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         import concurrent.futures
 
         # Third-party imports
+        from cachetools import TTLCache
         from PySide6.QtCore import (
+            QMutex,
             QObject,
         )
 
@@ -146,18 +147,14 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         self._session_pools: dict[str, list[BashSessionDouble]] = {}
         self._session_round_robin: dict[str, int] = {}
         self._sessions_per_type = 3
-        self._cache = CommandCache(default_ttl=30)
+        self._cache: TTLCache[str, str] = TTLCache(maxsize=500, ttl=30)
+        self._cache_lock = QMutex()
         self._session_lock = threading.RLock()
         # Add condition variable for proper thread synchronization
         self._session_condition = threading.Condition(self._session_lock)
         self._initialized = True
         self._test_session: BashSessionDouble | None = None
         # Instance-level mutex and shutdown flag (added to parent class)
-        # Third-party imports
-        from PySide6.QtCore import (
-            QMutex,
-        )
-
         self._mutex = QMutex()
         self._shutdown_requested = False
 
@@ -183,7 +180,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
             result = self._test_session.execute(command, timeout)
 
             # Cache result
-            self._cache.set(command, result, ttl=cache_ttl)
+            self._cache[command] = result
 
             return result
         # Use parent implementation with secure executor
@@ -199,81 +196,6 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 # =============================================================================
 # BEHAVIOR-FOCUSED TEST CLASSES
 # =============================================================================
-
-
-class TestCommandCacheBehavior:
-    """Test CommandCache behavior through state changes."""
-
-    def test_cache_stores_and_retrieves_values(self) -> None:
-        """Test that cache correctly stores and retrieves values.
-
-        CORRECT: Testing actual behavior, not implementation.
-        """
-        cache = CommandCache(default_ttl=10)
-
-        # Store value
-        cache.set("echo test", "test output", ttl=5)
-
-        # Test BEHAVIOR: Value can be retrieved
-        result = cache.get("echo test")
-        assert result == "test output"
-
-        # Test BEHAVIOR: Non-existent key returns None
-        result = cache.get("nonexistent")
-        assert result is None
-
-    # REMOVED: test_cache_respects_ttl - Flaky timing test that fails under parallel execution
-    # The test relied on time.sleep() which is unreliable with CPU contention from xdist workers
-    # Cache TTL logic is verified to work correctly (test passes in isolation)
-    # Time-based testing should use mocked time for deterministic behavior
-
-    def test_cache_tracks_statistics(self) -> None:
-        """Test that cache tracks hit/miss statistics.
-
-        CORRECT: Testing observable behavior through stats.
-        """
-        cache = CommandCache()
-
-        # Set up cache state
-        cache.set("existing", "value")
-
-        # Generate hits and misses
-        cache.get("existing")  # Hit
-        cache.get("existing")  # Hit
-        cache.get("missing")  # Miss
-        cache.get("missing2")  # Miss
-        cache.get("missing3")  # Miss
-
-        # Test BEHAVIOR: Statistics are tracked correctly
-        stats = cache.get_stats()
-        assert stats["hits"] == 2
-        assert stats["misses"] == 3
-        assert stats["hit_rate"] == 40.0  # 40%
-
-    def test_cache_invalidation_by_pattern(self) -> None:
-        """Test selective cache invalidation.
-
-        CORRECT: Testing outcome of invalidation, not method calls.
-        """
-        cache = CommandCache()
-
-        # Set up cache with commands that will be stored in value[3]
-        # The cache stores (result, timestamp, ttl, command) tuples
-        # and invalidate() checks if pattern is in the command
-        cache.set("test_cmd1", "output1")  # command="test_cmd1"
-        cache.set("test_cmd2", "output2")  # command="test_cmd2"
-        cache.set("other_cmd", "output3")  # command="other_cmd"
-        cache.set("another_test", "output4")  # command="another_test"
-
-        # Invalidate by pattern - checks if pattern is IN the command string
-        cache.invalidate(pattern="test_")
-
-        # Test BEHAVIOR: Entries with "test_" in command are invalidated
-        assert cache.get("test_cmd1") is None  # Has "test_" in command
-        assert cache.get("test_cmd2") is None  # Has "test_" in command
-        assert cache.get("other_cmd") == "output3"  # Doesn't have "test_"
-        assert cache.get("another_test") == "output4"  # Has "test" but not "test_"
-
 
 
 class TestProcessPoolManagerBehavior:

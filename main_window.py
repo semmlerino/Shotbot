@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, final
 
 # Third-party imports
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QApplication,
     QGroupBox,
@@ -44,7 +44,6 @@ if TYPE_CHECKING:
 # Local application imports
 from app_services import build_infrastructure, build_models
 from config import Config, is_mock_mode
-from controllers.filter_coordinator import FilterCoordinator
 from controllers.shot_selection_controller import (
     ShotSelectionController,  # Refactored shot selection management
 )
@@ -177,8 +176,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         self.shot_selection_controller: ShotSelectionController = ShotSelectionController(self, parent=self)
 
-        self.filter_coordinator: FilterCoordinator = FilterCoordinator(self)
-
         self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)
 
     def _setup_ui(self) -> None:
@@ -302,7 +299,28 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Shot selection - handled by ShotSelectionController when active
         # Controller handles shot_selected, shot_double_clicked, recover_crashes_requested
-        # Filter signals handled by FilterCoordinator
+
+        # My Shots filter signals
+        _ = self.shot_grid.show_filter_requested.connect(
+            self._on_shot_show_filter_requested  # pyright: ignore[reportAny]
+        )
+        _ = self.shot_grid.text_filter_requested.connect(
+            self._on_shot_text_filter_requested  # pyright: ignore[reportAny]
+        )
+
+        # Previous Shots filter signals
+        _ = self.previous_shots_grid.show_filter_requested.connect(
+            self._on_previous_show_filter_requested  # pyright: ignore[reportAny]
+        )
+        _ = self.previous_shots_grid.text_filter_requested.connect(
+            self._on_previous_text_filter_requested  # pyright: ignore[reportAny]
+        )
+
+        # Previous shots model updates (repopulate show filter when shots change)
+        _ = self.previous_shots_item_model.shots_updated.connect(
+            self._on_previous_shots_updated  # pyright: ignore[reportAny]
+        )
+
         _ = self.shot_grid.app_launch_requested.connect(
             self.command_launcher.launch_app
         )
@@ -323,7 +341,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Previous shots selection - handled by ShotSelectionController when active
         # Controller handles shot_selected and shot_double_clicked
-        # Filter signals handled by FilterCoordinator
         _ = self.previous_shots_grid.app_launch_requested.connect(
             self.command_launcher.launch_app
         )
@@ -580,8 +597,74 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         return None
 
-    # Filter methods moved to FilterCoordinator
     # Size methods moved to ThumbnailSizeManager
+
+    @Slot(str)  # pyright: ignore[reportAny]
+    def _on_shot_show_filter_requested(self, show: str) -> None:
+        """Handle show filter request from My Shots grid view."""
+        show_filter = show or None
+        self.shot_proxy.set_show_filter(show_filter)
+
+        filtered_count = self.shot_proxy.rowCount()
+        total = self.shot_proxy.sourceModel().rowCount()
+        filter_desc = show or "All Shows"
+        self.status_bar.showMessage(
+            f"My Shots: {filtered_count} of {total} ({filter_desc})", 2500
+        )
+        self.logger.info(f"Applied My Shots show filter: {filter_desc}")
+
+    @Slot(str)  # pyright: ignore[reportAny]
+    def _on_shot_text_filter_requested(self, text: str) -> None:
+        """Handle text filter request from My Shots grid view."""
+        filter_text = text.strip() if text else None
+        self.shot_proxy.set_text_filter(filter_text)
+
+        filtered_count = self.shot_proxy.rowCount()
+        total = self.shot_proxy.sourceModel().rowCount()
+        if filter_text:
+            self.status_bar.showMessage(
+                f"My Shots: {filtered_count} of {total} (filter: '{filter_text}')", 2500
+            )
+        else:
+            self.status_bar.showMessage(f"My Shots: {total} shots", 2500)
+        self.logger.debug(f"My Shots text filter: '{filter_text}' - {filtered_count} shots")
+
+    @Slot(str)  # pyright: ignore[reportAny]
+    def _on_previous_show_filter_requested(self, show: str) -> None:
+        """Handle show filter request from Previous Shots grid view."""
+        show_filter = show or None
+        self.previous_shots_proxy.set_show_filter(show_filter)
+
+        filtered_count = self.previous_shots_proxy.rowCount()
+        total = self.previous_shots_proxy.sourceModel().rowCount()
+        filter_desc = show or "All Shows"
+        self.status_bar.showMessage(
+            f"Previous Shots: {filtered_count} of {total} ({filter_desc})", 2500
+        )
+        self.logger.info(f"Applied Previous Shots show filter: {filter_desc}")
+
+    @Slot(str)  # pyright: ignore[reportAny]
+    def _on_previous_text_filter_requested(self, text: str) -> None:
+        """Handle text filter request from Previous Shots grid view."""
+        filter_text = text.strip() if text else None
+        self.previous_shots_proxy.set_text_filter(filter_text)
+
+        filtered_count = self.previous_shots_proxy.rowCount()
+        total = self.previous_shots_proxy.sourceModel().rowCount()
+        if filter_text:
+            self.status_bar.showMessage(
+                f"Previous Shots: {filtered_count} of {total} (filter: '{filter_text}')",
+                2500,
+            )
+        else:
+            self.status_bar.showMessage(f"Previous Shots: {total} shots", 2500)
+        self.logger.debug(f"Previous Shots text filter: '{filter_text}' - {filtered_count} shots")
+
+    @Slot()  # pyright: ignore[reportAny]
+    def _on_previous_shots_updated(self) -> None:
+        """Handle previous shots updated signal."""
+        self.previous_shots_grid.populate_show_filter(self.previous_shots_model)
+        self.logger.debug("Previous shots updated, refreshed show filter")
 
     def _on_sort_order_changed(
         self,

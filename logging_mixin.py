@@ -24,24 +24,17 @@ import functools
 import logging
 import threading
 import time
+from collections.abc import MutableMapping
 from contextlib import contextmanager
-from types import TracebackType
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 # Third-party imports
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, override
 
 
 if TYPE_CHECKING:
     # Standard library imports
-    from collections.abc import Callable, Generator, Mapping
-
-# Type aliases matching logging module
-_SysExcInfoType = (
-    tuple[type[BaseException], BaseException, TracebackType | None]
-    | tuple[None, None, None]
-)
-_ExcInfoType = None | bool | _SysExcInfoType | BaseException
+    from collections.abc import Callable, Generator
 
 # Type variables for generic decorator
 P = ParamSpec("P")
@@ -84,154 +77,22 @@ def _manage_log_context(**kwargs: str) -> Generator[None, None, None]:
             delattr(_context_storage, "context")
 
 
-class ContextualLogger:
-    """Enhanced logger wrapper that supports structured context."""
+class ContextualLogger(logging.LoggerAdapter):  # type: ignore[type-arg]
+    """Enhanced logger with structured context support."""
 
-    def __init__(self, logger: logging.Logger) -> None:  # pyright: ignore[reportMissingSuperCall]
-        self._logger: logging.Logger = logger
+    def __init__(self, logger: logging.Logger) -> None:
+        super().__init__(logger, {})  # pyright: ignore[reportUnknownMemberType]
 
-    def _format_message(self, msg: str) -> str:
-        """Format message with current context if available."""
+    @override
+    def process(
+        self, msg: str, kwargs: MutableMapping[str, Any]
+    ) -> tuple[str, MutableMapping[str, Any]]:
+        """Prepend thread-local context to log messages."""
         context: dict[str, object] | None = getattr(_context_storage, "context", None)
         if context:
             context_str = " | ".join(f"{k}={v}" for k, v in context.items())
-            return f"[{context_str}] {msg}"
-        return msg
-
-    def debug(
-        self,
-        msg: str,
-        *args: object,
-        exc_info: _ExcInfoType = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        """Log debug message with context."""
-        self._logger.debug(
-            self._format_message(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    def info(
-        self,
-        msg: str,
-        *args: object,
-        exc_info: _ExcInfoType = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        """Log info message with context."""
-        self._logger.info(
-            self._format_message(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    def warning(
-        self,
-        msg: str,
-        *args: object,
-        exc_info: _ExcInfoType = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        """Log warning message with context."""
-        self._logger.warning(
-            self._format_message(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    def error(
-        self,
-        msg: str,
-        *args: object,
-        exc_info: _ExcInfoType = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        """Log error message with context."""
-        self._logger.error(
-            self._format_message(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    def critical(
-        self,
-        msg: str,
-        *args: object,
-        exc_info: _ExcInfoType = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        """Log critical message with context."""
-        self._logger.critical(
-            self._format_message(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    def exception(
-        self,
-        msg: str,
-        *args: object,
-        exc_info: _ExcInfoType = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        """Log exception message with context."""
-        self._logger.exception(
-            self._format_message(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    def isEnabledFor(self, level: int) -> bool:
-        """Check if the logger is enabled for the specified level.
-
-        Args:
-            level: The logging level to check (e.g., logging.DEBUG)
-
-        Returns:
-            True if the logger will process messages at this level
-
-        """
-        return self._logger.isEnabledFor(level)
-
-    def setLevel(self, level: int) -> None:
-        """Set the logging level for this logger.
-
-        Args:
-            level: The logging level to set (e.g., logging.DEBUG, logging.INFO)
-
-        """
-        self._logger.setLevel(level)
+            return f"[{context_str}] {msg}", kwargs
+        return msg, kwargs
 
     @contextmanager
     def context(self, **kwargs: str) -> Generator[None, None, None]:

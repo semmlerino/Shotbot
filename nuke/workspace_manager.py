@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 
 # Local application imports
 from config import Config
-from error_handling_mixin import ErrorHandlingMixin
 from logging_mixin import LoggingMixin
 
 
@@ -26,7 +25,7 @@ if TYPE_CHECKING:
 from version_utils import VersionUtils
 
 
-class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
+class NukeWorkspaceManager(LoggingMixin):
     """Manages Nuke scripts in the VFX pipeline workspace."""
 
     @classmethod

@@ -4,6 +4,7 @@ version = "0.0.0"  # Placeholder - actual versioning via git tags
 requires-python = ">=3.11"
 dependencies = [
     "PySide6~=6.10.0",
+    "cachetools>=5.5",
     "pillow>=12.1.1",
     "psutil~=7.2.0",
     "typing-extensions~=4.15.0",
@@ -29,6 +30,7 @@ dev = [
     "basedpyright~=1.38.0",
     "deptry~=0.24.0",
     "skylos>=3.4.3",
+    "types-cachetools>=6.2.0.20260317",
 ]
 
 [tool.basedpyright]

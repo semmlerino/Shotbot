@@ -7,12 +7,11 @@ This module provides HideManager which handles:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
-from cache import atomic_json_write
 from logging_mixin import LoggingMixin
+from managers._keyed_list_store import KeyedListStore
 from managers._shot_key import shot_key
 
 
@@ -31,8 +30,7 @@ class HideManager(LoggingMixin):
     Shot objects which may be recreated between sessions.
     """
 
-    _cache_dir: Path
-    _hidden_keys: list[tuple[str, str, str]]
+    _store: KeyedListStore
 
     def __init__(self, cache_dir: Path) -> None:
         """Initialize the hide manager.
@@ -42,62 +40,7 @@ class HideManager(LoggingMixin):
 
         """
         super().__init__()
-        self._cache_dir = cache_dir
-        self._hidden_keys = []  # (show, seq, shot)
-        self._load_hidden()
-
-    def _load_hidden(self) -> None:
-        """Load hidden shots from cache."""
-        cache_file = self._cache_dir / f"{HIDDEN_SHOTS_CACHE_KEY}.json"
-
-        if not cache_file.exists():
-            self._hidden_keys = []
-            return
-
-        try:
-            with cache_file.open() as f:
-                raw_data: Any = json.load(f)  # pyright: ignore[reportAny]
-
-            if not isinstance(raw_data, list):
-                self.logger.warning(f"Invalid hidden shots cache format: {type(raw_data)}")  # pyright: ignore[reportAny]
-                self._hidden_keys = []
-                return
-
-            data = cast("list[Any]", raw_data)
-
-            self._hidden_keys = []
-            for item in data:  # pyright: ignore[reportAny]
-                if isinstance(item, dict):
-                    try:
-                        show_val = item.get("show")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-                        seq_val = item.get("sequence")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-                        shot_val = item.get("shot")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-                        if isinstance(show_val, str) and isinstance(seq_val, str) and isinstance(shot_val, str):
-                            self._hidden_keys.append((show_val, seq_val, shot_val))
-                    except (KeyError, TypeError):
-                        self.logger.warning("Invalid hidden shot entry", exc_info=True)
-                elif isinstance(item, list) and len(item) == 3:  # pyright: ignore[reportUnnecessaryIsInstance, reportUnknownArgumentType]
-                    v0, v1, v2 = item[0], item[1], item[2]  # pyright: ignore[reportUnknownVariableType]
-                    if isinstance(v0, str) and isinstance(v1, str) and isinstance(v2, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-                        self._hidden_keys.append((v0, v1, v2))
-
-            self.logger.info(f"Loaded {len(self._hidden_keys)} hidden shots from cache")
-
-        except (json.JSONDecodeError, OSError):
-            self.logger.warning("Failed to load hidden shots", exc_info=True)
-            self._hidden_keys = []
-
-    def _save_hidden(self) -> None:
-        """Save hidden shots to cache."""
-        cache_file = self._cache_dir / f"{HIDDEN_SHOTS_CACHE_KEY}.json"
-        hidden_dicts = [{"show": s, "sequence": q, "shot": t} for s, q, t in self._hidden_keys]
-        try:
-            cache_file.parent.mkdir(parents=True, exist_ok=True)
-            atomic_json_write(cache_file, hidden_dicts, indent=2, fsync=False)
-            self.logger.debug(f"Saved {len(self._hidden_keys)} hidden shots to cache")
-        except OSError:
-            self.logger.exception("Failed to save hidden shots")
-
+        self._store = KeyedListStore(cache_dir, HIDDEN_SHOTS_CACHE_KEY, self.logger)
 
     def hide_shot(self, shot: Shot) -> None:
         """Hide a shot.
@@ -110,10 +53,10 @@ class HideManager(LoggingMixin):
         """
         key = shot_key(shot)
 
-        if key not in self._hidden_keys:
+        if not self._store.contains(key):
             self.logger.info(f"Hiding shot: {shot.full_name}")
-            self._hidden_keys.append(key)
-            self._save_hidden()
+            self._store.add(key)
+            self._store.save()
 
     def unhide_shot(self, shot: Shot) -> None:
         """Unhide a shot.
@@ -124,10 +67,9 @@ class HideManager(LoggingMixin):
         """
         key = shot_key(shot)
 
-        if key in self._hidden_keys:
-            self._hidden_keys.remove(key)
+        if self._store.remove(key):
             self.logger.info(f"Unhid shot: {shot.full_name}")
-            self._save_hidden()
+            self._store.save()
 
     def is_hidden(self, shot: Shot) -> bool:
         """Check if a shot is hidden.
@@ -139,7 +81,7 @@ class HideManager(LoggingMixin):
             True if shot is hidden
 
         """
-        return shot_key(shot) in self._hidden_keys
+        return self._store.contains(shot_key(shot))
 
     def get_hidden_count(self) -> int:
         """Get the number of hidden shots.
@@ -148,10 +90,10 @@ class HideManager(LoggingMixin):
             Number of hidden shots
 
         """
-        return len(self._hidden_keys)
+        return self._store.count()
 
     def clear_hidden(self) -> None:
         """Clear all hidden shots."""
-        self._hidden_keys.clear()
-        self._save_hidden()
+        self._store.clear()
+        self._store.save()
         self.logger.info("Cleared all hidden shots")

@@ -8,12 +8,11 @@ This module provides ShotPinManager which handles:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
-from cache import atomic_json_write
 from logging_mixin import LoggingMixin
+from managers._keyed_list_store import KeyedListStore
 from managers._shot_key import key_from_workspace_path, shot_key
 
 
@@ -34,8 +33,7 @@ class ShotPinManager(LoggingMixin):
     Pin order is most-recently-pinned-first.
     """
 
-    _cache_dir: Path
-    _pinned_keys: list[tuple[str, str, str]]
+    _store: KeyedListStore
 
     def __init__(self, cache_dir: Path) -> None:
         """Initialize the pin manager.
@@ -45,66 +43,7 @@ class ShotPinManager(LoggingMixin):
 
         """
         super().__init__()
-        self._cache_dir = cache_dir
-        self._pinned_keys = []  # (show, seq, shot)
-        self._load_pins()
-
-    def _load_pins(self) -> None:
-        """Load pinned shots from cache."""
-        cache_file = self._cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
-
-        if not cache_file.exists():
-            self._pinned_keys = []
-            return
-
-        try:
-            with cache_file.open() as f:
-                raw_data: Any = json.load(f)  # pyright: ignore[reportAny]
-
-            if not isinstance(raw_data, list):
-                self.logger.warning(f"Invalid pinned shots cache format: {type(raw_data)}")  # pyright: ignore[reportAny]
-                self._pinned_keys = []
-                return
-
-            # Cast to expected type for iteration
-            data = cast("list[dict[str, str] | list[str]]", raw_data)
-
-            # Convert stored dicts to keys
-            self._pinned_keys = []
-            for item in data:
-                if isinstance(item, dict):
-                    try:
-                        show_val = item.get("show")
-                        seq_val = item.get("sequence")
-                        shot_val = item.get("shot")
-                        if isinstance(show_val, str) and isinstance(seq_val, str) and isinstance(shot_val, str):
-                            self._pinned_keys.append((show_val, seq_val, shot_val))
-                    except (KeyError, TypeError):
-                        self.logger.warning("Invalid pinned shot entry", exc_info=True)
-                elif isinstance(item, list) and len(item) == 3:  # pyright: ignore[reportUnnecessaryIsInstance]
-                    # Also support tuple-as-list format
-                    v0, v1, v2 = item[0], item[1], item[2]
-                    # Runtime safety check - cast doesn't guarantee actual types
-                    if isinstance(v0, str) and isinstance(v1, str) and isinstance(v2, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-                        self._pinned_keys.append((v0, v1, v2))
-
-            self.logger.info(f"Loaded {len(self._pinned_keys)} pinned shots from cache")
-
-        except (json.JSONDecodeError, OSError):
-            self.logger.warning("Failed to load pinned shots", exc_info=True)
-            self._pinned_keys = []
-
-    def _save_pins(self) -> None:
-        """Save pinned shots to cache."""
-        cache_file = self._cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
-        pin_dicts = [{"show": s, "sequence": q, "shot": t} for s, q, t in self._pinned_keys]
-        try:
-            cache_file.parent.mkdir(parents=True, exist_ok=True)
-            atomic_json_write(cache_file, pin_dicts, indent=2, fsync=False)
-            self.logger.debug(f"Saved {len(self._pinned_keys)} pinned shots to cache")
-        except OSError:
-            self.logger.exception("Failed to save pinned shots")
-
+        self._store = KeyedListStore(cache_dir, PINNED_SHOTS_CACHE_KEY, self.logger)
 
     def pin_shot(self, shot: Shot) -> None:
         """Pin a shot (adds to front of list).
@@ -117,16 +56,13 @@ class ShotPinManager(LoggingMixin):
         """
         key = shot_key(shot)
 
-        # Remove if already present (will re-add at front)
-        if key in self._pinned_keys:
-            self._pinned_keys.remove(key)
+        if self._store.contains(key):
             self.logger.debug(f"Moving pinned shot to front: {shot.full_name}")
         else:
             self.logger.info(f"Pinning shot: {shot.full_name}")
 
-        # Add to front
-        self._pinned_keys.insert(0, key)
-        self._save_pins()
+        self._store.add_front(key)
+        self._store.save()
 
     def unpin_shot(self, shot: Shot) -> None:
         """Unpin a shot.
@@ -137,10 +73,9 @@ class ShotPinManager(LoggingMixin):
         """
         key = shot_key(shot)
 
-        if key in self._pinned_keys:
-            self._pinned_keys.remove(key)
+        if self._store.remove(key):
             self.logger.info(f"Unpinned shot: {shot.full_name}")
-            self._save_pins()
+            self._store.save()
 
     def is_pinned(self, shot: Shot) -> bool:
         """Check if a shot is pinned.
@@ -152,7 +87,7 @@ class ShotPinManager(LoggingMixin):
             True if shot is pinned
 
         """
-        return shot_key(shot) in self._pinned_keys
+        return self._store.contains(shot_key(shot))
 
     def is_pinned_by_path(self, workspace_path: str) -> bool:
         """Check if a shot is pinned by workspace path.
@@ -167,7 +102,7 @@ class ShotPinManager(LoggingMixin):
 
         """
         key = self._key_from_path(workspace_path)
-        return key in self._pinned_keys if key else False
+        return self._store.contains(key) if key else False
 
     def pin_by_path(self, workspace_path: str) -> None:
         """Pin a shot by workspace path.
@@ -180,14 +115,13 @@ class ShotPinManager(LoggingMixin):
         if not key:
             return
 
-        if key in self._pinned_keys:
-            self._pinned_keys.remove(key)
+        if self._store.contains(key):
             self.logger.debug(f"Moving pinned shot to front: {workspace_path}")
         else:
             self.logger.info(f"Pinning shot: {workspace_path}")
 
-        self._pinned_keys.insert(0, key)
-        self._save_pins()
+        self._store.add_front(key)
+        self._store.save()
 
     def unpin_by_path(self, workspace_path: str) -> None:
         """Unpin a shot by workspace path.
@@ -200,10 +134,9 @@ class ShotPinManager(LoggingMixin):
         if not key:
             return
 
-        if key in self._pinned_keys:
-            self._pinned_keys.remove(key)
+        if self._store.remove(key):
             self.logger.info(f"Unpinned shot: {workspace_path}")
-            self._save_pins()
+            self._store.save()
 
     def _key_from_path(self, workspace_path: str) -> tuple[str, str, str] | None:
         """Extract (show, sequence, shot) key from workspace path.
@@ -232,11 +165,7 @@ class ShotPinManager(LoggingMixin):
             Pin order (0 = most recent), or -1 if not pinned
 
         """
-        key = shot_key(shot)
-        try:
-            return self._pinned_keys.index(key)
-        except ValueError:
-            return -1
+        return self._store.index_of(shot_key(shot))
 
     def get_pinned_count(self) -> int:
         """Get the number of pinned shots.
@@ -245,10 +174,10 @@ class ShotPinManager(LoggingMixin):
             Number of pinned shots
 
         """
-        return len(self._pinned_keys)
+        return self._store.count()
 
     def clear_pins(self) -> None:
         """Clear all pinned shots."""
-        self._pinned_keys.clear()
-        self._save_pins()
+        self._store.clear()
+        self._store.save()
         self.logger.info("Cleared all pinned shots")
