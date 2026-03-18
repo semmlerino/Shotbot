@@ -779,6 +779,9 @@ class CommandLauncher(LoggingMixin, QObject):
         if not self._validate_app_name(app_name):
             return False
 
+        if app_name in ("nuke", "3de") and not self._validate_scripts_dir(app_name):
+            return False
+
         # Validate workspace before launching
         if not self._validate_workspace_before_launch(
             self.current_shot.workspace_path, app_name
@@ -806,6 +809,9 @@ class CommandLauncher(LoggingMixin, QObject):
         self.logger.debug("LaunchPhase: %s", self._phase.value)
 
         if not self._validate_app_name(app_name):
+            return False
+
+        if app_name in ("nuke", "3de") and not self._validate_scripts_dir(app_name):
             return False
 
         # Get the command
@@ -873,6 +879,9 @@ class CommandLauncher(LoggingMixin, QObject):
         self.logger.debug("LaunchPhase: %s", self._phase.value)
 
         if not self._validate_app_name(app_name):
+            return False
+
+        if app_name in ("nuke", "3de") and not self._validate_scripts_dir(app_name):
             return False
 
         # Get the command
@@ -981,6 +990,41 @@ class CommandLauncher(LoggingMixin, QObject):
                 f"Cannot launch {app_name}: No read/execute permission for: {workspace_path}"
             )
             return False
+
+        return True
+
+    def _validate_scripts_dir(self, app_name: str) -> bool:
+        """Validate Config.SCRIPTS_DIR exists for apps that depend on hook scripts.
+
+        Args:
+            app_name: Name of the application being launched.
+
+        Returns:
+            True if scripts dir is valid or app doesn't need it, False if launch should be blocked.
+
+        """
+        scripts_dir = Path(Config.SCRIPTS_DIR)
+        if not scripts_dir.is_dir():
+            self._emit_error(
+                f"Scripts directory not found: {Config.SCRIPTS_DIR}. "
+                f"{app_name} launch requires hook scripts."
+            )
+            return False
+
+        # Warn about missing app-specific hook files (non-blocking)
+        hook_files: dict[str, str] = {
+            "nuke": "init.py",
+            "3de": "3de_sgtk_context_callback.py",
+        }
+        expected_hook = hook_files.get(app_name)
+        if expected_hook and not (scripts_dir / expected_hook).exists():
+            self.logger.warning(
+                "Expected hook script %s not found in %s — "
+                "%s may launch without SGTK context",
+                expected_hook,
+                scripts_dir,
+                app_name,
+            )
 
         return True
 

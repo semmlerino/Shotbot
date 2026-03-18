@@ -526,6 +526,70 @@ class TestVerificationTimeoutCounter:
             mock_reset.assert_not_called()
 
 
+class TestScriptsDirValidation:
+    """Test _validate_scripts_dir preflight validation."""
+
+    @pytest.fixture
+    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[CommandLauncher]:
+        """Create CommandLauncher with test doubles."""
+        from launch import EnvironmentManager
+        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
+
+        launcher = CommandLauncher()
+        yield launcher
+        launcher.cleanup()
+        process_qt_events()
+
+    def test_missing_scripts_dir_blocks_nuke_launch(
+        self,
+        launcher: CommandLauncher,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Nuke launch fails when Config.SCRIPTS_DIR doesn't exist."""
+        monkeypatch.setattr(Config, "SCRIPTS_DIR", "/nonexistent/scripts")
+        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        launcher.set_current_shot(shot)
+
+        result = launcher.launch_app("nuke")
+
+        assert result is False
+
+    def test_missing_hook_file_warns_but_proceeds(
+        self,
+        launcher: CommandLauncher,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Launch proceeds with warning when hook file is missing but dir exists."""
+        monkeypatch.setattr(Config, "SCRIPTS_DIR", str(tmp_path))
+        # tmp_path exists but has no init.py
+
+        result = launcher._validate_scripts_dir("nuke")
+
+        assert result is True
+
+    def test_maya_skips_scripts_dir_validation(
+        self,
+        launcher: CommandLauncher,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Maya launch doesn't check scripts dir (doesn't use hook scripts)."""
+        monkeypatch.setattr(Config, "SCRIPTS_DIR", "/nonexistent/scripts")
+        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        launcher.set_current_shot(shot)
+
+        with (
+            patch.object(CommandLauncher, "_validate_workspace_before_launch", return_value=True),
+            patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
+            patch("launch.process_executor.subprocess.Popen") as mock_popen,
+        ):
+            mock_popen.return_value = PopenDouble(args=["maya"], returncode=0)
+            result = launcher.launch_app("maya")
+
+        assert result is True
+        process_qt_events()
+
+
 # ---------------------------------------------------------------------------
 # Property-based tests (Hypothesis)
 # ---------------------------------------------------------------------------
