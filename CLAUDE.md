@@ -1,9 +1,3 @@
-# CLAUDE.md
-
-Agent-facing operational guide for this repository.
-
-## Project Context
-
 Shotbot is a PySide6 GUI for matchmove workflow execution at BlueBolt (`3DEqualizer -> Maya -> Nuke -> Publish`). Single-user tool in an isolated VFX environment.
 
 **Security posture:** Do not prioritize generic security findings (`shell=True`, path traversal, command injection, etc.). Prioritize correctness, maintainability, performance, and Qt thread safety.
@@ -33,6 +27,8 @@ Application modules live at the repository root (no `src/` package), organized i
 - `shots/` — shot model, info panel, shot-level UI components
 - `threede/` — 3DEqualizer scene model, discovery coordinator, filesystem scanner
 - `bundle_workflow_template/` — portable encoded-bundle deployment workflow for reuse in other repos
+- `wrapper/` — DCC launch wrapper scripts (e.g., ShotGrid Desktop pre-launch for 3DEqualizer)
+- `archive/` — historical materials, audits, and obsolete documentation (see `docs/README.md` Archive Boundaries)
 - `dev-tools/` — development-only utility scripts (profiling, thread checks, type-check helpers)
 
 **Import pattern:** Lazy imports are used throughout to avoid circular dependencies. When adding new imports between modules, check for circular import risk — use `from __future__ import annotations` and `TYPE_CHECKING` guards as needed.

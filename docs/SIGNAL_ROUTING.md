@@ -12,7 +12,7 @@ If any route below is removed or changed, core behavior breaks.
 | `shot_model.shots_loaded` → `refresh_coordinator.handle_shots_loaded` | Initial data display and downstream previous-shots refresh |
 | `shot_model.shots_changed` → `refresh_coordinator.handle_shots_changed` | UI update after background refresh delta |
 | `shot_model.shots_loaded` / `shots_changed` → `refresh_coordinator.trigger_previous_shots_refresh` | Cascading previous-shots refresh after shot data changes |
-| `cache_manager.shots_migrated` -> `PreviousShotsModel._on_cache_shots_migrated` | Previous-shots tab stays in sync after migration (direct connection, bypasses MainWindow) |
+| `ShotDataCache.shots_migrated` -> `PreviousShotsModel._on_cache_shots_migrated` | Previous-shots tab stays in sync after migration (direct connection, bypasses MainWindow) |
 | `tab_widget.currentChanged` -> `shot_selection_controller.on_tab_activated` + `threede_controller.on_tab_activated` | Tab data loading and tab-specific visual state |
 | `shot_grid.app_launch_requested` -> launcher | My Shots launches in shot context |
 | `threede_shot_grid.app_launch_requested` -> scene-aware launch path | 3DE opens the selected `.3de` file; Maya/Nuke/RV must use the selected scene's workspace/context unless a DCC-native file was explicitly chosen |
@@ -38,7 +38,7 @@ These are not usually app-breaking, but regressions are user-visible:
 
 - MainWindow owns top-level cross-component routing.
 - `RefreshCoordinator` owns shot refresh handling (`shots_loaded`, `shots_changed`, `refresh_started`, `refresh_finished`).
-- `FilterCoordinator` owns show/text filter signals.
+- `BaseGridView` owns show/text filter signals (`show_filter_requested`, `text_filter_requested`); MainWindow routes them directly.
 - `ThumbnailSizeManager` owns size-slider synchronization.
 - `ThreeDEController` owns worker lifecycle and worker signal setup.
 

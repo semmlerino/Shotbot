@@ -13,7 +13,7 @@ This folder puts the required pieces in one tracked place so you can copy it int
 ## Included Files
 
 - `bundle_app.py` - Collects project files into a temporary bundle directory, then calls `transfer_cli.py`
-- `transfer_cli.py` - Compresses (bzip2) and base64-encodes the bundle directory using V2 format with per-chunk SHA-256 checksums
+- `transfer_cli.py` - Compresses (bzip2) and base64-encodes the bundle directory using V2 format with per-chunk SHA-256 checksums (note: Shotbot's production `deploy/transfer_cli.py` still uses V1/gzip; this template is forward-looking)
 - `decode_app.py` - Legacy V1 decoder (kept for reference; the production decoder is `C:\CustomScripts\Python\Base64\Transfer\decode_cli.py`)
 - `transfer_config.json` - Generic include/exclude rules for the portable workflow
 - `hooks/post-commit` - Creates the bundle after each commit and starts the background push

@@ -13,12 +13,14 @@ Shotbot deployment is bundle-based:
 
 ### 1. Post-Commit Hook (`.git/hooks/post-commit`)
 
-Runs quality checks, creates bundle artifacts, and dispatches background push.
+Runs quality checks (ruff, basedpyright, deptry), creates the bundle using V1
+format (gzip + base64), and dispatches background push.
 
 ### 2. Background Push (`.git/hooks/push_bundle_background.sh`)
 
 Uses git plumbing (`hash-object`, `mktree`, `commit-tree`, `update-ref`) to update
-`encoded-releases` without branch switching or working-tree mutation.
+`encoded-releases` without branch switching or working-tree mutation. Acquires a
+lock file (`flock`) to prevent concurrent pushes.
 
 ## Logs
 

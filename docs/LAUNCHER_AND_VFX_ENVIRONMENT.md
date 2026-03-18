@@ -73,8 +73,8 @@ The launcher exposes multiple public entrypoints with different guarantees:
 - `launch_with_file(...)`: explicit DCC-native file launch. This is the main
   path that exports file-oriented SGTK variables and startup-hook paths.
 - `launch_app_opening_scene_file(...)`: open the concrete file referenced by the
-  provided scene object. Only use this when the target DCC can consume that
-  file path directly.
+  provided scene object. Currently only 3DE is supported; non-3DE DCCs fall
+  through to a plain workspace launch without opening the scene file.
 
 ## Launch Verification
 

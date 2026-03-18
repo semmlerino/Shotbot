@@ -37,7 +37,7 @@ uv run python dev-tools/<script_name>.py
 ```
 
 The three `run_*` wrappers above are compatibility entrypoints around the current
-tooling. Prefer the canonical commands in `README.md` and `UNIFIED_TESTING_V2.md`
+tooling. Prefer the canonical commands in `CLAUDE.md` (Development Commands section)
 when you want the full, documented workflow.
 
 ## Note
