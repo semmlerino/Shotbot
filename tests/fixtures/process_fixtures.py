@@ -57,6 +57,7 @@ class _SubprocessMockState:
     def __init__(self) -> None:
         self.permissive_mode: bool = False
         self.subprocess_mock_active: bool = False
+        self._is_fallback: bool = True
 
 
 # Thread-local fallback for state access from inside mock callbacks
@@ -203,6 +204,7 @@ def mock_subprocess_popen(
     state = _SubprocessMockState()
     state.permissive_mode = is_permissive
     state.subprocess_mock_active = False
+    state._is_fallback = False
 
     # Store in thread-local for access from mock callbacks
     _set_current_state(state)
@@ -221,7 +223,7 @@ def mock_subprocess_popen(
         # Unless: permissive mode enabled OR subprocess_mock fixture is active
         current_state = _get_current_state()
         if not current_state.permissive_mode and not current_state.subprocess_mock_active:
-            raise AssertionError(
+            error_msg = (
                 f"Unexpected subprocess command: {cmd_str}\n\n"
                 f"STRICT MODE is enabled by default. To handle subprocess calls:\n"
                 f"  1. Use subprocess_mock fixture to configure expected behavior:\n"
@@ -231,6 +233,9 @@ def mock_subprocess_popen(
                 f"  2. Use @pytest.mark.real_subprocess for real subprocess execution\n"
                 f"  3. Use @pytest.mark.permissive_subprocess (DISCOURAGED - legacy opt-out)\n"
             )
+            if current_state._is_fallback:
+                error_msg += "\n(Note: this call came from a thread without test context — if intentional, use @pytest.mark.real_subprocess)"
+            raise AssertionError(error_msg)
 
         # Check if text mode requested (text=True, encoding=..., or universal_newlines=True)
         text_mode = (
@@ -274,13 +279,16 @@ def mock_subprocess_popen(
         # STRICT MODE: Fail on unexpected subprocess.run calls
         current_state = _get_current_state()
         if not current_state.permissive_mode and not current_state.subprocess_mock_active:
-            raise AssertionError(
+            error_msg = (
                 f"Unexpected subprocess.run command: {cmd_str}\n\n"
                 f"STRICT MODE is enabled by default. To handle subprocess.run calls:\n"
                 f"  1. Use subprocess_mock fixture to configure expected behavior\n"
                 f"  2. Use @pytest.mark.real_subprocess for real subprocess execution\n"
                 f"  3. Use @pytest.mark.permissive_subprocess (DISCOURAGED - legacy opt-out)\n"
             )
+            if current_state._is_fallback:
+                error_msg += "\n(Note: this call came from a thread without test context — if intentional, use @pytest.mark.real_subprocess)"
+            raise AssertionError(error_msg)
 
         # Check if text mode requested
         text_mode = (

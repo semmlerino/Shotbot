@@ -53,9 +53,7 @@ class TestShotInfoPanelAsyncLoading:
         """Create ShotInfoPanel with test cache manager."""
         panel = ShotInfoPanel(test_cache_manager)
         qtbot.addWidget(panel)  # OK to add QWidget to qtbot
-        yield panel
-        panel.deleteLater()
-        qtbot.wait(1)
+        return panel
 
     @pytest.fixture
     def test_shot(
@@ -218,9 +216,7 @@ class TestShotInfoPanelCore:
         """Create basic ShotInfoPanel."""
         panel = ShotInfoPanel()
         qtbot.addWidget(panel)
-        yield panel
-        panel.deleteLater()
-        qtbot.wait(1)
+        return panel
 
     def test_panel_initialization(self, info_panel: ShotInfoPanel) -> None:
         """Test panel initializes correctly."""

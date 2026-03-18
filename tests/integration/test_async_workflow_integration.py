@@ -154,7 +154,6 @@ class TestAsyncWorkflowIntegration:
         get_tracker().wait_for_all(timeout_ms=2000)
         item_model.clear_thumbnail_cache()
         item_model.deleteLater()
-        info_panel.deleteLater()
 
     def test_concurrent_model_updates_with_panel_sync(
         self,
@@ -410,27 +409,23 @@ class TestAsyncCallbackIntegration:
         # Mock get_thumbnail_path to return the test image
         monkeypatch.setattr(Shot, "get_thumbnail_path", lambda _: image_path)  # type: ignore[misc]
 
-        try:
-            # Create test shots
-            shots: list[Shot] = []
-            for i in range(3):
-                shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
-                shots.append(shot)
+        # Create test shots
+        shots: list[Shot] = []
+        for i in range(3):
+            shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
+            shots.append(shot)
 
-            # Rapidly cycle through shots
-            for shot in shots:
-                panel.set_shot(shot)
-                qtbot.wait(1)  # Minimal event processing
+        # Rapidly cycle through shots
+        for shot in shots:
+            panel.set_shot(shot)
+            qtbot.wait(1)  # Minimal event processing
 
-            # Wait for panel to stabilize on final shot
-            qtbot.waitUntil(
-                lambda: panel._current_shot == shots[-1],
-                timeout=2000
-            )
+        # Wait for panel to stabilize on final shot
+        qtbot.waitUntil(
+            lambda: panel._current_shot == shots[-1],
+            timeout=2000
+        )
 
-            # Panel should show the last shot
-            assert panel._current_shot == shots[-1]
-            assert shots[-1].shot in panel.shot_name_label.text()
-
-        finally:
-            panel.deleteLater()
+        # Panel should show the last shot
+        assert panel._current_shot == shots[-1]
+        assert shots[-1].shot in panel.shot_name_label.text()

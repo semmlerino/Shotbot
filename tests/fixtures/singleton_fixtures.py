@@ -2,7 +2,7 @@
 
 Consolidated from:
 - singleton_registry.py:  SingletonRegistry class, known singleton registrations
-- singleton_isolation.py: reset_caches (autouse), reset_singletons, cleanup_state_heavy
+- singleton_isolation.py: reset_caches (autouse), reset_singletons
 
 Classes:
     SingletonRegistry: Central registry for all resettable singletons
@@ -10,7 +10,6 @@ Classes:
 Fixtures:
     reset_caches (autouse): Lightweight cleanup for ALL tests
     reset_singletons:       Heavy cleanup for Qt tests
-    cleanup_state_heavy:    Alias for reset_singletons (backward compatibility)
 """
 
 from __future__ import annotations
@@ -63,6 +62,8 @@ class SingletonRegistry:
 
     # Static registry - populated at import time
     _entries: ClassVar[list[SingletonEntry]] = []
+    # Class-level cache to avoid redundant import_module() calls
+    _class_cache: ClassVar[dict[str, type | None]] = {}
 
     @classmethod
     def register(
@@ -120,12 +121,21 @@ class SingletonRegistry:
             The class, or None if import failed
 
         """
+        # Check cache first to avoid redundant import_module() calls
+        if import_path in cls._class_cache:
+            _logger.debug("Cache hit for %s", import_path)
+            return cls._class_cache[import_path]
+
+        # Cache miss - import and store result (including None for failed imports)
         try:
             module_name, class_name = import_path.rsplit(".", 1)
             module = import_module(module_name)
-            return getattr(module, class_name)
+            result = getattr(module, class_name)
+            cls._class_cache[import_path] = result
+            return result
         except (ImportError, AttributeError, ValueError) as e:
             _logger.debug("Failed to import %s: %s", import_path, e)
+            cls._class_cache[import_path] = None
             return None
 
     @classmethod
@@ -189,6 +199,7 @@ class SingletonRegistry:
     def clear(cls) -> None:
         """Clear all entries (for testing the registry itself)."""
         cls._entries.clear()
+        cls._class_cache.clear()
 
     @classmethod
     def verify_all_singletons_registered(cls) -> list[str]:
@@ -582,7 +593,3 @@ def reset_singletons(reset_caches: None) -> Iterator[None]:
             UserWarning,
             stacklevel=2,
         )
-
-
-# Backward compatibility alias
-cleanup_state_heavy = reset_singletons

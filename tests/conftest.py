@@ -392,7 +392,7 @@ def _qt_auto_fixtures(request: pytest.FixtureRequest) -> None:
 
     if is_qt_test:
         request.getfixturevalue("qt_cleanup")
-        request.getfixturevalue("cleanup_state_heavy")
+        request.getfixturevalue("reset_singletons")
         request.getfixturevalue("suppress_qmessagebox")
         request.getfixturevalue("prevent_qapp_exit")
 

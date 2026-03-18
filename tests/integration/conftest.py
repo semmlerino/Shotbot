@@ -24,7 +24,7 @@ def pytest_collection_modifyitems(
 
 
 # NOTE: Singleton isolation is handled by reset_caches autouse fixture +
-# _qt_auto_fixtures dispatcher (activates qt_cleanup and cleanup_state_heavy
+# _qt_auto_fixtures dispatcher (activates qt_cleanup and reset_singletons
 # for detected Qt tests). See tests/conftest.py.
 
 
