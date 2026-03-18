@@ -9,19 +9,18 @@ This document captures behavior and invariants, not full API listings.
 |------|----------|-----------|----------|
 | My Shots | `~/.shotbot/cache/production/shots.json` | TTL-based (30 min) | Replaced on refresh |
 | Previous Shots | `~/.shotbot/cache/production/previous_shots.json` | Persistent | Incremental accumulation |
-| Other 3DE Scenes | `~/.shotbot/cache/production/threede_scenes.json` | Persistent + incremental merge | Merge fresh scan with cached history; dedupe best scene per shot; prune stale entries by age |
+| Other 3DE Scenes | `~/.shotbot/cache/production/threede_scenes.json` | Persistent | Replaced on refresh; dedupe best scene per shot |
 | Latest Files | `~/.shotbot/cache/production/latest_files.json` | TTL-based (5 min) | Workspace/file-type lookup for latest Maya/3DE path |
 | Migrated Shots | `~/.shotbot/cache/production/migrated_shots.json` | Persistent | Tracks shot migration history for Previous Shots sync |
 | Thumbnails | `~/.shotbot/cache/production/thumbnails/...` | Persistent | Reuse cached JPEG thumbnails |
 
 ## In-Memory Caches
 
-- `SceneCache`: short-lived scene-discovery cache to reduce repeated lookups.
 - `FilesystemCoordinator._directory_cache`: in-memory directory-listing cache used to reduce repeated filesystem metadata reads.
 
 ## Key Invariants
 
-1. 3DE scene cache merge is orchestrated by `ThreeDESceneModel` before writing; `SceneDiskCache.cache_threede_scenes()` performs a replace write.
+1. 3DE scene cache write is orchestrated by `ThreeDEController`, which deduplicates scenes and passes them to `SceneDiskCache.cache_threede_scenes()` for a replace write.
 2. Deduplication occurs after merge so best available scene survives.
 3. Thumbnail cache writes are non-blocking in UI paths.
 4. TTL caches may return stale/empty results by design; callers must handle cache miss paths.
@@ -32,7 +31,6 @@ This document captures behavior and invariants, not full API listings.
 
 - cache update events (`cache_updated`)
 - shot migration events (`shots_migrated` on `ShotDataCache`)
-- cache-write failure events (`cache_write_failed`)
 
 Changes to cache write paths should preserve these signals.
 

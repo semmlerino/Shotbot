@@ -17,15 +17,21 @@ Application modules live at the repository root (no `src/` package), organized i
 - `deploy/` — bundle, encode, and decode for deployment pipeline
 - `dcc/` — DCC file table and integration components
 - `discovery/` — file/thumbnail/plate discovery, latest-file finding, scene parsing, filesystem scanning
+- `nuke/` — Nuke launch routing, script generation, workspace management
 - `launch/` — DCC launcher implementations, command launching, RV integration
 - `commands/` — command builders for DCC execution
+- `managers/` — persistence managers (pins, notes, hide, settings, notifications, progress)
 - `workers/` — threading infrastructure (ThreadSafeWorker, ProcessPoolManager, QRunnableTracker, diagnostics)
 - `paths/` — path construction, validation, and filesystem coordination
+- `previous_shots/` — previous-shots model and persistence
 - `ui/` — base grid views, item models, delegates, design system, dialogs
 - `tests/` — test suite (`unit/`, `integration/`, `advanced/`, `regression/`)
 - `tests/fixtures/` — shared fixture modules (see `tests/fixtures/README.md`)
 - `docs/` — architecture and design documentation
 - `scripts/` — VFX tool scripts (tde4, sgtk, Nuke hooks)
+- `scrub/` — hover-to-scrub frame preview system
+- `shots/` — shot model, info panel, shot-level UI components
+- `threede/` — 3DEqualizer scene model, discovery coordinator, filesystem scanner
 
 **Import pattern:** Lazy imports are used throughout to avoid circular dependencies. When adding new imports between modules, check for circular import risk — use `from __future__ import annotations` and `TYPE_CHECKING` guards as needed.
 

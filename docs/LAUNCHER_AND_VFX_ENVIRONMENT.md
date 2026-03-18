@@ -6,7 +6,7 @@ This document defines launcher behavior assumptions for the BlueBolt environment
 
 `CommandLauncher` is the production entrypoint for DCC launches with shot context.
 It coordinates workspace setup, environment handling, and app dispatch.
-Internally, it delegates to the `launch/` subpackage: `CommandBuilder`, `EnvironmentManager`, `ProcessExecutor`, and `ProcessVerifier`.
+Internally, it delegates to the `launch/` subpackage: `CommandBuilder`, `EnvironmentManager`, `ProcessExecutor`, and `FileSearchCoordinator`.
 
 Supported DCCs: `3de`, `maya`, `nuke`, `rv`, `publish`.
 
@@ -75,10 +75,6 @@ The launcher exposes multiple public entrypoints with different guarantees:
 - `launch_app_opening_scene_file(...)`: open the concrete file referenced by the
   provided scene object. Only use this when the target DCC can consume that
   file path directly.
-- `launch_app_with_workspace_context(...)`: borrow workspace/context from a
-  `ThreeDEScene` without passing the `.3de` file path to the target DCC. This
-  is the correct route for Nuke, Maya, and RV when launched from a 3DE scene
-  selection unless a DCC-native file was explicitly chosen.
 
 ## Best-Practice Guidance
 

@@ -12,6 +12,7 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 | `environment_fixtures.py` | No | `temp_shows_root`, `isolated_cache_manager` | Temporary paths and isolated cache instances |
 | `model_fixtures.py` | No | `make_test_shot`, `sample_shot_data`, `test_thde_scene` | Factories for building test data objects |
 | `test_doubles.py` | No | `TestProcessPool`, `TestSubprocess`, `PopenDouble` | Test doubles for subprocess and process pool |
+| `mock_workspace_pool.py` | No | `MockWorkspacePool`, `create_mock_pool_from_filesystem` | Mock VFX workspace pool for filesystem testing |
 
 ## Session-Scoped (in conftest.py)
 

@@ -9,7 +9,6 @@ This index separates active documentation from historical artifacts.
 
 ## Active Documentation
 
-- `UNIFIED_TESTING_V2.md` - Canonical testing guidance (Qt rules, isolation, parallel execution)
 - `docs/SKYLOS_DEAD_CODE_DETECTION.md` - Canonical Skylos workflow and dead-code triage guidance
 - `docs/DEPLOYMENT_SYSTEM.md` - Bundle/deployment workflow and operational recovery
 - `bundle_workflow_template/README.md` - Portable copy of the encoded-bundle workflow for reuse in another repository
@@ -29,6 +28,7 @@ This index separates active documentation from historical artifacts.
 
 - `docs/archive/` and `archive/` are historical material (audits, plans, reports, prior analyses).
 - Do not treat archived documents as current behavior unless explicitly revalidated.
+- `docs/skylos-dead-code-audit-2026-03-03.md` — historical audit snapshot (2026-03-03)
 
 ## Maintenance Rule
 

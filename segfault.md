@@ -119,7 +119,7 @@ Re-run the minimal failing case.
 If needed:
 
 ```bash
-gdb --args .venv/bin/python -m pytest <minimal tests> -x -vv
+gdb --args $(which python) -m pytest <minimal tests> -x -vv
 run
 bt
 ```

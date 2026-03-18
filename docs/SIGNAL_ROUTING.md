@@ -9,9 +9,9 @@ If any route below is removed or changed, core behavior breaks.
 
 | Route | Required behavior |
 |-------|-------------------|
-| `shot_model.shots_loaded` → `refresh_orchestrator.handle_shots_loaded` | Initial data display and downstream previous-shots refresh |
-| `shot_model.shots_changed` → `refresh_orchestrator.handle_shots_changed` | UI update after background refresh delta |
-| `cache_manager.shots_migrated` -> MainWindow handler | Previous-shots tab stays in sync after migration |
+| `shot_model.shots_loaded` → `refresh_coordinator.handle_shots_loaded` | Initial data display and downstream previous-shots refresh |
+| `shot_model.shots_changed` → `refresh_coordinator.handle_shots_changed` | UI update after background refresh delta |
+| `cache_manager.shots_migrated` -> `PreviousShotsModel._on_cache_shots_migrated` | Previous-shots tab stays in sync after migration (direct connection, bypasses MainWindow) |
 | `tab_widget.currentChanged` -> tab-change handler | Tab data loading and tab-specific visual state |
 | `shot_grid.app_launch_requested` -> launcher | My Shots launches in shot context |
 | `threede_shot_grid.app_launch_requested` -> scene-aware launch path | 3DE opens the selected `.3de` file; Maya/Nuke/RV must use the selected scene's workspace/context unless a DCC-native file was explicitly chosen |
@@ -36,7 +36,7 @@ These are not usually app-breaking, but regressions are user-visible:
 ## Ownership Boundaries
 
 - MainWindow owns top-level cross-component routing.
-- `RefreshOrchestrator` owns shot refresh handling (`shots_loaded`, `shots_changed`, `refresh_started`, `refresh_finished`).
+- `RefreshCoordinator` owns shot refresh handling (`shots_loaded`, `shots_changed`, `refresh_started`, `refresh_finished`).
 - `FilterCoordinator` owns show/text filter signals.
 - `ThumbnailSizeManager` owns size-slider synchronization.
 - `ThreeDEController` owns worker lifecycle and worker signal setup.

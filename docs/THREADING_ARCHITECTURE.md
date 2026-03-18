@@ -14,8 +14,8 @@ Shotbot uses three mechanisms:
 ## Core Components
 
 - `ThreadSafeWorker`: lifecycle/state machine, safe signal connection helpers, stop/terminate safety.
-  - Subclasses: `AsyncShotLoader`, `ThreeDESceneWorker`, `LatestFileFinderWorker`, `PreviousShotsWorker`, `SessionWarmer`.
-- `ThreeDEController`: owns `ThreeDESceneWorker` lifecycle.
+  - Subclasses: `AsyncShotLoader`, `ThreeDESceneWorker`, `LatestFileFinderWorker`, `PreviousShotsWorker`, `StartupCoordinator`.
+- `ThreeDEWorkerManager`: owns `ThreeDESceneWorker` lifecycle (created by `ThreeDEController`).
 - `ProcessPoolManager`: singleton executor for subprocess-heavy operations.
 - `SceneDiscoveryCoordinator`: parallel filesystem scanning orchestration.
 
@@ -38,9 +38,9 @@ Shotbot uses three mechanisms:
 
 | Mechanism | When to Use | Codebase Examples |
 |-----------|-------------|-------------------|
-| `QThread` via `ThreadSafeWorker` | Long-lived, cancellable work needing Qt signal integration and lifecycle control (start/stop/pause) | `AsyncShotLoader` (shot data refresh), `ThreeDESceneWorker` (scene discovery), `LatestFileFinderWorker` (file search), `PreviousShotsWorker` (approved shot scan), `SessionWarmer` (startup preloading) |
+| `QThread` via `ThreadSafeWorker` | Long-lived, cancellable work needing Qt signal integration and lifecycle control (start/stop/pause) | `AsyncShotLoader` (shot data refresh), `ThreeDESceneWorker` (scene discovery), `LatestFileFinderWorker` (file search), `PreviousShotsWorker` (approved shot scan), `StartupCoordinator` (startup preloading) |
 | `ThreadPoolExecutor` via `ProcessPoolManager` | Subprocess execution and filesystem I/O parallelism; no Qt object access allowed | `ws -sg` command execution, parallel show scanning in `SceneDiscoveryCoordinator`, process verification |
-| `QRunnable` via `TrackedQRunnable` | Short, fire-and-forget Qt-adjacent tasks dispatched to `QThreadPool.globalInstance()` | `ThumbnailLoadRunnable` (background image loading), `ThumbnailUnloadRunnable` (deferred cleanup) |
+| `QRunnable` via `TrackedQRunnable` | Short, fire-and-forget Qt-adjacent tasks dispatched to `QThreadPool.globalInstance()` | `_ThumbnailLoaderRunnable` (background image loading), `ThumbnailCacheLoader` (cache warming), `FrameExtractionRunnable` (scrub frame loading) |
 
 **Decision checklist:**
 1. Does the task need to be cancelled mid-execution? → `QThread` (`ThreadSafeWorker`)
