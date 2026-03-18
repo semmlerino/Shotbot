@@ -312,6 +312,114 @@ def get_tinted_background(accent: str, base: str = "#252525", blend: float = 0.1
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
+TAB_BAR_STYLESHEET = """
+    /* Tab bar - disable focus indicators */
+    QTabBar {
+        qproperty-drawBase: 0;
+    }
+
+    /* Base tab styling - professional proportions */
+    QTabBar::tab {
+        min-width: 120px;
+        font-size: 16px;
+        font-weight: 400;
+        border: none;
+        outline: none;
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+        border-bottom-left-radius: 0px;
+        border-bottom-right-radius: 0px;
+    }
+
+    /* Disable focus indicators */
+    QTabBar::tab:focus {
+        outline: none;
+        border: none;
+    }
+
+    /* Inactive tabs - subtle and recessed */
+    QTabBar::tab:!selected {
+        background: rgba(50, 50, 50, 1.0);
+        color: rgba(180, 180, 180, 1.0);
+        padding: 10px 28px 12px 28px;
+        margin-top: 4px;
+        margin-bottom: 0px;
+        margin-left: 0px;
+        margin-right: 1px;
+        border-top: 2px solid rgba(80, 80, 80, 1.0);
+    }
+
+    /* Tab 0 (My Shots) - Blue accent when inactive */
+    QTabBar::tab:!selected:first {
+        border-top: 2px solid rgba(100, 150, 200, 0.3);
+    }
+
+    /* Tab 1 (Other 3DE) - Cyan accent when inactive */
+    QTabBar::tab:!selected:middle {
+        border-top: 2px solid rgba(80, 180, 190, 0.3);
+    }
+
+    /* Tab 2 (Previous Shots) - Purple accent when inactive */
+    QTabBar::tab:!selected:last {
+        border-top: 2px solid rgba(150, 100, 180, 0.3);
+        margin-right: 0px;
+    }
+
+    /* Selected tab - elevated, no border, no outline */
+    QTabBar::tab:selected {
+        background: rgba(65, 65, 65, 1.0);
+        color: rgba(240, 240, 240, 1.0);
+        padding: 12px 28px 14px 28px;
+        margin-top: 0px;
+        margin-bottom: -2px;
+        margin-left: 0px;
+        margin-right: 1px;
+        border: 0px solid transparent;
+        border-top: 0px solid transparent;
+        border-bottom: 0px solid transparent;
+        border-left: 0px solid transparent;
+        border-right: 0px solid transparent;
+        outline: 0px solid transparent;
+    }
+
+    /* Override any inherited borders for selected tabs */
+    QTabBar::tab:selected:first {
+        border: 0px solid transparent;
+        outline: 0px solid transparent;
+    }
+
+    QTabBar::tab:selected:middle {
+        border: 0px solid transparent;
+        outline: 0px solid transparent;
+    }
+
+    QTabBar::tab:selected:last {
+        border: 0px solid transparent;
+        outline: 0px solid transparent;
+    }
+
+    /* Remove focus indicators from selected tabs */
+    QTabBar::tab:selected:focus {
+        outline: none;
+        border: none;
+    }
+
+    QTabBar::tab:selected:first:focus {
+        outline: none;
+        border: none;
+    }
+
+    QTabBar::tab:selected:middle:focus {
+        outline: none;
+        border: none;
+    }
+
+    QTabBar::tab:selected:last:focus {
+        outline: none;
+        border: none;
+    }
+"""
+
 # Global instance
 design_system = DesignSystem()
 

@@ -1,47 +1,4 @@
-"""Main window for ShotBot application.
-
-This module contains the MainWindow class, which serves as the primary user interface
-for the ShotBot VFX shot browsing and launcher application. The MainWindow integrates
-all core components including shot grids, 3DE scene discovery, and application management.
-
-The MainWindow follows a tabbed interface design with:
-- My Shots: Visual grid of user's assigned shots with thumbnails
-- Other 3DE scenes: Grid of discovered 3DE scenes from user directories
-- Shot Info: Details panel showing current shot information
-
-Key Features:
-    - Real-time shot data refresh with caching
-    - Background 3DE scene discovery with progress reporting
-    - Persistent UI state and settings storage
-    - Memory-optimized thumbnail loading and caching
-    - Cross-platform file system operations
-
-Architecture:
-    The MainWindow uses Qt's signal-slot mechanism for loose coupling between
-    components. It maintains domain-specific cache managers (ThumbnailCache,
-    ShotDataCache, SceneDiskCache, LatestFileCache) coordinated through a
-    CacheCoordinator for memory efficiency. Thread safety is ensured through
-    proper mutex usage and state management.
-
-Examples:
-    Basic usage:
-        >>> from main_window import MainWindow
-        >>> window = MainWindow()
-        >>> window.show()
-
-    With custom configuration:
-        >>> from config import Config
-        >>> Config.DEFAULT_THUMBNAIL_SIZE = 250
-        >>> window = MainWindow()
-        >>> window.resize(1600, 1000)
-        >>> window.show()
-
-Type Safety:
-    This module uses comprehensive type annotations with Optional types for
-    nullable Qt widgets and proper signal type declarations. All public methods
-    include full type hints for parameters and return values.
-
-"""
+"""Main window for ShotBot — signal wiring, controller coordination, and lifecycle."""
 
 from __future__ import annotations
 
@@ -49,29 +6,22 @@ from __future__ import annotations
 import os
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast, final
+from typing import TYPE_CHECKING, Any, final
 
 # Third-party imports
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QMainWindow,
-    QMessageBox,
     QSplitter,
     QStatusBar,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from managers.file_pin_manager import FilePinManager
-from managers.hide_manager import HideManager
-from managers.notes_manager import NotesManager
-from managers.shot_pin_manager import ShotPinManager
 from typing_compat import override
 from ui.qt_widget_mixin import (
     require_main_thread,
@@ -81,172 +31,42 @@ from ui.qt_widget_mixin import (
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QByteArray
-
-    from dcc.scene_file import SceneFile
-    from launch.command_launcher import CommandLauncher
-    from protocols import ProcessPoolInterface
-    from type_definitions import Shot, ThreeDEScene
+    from PySide6.QtGui import QCloseEvent
 
     # Local application imports
-    from ui.base_shot_model import BaseShotModel  # used in cast()
+    from previous_shots import PreviousShotsItemModel
+    from threede import ThreeDEItemModel
+    from type_definitions import Shot, ThreeDEScene
     from ui.settings_dialog import SettingsDialog
+    from workers.startup_coordinator import StartupCoordinator
 
 # Runtime imports (needed at runtime)
 # Local application imports
-from cache import (
-    CacheCoordinator,
-    LatestFileCache,
-    SceneDiskCache,
-    ShotDataCache,
-    ThumbnailCache,
-    resolve_default_cache_dir,
-)
+from app_services import build_infrastructure, build_models
 from config import Config, is_mock_mode
 from controllers.filter_coordinator import FilterCoordinator
-from controllers.refresh_coordinator import (
-    RefreshCoordinator,  # Extracted refresh logic
-)
-from controllers.settings_controller import (
-    SettingsController,  # Refactored settings handling
-)
 from controllers.shot_selection_controller import (
     ShotSelectionController,  # Refactored shot selection management
 )
+from controllers.startup_orchestrator import StartupOrchestrator
 from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
 from controllers.thumbnail_size_manager import ThumbnailSizeManager
 from dcc.scene_file import SceneFile
-from launch.command_launcher import CommandLauncher  # Need at runtime
 from logging_mixin import LoggingMixin, get_module_logger
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
-from managers.settings_manager import SettingsManager
-from previous_shots import PreviousShotsItemModel, PreviousShotsModel, PreviousShotsView
-from shots.shot_grid_view import ShotGridView  # Model/View implementation
-from shots.shot_item_model import ShotItemModel
-from shots.shot_model import ShotModel
-from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
 from timeout_config import TimeoutConfig
-from ui.design_system import design_system
 from ui.log_viewer import LogViewer
-from ui.proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
+from ui.menu_builder import build_menu
 from ui.qt_widget_mixin import QtWidgetMixin
 from ui.right_panel import RightPanelWidget  # New redesigned right panel
-from workers.process_pool_manager import ProcessPoolManager
-from workers.startup_coordinator import StartupCoordinator
+from ui.tab_factory import build_tabs
 
 
 # Set up logger for this module
 logger = get_module_logger(__name__)
-
-_TAB_BAR_STYLESHEET = """
-    /* Tab bar - disable focus indicators */
-    QTabBar {
-        qproperty-drawBase: 0;
-    }
-
-    /* Base tab styling - professional proportions */
-    QTabBar::tab {
-        min-width: 120px;
-        font-size: 16px;
-        font-weight: 400;
-        border: none;
-        outline: none;
-        border-top-left-radius: 4px;
-        border-top-right-radius: 4px;
-        border-bottom-left-radius: 0px;
-        border-bottom-right-radius: 0px;
-    }
-
-    /* Disable focus indicators */
-    QTabBar::tab:focus {
-        outline: none;
-        border: none;
-    }
-
-    /* Inactive tabs - subtle and recessed */
-    QTabBar::tab:!selected {
-        background: rgba(50, 50, 50, 1.0);
-        color: rgba(180, 180, 180, 1.0);
-        padding: 10px 28px 12px 28px;
-        margin-top: 4px;
-        margin-bottom: 0px;
-        margin-left: 0px;
-        margin-right: 1px;
-        border-top: 2px solid rgba(80, 80, 80, 1.0);
-    }
-
-    /* Tab 0 (My Shots) - Blue accent when inactive */
-    QTabBar::tab:!selected:first {
-        border-top: 2px solid rgba(100, 150, 200, 0.3);
-    }
-
-    /* Tab 1 (Other 3DE) - Cyan accent when inactive */
-    QTabBar::tab:!selected:middle {
-        border-top: 2px solid rgba(80, 180, 190, 0.3);
-    }
-
-    /* Tab 2 (Previous Shots) - Purple accent when inactive */
-    QTabBar::tab:!selected:last {
-        border-top: 2px solid rgba(150, 100, 180, 0.3);
-        margin-right: 0px;
-    }
-
-    /* Selected tab - elevated, no border, no outline */
-    QTabBar::tab:selected {
-        background: rgba(65, 65, 65, 1.0);
-        color: rgba(240, 240, 240, 1.0);
-        padding: 12px 28px 14px 28px;
-        margin-top: 0px;
-        margin-bottom: -2px;
-        margin-left: 0px;
-        margin-right: 1px;
-        border: 0px solid transparent;
-        border-top: 0px solid transparent;
-        border-bottom: 0px solid transparent;
-        border-left: 0px solid transparent;
-        border-right: 0px solid transparent;
-        outline: 0px solid transparent;
-    }
-
-    /* Override any inherited borders for selected tabs */
-    QTabBar::tab:selected:first {
-        border: 0px solid transparent;
-        outline: 0px solid transparent;
-    }
-
-    QTabBar::tab:selected:middle {
-        border: 0px solid transparent;
-        outline: 0px solid transparent;
-    }
-
-    QTabBar::tab:selected:last {
-        border: 0px solid transparent;
-        outline: 0px solid transparent;
-    }
-
-    /* Remove focus indicators from selected tabs */
-    QTabBar::tab:selected:focus {
-        outline: none;
-        border: none;
-    }
-
-    QTabBar::tab:selected:first:focus {
-        outline: none;
-        border: none;
-    }
-
-    QTabBar::tab:selected:middle:focus {
-        outline: none;
-        border: none;
-    }
-
-    QTabBar::tab:selected:last:focus {
-        outline: none;
-        border: none;
-    }
-"""
 
 
 @final
@@ -264,10 +84,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     # are torn down.  Controllers listen to this instead of polling a flag.
     closing_started: Signal = Signal()
 
-    # Timer delays for UI paint and event loop yields (milliseconds)
-    _PAINT_YIELD_MS: int = 500  # Delay to let Qt paint initial UI before refresh
-    _EVENT_LOOP_YIELD_MS: int = 100  # Delay to yield to event loop between operations
-
     @require_main_thread
     def __init__(
         self,
@@ -275,19 +91,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         *,
         cache_dir: Path | None = None,
     ) -> None:
-        # === Initialization Order (do not reorder) ===
-        # 1. Thread/app safety checks (lines below)
-        # 2. super().__init__() — QMainWindow + LoggingMixin
-        # 3. Infrastructure: ProcessPool, CacheCoordinator, ShotPinManager, NotesManager,
-        #    FilePinManager, RefreshCoordinator, SettingsManager
-        # 4. Models: ThreeDEItemModel, ShotModel (+ async init), ThreeDESceneModel,
-        #    PreviousShotsModel, CommandLauncher
-        # 5. _setup_ui() — MUST precede controller init (controllers reference widgets)
-        # 6. Controllers: ThreeDEController, ShotSelectionController,
-        #    FilterCoordinator, ThumbnailSizeManager
-        # 7. _setup_menu(), _setup_accessibility(), _connect_signals()
-        # 8. settings_controller.load_settings(), _restore_sort_orders()
-        # 9. _initial_load() — deferred data loading with QTimer scheduling
+        # Initialization order matters — see app_services.py and controllers/startup_orchestrator.py
 
         from PySide6.QtCore import QCoreApplication
 
@@ -313,8 +117,33 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         super().__init__(parent)
 
-        self._init_infrastructure(cache_dir)
-        self._init_models()
+        # Build infrastructure and models via factories
+        infra = build_infrastructure(cache_dir, parent=self)
+        models = build_models(infra, parent=self)
+
+        # Store infrastructure references
+        self._process_pool = infra.process_pool
+        self.thumbnail_cache = infra.thumbnail_cache
+        self.shot_cache = infra.shot_cache
+        self.scene_disk_cache = infra.scene_disk_cache
+        self.latest_file_cache = infra.latest_file_cache
+        self.cache_coordinator = infra.cache_coordinator
+        self.pin_manager = infra.pin_manager
+        self.hide_manager = infra.hide_manager
+        self.notes_manager = infra.notes_manager
+        self.file_pin_manager = infra.file_pin_manager
+        self.refresh_coordinator = infra.refresh_coordinator
+        self.settings_manager = infra.settings_manager
+        self.settings_controller = infra.settings_controller
+        self.settings_dialog: SettingsDialog | None = None
+
+        # Store model references
+        self.shot_model = models.shot_model
+        self.threede_scene_model = models.threede_scene_model
+        self.threede_item_model = models.threede_item_model
+        self.previous_shots_model = models.previous_shots_model
+        self.command_launcher = models.command_launcher
+
         self._closing = False  # Track shutdown state
         self._session_warmer: StartupCoordinator | None = None
         self._last_selected_shot_name: str | None = None
@@ -327,7 +156,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Skip initial load in test environments if requested
         if not os.environ.get("SHOTBOT_NO_INITIAL_LOAD"):
-            self._initial_load()
+            startup = StartupOrchestrator(self, self._process_pool)
+            startup.execute()
+            self._session_warmer = startup.session_warmer
 
         # No longer need periodic background polling for shots - they use reactive signals now
         # One-shot timers during initialization are still used for async loading
@@ -339,76 +170,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.logger.info("MainWindow.__init__() COMPLETE - returning to Qt event loop")
         self.logger.info("=" * 60)
 
-
-    def _init_infrastructure(self, cache_dir: Path | None) -> None:
-        """Initialize process pool, caches, managers, and settings infrastructure."""
-        self._process_pool: ProcessPoolInterface
-        if is_mock_mode():
-            from tests.fixtures.mock_workspace_pool import (
-                create_mock_pool_from_filesystem,
-            )
-
-            self._process_pool = create_mock_pool_from_filesystem()
-            self.logger.info("Using MockWorkspacePool for process execution")
-        else:
-            self._process_pool = ProcessPoolManager.get_instance()
-            self.logger.info("Using ProcessPoolManager for process execution")
-
-        # Resolve cache directory
-        _cache_dir = cache_dir if cache_dir is not None else resolve_default_cache_dir()
-        _cache_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create domain-specific cache managers
-        self.thumbnail_cache = ThumbnailCache(_cache_dir)
-        self.shot_cache = ShotDataCache(_cache_dir)
-        self.scene_disk_cache = SceneDiskCache(_cache_dir)
-        self.latest_file_cache = LatestFileCache(_cache_dir)
-        self.cache_coordinator = CacheCoordinator(
-            _cache_dir,
-            self.thumbnail_cache,
-            self.shot_cache,
-            self.scene_disk_cache,
-            self.latest_file_cache,
-            on_cleared=lambda: self._process_pool.invalidate_cache(),
-        )
-
-        self.pin_manager = ShotPinManager(_cache_dir)
-        self.hide_manager = HideManager(_cache_dir)
-        self.notes_manager = NotesManager(_cache_dir, parent=self)
-        self.file_pin_manager = FilePinManager(_cache_dir, parent=self)
-
-        self.refresh_coordinator = RefreshCoordinator(self)
-
-        self.settings_manager = SettingsManager()
-        saved_scale = self.settings_manager.get_ui_scale()
-        design_system.set_ui_scale(saved_scale)
-        self.settings_dialog: SettingsDialog | None = None
-
-        self.settings_controller = SettingsController(self)
-
-    def _init_models(self) -> None:
-        """Initialize data models and command launcher."""
-        self.threede_item_model = ThreeDEItemModel(cache_manager=self.thumbnail_cache)
-
-        self.logger.info("Creating ShotModel with 366x faster startup")
-        self.shot_model = ShotModel(self.shot_cache, process_pool=self._process_pool)
-        init_result = self.shot_model.initialize_async()
-        if init_result.success:
-            cached_count = len(self.shot_model.shots)
-            self.logger.debug(f"Model initialized: {cached_count} shots in memory")
-
-        self.threede_scene_model = ThreeDESceneModel(self.scene_disk_cache)
-        # Cast to BaseShotModel for type safety (ShotModel inherits from BaseShotModel)
-        self.previous_shots_model = PreviousShotsModel(
-            cast("BaseShotModel", self.shot_model),
-            self.shot_cache,
-        )
-
-        self.command_launcher = CommandLauncher(
-            parent=self,
-            settings_manager=self.settings_manager,
-            cache_manager=self.latest_file_cache,
-        )
 
     def _init_controllers(self) -> None:
         """Initialize controllers that require UI widgets to be set up first."""
@@ -452,65 +213,25 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _setup_tabs(self) -> None:
         """Create the tab widget and all three shot-view tabs."""
-        self.tab_widget = QTabWidget()
-        self.tab_widget.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
-
-        # Tab 1: My Shots
-        self.shot_item_model = ShotItemModel(
-            cache_manager=self.thumbnail_cache,
+        tabs = build_tabs(
+            shot_model=self.shot_model,
+            threede_item_model=self.threede_item_model,
+            previous_shots_model=self.previous_shots_model,
+            thumbnail_cache=self.thumbnail_cache,
             pin_manager=self.pin_manager,
             notes_manager=self.notes_manager,
             hide_manager=self.hide_manager,
+            parent=self,
         )
-        self.shot_model.set_hide_manager(self.hide_manager)
-        self.shot_item_model.set_shots(self.shot_model.shots)  # ALL shots, unfiltered
-        self.shot_proxy = ShotProxyModel(self)
-        self.shot_proxy.set_pin_manager(self.pin_manager)
-        self.shot_proxy.set_hide_manager(self.hide_manager)
-        self.shot_proxy.setSourceModel(self.shot_item_model)
-        self.shot_proxy.sort(0)
-        self.shot_grid = ShotGridView(
-            model=self.shot_item_model,
-            proxy=self.shot_proxy,
-            pin_manager=self.pin_manager,
-            notes_manager=self.notes_manager,
-            hide_manager=self.hide_manager,
-        )
-        _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
-
-        # Tab 2: Other 3DE scenes
-        self.threede_proxy = ThreeDEProxyModel(self)
-        self.threede_proxy.set_pin_manager(self.pin_manager)
-        self.threede_proxy.setSourceModel(self.threede_item_model)
-        self.threede_proxy.sort(0)
-        self.threede_shot_grid = ThreeDEGridView(
-            model=self.threede_item_model,
-            proxy=self.threede_proxy,
-            pin_manager=self.pin_manager,
-            notes_manager=self.notes_manager,
-        )
-        _ = self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
-
-        # Tab 3: Previous Shots (approved/completed)
-        self.previous_shots_item_model = PreviousShotsItemModel(
-            self.previous_shots_model,
-            self.thumbnail_cache,
-            pin_manager=self.pin_manager,
-            notes_manager=self.notes_manager,
-        )
-        self.previous_shots_proxy = PreviousShotsProxyModel(self)
-        self.previous_shots_proxy.set_pin_manager(self.pin_manager)
-        self.previous_shots_proxy.setSourceModel(self.previous_shots_item_model)
-        self.previous_shots_proxy.sort(0)
-        self.previous_shots_grid = PreviousShotsView(
-            model=self.previous_shots_item_model,
-            proxy=self.previous_shots_proxy,
-            pin_manager=self.pin_manager,
-            notes_manager=self.notes_manager,
-        )
-        _ = self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
-
-        self.tab_widget.tabBar().setStyleSheet(_TAB_BAR_STYLESHEET)
+        self.tab_widget = tabs.tab_widget
+        self.shot_item_model = tabs.shot_item_model
+        self.shot_proxy = tabs.shot_proxy
+        self.shot_grid = tabs.shot_grid
+        self.threede_proxy = tabs.threede_proxy
+        self.threede_shot_grid = tabs.threede_shot_grid
+        self.previous_shots_item_model = tabs.previous_shots_item_model
+        self.previous_shots_proxy = tabs.previous_shots_proxy
+        self.previous_shots_grid = tabs.previous_shots_grid
 
     def _setup_right_panel(self) -> QWidget:
         """Build the right-side panel with RightPanelWidget and log viewer."""
@@ -561,80 +282,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _setup_menu(self) -> None:
         """Set up menu bar."""
-        menubar = self.menuBar()
-
-        # File menu
-        file_menu = menubar.addMenu("&File")
-
-        self.refresh_action = QAction("&Refresh Shots", self)
-        self.refresh_action.setShortcut(QKeySequence.StandardKey.Refresh)
-        _ = self.refresh_action.triggered.connect(self._refresh_shots)
-        file_menu.addAction(self.refresh_action)
-
-        _ = file_menu.addSeparator()
-
-        # Settings import/export
-        import_settings_action = QAction("&Import Settings...", self)
-        _ = import_settings_action.triggered.connect(
-            self.settings_controller.import_settings
-        )
-        file_menu.addAction(import_settings_action)
-
-        export_settings_action = QAction("&Export Settings...", self)
-        _ = export_settings_action.triggered.connect(
-            self.settings_controller.export_settings
-        )
-        file_menu.addAction(export_settings_action)
-
-        _ = file_menu.addSeparator()
-
-        exit_action = QAction("&Exit", self)
-        exit_action.setShortcut(QKeySequence.StandardKey.Quit)
-        _ = exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-
-        # View menu
-        view_menu = menubar.addMenu("&View")
-
-        increase_size_action = QAction("&Increase Thumbnail Size", self)
-        increase_size_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
-        _ = increase_size_action.triggered.connect(self.thumbnail_size_manager.increase_size)
-        view_menu.addAction(increase_size_action)
-
-        decrease_size_action = QAction("&Decrease Thumbnail Size", self)
-        decrease_size_action.setShortcut(QKeySequence.StandardKey.ZoomOut)
-        _ = decrease_size_action.triggered.connect(self.thumbnail_size_manager.decrease_size)
-        view_menu.addAction(decrease_size_action)
-
-        _ = view_menu.addSeparator()
-
-        reset_layout_action = QAction("&Reset Layout", self)
-        _ = reset_layout_action.triggered.connect(self.settings_controller.reset_layout)
-        view_menu.addAction(reset_layout_action)
-
-        # Edit menu
-        edit_menu = menubar.addMenu("&Edit")
-
-        preferences_action = QAction("&Preferences...", self)
-        preferences_action.setShortcut("Ctrl+,")  # Standard preferences shortcut
-        _ = preferences_action.triggered.connect(
-            self.settings_controller.show_preferences
-        )
-        edit_menu.addAction(preferences_action)
-
-        # Help menu
-        help_menu = menubar.addMenu("&Help")
-
-        shortcuts_action = QAction("&Keyboard Shortcuts", self)
-        shortcuts_action.setShortcut(QKeySequence.StandardKey.HelpContents)
-        _ = shortcuts_action.triggered.connect(self._show_shortcuts)
-        help_menu.addAction(shortcuts_action)
-
-        _ = help_menu.addSeparator()
-
-        about_action = QAction("&About", self)
-        _ = about_action.triggered.connect(self._show_about)
-        help_menu.addAction(about_action)
+        self.refresh_action = build_menu(self, self, self._refresh_shots)
 
     def _connect_signals(self) -> None:
         """Connect signals."""
@@ -739,102 +387,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # My Shots tab always sorts by name - no user-configurable sort order
 
-    def _initial_load(self) -> None:
-        """Initial shot loading — instant from cache or deferred to background.
-
-        Implements a 4-case decision table based on cache state:
-            cached shots + cached scenes  → display both, schedule background refresh
-            cached shots only             → display shots, schedule background refresh
-            cached scenes only            → display scenes, no shot refresh scheduled
-            no cache                      → show "Loading..." status; background refresh
-                                            already in progress from initialize_async()
-        """
-        # Pre-warm bash sessions in background to avoid first-command delay
-        # Only warm real process pools (test doubles don't spawn subprocesses)
-        if isinstance(self._process_pool, ProcessPoolManager):
-            self._session_warmer = StartupCoordinator(self._process_pool)
-            self._session_warmer.start()
-            logger.debug("StartupCoordinator started")
-
-        has_cached_shots = bool(self.shot_model.shots)
-        has_cached_scenes = bool(self.threede_scene_model.scenes)
-
-        # Show cached shots immediately if available (should already be loaded)
-        if has_cached_shots:
-            self._refresh_shot_display()
-            logger.info(
-                f"Displayed {len(self.shot_model.shots)} cached shots instantly"
-            )
-        else:
-            # No cache, but let's check one more time
-            logger.info(
-                "No cached shots found on initial check, attempting explicit cache load"
-            )
-            if self.shot_model.try_load_from_cache():
-                has_cached_shots = True
-                self._refresh_shot_display()
-                logger.info(
-                    f"Loaded and displayed {len(self.shot_model.shots)} shots from cache"
-                )
-
-            # Restore last selected shot if available
-            if isinstance(self._last_selected_shot_name, str):
-                shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
-                if shot:
-                    self.shot_grid.select_shot_by_name(shot.full_name)
-
-        # Show cached 3DE scenes immediately if available
-        if has_cached_scenes:
-            self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
-            # Populate show filter with available shows
-            self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
-
-        # Update status with what was loaded from cache
-        paint_yield_ms = self._PAINT_YIELD_MS
-        event_loop_yield_ms = self._EVENT_LOOP_YIELD_MS
-        if has_cached_shots and has_cached_scenes:
-            self.update_status(
-                (
-                    f"Loaded {len(self.shot_model.shots)} shots and "
-                    f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
-                ),
-            )
-            QTimer.singleShot(paint_yield_ms, self._refresh_shots)
-        elif has_cached_shots:
-            self.update_status(
-                f"Loaded {len(self.shot_model.shots)} shots from cache"
-            )
-            QTimer.singleShot(paint_yield_ms, self._refresh_shots)
-        elif has_cached_scenes:
-            self.update_status(
-                f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache",
-            )
-        else:
-            self.update_status("Loading shots and scenes...")
-            logger.info(
-                "No cached data found - background refresh already in progress from initialize_async()",
-            )
-
-        # If shots are already loaded from cache, trigger refresh immediately
-        if self.shot_model.shots:
-            logger.info(
-                "Shots already loaded from cache, triggering previous shots refresh immediately"
-            )
-            QTimer.singleShot(
-                event_loop_yield_ms, self.previous_shots_model.refresh_shots
-            )
-
-        # Only start 3DE discovery if we have shots AND cache is invalid/expired
-        if has_cached_shots:
-            if not self.scene_disk_cache.has_valid_threede_cache():
-                logger.debug("3DE cache invalid/expired - starting discovery")
-                if self.threede_controller:
-                    QTimer.singleShot(
-                        event_loop_yield_ms, self.threede_controller.refresh_threede_scenes
-                    )
-            else:
-                logger.debug("3DE cache valid - skipping initial scan")
-
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
         self.logger.debug("Refreshing shots via RefreshCoordinator")
@@ -842,8 +394,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     # Note: Background refresh methods removed - now handled by reactive signals
 
-    def _refresh_shot_display(self) -> None:
-        """Refresh the shot display using Model/View implementation."""
+    def _refresh_shot_display(self) -> None:  # pyright: ignore[reportUnusedFunction]
+        """Refresh the shot display using Model/View implementation.
+
+        Called by StartupOrchestrator via the StartupTarget protocol.
+        """
         # Delegate to RefreshCoordinator
         self.refresh_coordinator.refresh_shot_display()
 
@@ -1050,47 +605,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.threede_proxy.set_sort_order(order)
         self.settings_manager.set_sort_order(settings_key, order)
         self.logger.info(f"{settings_key} sort order changed to: {order}")
-
-    def _show_shortcuts(self) -> None:
-        """Show keyboard shortcuts dialog."""
-        shortcuts_text = """<h3>Keyboard Shortcuts</h3>
-        <table cellpadding="5">
-        <tr><td><b>Navigation:</b></td><td></td></tr>
-        <tr><td>Arrow Keys</td><td>Navigate through shots/scenes</td></tr>
-        <tr><td>Home/End</td><td>Jump to first/last shot</td></tr>
-        <tr><td>Enter</td><td>Launch default app (3de)</td></tr>
-        <tr><td>Ctrl+Wheel</td><td>Adjust thumbnail size</td></tr>
-        <tr><td>&nbsp;</td><td></td></tr>
-        <tr><td><b>Applications:</b></td><td></td></tr>
-        <tr><td>3</td><td>Launch 3de</td></tr>
-        <tr><td>N</td><td>Launch Nuke</td></tr>
-        <tr><td>M</td><td>Launch Maya</td></tr>
-        <tr><td>R</td><td>Launch RV</td></tr>
-        <tr><td>P</td><td>Launch Publish</td></tr>
-        <tr><td>&nbsp;</td><td></td></tr>
-        <tr><td><b>View:</b></td><td></td></tr>
-        <tr><td>Ctrl++</td><td>Increase thumbnail size</td></tr>
-        <tr><td>Ctrl+-</td><td>Decrease thumbnail size</td></tr>
-        <tr><td>&nbsp;</td><td></td></tr>
-        <tr><td><b>General:</b></td><td></td></tr>
-        <tr><td>F5</td><td>Refresh shots</td></tr>
-        <tr><td>F1</td><td>Show this help</td></tr>
-        </table>
-        """
-
-        _ = QMessageBox.information(self, "Keyboard Shortcuts", shortcuts_text)
-
-    def _show_about(self) -> None:
-        """Show about dialog."""
-        _ = QMessageBox.about(
-            self,
-            f"About {Config.APP_NAME}",
-            (
-                f"{Config.APP_NAME} v{Config.APP_VERSION}\n\n"
-                 "VFX Shot Launcher\n\n"
-                 "A tool for browsing and launching applications in shot context."
-            ),
-        )
 
     def get_window_size(self) -> tuple[int, int]:
         """Get window size as tuple for SettingsTarget protocol compliance."""
