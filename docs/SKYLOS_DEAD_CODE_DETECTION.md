@@ -53,65 +53,15 @@ For GUI-heavy or C-extension-heavy projects, global profiling can be fragile in 
 
 ## How `generate_skylos_trace.py` Works
 
-### Discovery
+The script runs in three stages:
 
-```python
-def discover_test_files(markexpr: str | None) -> list[Path]:
-    # Runs: pytest --collect-only -q tests
-    # Parses collected node IDs back to unique test-file paths
-```
+1. **Discovery** — uses `pytest --collect-only` to find test files, matching the real configured suite.
+2. **Per-file tracing** — runs each test file in its own subprocess with `CallTracer` active. Default timeout: 300s per file (`--per-file-timeout` to override). Each subprocess saves a partial trace immediately in its `finally` block, so crashes only lose that file's data.
+3. **Merge** — deduplicates all partial traces by `(file, function, line)` into `.skylos_trace`.
 
-This is intentionally based on pytest's configured collection rules (`testpaths`, `python_files`, and any marker override), rather than a second hand-written discovery rule.
+Key flags: `--resume` (skip already-traced files), `--allow-partial` (accept incomplete traces), `--markexpr "<expr>"` (filter by marker, repeatable), `--include-default-pass` (include unfiltered pass alongside marker passes).
 
-### Per-file tracing
-
-Each test file is run in a subprocess via:
-
-```python
-from skylos.tracer import CallTracer
-
-tracer = CallTracer(exclude_patterns=[
-    "site-packages", "venv", ".venv", "pytest", "_pytest", "pluggy",
-])
-tracer.start()
-try:
-    ret = pytest.main(["-q", "--tb=no", "--no-header", *pytest_run_args(markexpr), "<test_file>"])
-finally:
-    tracer.stop()
-    tracer.save("<partial_trace_path>")
-```
-
-- Default outer timeout: `300s` per test file.
-- Override timeout: `--per-file-timeout <seconds>` (`0` disables the outer timeout).
-- Optional marker override: `--markexpr "<expr>"` passes a custom `-m` expression to both collection and traced runs. In this repo, the default unfiltered run already covers the full collected suite, so marker passes are mainly for targeted reruns or intentionally merged subsets. Repeat `--markexpr` to merge multiple marker-specific passes; add `--include-default-pass` if you also want the unfiltered pass in the same run.
-- Output per file: `.skylos_traces/<path_slug>[__<marker_slug>__<hash>].json` (derived from the relative test path, with a stable marker suffix when using `--markexpr`, so multiple passes do not overwrite one another).
-
-### Merge
-
-`merge_traces()` reads all partial JSON files and deduplicates by `(file, function, line)`, summing call counts. Final output: `.skylos_trace` (JSON, version 1 schema).
-
-### Resume mode
-
-```bash
-uv run python scripts/generate_skylos_trace.py --resume
-```
-
-Skips test files whose partial trace already exists and is still valid. Stale partial traces for removed or renamed test files are pruned automatically.
-Resume mode reuses traces only for the currently selected marker-pass set. If the previous run wrote `.skylos_trace_failures.json`, the trace outputs listed there are retried instead of being skipped, so a follow-up `--resume` run can heal transient failures.
-
-### Failure handling
-
-If any traced test file crashes, errors out before writing trace data, or hits the outer timeout, the script still merges whatever partial data exists but exits non-zero by default.
-
-The script also retries once automatically if a traced subprocess exits with a pytest internal error (`exit 3`) and pytest emitted an `INTERNALERROR>` block. That catches occasional transient startup/plugin failures without hiding deterministic failures.
-
-When that happens, the script also writes `.skylos_trace_failures.json` with one entry per non-clean file, including the exit code or signal, whether a partial trace was saved, and the tail of captured `stdout`/`stderr`. That file is the first place to look before re-running the whole suite blind.
-
-Use `--allow-partial` only when you intentionally want to inspect a best-effort trace despite known gaps:
-
-```bash
-uv run python scripts/generate_skylos_trace.py --allow-partial
-```
+On failure, the script writes `.skylos_trace_failures.json` with exit codes, partial trace status, and captured output per failed file. It retries once on pytest internal errors (`exit 3`). Exits non-zero by default if any file fails.
 
 ---
 
@@ -164,54 +114,19 @@ Use whitelists for patterns you have already reviewed and found to be consistent
 | Template or abstract methods | Called through base-class orchestration rather than directly |
 | Annotation-only symbols | Protocol, `NamedTuple`, enum, or structural-typing members are often not "dead code" in the normal sense |
 
-For one-off exceptions, prefer an inline `# skylos: ignore` on the exact symbol line instead of a name-based whitelist. Inline suppression is narrower, avoids matching unrelated symbols with the same name, and travels with the code that needs the exception.
-
-For intentionally unused parameters that must remain for API, protocol, Qt slot, or test-double compatibility, prefer an explicit no-op use in code such as `_ = param` (or `_ = a, b`) instead of a Skylos ignore. That keeps the signature intact without adding to the suppression count.
-
-If you cannot annotate the source line directly, use a named whitelist entry only as a fallback and keep the scope as narrow as the tool allows.
-
-Broad name patterns are convenient but risky. A name like `run` can match legitimate worker entry points and unrelated helpers in the same codebase. Prefer the narrowest rule that solves the actual false positive.
+Prefer inline `# skylos: ignore` for one-off exceptions. For unused parameters kept for API/protocol compatibility, prefer `_ = param` over suppression. Use name-based whitelist entries only as a fallback when code-local annotation is impractical.
 
 ---
 
 ## Known False Positive Patterns
 
-When Skylos can't resolve a call through indirection, it can report the callee as unused. The following patterns are common sources of false positives:
+Skylos reports false positives when it cannot resolve calls through indirection:
 
-### 1. Stored-reference attribute calls
-
-```python
-# Skylos sees the attribute assignment but can't resolve the method call
-self.manager = SomeManager()
-self.manager.get_some_value()
-```
-
-This is common in controllers, managers, and UI composition layers.
-
-### 2. Multi-hop stored references
-
-Same pattern but two hops:
-
-```python
-self.window.some_model.some_method()
-```
-
-### 3. Module aliasing or deferred imports
-
-```python
-helpers = importlib.import_module("some_module")
-helpers.SomeClass.method()
-```
-
-The same issue can also appear with ordinary import aliases if the analyzer loses the link between the alias and the original symbol.
-
-### 4. Internal delegation and framework orchestration
-
-Methods that are only reached through a coordinator, registry, dispatcher, or base-class template may look unused even though they are part of a valid execution path.
-
-### 5. Annotation-only members
-
-Protocol fields, enum members, `NamedTuple` fields, and similar symbols are often reported as dead even though they exist for typing or data-shape contracts rather than direct calls.
+- **Stored-reference attribute calls** — `self.manager.method()` where the analyzer loses the link through attribute assignment
+- **Multi-hop stored references** — `self.window.model.method()`
+- **Module aliasing or deferred imports** — `importlib.import_module()` or import aliases
+- **Internal delegation** — methods reached through coordinators, registries, or base-class templates
+- **Annotation-only members** — Protocol fields, enum members, `NamedTuple` fields used for typing contracts
 
 ---
 
@@ -253,29 +168,3 @@ Timeouts and runtimes depend heavily on the project. If some files are consisten
 
 Treat an incomplete trace run as a failed input, not a successful report. If the trace step exits non-zero, fix the timeout/crash first or rerun explicitly with `--allow-partial` so the reduced confidence is intentional.
 
----
-
-## Adapting to Another Project
-
-To use this workflow in another project:
-
-1. **If `--trace` works natively**, skip `generate_skylos_trace.py` entirely and run:
-   ```bash
-   uv run skylos . --trace --table --exclude-folder tests --exclude-folder archive
-   ```
-
-2. **If global tracing is unstable** (crashes, hangs, or incomplete trace output), copy `scripts/generate_skylos_trace.py` and adjust:
-   - The pytest collection target or arguments if your suite does not collect from `tests`
-   - `CallTracer(exclude_patterns=[...])` — add your venv and framework internals
-   - The default outer timeout if your slowest stable test files need more time
-   - Any marker expressions you want to run as separate trace passes for broader coverage
-
-3. **Configure `[tool.skylos]` in `pyproject.toml`** with whitelists for:
-   - Framework callback patterns you have verified as false positives
-   - Protocol/ABC methods that are reached indirectly
-   - Methods only triggered by external events (webhooks, user input)
-
-4. **Gitignore** `.skylos_trace` and `.skylos_traces/`.
-   If you keep the failure manifest enabled, gitignore `.skylos_trace_failures.json` too.
-
-5. **Keep the whitelist minimal.** Every name pattern is a blind spot. Prefer inline `# skylos: ignore` for exact exceptions; use name-based whitelists only when a code-local ignore is not practical.

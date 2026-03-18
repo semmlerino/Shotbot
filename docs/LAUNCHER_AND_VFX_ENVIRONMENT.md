@@ -76,16 +76,6 @@ The launcher exposes multiple public entrypoints with different guarantees:
   provided scene object. Only use this when the target DCC can consume that
   file path directly.
 
-## Best-Practice Guidance
-
-- Prefer deterministic Toolkit startup via `SoftwareLauncher.prepare_launch()`
-  or a documented site bootstrap layer when that is available.
-- Prefer `sgtk.platform.change_context(...)` for engine-aware context switches.
-  Direct `engine.change_context(...)` should be treated as engine-specific and
-  validated in the target DCC.
-- Treat shell-exported variables such as `SGTK_FILE_TO_OPEN` as a compatibility
-  layer, not as a substitute for a documented bootstrap contract.
-
 ## Launch Verification
 
 `Config.LAUNCH_VERIFICATION_ENABLED` (default `True`) enables async verification that GUI app launches succeed. Controlled by `LAUNCH_VERIFICATION_TIMEOUT_SEC` (60s) and `LAUNCH_VERIFICATION_POLL_SEC` (0.5s).

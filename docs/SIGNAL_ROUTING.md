@@ -64,16 +64,3 @@ Do not move signals across these boundaries without updating tests and docs.
 5. When the launch source is a `ThreeDEScene`, verify that non-3DE apps do not
    receive the `.3de` file path as their scene/workfile argument.
 
-## High-Risk Changes
-
-- Reworking shot refresh handlers (`shots_loaded` / `shots_changed`)
-- Modifying launch-request paths
-- Mixing file-open and context-only launch routes for `ThreeDEScene` payloads
-- Changing tab-switch flow
-- Changing cross-thread signal behavior for cache migration
-
-## Low-Risk Changes
-
-- Cosmetic menu wiring (if handlers remain reachable)
-- Log viewer toggle details
-- Optional visual sync behavior that does not affect data flow

@@ -9,17 +9,6 @@ Shotbot deployment is bundle-based:
 - `encoded_releases/shotbot_latest.txt` - Base64-encoded application bundle
 - `encoded_releases/shotbot_latest_metadata.json` - Source commit and bundle metadata
 
-## Reusing This In Another Repository
-
-This document is the operational overview for Shotbot's live deployment path.
-
-If you want to reuse the same base64-plus-git workflow in another repository, use the tracked portable copy in `bundle_workflow_template/` instead of copying from `.git/hooks/` manually. That folder now contains:
-
-- the bundling scripts
-- generic hook templates
-- a reusable transfer config
-- instructions for installing and customizing the workflow
-
 ## Automated Flow
 
 ### 1. Post-Commit Hook (`.git/hooks/post-commit`)
@@ -33,20 +22,7 @@ Uses git plumbing (`hash-object`, `mktree`, `commit-tree`, `update-ref`) to upda
 
 ## Logs
 
-All hook output is written to `.post-commit-output/`:
-
-- `bundle.txt`
-- `bundle-push.log`
-- `import-test.txt`
-- `type-check.txt`
-- `ruff-check.txt`
-- `deptry-check.txt`
-- `summary.txt`
-- `commit_msg.txt`
-- `current_commit.txt`
-- `current_branch.txt`
-- `info.txt`
-- `background-startup.log`
+All hook output is written to `.post-commit-output/` (check `summary.txt` first, then individual log files).
 
 ## Manual Operations
 
