@@ -85,6 +85,19 @@ class RefreshCoordinator(QObject, LoggingMixin):
         self._shots_refresh_in_progress: bool = False
         self.logger.debug("RefreshCoordinator initialized")
 
+    def setup_signals(self) -> None:
+        """Wire shot model signals to this coordinator's handlers.
+
+        Called by MainWindow._connect_signals() after shot_model is available.
+        """
+        sm = self.main_window.shot_model
+        _ = sm.shots_loaded.connect(self.handle_shots_loaded)  # pyright: ignore[reportAny]
+        _ = sm.shots_loaded.connect(self.trigger_previous_shots_refresh)  # pyright: ignore[reportAny]
+        _ = sm.shots_changed.connect(self.handle_shots_changed)  # pyright: ignore[reportAny]
+        _ = sm.shots_changed.connect(self.trigger_previous_shots_refresh)  # pyright: ignore[reportAny]
+        _ = sm.refresh_started.connect(self.handle_refresh_started)  # pyright: ignore[reportAny]
+        _ = sm.refresh_finished.connect(self.handle_refresh_finished)  # pyright: ignore[reportAny]
+
     def refresh_current_tab(self) -> None:
         """Refresh based on the currently active tab."""
         tab_index = self.main_window.tab_widget.currentIndex()

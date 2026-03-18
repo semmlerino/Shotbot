@@ -647,25 +647,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _connect_signals(self) -> None:
         """Connect signals."""
-        # Connect shot model signals directly to RefreshCoordinator (no proxy)
-        _ = self.shot_model.shots_loaded.connect(
-            self.refresh_coordinator.handle_shots_loaded
-        )
-        _ = self.shot_model.shots_loaded.connect(
-            self.refresh_coordinator.trigger_previous_shots_refresh
-        )
-        _ = self.shot_model.shots_changed.connect(
-            self.refresh_coordinator.handle_shots_changed
-        )
-        _ = self.shot_model.shots_changed.connect(
-            self.refresh_coordinator.trigger_previous_shots_refresh
-        )
-        _ = self.shot_model.refresh_started.connect(
-            self.refresh_coordinator.handle_refresh_started
-        )
-        _ = self.shot_model.refresh_finished.connect(
-            self.refresh_coordinator.handle_refresh_finished
-        )
+        # Shot model -> RefreshCoordinator connections
+        self.refresh_coordinator.setup_signals()
         _ = self.shot_model.error_occurred.connect(self._on_shot_error)
         # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
         _ = self.shot_model.cache_updated.connect(self._on_cache_updated)

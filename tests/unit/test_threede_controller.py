@@ -768,22 +768,6 @@ class TestSceneUpdates:
 class TestFilterHandling:
     """Test filter request handling."""
 
-    def test_show_filter_applies_to_model(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that show filter is applied to proxy model."""
-        controller._on_show_filter_requested("myshow")
-
-        assert window_double.threede_proxy._show_filter == "myshow"
-
-    def test_text_filter_applies_to_scene_model(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that text filter is applied to proxy model."""
-        controller._on_text_filter_requested("sq010")
-
-        assert window_double.threede_proxy._text_filter == "sq010"
-
     def test_artist_filter_applies_to_scene_model(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
@@ -791,15 +775,6 @@ class TestFilterHandling:
         controller._on_artist_filter_requested("artist_a")
 
         assert window_double.threede_proxy._artist_filter == "artist_a"
-
-    def test_empty_show_filter_clears_filter(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that empty show filter clears the filter (None)."""
-        controller._on_show_filter_requested("oldshow")
-        controller._on_show_filter_requested("")
-
-        assert window_double.threede_proxy._show_filter is None
 
     def test_update_ui_populates_artist_filter(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble

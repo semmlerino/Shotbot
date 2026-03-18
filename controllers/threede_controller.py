@@ -456,25 +456,11 @@ class ThreeDEController(LoggingMixin):
         )
 
     @Slot(str)  # pyright: ignore[reportAny]
-    def _on_show_filter_requested(self, show: str) -> None:
-        """Handle show filter requests from 3DE grid."""
-        show_filter = show or None
-        self.window.threede_proxy.set_show_filter(show_filter)
-        self.logger.info(f"Applied 3DE show filter: {show or 'All Shows'}")
-
-    @Slot(str)  # pyright: ignore[reportAny]
     def _on_artist_filter_requested(self, artist: str) -> None:
         """Handle artist filter requests from 3DE grid."""
         filter_artist = artist.strip() if artist else None
         self.window.threede_proxy.set_artist_filter(filter_artist)
         self.logger.debug(f"3DE artist filter applied: {filter_artist!r}")
-
-    @Slot(str)  # pyright: ignore[reportAny]
-    def _on_text_filter_requested(self, text: str) -> None:
-        """Handle text filter requests from 3DE grid."""
-        filter_text = text.strip() if text else None
-        self.window.threede_proxy.set_text_filter(filter_text)
-        self.logger.debug(f"3DE text filter applied: '{filter_text}'")
 
     # ============================================================================
     # Scene Management Helpers (Phase 3.5)
