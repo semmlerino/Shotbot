@@ -49,7 +49,6 @@ class ThreeDEWorkerManager(LoggingMixin):
         on_discovery_progress: Callable[[int, int, float, str, str], None],
         on_discovery_finished: Callable[[list[ThreeDEScene]], None],
         on_discovery_error: Callable[[str], None],
-        on_batch_ready: Callable[[list[ThreeDEScene]], None],
         on_scan_progress: Callable[[int, int, str], None],
     ) -> None:
         """Initialize the worker manager with signal-handler callbacks.
@@ -61,7 +60,6 @@ class ThreeDEWorkerManager(LoggingMixin):
             on_discovery_finished: Called when the worker emits
                 ``discovery_finished``.
             on_discovery_error: Called when the worker emits ``error``.
-            on_batch_ready: Called when the worker emits ``batch_ready``.
             on_scan_progress: Called when the worker emits ``scan_progress``.
 
         """
@@ -71,7 +69,6 @@ class ThreeDEWorkerManager(LoggingMixin):
         self._on_discovery_progress: Callable[[int, int, float, str, str], None] = on_discovery_progress
         self._on_discovery_finished: Callable[[list[ThreeDEScene]], None] = on_discovery_finished
         self._on_discovery_error: Callable[[str], None] = on_discovery_error
-        self._on_batch_ready: Callable[[list[ThreeDEScene]], None] = on_batch_ready
         self._on_scan_progress: Callable[[int, int, str], None] = on_scan_progress
 
         self._threede_worker: ThreeDESceneWorker | None = None
@@ -233,11 +230,6 @@ class ThreeDEWorkerManager(LoggingMixin):
             Qt.ConnectionType.QueuedConnection,
         )
         _ = worker.safe_connect(
-            worker.batch_ready,
-            self._on_batch_ready,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection,
-        )
-        _ = worker.safe_connect(
             worker.progress,
             self._on_discovery_progress,  # pyright: ignore[reportAny]
             Qt.ConnectionType.QueuedConnection,
@@ -270,7 +262,6 @@ class ThreeDEWorkerManager(LoggingMixin):
             warnings.simplefilter("ignore", RuntimeWarning)
             signals_to_disconnect = [
                 worker.worker_discovery_started,
-                worker.batch_ready,
                 worker.progress,
                 worker.scan_progress,
                 worker.discovery_finished,

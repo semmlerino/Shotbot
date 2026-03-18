@@ -111,7 +111,6 @@ class ThreeDEController(LoggingMixin):
             on_discovery_progress=self.on_discovery_progress,  # pyright: ignore[reportAny]
             on_discovery_finished=self.on_discovery_finished,  # pyright: ignore[reportAny]
             on_discovery_error=self.on_discovery_error,  # pyright: ignore[reportAny]
-            on_batch_ready=self.on_batch_ready,  # pyright: ignore[reportAny]
             on_scan_progress=self.on_scan_progress,  # pyright: ignore[reportAny]
         )
 
@@ -349,21 +348,6 @@ class ThreeDEController(LoggingMixin):
             "Check that you have read permissions for the scan directories.",
         )
 
-    @Slot(list)  # pyright: ignore[reportAny]
-    def on_batch_ready(self, scene_batch: list[ThreeDEScene]) -> None:
-        """Handle batch of scenes ready from progressive scanning.
-
-        Args:
-            scene_batch: List of ThreeDEScene objects in this batch
-
-        """
-        if scene_batch:
-            # Don't directly add to model - let on_discovery_finished handle deduplication
-            # Just log the progress for now
-            self.logger.debug(f"Processed batch of {len(scene_batch)} scenes")
-
-            # Note: The scenes are accumulated in the worker itself
-            # and will be deduplicated when discovery finishes
 
     @Slot(int, int, str)  # pyright: ignore[reportAny]
     def on_scan_progress(

@@ -79,9 +79,9 @@ if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QByteArray
 
+    from dcc.scene_file import SceneFile
     from launch.command_launcher import CommandLauncher
     from protocols import ProcessPoolInterface
-    from dcc.scene_file import SceneFile
     from type_definitions import Shot, ThreeDEScene
 
     # Local application imports
@@ -100,6 +100,9 @@ from cache import (
 )
 from config import Config, is_mock_mode
 from controllers.filter_coordinator import FilterCoordinator
+from controllers.refresh_coordinator import (
+    RefreshCoordinator,  # Extracted refresh logic
+)
 from controllers.settings_controller import (
     SettingsController,  # Refactored settings handling
 )
@@ -110,25 +113,24 @@ from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
 from controllers.thumbnail_size_manager import ThumbnailSizeManager
+from dcc.scene_file import SceneFile
 from launch.command_launcher import CommandLauncher  # Need at runtime
 from logging_mixin import LoggingMixin, get_module_logger
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
 from managers.settings_manager import SettingsManager
 from previous_shots import PreviousShotsItemModel, PreviousShotsModel, PreviousShotsView
-from ui.qt_widget_mixin import QtWidgetMixin
-from controllers.refresh_coordinator import RefreshCoordinator  # Extracted refresh logic
-from dcc.scene_file import SceneFile
 from shots.shot_grid_view import ShotGridView  # Model/View implementation
 from shots.shot_item_model import ShotItemModel
 from shots.shot_model import ShotModel
-from workers.startup_coordinator import StartupCoordinator
 from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
 from ui.design_system import design_system
 from ui.log_viewer import LogViewer
 from ui.proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
+from ui.qt_widget_mixin import QtWidgetMixin
 from ui.right_panel import RightPanelWidget  # New redesigned right panel
 from workers.process_pool_manager import ProcessPoolManager
+from workers.startup_coordinator import StartupCoordinator
 
 
 # Set up logger for this module
@@ -327,7 +329,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._setup_ui()
         self._init_controllers()
         self._setup_menu()
-        self._setup_accessibility()
         self._connect_signals()
         self.settings_controller.load_settings()
         self._restore_sort_orders()
@@ -642,30 +643,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         about_action = QAction("&About", self)
         _ = about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
-
-    def _setup_accessibility(self) -> None:
-        """Set up accessibility features for screen readers and keyboard navigation."""
-        # Local application imports
-        from ui.accessibility_manager import AccessibilityManager
-
-        # Set up main window accessibility
-        AccessibilityManager.setup_main_window_accessibility(self)
-
-        # Set up shot grid accessibility
-        AccessibilityManager.setup_shot_grid_accessibility(self.shot_grid, "shots")
-        AccessibilityManager.setup_shot_grid_accessibility(
-            self.threede_shot_grid, "3de"
-        )
-        AccessibilityManager.setup_shot_grid_accessibility(
-            self.previous_shots_grid, "previous"
-        )
-
-        # Set up tab widget
-        AccessibilityManager.setup_tab_widget_accessibility(self.tab_widget)
-
-        # Add comprehensive tooltips
-        AccessibilityManager.setup_comprehensive_tooltips(self)
-
 
     def _connect_signals(self) -> None:
         """Connect signals."""

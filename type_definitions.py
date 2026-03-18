@@ -267,11 +267,6 @@ class ThreeDEScene:
             # Type narrowing: if it's not the sentinel, it must be Path | None
             return cast("Path | None", self._cached_thumbnail_path)
 
-        # DEBUG: Log thumbnail search for 3DE scenes
-        logger.debug(
-            f"ThreeDEScene.get_thumbnail_path() called for {self.full_name} (show={self.show}, seq={self.sequence}, shot={self.shot})"
-        )
-
         # Import here to avoid circular dependency at module level
         from config import Config
         from discovery.thumbnail_finders import ThumbnailFinders
@@ -283,14 +278,6 @@ class ThreeDEScene:
             self.sequence,
             self.shot,
         )
-
-        # DEBUG: Log result
-        if thumbnail:
-            logger.info(
-                f"✅ Found thumbnail for 3DE scene {self.full_name}: {thumbnail}"
-            )
-        else:
-            logger.warning(f"❌ No thumbnail found for 3DE scene {self.full_name}")
 
         # Cache the result (even if None) to avoid repeated searches
         self._cached_thumbnail_path = thumbnail
