@@ -211,7 +211,7 @@ class TestThreeDEScene:
         assert result["shot"] == "shot01"
         assert result["user"] == "user1"
         assert result["plate"] == "FG01"
-        assert result["scene_path"] == str(scene_path)
+        assert result["filepath"] == str(scene_path)
 
     def test_from_dict_deserialization(self) -> None:
         """Test from_dict deserialization."""

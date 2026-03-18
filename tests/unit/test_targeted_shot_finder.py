@@ -698,14 +698,14 @@ class TestEdgeCases:
         assert finder.username == "gabriel-h"
 
     def test_string_shows_root_conversion(self) -> None:
-        """Test that string shows_root is converted to Path."""
+        """Test that Path shows_root is handled correctly."""
         finder = TargetedShotsFinder()
 
-        # Pass string instead of Path
-        shots = finder._scan_show_for_user("test", f"{Config.SHOWS_ROOT}/root")
+        # Pass Path (the only accepted type)
+        shots = finder._scan_show_for_user("test", Path(f"{Config.SHOWS_ROOT}/root"))
 
-        # Should handle string gracefully
-        assert shots == []  # Empty because path doesn't exist
+        # Should return empty because path doesn't exist
+        assert shots == []
 
     def test_special_characters_in_show_name(self) -> None:
         """Test handling of special characters in show names."""

@@ -35,7 +35,7 @@ _logger = get_module_logger(__name__)
 
 T = TypeVar("T", bound=SceneDataProtocol)
 
-_LoadingState = Literal["idle", "loading", "loaded", "failed"]
+LoadingState = Literal["idle", "loading", "loaded", "failed"]
 
 
 from workers.runnable_tracker import TrackedQRunnable
@@ -112,7 +112,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
 
         self._thumbnail_cache: dict[str, QImage] = {}
         self._pixmap_cache: dict[str, QPixmap] = {}
-        self._loading_states: dict[str, _LoadingState] = {}
+        self._loading_states: dict[str, LoadingState] = {}
         self._cache_mutex: QMutex = QMutex()
 
         self._thumbnail_pool: QThreadPool = QThreadPool.globalInstance()
@@ -154,12 +154,12 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
         self._pixmap_cache = value
 
     @property
-    def loading_states(self) -> dict[str, _LoadingState]:
+    def loading_states(self) -> dict[str, LoadingState]:
         """Per-item loading state strings."""
         return self._loading_states
 
     @loading_states.setter
-    def loading_states(self, value: dict[str, _LoadingState]) -> None:
+    def loading_states(self, value: dict[str, LoadingState]) -> None:
         self._loading_states = value
 
     @property
@@ -204,7 +204,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
             return pixmap
         return None
 
-    def get_loading_state(self, full_name: str) -> _LoadingState:
+    def get_loading_state(self, full_name: str) -> LoadingState:
         with QMutexLocker(self._cache_mutex):
             return self._loading_states.get(full_name, "idle")
 

@@ -127,6 +127,7 @@ class MockWorkspacePool(LoggingMixin):
         cache_ttl: int = 30,
         timeout: int | None = None,  # pyright: ignore[reportUnusedParameter]
         use_login_shell: bool = False,  # pyright: ignore[reportUnusedParameter]
+        cancel_flag: object = None,  # pyright: ignore[reportUnusedParameter]
     ) -> str:
         """Execute workspace command.
 

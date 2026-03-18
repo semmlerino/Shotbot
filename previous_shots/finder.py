@@ -7,7 +7,9 @@ import concurrent.futures
 import re
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, final
+
+from typing_extensions import Unpack
 
 # Local application imports
 from config import Config, ThreadingConfig
@@ -209,7 +211,7 @@ class PreviousShotsFinder(ShotFinderBase):
         return "completed"
 
     @override
-    def find_shots(self, **kwargs: FindShotsKwargs) -> list[Shot]:
+    def find_shots(self, **kwargs: Unpack[FindShotsKwargs]) -> list[Shot]:
         """Find previous/approved shots.
 
         This is the main entry point implementing the abstract method from ShotFinderBase.
@@ -223,10 +225,8 @@ class PreviousShotsFinder(ShotFinderBase):
             List of Shot objects found
 
         """
-        # Extract parameters with type casting for type safety
-        # TypedDict.get() returns union of all value types, so we need explicit casting
-        active_shots = cast("list[Shot]", kwargs.get("active_shots") or [])
-        shows_root = cast("Path | None", kwargs.get("shows_root"))
+        active_shots = kwargs.get("active_shots") or []
+        shows_root = kwargs.get("shows_root")
 
         # Use the main search method
         return self.find_approved_shots(active_shots, shows_root)

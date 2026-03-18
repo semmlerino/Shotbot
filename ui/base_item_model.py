@@ -10,12 +10,12 @@ from __future__ import annotations
 # Standard library imports
 from abc import ABC
 from enum import IntEnum
-from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar, cast
 
 
 if TYPE_CHECKING:
     from cache.thumbnail_cache import ThumbnailCache
-    from cache.thumbnail_loader import ThumbnailLoader
+    from cache.thumbnail_loader import LoadingState, ThumbnailLoader
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
 
@@ -307,8 +307,8 @@ class BaseItemModel(
         # Handle loading state
         if role == BaseItemRole.LoadingStateRole:
             with QMutexLocker(self._thumbnail_loader.cache_mutex):
-                self._thumbnail_loader.loading_states[item.full_name] = (
-                    str(value) if value is not None else ""
+                self._thumbnail_loader.loading_states[item.full_name] = cast(
+                    "LoadingState", str(value) if value is not None else "idle"
                 )
             self.dataChanged.emit(index, index, [BaseItemRole.LoadingStateRole])
             return True
