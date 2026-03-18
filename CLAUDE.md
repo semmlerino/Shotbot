@@ -25,13 +25,15 @@ Application modules live at the repository root (no `src/` package), organized i
 - `paths/` — path construction, validation, and filesystem coordination
 - `previous_shots/` — previous-shots model and persistence
 - `ui/` — base grid views, item models, delegates, design system, dialogs
-- `tests/` — test suite (`unit/`, `integration/`, `advanced/`, `regression/`)
+- `tests/` — test suite (`unit/`, `integration/`, `regression/`, `performance/`)
 - `tests/fixtures/` — shared fixture modules (see `tests/fixtures/README.md`)
 - `docs/` — architecture and design documentation
 - `scripts/` — VFX tool scripts (tde4, sgtk, Nuke hooks)
 - `scrub/` — hover-to-scrub frame preview system
 - `shots/` — shot model, info panel, shot-level UI components
 - `threede/` — 3DEqualizer scene model, discovery coordinator, filesystem scanner
+- `bundle_workflow_template/` — portable encoded-bundle deployment workflow for reuse in other repos
+- `dev-tools/` — development-only utility scripts (profiling, thread checks, type-check helpers)
 
 **Import pattern:** Lazy imports are used throughout to avoid circular dependencies. When adding new imports between modules, check for circular import risk — use `from __future__ import annotations` and `TYPE_CHECKING` guards as needed.
 

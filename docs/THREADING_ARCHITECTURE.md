@@ -18,6 +18,7 @@ Shotbot uses three mechanisms:
 - `ThreeDEWorkerManager`: owns `ThreeDESceneWorker` lifecycle (created by `ThreeDEController`).
 - `ProcessPoolManager`: singleton executor for subprocess-heavy operations.
 - `SceneDiscoveryCoordinator`: parallel filesystem scanning orchestration.
+- `ThreadDiagnostics`: thread state capture, stack trace logging, and abandonment reporting used by `ThreadSafeWorker.safe_terminate()`.
 
 ## Invariants
 
@@ -40,7 +41,7 @@ Shotbot uses three mechanisms:
 |-----------|-------------|-------------------|
 | `QThread` via `ThreadSafeWorker` | Long-lived, cancellable work needing Qt signal integration and lifecycle control (start/stop/pause) | `AsyncShotLoader` (shot data refresh), `ThreeDESceneWorker` (scene discovery), `LatestFileFinderWorker` (file search), `PreviousShotsWorker` (approved shot scan), `StartupCoordinator` (startup preloading) |
 | `ThreadPoolExecutor` via `ProcessPoolManager` | Subprocess execution and filesystem I/O parallelism; no Qt object access allowed | `ws -sg` command execution, parallel show scanning in `SceneDiscoveryCoordinator`, process verification |
-| `QRunnable` via `TrackedQRunnable` | Short, fire-and-forget Qt-adjacent tasks dispatched to `QThreadPool.globalInstance()` | `_ThumbnailLoaderRunnable` (background image loading), `ThumbnailCacheLoader` (cache warming), `FrameExtractionRunnable` (scrub frame loading) |
+| `QRunnable` via `TrackedQRunnable` | Short, fire-and-forget Qt-adjacent tasks dispatched to `QThreadPool.globalInstance()` | `_ThumbnailLoaderRunnable` (background image loading), `ThumbnailCacheLoader` (cache warming), `FrameExtractionRunnable` (scrub frame loading), and others (see `TrackedQRunnable` subclasses) |
 
 **Decision checklist:**
 1. Does the task need to be cancelled mid-execution? → `QThread` (`ThreadSafeWorker`)
