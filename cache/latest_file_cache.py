@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import cast, final
+from typing import final
 
 from PySide6.QtCore import QMutex, QMutexLocker
+from typing_extensions import TypedDict
 
 from cache._json_store import atomic_json_write
 from cache.types import LatestFileCacheResult
@@ -13,6 +14,13 @@ from logging_mixin import LoggingMixin
 
 
 LATEST_FILES_TTL_MINUTES = 5
+
+
+class _LatestFileCacheEntry(TypedDict):
+    """Type definition for a latest file cache entry."""
+
+    path: str | None
+    cached_at: float
 
 
 @final
@@ -70,11 +78,7 @@ class LatestFileCache(LoggingMixin):
             return LatestFileCacheResult("miss")
 
         # Check TTL
-        cached_at_raw = entry.get("cached_at", 0.0)
-        if isinstance(cached_at_raw, (int, float)):
-            cached_at = float(cached_at_raw)
-        else:
-            cached_at = 0.0
+        cached_at = entry.get("cached_at", 0.0)
         age = datetime.now(tz=UTC).timestamp() - cached_at
         if age > self._latest_files_ttl.total_seconds():
             self.logger.debug(f"Latest file cache expired for {key}")
@@ -82,7 +86,7 @@ class LatestFileCache(LoggingMixin):
 
         # Within TTL — check the cached value
         path_str = entry.get("path")
-        if path_str and isinstance(path_str, str):
+        if path_str:
             cached_path = Path(path_str)
             if cached_path.exists():
                 self.logger.debug(f"Latest file cache hit: {cached_path.name}")
@@ -120,7 +124,7 @@ class LatestFileCache(LoggingMixin):
                     f"Cleared latest files cache for workspace: {workspace_path}"
                 )
 
-    def _read_latest_files_cache(self) -> dict[str, dict[str, object]] | None:
+    def _read_latest_files_cache(self) -> dict[str, _LatestFileCacheEntry] | None:
         """Read the latest files cache from disk.
 
         Returns:
@@ -134,7 +138,7 @@ class LatestFileCache(LoggingMixin):
             with self.latest_files_cache_file.open(encoding="utf-8") as f:
                 data: object = json.load(f)  # pyright: ignore[reportAny]
             if isinstance(data, dict):
-                return cast("dict[str, dict[str, object]]", data)
+                return data  # type: ignore[return-value]
             return None
         except Exception:
             self.logger.exception("Failed to read latest files cache")
@@ -142,7 +146,7 @@ class LatestFileCache(LoggingMixin):
 
     def _write_latest_files_cache(
         self,
-        data: dict[str, dict[str, object]],
+        data: dict[str, _LatestFileCacheEntry],
     ) -> bool:
         """Write the latest files cache to disk.
 

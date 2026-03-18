@@ -5,18 +5,13 @@ from typing import (
     TYPE_CHECKING,
     Literal,
     NamedTuple,
-    Protocol,
-    cast,
 )
+
+from type_definitions import Shot, ThreeDEScene
 
 
 if TYPE_CHECKING:
     from type_definitions import ShotDict, ThreeDESceneDict
-
-    class _HasToDict(Protocol):
-        """Protocol for objects with to_dict() method."""
-
-        def to_dict(self) -> ThreeDESceneDict: ...
 
 
 
@@ -70,7 +65,7 @@ def get_shot_key(shot: ShotDict) -> tuple[str, str, str]:
     return (shot["show"], shot["sequence"], shot["shot"])
 
 
-def shot_to_dict(shot: object) -> ShotDict:
+def shot_to_dict(shot: ShotDict | Shot) -> ShotDict:
     """Convert Shot object or ShotDict to ShotDict.
 
     Args:
@@ -81,9 +76,9 @@ def shot_to_dict(shot: object) -> ShotDict:
 
     """
     if isinstance(shot, dict):
-        return cast("ShotDict", shot)
-    # Assume Shot object with to_dict method — TYPE_CHECKING import prevents runtime check
-    return cast("ShotDict", cast("_HasToDict", shot).to_dict())
+        return shot
+    # shot is a Shot instance — call to_dict() directly
+    return shot.to_dict()
 
 
 def get_scene_key(scene: ThreeDESceneDict) -> tuple[str, str, str]:
@@ -103,7 +98,7 @@ def get_scene_key(scene: ThreeDESceneDict) -> tuple[str, str, str]:
     return (scene["show"], scene["sequence"], scene["shot"])
 
 
-def scene_to_dict(scene: object) -> ThreeDESceneDict:
+def scene_to_dict(scene: ThreeDESceneDict | ThreeDEScene) -> ThreeDESceneDict:
     """Convert ThreeDEScene object or dict to ThreeDESceneDict.
 
     Args:
@@ -114,8 +109,6 @@ def scene_to_dict(scene: object) -> ThreeDESceneDict:
 
     """
     if isinstance(scene, dict):
-        return cast("ThreeDESceneDict", scene)
-    # Assume ThreeDEScene object with to_dict method
-    # Safe to call: we checked it's not a dict, so it must be object with to_dict()
-    # Use _HasToDict protocol to ensure type safety without explicit Any
-    return cast("_HasToDict", scene).to_dict()
+        return scene
+    # scene is a ThreeDEScene instance — call to_dict() directly
+    return scene.to_dict()

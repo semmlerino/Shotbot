@@ -14,7 +14,7 @@ from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    from type_definitions import ThreeDESceneDict
+    from type_definitions import ThreeDEScene, ThreeDESceneDict
 
 DEFAULT_TTL_MINUTES = 30
 
@@ -90,8 +90,8 @@ class SceneDiskCache(LoggingMixin, QObject):
 
     def merge_scenes_incremental(
         self,
-        cached: Sequence[object] | None,
-        fresh: Sequence[object],
+        cached: Sequence[ThreeDESceneDict | ThreeDEScene] | None,
+        fresh: Sequence[ThreeDESceneDict | ThreeDEScene],
         max_age_days: int = 60,
     ) -> SceneMergeResult:
         """Merge cached 3DE scenes with fresh data incrementally.

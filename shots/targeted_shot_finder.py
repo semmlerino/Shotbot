@@ -14,6 +14,8 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from typing_extensions import Unpack
+
 # Local application imports
 from config import Config, ThreadingConfig
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
@@ -379,7 +381,7 @@ class TargetedShotsFinder(ShotFinderBase):
         return "unknown"
 
     @override
-    def find_shots(self, **kwargs: FindShotsKwargs) -> list[Shot]:
+    def find_shots(self, **kwargs: Unpack[FindShotsKwargs]) -> list[Shot]:
         """Find shots using targeted search.
 
         This is the main entry point implementing the abstract method from ShotFinderBase.
@@ -395,20 +397,9 @@ class TargetedShotsFinder(ShotFinderBase):
 
         """
         # Extract parameters with proper type annotations for type checker
-        target_shows_raw = kwargs.get("target_shows")
-        shows_root_raw = kwargs.get("shows_root")
-        active_shots_raw = kwargs.get("active_shots")
-
-        # Narrow types explicitly for type checker
-        shows_to_search: set[str] = (
-            target_shows_raw if isinstance(target_shows_raw, set) else set()
-        )
-        root_dir: Path | None = (
-            shows_root_raw if isinstance(shows_root_raw, Path | type(None)) else None
-        )
-        shots_list: list[Shot] = (
-            active_shots_raw if isinstance(active_shots_raw, list) else []
-        )
+        shows_to_search: set[str] = kwargs.get("target_shows") or set()
+        root_dir: Path | None = kwargs.get("shows_root")
+        shots_list: list[Shot] = kwargs.get("active_shots", [])
 
         # If we have active shots but no target shows, extract them
         if shots_list and not shows_to_search:

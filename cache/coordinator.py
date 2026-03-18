@@ -115,7 +115,7 @@ class CacheCoordinator(LoggingMixin):
 
         except Exception:
             self.logger.exception("Failed to get disk usage")
-            return {"total_mb": 0.0, "file_count": 0, "thumbnail_count": 0}
+            return {"total_mb": 0.0, "file_count": 0, "thumbnail_count": 0, "thumbnail_dir": ""}
 
     def shutdown(self) -> None:
         """Shutdown all sub-managers."""

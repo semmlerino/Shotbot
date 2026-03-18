@@ -11,6 +11,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TypedDict
 
+from typing_extensions import Unpack
+
 # Local application imports
 from config import Config
 from discovery.finder_utils import FinderUtils
@@ -32,13 +34,9 @@ class FindShotsKwargs(TypedDict, total=False):
     active_shots: list[Shot]
 
 
-class ShotDetailsDict(TypedDict, total=False):
-    """Type-safe return type for get_shot_details method.
+class _ShotDetailsDictRequired(TypedDict):
+    """Required fields for shot details dictionary."""
 
-    Required fields are always present, optional fields depend on filesystem state.
-    """
-
-    # Required fields
     show: str
     sequence: str
     shot: str
@@ -46,6 +44,13 @@ class ShotDetailsDict(TypedDict, total=False):
     user_path: str
     status: str
     user_dir_exists: str
+
+
+class ShotDetailsDict(_ShotDetailsDictRequired, total=False):
+    """Type-safe return type for get_shot_details method.
+
+    Required fields are always present, optional fields depend on filesystem state.
+    """
 
     # Optional fields (depend on filesystem state)
     has_3de: str
@@ -134,18 +139,19 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
             Dictionary with shot details including paths and metadata
 
         """
+        # Check if user directory still exists
+        user_path = f"{shot.workspace_path}{self.user_path_pattern}"
+        user_dir = Path(user_path)
+
         details: ShotDetailsDict = {
             "show": shot.show,
             "sequence": shot.sequence,
             "shot": shot.shot,
             "workspace_path": shot.workspace_path,
-            "user_path": f"{shot.workspace_path}{self.user_path_pattern}",
+            "user_path": user_path,
             "status": self._get_shot_status(shot),
+            "user_dir_exists": str(user_dir.exists()),
         }
-
-        # Check if user directory still exists
-        user_dir = Path(details["user_path"])
-        details["user_dir_exists"] = str(user_dir.exists())
 
         # Check for common VFX work files
         if user_dir.exists():
@@ -247,7 +253,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         """
 
     @abstractmethod
-    def find_shots(self, **kwargs: FindShotsKwargs) -> list[Shot]:
+    def find_shots(self, **kwargs: Unpack[FindShotsKwargs]) -> list[Shot]:
         """Find shots based on implementation-specific logic.
 
         To be implemented by concrete subclasses.

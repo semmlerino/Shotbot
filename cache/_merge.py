@@ -11,14 +11,15 @@ from typing import TYPE_CHECKING, TypeVar
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-# TypeVar for build_merge_lookups generic helper
+# TypeVars for build_merge_lookups generic helper
 _D = TypeVar("_D")
+_S = TypeVar("_S")
 
 
 def build_merge_lookups(
-    cached: Sequence[object] | None,
-    fresh: Sequence[object],
-    to_dict_fn: Callable[[object], _D],
+    cached: Sequence[_S] | None,
+    fresh: Sequence[_S],
+    to_dict_fn: Callable[[_S], _D],
     get_key_fn: Callable[[_D], tuple[str, str, str]],
 ) -> tuple[list[_D], list[_D], dict[tuple[str, str, str], _D], set[tuple[str, str, str]]]:
     """Build lookup structures shared by cache merge operations.

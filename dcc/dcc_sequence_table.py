@@ -8,7 +8,7 @@ Extracted from DCCSection to isolate sequence-list concerns.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import TypedDict
 
 from managers.settings_manager import get_stored_height
 from ui.design_system import design_system
@@ -28,6 +29,19 @@ from .scene_file import ImageSequence
 
 if TYPE_CHECKING:
     from managers.settings_manager import SettingsManager
+
+
+class _SequenceSectionData(TypedDict):
+    """Type definition for sequence section data dictionary."""
+
+    section: QWidget
+    header_btn: QPushButton
+    content: QWidget
+    list_widget: QListWidget
+    list_frame: ResizableFrame
+    expanded: bool
+    color: str
+    title: str
 
 
 class DCCSequenceTable(QWidget):
@@ -61,8 +75,8 @@ class DCCSequenceTable(QWidget):
         self._dcc_name: str = dcc_name
         self._settings_manager: SettingsManager | None = settings_manager
 
-        self._playblasts_section: dict[str, Any] | None = None
-        self._renders_section: dict[str, Any] | None = None
+        self._playblasts_section: _SequenceSectionData | None = None
+        self._renders_section: _SequenceSectionData | None = None
         self._selected_sequence: ImageSequence | None = None
 
         self._setup_ui()
@@ -97,7 +111,7 @@ class DCCSequenceTable(QWidget):
         title: str,
         color: str,
         content_layout: QVBoxLayout,
-    ) -> dict[str, Any]:
+    ) -> _SequenceSectionData:
         """Create a collapsible sequence subsection.
 
         Args:
@@ -185,7 +199,7 @@ class DCCSequenceTable(QWidget):
         layout.addWidget(content)
         content_layout.addWidget(section)
 
-        result: dict[str, Any] = {
+        result: _SequenceSectionData = {
             "section": section,
             "header_btn": header_btn,
             "content": content,
@@ -205,7 +219,7 @@ class DCCSequenceTable(QWidget):
     # Expand / collapse
     # ------------------------------------------------------------------
 
-    def _toggle_sequence_section(self, section_data: dict[str, Any]) -> None:
+    def _toggle_sequence_section(self, section_data: _SequenceSectionData) -> None:
         """Toggle sequence subsection expanded state.
 
         Args:
@@ -213,10 +227,10 @@ class DCCSequenceTable(QWidget):
 
         """
         section_data["expanded"] = not section_data["expanded"]
-        cast("QWidget", section_data["content"]).setVisible(section_data["expanded"])  # pyright: ignore[reportAny]
+        section_data["content"].setVisible(section_data["expanded"])
         indicator = "\u25bc" if section_data["expanded"] else "\u25b6"
-        count = cast("QListWidget", section_data["list_widget"]).count()  # pyright: ignore[reportAny]
-        cast("QPushButton", section_data["header_btn"]).setText(  # pyright: ignore[reportAny]
+        count = section_data["list_widget"].count()
+        section_data["header_btn"].setText(
             f"{indicator}  {section_data['title']} ({count})"
         )
 
@@ -261,7 +275,7 @@ class DCCSequenceTable(QWidget):
             self._update_sequence_list(self._renders_section, sequences)
 
     def _update_sequence_list(
-        self, section_data: dict[str, Any], sequences: list[ImageSequence]
+        self, section_data: _SequenceSectionData, sequences: list[ImageSequence]
     ) -> None:
         """Update a sequence list widget with new data.
 
@@ -270,7 +284,7 @@ class DCCSequenceTable(QWidget):
             sequences: List of ImageSequence objects to display.
 
         """
-        list_widget: QListWidget = section_data["list_widget"]  # pyright: ignore[reportAny]
+        list_widget = section_data["list_widget"]
         list_widget.clear()
 
         for i, seq in enumerate(sequences):
@@ -286,7 +300,7 @@ class DCCSequenceTable(QWidget):
             list_widget.addItem(item)
 
         indicator = "\u25bc" if section_data["expanded"] else "\u25b6"
-        cast("QPushButton", section_data["header_btn"]).setText(  # pyright: ignore[reportAny]
+        section_data["header_btn"].setText(
             f"{indicator}  {section_data['title']} ({len(sequences)})"
         )
 
