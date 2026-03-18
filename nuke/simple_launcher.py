@@ -212,7 +212,7 @@ except OSError:
 
         # Build Nuke command WITHOUT -t flag (keeps GUI open)
         safe_temp = shlex.quote(temp_script)
-        command = f"nuke {safe_temp}"
+        command = f"nuke --script {safe_temp}"
 
         self.logger.info(
             f"Generated Nuke startup script to create: {script_path}"

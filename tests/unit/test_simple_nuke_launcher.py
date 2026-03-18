@@ -97,7 +97,7 @@ class TestSimpleNukeLauncher:
 
         # Now uses Nuke's API via startup script (no -t flag, keeps GUI open)
         assert command.startswith("export NUKE_PATH=")
-        assert " && nuke " in command
+        assert " && nuke --script " in command
         assert ".py" in command  # Temporary Python script
         assert any("v001.nk" in msg for msg in messages)
         assert any("onCreate hooks" in msg for msg in messages)
@@ -123,7 +123,7 @@ class TestSimpleNukeLauncher:
 
         # Now uses Nuke's API via startup script (no -t flag, keeps GUI open)
         assert command.startswith("export NUKE_PATH=")
-        assert " && nuke " in command
+        assert " && nuke --script " in command
         assert ".py" in command
         assert any("v004" in msg for msg in messages)
         assert any("onCreate hooks" in msg for msg in messages)
@@ -152,7 +152,7 @@ class TestSimpleNukeLauncher:
 
         # Now uses Nuke's API via startup script (no -t flag, keeps GUI open)
         assert command.startswith("export NUKE_PATH=")
-        assert " && nuke " in command
+        assert " && nuke --script " in command
         assert ".py" in command
         assert any("v001" in msg for msg in messages)
         assert any("onCreate hooks" in msg for msg in messages)
@@ -180,7 +180,7 @@ class TestSimpleNukeLauncher:
 
         # Check that version was incremented correctly
         assert command.startswith("export NUKE_PATH=")
-        assert " && nuke " in command
+        assert " && nuke --script " in command
         assert ".py" in command
         assert any("v011" in msg for msg in messages)  # Should increment from v010
 
@@ -257,7 +257,7 @@ class TestSimpleNukeLauncher:
         )
 
         # Extract temp script path from command
-        temp_script_path = Path(command.split(" && nuke ", 1)[1].strip().strip("'"))
+        temp_script_path = Path(command.split(" && nuke --script ", 1)[1].strip().strip("'"))
 
         # Verify temp file was created
         assert temp_script_path.exists(), "Temp startup script should exist"
