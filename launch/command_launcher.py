@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, final
 from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 
 # Local application imports
-from commands import maya_commands, nuke_commands, rv_commands
+from commands import maya_commands, nuke_commands
 from config import Config, RezMode
 from launch.app_handlers import (
     AppHandler,
@@ -164,12 +164,28 @@ class CommandLauncher(LoggingMixin, QObject):
         self.nuke_launcher = SimpleNukeLauncher()
         self.nuke_env = NukeLaunchHandler()
 
-        # Per-DCC handlers for launch_with_file command building
+        # Per-DCC handlers for launch_with_file and launch_app command building
         self._app_handlers: dict[str, AppHandler] = {
-            "nuke": NukeAppHandler(scripts_dir=Config.SCRIPTS_DIR),
-            "3de": ThreeDEAppHandler(scripts_dir=Config.SCRIPTS_DIR),
-            "maya": MayaAppHandler(bootstrap_script=maya_commands.MAYA_BOOTSTRAP_SCRIPT),
-            "rv": RVAppHandler(),
+            "nuke": NukeAppHandler(
+                scripts_dir=Config.SCRIPTS_DIR,
+                nuke_launcher=self.nuke_launcher,
+                emit_error=self._emit_error,
+            ),
+            "3de": ThreeDEAppHandler(
+                scripts_dir=Config.SCRIPTS_DIR,
+                cache_manager=self._cache_manager,
+                start_async_search=self._start_async_file_search,
+                apply_file_result=self._apply_file_result,
+                emit_error=self._emit_error,
+            ),
+            "maya": MayaAppHandler(
+                bootstrap_script=maya_commands.MAYA_BOOTSTRAP_SCRIPT,
+                cache_manager=self._cache_manager,
+                start_async_search=self._start_async_file_search,
+                apply_file_result=self._apply_file_result,
+                emit_error=self._emit_error,
+            ),
+            "rv": RVAppHandler(emit_error=self._emit_error),
         }
         self._default_handler: AppHandler = GenericAppHandler()
 
@@ -713,8 +729,9 @@ class CommandLauncher(LoggingMixin, QObject):
     ) -> tuple[str | None, bool]:
         """Build the app-specific command string for launch_app.
 
-        Handles app-specific command building for Nuke, 3DE, Maya, and RV.
-        Emits log signals as a side effect.
+        Dispatches to the per-DCC AppHandler registered in self._app_handlers.
+        Each handler encapsulates the DCC-specific logic (Nuke workspace scripts,
+        3DE/Maya async file search, RV sequence path).
 
         Args:
             app_name: Application name (must already be validated against Config.APPS)
@@ -730,61 +747,9 @@ class CommandLauncher(LoggingMixin, QObject):
         """
         # Precondition: caller must have verified current_shot is not None
         assert self.current_shot is not None, "_build_app_command called without a current shot"
-        command = Config.APPS[app_name]
-
-        # Handle Nuke-specific launching logic
-        if app_name == "nuke":
-            has_workspace_options = context.open_latest_scene or context.create_new_file
-            if has_workspace_options:
-                if not context.selected_plate:
-                    self._emit_error("No plate selected. Please select a plate space.")
-                    return LAUNCH_ERROR
-                if context.create_new_file:
-                    command, _ = self.nuke_launcher.create_new_version(
-                        self.current_shot, context.selected_plate
-                    )
-                else:
-                    command, _ = self.nuke_launcher.open_latest_script(
-                        self.current_shot, context.selected_plate, create_if_missing=True
-                    )
-                if not command:
-                    self._emit_error("Nuke launch aborted - see log messages above")
-                    return LAUNCH_ERROR
-
-        # Handle 3DE/Maya with latest scene file (async-aware)
-        needs_file_search = (
-            (app_name == "3de" and context.open_latest_threede)
-            or (app_name == "maya" and context.open_latest_maya)
-        )
-
-        if needs_file_search:
-            workspace = self.current_shot.workspace_path
-            file_type = "threede" if app_name == "3de" else "maya"
-            cache_result = self._cache_manager.get_latest_file_cache_result(workspace, file_type)
-
-            if cache_result.status == "miss":
-                # Cache miss - start async search and return
-                # Launch will continue when search completes
-                self._start_async_file_search(app_name, context, command)
-                return ASYNC_IN_PROGRESS
-
-            # Cache hit (or "not_found") - apply result immediately
-            applied = self._apply_file_result(app_name, command, cache_result.path)
-            if applied is None:
-                return LAUNCH_ERROR
-            command = applied
-
-        # Handle RV with default settings and optional sequence path
-        if app_name == "rv":
-            rv_command = rv_commands.build_rv_command(command, context.sequence_path)
-            if rv_command is None:
-                self._emit_error(
-                    f"Cannot launch RV: Invalid sequence path '{context.sequence_path}'"
-                )
-                return LAUNCH_ERROR
-            command = rv_command
-
-        return command, False
+        base_cmd = Config.APPS[app_name]
+        handler = self._app_handlers.get(app_name, self._default_handler)
+        return handler.build_launch_command(base_cmd, context, self.current_shot)
 
     def launch_app(
         self,
