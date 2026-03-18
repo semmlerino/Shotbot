@@ -14,6 +14,7 @@ from typing_extensions import Unpack
 # Local application imports
 from config import Config, ThreadingConfig
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
+from timeout_config import TimeoutConfig
 from type_definitions import Shot
 from typing_compat import override
 from workers.process_pool_manager import CancellableSubprocess
@@ -350,7 +351,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
             # Run with cancellation support using CancellableSubprocess
             proc = CancellableSubprocess(cmd, shell=False, text=True)
             result = proc.run(
-                timeout=ThreadingConfig.PREVIOUS_SHOTS_SCAN_TIMEOUT,
+                timeout=TimeoutConfig.PREVIOUS_SHOTS_SCAN_SEC,
                 poll_interval=0.1,
                 cancel_flag=lambda: self._stop_requested,
             )
@@ -456,7 +457,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
                 )
 
                 try:
-                    shots = future.result(timeout=5)
+                    shots = future.result(timeout=TimeoutConfig.FUTURE_RESULT_QUICK)
                     # Yield shots immediately as they're found
                     yield from shots
 

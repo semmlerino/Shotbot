@@ -6,6 +6,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+from timeout_config import TimeoutConfig
 from typing_compat import override
 from workers.thread_safe_worker import ThreadSafeWorker
 
@@ -56,7 +57,7 @@ class StartupCoordinator(ThreadSafeWorker):
             _ = self._process_pool.execute_workspace_command(
                 "echo warming",
                 cache_ttl=1,  # Short TTL since this is just for warming
-                timeout=15,  # Give enough time for first initialization
+                timeout=TimeoutConfig.BASH_WARMUP_SEC,  # Give enough time for first initialization
                 use_login_shell=True,  # Use bash -l to avoid terminal blocking
             )
             duration = time.time() - start_time

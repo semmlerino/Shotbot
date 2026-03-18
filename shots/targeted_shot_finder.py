@@ -137,7 +137,7 @@ class TargetedShotsFinder(ShotFinderBase):
             # Run with cancellation support using CancellableSubprocess
             proc = CancellableSubprocess(cmd, shell=False, text=True)
             result = proc.run(
-                timeout=ThreadingConfig.PREVIOUS_SHOTS_SCAN_TIMEOUT,
+                timeout=TimeoutConfig.PREVIOUS_SHOTS_SCAN_SEC,
                 poll_interval=0.1,
                 cancel_flag=lambda: self._stop_requested,
             )

@@ -21,9 +21,9 @@ from PySide6.QtCore import (
 )
 
 # Runtime imports
-from config import Config
 from logging_mixin import LoggingMixin
 from threede import ThreeDESceneWorker
+from timeout_config import TimeoutConfig
 
 
 if TYPE_CHECKING:
@@ -136,7 +136,7 @@ class ThreeDEWorkerManager(LoggingMixin):
 
             is_test_environment = "pytest" in sys.modules
             worker_timeout_ms = (
-                500 if is_test_environment else Config.WORKER_STOP_TIMEOUT_MS
+                500 if is_test_environment else TimeoutConfig.WORKER_COORDINATION_STOP_MS
             )
 
             if not worker_to_cleanup.wait(worker_timeout_ms):
@@ -195,7 +195,7 @@ class ThreeDEWorkerManager(LoggingMixin):
 
         """
         worker_to_stop.stop()
-        if not worker_to_stop.wait(Config.WORKER_STOP_TIMEOUT_MS):
+        if not worker_to_stop.wait(TimeoutConfig.WORKER_COORDINATION_STOP_MS):
             self.logger.warning(
                 "Failed to stop 3DE worker gracefully, using safe termination",
             )

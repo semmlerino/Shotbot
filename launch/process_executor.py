@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Final, cast
 import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from timeout_config import TimeoutConfig
+
 
 if TYPE_CHECKING:
     from config import Config
@@ -363,7 +365,7 @@ class ProcessExecutor(QObject):
         # Threads check _shutdown_flag and will exit cleanly
         for thread in self._verification_threads:
             if thread.is_alive():
-                thread.join(timeout=0.5)  # Brief wait per thread
+                thread.join(timeout=TimeoutConfig.POLL_MAX_SEC)  # Brief wait per thread
         self._verification_threads.clear()
 
         # Stop and clean up all pending timers

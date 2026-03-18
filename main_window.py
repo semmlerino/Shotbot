@@ -124,6 +124,7 @@ from shots.shot_grid_view import ShotGridView  # Model/View implementation
 from shots.shot_item_model import ShotItemModel
 from shots.shot_model import ShotModel
 from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
+from timeout_config import TimeoutConfig
 from ui.design_system import design_system
 from ui.log_viewer import LogViewer
 from ui.proxy_models import PreviousShotsProxyModel, ShotProxyModel, ThreeDEProxyModel
@@ -1234,7 +1235,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
                 import sys
                 is_test_environment = "pytest" in sys.modules
-                session_timeout_ms = 200 if is_test_environment else 2000
+                session_timeout_ms = 200 if is_test_environment else TimeoutConfig.SESSION_WARMER_STOP_MS
 
                 if not warmer.wait(session_timeout_ms):
                     self.logger.warning(

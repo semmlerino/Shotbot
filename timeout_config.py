@@ -63,6 +63,45 @@ class TimeoutConfig:
     # Concurrent operation timeouts
     FUTURE_RESULT_QUICK: int = 5  # 5 seconds for quick future.result() calls
 
+    # Worker lifecycle (milliseconds unless noted)
+    WORKER_COORDINATION_STOP_MS: int = 5000  # Outer coordination wait (threede_worker_manager)
+    WORKER_GRACEFUL_STOP_MS: int = 2000  # Inner safe_stop / ThreadingConfig equivalent
+    WORKER_TERMINATE_MS: int = 1000  # Time before force termination
+    WORKER_SHUTDOWN_MS: int = 5000  # Maximum time to wait for worker shutdown
+    WORKER_PAUSE_CHECK_MS: int = 100  # Check for pause/resume every N ms
+    WORKER_POLL_INTERVAL_SEC: float = 0.1  # Polling interval for worker state checks
+
+    # Launch / verification
+    LAUNCH_VERIFICATION_SEC: float = 60.0  # How long to wait for app to start
+    LAUNCH_VERIFICATION_POLL_SEC: float = 0.5  # How often to scan for process
+
+    # Subprocess / session
+    SUBPROCESS_SEC: float = 30.0  # General subprocess timeout
+    SESSION_INIT_SEC: float = 2.0  # Timeout for session initialization
+    BASH_WARMUP_SEC: int = 15  # First bash session initialization
+
+    # Scanning
+    THREEDE_SCAN_SEC: int = 60  # Timeout per directory scan (seconds)
+    PREVIOUS_SHOTS_SCAN_SEC: int = 30  # Timeout per show scan (seconds)
+
+    # UI notifications (milliseconds)
+    NOTIFICATION_SUCCESS_MS: int = 3000  # Success message timeout in status bar
+    NOTIFICATION_ERROR_MS: int = 5000  # Error message timeout in status bar
+    NOTIFICATION_SETTINGS_MS: int = 2500  # Settings-saved notification timeout
+    THUMBNAIL_UNLOAD_DELAY_MS: int = 5000  # Delay before unloading invisible thumbnails
+    PROGRESS_UPDATE_INTERVAL_MS: int = 500  # Minimum time between progress updates (ms)
+
+    # Polling
+    POLL_INITIAL_SEC: float = 0.01  # 10ms - Initial polling interval
+    POLL_MAX_SEC: float = 0.5  # 500ms - Maximum polling interval
+    THREAD_POOL_SHUTDOWN_SEC: float = 5.0  # Thread pool operation timeout
+
+    # File search stop
+    FILE_SEARCH_STOP_MS: int = 1000  # Stop timeout for file search worker
+
+    # Session warmer
+    SESSION_WARMER_STOP_MS: int = 2000  # Stop timeout for session warmer thread
+
     # UI and interaction timeouts (in milliseconds)
     UI_OPERATION_MS: int = 5000  # 5 seconds for UI operations
     UI_ANIMATION_MS: int = 1000  # 1 second for animations

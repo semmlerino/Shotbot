@@ -168,13 +168,8 @@ class Config:
     # Threading
     MAX_THUMBNAIL_THREADS: int = 4
     CPU_COUNT: int = multiprocessing.cpu_count()  # Number of CPU cores available
-    WORKER_STOP_TIMEOUT_MS: int = 5000  # Timeout for worker.wait() calls (5 seconds)
-
-    # Thumbnail unloading settings
-    THUMBNAIL_UNLOAD_DELAY_MS: int = 5000  # Delay before unloading invisible thumbnails
 
     # Process and command settings
-    SUBPROCESS_TIMEOUT_SECONDS: int = 10  # Timeout for subprocess calls
     WS_COMMAND_TIMEOUT_SECONDS: int = 10  # Timeout for ws -sg command specifically
     WS_CACHE_TTL: int = int(os.getenv("SHOTBOT_WS_CACHE_TTL", "1800"))  # 30 minutes
 
@@ -224,9 +219,7 @@ class Config:
     ENABLE_PERFORMANCE_MONITORING: bool = True
     CACHE_STATS_LOG_INTERVAL: int = 300  # Log cache stats every 5 minutes
 
-    # Notification settings
-    NOTIFICATION_SUCCESS_TIMEOUT_MS: int = 3000  # Success message timeout in status bar
-    NOTIFICATION_ERROR_TIMEOUT_MS: int = 5000  # Error message timeout in status bar
+    # (Notification timeouts moved to TimeoutConfig.NOTIFICATION_SUCCESS_MS / NOTIFICATION_ERROR_MS)
 
     # VFX pipeline settings
     DEFAULT_USERNAME: str = "gabriel-h"  # Default username for pipeline paths
@@ -346,16 +339,14 @@ class Config:
     THREEDE_BATCH_SIZE: int = PROGRESSIVE_SCAN_BATCH_SIZE  # Alias for backward compatibility
 
     # Progress reporting configuration
-    PROGRESS_UPDATE_INTERVAL_MS: int = 500  # Minimum time between progress updates (ms)
     PROGRESS_FILES_PER_UPDATE: int = 10  # Update progress every N files processed
     PROGRESS_ENABLE_ETA: bool = True  # Enable ETA calculation and display
     PROGRESS_ETA_SMOOTHING_WINDOW: int = 5  # Number of samples for ETA smoothing
 
     # Worker thread configuration
     WORKER_CANCELLATION_CHECK_INTERVAL: int = 50  # Check for cancellation every N files
-    WORKER_PAUSE_CHECK_INTERVAL_MS: int = 100  # Check for pause/resume every N ms
     WORKER_THREAD_PRIORITY: int = 0  # QThread priority (0=normal, -1=low, +1=high)
-    WORKER_SHUTDOWN_TIMEOUT_MS: int = 5000  # Maximum time to wait for worker shutdown
+    # (WORKER_PAUSE_CHECK_INTERVAL_MS, WORKER_SHUTDOWN_TIMEOUT_MS moved to TimeoutConfig)
 
     # Performance tuning for progressive scanning
     PROGRESSIVE_IO_YIELD_INTERVAL: int = 25  # Yield to other threads every N files
@@ -373,7 +364,6 @@ class Config:
         True  # Only scan user's sequences (when in user_sequences mode)
     )
     THREEDE_FILE_FIRST_DISCOVERY: bool = True  # Use new efficient file-first discovery
-    THREEDE_SCAN_TIMEOUT_SECONDS: int = 60  # Extended timeout for large/slow filesystems
     THREEDE_SCAN_MAX_DEPTH: int = (
         15  # Max directory depth for find command (increased for deeply nested files)
     )
@@ -391,23 +381,14 @@ class ThreadingConfig:
     deadlocks and ensure consistent timing across the application.
     """
 
-    # Worker timeouts
-    WORKER_STOP_TIMEOUT_MS: int = 2000  # Time to wait for graceful worker stop
-    WORKER_TERMINATE_TIMEOUT_MS: int = 1000  # Time to wait before force termination
-    WORKER_POLL_INTERVAL: float = 0.1  # Polling interval for worker state checks
-
     # Cleanup timings
     CLEANUP_RETRY_DELAY_MS: int = 500  # Delay between cleanup retry attempts
     CLEANUP_INITIAL_DELAY_MS: int = 1000  # Initial delay before cleanup starts
 
-    # Process pool configuration
-    SESSION_INIT_TIMEOUT: float = 2.0  # Timeout for session initialization
+    # Session / process pool configuration
     SESSION_MAX_RETRIES: int = 5  # Maximum retry attempts for session operations
-    SUBPROCESS_TIMEOUT: float = 30.0  # General subprocess timeout
 
     # Polling configuration
-    INITIAL_POLL_INTERVAL: float = 0.01  # 10ms - Initial polling interval
-    MAX_POLL_INTERVAL: float = 0.5  # 500ms - Maximum polling interval
     POLL_BACKOFF_FACTOR: float = 1.5  # Exponential backoff multiplier
 
     # Cache configuration
@@ -416,11 +397,9 @@ class ThreadingConfig:
 
     # Thread pool settings
     MAX_WORKER_THREADS: int = 4  # Maximum number of worker threads
-    THREAD_POOL_TIMEOUT: float = 5.0  # Thread pool operation timeout
 
     # Previous shots parallel scanning
     PREVIOUS_SHOTS_PARALLEL_WORKERS: int = 4  # Number of parallel workers for shot scanning
-    PREVIOUS_SHOTS_SCAN_TIMEOUT: int = 30  # Timeout per show (seconds)
     PREVIOUS_SHOTS_CACHE_TTL: int = (
         0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)
     )
@@ -429,4 +408,6 @@ class ThreadingConfig:
     THREEDE_PARALLEL_WORKERS: int = 4  # Number of parallel workers for 3DE file discovery
     THREEDE_PROGRESS_INTERVAL: int = 10  # Number of files between progress updates
     THREEDE_SCAN_CHUNK_SIZE: int = 100  # Files per batch for processing
-    THREEDE_SCAN_TIMEOUT: int = 60  # Timeout per directory scan (seconds)
+    # (Timeout constants moved to TimeoutConfig: WORKER_GRACEFUL_STOP_MS, WORKER_TERMINATE_MS,
+    #  WORKER_POLL_INTERVAL_SEC, SESSION_INIT_SEC, SUBPROCESS_SEC, POLL_INITIAL_SEC,
+    #  POLL_MAX_SEC, THREAD_POOL_SHUTDOWN_SEC, PREVIOUS_SHOTS_SCAN_SEC, THREEDE_SCAN_SEC)

@@ -17,6 +17,7 @@ from PySide6.QtCore import QObject, Qt, Signal
 
 from discovery.latest_file_finder_worker import LatestFileFinderWorker
 from logging_mixin import LoggingMixin
+from timeout_config import TimeoutConfig
 
 
 if TYPE_CHECKING:
@@ -130,7 +131,7 @@ class FileSearchCoordinator(LoggingMixin, QObject):
         """Cancel any in-progress background file search."""
         if self._pending_worker is not None:
             _ = self._pending_worker.request_stop()
-            _ = self._pending_worker.safe_stop(timeout_ms=1000)
+            _ = self._pending_worker.safe_stop(timeout_ms=TimeoutConfig.FILE_SEARCH_STOP_MS)
             self._pending_worker = None
             self._clear_pending_state()
             self.launch_ready.emit()

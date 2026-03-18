@@ -258,7 +258,7 @@ class ImageUtils:
             str(output_path),
         ]
 
-        return ImageUtils._run_image_tool(mov_path, cmd, output_path, timeout=10, tool_name="FFmpeg")
+        return ImageUtils._run_image_tool(mov_path, cmd, output_path, timeout=TimeoutConfig.IMAGE_TOOL_STANDARD, tool_name="FFmpeg")
 
     @staticmethod
     def extract_frame_from_exr(
@@ -322,7 +322,7 @@ class ImageUtils:
                 cmd,
                 check=False,
                 capture_output=True,
-                timeout=10,
+                timeout=TimeoutConfig.IMAGE_TOOL_STANDARD,
                 text=True,
             )
 

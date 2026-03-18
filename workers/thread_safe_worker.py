@@ -26,8 +26,8 @@ from PySide6.QtCore import (
 )
 
 # Local application imports
-from config import ThreadingConfig
 from logging_mixin import LoggingMixin
+from timeout_config import TimeoutConfig
 
 
 if TYPE_CHECKING:
@@ -491,7 +491,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
     def safe_wait(
         self,
-        timeout_ms: int = ThreadingConfig.WORKER_STOP_TIMEOUT_MS,
+        timeout_ms: int = TimeoutConfig.WORKER_GRACEFUL_STOP_MS,
     ) -> bool:
         """Safely wait for worker to finish with timeout.
 
@@ -516,7 +516,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
     def safe_stop(
         self,
-        timeout_ms: int = ThreadingConfig.WORKER_STOP_TIMEOUT_MS,
+        timeout_ms: int = TimeoutConfig.WORKER_GRACEFUL_STOP_MS,
     ) -> bool:
         """Safely stop worker with timeout.
 
@@ -633,14 +633,14 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             self.quit()
 
             # Wait for graceful shutdown with shorter initial timeout
-            if not self.wait(ThreadingConfig.WORKER_STOP_TIMEOUT_MS):  # Initial timeout
+            if not self.wait(TimeoutConfig.WORKER_GRACEFUL_STOP_MS):  # Initial timeout
                 self.logger.warning(
-                    f"Worker {id(self)}: Still running after {ThreadingConfig.WORKER_STOP_TIMEOUT_MS}ms, waiting longer...",
+                    f"Worker {id(self)}: Still running after {TimeoutConfig.WORKER_GRACEFUL_STOP_MS}ms, waiting longer...",
                 )
 
                 # Try one more time with longer timeout
                 if not self.wait(
-                    ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS * 3,
+                    TimeoutConfig.WORKER_TERMINATE_MS * 3,
                 ):  # Extended timeout
                     # CAPTURE DIAGNOSTICS BEFORE ABANDONMENT
                     # Import here to avoid circular imports
@@ -650,7 +650,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     report = ThreadDiagnostics.capture_thread_state(self, start_time)
                     ThreadDiagnostics.log_abandonment(
                         self,
-                        f"Failed to stop after {ThreadingConfig.WORKER_STOP_TIMEOUT_MS + ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS * 3}ms",
+                        f"Failed to stop after {TimeoutConfig.WORKER_GRACEFUL_STOP_MS + TimeoutConfig.WORKER_TERMINATE_MS * 3}ms",
                         report,
                     )
 

@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, ClassVar, cast, final
 
 # Local application imports
 from logging_mixin import LoggingMixin
+from timeout_config import TimeoutConfig
 
 
 if TYPE_CHECKING:
@@ -192,7 +193,7 @@ class FileSystemScanner(LoggingMixin):
                 *exclusions,
             ]
 
-            result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=TimeoutConfig.THREEDE_SCAN_SEC)
 
             if result.returncode == 0 and result.stdout:
                 for file_path_str in result.stdout.strip().split("\n"):

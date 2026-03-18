@@ -20,6 +20,7 @@ _logger = logging.getLogger(__name__)
 
 # Local application imports
 from logging_mixin import LoggingMixin, log_execution
+from timeout_config import TimeoutConfig
 
 
 if TYPE_CHECKING:
@@ -767,7 +768,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
                 try:
                     # Use a short timeout to be more responsive to cancellation
-                    show_scenes = future.result(timeout=0.5)
+                    show_scenes = future.result(timeout=TimeoutConfig.POLL_MAX_SEC)
                     with results_lock:
                         all_scenes.extend(show_scenes)
                         shows_completed += 1

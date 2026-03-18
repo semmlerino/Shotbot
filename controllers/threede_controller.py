@@ -44,6 +44,7 @@ from controllers.threede_worker_manager import ThreeDEWorkerManager
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
+from timeout_config import TimeoutConfig
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -319,7 +320,7 @@ class ThreeDEController(LoggingMixin):
             n = worker.discovery_errors
             NotificationManager.info(
                 f"3DE scan: {n} error(s) — some scenes may not be shown",
-                timeout=5000,
+                timeout=TimeoutConfig.NOTIFICATION_ERROR_MS,
             )
 
     @Slot(str)  # pyright: ignore[reportAny]

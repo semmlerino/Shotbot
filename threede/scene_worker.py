@@ -22,6 +22,7 @@ from config import Config
 from threede.filesystem_scanner import FileSystemScanner
 from threede.progress_tracker import ProgressCalculator, QtProgressReporter
 from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
+from timeout_config import TimeoutConfig
 from typing_compat import override
 from utils import get_excluded_users
 from workers.thread_safe_worker import ThreadSafeWorker
@@ -265,7 +266,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 self.logger.debug("Worker paused, waiting for resume...")
                 _ = self._pause_condition.wait(
                     self._pause_mutex,
-                    Config.WORKER_PAUSE_CHECK_INTERVAL_MS,
+                    TimeoutConfig.WORKER_PAUSE_CHECK_MS,
                 )
         finally:
             self._pause_mutex.unlock()
@@ -415,7 +416,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 # Throttle progress updates
                 current_time = time.time()
                 if (current_time - self._last_progress_time) >= (
-                    Config.PROGRESS_UPDATE_INTERVAL_MS / 1000.0
+                    TimeoutConfig.PROGRESS_UPDATE_INTERVAL_MS / 1000.0
                 ):
                     progress_pct, eta_str = self._progress_calculator.update(
                         self._files_processed,

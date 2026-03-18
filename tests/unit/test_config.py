@@ -36,6 +36,7 @@ from pathlib import Path
 import pytest
 
 from config import Config, ThreadingConfig
+from timeout_config import TimeoutConfig
 
 
 # Test markers for categorization
@@ -182,12 +183,11 @@ class TestTimeoutConfigurationValidation:
         or infinite waits depending on implementation.
         """
         timeouts = [
-            ("SUBPROCESS_TIMEOUT_SECONDS", Config.SUBPROCESS_TIMEOUT_SECONDS),
             ("WS_COMMAND_TIMEOUT_SECONDS", Config.WS_COMMAND_TIMEOUT_SECONDS),
-            ("WORKER_STOP_TIMEOUT_MS", Config.WORKER_STOP_TIMEOUT_MS),
-            ("NOTIFICATION_SUCCESS_TIMEOUT_MS", Config.NOTIFICATION_SUCCESS_TIMEOUT_MS),
-            ("NOTIFICATION_ERROR_TIMEOUT_MS", Config.NOTIFICATION_ERROR_TIMEOUT_MS),
-            ("THUMBNAIL_UNLOAD_DELAY_MS", Config.THUMBNAIL_UNLOAD_DELAY_MS),
+            ("NOTIFICATION_SUCCESS_MS", TimeoutConfig.NOTIFICATION_SUCCESS_MS),
+            ("NOTIFICATION_ERROR_MS", TimeoutConfig.NOTIFICATION_ERROR_MS),
+            ("THUMBNAIL_UNLOAD_DELAY_MS", TimeoutConfig.THUMBNAIL_UNLOAD_DELAY_MS),
+            ("WORKER_COORDINATION_STOP_MS", TimeoutConfig.WORKER_COORDINATION_STOP_MS),
         ]
 
         for name, timeout in timeouts:
@@ -204,8 +204,8 @@ class TestTimeoutConfigurationValidation:
         """
         # Check second-based timeouts (should be < 600 seconds = 10 minutes)
         second_timeouts = [
-            ("SUBPROCESS_TIMEOUT_SECONDS", Config.SUBPROCESS_TIMEOUT_SECONDS),
             ("WS_COMMAND_TIMEOUT_SECONDS", Config.WS_COMMAND_TIMEOUT_SECONDS),
+            ("SUBPROCESS_SEC", TimeoutConfig.SUBPROCESS_SEC),
         ]
 
         for name, timeout in second_timeouts:
@@ -215,8 +215,8 @@ class TestTimeoutConfigurationValidation:
 
         # Check millisecond timeouts (should be < 600000ms = 10 minutes)
         ms_timeouts = [
-            ("WORKER_STOP_TIMEOUT_MS", Config.WORKER_STOP_TIMEOUT_MS),
-            ("THUMBNAIL_UNLOAD_DELAY_MS", Config.THUMBNAIL_UNLOAD_DELAY_MS),
+            ("WORKER_COORDINATION_STOP_MS", TimeoutConfig.WORKER_COORDINATION_STOP_MS),
+            ("THUMBNAIL_UNLOAD_DELAY_MS", TimeoutConfig.THUMBNAIL_UNLOAD_DELAY_MS),
         ]
 
         for name, timeout in ms_timeouts:
@@ -225,25 +225,25 @@ class TestTimeoutConfigurationValidation:
             )
 
     def test_threading_config_timeouts_are_positive(self) -> None:
-        """Validate ThreadingConfig timeout values are positive.
+        """Validate TimeoutConfig timeout values are positive.
 
-        Threading configuration timeouts must be positive to prevent
+        Timeout configuration values must be positive to prevent
         deadlocks and infinite waits.
         """
         timeouts = [
-            ("WORKER_STOP_TIMEOUT_MS", ThreadingConfig.WORKER_STOP_TIMEOUT_MS),
-            ("WORKER_TERMINATE_TIMEOUT_MS", ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS),
+            ("WORKER_GRACEFUL_STOP_MS", TimeoutConfig.WORKER_GRACEFUL_STOP_MS),
+            ("WORKER_TERMINATE_MS", TimeoutConfig.WORKER_TERMINATE_MS),
+            ("SESSION_INIT_SEC", TimeoutConfig.SESSION_INIT_SEC),
+            ("SUBPROCESS_SEC", TimeoutConfig.SUBPROCESS_SEC),
             ("CLEANUP_RETRY_DELAY_MS", ThreadingConfig.CLEANUP_RETRY_DELAY_MS),
             ("CLEANUP_INITIAL_DELAY_MS", ThreadingConfig.CLEANUP_INITIAL_DELAY_MS),
-            ("SESSION_INIT_TIMEOUT", ThreadingConfig.SESSION_INIT_TIMEOUT),
-            ("SUBPROCESS_TIMEOUT", ThreadingConfig.SUBPROCESS_TIMEOUT),
         ]
 
         for name, timeout in timeouts:
             assert isinstance(timeout, (int, float)), (
-                f"ThreadingConfig.{name} must be numeric"
+                f"{name} must be numeric"
             )
-            assert timeout > 0, f"ThreadingConfig.{name} must be positive, got {timeout}"
+            assert timeout > 0, f"{name} must be positive, got {timeout}"
 
 
 class TestApplicationConfigurationValidation:
@@ -419,12 +419,12 @@ class TestThreadConfigurationValidation:
 
         Initial poll should be < max poll, backoff should be > 1.
         """
-        initial = ThreadingConfig.INITIAL_POLL_INTERVAL
-        max_poll = ThreadingConfig.MAX_POLL_INTERVAL
+        initial = TimeoutConfig.POLL_INITIAL_SEC
+        max_poll = TimeoutConfig.POLL_MAX_SEC
         backoff = ThreadingConfig.POLL_BACKOFF_FACTOR
 
         assert 0 < initial < max_poll, (
-            f"INITIAL_POLL_INTERVAL ({initial}) must be < MAX_POLL_INTERVAL ({max_poll})"
+            f"POLL_INITIAL_SEC ({initial}) must be < POLL_MAX_SEC ({max_poll})"
         )
         assert backoff > 1, f"POLL_BACKOFF_FACTOR ({backoff}) must be > 1 for exponential backoff"
 
@@ -489,7 +489,7 @@ class TestProgressConfigurationValidation:
         Zero or negative intervals could cause update storms.
         """
         intervals = [
-            ("PROGRESS_UPDATE_INTERVAL_MS", Config.PROGRESS_UPDATE_INTERVAL_MS),
+            ("PROGRESS_UPDATE_INTERVAL_MS", TimeoutConfig.PROGRESS_UPDATE_INTERVAL_MS),
             ("PROGRESS_FILES_PER_UPDATE", Config.PROGRESS_FILES_PER_UPDATE),
             ("PROGRESS_ETA_SMOOTHING_WINDOW", Config.PROGRESS_ETA_SMOOTHING_WINDOW),
         ]

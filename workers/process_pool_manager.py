@@ -35,8 +35,8 @@ from PySide6.QtCore import (
 )
 
 # Local application imports
-from config import ThreadingConfig
 from logging_mixin import LoggingMixin, get_module_logger
+from timeout_config import TimeoutConfig
 
 
 # Module-level logger
@@ -444,7 +444,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         Args:
             command: Command to execute
             cache_ttl: Cache time-to-live in seconds
-            timeout: Command execution timeout in seconds (default: ThreadingConfig.SUBPROCESS_TIMEOUT)
+            timeout: Command execution timeout in seconds (default: TimeoutConfig.SUBPROCESS_SEC)
             use_login_shell: If True, use bash -l (login) instead of bash -i (interactive)
                            Login shell sources workspace functions without blocking on terminal
             cancel_flag: Optional callback that returns True if execution should be cancelled.
@@ -470,7 +470,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         if app_instance and current_thread == app_instance.thread():
             msg = (
                 "execute_workspace_command() cannot be called on the main (UI) thread!\n"
-                f"This method blocks for up to {ThreadingConfig.SUBPROCESS_TIMEOUT}s "
+                f"This method blocks for up to {TimeoutConfig.SUBPROCESS_SEC}s "
                 "and will freeze the UI.\n"
                 "Use AsyncShotLoader or background workers instead.\n"
                 f"Command attempted: {command[:100]}..."
@@ -480,7 +480,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             )
 
         if timeout is None:
-            timeout = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
+            timeout = int(TimeoutConfig.SUBPROCESS_SEC)
 
         # Check cache first
         cached = self._cache.get(command)
