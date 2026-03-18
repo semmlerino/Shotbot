@@ -82,7 +82,7 @@ class NotesManager(LoggingMixin, QObject):
                 return
 
             # Cast to expected type for iteration
-            data = cast("dict[str, str]", raw_data)
+            data = cast("dict[str, Any]", raw_data)
 
             # Parse keys from "show|sequence|shot" format
             self._notes_by_key = {}

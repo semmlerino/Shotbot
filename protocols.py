@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     # Standard library imports
+    from collections.abc import Callable
     from pathlib import Path
 
     # Local application imports
@@ -53,6 +54,7 @@ class ProcessPoolInterface(Protocol):
         cache_ttl: int = 30,
         timeout: int | None = None,
         use_login_shell: bool = False,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> str:
         """Execute workspace command."""
         ...

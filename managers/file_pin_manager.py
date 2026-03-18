@@ -181,7 +181,7 @@ class FilePinManager(LoggingMixin, QObject):
                 # Runtime check since JSON can have any structure
                 if not isinstance(pin_data_raw, dict):
                     continue
-                pin_data = cast("dict[str, str]", pin_data_raw)
+                pin_data = cast("dict[str, Any]", pin_data_raw)
                 comment_val = pin_data.get("comment", "")
                 pinned_at_val = pin_data.get("pinned_at", "")
                 self._pins[path] = {

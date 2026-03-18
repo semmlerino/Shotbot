@@ -596,15 +596,15 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Setting change signals for live preview
         _ = self.thumbnail_size_slider.valueChanged.connect(
-            self.update_thumbnail_preview  # type: ignore[reportAny, return-value]
+            self.update_thumbnail_preview  # pyright: ignore[reportAny]
         )
         _ = self.ui_scale_slider.valueChanged.connect(
-            self.update_ui_scale_preview  # type: ignore[reportAny, return-value]
+            self.update_ui_scale_preview  # pyright: ignore[reportAny]
         )
 
         # Validation signals
         _ = self.validate_launchers_btn.clicked.connect(
-            self.validate_custom_launchers  # type: ignore[reportAny, return-value]
+            self.validate_custom_launchers  # pyright: ignore[reportAny]
         )
 
     def set_initial_tab(self, tab_name: str) -> None:
@@ -618,12 +618,12 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         """Load current settings into the dialog controls."""
         # General tab
         self.thumbnail_size_slider.setValue(self.settings_manager.get_thumbnail_size())
-        self.update_thumbnail_preview()  # type: ignore[reportAny, return-value]
+        self.update_thumbnail_preview()  # pyright: ignore[reportAny]
 
         # UI Scale - convert from float (0.8-1.5) to percent (80-150)
         ui_scale = self.settings_manager.get_ui_scale()
         self.ui_scale_slider.setValue(int(ui_scale * 100))
-        self.update_ui_scale_preview()  # type: ignore[reportAny, return-value]
+        self.update_ui_scale_preview()  # pyright: ignore[reportAny]
 
         self.animations_check.setChecked(self.settings_manager.get_enable_animations())
 
@@ -671,13 +671,13 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.log_level_combo.setCurrentText(self.settings_manager.get_log_level())
 
     @Slot()  # pyright: ignore[reportAny]
-    def update_thumbnail_preview(self) -> None:  # type: ignore[reportAny]
+    def update_thumbnail_preview(self) -> None:
         """Update thumbnail size preview label."""
         size = self.thumbnail_size_slider.value()
         self.thumbnail_size_label.setText(f"{size}px")
 
     @Slot()  # pyright: ignore[reportAny]
-    def update_ui_scale_preview(self) -> None:  # type: ignore[reportAny]
+    def update_ui_scale_preview(self) -> None:
         """Update UI scale preview label and apply live preview."""
         scale_percent = self.ui_scale_slider.value()
         self.ui_scale_label.setText(f"{scale_percent}%")
@@ -692,7 +692,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.ui_scale_label.setFont(font)
 
     @Slot()  # pyright: ignore[reportAny]
-    def validate_custom_launchers(self) -> None:  # type: ignore[reportAny]
+    def validate_custom_launchers(self) -> None:
         """Validate custom launchers JSON."""
         try:
             text = self.launchers_edit.toPlainText().strip()
@@ -871,7 +871,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             text = self.launchers_edit.toPlainText().strip()
             if text:
                 # Parse JSON - returns object but we validate types below
-                parsed_data: object = json.loads(text)  # type: ignore[reportAny, assignment]
+                parsed_data: object = json.loads(text)  # pyright: ignore[reportAny]
                 # Handle both dict and list formats
                 launchers: list[dict[str, object]] = []
                 if isinstance(parsed_data, list):

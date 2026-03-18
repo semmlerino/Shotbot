@@ -63,21 +63,21 @@ class HideManager(LoggingMixin):
                 self._hidden_keys = []
                 return
 
-            data = cast("list[dict[str, str] | list[str]]", raw_data)
+            data = cast("list[Any]", raw_data)
 
             self._hidden_keys = []
-            for item in data:
+            for item in data:  # pyright: ignore[reportAny]
                 if isinstance(item, dict):
                     try:
-                        show_val = item.get("show")
-                        seq_val = item.get("sequence")
-                        shot_val = item.get("shot")
+                        show_val = item.get("show")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                        seq_val = item.get("sequence")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                        shot_val = item.get("shot")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
                         if isinstance(show_val, str) and isinstance(seq_val, str) and isinstance(shot_val, str):
                             self._hidden_keys.append((show_val, seq_val, shot_val))
                     except (KeyError, TypeError):
                         self.logger.warning("Invalid hidden shot entry", exc_info=True)
-                elif isinstance(item, list) and len(item) == 3:  # pyright: ignore[reportUnnecessaryIsInstance]
-                    v0, v1, v2 = item[0], item[1], item[2]
+                elif isinstance(item, list) and len(item) == 3:  # pyright: ignore[reportUnnecessaryIsInstance, reportUnknownArgumentType]
+                    v0, v1, v2 = item[0], item[1], item[2]  # pyright: ignore[reportUnknownVariableType]
                     if isinstance(v0, str) and isinstance(v1, str) and isinstance(v2, str):  # pyright: ignore[reportUnnecessaryIsInstance]
                         self._hidden_keys.append((v0, v1, v2))
 

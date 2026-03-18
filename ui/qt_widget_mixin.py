@@ -11,7 +11,10 @@ Part of Phase 2 refactoring to eliminate duplicate Qt patterns.
 # pyright: reportAttributeAccessIssue=false
 # pyright: reportInvalidCast=false
 # pyright: reportAny=false
-# Mixin classes provide attributes/methods at runtime that type checker cannot verify statically
+# File-level suppressions are necessary: this mixin accesses QWidget methods (resize, move,
+# restoreGeometry, addAction, closeEvent, etc.) that are only present at runtime via multiple
+# inheritance. Pyright cannot resolve them statically without seeing the full MRO of each
+# concrete class. Per-line suppression would require 20+ ignore comments — kept file-level.
 
 from __future__ import annotations
 
@@ -82,11 +85,9 @@ class QtWidgetMixin(LoggingMixin):
         # Restore geometry from settings
         settings = QSettings()
         if settings.contains(f"{self._geometry_key}/geometry"):
-            geometry_bytes: QByteArray = settings.value(
-                f"{self._geometry_key}/geometry"
-            )
-            if hasattr(self, "restoreGeometry"):
-                self.restoreGeometry(geometry_bytes)
+            geometry_value = settings.value(f"{self._geometry_key}/geometry")
+            if isinstance(geometry_value, QByteArray) and hasattr(self, "restoreGeometry"):
+                self.restoreGeometry(geometry_value)
         else:
             if hasattr(self, "resize"):
                 self.resize(self._default_size)

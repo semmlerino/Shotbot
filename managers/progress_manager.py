@@ -43,7 +43,7 @@ logger = get_module_logger(__name__)
 
 
 @final
-class _Operation:
+class ProgressOperation:
     """Internal state for a single progress operation."""
 
     def __init__(self, label: str, total: int) -> None:
@@ -84,7 +84,7 @@ class ProgressManager:
     _singleton_description: ClassVar[str] = "Progress dialogs and operation tracking"
 
     _instance: ClassVar[ProgressManager | None] = None
-    _operation_stack: ClassVar[list[_Operation]] = []
+    _operation_stack: ClassVar[list[ProgressOperation]] = []
     _stack_lock: ClassVar[QMutex] = QMutex()
     _status_bar: ClassVar[QStatusBar | None] = None
 
@@ -129,7 +129,7 @@ class ProgressManager:
         return NotificationManager.get_status_bar()
 
     @staticmethod
-    def update_status_bar(op: _Operation) -> None:
+    def update_status_bar(op: ProgressOperation) -> None:
         """Push a status bar message for the given operation."""
         sb = ProgressManager._get_status_bar()
         if sb is None:
@@ -145,7 +145,7 @@ class ProgressManager:
             ProgressManager._status_bar = None
 
     @classmethod
-    def start_operation(cls, label: str, total: int = 0) -> _Operation:
+    def start_operation(cls, label: str, total: int = 0) -> ProgressOperation:
         """Start a new progress operation and push it onto the stack.
 
         Args:
@@ -156,7 +156,7 @@ class ProgressManager:
             The new operation object.
         """
         _ = cls()  # ensure singleton is initialized
-        op = _Operation(label, total)
+        op = ProgressOperation(label, total)
         with QMutexLocker(cls._stack_lock):
             cls._operation_stack.append(op)
         sb = cls._get_status_bar()
@@ -227,7 +227,7 @@ class ProgressManager:
         label: str,
         total: int = 0,
         cancelable: bool = False,
-    ) -> Iterator[_Operation]:
+    ) -> Iterator[ProgressOperation]:
         """Context manager for a progress operation.
 
         Args:
@@ -248,7 +248,7 @@ class ProgressManager:
             raise
 
     @classmethod
-    def get_current_operation(cls) -> _Operation | None:
+    def get_current_operation(cls) -> ProgressOperation | None:
         """Return the top-of-stack operation, or None if the stack is empty."""
         _ = cls()  # ensure singleton is initialized
         with QMutexLocker(cls._stack_lock):

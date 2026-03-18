@@ -113,8 +113,6 @@ class TargetedShotsFinder(ShotFinderBase):
         # Ensure shows_root is always a Path object
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
-        elif isinstance(shows_root, str):
-            shows_root = Path(shows_root)
 
         show_path = shows_root / show_name / "shots"
         if not show_path.exists():
@@ -239,8 +237,6 @@ class TargetedShotsFinder(ShotFinderBase):
         # Ensure shows_root is always a Path object
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
-        elif isinstance(shows_root, str):
-            shows_root = Path(shows_root)
 
         if not shows_root.exists():
             self.logger.warning(f"Shows root does not exist: {shows_root}")
@@ -320,8 +316,6 @@ class TargetedShotsFinder(ShotFinderBase):
         # Ensure shows_root is always a Path object
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
-        elif isinstance(shows_root, str):
-            shows_root = Path(shows_root)
 
         # Extract target shows from active shots
         target_shows = self.extract_shows_from_active_shots(active_shots)

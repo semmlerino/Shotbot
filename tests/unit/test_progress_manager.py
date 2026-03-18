@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtWidgets import QStatusBar
 
-from managers.progress_manager import ProgressManager, _Operation
+from managers.progress_manager import ProgressManager, ProgressOperation
 
 
 if TYPE_CHECKING:
@@ -58,16 +58,16 @@ def _reset_progress_manager() -> Generator[None, None, None]:
 
 
 # =============================================================================
-# _Operation Tests
+# ProgressOperation Tests
 # =============================================================================
 
 
 class TestOperation:
-    """Test _Operation state management."""
+    """Test ProgressOperation state management."""
 
     def test_initialization(self) -> None:
         """Operation initializes with correct default state."""
-        op = _Operation("Test Operation", total=0)
+        op = ProgressOperation("Test Operation", total=0)
 
         assert op.label == "Test Operation"
         assert op.total == 0
@@ -76,26 +76,26 @@ class TestOperation:
 
     def test_set_total(self) -> None:
         """set_total updates the total."""
-        op = _Operation("Test", total=0)
+        op = ProgressOperation("Test", total=0)
         op.set_total(100)
         assert op.total == 100
 
     def test_update_value_and_message(self) -> None:
         """update() stores current value and message."""
-        op = _Operation("Test", total=100)
+        op = ProgressOperation("Test", total=100)
         op.update(50, "Halfway")
         assert op.current == 50
         assert op.message == "Halfway"
 
     def test_update_without_message_preserves_label(self) -> None:
         """update() without message keeps existing message."""
-        op = _Operation("My label", total=100)
+        op = ProgressOperation("My label", total=100)
         op.update(10)
         assert op.message == "My label"
 
     def test_cancellation(self) -> None:
         """cancel() sets is_cancelled to True."""
-        op = _Operation("Test", total=0)
+        op = ProgressOperation("Test", total=0)
         assert not op.is_cancelled()
         op.cancel()
         assert op.is_cancelled() is True

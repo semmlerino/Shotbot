@@ -509,7 +509,7 @@ class InfoPanelPixmapLoader(TrackedQRunnable):
     def __init__(self, panel: ShotInfoPanel, path: str | Path) -> None:
         super().__init__(auto_delete=False)
         self.panel: ShotInfoPanel = panel  # Keep reference to prevent GC
-        self.path: str | Path = path
+        self.path: Path = Path(path) if isinstance(path, str) else path
         self.signals: InfoPanelPixmapLoader.Signals = self.Signals()
         self._target_dpr: float = max(1.0, panel.devicePixelRatioF())
 
@@ -526,7 +526,7 @@ class InfoPanelPixmapLoader(TrackedQRunnable):
 
             from config import Config
 
-            path_obj = Path(self.path) if isinstance(self.path, str) else self.path
+            path_obj = self.path
 
             if not path_obj.exists():
                 logger.debug(f"Thumbnail path does not exist: {self.path}")

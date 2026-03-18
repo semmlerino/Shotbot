@@ -29,9 +29,7 @@ if TYPE_CHECKING:
     # Local application imports
     from cache.scene_cache_disk import SceneDiskCache
     from launch.command_launcher import CommandLauncher
-    from managers.progress_manager import (
-        _Operation as _ProgressOperation,  # pyright: ignore[reportPrivateUsage]
-    )
+    from managers.progress_manager import ProgressOperation as _ProgressOperation
     from threede.grid_view import ThreeDEGridView
     from threede.item_model import ThreeDEItemModel
     from threede.scene_model import ThreeDESceneModel

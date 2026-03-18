@@ -65,7 +65,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
     # ============= Shot-specific custom roles =============
 
     @override
-    def get_custom_role_data(self, item: Shot, role: int) -> object:
+    def get_custom_role_data(self, item: Shot, role: int) -> object | None:
         """Handle shot-specific custom roles.
 
         Args:

@@ -475,7 +475,7 @@ class ProcessExecutor(QObject):
                         return
 
                     try:
-                        proc_name = cast("str", proc.info.get("name", "")).lower()
+                        proc_name = (proc.info.get("name") or "").lower()
                         create_time = cast("float", proc.info.get("create_time", 0))
                         proc_pid = cast("int", proc.info.get("pid", 0))
 
