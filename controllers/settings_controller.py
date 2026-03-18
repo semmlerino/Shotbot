@@ -119,12 +119,12 @@ class SettingsController(LoggingMixin):
         """Load settings from settings manager."""
         # Geometry
         try:
-            geometry = self.window.settings_manager.get_window_geometry()
+            geometry = self.window.settings_manager.window.get_window_geometry()
             if not geometry.isEmpty():
                 _ = self.window.restoreGeometry(geometry)
         except Exception:
             self.logger.exception("Error restoring window geometry")
-            default_size = self.window.settings_manager.get_window_size()
+            default_size = self.window.settings_manager.window.get_window_size()
             try:
                 width = default_size.width()
                 height = default_size.height()
@@ -138,7 +138,7 @@ class SettingsController(LoggingMixin):
 
         # Window state
         try:
-            state = self.window.settings_manager.get_window_state()
+            state = self.window.settings_manager.window.get_window_state()
             if not state.isEmpty():
                 _ = self.window.restoreState(state)
         except Exception:
@@ -146,7 +146,7 @@ class SettingsController(LoggingMixin):
 
         # Splitter
         try:
-            main_splitter_state = self.window.settings_manager.get_splitter_state("main")
+            main_splitter_state = self.window.settings_manager.window.get_splitter_state("main")
             if not main_splitter_state.isEmpty():
                 _ = self.window.restore_splitter_state(main_splitter_state)
         except Exception:
@@ -154,7 +154,7 @@ class SettingsController(LoggingMixin):
 
         # Maximized state
         try:
-            if self.window.settings_manager.is_window_maximized():
+            if self.window.settings_manager.window.is_window_maximized():
                 self.window.showMaximized()
         except Exception:
             self.logger.exception("Error restoring maximized state")
@@ -162,14 +162,14 @@ class SettingsController(LoggingMixin):
         # Tab index
         try:
             self.window.set_current_tab(
-                self.window.settings_manager.get_current_tab()
+                self.window.settings_manager.window.get_current_tab()
             )
         except Exception:
             self.logger.exception("Error restoring tab index")
 
         # Thumbnail size
         try:
-            thumbnail_size = self.window.settings_manager.get_thumbnail_size()
+            thumbnail_size = self.window.settings_manager.ui.get_thumbnail_size()
             self.window.set_thumbnail_size(thumbnail_size)
         except Exception:
             self.logger.exception("Error restoring thumbnail size")
@@ -186,22 +186,22 @@ class SettingsController(LoggingMixin):
         """Save settings to settings manager."""
         try:
             # Save window geometry and state
-            self.window.settings_manager.set_window_geometry(self.window.saveGeometry())
-            self.window.settings_manager.set_window_state(self.window.saveState())
-            self.window.settings_manager.set_window_maximized(self.window.isMaximized())
+            self.window.settings_manager.window.set_window_geometry(self.window.saveGeometry())
+            self.window.settings_manager.window.set_window_state(self.window.saveState())
+            self.window.settings_manager.window.set_window_maximized(self.window.isMaximized())
 
             # Save splitter states
-            self.window.settings_manager.set_splitter_state(
+            self.window.settings_manager.window.set_splitter_state(
                 "main", self.window.get_splitter_state()
             )
 
             # Save current tab
-            self.window.settings_manager.set_current_tab(
+            self.window.settings_manager.window.set_current_tab(
                 self.window.get_current_tab()
             )
 
             # Save thumbnail size
-            self.window.settings_manager.set_thumbnail_size(
+            self.window.settings_manager.ui.set_thumbnail_size(
                 self.window.get_thumbnail_size()
             )
 
@@ -217,7 +217,7 @@ class SettingsController(LoggingMixin):
         """Apply cache settings from settings manager."""
         try:
             # Apply cache expiry
-            expiry_minutes = self.window.settings_manager.get_cache_expiry_minutes()
+            expiry_minutes = self.window.settings_manager.performance.get_cache_expiry_minutes()
             if hasattr(self.window.cache_coordinator, "set_expiry_minutes"):
                 self.window.cache_coordinator.set_expiry_minutes(expiry_minutes)
 
@@ -251,7 +251,7 @@ class SettingsController(LoggingMixin):
         self.apply_cache_settings()
 
         # Update thumbnail sizes in grids
-        thumbnail_size = self.window.settings_manager.get_thumbnail_size()
+        thumbnail_size = self.window.settings_manager.ui.get_thumbnail_size()
         self.window.set_thumbnail_size(thumbnail_size)
 
         self.logger.info("Settings applied successfully")

@@ -618,58 +618,58 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
     def load_current_settings(self) -> None:
         """Load current settings into the dialog controls."""
         # General tab
-        self.thumbnail_size_slider.setValue(self.settings_manager.get_thumbnail_size())
+        self.thumbnail_size_slider.setValue(self.settings_manager.ui.get_thumbnail_size())
         self.update_thumbnail_preview()  # pyright: ignore[reportAny]
 
         # UI Scale - convert from float (0.8-1.5) to percent (80-150)
-        ui_scale = self.settings_manager.get_ui_scale()
+        ui_scale = self.settings_manager.ui.get_ui_scale()
         self.ui_scale_slider.setValue(int(ui_scale * 100))
         self.update_ui_scale_preview()  # pyright: ignore[reportAny]
 
-        self.animations_check.setChecked(self.settings_manager.get_enable_animations())
+        self.animations_check.setChecked(self.settings_manager.ui.get_enable_animations())
 
         self.refresh_interval_spin.setValue(
-            self.settings_manager.get_refresh_interval()
+            self.settings_manager.refresh.get_refresh_interval()
         )
         self.background_refresh_check.setChecked(
-            self.settings_manager.get_background_refresh()
+            self.settings_manager.refresh.get_background_refresh()
         )
 
         # Map double click action to combo index
         action_map = {"launch_default": 0, "show_info": 1, "open_folder": 2}
-        action = self.settings_manager.get_double_click_action()
+        action = self.settings_manager.launch.get_double_click_action()
         self.double_click_combo.setCurrentIndex(action_map.get(action, 0))
 
-        self.terminal_edit.setText(self.settings_manager.get_preferred_terminal())
+        self.terminal_edit.setText(self.settings_manager.launch.get_preferred_terminal())
 
         # Performance tab
         self.max_threads_spin.setValue(
-            self.settings_manager.get_max_thumbnail_threads()
+            self.settings_manager.performance.get_max_thumbnail_threads()
         )
-        self.cache_memory_spin.setValue(self.settings_manager.get_max_cache_memory_mb())
+        self.cache_memory_spin.setValue(self.settings_manager.performance.get_max_cache_memory_mb())
         self.cache_expiry_spin.setValue(
-            self.settings_manager.get_cache_expiry_minutes()
+            self.settings_manager.performance.get_cache_expiry_minutes()
         )
 
         # Applications tab
-        self.default_app_combo.setCurrentText(self.settings_manager.get_default_app())
+        self.default_app_combo.setCurrentText(self.settings_manager.launch.get_default_app())
         self.background_gui_apps_check.setChecked(
-            self.settings_manager.get_background_gui_apps()
+            self.settings_manager.launch.get_background_gui_apps()
         )
 
         # Load file associations
-        associations = self.settings_manager.get_file_associations()
+        associations = self.settings_manager.launch.get_file_associations()
         for file_type, combo in self.association_combos.items():
             if file_type in associations:
                 combo.setCurrentText(associations[file_type])
 
         # Load custom launchers
-        launchers = self.settings_manager.get_custom_launchers()
+        launchers = self.settings_manager.launch.get_custom_launchers()
         self.launchers_edit.setPlainText(json.dumps(launchers, indent=2))
 
         # Advanced tab
-        self.debug_mode_check.setChecked(self.settings_manager.get_debug_mode())
-        self.log_level_combo.setCurrentText(self.settings_manager.get_log_level())
+        self.debug_mode_check.setChecked(self.settings_manager.debug.get_debug_mode())
+        self.log_level_combo.setCurrentText(self.settings_manager.debug.get_log_level())
 
     @Slot()  # pyright: ignore[reportAny]
     def update_thumbnail_preview(self) -> None:
@@ -826,18 +826,18 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
     def save_settings(self) -> None:
         """Save all settings from dialog controls."""
         # General settings
-        self.settings_manager.set_thumbnail_size(self.thumbnail_size_slider.value())
+        self.settings_manager.ui.set_thumbnail_size(self.thumbnail_size_slider.value())
 
         # UI Scale - convert from percent (80-150) to float (0.8-1.5)
         ui_scale = self.ui_scale_slider.value() / 100.0
-        self.settings_manager.set_ui_scale(ui_scale)
+        self.settings_manager.ui.set_ui_scale(ui_scale)
         # Update design system with new scale
         design_system.set_ui_scale(ui_scale)
 
-        self.settings_manager.set_enable_animations(self.animations_check.isChecked())
+        self.settings_manager.ui.set_enable_animations(self.animations_check.isChecked())
 
-        self.settings_manager.set_refresh_interval(self.refresh_interval_spin.value())
-        self.settings_manager.set_background_refresh(
+        self.settings_manager.refresh.set_refresh_interval(self.refresh_interval_spin.value())
+        self.settings_manager.refresh.set_background_refresh(
             self.background_refresh_check.isChecked()
         )
 
@@ -846,18 +846,18 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         action = action_map.get(
             self.double_click_combo.currentIndex(), "launch_default"
         )
-        self.settings_manager.set_double_click_action(action)
+        self.settings_manager.launch.set_double_click_action(action)
 
-        self.settings_manager.set_preferred_terminal(self.terminal_edit.text())
+        self.settings_manager.launch.set_preferred_terminal(self.terminal_edit.text())
 
         # Performance settings
-        self.settings_manager.set_max_thumbnail_threads(self.max_threads_spin.value())
-        self.settings_manager.set_max_cache_memory_mb(self.cache_memory_spin.value())
-        self.settings_manager.set_cache_expiry_minutes(self.cache_expiry_spin.value())
+        self.settings_manager.performance.set_max_thumbnail_threads(self.max_threads_spin.value())
+        self.settings_manager.performance.set_max_cache_memory_mb(self.cache_memory_spin.value())
+        self.settings_manager.performance.set_cache_expiry_minutes(self.cache_expiry_spin.value())
 
         # Application settings
-        self.settings_manager.set_default_app(self.default_app_combo.currentText())
-        self.settings_manager.set_background_gui_apps(
+        self.settings_manager.launch.set_default_app(self.default_app_combo.currentText())
+        self.settings_manager.launch.set_background_gui_apps(
             self.background_gui_apps_check.isChecked()
         )
 
@@ -865,7 +865,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         associations: dict[str, str] = {}
         for file_type, combo in self.association_combos.items():
             associations[file_type] = combo.currentText()
-        self.settings_manager.set_file_associations(associations)
+        self.settings_manager.launch.set_file_associations(associations)
 
         # Custom launchers
         try:
@@ -897,15 +897,15 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
                         if parsed_dict
                         else []
                     )
-                self.settings_manager.set_custom_launchers(launchers)
+                self.settings_manager.launch.set_custom_launchers(launchers)
         except json.JSONDecodeError:
             self.logger.warning(
                 "Invalid custom launchers JSON, keeping existing settings"
             )
 
         # Advanced settings
-        self.settings_manager.set_debug_mode(self.debug_mode_check.isChecked())
-        self.settings_manager.set_log_level(self.log_level_combo.currentText())
+        self.settings_manager.debug.set_debug_mode(self.debug_mode_check.isChecked())
+        self.settings_manager.debug.set_log_level(self.log_level_combo.currentText())
 
         # Sync settings to disk
         self.settings_manager.sync()

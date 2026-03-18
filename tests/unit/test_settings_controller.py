@@ -106,6 +106,15 @@ class SettingsManagerDouble:
         self._sync_called = False
         self._window_size = QSize(1200, 800)
 
+        # Domain property delegates — point back to self since flat methods
+        # match the domain API signatures used by SettingsController.
+        self.window = self  # type: ignore[assignment]
+        self.ui = self  # type: ignore[assignment]
+        self.refresh = self  # type: ignore[assignment]
+        self.launch = self  # type: ignore[assignment]
+        self.performance = self  # type: ignore[assignment]
+        self.debug = self  # type: ignore[assignment]
+
     def get_window_geometry(self) -> QByteArray:
         return self._geometry
 

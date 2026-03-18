@@ -290,6 +290,11 @@ class TestSimulatedCrash:
         class _BrokenManager:
             __test__ = False
 
+            def __init__(self) -> None:
+                self.window = self  # type: ignore[assignment]
+                self.ui = self  # type: ignore[assignment]
+                self.performance = self  # type: ignore[assignment]
+
             def get_window_geometry(self) -> QByteArray:
                 raise RuntimeError("disk read failed")
 

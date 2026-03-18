@@ -377,7 +377,7 @@ class TestCommandLauncher:
         launcher.set_current_shot(test_shot)
         mock_popen.return_value = _running_process_double("3de")
 
-        with patch.object(launcher._settings_manager, "get_background_gui_apps", return_value=background):
+        with patch.object(launcher._settings_manager.launch, "get_background_gui_apps", return_value=background):
             result = launcher.launch_app("3de")
 
         assert result is True

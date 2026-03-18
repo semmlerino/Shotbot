@@ -675,7 +675,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # This closes the terminal immediately after launching, reducing clutter
         if (
             self.process_executor.is_gui_app(app_name)
-            and self._settings_manager.get_background_gui_apps()
+            and self._settings_manager.launch.get_background_gui_apps()
         ):
             full_command = CommandBuilder.wrap_for_background(full_command)
             self.logger.info(
