@@ -9,7 +9,7 @@ from pathlib import Path
 
 # Local application imports
 from cache.scene_cache_disk import SceneDiskCache
-from type_definitions import ThreeDEScene
+from type_definitions import ThreeDEScene, ThreeDESceneDict
 from utils import get_excluded_users
 
 
@@ -57,10 +57,7 @@ class ThreeDESceneModel:
             self.scenes = []
             for scene_data in cached_data:
                 try:
-                    # Skip invalid cached entries (e.g., from old format)
-                    # Note: cached_data is ThreeDESceneDict but from_dict expects dict[str, str | Path]
-                    # The structures differ but from_dict extracts only the fields it needs
-                    self.scenes.append(ThreeDEScene.from_dict(scene_data))  # pyright: ignore[reportArgumentType]
+                    self.scenes.append(ThreeDEScene.from_dict(scene_data))
                 except (KeyError, TypeError, ValueError):
                     # Skip invalid cached entry
                     logger.warning("Skipping invalid cached 3DE scene", exc_info=True)
@@ -80,7 +77,7 @@ class ThreeDESceneModel:
         """
         self.scenes = scenes
 
-    def to_dict(self) -> list[dict[str, str | float | Path | int | None]]:
+    def to_dict(self) -> list[ThreeDESceneDict]:
         """Convert scenes to dictionary format for caching."""
         return [scene.to_dict() for scene in self.scenes]
 

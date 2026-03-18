@@ -588,10 +588,8 @@ class ThreeDEController(LoggingMixin):
     def cache_scenes(self) -> None:
         """Cache the current 3DE scenes."""
         try:
-            # Type ignore: to_dict() returns list[dict[str, str | Path]] but cache expects
-            # list[ThreeDESceneDict]. The cache system handles this gracefully via JSON serialization.
             self.window.threede_scene_model.cache_manager.cache_threede_scenes(
-                self.window.threede_scene_model.to_dict(),  # pyright: ignore[reportArgumentType]
+                self.window.threede_scene_model.to_dict(),
             )
         except Exception:  # noqa: BLE001
             self.logger.warning("Failed to cache 3DE scenes", exc_info=True)
@@ -644,7 +642,7 @@ class ThreeDEController(LoggingMixin):
         scenes: list[ThreeDEScene] = []
         for scene_data in cached_data:
             try:
-                scenes.append(ThreeDEScene.from_dict(scene_data))  # pyright: ignore[reportArgumentType]
+                scenes.append(ThreeDEScene.from_dict(scene_data))
             except (KeyError, TypeError, ValueError) as e:
                 self.logger.debug(f"Skipping invalid cached 3DE scene: {e}")
                 continue

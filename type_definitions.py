@@ -296,20 +296,21 @@ class ThreeDEScene:
         self._cached_thumbnail_path = thumbnail
         return thumbnail
 
-    def to_dict(self) -> dict[str, str | float | Path | int | None]:
+    def to_dict(self) -> ThreeDESceneDict:
         """Convert scene to dictionary for caching.
 
         Includes thumbnail_path if it has been discovered (not sentinel).
         This reduces filesystem I/O on subsequent loads.
         """
-        data: dict[str, str | float | Path | int | None] = {
+        data: ThreeDESceneDict = {
+            "filepath": str(self.scene_path),
+            "filename": self.scene_path.name,
             "show": self.show,
             "sequence": self.sequence,
             "shot": self.shot,
             "workspace_path": self.workspace_path,
             "user": self.user,
             "plate": self.plate,
-            "scene_path": str(self.scene_path),
             "modified_time": self.modified_time,
             "frame_start": self.frame_start,
             "frame_end": self.frame_end,
@@ -320,13 +321,16 @@ class ThreeDEScene:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, str | float | Path | int | None]) -> ThreeDEScene:
+    def from_dict(cls, data: ThreeDESceneDict) -> ThreeDEScene:
         """Create from dictionary.
 
         Note: modified_time defaults to 0.0 for cache migration of old entries.
         Frame range fields default to None for cache migration compatibility.
         Restores thumbnail_path if present AND file still exists (validated).
         """
+        # Migration: old cache uses "scene_path", new uses "filepath"
+        filepath = data.get("filepath") or data.get("scene_path", "")  # type: ignore[typeddict-item]
+
         # Extract frame range with proper type handling
         frame_start_raw = data.get("frame_start")
         frame_end_raw = data.get("frame_end")
@@ -344,9 +348,9 @@ class ThreeDEScene:
             shot=str(data["shot"]),
             workspace_path=str(data["workspace_path"]),
             user=str(data["user"]),
-            plate=str(data["plate"]),
-            scene_path=Path(str(data["scene_path"])),
-            modified_time=float(data.get("modified_time", 0.0)),  # type: ignore[arg-type]
+            plate=str(data.get("plate", "")),
+            scene_path=Path(str(filepath)),
+            modified_time=float(data.get("modified_time", 0.0)),
             frame_start=frame_start,
             frame_end=frame_end,
         )
@@ -370,6 +374,9 @@ class ThreeDESceneDict(TypedDict):
     filename: str
     modified_time: float
     workspace_path: str
+    plate: NotRequired[str]
+    frame_start: NotRequired[int | None]
+    frame_end: NotRequired[int | None]
     last_seen: NotRequired[float]  # Timestamp when scene was last discovered (for pruning)
     thumbnail_path: NotRequired[str]  # Persisted thumbnail path (validated on restore)
 
