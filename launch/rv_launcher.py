@@ -25,6 +25,10 @@ def open_plate_in_rv(workspace_path: str) -> None:
         workspace_path: Filesystem path to the shot workspace.
 
     """
+    # TODO(launch-audit-F5): open_plate_in_rv bypasses CommandLauncher and
+    # launches RV directly via subprocess.Popen. This means it skips workspace
+    # setup, launch logging, verification, and the terminal wrapper that
+    # CommandLauncher provides. Consider unifying with RVAppHandler.
     from discovery.publish_plate_finder import find_main_plate
 
     plate_path = find_main_plate(workspace_path)

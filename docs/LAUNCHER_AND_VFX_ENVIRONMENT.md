@@ -106,3 +106,28 @@ ws <show>/<seq>/<shot> && rez env <packages> -- env | grep -E '^(SGTK_|SHOTGUN_|
 - Maya/SGTK context handling behavior is launcher-specific and should be validated in integration tests after refactors.
 - Nuke/3DE file-launch hooks depend on `Config.SCRIPTS_DIR` being valid in the deployed environment.
 - Context-only launches from 3DE scene selections must not pass a `.3de` path into non-3DE applications.
+
+## Known Limitations
+
+### SGTK Bootstrap Non-Determinism (F2)
+
+Shotbot relies on Toolkit's auto-bootstrap behavior within the DCC session rather
+than calling `sgtk.bootstrap.ToolkitManager.bootstrap_engine()` explicitly. This
+means the SGTK engine may not be available when Shotbot's context-update code
+first runs. The Maya bootstrap works around this with a background poller, but
+the underlying issue is studio-pipeline-level: deterministic bootstrap requires
+coordinating with the facility's Toolkit configuration and launch hooks.
+
+### RV Dual Launch Path (F5)
+
+RV can be launched via two independent code paths:
+
+1. `CommandLauncher.launch_app("rv", ...)` — full launch pipeline with workspace
+   setup, Rez wrapping, terminal wrapper, and verification.
+2. `rv_launcher.open_plate_in_rv(workspace_path)` — direct `subprocess.Popen`
+   call that bypasses all CommandLauncher infrastructure.
+
+Path 2 exists because RV plate viewing is a lightweight operation that doesn't
+need workspace context or SGTK integration. However, the two paths use different
+Rez resolution logic and error handling. A future unification should route both
+through CommandLauncher or extract shared Rez/error handling.
