@@ -11,8 +11,9 @@ import os
 def _shotbot_update_sgtk_context():
     """Update SGTK context from the opened script path."""
     try:
-        import nuke
         import sgtk
+
+        import nuke
 
         engine = sgtk.platform.current_engine()
         if not engine:

@@ -72,7 +72,6 @@ def test_shot_model() -> int:
     """Test that ShotModel properly loads all shots."""
     # Local application imports
     from cache_manager import CacheManager
-
     from mock_workspace_pool import (
         create_mock_pool_from_filesystem,
     )

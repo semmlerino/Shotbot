@@ -10,10 +10,10 @@ This index separates active documentation from historical artifacts.
 ## Active Documentation
 
 - `docs/SKYLOS_DEAD_CODE_DETECTION.md` - Canonical Skylos workflow and dead-code triage guidance
-- `docs/DEPLOYMENT_SYSTEM.md` - Bundle/deployment workflow and operational recovery
+- `docs/DEPLOYMENT_SYSTEM.md` - Bundle/deployment workflow, remote log locations, DCC wrapper triage, and in-DCC Toolkit/workfiles context inspection
 - `bundle_workflow_template/README.md` - Portable copy of the encoded-bundle workflow for reuse in another repository
 - `docs/CACHING_ARCHITECTURE.md` - Cache design decisions and invariants
-- `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md` - Launcher behavior and BlueBolt shell environment
+- `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md` - Launcher behavior, BlueBolt shell environment, wrapper-vs-Rez diagnostics, and delayed-context Toolkit/workfiles debugging
 - `docs/THREADING_ARCHITECTURE.md` - Threading model and guardrails
 - `docs/SIGNAL_ROUTING.md` - MainWindow signal-routing invariants and change checklist
 - `segfault.md` - Crash triage runbook

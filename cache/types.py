@@ -7,11 +7,9 @@ from typing import (
     NamedTuple,
 )
 
-from type_definitions import Shot, ThreeDEScene
-
 
 if TYPE_CHECKING:
-    from type_definitions import ShotDict, ThreeDESceneDict
+    from type_definitions import Shot, ShotDict, ThreeDEScene, ThreeDESceneDict
 
 
 
