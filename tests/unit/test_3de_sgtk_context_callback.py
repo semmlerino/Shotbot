@@ -150,7 +150,7 @@ class TestThreeDESgtkContextCallback:
         monkeypatch.setattr(
             module,
             "_attempt_context_update",
-            lambda _log_errors=True: "retry",
+            lambda **_kwargs: "retry",
         )
 
         started = []
