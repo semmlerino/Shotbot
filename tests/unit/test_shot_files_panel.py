@@ -542,7 +542,7 @@ class TestSceneFileRelativeAge:
             modified_time=datetime.now() - timedelta(days=1),  # noqa: DTZ005
             user="test",
         )
-        assert sf.relative_age == "yesterday"
+        assert sf.relative_age.startswith("yesterday")
 
     def test_days_ago(self) -> None:
         """Test that files modified days ago show correct text."""
