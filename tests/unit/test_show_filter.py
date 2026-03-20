@@ -437,19 +437,19 @@ class TestMainWindowFilterHandlers:
     def test_on_shot_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for My Shots show filter request."""
         from main_window import MainWindow
-        MainWindow._on_shot_show_filter_requested(mock_main_window, "show1")
+        MainWindow._apply_show_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "show1")
 
         # Verify the filter was applied to the proxy (proxy handles filtering)
         assert mock_main_window.shot_proxy._show_filter == "show1"
 
         # Test clearing filter
-        MainWindow._on_shot_show_filter_requested(mock_main_window, "")
+        MainWindow._apply_show_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "")
         assert mock_main_window.shot_proxy._show_filter is None
 
     def test_on_previous_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for Previous Shots show filter request."""
         from main_window import MainWindow
-        MainWindow._on_previous_show_filter_requested(mock_main_window, "showA")
+        MainWindow._apply_show_filter(mock_main_window, mock_main_window.previous_shots_proxy, "Previous Shots", "showA")
 
         # Verify the filter was applied to the proxy (proxy handles filtering)
         assert mock_main_window.previous_shots_proxy._show_filter == "showA"
@@ -507,7 +507,7 @@ class TestMainWindowFilterHandlers:
     def test_filter_updates_status_bar(self, mock_main_window: Any) -> None:
         """Test that applying show filter updates status bar."""
         from main_window import MainWindow
-        MainWindow._on_shot_show_filter_requested(mock_main_window, "show1")
+        MainWindow._apply_show_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "show1")
 
         # Verify status bar was updated with filter info
         mock_main_window.status_bar.showMessage.assert_called()

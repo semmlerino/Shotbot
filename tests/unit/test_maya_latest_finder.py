@@ -14,7 +14,7 @@ from discovery.maya_latest_finder import MayaLatestFinder
 
 
 class TestFindLatestMayaScene:
-    """Test find_latest_maya_scene method."""
+    """Test find_latest_scene method."""
 
     def test_find_latest_mixed_extensions(self, tmp_path: Path) -> None:
         """Test handling of mixed .ma and .mb files."""
@@ -28,14 +28,14 @@ class TestFindLatestMayaScene:
         (maya_scenes / "model_v003.ma").touch()
 
         finder = MayaLatestFinder()
-        latest = finder.find_latest_maya_scene(str(workspace))
+        latest = finder.find_latest_scene(str(workspace))
 
         assert latest is not None
         assert latest.name == "model_v003.ma"
 
 
 class TestFindAllMayaScenes:
-    """Test find_all_maya_scenes static method."""
+    """Test find_all_scenes class method."""
 
     def test_exclude_autosave_by_default(self, tmp_path: Path) -> None:
         """Test that autosave files are excluded by default."""
@@ -48,7 +48,7 @@ class TestFindAllMayaScenes:
         (maya_scenes / "scene_v001.ma.autosave").touch()
         (maya_scenes / "backup.autosave.mb").touch()
 
-        all_scenes = MayaLatestFinder.find_all_maya_scenes(str(workspace))
+        all_scenes = MayaLatestFinder.find_all_scenes(str(workspace))
 
         assert len(all_scenes) == 1
         assert all_scenes[0].name == "scene_v001.ma"
@@ -64,9 +64,9 @@ class TestFindAllMayaScenes:
         (maya_scenes / "scene.ma.autosave").touch()
         (maya_scenes / "model.autosave.mb").touch()
 
-        # Note: find_all_maya_scenes doesn't have include_autosave parameter
+        # Note: find_all_scenes doesn't have include_autosave parameter
         # Autosave files are always excluded
-        all_scenes = MayaLatestFinder.find_all_maya_scenes(str(workspace))
+        all_scenes = MayaLatestFinder.find_all_scenes(str(workspace))
 
         assert len(all_scenes) == 1
         assert all_scenes[0].name == "scene_v001.ma"
@@ -112,7 +112,7 @@ class TestEdgeCases:
         symlink.symlink_to(workspace / "user" / "john" / "maya")
 
         finder = MayaLatestFinder()
-        latest = finder.find_latest_maya_scene(str(workspace))
+        latest = finder.find_latest_scene(str(workspace))
 
         assert latest is not None
         # Should find the file through either path
@@ -129,7 +129,7 @@ class TestEdgeCases:
             (scenes / f"scene_v{i + 1:03d}.ma").touch()
 
         finder = MayaLatestFinder()
-        latest = finder.find_latest_maya_scene(str(workspace))
+        latest = finder.find_latest_scene(str(workspace))
 
         assert latest is not None
         assert latest.name == "scene_v004.ma"
@@ -148,4 +148,4 @@ class TestEdgeCases:
             Path, "iterdir", side_effect=PermissionError("Access denied")
         ), pytest.raises(PermissionError):
             # The implementation doesn't catch PermissionError, so it should be raised
-            finder.find_latest_maya_scene(str(workspace))
+            finder.find_latest_scene(str(workspace))

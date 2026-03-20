@@ -11,7 +11,7 @@ from threede import ThreeDELatestFinder
 
 
 class TestFindLatestThreeDEScene:
-    """Test find_latest_threede_scene method."""
+    """Test find_latest_scene method."""
 
     def test_find_latest_across_plates(self, tmp_path: Path) -> None:
         """Test finding latest across different plate directories."""
@@ -42,7 +42,7 @@ class TestFindLatestThreeDEScene:
         (pl_dir / "track_v006.3de").touch()  # Highest version
 
         finder = ThreeDELatestFinder()
-        latest = finder.find_latest_threede_scene(str(workspace))
+        latest = finder.find_latest_scene(str(workspace))
 
         assert latest is not None
         assert latest.name == "track_v006.3de"
@@ -73,7 +73,7 @@ class TestFindLatestThreeDEScene:
         (wrong_path / "track_v002.3de").touch()  # Should not be found
 
         finder = ThreeDELatestFinder()
-        latest = finder.find_latest_threede_scene(str(workspace))
+        latest = finder.find_latest_scene(str(workspace))
 
         assert latest is not None
         assert latest.name == "track_v001.3de"
@@ -81,7 +81,7 @@ class TestFindLatestThreeDEScene:
 
 
 class TestFindAllThreeDEScenes:
-    """Test find_all_threede_scenes static method."""
+    """Test find_all_scenes static method."""
 
     def test_find_all_across_plates(self, tmp_path: Path) -> None:
         """Test finding files across different plates."""
@@ -112,7 +112,7 @@ class TestFindAllThreeDEScenes:
         pl_dir.mkdir(parents=True)
         (pl_dir / "track_v001.3de").touch()
 
-        all_scenes = ThreeDELatestFinder.find_all_threede_scenes(str(workspace))
+        all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
 
         assert len(all_scenes) == 3
         # Files from all plates should be found
@@ -164,7 +164,7 @@ class TestPlateHandling:
             plate_dir.mkdir(parents=True)
             (plate_dir / f"track_{plate}_v001.3de").touch()
 
-        all_scenes = ThreeDELatestFinder.find_all_threede_scenes(str(workspace))
+        all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
 
         assert len(all_scenes) == len(plates)
         # All plates should be represented
@@ -196,7 +196,7 @@ class TestPlateHandling:
         (num_dir / "track_v001.3de").touch()
 
         finder = ThreeDELatestFinder()
-        all_scenes = finder.find_all_threede_scenes(str(workspace))
+        all_scenes = finder.find_all_scenes(str(workspace))
 
         assert len(all_scenes) == 2
         # Should handle any directory name as plate
@@ -229,7 +229,7 @@ class TestEdgeCases:
         regular.mkdir(parents=True)
         (regular / "track_v002.3de").touch()
 
-        all_scenes = ThreeDELatestFinder.find_all_threede_scenes(str(workspace))
+        all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
 
         # Should only find files at correct depth
         assert len(all_scenes) == 1
@@ -267,7 +267,7 @@ class TestEdgeCases:
         symlink = link_base / "FG01"
         symlink.symlink_to(real_3de)
 
-        all_scenes = ThreeDELatestFinder.find_all_threede_scenes(str(workspace))
+        all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
 
         # Should find files through both paths
         assert len(all_scenes) >= 1
@@ -293,7 +293,7 @@ class TestEdgeCases:
         (threede_scenes / "shot_010_track_v002.3de").touch()
 
         finder = ThreeDELatestFinder()
-        latest = finder.find_latest_threede_scene(str(workspace))
+        latest = finder.find_latest_scene(str(workspace))
 
         assert latest is not None
         assert latest.name == "shot_010_track_v002.3de"

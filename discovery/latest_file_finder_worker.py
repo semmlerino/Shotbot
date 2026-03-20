@@ -104,7 +104,7 @@ class LatestFileFinderWorker(ThreadSafeWorker):
                 )
                 self._threede_finder = ThreeDELatestFinder()
                 # Pass should_stop as cancel_flag for responsive cancellation
-                self._threede_result = self._threede_finder.find_latest_threede_scene(
+                self._threede_result = self._threede_finder.find_latest_scene(
                     self._workspace_path,
                     self._shot_name,
                     cancel_flag=self.should_stop,
@@ -129,7 +129,7 @@ class LatestFileFinderWorker(ThreadSafeWorker):
                 )
                 self._maya_finder = MayaLatestFinder()
                 # Pass should_stop as cancel_flag for responsive cancellation
-                self._maya_result = self._maya_finder.find_latest_maya_scene(
+                self._maya_result = self._maya_finder.find_latest_scene(
                     self._workspace_path,
                     self._shot_name,
                     cancel_flag=self.should_stop,

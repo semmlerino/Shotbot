@@ -87,8 +87,8 @@ def finder_adapter(request: pytest.FixtureRequest) -> FinderAdapter:
         finder = MayaLatestFinder()
         return FinderAdapter(
             finder=finder,
-            find_latest=finder.find_latest_maya_scene,
-            find_all=MayaLatestFinder.find_all_maya_scenes,
+            find_latest=finder.find_latest_scene,
+            find_all=MayaLatestFinder.find_all_scenes,
             version_pattern_str=r"_v(\d{3})\.(ma|mb)$",
             app_name="Maya",
             create_scene_dir=_create_maya_dir,
@@ -97,8 +97,8 @@ def finder_adapter(request: pytest.FixtureRequest) -> FinderAdapter:
     finder = ThreeDELatestFinder()
     return FinderAdapter(
         finder=finder,
-        find_latest=finder.find_latest_threede_scene,
-        find_all=ThreeDELatestFinder.find_all_threede_scenes,
+        find_latest=finder.find_latest_scene,
+        find_all=ThreeDELatestFinder.find_all_scenes,
         version_pattern_str=r"_v(\d{3})\.3de$",
         app_name="3DE",
         create_scene_dir=_create_threede_dir,

@@ -184,11 +184,11 @@ def main_window_with_real_components(
             return None
 
     class MockThreeDELatestFinder:
-        def find_latest_threede_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
+        def find_latest_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
             return None
 
     class MockMayaLatestFinder:
-        def find_latest_maya_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
+        def find_latest_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
             return None
 
     mock_nuke_script_generator = types.ModuleType("nuke_script_generator")

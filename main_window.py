@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from previous_shots import PreviousShotsItemModel
     from threede import ThreeDEItemModel
     from type_definitions import Shot, ThreeDEScene
+    from ui.proxy_models import PreviousShotsProxyModel, ShotProxyModel
     from ui.settings_dialog import SettingsDialog
     from workers.startup_coordinator import StartupCoordinator
 
@@ -302,18 +303,18 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # My Shots filter signals
         _ = self.shot_grid.show_filter_requested.connect(
-            self._on_shot_show_filter_requested  # pyright: ignore[reportAny]
+            partial(self._apply_show_filter, self.shot_proxy, "My Shots")  # pyright: ignore[reportAny]
         )
         _ = self.shot_grid.text_filter_requested.connect(
-            self._on_shot_text_filter_requested  # pyright: ignore[reportAny]
+            partial(self._apply_text_filter, self.shot_proxy, "My Shots")  # pyright: ignore[reportAny]
         )
 
         # Previous Shots filter signals
         _ = self.previous_shots_grid.show_filter_requested.connect(
-            self._on_previous_show_filter_requested  # pyright: ignore[reportAny]
+            partial(self._apply_show_filter, self.previous_shots_proxy, "Previous Shots")  # pyright: ignore[reportAny]
         )
         _ = self.previous_shots_grid.text_filter_requested.connect(
-            self._on_previous_text_filter_requested  # pyright: ignore[reportAny]
+            partial(self._apply_text_filter, self.previous_shots_proxy, "Previous Shots")  # pyright: ignore[reportAny]
         )
 
         # Previous shots model updates (repopulate show filter when shots change)
@@ -599,66 +600,35 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     # Size methods moved to ThumbnailSizeManager
 
-    @Slot(str)  # pyright: ignore[reportAny]
-    def _on_shot_show_filter_requested(self, show: str) -> None:
-        """Handle show filter request from My Shots grid view."""
+    def _apply_show_filter(
+        self, proxy: ShotProxyModel | PreviousShotsProxyModel, tab_label: str, show: str
+    ) -> None:
+        """Apply show filter to the given proxy model and update the status bar."""
         show_filter = show or None
-        self.shot_proxy.set_show_filter(show_filter)
-
-        filtered_count = self.shot_proxy.rowCount()
-        total = self.shot_proxy.sourceModel().rowCount()
+        proxy.set_show_filter(show_filter)
+        filtered_count = proxy.rowCount()
+        total = proxy.sourceModel().rowCount()
         filter_desc = show or "All Shows"
         self.status_bar.showMessage(
-            f"My Shots: {filtered_count} of {total} ({filter_desc})", 2500
+            f"{tab_label}: {filtered_count} of {total} ({filter_desc})", 2500
         )
-        self.logger.info(f"Applied My Shots show filter: {filter_desc}")
+        self.logger.info(f"Applied {tab_label} show filter: {filter_desc}")
 
-    @Slot(str)  # pyright: ignore[reportAny]
-    def _on_shot_text_filter_requested(self, text: str) -> None:
-        """Handle text filter request from My Shots grid view."""
+    def _apply_text_filter(
+        self, proxy: ShotProxyModel | PreviousShotsProxyModel, tab_label: str, text: str
+    ) -> None:
+        """Apply text filter to the given proxy model and update the status bar."""
         filter_text = text.strip() if text else None
-        self.shot_proxy.set_text_filter(filter_text)
-
-        filtered_count = self.shot_proxy.rowCount()
-        total = self.shot_proxy.sourceModel().rowCount()
+        proxy.set_text_filter(filter_text)
+        filtered_count = proxy.rowCount()
+        total = proxy.sourceModel().rowCount()
         if filter_text:
             self.status_bar.showMessage(
-                f"My Shots: {filtered_count} of {total} (filter: '{filter_text}')", 2500
+                f"{tab_label}: {filtered_count} of {total} (filter: '{filter_text}')", 2500
             )
         else:
-            self.status_bar.showMessage(f"My Shots: {total} shots", 2500)
-        self.logger.debug(f"My Shots text filter: '{filter_text}' - {filtered_count} shots")
-
-    @Slot(str)  # pyright: ignore[reportAny]
-    def _on_previous_show_filter_requested(self, show: str) -> None:
-        """Handle show filter request from Previous Shots grid view."""
-        show_filter = show or None
-        self.previous_shots_proxy.set_show_filter(show_filter)
-
-        filtered_count = self.previous_shots_proxy.rowCount()
-        total = self.previous_shots_proxy.sourceModel().rowCount()
-        filter_desc = show or "All Shows"
-        self.status_bar.showMessage(
-            f"Previous Shots: {filtered_count} of {total} ({filter_desc})", 2500
-        )
-        self.logger.info(f"Applied Previous Shots show filter: {filter_desc}")
-
-    @Slot(str)  # pyright: ignore[reportAny]
-    def _on_previous_text_filter_requested(self, text: str) -> None:
-        """Handle text filter request from Previous Shots grid view."""
-        filter_text = text.strip() if text else None
-        self.previous_shots_proxy.set_text_filter(filter_text)
-
-        filtered_count = self.previous_shots_proxy.rowCount()
-        total = self.previous_shots_proxy.sourceModel().rowCount()
-        if filter_text:
-            self.status_bar.showMessage(
-                f"Previous Shots: {filtered_count} of {total} (filter: '{filter_text}')",
-                2500,
-            )
-        else:
-            self.status_bar.showMessage(f"Previous Shots: {total} shots", 2500)
-        self.logger.debug(f"Previous Shots text filter: '{filter_text}' - {filtered_count} shots")
+            self.status_bar.showMessage(f"{tab_label}: {total} shots", 2500)
+        self.logger.debug(f"{tab_label} text filter: '{filter_text}' - {filtered_count} shots")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_previous_shots_updated(self) -> None:

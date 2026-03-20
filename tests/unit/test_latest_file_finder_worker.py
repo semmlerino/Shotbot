@@ -270,13 +270,13 @@ class TestLatestFileFinderWorkerCancellation:
             """Finder that also requests stop on the worker."""
             from threede import ThreeDELatestFinder
             finder = ThreeDELatestFinder()
-            result = finder.find_latest_threede_scene(*args, **kwargs)
+            result = finder.find_latest_scene(*args, **kwargs)
             worker.request_stop()
             return result
 
         with patch("threede.ThreeDELatestFinder") as mock_cls:
             mock_instance = MagicMock()
-            mock_instance.find_latest_threede_scene.side_effect = stop_after_threede
+            mock_instance.find_latest_scene.side_effect = stop_after_threede
             mock_cls.return_value = mock_instance
 
             worker.do_work()
@@ -315,7 +315,7 @@ class TestLatestFileFinderWorkerErrorHandling:
             "discovery.latest_file_finder_worker.MayaLatestFinder"
         ) as mock_finder_class:
             mock_finder = MagicMock()
-            mock_finder.find_latest_maya_scene.side_effect = RuntimeError(
+            mock_finder.find_latest_scene.side_effect = RuntimeError(
                 "Test error"
             )
             mock_finder_class.return_value = mock_finder
@@ -347,7 +347,7 @@ class TestLatestFileFinderWorkerErrorHandling:
             "threede.ThreeDELatestFinder"
         ) as mock_finder_class:
             mock_finder = MagicMock()
-            mock_finder.find_latest_threede_scene.side_effect = RuntimeError(
+            mock_finder.find_latest_scene.side_effect = RuntimeError(
                 "Test error"
             )
             mock_finder_class.return_value = mock_finder

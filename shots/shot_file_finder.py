@@ -55,7 +55,7 @@ class ShotFileFinder(LoggingMixin):
             List of SceneFile objects for 3DE files, sorted by mtime (newest first)
 
         """
-        paths = ThreeDELatestFinder.find_all_threede_scenes(shot.workspace_path)
+        paths = ThreeDELatestFinder.find_all_scenes(shot.workspace_path)
         return self._paths_to_scene_files(paths, FileType.THREEDE)
 
     def _find_maya_files(self, shot: Shot) -> list[SceneFile]:
@@ -68,7 +68,7 @@ class ShotFileFinder(LoggingMixin):
             List of SceneFile objects for Maya files, sorted by mtime (newest first)
 
         """
-        paths = MayaLatestFinder.find_all_maya_scenes(shot.workspace_path)
+        paths = MayaLatestFinder.find_all_scenes(shot.workspace_path)
         return self._paths_to_scene_files(paths, FileType.MAYA)
 
     def _find_nuke_files(self, shot: Shot) -> list[SceneFile]:
