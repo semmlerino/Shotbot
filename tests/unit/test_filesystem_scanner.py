@@ -462,8 +462,8 @@ class TestProgressiveDiscoveryFallback:
 
         # Track which method was called
         calls = {"python": 0, "subprocess": 0}
-        original_python = scanner.find_3de_files_python_optimized
-        original_subprocess = scanner.find_3de_files_subprocess_optimized
+        original_python = scanner._find_3de_files_python_optimized
+        original_subprocess = scanner._find_3de_files_subprocess_optimized
 
         def tracking_python(*args: object, **kwargs: object) -> list[tuple[str, Path]]:
             calls["python"] += 1
@@ -473,8 +473,8 @@ class TestProgressiveDiscoveryFallback:
             calls["subprocess"] += 1
             return original_subprocess(*args, **kwargs)
 
-        monkeypatch.setattr(scanner, "find_3de_files_python_optimized", tracking_python)
-        monkeypatch.setattr(scanner, "find_3de_files_subprocess_optimized", tracking_subprocess)
+        monkeypatch.setattr(scanner, "_find_3de_files_python_optimized", tracking_python)
+        monkeypatch.setattr(scanner, "_find_3de_files_subprocess_optimized", tracking_subprocess)
 
         result = scanner.find_3de_files_progressive(user_dir, excluded_users=None)
 
@@ -521,7 +521,7 @@ class TestProgressiveDiscoveryFallback:
                 ("artist1", Path(f"{tmp_path}/user/artist1/scene.3de")),
             ]
 
-        monkeypatch.setattr(scanner, "find_3de_files_subprocess_optimized", tracking_subprocess)
+        monkeypatch.setattr(scanner, "_find_3de_files_subprocess_optimized", tracking_subprocess)
 
         scanner.find_3de_files_progressive(user_dir, excluded_users=None)
 
@@ -560,7 +560,7 @@ class TestProgressiveDiscoveryFallback:
             calls["subprocess"] += 1
             raise subprocess.SubprocessError("Test subprocess failure")
 
-        original_python = scanner.find_3de_files_python_optimized
+        original_python = scanner._find_3de_files_python_optimized
 
         def tracking_python(
             user_dir: Path, excluded_users: set[str] | None
@@ -568,8 +568,8 @@ class TestProgressiveDiscoveryFallback:
             calls["python"] += 1
             return original_python(user_dir, excluded_users)
 
-        monkeypatch.setattr(scanner, "find_3de_files_subprocess_optimized", failing_subprocess)
-        monkeypatch.setattr(scanner, "find_3de_files_python_optimized", tracking_python)
+        monkeypatch.setattr(scanner, "_find_3de_files_subprocess_optimized", failing_subprocess)
+        monkeypatch.setattr(scanner, "_find_3de_files_python_optimized", tracking_python)
 
         # This should trigger subprocess (> threshold), fail, then fallback to python
         result = scanner.find_3de_files_progressive(user_dir, excluded_users=None)
@@ -597,7 +597,7 @@ class TestProgressiveDiscoveryFallback:
             (threede_dir / f"{username}_scene.3de").touch()
 
         excluded = {"excluded_user", "temp"}
-        result = scanner.find_3de_files_python_optimized(user_dir, excluded_users=excluded)
+        result = scanner._find_3de_files_python_optimized(user_dir, excluded_users=excluded)
 
         # Should only find files from non-excluded users
         usernames = {username for username, _ in result}
@@ -626,7 +626,7 @@ class TestProgressiveDiscoveryFallback:
         )
 
         excluded = {"excluded_user", "temp"}
-        result = scanner.find_3de_files_subprocess_optimized(user_dir, excluded_users=excluded)
+        result = scanner._find_3de_files_subprocess_optimized(user_dir, excluded_users=excluded)
 
         # Results should exclude the specified users
         usernames = {username for username, _ in result}

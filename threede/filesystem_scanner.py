@@ -43,10 +43,6 @@ class FileSystemScanner(LoggingMixin):
     # Workload size thresholds for strategy selection
     SMALL_WORKLOAD_THRESHOLD = 100  # Use Python-only below this
 
-    # Maximum recursion depth for _quick_scan. Deep enough to reach .3de files
-    # in typical VFX directory structures without traversing the whole tree.
-    _MAX_QUICK_SCAN_DEPTH: int = 10
-
     # Common excluded directories
     EXCLUDED_DIRS: ClassVar[set[str]] = {
         ".git",
@@ -106,7 +102,7 @@ class FileSystemScanner(LoggingMixin):
         # FilesystemCoordinator already returns (name, is_dir, is_file) tuples
         return self._fs_coordinator.get_directory_listing(path)
 
-    def find_3de_files_python_optimized(
+    def _find_3de_files_python_optimized(
         self, user_dir: Path, excluded_users: set[str] | None
     ) -> list[tuple[str, Path]]:
         """Optimized Python-based .3de file discovery.
@@ -162,7 +158,7 @@ class FileSystemScanner(LoggingMixin):
 
         return files
 
-    def find_3de_files_subprocess_optimized(
+    def _find_3de_files_subprocess_optimized(
         self, user_dir: Path, excluded_users: set[str] | None
     ) -> list[tuple[str, Path]]:
         """Optimized subprocess-based .3de file discovery for large workloads."""
@@ -220,7 +216,7 @@ class FileSystemScanner(LoggingMixin):
         ):
             # Fallback to Python method
             self.logger.debug("Subprocess method failed, falling back to Python")
-            return self.find_3de_files_python_optimized(user_dir, excluded_users)
+            return self._find_3de_files_python_optimized(user_dir, excluded_users)
         except (OSError, PermissionError):
             self.logger.debug(f"Permission denied accessing {user_dir}")
 
@@ -254,11 +250,11 @@ class FileSystemScanner(LoggingMixin):
             if user_count <= self.SMALL_WORKLOAD_THRESHOLD:
                 # Small workload: use Python approach
                 self.logger.debug(f"Using Python method for {user_count} users")
-                files = self.find_3de_files_python_optimized(user_dir, excluded_users)
+                files = self._find_3de_files_python_optimized(user_dir, excluded_users)
             else:
                 # Larger workload: use subprocess approach
                 self.logger.debug(f"Using subprocess method for {user_count} users")
-                files = self.find_3de_files_subprocess_optimized(
+                files = self._find_3de_files_subprocess_optimized(
                     user_dir, excluded_users
                 )
 
@@ -266,59 +262,9 @@ class FileSystemScanner(LoggingMixin):
             self.logger.warning("Error in progressive discovery", exc_info=True)
             # Fallback to Python method
             self.logger.debug("Falling back to Python method due to error")
-            files = self.find_3de_files_python_optimized(user_dir, excluded_users)
+            files = self._find_3de_files_python_optimized(user_dir, excluded_users)
 
         return files
-
-    def quick_3de_exists_check(
-        self, base_paths: list[str]
-    ) -> bool:
-        """Optimized quick check for .3de file existence."""
-        for base_path in base_paths:
-            if not Path(base_path).exists():
-                continue
-
-            try:
-                if self._quick_scan(Path(base_path)):
-                    self.logger.debug(f"Quick check found .3de files in {base_path}")
-                    return True
-
-            except Exception as e:  # noqa: BLE001
-                self.logger.debug(f"Error in quick check for {base_path}: {e}")
-                continue
-
-        self.logger.debug("Quick check found no .3de files")
-        return False
-
-    def _quick_scan(self, path: Path, depth: int = 0) -> bool:
-        """Recursively scan for any .3de file within path up to _MAX_QUICK_SCAN_DEPTH.
-
-        Args:
-            path: Directory to scan.
-            depth: Current recursion depth (starts at 0).
-
-        Returns:
-            True if at least one .3de file is found, False otherwise.
-
-        """
-        if depth > self._MAX_QUICK_SCAN_DEPTH:
-            return False
-
-        try:
-            with os.scandir(path) as entries:
-                for entry in entries:
-                    if entry.is_file() and entry.name.lower().endswith(".3de"):
-                        return True
-                    if (
-                        entry.is_dir()
-                        and entry.name not in self.EXCLUDED_DIRS
-                        and self._quick_scan(Path(entry.path), depth + 1)
-                    ):
-                        return True
-        except (OSError, PermissionError):
-            pass
-
-        return False
 
     def verify_scene_exists(self, scene_path: Path | None) -> bool:
         """Optimized scene existence verification."""

@@ -25,7 +25,7 @@ from timeout_config import TimeoutConfig
 
 if TYPE_CHECKING:
     # Standard library imports
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable
     from pathlib import Path
 
     # Local application imports
@@ -50,26 +50,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
     scanner: FileSystemScanner
     parser: SceneParser
 
-    def __init__(
-        self,
-        strategy_type: str = "local",
-    ) -> None:
-        """Initialize scene discovery coordinator.
-
-        Args:
-            strategy_type: Discovery strategy to use ("local", "progressive")
-
-        """
+    def __init__(self) -> None:
+        """Initialize scene discovery coordinator."""
         super().__init__()
-
-        if strategy_type not in ("local", "progressive"):
-            msg = (
-                f"Unknown strategy type: {strategy_type}. "
-                f"Available: local, progressive"
-            )
-            raise ValueError(msg)
-
-        self._use_progressive = strategy_type == "progressive"
 
         # Lazy imports to break circular dependencies
         # Import only when needed at runtime, not at module load time
@@ -90,9 +73,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             "errors": 0,
         }
 
-        self.logger.info(
-            f"Initialized SceneDiscoveryCoordinator with {strategy_type} strategy"
-        )
+        self.logger.info("Initialized SceneDiscoveryCoordinator")
 
     # ------------------------------------------------------------------
     # Private strategy implementations
@@ -239,152 +220,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         return scenes
 
-    def _find_all_scenes_in_show_local(
-        self,
-        show_root: str,
-        show: str,
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Find all scenes in a show using local filesystem scanning."""
-        scenes: list[ThreeDEScene] = []
-
-        try:
-            from pathlib import Path
-
-            show_path = Path(show_root) / show
-            if not show_path.exists():
-                self.logger.warning(f"Show path does not exist: {show_path}")
-                return []
-
-            # Use targeted search for efficiency
-            file_results = self.scanner.find_all_3de_files_in_show_targeted(
-                show_root, show, excluded_users
-            )
-
-            self.logger.info(f"Found {len(file_results)} .3de files in {show}")
-
-            # Convert to ThreeDEScene objects
-            for file_path, show_name, sequence, shot_name, user, plate in file_results:
-                workspace_path = (
-                    show_path / "shots" / sequence / f"{sequence}_{shot_name}"
-                )
-
-                scene = self.parser.create_scene_from_file_info(
-                    file_path,
-                    show_name,
-                    sequence,
-                    shot_name,
-                    user,
-                    plate,
-                    str(workspace_path),
-                )
-                scenes.append(scene)
-
-            self.logger.info(f"Found {len(scenes)} total scenes in show {show}")
-
-        except Exception:
-            self.logger.exception(f"Error finding scenes in show {show}")
-
-        return scenes
-
-    def _find_all_scenes_in_show_progressive(
-        self,
-        show_root: str,
-        show: str,
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Find all scenes in show using progressive discovery (collects all at once)."""
-        scenes: list[ThreeDEScene] = []
-        for (
-            scene_batch,
-            _current_shot,
-            _total_shots,
-            _status,
-        ) in self._find_scenes_progressive_impl(show_root, show, excluded_users):
-            scenes.extend(scene_batch)
-        return scenes
-
-    def _find_scenes_progressive_impl(
-        self,
-        show_root: str,
-        show: str,
-        excluded_users: set[str] | None = None,
-        batch_size: int = 10,
-    ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
-        """Find scenes progressively with batch updates.
-
-        Args:
-            show_root: Root path for shows
-            show: Show name
-            excluded_users: Set of usernames to exclude
-            batch_size: Number of scenes per batch
-
-        Yields:
-            Tuple of (scene_batch, current_shot, total_shots, status_message)
-
-        """
-        try:
-            # First discover all shots in the show
-            shot_tuples = self.scanner.discover_all_shots_in_show(show_root, show)
-
-            if not shot_tuples:
-                yield [], 0, 0, "No shots found"
-                return
-
-            # Use scanner's progressive discovery
-            for (
-                file_batch,
-                current_shot,
-                total_shots,
-                status,
-            ) in self.scanner.find_all_scenes_progressive(
-                shot_tuples, excluded_users, batch_size
-            ):
-                scenes: list[ThreeDEScene] = []
-                for _username, threede_file in file_batch:
-                    try:
-                        from pathlib import Path
-
-                        show_path = Path(show_root) / show
-
-                        parsed = self.parser.parse_3de_file_path(
-                            threede_file, show_path, show, excluded_users or set()
-                        )
-
-                        if parsed:
-                            file_path, show_name, sequence, shot_name, user, plate = (
-                                parsed
-                            )
-                            workspace_path = (
-                                show_path
-                                / "shots"
-                                / sequence
-                                / f"{sequence}_{shot_name}"
-                            )
-
-                            scene = self.parser.create_scene_from_file_info(
-                                file_path,
-                                show_name,
-                                sequence,
-                                shot_name,
-                                user,
-                                plate,
-                                str(workspace_path),
-                            )
-                            scenes.append(scene)
-
-                    except Exception as e:  # noqa: BLE001
-                        self.logger.warning(
-                            f"Error processing scene file {threede_file}: {e}"
-                        )
-                        continue
-
-                yield scenes, current_shot, total_shots, status
-
-        except Exception as e:
-            self.logger.exception(f"Error in progressive discovery for {show}")
-            yield [], 0, 0, f"Error: {e}"
-
     # ------------------------------------------------------------------
     # Template Methods
     # ------------------------------------------------------------------
@@ -450,66 +285,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             )
             return []
 
-    @log_execution(include_args=False)  # pyright: ignore[reportUntypedFunctionDecorator]
-    def find_all_scenes_in_shows(
-        self,
-        user_shots: list[Shot],
-        excluded_users: set[str] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Template method for finding all scenes across multiple shows.
-
-        Args:
-            user_shots: List of Shot objects to determine which shows to search
-            excluded_users: Set of usernames to exclude
-
-        Returns:
-            List of all ThreeDEScene objects found
-
-        """
-        if not user_shots:
-            self.logger.info("No user shots provided for scene discovery")
-            return []
-
-        try:
-            # Extract unique shows and their roots
-            show_info = self._extract_show_information(user_shots)
-
-            all_scenes: list[ThreeDEScene] = []
-
-            # Process each show
-            for show_root, shows in show_info.items():
-                for show in shows:
-                    with self.logger.context(operation="show_discovery", show=show):
-                        # Discover scenes using strategy
-                        if self._use_progressive:
-                            show_scenes = self._find_all_scenes_in_show_progressive(
-                                show_root, show, excluded_users
-                            )
-                        else:
-                            show_scenes = self._find_all_scenes_in_show_local(
-                                show_root, show, excluded_users
-                            )
-
-                        # Validate and filter results
-                        valid_scenes = self._validate_and_filter_scenes(show_scenes)
-
-                        all_scenes.extend(valid_scenes)
-                        self.stats["scenes_discovered"] += len(valid_scenes)
-
-                        self.logger.info(
-                            f"Discovered {len(valid_scenes)} scenes in show {show}"
-                        )
-
-            self.logger.info(
-                f"Total scenes discovered across all shows: {len(all_scenes)}"
-            )
-            return all_scenes
-
-        except Exception:
-            self.stats["errors"] += 1
-            self.logger.exception("Error discovering scenes across shows")
-            return []
-
     # Hook methods
 
     def _validate_shot_input(
@@ -551,47 +326,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         # Verify file exists and is accessible
         return self.scanner.verify_scene_exists(scene.scene_path)
-
-    def _extract_show_information(self, user_shots: list[Shot]) -> dict[str, set[str]]:
-        """Extract show roots and show names from user shots."""
-        # Standard library imports
-        from pathlib import Path
-
-        show_info: dict[str, set[str]] = {}
-
-        for shot in user_shots:
-            # Extract show root from workspace path
-            workspace_path = Path(shot.workspace_path)
-            show_root = None
-
-            # Find the parent directory containing "shots"
-            # The show root should be the parent of the show directory (e.g., /shows)
-            for i, parent in enumerate(workspace_path.parents):
-                if parent.name == "shots" and i > 0:
-                    # The parent of "shots" is the show directory
-                    # The parent of that is the shows root
-                    show_dir = parent.parent  # This is the show directory
-                    if show_dir.parent:  # This is the shows root
-                        show_root = str(show_dir.parent)
-                    else:
-                        # If there's no parent, use the show directory itself
-                        show_root = str(show_dir)
-                    break
-
-            if show_root:
-                if show_root not in show_info:
-                    show_info[show_root] = set()
-                show_info[show_root].add(shot.show)
-
-        # Fallback if no show roots found
-        if not show_info:
-            self.logger.warning(
-                "No show roots found from workspace paths, using default /shows"
-            )
-            unique_shows = {shot.show for shot in user_shots}
-            show_info["/shows"] = unique_shows
-
-        return show_info
 
     # Utility methods
 

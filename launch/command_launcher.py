@@ -98,7 +98,6 @@ class LaunchPhase(enum.Enum):
     IDLE = "idle"
     VERIFYING_APP = "verifying_app"
     SEARCHING_FILES = "searching_files"
-    AWAITING_CONFIRMATION = "awaiting_confirmation"
     EXECUTING = "executing"
 
 

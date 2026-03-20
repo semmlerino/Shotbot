@@ -159,7 +159,7 @@ def coordinator(
     ):
         from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
 
-        coord = SceneDiscoveryCoordinator(strategy_type="local")
+        coord = SceneDiscoveryCoordinator()
         # Inject test doubles
         coord.scanner = scanner_double
         return coord
