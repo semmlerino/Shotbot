@@ -12,7 +12,7 @@ injection pattern established by SettingsController and ThreeDEController.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, final
+from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import Slot
 
@@ -21,27 +21,9 @@ from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    from PySide6.QtWidgets import QSlider, QTabWidget
+    from PySide6.QtWidgets import QSlider
 
-    from previous_shots.view import PreviousShotsView
-    from shots.shot_grid_view import ShotGridView
-    from threede.grid_view import ThreeDEGridView
-
-
-class ThumbnailSizeTarget(Protocol):
-    """Protocol defining interface required by ThumbnailSizeManager.
-
-    This protocol specifies the minimal interface that MainWindow must provide
-    to the ThumbnailSizeManager for proper operation.
-    """
-
-    # Grid views (each has size_slider and size_label)
-    shot_grid: ShotGridView
-    threede_shot_grid: ThreeDEGridView
-    previous_shots_grid: PreviousShotsView
-
-    # Tab widget for determining active tab
-    tab_widget: QTabWidget
+    from protocols import ThumbnailSizeTarget
 
 
 @final

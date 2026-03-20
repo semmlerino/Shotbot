@@ -16,27 +16,18 @@ from __future__ import annotations
 
 # Standard library imports
 import time
-from typing import TYPE_CHECKING, ClassVar, Protocol
+from typing import TYPE_CHECKING
 
 # Third-party imports
 from PySide6.QtCore import (
-    Signal,
     Slot,
 )
 
 
 if TYPE_CHECKING:
     # Local application imports
-    from cache.scene_cache_disk import SceneDiskCache
-    from launch.command_launcher import CommandLauncher
     from managers.progress_manager import ProgressOperation as _ProgressOperation
-    from threede.grid_view import ThreeDEGridView
-    from threede.item_model import ThreeDEItemModel
-    from threede.scene_model import ThreeDESceneModel
-    from ui.proxy_models import ThreeDEProxyModel
-
-    # Local type imports
-    from ui.right_panel import RightPanelWidget
+    from protocols import ThreeDETarget
 
 # Runtime imports (needed at runtime)
 from config import Config
@@ -46,34 +37,6 @@ from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
 from timeout_config import TimeoutConfig
 from type_definitions import Shot, ThreeDEScene
-
-
-class ThreeDETarget(Protocol):
-    """Protocol defining interface required by ThreeDEController.
-
-    This protocol specifies the minimal interface that MainWindow must provide
-    to the ThreeDEController for proper operation. It includes widget references,
-    model access, and required methods.
-    """
-
-    # Widget references needed for 3DE operations
-    threede_shot_grid: ThreeDEGridView  # skylos: ignore
-    right_panel: RightPanelWidget  # skylos: ignore
-
-    # Model references for data access
-    def get_active_shots(self) -> list[Shot]: ...  # skylos: ignore
-    threede_scene_model: ThreeDESceneModel  # skylos: ignore
-    threede_item_model: ThreeDEItemModel  # skylos: ignore
-    threede_proxy: ThreeDEProxyModel  # skylos: ignore
-    scene_disk_cache: SceneDiskCache  # skylos: ignore
-    command_launcher: CommandLauncher  # skylos: ignore
-
-    # Required methods
-    def setWindowTitle(self, __title: str) -> None: ...
-    def update_status(self, message: str) -> None: ...
-
-    # Signals (Signal is a Qt descriptor; pyright can't resolve its methods)
-    closing_started: ClassVar[Signal]  # pyright: ignore[reportAny]  # skylos: ignore
 
 
 class ThreeDEController(LoggingMixin):

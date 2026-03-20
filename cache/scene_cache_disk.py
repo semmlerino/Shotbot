@@ -189,3 +189,12 @@ class SceneDiskCache(LoggingMixin, QObject):
             self.threede_cache_file.unlink()
             self.logger.debug("Cleared 3DE scenes cache")
 
+    def cache_files(self) -> list[Path]:
+        """Return list of cache file paths managed by this cache.
+
+        Returns:
+            List of cache file Path objects
+
+        """
+        return [self.threede_cache_file]
+

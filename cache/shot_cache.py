@@ -363,6 +363,15 @@ class ShotDataCache(LoggingMixin, QObject):
         self._cache_ttl = timedelta(minutes=expiry_minutes)
         self.logger.debug(f"Cache TTL set to {expiry_minutes} minutes")
 
+    def cache_files(self) -> list[Path]:
+        """Return list of cache file paths managed by this cache.
+
+        Returns:
+            List of cache file Path objects
+
+        """
+        return [self.shots_cache_file, self.previous_shots_cache_file]
+
 
 
 def make_default_shot_cache(base_dir: Path | None = None) -> ShotDataCache:

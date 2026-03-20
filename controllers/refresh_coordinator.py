@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Protocol
+from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -12,34 +12,8 @@ from managers.progress_manager import ProgressManager
 
 
 if TYPE_CHECKING:
-    from PySide6.QtWidgets import QTabWidget
-
-    from previous_shots.model import PreviousShotsModel
-    from shots.shot_grid_view import ShotGridView
-    from shots.shot_item_model import ShotItemModel
-    from shots.shot_model import ShotModel
+    from protocols import RefreshCoordinatorMainWindowProtocol
     from type_definitions import Shot
-
-
-class RefreshCoordinatorMainWindowProtocol(Protocol):
-    """Protocol defining the MainWindow interface needed by RefreshCoordinator.
-
-    This avoids circular imports while providing proper type safety.
-    TYPE_CHECKING imports provide proper types without creating circular
-    import cycles at runtime.
-    """
-
-    tab_widget: QTabWidget
-    shot_model: ShotModel
-    previous_shots_model: PreviousShotsModel
-    shot_item_model: ShotItemModel
-    shot_grid: ShotGridView
-    @property
-    def last_selected_shot_name(self) -> str | None: ...
-
-    def update_status(self, message: str) -> None:
-        """Update the status bar with a message."""
-        ...
 
 
 class RefreshCoordinator(QObject, LoggingMixin):

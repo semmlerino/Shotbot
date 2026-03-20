@@ -13,7 +13,7 @@ injection pattern established by SettingsController and ThreeDEController.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Protocol, cast, final
+from typing import TYPE_CHECKING, ClassVar, cast, final
 
 from PySide6.QtCore import QObject, QThreadPool, Signal, Slot
 
@@ -24,12 +24,8 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     from dcc.scene_file import FileType, SceneFile  # used in cast()
-    from launch.command_launcher import CommandLauncher
-    from previous_shots.view import PreviousShotsView
-    from shots.shot_grid_view import ShotGridView
-    from threede.grid_view import ThreeDEGridView
+    from protocols import ShotSelectionTarget
     from type_definitions import Shot
-    from ui.right_panel import RightPanelWidget
 
 
 # Module-level logger for non-class code
@@ -37,37 +33,6 @@ logger = get_module_logger(__name__)
 
 
 from workers.runnable_tracker import TrackedQRunnable
-
-
-class ShotSelectionTarget(Protocol):
-    """Protocol defining interface required by ShotSelectionController.
-
-    This protocol specifies the minimal interface that MainWindow must provide
-    to the ShotSelectionController for proper operation.
-    """
-
-    # Widget references needed for shot selection
-    right_panel: RightPanelWidget
-    shot_grid: ShotGridView
-    previous_shots_grid: PreviousShotsView
-    threede_shot_grid: ThreeDEGridView
-
-    # Controller and launcher references
-    command_launcher: CommandLauncher
-
-    # State tracking
-    @property
-    def last_selected_shot_name(self) -> str | None: ...
-    @last_selected_shot_name.setter
-    def last_selected_shot_name(self, value: str | None) -> None: ...
-
-    # Required methods
-    def setWindowTitle(self, __title: str) -> None: ...
-    def update_status(self, message: str) -> None: ...
-
-    # Closing state for guard checks
-    @property
-    def closing(self) -> bool: ...
 
 
 @final

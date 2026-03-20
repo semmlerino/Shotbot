@@ -20,7 +20,7 @@ separation of concerns and easier testing.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtWidgets import (  # QWidget used in cast()
@@ -35,51 +35,8 @@ from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
-    # Third-party imports
-    from PySide6.QtCore import QByteArray
-
     # Local application imports
-    from cache import CacheCoordinator
-    from managers.settings_manager import SettingsManager
-    from ui.settings_dialog import SettingsDialog
-
-
-class SettingsTarget(Protocol):
-    """Protocol defining the interface required by SettingsController.
-
-    This protocol specifies the minimal interface that MainWindow must provide
-    to the SettingsController for proper operation. It includes window geometry
-    methods, widget references, and layout management capabilities.
-    """
-
-    # Window geometry and state methods (positional-only params match Qt stubs)
-    def restoreGeometry(self, __geometry: QByteArray | bytes | bytearray) -> bool: ...
-    def saveGeometry(self) -> QByteArray: ...
-    def restoreState(self, __state: QByteArray | bytes | bytearray, __version: int = ...) -> bool: ...
-    def saveState(self) -> QByteArray: ...
-    def isMaximized(self) -> bool: ...
-    def showMaximized(self) -> None: ...
-
-    def resize(self, __w: int, __h: int, /) -> None: ...
-    def get_window_size(self) -> tuple[int, int]: ...
-
-    # Widget references needed for settings
-    settings_manager: SettingsManager  # skylos: ignore
-    cache_coordinator: CacheCoordinator  # skylos: ignore
-
-    # Splitter and tab wrapper methods
-    def get_splitter_state(self) -> QByteArray: ...
-    def restore_splitter_state(self, __state: QByteArray | bytes | bytearray) -> bool: ...
-    def get_current_tab(self) -> int: ...
-    def set_current_tab(self, __index: int) -> None: ...
-    def reset_splitter_sizes(self, __sizes: list[int]) -> None: ...
-
-    # Thumbnail size access methods
-    def set_thumbnail_size(self, size: int) -> None: ...
-    def get_thumbnail_size(self) -> int: ...
-
-    # Settings dialog reference
-    settings_dialog: SettingsDialog | None  # skylos: ignore
+    from protocols import SettingsTarget
 
 
 class SettingsController(LoggingMixin):

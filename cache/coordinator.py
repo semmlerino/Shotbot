@@ -85,14 +85,16 @@ class CacheCoordinator(LoggingMixin):
                         file_count += 1
                         thumbnail_count += 1
 
-            for cache_file in [
-                self.shot_cache.shots_cache_file,
-                self.shot_cache.previous_shots_cache_file,
-                self.scene_disk_cache.threede_cache_file,
+            # Iterate over all sub-caches and collect their cache files
+            for sub_cache in [
+                self.shot_cache,
+                self.scene_disk_cache,
+                self.latest_file_cache,
             ]:
-                if cache_file.exists():
-                    total_size += cache_file.stat().st_size
-                    file_count += 1
+                for cache_file in sub_cache.cache_files():
+                    if cache_file.exists():
+                        total_size += cache_file.stat().st_size
+                        file_count += 1
 
             return {
                 "total_mb": total_size / (1024 * 1024),

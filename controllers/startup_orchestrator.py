@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QTimer
 
@@ -12,36 +12,9 @@ from workers.startup_coordinator import StartupCoordinator
 
 
 if TYPE_CHECKING:
-    from cache import SceneDiskCache
-    from controllers.refresh_coordinator import RefreshCoordinator
-    from controllers.threede_controller import ThreeDEController
-    from previous_shots import PreviousShotsModel
-    from protocols import ProcessPoolInterface
-    from shots.shot_grid_view import ShotGridView
-    from shots.shot_model import ShotModel
-    from threede import ThreeDEGridView, ThreeDEItemModel, ThreeDESceneModel
+    from protocols import ProcessPoolInterface, StartupTarget
 
 logger = get_module_logger(__name__)
-
-
-class StartupTarget(Protocol):
-    """Minimal interface required by StartupOrchestrator from its host window."""
-
-    shot_model: ShotModel
-    threede_scene_model: ThreeDESceneModel
-    threede_item_model: ThreeDEItemModel
-    previous_shots_model: PreviousShotsModel
-    shot_grid: ShotGridView
-    threede_shot_grid: ThreeDEGridView
-    threede_controller: ThreeDEController
-    refresh_coordinator: RefreshCoordinator
-    scene_disk_cache: SceneDiskCache
-
-    @property
-    def last_selected_shot_name(self) -> str | None: ...
-    def update_status(self, message: str) -> None: ...
-    def _refresh_shots(self) -> None: ...
-    def _refresh_shot_display(self) -> None: ...
 
 
 class StartupOrchestrator:
