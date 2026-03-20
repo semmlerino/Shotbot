@@ -5,14 +5,12 @@
 from __future__ import annotations
 
 # Standard library imports
-import os
 import time
 from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
 from PySide6.QtCore import (
-    QCoreApplication,
     QMutex,
     QMutexLocker,
     QObject,
@@ -28,291 +26,12 @@ from PySide6.QtCore import (
 # Local application imports
 from logging_mixin import LoggingMixin
 from timeout_config import TimeoutConfig
+from workers import zombie_registry
 
 
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable
-
-
-class _ZombieRegistry:
-    """Module-private helper that holds all zombie-tracking method bodies.
-
-    Each method is a @staticmethod that receives the relevant ClassVar state
-    from ThreadSafeWorker as parameters. ThreadSafeWorker methods delegate
-    to these implementations via one-liner calls.
-
-    Keeping this logic here lets readers focus on either the zombie lifecycle
-    (this class) or the core state machine (ThreadSafeWorker) independently.
-    """
-
-    @staticmethod
-    def get_zombie_metrics(worker_cls: type[ThreadSafeWorker]) -> dict[str, int]:
-        """Return zombie metrics for monitoring timeout fix effectiveness."""
-        # fmt: off
-        with QMutexLocker(worker_cls._zombie_mutex):  # type: ignore[reportPrivateUsage]
-            return {
-                "created":    worker_cls._zombie_created_count,    # type: ignore[reportPrivateUsage]
-                "recovered":  worker_cls._zombie_recovered_count,  # type: ignore[reportPrivateUsage]
-                "terminated": worker_cls._zombie_terminated_count, # type: ignore[reportPrivateUsage]
-                "current":    len(worker_cls._zombie_threads),     # type: ignore[reportPrivateUsage]
-            }
-        # fmt: on
-
-    @staticmethod
-    def safe_terminate(worker: ThreadSafeWorker, worker_cls: type[ThreadSafeWorker]) -> None:
-        """Safely terminate the worker thread (last-resort path).
-
-        This should only be used after request_stop() and wait() fail.
-        Avoids terminate() which can cause crashes.
-        """
-        state = worker.get_state()
-
-        if state in [WorkerState.STOPPED, WorkerState.DELETED]:
-            worker.logger.debug(
-                f"Worker {id(worker)}: Already stopped, no termination needed"
-            )
-            return
-
-        worker.logger.warning(
-            f"Worker {id(worker)}: Requesting stop from state {state.name}"
-        )
-
-        # Disconnect signals before any termination attempt
-        worker.disconnect_all()  # type: ignore[reportAny, no-untyped-call]
-
-        # Set stop flags but NOT state yet - state only changes after confirmed stop
-        with QMutexLocker(worker._state_mutex):  # type: ignore[reportPrivateUsage]
-            worker._stop_requested = True  # type: ignore[reportPrivateUsage]
-            worker._force_stop = True  # type: ignore[reportPrivateUsage]
-
-        # Try graceful shutdown first
-        if worker.isRunning():
-            # Request interruption - this is the Qt way to interrupt blocking operations
-            worker.requestInterruption()
-
-            # Request event loop to quit
-            worker.quit()
-
-            # Wait for graceful shutdown with shorter initial timeout
-            if not worker.wait(TimeoutConfig.WORKER_GRACEFUL_STOP_MS):  # Initial timeout
-                worker.logger.warning(
-                    f"Worker {id(worker)}: Still running after {TimeoutConfig.WORKER_GRACEFUL_STOP_MS}ms, waiting longer...",
-                )
-
-                # Try one more time with longer timeout
-                if not worker.wait(
-                    TimeoutConfig.WORKER_TERMINATE_MS * 3,
-                ):  # Extended timeout
-                    # CAPTURE DIAGNOSTICS BEFORE ABANDONMENT
-                    # Import here to avoid circular imports
-                    from workers.thread_diagnostics import ThreadDiagnostics
-
-                    start_time = worker_cls._thread_start_times.get(id(worker))  # type: ignore[reportPrivateUsage]
-                    report = ThreadDiagnostics.capture_thread_state(worker, start_time)
-                    ThreadDiagnostics.log_abandonment(
-                        worker,
-                        f"Failed to stop after {TimeoutConfig.WORKER_GRACEFUL_STOP_MS + TimeoutConfig.WORKER_TERMINATE_MS * 3}ms",
-                        report,
-                    )
-
-                    worker.logger.error(
-                        f"Worker {id(worker)}: Failed to stop gracefully after 5s total. "
-                        "Thread will be abandoned (NOT terminated) to prevent crashes."
-                    )
-                    # DO NOT call terminate() - it's unsafe!
-                    # Instead, mark as zombie and add to class collection to prevent GC
-                    # NOTE: State stays at previous value - thread is still running!
-                    with QMutexLocker(worker._state_mutex):  # type: ignore[reportPrivateUsage]
-                        worker._zombie = True  # type: ignore[reportPrivateUsage]
-
-                    # Add to class-level collection to prevent garbage collection
-                    # This prevents "QThread: Destroyed while thread is still running" crash
-                    # FIXED: Don't call cleanup_old_zombies() from within mutex (DEADLOCK!)
-                    # QMutex is NOT recursive - cleanup_old_zombies() tries to acquire
-                    # the same mutex again → deadlock. Let periodic cleanup handle it.
-                    with QMutexLocker(worker_cls._zombie_mutex):  # type: ignore[reportPrivateUsage]
-                        worker_cls._zombie_threads.append(worker)  # type: ignore[reportPrivateUsage]
-                        worker_cls._zombie_timestamps[id(worker)] = time.time()  # type: ignore[reportPrivateUsage]
-                        worker_cls._zombie_created_count += 1  # type: ignore[reportPrivateUsage] # Track for metrics
-                        zombie_count = len(worker_cls._zombie_threads)  # type: ignore[reportPrivateUsage]
-
-                    worker.logger.warning(
-                        f"Worker {id(worker)}: Added to zombie collection "
-                        f"({zombie_count} total zombies). "
-                        "Periodic cleanup will attempt recovery."
-                    )
-                else:
-                    # Thread actually stopped - NOW set state to STOPPED
-                    with QMutexLocker(worker._state_mutex):  # type: ignore[reportPrivateUsage]
-                        worker._state = WorkerState.STOPPED  # type: ignore[reportPrivateUsage]
-                    worker.logger.info(f"Worker {id(worker)}: Stopped after extended wait")
-            else:
-                # Thread actually stopped - NOW set state to STOPPED
-                with QMutexLocker(worker._state_mutex):  # type: ignore[reportPrivateUsage]
-                    worker._state = WorkerState.STOPPED  # type: ignore[reportPrivateUsage]
-                worker.logger.info(f"Worker {id(worker)}: Stopped gracefully")
-        else:
-            # Thread was already stopped - set state to STOPPED
-            with QMutexLocker(worker._state_mutex):  # type: ignore[reportPrivateUsage]
-                worker._state = WorkerState.STOPPED  # type: ignore[reportPrivateUsage]
-
-    @staticmethod
-    def cleanup_old_zombies(worker_cls: type[ThreadSafeWorker]) -> int:
-        """Attempt to clean up old zombie threads with escalating cleanup policy.
-
-        Cleanup stages:
-        1. Threads that finished naturally are removed immediately
-        2. After _MAX_ZOMBIE_AGE_SECONDS (60s), logs warning
-        3. After _ZOMBIE_TERMINATE_AGE_SECONDS (300s), force terminates
-
-        Returns:
-            Number of zombies cleaned up
-
-        """
-        # Import logging here to avoid issues during shutdown
-        import logging
-
-        logger = logging.getLogger(__name__)
-        cleaned = 0
-        current_time = time.time()
-
-        # CRITICAL: Protect all access to shared zombie collections
-        # NOTE: This method should NOT be called from within _zombie_mutex critical section
-        # as QMutex is NOT recursive and would cause deadlock.
-        with QMutexLocker(worker_cls._zombie_mutex):  # type: ignore[reportPrivateUsage]
-            zombies_to_keep: list[ThreadSafeWorker] = []
-
-            for zombie in worker_cls._zombie_threads:  # type: ignore[reportPrivateUsage]
-                zombie_id = id(zombie)
-                age = current_time - worker_cls._zombie_timestamps.get(zombie_id, current_time)  # type: ignore[reportPrivateUsage]
-
-                if not zombie.isRunning():
-                    # Thread finished naturally, safe to remove
-                    _ = worker_cls._zombie_timestamps.pop(zombie_id, None)  # type: ignore[reportPrivateUsage]
-                    worker_cls._zombie_recovered_count += 1  # type: ignore[reportPrivateUsage] # Track natural recovery
-                    cleaned += 1
-                    logger.info(f"Zombie {zombie_id} finished naturally after {age:.0f}s")
-                elif age > worker_cls._ZOMBIE_TERMINATE_AGE_SECONDS:  # type: ignore[reportPrivateUsage]
-                    # CAPTURE DIAGNOSTICS BEFORE ANY TERMINATE
-                    # Import here to avoid issues during shutdown
-                    from workers.thread_diagnostics import ThreadDiagnostics
-
-                    start_time = worker_cls._thread_start_times.get(zombie_id)  # type: ignore[reportPrivateUsage]
-                    report = ThreadDiagnostics.capture_thread_state(zombie, start_time)
-                    ThreadDiagnostics.log_abandonment(
-                        zombie,
-                        f"Zombie timeout after {age:.0f}s",
-                        report,
-                    )
-
-                    # Only terminate in test mode - production leaves zombies to be
-                    # killed on process exit (safer than terminate() which can crash)
-                    allow_terminate = os.environ.get("SHOTBOT_TEST_MODE", "0") == "1"
-
-                    if allow_terminate:
-                        # Test mode: force terminate to prevent CI hangs
-                        logger.warning(
-                            f"Force-terminating zombie {zombie_id} after {age:.0f}s (TEST MODE)"
-                        )
-                        zombie.terminate()
-                        _ = zombie.wait(1000)  # Brief wait after terminate
-                        _ = worker_cls._zombie_timestamps.pop(zombie_id, None)  # type: ignore[reportPrivateUsage]
-                        worker_cls._zombie_terminated_count += 1  # type: ignore[reportPrivateUsage] # Track force terminations
-                        cleaned += 1
-                    else:
-                        # Production: log but don't terminate (process exit will clean up)
-                        logger.warning(
-                            f"Zombie {zombie_id} exceeded {worker_cls._ZOMBIE_TERMINATE_AGE_SECONDS}s "  # type: ignore[reportPrivateUsage]
-                            "but terminate disabled in production. "
-                            "Will be cleaned on process exit."
-                        )
-                        zombies_to_keep.append(zombie)
-                else:
-                    # Keep tracking
-                    zombies_to_keep.append(zombie)
-                    if age > worker_cls._MAX_ZOMBIE_AGE_SECONDS:  # type: ignore[reportPrivateUsage]
-                        logger.warning(
-                            f"Zombie {zombie_id} still running after {age:.0f}s "
-                            f"(will terminate at {worker_cls._ZOMBIE_TERMINATE_AGE_SECONDS}s)"  # type: ignore[reportPrivateUsage]
-                        )
-
-            worker_cls._zombie_threads = zombies_to_keep  # type: ignore[reportPrivateUsage]
-
-        return cleaned
-
-    @staticmethod
-    def start_zombie_cleanup_timer(worker_cls: type[ThreadSafeWorker]) -> None:
-        """Start the periodic zombie cleanup timer.
-
-        Should be called once during application initialization. The timer runs
-        in the main thread and calls cleanup_old_zombies() every 60 seconds.
-
-        Thread-Safe:
-            Safe to call from any thread. If called from a non-main thread,
-            timer creation is deferred to the main thread via QTimer.singleShot.
-            Uses mutex to prevent race conditions in timer creation.
-        """
-        app = QCoreApplication.instance()
-        if app is None:
-            # No QApplication yet, can't create timer
-            return
-
-        # If not on main thread, defer to main thread via queued timer
-        if QThread.currentThread() is not app.thread():
-            # Use QTimer.singleShot with 0ms to defer to main thread's event loop
-            QTimer.singleShot(0, lambda: _ZombieRegistry.create_zombie_timer_impl(worker_cls))
-            return
-
-        # Already on main thread, create directly
-        _ZombieRegistry.create_zombie_timer_impl(worker_cls)
-
-    @staticmethod
-    def create_zombie_timer_impl(worker_cls: type[ThreadSafeWorker]) -> None:
-        """Internal: Create the zombie cleanup timer (must be called on main thread).
-
-        Uses mutex to prevent race conditions when multiple threads attempt
-        to start the timer simultaneously.
-        """
-        import logging
-
-        with QMutexLocker(worker_cls._zombie_mutex):  # type: ignore[reportPrivateUsage]
-            if worker_cls._zombie_cleanup_timer is not None:  # type: ignore[reportPrivateUsage]
-                # Timer already started (check inside lock to prevent race)
-                return
-
-            logger = logging.getLogger("ThreadSafeWorker")
-
-            # Create timer in main thread context
-            worker_cls._zombie_cleanup_timer = QTimer()  # type: ignore[reportPrivateUsage]
-            worker_cls._zombie_cleanup_timer.setInterval(worker_cls._ZOMBIE_CLEANUP_INTERVAL_MS)  # type: ignore[reportPrivateUsage]
-
-            def cleanup_callback() -> None:
-                """Periodic cleanup callback."""
-                cleaned = worker_cls.cleanup_old_zombies()
-                if cleaned > 0:
-                    logger.info(f"Periodic zombie cleanup: removed {cleaned} finished threads")
-
-            _ = worker_cls._zombie_cleanup_timer.timeout.connect(cleanup_callback)  # type: ignore[reportPrivateUsage]
-            worker_cls._zombie_cleanup_timer.start()  # type: ignore[reportPrivateUsage]
-
-            logger.info(
-                f"Started periodic zombie cleanup timer "
-                f"(interval: {worker_cls._ZOMBIE_CLEANUP_INTERVAL_MS}ms)"  # type: ignore[reportPrivateUsage]
-            )
-
-    @staticmethod
-    def stop_zombie_cleanup_timer(worker_cls: type[ThreadSafeWorker]) -> None:
-        """Stop the periodic zombie cleanup timer.
-
-        Thread-Safe:
-            Safe to call from any thread. Uses mutex to prevent race conditions.
-        """
-        with QMutexLocker(worker_cls._zombie_mutex):  # type: ignore[reportPrivateUsage]
-            if worker_cls._zombie_cleanup_timer is not None:  # type: ignore[reportPrivateUsage]
-                worker_cls._zombie_cleanup_timer.stop()  # type: ignore[reportPrivateUsage]
-                worker_cls._zombie_cleanup_timer.deleteLater()  # type: ignore[reportPrivateUsage]
-                worker_cls._zombie_cleanup_timer = None  # type: ignore[reportPrivateUsage]
 
 
 @final
@@ -870,7 +589,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             Dictionary with zombie counts for this session
 
         """
-        return _ZombieRegistry.get_zombie_metrics(cls)
+        return zombie_registry.get_zombie_metrics()
 
     def safe_terminate(self) -> None:
         """Safely terminate the worker thread.
@@ -878,7 +597,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         This should only be used as a last resort after request_stop() and wait() fail.
         This version avoids using terminate() which can cause crashes.
         """
-        _ZombieRegistry.safe_terminate(self, ThreadSafeWorker)
+        zombie_registry.safe_terminate(self)
 
     @classmethod
     def cleanup_old_zombies(cls) -> int:
@@ -896,7 +615,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             Number of zombies cleaned up
 
         """
-        return _ZombieRegistry.cleanup_old_zombies(cls)
+        return zombie_registry.cleanup_old_zombies()
 
     @classmethod
     def start_zombie_cleanup_timer(cls) -> None:
@@ -911,7 +630,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             timer creation is deferred to the main thread via QTimer.singleShot.
             Uses mutex to prevent race conditions in timer creation.
         """
-        _ZombieRegistry.start_zombie_cleanup_timer(cls)
+        zombie_registry.start_zombie_cleanup_timer()
 
     @classmethod
     def _create_zombie_timer_impl(cls) -> None:
@@ -920,7 +639,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         Uses mutex to prevent race conditions when multiple threads attempt
         to start the timer simultaneously.
         """
-        _ZombieRegistry.create_zombie_timer_impl(cls)
+        zombie_registry.create_zombie_timer_impl()
 
     @classmethod
     def stop_zombie_cleanup_timer(cls) -> None:
@@ -932,7 +651,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         Thread-Safe:
             Safe to call from any thread. Uses mutex to prevent race conditions.
         """
-        _ZombieRegistry.stop_zombie_cleanup_timer(cls)
+        zombie_registry.stop_zombie_cleanup_timer()
 
     @classmethod
     def reset(cls) -> None:
@@ -950,12 +669,5 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         """
         import logging
 
-        cls.stop_zombie_cleanup_timer()
-        with QMutexLocker(cls._zombie_mutex):
-            cls._zombie_threads.clear()
-            cls._zombie_timestamps.clear()
-            # Reset metrics counters for test isolation
-            cls._zombie_created_count = 0
-            cls._zombie_recovered_count = 0
-            cls._zombie_terminated_count = 0
+        zombie_registry.reset_for_testing()
         logging.getLogger(__name__).debug("ThreadSafeWorker reset for testing")
