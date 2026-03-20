@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from launch.command_launcher import CommandLauncher, LaunchContext
+from launch.launch_operation import LaunchOperation
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -131,7 +132,7 @@ class TestThreeDECommandBuilding:
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ), patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
             result = launcher.launch_app("3de")
 
@@ -171,7 +172,7 @@ class TestThreeDECommandBuilding:
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ), patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
             result = launcher.launch_app("3de", context)
 
@@ -207,7 +208,7 @@ class TestThreeDECommandBuilding:
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ), patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
             result = launcher.launch_app("3de", context)
 
@@ -251,7 +252,7 @@ class TestLaunchWithScene:
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ), patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
             result = launcher.launch_app_opening_scene_file("maya", maya_scene)
 
@@ -317,7 +318,7 @@ class TestWorkspaceValidation:
         launcher.set_current_shot(shot)
 
         with patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
         ):
             result = launcher.launch_app("3de")
 
@@ -353,7 +354,7 @@ class TestPathEscaping:
         launcher.set_current_shot(shot)
 
         with patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
             result = launcher.launch_app("3de")
 
@@ -390,7 +391,7 @@ class TestPathEscaping:
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ), patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
         ):
             result = launcher.launch_app_opening_scene_file("3de", scene)
 
@@ -458,7 +459,7 @@ class TestCommandLogging:
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ), patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
         ):
             result = launcher.launch_app("3de")
 
@@ -475,7 +476,7 @@ class TestCommandLogging:
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ), patch.object(
-            launcher, "_launch_in_new_terminal", return_value=True
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
         ):
             result = launcher.launch_app_opening_scene_file("3de", sample_scene)
 

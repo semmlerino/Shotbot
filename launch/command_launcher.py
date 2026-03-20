@@ -11,7 +11,6 @@ from __future__ import annotations
 # Standard library imports
 import enum
 import os
-import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,8 +20,8 @@ from typing import TYPE_CHECKING, final
 from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 
 # Local application imports
-from commands import maya_commands, nuke_commands
-from config import Config, RezMode
+from commands import maya_commands
+from config import Config
 from launch.app_handlers import (
     AppHandler,
     GenericAppHandler,
@@ -34,6 +33,7 @@ from launch.app_handlers import (
 from launch.command_builder import CommandBuilder
 from launch.environment_manager import EnvironmentManager
 from launch.file_search_coordinator import FileSearchCoordinator
+from launch.launch_operation import LaunchOperation
 from launch.process_executor import ProcessExecutor
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
@@ -174,14 +174,18 @@ class CommandLauncher(LoggingMixin, QObject):
                 scripts_dir=Config.SCRIPTS_DIR,
                 cache_manager=self._cache_manager,
                 start_async_search=self._start_async_file_search,
-                apply_file_result=self._apply_file_result,
+                apply_file_result=lambda app, cmd, path: LaunchOperation.apply_file_result(
+                    app, cmd, path, self._emit_error
+                ),
                 emit_error=self._emit_error,
             ),
             "maya": MayaAppHandler(
                 bootstrap_script=maya_commands.MAYA_BOOTSTRAP_SCRIPT,
                 cache_manager=self._cache_manager,
                 start_async_search=self._start_async_file_search,
-                apply_file_result=self._apply_file_result,
+                apply_file_result=lambda app, cmd, path: LaunchOperation.apply_file_result(
+                    app, cmd, path, self._emit_error
+                ),
                 emit_error=self._emit_error,
             ),
             "rv": RVAppHandler(emit_error=self._emit_error),
@@ -247,68 +251,6 @@ class CommandLauncher(LoggingMixin, QObject):
 
         """
         return datetime.now(tz=UTC).strftime("%H:%M:%S")
-
-    def _apply_file_result(
-        self,
-        app_name: str,
-        command: str,
-        file_result: Path | None,
-    ) -> str | None:
-        """Apply a scene file search result to the launch command.
-
-        Args:
-            app_name: Application name ("3de" or "maya")
-            command: Current command string
-            file_result: Path found by search, or None
-
-        Returns:
-            Updated command string, or None if _append_scene_to_command failed.
-
-        """
-        if file_result:
-            return self._append_scene_to_command(app_name, command, file_result)
-        return command
-
-    def _append_scene_to_command(
-        self, app_name: str, command: str, scene_path: Path
-    ) -> str | None:
-        """Append a scene file to a launch command, returning the updated command.
-
-        Validates the scene path and builds the app-specific command fragment.
-        Emits an error signal and returns None if the path is invalid.
-
-        Args:
-            app_name: Application name ("3de" or "maya").
-            command: Base command string to append to.
-            scene_path: Validated scene file path to append.
-
-        Returns:
-            Updated command string, or None if path validation failed.
-
-        """
-        try:
-            safe_scene_path = CommandBuilder.validate_path(str(scene_path))
-        except ValueError as e:
-            self._emit_error(
-                f"Cannot launch {app_name.upper()}: Invalid scene path '{scene_path}': {e!s}"
-            )
-            return None
-
-        if app_name == "3de":
-            tde_scripts_export = (
-                f"export PYTHON_CUSTOM_SCRIPTS_3DE4={Config.SCRIPTS_DIR}:"
-                "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
-            )
-            sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
-            return f"{tde_scripts_export}{sgtk_export}{command} -open {safe_scene_path}"
-
-        if app_name == "maya":
-            updated = maya_commands.build_maya_context_command(command, safe_scene_path)
-            return f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {updated}"
-
-        # Unsupported app — caller should not reach this path
-        self.logger.warning(f"_append_scene_to_command called for unsupported app: {app_name}")
-        return command
 
     def cleanup(self) -> None:
         """Disconnect signals and cleanup resources.
@@ -439,7 +381,6 @@ class CommandLauncher(LoggingMixin, QObject):
     def _on_headless_launch_warning(self, app_name: str) -> None:
         """Handle headless launch warning from ProcessExecutor."""
         # Local application imports
-        from managers.notification_manager import NotificationManager
         NotificationManager.warning(
             "Headless Launch",
             f"No terminal found. {app_name} will run without terminal window. "
@@ -449,7 +390,6 @@ class CommandLauncher(LoggingMixin, QObject):
     def _on_launch_crash_detected(self, app_name: str) -> None:
         """Handle launch crash detection from ProcessExecutor."""
         # Local application imports
-        from managers.notification_manager import NotificationManager
         NotificationManager.error(
             "Launch Failed", f"{app_name} crashed immediately"
         )
@@ -519,7 +459,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Add scene path to command based on results
         if app_name == "3de":
-            result = self._apply_file_result("3de", command, threede)
+            result = LaunchOperation.apply_file_result("3de", command, threede, self._emit_error)
             if result is None:
                 self._phase = LaunchPhase.IDLE
                 self.logger.debug("LaunchPhase: %s", self._phase.value)
@@ -527,7 +467,7 @@ class CommandLauncher(LoggingMixin, QObject):
             command = result
 
         if app_name == "maya":
-            result = self._apply_file_result("maya", command, maya)
+            result = LaunchOperation.apply_file_result("maya", command, maya, self._emit_error)
             if result is None:
                 self._phase = LaunchPhase.IDLE
                 self.logger.debug("LaunchPhase: %s", self._phase.value)
@@ -535,7 +475,17 @@ class CommandLauncher(LoggingMixin, QObject):
             command = result
 
         # Continue with the rest of launch_app flow (from ws command onwards)
-        _ = self._finish_launch(app_name, command)
+        _ = LaunchOperation(
+            app_name=app_name,
+            command=command,
+            workspace_path=None,
+            env_manager=self.env_manager,
+            process_executor=self.process_executor,
+            settings_manager=self._settings_manager,
+            nuke_env=self.nuke_env,
+            current_shot=self.current_shot,
+            emit_error=self._emit_error,
+        ).execute()
 
     def _finish_launch(
         self,
@@ -547,87 +497,27 @@ class CommandLauncher(LoggingMixin, QObject):
         error_context: str = "",
         command_prefix: str = "",
     ) -> bool:
-        """Complete the launch: ws wrap, rez wrap, logging, and execute.
+        """Create a LaunchOperation and execute it.
 
-        This is the single dispatch point for all launch operations, shared
-        between the sync (cache hit) and async (cache miss) paths and all
-        four public launch methods.
-
-        Args:
-            app_name: Application name
-            command: Command with scene path (if any) already added
-            workspace_path: Workspace directory for the ws command.
-                If None, falls back to self.current_shot.workspace_path.
-            nuke_env_context: Context string for Nuke environment fix log message
-            log_suffix: Appended to the emitted full_command (e.g., " (Scene by: ...)")
-            error_context: Context for error messages in _launch_in_new_terminal
-            command_prefix: Shell prefix inserted between ws and env_fixes
-                (e.g., "export SGTK_FILE_TO_OPEN=... && ")
-
-        Returns:
-            True if launch succeeded, False otherwise
+        Thin shim: all execution logic now lives in LaunchOperation.execute().
+        The nuke_env_context parameter is accepted for call-site compatibility
+        but is not forwarded (the NukeLaunchHandler object is used directly).
 
         """
-        # Resolve workspace path
-        if workspace_path is None:
-            if self.current_shot is None:
-                self._emit_error("Cannot launch - no shot selected")
-                return False
-            workspace_path = self.current_shot.workspace_path
-
-        # Pre-flight: Check if ws command is available
-        if not self.env_manager.is_ws_available():
-            self._emit_error(
-                "Workspace command 'ws' not found. "
-                "Ensure workspace tools are installed and on PATH."
-            )
-            return False
-
-        # Build app command first; workspace setup stays outside the Rez wrapper.
-        try:
-            safe_workspace_path = CommandBuilder.validate_path(workspace_path)
-            env_fixes = nuke_commands.build_nuke_environment_prefix(self.nuke_env, app_name)
-            app_command = f"{command_prefix}{env_fixes}{command}"
-        except ValueError as e:
-            self._emit_error(f"Invalid workspace path: {e!s}")
-            return False
-
-        has_rez_wrapper = False
-        if Config.REZ_MODE != RezMode.DISABLED:
-            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
-            if not rez_packages:
-                self._emit_error(
-                    f"Cannot launch {app_name}: no Rez packages are configured for this application."
-                )
-                return False
-            if not self.env_manager.should_wrap_with_rez(Config):
-                self._emit_error(
-                    f"Cannot launch {app_name}: Rez is required, but the 'rez' command was not found on PATH."
-                )
-                return False
-
-            app_command = CommandBuilder.wrap_with_rez(app_command, rez_packages)
-            has_rez_wrapper = True
-
-        full_command = CommandBuilder.build_workspace_command(
-            safe_workspace_path, app_command
-        )
-
-        # Add logging redirection for debugging
-        full_command = CommandBuilder.add_logging(full_command, Config)
-
-        # Enhanced debug logging for command integrity verification
-        self.logger.debug(
-            f"Constructed command for {app_name}:\n"
-            f"  Command: {full_command!r}\n"
-            f"  Length: {len(full_command)} chars\n"
-            f"  Workspace: {workspace_path}"
-        )
-
-        # Execute launch
-        return self._launch_in_new_terminal(
-            full_command, app_name, error_context, has_rez_wrapper=has_rez_wrapper
-        )
+        return LaunchOperation(
+            app_name=app_name,
+            command=command,
+            workspace_path=workspace_path,
+            env_manager=self.env_manager,
+            process_executor=self.process_executor,
+            settings_manager=self._settings_manager,
+            nuke_env=self.nuke_env,
+            current_shot=self.current_shot,
+            emit_error=self._emit_error,
+            command_prefix=command_prefix,
+            log_suffix=log_suffix,
+            error_context=error_context,
+        ).execute()
 
     def cancel_pending_search(self) -> None:
         """Cancel any pending async file search."""
@@ -646,80 +536,9 @@ class CommandLauncher(LoggingMixin, QObject):
     # - _get_rez_packages_for_app() → self.env_manager.get_rez_packages(app_name, Config)
     # - _detect_available_terminal() → self.env_manager.detect_terminal()
     # - _validate_path_for_shell() → CommandBuilder.validate_path(path)
-
-    def _launch_in_new_terminal(
-        self,
-        full_command: str,
-        app_name: str,
-        error_context: str = "",
-        has_rez_wrapper: bool = False,
-    ) -> bool:
-        """Launch command in new terminal window with full error handling.
-
-        Delegates to ProcessExecutor for terminal spawning. Supports headless
-        mode when no terminal emulator is available.
-
-        Args:
-            full_command: Complete command to execute
-            app_name: Application name (for spawn verification and error messages)
-            error_context: Additional context for error messages (e.g., " with scene")
-            has_rez_wrapper: If True, command contains rez wrapper with inner bash -ilc.
-                Enables shell optimization (sh -c instead of bash -ilc for outer shell).
-
-        Returns:
-            True if launch successful, False otherwise
-
-        """
-        # Apply background wrapping for GUI apps if setting is enabled
-        # This closes the terminal immediately after launching, reducing clutter
-        if (
-            self.process_executor.is_gui_app(app_name)
-            and self._settings_manager.launch.get_background_gui_apps()
-        ):
-            full_command = CommandBuilder.wrap_for_background(full_command)
-            self.logger.info(
-                f"Backgrounding {app_name} - terminal will close immediately"
-            )
-
-        # Validate command length to prevent silent truncation
-        cmd_length = len(full_command)
-        if cmd_length > self.MAX_COMMAND_LENGTH:
-            self._emit_error(
-                f"Cannot launch {app_name}: Command too long "
-                f"({cmd_length} chars, max {self.MAX_COMMAND_LENGTH}). "
-                "Try shorter paths or fewer rez packages."
-            )
-            return False
-
-        # Detect available terminal (None = headless mode, use direct bash)
-        terminal = self.env_manager.detect_terminal()
-
-        # Record enqueue time for process verification
-        enqueue_time = time.time()
-
-        # Delegate to ProcessExecutor for terminal spawning
-        process = self.process_executor.execute_in_new_terminal(
-            full_command, app_name, terminal, has_rez_wrapper=has_rez_wrapper
-        )
-
-        if process is None:
-            # ProcessExecutor already logged the error details
-            self._emit_error(f"Failed to launch {app_name}{error_context}")
-            NotificationManager.error("Launch Failed", f"{app_name} failed to start")
-            # Clear cache on failure - terminal may have been uninstalled
-            self.env_manager.reset_cache()
-            return False
-
-        # Process spawned successfully — launcher is now executing
-        self._phase = LaunchPhase.EXECUTING
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
-
-        # Start async app verification for GUI apps (runs in background thread)
-        # This detects if the actual application (not just terminal) launched successfully
-        self.process_executor.start_app_verification(app_name, enqueue_time)
-
-        return True
-
+    # - _launch_in_new_terminal() → LaunchOperation._launch_in_new_terminal()
+    # - _append_scene_to_command() → LaunchOperation.append_scene_to_command()
+    # - _apply_file_result() → LaunchOperation.apply_file_result()
 
     def _build_app_command(
         self,
