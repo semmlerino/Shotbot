@@ -278,8 +278,8 @@ def cleanup_all_runnables() -> None:
 class FolderOpenerSignals(QObject):
     """Signals for the folder opener worker."""
 
-    error: Signal = Signal(str)
-    success: Signal = Signal()
+    error: ClassVar[Signal] = Signal(str)
+    success: ClassVar[Signal] = Signal()
 
 
 class FolderOpenerWorker(TrackedQRunnable):

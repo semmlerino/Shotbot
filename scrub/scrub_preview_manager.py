@@ -8,15 +8,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar
-
-
-if TYPE_CHECKING:
-    from protocols import SceneDataProtocol
+from typing import ClassVar
 
 from PySide6.QtCore import QModelIndex, QObject, QRect, Signal, Slot
 from PySide6.QtGui import QImage, QPixmap
 
+from protocols import SceneDataProtocol
 from scrub.plate_frame_provider import PlateFrameProvider, PlateSource
 
 
@@ -161,9 +158,12 @@ class ScrubPreviewManager(QObject):
             return
 
         # Extract shot info
-        shot_key = self._get_shot_key(shot_data)  # pyright: ignore[reportAny]
-        workspace_path = self._get_workspace_path(shot_data)  # pyright: ignore[reportAny]
-        frame_start, frame_end = self._get_frame_range(shot_data)  # pyright: ignore[reportAny]
+        if not isinstance(shot_data, SceneDataProtocol):
+            logger.info(f"start_scrub: shot_data does not implement SceneDataProtocol for index {index.row()}")
+            return
+        shot_key = self._get_shot_key(shot_data)
+        workspace_path = self._get_workspace_path(shot_data)
+        frame_start, frame_end = self._get_frame_range(shot_data)
 
         logger.info(f"start_scrub: {shot_key}, frames {frame_start}-{frame_end}, workspace: {workspace_path}")
 

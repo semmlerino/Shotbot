@@ -16,7 +16,7 @@ Thread Safety:
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -64,8 +64,8 @@ class AsyncShotLoader(ThreadSafeWorker):
     """
 
     # Signals with proper type annotations
-    shots_loaded = Signal(object)  # List of Shot objects
-    load_failed = Signal(str)  # Error message string
+    shots_loaded: ClassVar[Signal] = Signal(object)  # List of Shot objects
+    load_failed: ClassVar[Signal] = Signal(str)  # Error message string
 
     def __init__(
         self,
@@ -167,9 +167,9 @@ class ShotModel(BaseShotModel):
     """
 
     # Additional signals beyond BaseShotModel
-    background_load_started: Signal = Signal()
-    background_load_finished: Signal = Signal()
-    data_recovery_occurred: Signal = Signal(str, str)  # (title, details)
+    background_load_started: ClassVar[Signal] = Signal()
+    background_load_finished: ClassVar[Signal] = Signal()
+    data_recovery_occurred: ClassVar[Signal] = Signal(str, str)  # (title, details)
 
     def __init__(
         self,

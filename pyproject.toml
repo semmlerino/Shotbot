@@ -59,6 +59,7 @@ exclude = [
     ".post-commit-output/**",
     "dev-tools/**",
     "wrapper/**",
+    "cachetools/**",  # Vendored third-party library
     "*.sh",  # Exclude bash/shell scripts (not Python)
     "*_backup.py",
     # Utility/maintenance scripts (not part of main application)

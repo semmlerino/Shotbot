@@ -16,7 +16,7 @@ from __future__ import annotations
 
 # Standard library imports
 import time
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -73,7 +73,7 @@ class ThreeDETarget(Protocol):
     def update_status(self, message: str) -> None: ...
 
     # Signals (Signal is a Qt descriptor; pyright can't resolve its methods)
-    closing_started: Signal  # pyright: ignore[reportAny]  # skylos: ignore
+    closing_started: ClassVar[Signal]  # pyright: ignore[reportAny]  # skylos: ignore
 
 
 class ThreeDEController(LoggingMixin):

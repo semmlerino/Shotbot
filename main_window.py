@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, final
+from typing import TYPE_CHECKING, Any, ClassVar, final
 
 # Third-party imports
 from PySide6.QtCore import Qt, Signal, Slot
@@ -81,7 +81,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     # Lifecycle signal: emitted when the window begins closing, before widgets
     # are torn down.  Controllers listen to this instead of polling a flag.
-    closing_started: Signal = Signal()
+    closing_started: ClassVar[Signal] = Signal()
 
     @require_main_thread
     def __init__(

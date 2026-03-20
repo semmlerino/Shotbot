@@ -12,7 +12,7 @@ import threading
 import time
 from datetime import UTC, datetime
 from functools import partial
-from typing import TYPE_CHECKING, Final, cast
+from typing import TYPE_CHECKING, ClassVar, Final, cast
 
 import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -42,15 +42,15 @@ class ProcessExecutor(QObject):
     """
 
     # Signals - type annotations for clarity
-    execution_progress: Signal = Signal(str, str)  # timestamp, message
-    execution_completed: Signal = Signal(bool, str)  # success, error_message
-    execution_error: Signal = Signal(str, str)  # timestamp, error_message
+    execution_progress: ClassVar[Signal] = Signal(str, str)  # timestamp, message
+    execution_completed: ClassVar[Signal] = Signal(bool, str)  # success, error_message
+    execution_error: ClassVar[Signal] = Signal(str, str)  # timestamp, error_message
 
     # App verification signals (for GUI app launch verification)
-    app_verified: Signal = Signal(str, int)  # app_name, pid
-    app_verification_timeout: Signal = Signal(str)  # app_name
-    headless_launch_warning: Signal = Signal(str)  # app_name
-    launch_crash_detected: Signal = Signal(str)  # app_name
+    app_verified: ClassVar[Signal] = Signal(str, int)  # app_name, pid
+    app_verification_timeout: ClassVar[Signal] = Signal(str)  # app_name
+    headless_launch_warning: ClassVar[Signal] = Signal(str)  # app_name
+    launch_crash_detected: ClassVar[Signal] = Signal(str)  # app_name
 
     # Known GUI applications that should run in background
     GUI_APPS: Final[set[str]] = {

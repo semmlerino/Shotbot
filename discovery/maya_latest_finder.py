@@ -19,12 +19,12 @@ class MayaLatestFinder(BaseLatestFinder):
     (inherited via BaseLatestFinder) for version extraction and sorting.
     """
 
-    _DCC_SUBPATH: str = "mm/maya/scenes"
+    _DCC_SUBPATH: ClassVar[str] = "mm/maya/scenes"
     _GLOB_PATTERNS: ClassVar[list[str]] = ["**/*.ma", "**/*.mb"]
-    _DCC_LABEL: str = "Maya"
+    _DCC_LABEL: ClassVar[str] = "Maya"
 
     # Pattern to match version in Maya filenames (e.g., _v001, _v002)
-    VERSION_PATTERN: re.Pattern[str] = re.compile(r"_v(\d{3})\.(ma|mb)$")
+    VERSION_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"_v(\d{3})\.(ma|mb)$")
 
     def find_latest_maya_scene(
         self,

@@ -5,7 +5,7 @@ from __future__ import annotations
 # Standard library imports
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -53,18 +53,18 @@ class ThreeDESceneWorker(ThreadSafeWorker):
     """
 
     # Enhanced signals specific to 3DE discovery
-    worker_discovery_started = Signal()  # Emitted when discovery starts
-    batch_ready = Signal(object)  # Emitted with each batch of scenes
-    progress = Signal(
+    worker_discovery_started: ClassVar[Signal] = Signal()  # Emitted when discovery starts
+    batch_ready: ClassVar[Signal] = Signal(object)  # Emitted with each batch of scenes
+    progress: ClassVar[Signal] = Signal(
         int,
         int,
         float,
         str,
         str,
     )  # (current, total, percentage, description, eta)
-    scan_progress = Signal(int, int, str)  # Emitted during individual shot scanning
-    discovery_finished = Signal(object)  # Emitted with complete list of scenes
-    error = Signal(str)  # Emitted when an error occurs
+    scan_progress: ClassVar[Signal] = Signal(int, int, str)  # Emitted during individual shot scanning
+    discovery_finished: ClassVar[Signal] = Signal(object)  # Emitted with complete list of scenes
+    error: ClassVar[Signal] = Signal(str)  # Emitted when an error occurs
 
     def __init__(
         self,

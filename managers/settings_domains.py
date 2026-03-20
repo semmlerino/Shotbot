@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast, final
+from typing import cast, final
 
 from PySide6.QtCore import QByteArray, QSettings, QSize
 
@@ -21,8 +21,8 @@ from config import Config
 # ---------------------------------------------------------------------------
 # Type aliases for the callable signatures expected by every domain class.
 # ---------------------------------------------------------------------------
-_GetFn = Callable[..., Any]   # (key: str, ...) -> Any
-_SetFn = Callable[..., None]  # (key: str, value: Any) -> None
+_GetFn = Callable[[str], object]
+_SetFn = Callable[[str, object], None]
 
 
 @final
@@ -318,7 +318,7 @@ class LaunchPreferenceSettings:
         and close the terminal window immediately, reducing desktop clutter.
         """
         value = self._get("background_gui_apps")
-        return bool(value)
+        return value if isinstance(value, bool) else False
 
     def set_background_gui_apps(self, enabled: bool) -> None:
         """Set whether to run GUI apps in background."""

@@ -19,12 +19,12 @@ class ThreeDELatestFinder(BaseLatestFinder):
     (inherited via BaseLatestFinder) for version extraction and sorting.
     """
 
-    _DCC_SUBPATH: str = "mm/3de/mm-default/scenes/scene"
+    _DCC_SUBPATH: ClassVar[str] = "mm/3de/mm-default/scenes/scene"
     _GLOB_PATTERNS: ClassVar[list[str]] = ["*/*.3de"]
-    _DCC_LABEL: str = "3DE"
+    _DCC_LABEL: ClassVar[str] = "3DE"
 
     # Pattern to match version in 3DE filenames (e.g., _v001, _v002)
-    VERSION_PATTERN: re.Pattern[str] = re.compile(r"_v(\d{3})\.3de$")
+    VERSION_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"_v(\d{3})\.3de$")
 
     def __init__(self) -> None:
         """Initialize the 3DE finder with version handling capabilities."""

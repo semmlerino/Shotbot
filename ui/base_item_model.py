@@ -121,9 +121,9 @@ class BaseItemModel(
     _INITIAL_LOAD_DELAY_MS: ClassVar[int] = 100
 
     # Common signals
-    items_updated: Signal = Signal()  # Emitted when items list changes
-    thumbnail_loaded: Signal = Signal(int)  # row index
-    show_filter_changed: Signal = Signal(str)  # show name or "All Shows"
+    items_updated: ClassVar[Signal] = Signal()  # Emitted when items list changes
+    thumbnail_loaded: ClassVar[Signal] = Signal(int)  # row index
+    show_filter_changed: ClassVar[Signal] = Signal(str)  # show name or "All Shows"
 
     @require_main_thread
     def __init__(

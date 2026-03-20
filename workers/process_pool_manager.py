@@ -23,10 +23,8 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ClassVar, cast, final
+from typing import ClassVar, Literal, final
 
-# Third-party imports
-from cachetools import TTLCache
 from PySide6.QtCore import (
     QCoreApplication,
     QMutex,
@@ -34,6 +32,9 @@ from PySide6.QtCore import (
     QObject,
     QThread,
 )
+
+# Third-party imports
+from cachetools import TTLCache
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -59,7 +60,7 @@ class CancellableResult:
     returncode: int | None
     stdout: str
     stderr: str
-    status: str
+    status: Literal["ok", "cancelled", "timeout"]
 
 
 @final
@@ -150,8 +151,8 @@ class CancellableSubprocess:
                 ready = sel.select(timeout=poll_interval)
                 for key, _ in ready:
                     # Read available data in chunks to avoid blocking
-                    data = cast("str", key.fileobj.read(8192))  # type: ignore[union-attr]
-                    if data:
+                    data = key.fileobj.read(8192)  # type: ignore[union-attr]
+                    if isinstance(data, str) and data:
                         if key.data == "stdout":  # pyright: ignore[reportAny]
                             stdout_chunks.append(data)
                         else:
@@ -159,8 +160,8 @@ class CancellableSubprocess:
 
             # Process exited - drain any remaining buffered data
             for key, _ in sel.select(timeout=0):
-                remaining = cast("str", key.fileobj.read())  # type: ignore[union-attr]
-                if remaining:
+                remaining = key.fileobj.read()  # type: ignore[union-attr]
+                if isinstance(remaining, str) and remaining:
                     if key.data == "stdout":  # pyright: ignore[reportAny]
                         stdout_chunks.append(remaining)
                     else:
@@ -219,9 +220,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
     _singleton_description: ClassVar[str] = "Subprocess execution and caching"
 
     # Singleton instance
-    _instance = None
-    _lock = threading.Lock()  # Use Python's threading.Lock for singleton access
-    _initialized = False  # Class-level flag to track singleton initialization
+    _instance: ClassVar[ProcessPoolManager | None] = None
+    _lock: ClassVar[threading.Lock] = threading.Lock()  # Use Python's threading.Lock for singleton access
+    _initialized: ClassVar[bool] = False  # Class-level flag to track singleton initialization
 
     def __new__(cls, max_workers: int = 4) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety.

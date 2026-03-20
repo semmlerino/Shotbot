@@ -94,7 +94,7 @@ class ShotGridDelegate(BaseThumbnailDelegate):
 
         """
         if not index.isValid():
-            return {}
+            return {"name": "", "loading_state": ""}
 
         return {
             "name": index.data(ShotRole.FullNameRole) or "Unknown",

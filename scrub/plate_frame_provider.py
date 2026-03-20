@@ -10,7 +10,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from PySide6.QtCore import QObject, QThreadPool, Signal
 from PySide6.QtGui import QImage
@@ -40,7 +40,7 @@ class PlateSource:
     """
 
     source_path: Path
-    source_type: str  # "mov" or "exr"
+    source_type: Literal["mov", "exr"]
     frame_start: int | None = None
     frame_end: int | None = None
     duration_seconds: float | None = None

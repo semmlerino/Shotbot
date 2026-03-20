@@ -20,7 +20,7 @@ separation of concerns and easier testing.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, Protocol, cast, overload
+from typing import TYPE_CHECKING, Protocol, cast
 
 # Third-party imports
 from PySide6.QtWidgets import (  # QWidget used in cast()
@@ -36,7 +36,7 @@ from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     # Third-party imports
-    from PySide6.QtCore import QByteArray, QSize
+    from PySide6.QtCore import QByteArray
 
     # Local application imports
     from cache import CacheCoordinator
@@ -60,14 +60,8 @@ class SettingsTarget(Protocol):
     def isMaximized(self) -> bool: ...
     def showMaximized(self) -> None: ...
 
-    # Overloaded resize signatures from QMainWindow
-    @overload
-    def resize(self, __s: QSize, /) -> None: ...
-    @overload
     def resize(self, __w: int, __h: int, /) -> None: ...
-    def get_window_size(
-        self,
-    ) -> QSize | tuple[int, int]: ...  # Flexible return type for QSize or tuple
+    def get_window_size(self) -> tuple[int, int]: ...
 
     # Widget references needed for settings
     settings_manager: SettingsManager  # skylos: ignore
@@ -125,16 +119,7 @@ class SettingsController(LoggingMixin):
         except Exception:
             self.logger.exception("Error restoring window geometry")
             default_size = self.window.settings_manager.window.get_window_size()
-            try:
-                width = default_size.width()
-                height = default_size.height()
-                self.window.resize(width, height)
-            except AttributeError:
-                if isinstance(default_size, tuple) and len(default_size) == 2:
-                    size_tuple = cast("tuple[int, int]", default_size)
-                    self.window.resize(int(size_tuple[0]), int(size_tuple[1]))
-                else:
-                    self.window.resize(int(Config.DEFAULT_WINDOW_WIDTH), int(Config.DEFAULT_WINDOW_HEIGHT))
+            self.window.resize(default_size.width(), default_size.height())
 
         # Window state
         try:

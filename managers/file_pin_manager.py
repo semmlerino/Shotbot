@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 from PySide6.QtCore import QObject, Signal
 
@@ -32,7 +32,7 @@ class FilePinManager(LoggingMixin, QObject):
     """
 
     # Signals
-    pin_changed: Signal = Signal(str)  # Emits file path when pin state changes
+    pin_changed: ClassVar[Signal] = Signal(str)  # Emits file path when pin state changes
 
     # Instance variables (for type checking)
     _cache_dir: Path

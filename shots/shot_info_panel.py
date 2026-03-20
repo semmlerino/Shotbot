@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -482,8 +482,8 @@ class InfoPanelPixmapLoader(TrackedQRunnable):
     """Async loader for info panel thumbnails."""
 
     class Signals(QObject):
-        loaded: Signal = Signal(QImage)
-        failed: Signal = Signal()
+        loaded: ClassVar[Signal] = Signal(QImage)
+        failed: ClassVar[Signal] = Signal()
 
     def __init__(self, panel: ShotInfoPanel, path: str | Path) -> None:
         super().__init__(auto_delete=False)

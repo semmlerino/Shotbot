@@ -57,15 +57,18 @@ if TYPE_CHECKING:
 logger = get_module_logger(__name__)
 
 
-class ThumbnailItemData(TypedDict, total=False):
+class _ThumbnailItemDataRequired(TypedDict):
+    name: str  # Required - item name
+    loading_state: str  # Loading state string
+
+
+class ThumbnailItemData(_ThumbnailItemDataRequired, total=False):
     """Type definition for thumbnail item data."""
 
-    name: str  # Required - item name
     show: str  # Optional - show name
     sequence: str  # Optional - sequence name
     shot: str  # Optional - shot name
     thumbnail: QPixmap | None  # thumbnail image
-    loading_state: str  # Loading state string
     is_pinned: bool  # Pin state
     is_hidden: bool  # Hidden state
     has_note: bool  # Note state

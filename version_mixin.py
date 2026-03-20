@@ -42,7 +42,7 @@ class VersionHandlingMixin(LoggingMixin):
 
     # Default version pattern - matches _v001, _v002, etc.
     # Can be overridden in subclasses
-    VERSION_PATTERN: Pattern[str] = re.compile(r"_v(\d{3})")
+    VERSION_PATTERN: ClassVar[Pattern[str]] = re.compile(r"_v(\d{3})")
 
     # Secondary patterns for common version formats
     # These are tried if the primary pattern fails

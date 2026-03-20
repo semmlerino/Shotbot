@@ -65,6 +65,6 @@ class ProcessPoolInterface(Protocol):
         """Invalidate command cache."""
         ...
 
-    def shutdown(self) -> None:
+    def shutdown(self, timeout: float = 5.0) -> None:
         """Shutdown the process pool."""
         ...

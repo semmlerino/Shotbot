@@ -65,10 +65,10 @@ class ThreadSafeWorker(LoggingMixin, QThread):
     _singleton_description: ClassVar[str] = "Zombie worker cleanup timer"
 
     # Lifecycle signals
-    worker_started: Signal = Signal()  # type: ignore[assignment]
-    worker_stopping: Signal = Signal()  # type: ignore[assignment]
-    worker_stopped: Signal = Signal()  # type: ignore[assignment]
-    worker_error: Signal = Signal(str)  # type: ignore[assignment]
+    worker_started: ClassVar[Signal] = Signal()  # type: ignore[assignment]
+    worker_stopping: ClassVar[Signal] = Signal()  # type: ignore[assignment]
+    worker_stopped: ClassVar[Signal] = Signal()  # type: ignore[assignment]
+    worker_error: ClassVar[Signal] = Signal(str)  # type: ignore[assignment]
 
     # Valid state transitions
     VALID_TRANSITIONS: ClassVar[dict[WorkerState, list[WorkerState]]] = {
@@ -116,7 +116,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         self._state_condition: QWaitCondition = QWaitCondition()
         self._stop_requested: bool = False
         self._force_stop: bool = False
-        self._connections: list[tuple[SignalInstance, object]] = []
+        self._connections: list[tuple[SignalInstance, Callable[..., object]]] = []
         self._zombie: bool = False  # Track abandoned threads
 
         # Set up cleanup on thread finished

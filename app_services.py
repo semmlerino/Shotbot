@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
+
+from PySide6.QtCore import QObject
 
 from cache import (
     CacheCoordinator,
@@ -68,13 +70,13 @@ class AppModels:
     command_launcher: CommandLauncher
 
 
-def build_infrastructure(cache_dir: Path | None, parent: Any) -> AppInfrastructure:
+def build_infrastructure(cache_dir: Path | None, parent: QObject | None) -> AppInfrastructure:
     """Create process pool, caches, managers, and settings infrastructure."""
     process_pool: ProcessPoolInterface
     if is_mock_mode():
         from tests.fixtures.mock_workspace_pool import create_mock_pool_from_filesystem
 
-        process_pool = create_mock_pool_from_filesystem()
+        process_pool = create_mock_pool_from_filesystem()  # pyright: ignore[reportAssignmentType]
         logger.info("Using MockWorkspacePool for process execution")
     else:
         process_pool = ProcessPoolManager.get_instance()
@@ -103,13 +105,13 @@ def build_infrastructure(cache_dir: Path | None, parent: Any) -> AppInfrastructu
     notes_manager = NotesManager(_cache_dir, parent=parent)
     file_pin_manager = FilePinManager(_cache_dir, parent=parent)
 
-    refresh_coordinator = RefreshCoordinator(parent)
+    refresh_coordinator = RefreshCoordinator(parent)  # pyright: ignore[reportArgumentType]
 
     settings_manager = SettingsManager()
     saved_scale = settings_manager.get_ui_scale()
     design_system.set_ui_scale(saved_scale)
 
-    settings_controller = SettingsController(parent)
+    settings_controller = SettingsController(parent)  # pyright: ignore[reportArgumentType]
 
     return AppInfrastructure(
         process_pool=process_pool,
@@ -128,7 +130,7 @@ def build_infrastructure(cache_dir: Path | None, parent: Any) -> AppInfrastructu
     )
 
 
-def build_models(infra: AppInfrastructure, parent: Any) -> AppModels:
+def build_models(infra: AppInfrastructure, parent: QObject | None) -> AppModels:
     """Create data models and command launcher."""
     threede_item_model = ThreeDEItemModel(cache_manager=infra.thumbnail_cache)
 

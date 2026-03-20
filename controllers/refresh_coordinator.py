@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -59,7 +59,7 @@ class RefreshCoordinator(QObject, LoggingMixin):
         refresh operations, routing results through signal handlers and UI updates.
     """
 
-    threede_refresh_requested: Signal = Signal()
+    threede_refresh_requested: ClassVar[Signal] = Signal()
 
     def __init__(self, main_window: RefreshCoordinatorMainWindowProtocol) -> None:
         """Initialize refresh orchestrator.

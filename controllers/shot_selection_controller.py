@@ -13,7 +13,7 @@ injection pattern established by SettingsController and ThreeDEController.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, cast, final
+from typing import TYPE_CHECKING, ClassVar, Protocol, cast, final
 
 from PySide6.QtCore import QObject, QThreadPool, Signal, Slot
 
@@ -74,8 +74,8 @@ class ShotSelectionTarget(Protocol):
 class ShotDiscoverySignals(QObject):
     """Signals for ShotDiscoveryWorker."""
 
-    finished: Signal = Signal(object)  # dict with plates and files
-    error: Signal = Signal(str)
+    finished: ClassVar[Signal] = Signal(object)  # dict with plates and files
+    error: ClassVar[Signal] = Signal(str)
 
 
 @final
@@ -154,7 +154,7 @@ class ShotSelectionController(QObject, LoggingMixin):
     - Right panel and window state updates
     """
 
-    settings_save_requested: Signal = Signal()
+    settings_save_requested: ClassVar[Signal] = Signal()
 
     def __init__(self, window: ShotSelectionTarget, parent: QObject | None = None) -> None:
         """Initialize shot selection controller.

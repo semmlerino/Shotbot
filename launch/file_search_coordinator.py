@@ -11,7 +11,7 @@ that run before DCC application launches. Responsible for:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QObject, Qt, Signal
 
@@ -44,11 +44,11 @@ class FileSearchCoordinator(LoggingMixin, QObject):
 
     """
 
-    launch_pending: Signal = Signal()
-    launch_ready: Signal = Signal()
+    launch_pending: ClassVar[Signal] = Signal()
+    launch_ready: ClassVar[Signal] = Signal()
     # Emitted only on success: (pending_launch, maya_result, threede_result)
     # Types are object because PySide6 Signal doesn't accept Path | None directly.
-    search_result_ready: Signal = Signal(object, object, object)
+    search_result_ready: ClassVar[Signal] = Signal(object, object, object)
 
     def __init__(
         self,

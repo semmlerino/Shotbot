@@ -10,7 +10,7 @@ from collections.abc import Callable
 
 # Standard library imports
 from functools import partial
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -110,10 +110,10 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
     """
 
     # Common signals that all views share
-    app_launch_requested: Signal = Signal(str)  # app_name
-    show_filter_requested: Signal = Signal(str)  # show name or empty string for all
-    text_filter_requested: Signal = Signal(str)  # filter text for real-time search
-    pin_shot_requested: Signal = Signal(object)  # fallback when no pin_manager
+    app_launch_requested: ClassVar[Signal] = Signal(str)  # app_name
+    show_filter_requested: ClassVar[Signal] = Signal(str)  # show name or empty string for all
+    text_filter_requested: ClassVar[Signal] = Signal(str)  # filter text for real-time search
+    pin_shot_requested: ClassVar[Signal] = Signal(object)  # fallback when no pin_manager
 
     # Manager attribute declarations — subclasses initialize these.
     # Declared here so shared handler methods (_pin_shot, etc.) type-check correctly.

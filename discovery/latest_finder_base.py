@@ -31,9 +31,9 @@ class BaseLatestFinder(VersionHandlingMixin):
         _DCC_LABEL: Human-readable name for log messages (e.g. ``"Maya"``).
     """
 
-    _DCC_SUBPATH: str
+    _DCC_SUBPATH: ClassVar[str]
     _GLOB_PATTERNS: ClassVar[list[str]]
-    _DCC_LABEL: str
+    _DCC_LABEL: ClassVar[str]
 
     def find_latest_scene(
         self,

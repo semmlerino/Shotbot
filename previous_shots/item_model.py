@@ -7,7 +7,7 @@ extending BaseItemModel with integration to PreviousShotsModel for data updates.
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QObject, Qt, Signal
 
@@ -32,8 +32,8 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
     """
 
     # Previous shots-specific signals
-    shots_updated: Signal = Signal()  # Emitted when shots list changes
-    show_filter_changed: Signal = Signal(
+    shots_updated: ClassVar[Signal] = Signal()  # Emitted when shots list changes
+    show_filter_changed: ClassVar[Signal] = Signal(
         str
     )  # Emitted when show filter changes (show name or "All Shows")
 

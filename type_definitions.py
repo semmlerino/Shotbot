@@ -11,7 +11,7 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, NamedTuple, NotRequired, TypedDict, cast
+from typing import Literal, NamedTuple, NotRequired, TypedDict
 
 
 logger = logging.getLogger(__name__)
@@ -44,8 +44,12 @@ class ShotDict(_ShotDictRequired, total=False):
     thumbnail_path: str  # Persisted thumbnail path (validated on restore)
 
 
+class _NotSearched:
+    """Sentinel for unsearched thumbnail cache."""
+
+
 # Sentinel value to distinguish between "not searched" and "searched but found nothing"
-_NOT_SEARCHED = object()
+_NOT_SEARCHED = _NotSearched()
 
 
 @dataclass(slots=True)
@@ -64,7 +68,7 @@ class Shot:
     discovered_at: float = 0.0  # Unix timestamp when added to previous shots (for sorting)
     frame_start: int | None = None  # First frame of main plate (None = no plate found)
     frame_end: int | None = None  # Last frame of main plate (None = no plate found)
-    _cached_thumbnail_path: Path | None | object = field(
+    _cached_thumbnail_path: Path | None | _NotSearched = field(
         default=_NOT_SEARCHED,
         init=False,
         repr=False,
@@ -127,14 +131,14 @@ class Shot:
         The sentinel value _NOT_SEARCHED distinguishes "not searched" from "searched but found nothing".
         """
         # First check without lock (fast path for already-cached case)
-        if self._cached_thumbnail_path is not _NOT_SEARCHED:
-            return cast("Path | None", self._cached_thumbnail_path)
+        if not isinstance(self._cached_thumbnail_path, _NotSearched):
+            return self._cached_thumbnail_path
 
         # Acquire lock for expensive operation
         with self._thumbnail_lock:
             # Double-check inside lock (another thread may have populated cache)
-            if self._cached_thumbnail_path is not _NOT_SEARCHED:
-                return cast("Path | None", self._cached_thumbnail_path)
+            if not isinstance(self._cached_thumbnail_path, _NotSearched):  # pyright: ignore[reportUnnecessaryIsInstance]
+                return self._cached_thumbnail_path
 
             # Import here to avoid circular dependency at module level
             from config import Config
@@ -168,7 +172,7 @@ class Shot:
             "frame_end": self.frame_end,
         }
         # Persist thumbnail path if discovered (not sentinel)
-        if self._cached_thumbnail_path is not _NOT_SEARCHED and self._cached_thumbnail_path:
+        if not isinstance(self._cached_thumbnail_path, _NotSearched) and self._cached_thumbnail_path:
             data["thumbnail_path"] = str(self._cached_thumbnail_path)
         return data
 
@@ -216,7 +220,7 @@ class ThreeDEScene:
     modified_time: float = 0.0  # Unix timestamp from file mtime (for sorting)
     frame_start: int | None = None  # First frame of main plate (for scrub preview)
     frame_end: int | None = None  # Last frame of main plate (for scrub preview)
-    _cached_thumbnail_path: object | Path | None = field(
+    _cached_thumbnail_path: Path | None | _NotSearched = field(
         default=_NOT_SEARCHED,
         init=False,
         repr=False,
@@ -253,9 +257,8 @@ class ThreeDEScene:
         expensive filesystem operations.
         """
         # Return cached result if we've already searched
-        if self._cached_thumbnail_path is not _NOT_SEARCHED:
-            # Type narrowing: if it's not the sentinel, it must be Path | None
-            return cast("Path | None", self._cached_thumbnail_path)
+        if not isinstance(self._cached_thumbnail_path, _NotSearched):
+            return self._cached_thumbnail_path
 
         # Import here to avoid circular dependency at module level
         from config import Config
@@ -293,7 +296,7 @@ class ThreeDEScene:
             "frame_end": self.frame_end,
         }
         # Persist thumbnail path if discovered (not sentinel)
-        if self._cached_thumbnail_path is not _NOT_SEARCHED and self._cached_thumbnail_path:
+        if not isinstance(self._cached_thumbnail_path, _NotSearched) and self._cached_thumbnail_path:
             data["thumbnail_path"] = str(self._cached_thumbnail_path)
         return data
 

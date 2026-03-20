@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
@@ -42,12 +42,12 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
     """
 
     # Common Qt signals
-    shots_loaded: Signal = Signal(object)  # List of Shot objects
-    shots_changed: Signal = Signal(object)  # List of Shot objects
-    refresh_started: Signal = Signal()
-    refresh_finished: Signal = Signal(bool, bool)  # success, has_changes
-    error_occurred: Signal = Signal(str)  # Error message
-    cache_updated: Signal = Signal()
+    shots_loaded: ClassVar[Signal] = Signal(object)  # List of Shot objects
+    shots_changed: ClassVar[Signal] = Signal(object)  # List of Shot objects
+    refresh_started: ClassVar[Signal] = Signal()
+    refresh_finished: ClassVar[Signal] = Signal(bool, bool)  # success, has_changes
+    error_occurred: ClassVar[Signal] = Signal(str)  # Error message
+    cache_updated: ClassVar[Signal] = Signal()
 
     def __init__(
         self,

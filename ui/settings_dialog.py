@@ -49,7 +49,7 @@ from __future__ import annotations
 # Standard library imports
 import json
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 # Third-party imports
 from PySide6.QtCore import Qt, Signal, Slot
@@ -100,7 +100,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
     """Comprehensive settings dialog with tabbed interface."""
 
     # Signals
-    settings_applied: Signal = Signal()  # Emitted when settings are applied
+    settings_applied: ClassVar[Signal] = Signal()  # Emitted when settings are applied
 
     def __init__(
         self,

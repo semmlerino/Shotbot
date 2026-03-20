@@ -138,7 +138,7 @@ class ShotDataCache(LoggingMixin, QObject):
 
     def _write_shots_to_cache(
         self,
-        shots: Sequence[Shot] | Sequence[ShotDict],
+        shots: Sequence[Shot | ShotDict],
         cache_file: Path,
         cache_name: str,
     ) -> None:
@@ -159,7 +159,7 @@ class ShotDataCache(LoggingMixin, QObject):
                 f"Failed to write {cache_name} cache - data may not persist across restarts"
             )
 
-    def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
+    def cache_shots(self, shots: Sequence[Shot | ShotDict]) -> None:
         """Cache shot list to file.
 
         Args:
@@ -168,7 +168,7 @@ class ShotDataCache(LoggingMixin, QObject):
         """
         self._write_shots_to_cache(shots, self.shots_cache_file, "shots")
 
-    def cache_previous_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
+    def cache_previous_shots(self, shots: Sequence[Shot | ShotDict]) -> None:
         """Cache previous/approved shot list to file.
 
         Args:

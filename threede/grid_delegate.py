@@ -96,7 +96,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
 
         """
         if not index.isValid():
-            return {}
+            return {"name": "", "loading_state": ""}
 
         # Get timestamp and format it if available
         # ModifiedTimeRole returns float (Unix timestamp) or 0.0

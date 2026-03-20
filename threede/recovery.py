@@ -19,7 +19,7 @@ import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import NamedTuple
+from typing import ClassVar, NamedTuple
 
 # Local application imports
 from version_mixin import VersionHandlingMixin
@@ -70,12 +70,12 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
     # Pattern to match crash files: scene_v010_crashsave3750186.3de
     # Captures: (base_name)(version)(crashsave_suffix)
-    CRASH_PATTERN: re.Pattern[str] = re.compile(
+    CRASH_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
         r"^(.+_v(\d{3}))_crashsave\d+\.3de$"
     )
 
     # Pattern to match regular 3DE scene files for version checking
-    VERSION_PATTERN: re.Pattern[str] = re.compile(r"_v(\d{3})\.3de$")
+    VERSION_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"_v(\d{3})\.3de$")
 
     def find_crash_files(
         self,
