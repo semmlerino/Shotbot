@@ -85,6 +85,7 @@ class SceneFile:
     modified_time: datetime
     user: str
     version: int | None = None
+    read_only: bool = False
 
     @property
     def name(self) -> str:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -146,6 +147,7 @@ class ShotFileFinder(LoggingMixin):
                     modified_time=mtime,
                     user=user,
                     version=version,
+                    read_only=not os.access(path, os.W_OK),
                 )
                 scene_files.append(scene_file)
 

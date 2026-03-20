@@ -160,6 +160,8 @@ class FileTableModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             if col == 0:  # Version
                 version_str = f"v{file.version:03d}" if file.version else "—"
+                if file.read_only:
+                    version_str = f"{version_str} (published)"
                 # Show arrow indicator if this is the current default
                 if file == self._current_default:
                     return f"-> {version_str}"
