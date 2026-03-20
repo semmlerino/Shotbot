@@ -267,7 +267,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         self._executor = concurrent.futures.ThreadPoolExecutor(
             max_workers=max_workers,
         )
-        self._cache: TTLCache[str, str] = TTLCache(maxsize=500, ttl=30)
+        self._cache: TTLCache[str, str] = TTLCache(maxsize=500, ttl=30)  # pyright: ignore[reportInvalidTypeArguments] - vendored cachetools lacks type stubs
         self._cache_lock = QMutex()
         # Instance-level mutex and shutdown flag for thread-safe shutdown
         self._mutex = QMutex()
@@ -353,9 +353,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         # Check cache first
         with QMutexLocker(self._cache_lock):
-            cached = self._cache.get(command)
-        if cached is not None:
-            return cached
+            _raw = self._cache.get(command)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType] - vendored cachetools
+        if isinstance(_raw, str):
+            return _raw
 
         # Execute command using subprocess
         try:
@@ -425,7 +425,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 self._cache.clear()
                 logger.info("Cleared entire command cache")
             else:
-                keys = [k for k in self._cache if pattern in k]
+                keys: list[str] = [k for k in self._cache if pattern in k]  # pyright: ignore[reportUnknownVariableType] - vendored cachetools
                 for k in keys:
                     del self._cache[k]
                 logger.info(

@@ -169,7 +169,7 @@ class SettingsManager(LoggingMixin, QObject):
         """
         if name in self._DOMAIN_ATTRS and "settings" in self.__dict__:
             self._init_domain_objects()
-            return object.__getattribute__(self, name)
+            return object.__getattribute__(self, name)  # pyright: ignore[reportAny] - dynamic attr lookup
         msg = f"'{type(self).__name__}' object has no attribute '{name}'"
         raise AttributeError(msg)
 

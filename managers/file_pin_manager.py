@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, ClassVar, cast
+from typing import ClassVar, cast
 
 from PySide6.QtCore import QObject, Signal
 
@@ -165,23 +165,23 @@ class FilePinManager(LoggingMixin, QObject):
 
         try:
             with cache_file.open() as f:
-                raw_data: Any = json.load(f)  # pyright: ignore[reportAny]
+                raw_data: object = json.load(f)  # pyright: ignore[reportAny] - json.load returns Any
 
             if not isinstance(raw_data, dict):
                 self.logger.warning(
-                    f"Invalid pinned files cache format: {type(raw_data)}"  # pyright: ignore[reportAny]
+                    f"Invalid pinned files cache format: {type(raw_data)}"
                 )
                 self._pins = {}
                 return
 
             # Validate structure and load pins
             self._pins = {}
-            data = cast("dict[str, Any]", raw_data)
-            for path, pin_data_raw in data.items():  # pyright: ignore[reportAny]
+            data = cast("dict[str, object]", raw_data)
+            for path, pin_data_raw in data.items():
                 # Runtime check since JSON can have any structure
                 if not isinstance(pin_data_raw, dict):
                     continue
-                pin_data = cast("dict[str, Any]", pin_data_raw)
+                pin_data = cast("dict[str, object]", pin_data_raw)
                 comment_val = pin_data.get("comment", "")
                 pinned_at_val = pin_data.get("pinned_at", "")
                 self._pins[path] = {

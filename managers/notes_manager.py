@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import QObject, QTimer
 
@@ -74,20 +74,20 @@ class NotesManager(LoggingMixin, QObject):
 
         try:
             with cache_file.open() as f:
-                raw_data: Any = json.load(f)  # pyright: ignore[reportAny]
+                raw_data: object = json.load(f)  # pyright: ignore[reportAny] - json.load returns Any
 
             if not isinstance(raw_data, dict):
-                self.logger.warning(f"Invalid notes cache format: {type(raw_data)}")  # pyright: ignore[reportAny]
+                self.logger.warning(f"Invalid notes cache format: {type(raw_data)}")
                 self._notes_by_key = {}
                 return
 
             # Cast to expected type for iteration
-            data = cast("dict[str, Any]", raw_data)
+            data = cast("dict[str, object]", raw_data)
 
             # Parse keys from "show|sequence|shot" format
             self._notes_by_key = {}
             for key_str, note_text in data.items():
-                if not isinstance(note_text, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+                if not isinstance(note_text, str):
                     continue
                 parts = key_str.split("|")
                 if len(parts) == 3:
