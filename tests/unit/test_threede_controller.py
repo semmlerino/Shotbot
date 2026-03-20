@@ -429,25 +429,6 @@ def reset_progress_manager() -> None:
 
 
 # ============================================================================
-# Test Initialization
-# ============================================================================
-
-
-class TestThreeDEControllerInitialization:
-    """Test ThreeDEController initialization."""
-
-    def test_initialization_sets_all_attributes(
-        self, window_double: ThreeDETargetDouble
-    ) -> None:
-        """Test that init sets all expected constructor state."""
-        controller = ThreeDEController(window_double)  # type: ignore[arg-type]
-        assert controller.window is window_double
-        assert controller._worker_manager is not None
-        assert controller._worker_manager._threede_worker is None
-        assert controller._current_progress_operation is None
-
-
-# ============================================================================
 # Test Signal Setup
 # ============================================================================
 

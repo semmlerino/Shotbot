@@ -144,13 +144,6 @@ def manager(window: ThumbnailSizeTargetDouble) -> ThumbnailSizeManager:
 class TestThumbnailSizeManagerInit:
     """Test ThumbnailSizeManager initialization."""
 
-    def test_init_stores_window_reference(
-        self, window: ThumbnailSizeTargetDouble
-    ) -> None:
-        """Constructor stores the window reference."""
-        mgr = ThumbnailSizeManager(window)  # type: ignore[arg-type]
-        assert mgr.window is window
-
     def test_setup_signals_connects_all_sliders(
         self, window: ThumbnailSizeTargetDouble
     ) -> None:

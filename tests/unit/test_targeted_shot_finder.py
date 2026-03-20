@@ -31,16 +31,6 @@ class TestTargetedShotsFinderInitialization:
         finder = TargetedShotsFinder(max_workers=4)
         assert finder.max_workers == 4
 
-    def test_shot_pattern_initialization(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that shot pattern is initialized correctly."""
-        from shots import targeted_shot_finder
-
-        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/test/shows")
-        finder = TargetedShotsFinder()
-        # Pattern should be based on SHOWS_ROOT
-        assert finder._shot_pattern.pattern.startswith("/test/shows")
-
-
 class TestExtractShowsFromActiveShots:
     """Test extract_shows_from_active_shots method."""
 

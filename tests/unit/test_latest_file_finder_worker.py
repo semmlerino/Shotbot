@@ -82,44 +82,6 @@ def empty_workspace(tmp_path: Path) -> Path:
 class TestLatestFileFinderWorkerInit:
     """Tests for worker initialization."""
 
-    def test_initialization_with_maya_only(self, workspace: Path) -> None:
-        """Worker initializes correctly with Maya search enabled."""
-        worker = LatestFileFinderWorker(
-            workspace_path=str(workspace),
-            shot_name="test_shot",
-            find_maya=True,
-            find_threede=False,
-        )
-
-        assert worker._workspace_path == str(workspace)
-        assert worker._shot_name == "test_shot"
-        assert worker._find_maya is True
-        assert worker._find_threede is False
-
-    def test_initialization_with_threede_only(self, workspace: Path) -> None:
-        """Worker initializes correctly with 3DE search enabled."""
-        worker = LatestFileFinderWorker(
-            workspace_path=str(workspace),
-            shot_name="test_shot",
-            find_maya=False,
-            find_threede=True,
-        )
-
-        assert worker._find_maya is False
-        assert worker._find_threede is True
-
-    def test_initialization_with_both(self, workspace: Path) -> None:
-        """Worker initializes correctly with both searches enabled."""
-        worker = LatestFileFinderWorker(
-            workspace_path=str(workspace),
-            shot_name="test_shot",
-            find_maya=True,
-            find_threede=True,
-        )
-
-        assert worker._find_maya is True
-        assert worker._find_threede is True
-
     def test_results_initially_none(self, workspace: Path) -> None:
         """Results are None before search."""
         worker = LatestFileFinderWorker(

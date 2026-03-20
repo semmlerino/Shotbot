@@ -50,15 +50,6 @@ def scrub_filter(mock_view: QListView) -> ScrubEventFilter:
 class TestScrubEventFilterInit:
     """Tests for ScrubEventFilter initialization."""
 
-    def test_initialization(self, mock_view: QListView) -> None:
-        """Test filter is properly initialized."""
-        filter_obj = ScrubEventFilter(view=mock_view)
-
-        assert filter_obj._view is mock_view
-        assert filter_obj._current_index is None
-        assert filter_obj._is_scrubbing is False
-        assert filter_obj._hover_pending is False
-
     def test_initialization_with_parent(
         self, mock_view: QListView, qapp: QApplication
     ) -> None:

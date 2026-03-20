@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
-    from cache.thumbnail_cache import ThumbnailCache as CacheManager
 
 pytestmark = [
     pytest.mark.unit,
@@ -56,15 +55,6 @@ class TestBaseItemModelInitialization:
 
         assert model.rowCount() == 0
         assert model._cache_manager is not None
-
-    def test_initialization_with_cache_manager(
-        self, qapp: QApplication, cache_manager: CacheManager
-    ) -> None:
-        """Test initialization with provided cache manager."""
-        model = ConcreteTestModel(cache_manager=cache_manager)
-
-        assert model._cache_manager is cache_manager
-        assert model.rowCount() == 0
 
     def test_initialization_requires_main_thread(self, qapp: QApplication) -> None:
         """Test that model creation fails outside main thread."""

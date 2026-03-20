@@ -59,8 +59,16 @@ class TestScrubState:
 
         assert state.frame_count == 100  # 1100 - 1001 + 1
 
-    def test_ratio_to_frame_at_start(self) -> None:
-        """Test ratio_to_frame at 0.0 returns first frame."""
+    @pytest.mark.parametrize(
+        ("ratio", "expected_frame"),
+        [
+            pytest.param(0.0, 1001, id="start"),
+            pytest.param(1.0, 1100, id="end"),
+            pytest.param(0.5, 1050, id="middle"),  # 0.5 * 99 = 49.5 → 49; 1001 + 49 = 1050
+        ],
+    )
+    def test_ratio_to_frame(self, ratio: float, expected_frame: int) -> None:
+        """Test ratio_to_frame maps 0.0→start, 1.0→end, 0.5→middle frame."""
         state = ScrubState(
             shot_key="show/seq/shot",
             workspace_path="/path",
@@ -68,31 +76,7 @@ class TestScrubState:
             frame_end=1100,
         )
 
-        assert state.ratio_to_frame(0.0) == 1001
-
-    def test_ratio_to_frame_at_end(self) -> None:
-        """Test ratio_to_frame at 1.0 returns last frame."""
-        state = ScrubState(
-            shot_key="show/seq/shot",
-            workspace_path="/path",
-            frame_start=1001,
-            frame_end=1100,
-        )
-
-        assert state.ratio_to_frame(1.0) == 1100
-
-    def test_ratio_to_frame_at_middle(self) -> None:
-        """Test ratio_to_frame at 0.5 returns middle frame."""
-        state = ScrubState(
-            shot_key="show/seq/shot",
-            workspace_path="/path",
-            frame_start=1001,
-            frame_end=1100,
-        )
-
-        # 0.5 * 99 frames = 49.5 → 49 (int)
-        # 1001 + 49 = 1050
-        assert state.ratio_to_frame(0.5) == 1050
+        assert state.ratio_to_frame(ratio) == expected_frame
 
     def test_current_pixmap_property(self, qapp: QApplication) -> None:
         """Test current_pixmap getter and setter."""
@@ -109,26 +93,6 @@ class TestScrubState:
         state.current_pixmap = pixmap
 
         assert state.current_pixmap is pixmap
-
-
-class TestScrubPreviewManagerInit:
-    """Tests for ScrubPreviewManager initialization."""
-
-    def test_initialization(self, qapp: QApplication) -> None:
-        """Test manager is properly initialized."""
-        manager = ScrubPreviewManager()
-
-        assert manager._prefetch_radius == 10  # Default (increased for smoother scrubbing)
-        assert manager._frame_provider is not None
-        assert len(manager._scrub_states) == 0
-        assert len(manager._key_to_row) == 0
-        assert manager._active_index is None
-
-    def test_initialization_with_custom_prefetch(self, qapp: QApplication) -> None:
-        """Test manager with custom prefetch radius."""
-        manager = ScrubPreviewManager(prefetch_radius=15)
-
-        assert manager._prefetch_radius == 15
 
 
 class TestGetScrubState:

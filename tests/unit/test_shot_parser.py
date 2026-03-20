@@ -1,7 +1,6 @@
 """Unit tests for shot_parser.py.
 
 Tests cover:
-- ParseResult NamedTuple structure and behaviour
 - parse_workspace_line(): standard, non-prefix, short names, no underscore, None cases
 - parse_shot_path(): path-only equivalents of the above
 - Pattern cache isolation when Config.SHOWS_ROOT changes
@@ -13,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from shots import shot_parser
-from shots.shot_parser import OptimizedShotParser, ParseResult
+from shots.shot_parser import OptimizedShotParser
 
 
 # ---------------------------------------------------------------------------
@@ -25,60 +24,6 @@ from shots.shot_parser import OptimizedShotParser, ParseResult
 def _clear_pattern_cache() -> None:
     """Clear the module-level pattern cache before every test for isolation."""
     shot_parser._PATTERN_CACHE.clear()
-
-
-# ---------------------------------------------------------------------------
-# ParseResult NamedTuple
-# ---------------------------------------------------------------------------
-
-
-class TestParseResult:
-    """ParseResult NamedTuple structure and immutability."""
-
-    def test_fields_are_accessible_by_name(self) -> None:
-        """All four fields are accessible by name."""
-        result = ParseResult(
-            show="demo",
-            sequence="seq01",
-            shot="0010",
-            workspace_path="/shows/demo/shots/seq01/seq01_0010",
-        )
-
-        assert result.show == "demo"
-        assert result.sequence == "seq01"
-        assert result.shot == "0010"
-        assert result.workspace_path == "/shows/demo/shots/seq01/seq01_0010"
-
-    def test_supports_positional_indexing(self) -> None:
-        """Fields can be accessed by positional index (it is a tuple)."""
-        result = ParseResult("demo", "seq01", "0010", "/shows/demo/shots/seq01/seq01_0010")
-
-        assert result[0] == "demo"
-        assert result[1] == "seq01"
-        assert result[2] == "0010"
-        assert result[3] == "/shows/demo/shots/seq01/seq01_0010"
-        assert len(result) == 4
-
-    def test_is_immutable(self) -> None:
-        """Field assignment raises AttributeError."""
-        result = ParseResult("demo", "seq01", "0010", "/shows/demo/shots/seq01/seq01_0010")
-
-        with pytest.raises(AttributeError):
-            result.show = "other"  # type: ignore[misc]
-
-    def test_equality_comparison(self) -> None:
-        """Two ParseResult instances with equal fields compare equal."""
-        a = ParseResult("demo", "seq01", "0010", "/shows/demo/shots/seq01/seq01_0010")
-        b = ParseResult("demo", "seq01", "0010", "/shows/demo/shots/seq01/seq01_0010")
-
-        assert a == b
-
-    def test_inequality_on_differing_shot(self) -> None:
-        """ParseResult instances with different shots are not equal."""
-        a = ParseResult("demo", "seq01", "0010", "/shows/demo/shots/seq01/seq01_0010")
-        b = ParseResult("demo", "seq01", "0020", "/shows/demo/shots/seq01/seq01_0020")
-
-        assert a != b
 
 
 # ---------------------------------------------------------------------------

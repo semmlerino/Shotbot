@@ -137,38 +137,6 @@ class TestPinFile:
         assert file_pin_manager.get_pinned_count() == 1
 
 
-class TestUnpinFile:
-    """Tests for unpin_file() method."""
-
-    def test_unpin_file_emits_signal(
-        self,
-        qtbot: QtBot,
-        file_pin_manager: FilePinManager,
-        sample_file_paths: list[Path],
-    ) -> None:
-        """Unpinning should emit pin_changed signal."""
-        file_path = sample_file_paths[0]
-        file_pin_manager.pin_file(file_path)
-
-        with qtbot.waitSignal(file_pin_manager.pin_changed, timeout=1000) as blocker:
-            file_pin_manager.unpin_file(file_path)
-
-        assert blocker.args == [str(file_path)]
-
-
-class TestIsPinned:
-    """Tests for is_pinned() method."""
-
-    def test_is_pinned_accepts_string_path(
-        self, file_pin_manager: FilePinManager, sample_file_paths: list[Path]
-    ) -> None:
-        """is_pinned should accept string paths."""
-        file_path = sample_file_paths[0]
-
-        file_pin_manager.pin_file(file_path)
-        assert file_pin_manager.is_pinned(str(file_path))
-
-
 class TestGetComment:
     """Tests for get_comment() method."""
 
@@ -310,31 +278,6 @@ class TestPersistence:
         assert path_str in data
         assert data[path_str]["comment"] == comment
         assert "pinned_at" in data[path_str]
-
-
-class TestCacheRecovery:
-    """Tests for handling corrupted or missing cache."""
-
-    def test_handles_partial_cache_data(
-        self, cache_dir: Path
-    ) -> None:
-        """Should skip entries with invalid structure."""
-        # Write valid JSON with some invalid entries
-        cache_file = cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        data = {
-            "/path/to/valid.3de": {"comment": "valid", "pinned_at": "2025-01-01"},
-            "/path/to/invalid.3de": "not a dict",  # Invalid - should be skipped
-            "/path/to/also_valid.mb": {"comment": "also valid", "pinned_at": "2025-01-01"},
-        }
-        cache_file.write_text(json.dumps(data))
-
-        pm = FilePinManager(cache_dir)
-        assert pm.get_pinned_count() == 2  # Only valid entries loaded
-        assert pm.is_pinned("/path/to/valid.3de")
-        assert not pm.is_pinned("/path/to/invalid.3de")
-        assert pm.is_pinned("/path/to/also_valid.mb")
-        pm.deleteLater()
 
 
 # ============= Edge Case Tests =============

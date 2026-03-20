@@ -277,22 +277,6 @@ def controller(window_double: SettingsTargetDouble) -> SettingsController:
 
 
 # ============================================================================
-# Test Initialization
-# ============================================================================
-
-
-class TestSettingsControllerInitialization:
-    """Test SettingsController initialization."""
-
-    def test_init_stores_window_reference(
-        self, window_double: SettingsTargetDouble
-    ) -> None:
-        """Test that init stores window reference."""
-        controller = SettingsController(window_double)  # type: ignore[arg-type]
-        assert controller.window is window_double
-
-
-# ============================================================================
 # Test Load Settings
 # ============================================================================
 

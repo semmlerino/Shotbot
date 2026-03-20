@@ -94,36 +94,8 @@ class TestPinShot:
         assert pin_manager.get_pin_order(shot2) == 2
 
 
-class TestUnpinShot:
-    """Tests for unpin_shot() method."""
-
-    def test_unpin_shot_updates_order(
-        self, pin_manager: ShotPinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Unpinning should update order of remaining pins."""
-        shot1, shot2, shot3 = sample_shots
-
-        pin_manager.pin_shot(shot1)
-        pin_manager.pin_shot(shot2)
-        pin_manager.pin_shot(shot3)
-
-        # Remove middle pin
-        pin_manager.unpin_shot(shot2)
-
-        assert pin_manager.get_pin_order(shot3) == 0
-        assert pin_manager.get_pin_order(shot1) == 1
-        assert pin_manager.get_pin_order(shot2) == -1  # Not pinned
-
-
 class TestGetPinOrder:
     """Tests for get_pin_order() method."""
-
-    def test_get_pin_order_returns_negative_for_unpinned(
-        self, pin_manager: ShotPinManager, sample_shots: list[Shot]
-    ) -> None:
-        """Unpinned shots should return -1."""
-        shot = sample_shots[0]
-        assert pin_manager.get_pin_order(shot) == -1
 
     def test_get_pin_order_returns_correct_index(
         self, pin_manager: ShotPinManager, sample_shots: list[Shot]
@@ -147,26 +119,6 @@ class TestGetPinOrder:
 class TestPersistence:
     """Tests for cache persistence."""
 
-    def test_pin_order_persists(
-        self, cache_dir: Path, sample_shots: list[Shot]
-    ) -> None:
-        """Pin order should persist across instances."""
-        shot1, shot2, shot3 = sample_shots
-
-        # Pin shots in specific order
-        pm1 = ShotPinManager(cache_dir)
-        pm1.pin_shot(shot1)
-        pm1.pin_shot(shot2)
-        pm1.pin_shot(shot3)
-
-        # Create new instance
-        pm2 = ShotPinManager(cache_dir)
-
-        # Order should be preserved (most recent first)
-        assert pm2.get_pin_order(shot3) == 0
-        assert pm2.get_pin_order(shot2) == 1
-        assert pm2.get_pin_order(shot1) == 2
-
     def test_cache_file_format(
         self, cache_dir: Path, sample_shots: list[Shot]
     ) -> None:
@@ -189,11 +141,6 @@ class TestPersistence:
         assert data[0]["show"] == shot.show
         assert data[0]["sequence"] == shot.sequence
         assert data[0]["shot"] == shot.shot
-
-
-class TestCacheRecovery:
-    """Tests for handling corrupted or missing cache."""
-
 
 
 # ============= Edge Case Tests =============

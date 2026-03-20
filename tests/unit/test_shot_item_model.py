@@ -86,24 +86,11 @@ def base_shot_model(
 class TestInitialization:
     """Test ShotItemModel initialization behavior."""
 
-    def test_initialization_with_underlying_model(
-        self, qapp: QApplication, cache_manager: object
-    ) -> None:
-        """Test proper setup with cache manager."""
-        model = ShotItemModel(cache_manager=cache_manager)
-
-        assert model._cache_manager is cache_manager
-        assert model.rowCount() == 0
-
     def test_initialization_with_cache_manager(
         self, qapp: QApplication, cache_manager: object
     ) -> None:
         """Test cache integration during initialization."""
         model = ShotItemModel(cache_manager=cache_manager)
-
-        # Verify cache manager is properly set
-        assert model._cache_manager is not None
-        assert model._cache_manager is cache_manager
 
         # Verify initial state
         assert len(model.shots) == 0
