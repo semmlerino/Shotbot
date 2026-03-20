@@ -57,10 +57,11 @@ def _relative_age(modified_time: datetime) -> str:
         return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
     if hours < 24:
         return f"{hours} hour{'s' if hours != 1 else ''} ago"
+    time_str = modified_time.strftime("%H:%M")
     if days == 1:
-        return "yesterday"
+        return f"yesterday at {time_str}"
     if days < 7:
-        return f"{days} days ago"
+        return f"{days} days ago at {time_str}"
     if days < 30:
         weeks = days // 7
         return f"{weeks} week{'s' if weeks != 1 else ''} ago"

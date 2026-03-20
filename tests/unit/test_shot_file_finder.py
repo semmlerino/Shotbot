@@ -59,8 +59,8 @@ class TestSceneFile:
             (timedelta(0), "just now", True),
             (timedelta(minutes=30), "minute", False),
             (timedelta(hours=5), "hour", False),
-            (timedelta(days=1), "yesterday", True),
-            (timedelta(days=5), "day", False),
+            (timedelta(days=1), "yesterday at", False),
+            (timedelta(days=5), "days ago at", False),
         ],
     )
     def test_scene_file_relative_age(
