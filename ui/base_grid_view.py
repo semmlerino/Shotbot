@@ -27,7 +27,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QListView,
@@ -40,13 +39,10 @@ from PySide6.QtWidgets import (
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
-from scrub.scrub_event_filter import ScrubEventFilter
-from scrub.scrub_preview_manager import ScrubPreviewManager
-
-# Local imports
 from typing_compat import override
 from ui.icon_painter import create_icon
 from ui.qt_widget_mixin import QtWidgetMixin
+from ui.scrub_bridge import ScrubPreviewBridge
 
 
 class HasAvailableShows(Protocol):
@@ -67,19 +63,6 @@ class HasAvailableShows(Protocol):
         ...
 
 
-class HasRefreshPinOrder(Protocol):
-    """Protocol for item models that support pin-order refresh.
-
-    Both ShotItemModel and PreviousShotsItemModel implement this method.
-    Used by _refresh_with_pins() in BaseGridView to avoid importing
-    concrete model types into the base class.
-    """
-
-    def refresh_pin_order(self) -> None:
-        """Re-sort the model to reflect current pin state."""
-        ...
-
-
 # Runtime imports (not just type checking)
 from PySide6.QtGui import QAction, QKeyEvent, QKeySequence
 
@@ -91,7 +74,6 @@ if TYPE_CHECKING:
 
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
-    from type_definitions import Shot
     from ui.base_thumbnail_delegate import BaseThumbnailDelegate
 
 
@@ -134,9 +116,8 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         self._thumbnail_size: int = Config.DEFAULT_THUMBNAIL_SIZE
         self._model: QAbstractItemModel | None = None
 
-        # Scrub preview components
-        self._scrub_manager: ScrubPreviewManager | None = None
-        self._scrub_event_filter: ScrubEventFilter | None = None
+        # Scrub preview bridge
+        self._scrub_bridge: ScrubPreviewBridge = ScrubPreviewBridge(self)
 
         # Create the UI
         self._setup_base_ui()
@@ -292,37 +273,18 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         self._schedule_visible_range_update()
 
     def _setup_scrub_preview(self) -> None:
-        """Initialize the scrub preview system.
+        """Initialize the scrub preview system via ScrubPreviewBridge.
 
-        Sets up event filter on viewport and connects signals for
-        Netflix-style hover scrubbing through plate frames.
+        Delegates all wiring to the bridge so this class stays free of
+        direct ScrubEventFilter / ScrubPreviewManager dependencies.
         """
-        # Create scrub preview manager
-        self._scrub_manager = ScrubPreviewManager(self)
-
-        # Enable mouse tracking so viewport receives MouseMove events during hover
-        # (Without this, MouseMove only fires when a mouse button is pressed)
-        self.list_view.viewport().setMouseTracking(True)
-
-        # Create event filter and install on viewport
-        self._scrub_event_filter = ScrubEventFilter(self.list_view, self)
-        self.list_view.viewport().installEventFilter(self._scrub_event_filter)
-
-        # Connect event filter signals to manager
-        _ = self._scrub_event_filter.scrub_started.connect(self._scrub_manager.start_scrub)  # pyright: ignore[reportAny]
-        _ = self._scrub_event_filter.scrub_position_changed.connect(
-            self._scrub_manager.update_scrub_position  # pyright: ignore[reportAny]
+        self._scrub_bridge.setup(
+            self.list_view,
+            self._delegate,
+            self._on_scrub_repaint_requested,
+            on_scrub_started=self._on_scrub_started,
+            on_scrub_ended=self._on_scrub_ended,
         )
-        _ = self._scrub_event_filter.scrub_ended.connect(self._scrub_manager.end_scrub)  # pyright: ignore[reportAny]
-
-        # Connect manager signals for view updates
-        _ = self._scrub_manager.request_repaint.connect(self._on_scrub_repaint_requested)
-        _ = self._scrub_manager.scrub_started.connect(self._on_scrub_started)
-        _ = self._scrub_manager.scrub_ended.connect(self._on_scrub_ended)
-
-        # Pass manager to delegate for rendering
-        self._delegate.set_scrub_manager(self._scrub_manager)
-
         self.logger.debug("Scrub preview system initialized")
 
     def _setup_launch_shortcuts(self) -> None:
@@ -670,84 +632,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         from launch.rv_launcher import open_plate_in_rv
         open_plate_in_rv(item.workspace_path)  # type: ignore[union-attr]
-
-    # Handlers for Shot-based pin/note operations (SGV and PSV only).
-    # ThreeDEGridView uses _pin_scene/_unpin_scene/_edit_scene_note instead.
-
-    @property
-    def _item_model(self) -> HasRefreshPinOrder | None:
-        """Return the underlying item model for pin-order refresh.
-
-        Subclasses that support pin operations must override this property
-        to return their specific model instance.
-
-        Returns:
-            Model implementing refresh_pin_order(), or None
-
-        """
-        msg = (
-            f"{self.__class__.__name__} must override _item_model "
-            "to support _refresh_with_pins()"
-        )
-        raise NotImplementedError(msg)
-
-    def _pin_shot(self, shot: Shot) -> None:
-        """Pin a shot.
-
-        Args:
-            shot: Shot to pin
-
-        """
-        if self._pin_manager:
-            self._pin_manager.pin_shot(shot)
-            self._refresh_with_pins()
-        else:
-            # Fallback: emit signal for external handling
-            self.pin_shot_requested.emit(shot)
-
-    def _unpin_shot(self, shot: Shot) -> None:
-        """Unpin a shot.
-
-        Args:
-            shot: Shot to unpin
-
-        """
-        if self._pin_manager:
-            self._pin_manager.unpin_shot(shot)
-            self._refresh_with_pins()
-
-    def _refresh_with_pins(self) -> None:
-        """Re-sort and refresh grid to reflect pin changes."""
-        from PySide6.QtCore import QSortFilterProxyModel
-        proxy = self.list_view.model()
-        if isinstance(proxy, QSortFilterProxyModel):
-            proxy.invalidate()
-        else:
-            item_model = self._item_model
-            if item_model:
-                item_model.refresh_pin_order()
-        self.list_view.viewport().update()
-
-    def _edit_shot_note(self, shot: Shot) -> None:
-        """Open dialog to edit note for shot.
-
-        Args:
-            shot: Shot to edit note for
-
-        """
-        if not self._notes_manager:
-            return
-
-        current_note = self._notes_manager.get_note(shot)
-        new_note, ok = QInputDialog.getMultiLineText(
-            self,
-            f"Note for {shot.full_name}",
-            "Note:",
-            current_note,
-        )
-        if ok:
-            self._notes_manager.set_note(shot, new_note)
-            self.logger.debug(f"Note updated for shot: {shot.full_name}")
 
     # Common properties
 

@@ -7,7 +7,7 @@ holding all logic that is duplicated between them.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, Protocol, cast
 
 from PySide6.QtCore import (
     QAbstractItemModel,
@@ -18,7 +18,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtWidgets import QMenu, QWidget
+from PySide6.QtWidgets import QInputDialog, QMenu, QWidget
 
 from typing_compat import override
 from ui.base_grid_view import BaseGridView
@@ -31,6 +31,18 @@ if TYPE_CHECKING:
 
     from managers.shot_pin_manager import ShotPinManager
     from type_definitions import Shot
+
+
+class HasRefreshPinOrder(Protocol):
+    """Protocol for item models that support pin-order refresh.
+
+    Both ShotItemModel and PreviousShotsItemModel implement this method.
+    Used by _refresh_with_pins() in BaseShotGridView to avoid importing
+    concrete model types into the base class.
+    """
+
+    def refresh_pin_order(self) -> None:
+        """Re-sort the model to reflect current pin state."""
 
 
 class BaseShotGridView(BaseGridView):
@@ -285,3 +297,82 @@ class BaseShotGridView(BaseGridView):
         self.logger.debug(f"Context menu shown for shot: {shot.full_name}")
 
     # Subclasses must still implement _on_model_updated and _create_delegate.
+
+    # ------------------------------------------------------------------
+    # Shot pin / note operations (SGV and PSV only)
+    # ThreeDEGridView uses _pin_scene/_unpin_scene/_edit_scene_note instead.
+    # ------------------------------------------------------------------
+
+    @property
+    def _item_model(self) -> HasRefreshPinOrder | None:
+        """Return the underlying item model for pin-order refresh.
+
+        Subclasses that support pin operations must override this property
+        to return their specific model instance.
+
+        Returns:
+            Model implementing refresh_pin_order(), or None
+
+        """
+        msg = (
+            f"{self.__class__.__name__} must override _item_model "
+            "to support _refresh_with_pins()"
+        )
+        raise NotImplementedError(msg)
+
+    def _pin_shot(self, shot: Shot) -> None:
+        """Pin a shot.
+
+        Args:
+            shot: Shot to pin
+
+        """
+        if self._pin_manager:
+            self._pin_manager.pin_shot(shot)
+            self._refresh_with_pins()
+        else:
+            # Fallback: emit signal for external handling
+            self.pin_shot_requested.emit(shot)
+
+    def _unpin_shot(self, shot: Shot) -> None:
+        """Unpin a shot.
+
+        Args:
+            shot: Shot to unpin
+
+        """
+        if self._pin_manager:
+            self._pin_manager.unpin_shot(shot)
+            self._refresh_with_pins()
+
+    def _refresh_with_pins(self) -> None:
+        """Re-sort and refresh grid to reflect pin changes."""
+        proxy = self.list_view.model()
+        if isinstance(proxy, QSortFilterProxyModel):
+            proxy.invalidate()
+        else:
+            item_model = self._item_model
+            if item_model:
+                item_model.refresh_pin_order()
+        self.list_view.viewport().update()
+
+    def _edit_shot_note(self, shot: Shot) -> None:
+        """Open dialog to edit note for shot.
+
+        Args:
+            shot: Shot to edit note for
+
+        """
+        if not self._notes_manager:
+            return
+
+        current_note = self._notes_manager.get_note(shot)
+        new_note, ok = QInputDialog.getMultiLineText(
+            self,
+            f"Note for {shot.full_name}",
+            "Note:",
+            current_note,
+        )
+        if ok:
+            self._notes_manager.set_note(shot, new_note)
+            self.logger.debug(f"Note updated for shot: {shot.full_name}")
