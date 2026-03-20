@@ -21,11 +21,12 @@ from pathlib import Path
 from typing import TypedDict, cast
 
 
-class BundleConfig(TypedDict):
+class BundleConfig(TypedDict, total=False):
     """Type definition for bundle configuration."""
 
     include_patterns: list[str]
     exclude_patterns: list[str]
+    force_include_dirs: list[str]
     exclude_dirs: list[str]
     max_file_size_mb: int
     chunk_size_kb: int
@@ -219,6 +220,12 @@ class ApplicationBundler:
 
         return default_config
 
+    def _in_force_include_dir(self, path: str) -> bool:
+        """Check if a path is inside a force-included directory."""
+        force_dirs: list[str] = self.config.get("force_include_dirs", [])
+        parts = Path(path).parts
+        return any(d in parts for d in force_dirs)
+
     def should_include_file(self, file_path: str) -> bool:
         """Check if a file should be included in the bundle.
 
@@ -229,8 +236,8 @@ class ApplicationBundler:
             True if file should be included
 
         """
-        # Check gitignore patterns first
-        if self.gitignore_parser.should_exclude(file_path):
+        # Check gitignore patterns first (skip for force-included dirs)
+        if not self._in_force_include_dir(file_path) and self.gitignore_parser.should_exclude(file_path):
             return False
 
         file_name = Path(file_path).name
@@ -306,12 +313,16 @@ class ApplicationBundler:
         max_size_bytes = self.config["max_file_size_mb"] * 1024 * 1024
 
         for root, dirs, files in os.walk(source_dir):
-            # Filter out excluded directories
+            # Filter out excluded directories (keep force-included ones)
+            force_dirs: list[str] = self.config.get("force_include_dirs", [])
             dirs[:] = [
                 d
                 for d in dirs
-                if d not in self.config["exclude_dirs"]
-                and not self.gitignore_parser.should_exclude(d, is_dir=True)
+                if d in force_dirs
+                or (
+                    d not in self.config["exclude_dirs"]
+                    and not self.gitignore_parser.should_exclude(d, is_dir=True)
+                )
             ]
 
             for file in files:

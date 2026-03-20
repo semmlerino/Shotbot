@@ -79,6 +79,9 @@
     "docs/root_cleanup_archive_20260307/pyrightconfig.json.backup.json",
     "transfer_config.json"
   ],
+  "force_include_dirs": [
+    "cachetools"
+  ],
   "exclude_dirs": [
     "tests",
     "test",

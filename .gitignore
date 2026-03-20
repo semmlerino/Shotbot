@@ -2,6 +2,9 @@
 encoded_app_*.txt
 encoded_app_*_metadata.json
 
+# Vendored dependencies
+cachetools/
+
 # Build artifacts
 *.pyc
 __pycache__/
