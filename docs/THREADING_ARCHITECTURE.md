@@ -19,6 +19,7 @@ Shotbot uses three mechanisms:
 - `ProcessPoolManager`: singleton executor for subprocess-heavy operations.
 - `SceneDiscoveryCoordinator`: parallel filesystem scanning orchestration.
 - `ThreadDiagnostics`: thread state capture, stack trace logging, and abandonment reporting used by `ThreadSafeWorker.safe_terminate()`.
+- `ZombieRegistry` (`zombie_registry.py`): module-level functions for zombie thread lifecycle (tracking, cleanup timers, escalating termination policy). Delegated to by `ThreadSafeWorker`.
 
 ## Invariants
 

@@ -9,10 +9,10 @@ Fixtures are organized by category and auto-loaded via `pytest_plugins` in `test
 | `qt_fixtures.py` | No (via dispatcher) | `suppress_qmessagebox`, `prevent_qapp_exit`, `qt_cleanup`, `expect_dialog`, `expect_no_dialogs` | Qt safety (prevent modal dialogs/app-exit), Qt cleanup, dialog assertion helpers |
 | `process_fixtures.py` | Yes | `subprocess_mock`, `mock_process_pool_manager`, `subprocess_error_mock` | Subprocess interception and process pool mocking |
 | `singleton_fixtures.py` | Yes | `reset_caches`, `reset_singletons` | Reset singleton state; lite runs for all tests, heavy for Qt tests only |
-| `environment_fixtures.py` | No | `isolated_cache_manager`, `caching_enabled`, `temp_cache_dir`, `cache_manager`, `shot_cache`, `scene_disk_cache`, `make_test_shot`, `make_test_filesystem`, `make_real_3de_file`, `real_shot_model` | Isolated cache instances, cache-enabled test environments, shot/filesystem factories |
+| `environment_fixtures.py` | No | `caching_enabled`, `temp_cache_dir`, `cache_manager`, `shot_cache`, `scene_disk_cache`, `make_test_shot`, `make_test_filesystem`, `make_real_3de_file`, `real_shot_model` | Isolated cache instances, cache-enabled test environments, shot/filesystem factories |
 | `model_fixtures.py` | No | `TestShot`, `TestShotModel`, `TestCacheManager`, `create_test_shot` | Test double classes and factory functions for shot data objects |
 | `test_doubles.py` | No | `TestProcessPool`, `TestSubprocess`, `PopenDouble` | Re-exports from other fixture modules for backward compatibility |
-| `mock_workspace_pool.py` | No | `MockWorkspacePool`, `create_mock_pool_from_filesystem` | Mock VFX workspace pool for filesystem testing |
+| `mock_workspace_pool.py` (project root) | No | `MockWorkspacePool`, `create_mock_pool_from_filesystem` | Mock VFX workspace pool for `--mock` mode; imported by `app_services.py` at runtime, not a pytest fixture |
 
 ## Session-Scoped (in conftest.py)
 

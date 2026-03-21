@@ -28,6 +28,7 @@ Application modules live at the repository root (no `src/` package), organized i
 - `threede/` — 3DEqualizer scene model, discovery coordinator, filesystem scanner
 - `bundle_workflow_template/` — portable encoded-bundle deployment workflow for reuse in other repos
 - `wrapper/` — DCC launch wrapper scripts (e.g., ShotGrid Desktop pre-launch for 3DEqualizer)
+- `cachetools/` — vendored `cachetools` library (not available in BlueBolt rez environment)
 - `archive/` — historical materials, audits, and obsolete documentation (see `docs/README.md` Archive Boundaries)
 - `dev-tools/` — development-only utility scripts (profiling, thread checks, type-check helpers)
 

@@ -6,7 +6,7 @@ This document defines launcher behavior assumptions for the BlueBolt environment
 
 `CommandLauncher` is the production entrypoint for DCC launches with shot context.
 It coordinates workspace setup, environment handling, and app dispatch.
-Internally, it delegates to the `launch/` subpackage: `CommandBuilder`, `EnvironmentManager`, `ProcessExecutor`, and `FileSearchCoordinator`.
+Internally, it delegates to the `launch/` subpackage: `CommandBuilder`, `EnvironmentManager`, `ProcessExecutor`, `FileSearchCoordinator`, and `LaunchOperation`.
 
 Supported DCCs: `3de`, `maya`, `nuke`, `rv`.
 
