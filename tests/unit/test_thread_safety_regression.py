@@ -53,7 +53,7 @@ class TestQThreadInterruptionFix:
         # Use real AsyncShotLoader with TestProcessPool at boundary
         from tests.fixtures.test_doubles import TestProcessPool
 
-        test_pool = TestProcessPool(ttl_aware=True)
+        test_pool = TestProcessPool()
         test_pool.set_outputs("workspace /shows/TEST/seq01/0010")
 
         # Create real loader and start it
@@ -89,7 +89,7 @@ class TestQThreadInterruptionFix:
         # Use real test double at system boundary
         from tests.fixtures.test_doubles import TestProcessPool
 
-        test_pool = TestProcessPool(ttl_aware=True)
+        test_pool = TestProcessPool()
         test_pool.set_outputs("")  # Empty output for quick test
 
         loader = AsyncShotLoader(test_pool)
@@ -111,7 +111,7 @@ class TestQThreadInterruptionFix:
         """Test that both stop mechanisms work together."""
         from tests.fixtures.test_doubles import TestProcessPool
 
-        test_process_pool = TestProcessPool(ttl_aware=True)
+        test_process_pool = TestProcessPool()
         loader = AsyncShotLoader(test_process_pool)
 
         # Call stop (should set both mechanisms)

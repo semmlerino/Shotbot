@@ -367,17 +367,6 @@ def _clear_config_files() -> None:
         warnings.warn("\n".join(msg_parts), stacklevel=2)
 
 
-def _clear_stat_caches() -> None:
-    """Clear ThumbnailCache stat cache for test isolation.
-
-    The stat cache has a 2-second TTL which can leak between fast tests.
-    ThumbnailCache is no longer a singleton, so stat caches on individual
-    instances expire naturally. This function is retained as a no-op hook
-    for future use if a central registry is introduced.
-    """
-    # ThumbnailCache stat caches are per-instance; no singleton to clear
-
-
 def _clear_disk_cache_files() -> None:
     """Clear disk cache files for pristine test state.
 
@@ -511,9 +500,6 @@ def reset_caches(request: pytest.FixtureRequest) -> Iterator[None]:
 
     # Clear config files to prevent test contamination within worker
     _clear_config_files()
-
-    # Clear CacheManager stat cache (has 2s TTL that can leak between tests)
-    _clear_stat_caches()
 
     # Reset Config.SHOWS_ROOT
     try:

@@ -14,7 +14,7 @@ OPTIMIZATION_TESTS = [
     "tests/unit/test_async_shot_loader.py",
     "tests/integration/test_incremental_caching_workflow.py",
     "tests/integration/test_cache_architecture_seams.py",
-    "tests/integration/test_cache_merge_correctness.py",
+    "tests/unit/test_cache_merge_correctness.py",
 ]
 
 

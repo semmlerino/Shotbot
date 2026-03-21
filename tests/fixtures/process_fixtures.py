@@ -3,7 +3,7 @@
 Consolidated from:
 - subprocess_mocking.py: Autouse subprocess mocks, SubprocessMock class, fixtures
 - process_doubles.py:    TestProcessPool, TestCompletedProcess, TestSubprocess, PopenDouble
-- cache_doubles.py:      TestProgressOperation, TestProgressManager, test_process_pool fixture
+- cache_doubles.py:      TestProgressManager, test_process_pool fixture
 
 Fixtures (autouse):
     mock_process_pool_manager: Patches ProcessPoolManager singleton
@@ -20,7 +20,6 @@ Classes:
     TestCompletedProcess:    Test double for subprocess.CompletedProcess
     TestSubprocess:          Test double for subprocess operations
     PopenDouble:             Test double for subprocess.Popen
-    TestProgressOperation:   Minimal test double for progress operations
     TestProgressManager:     Test double for progress manager
 """
 
@@ -528,28 +527,20 @@ class TestProcessPool:
             # ... code that uses ProcessPoolManager ...
             assert "ws -sg" in test_process_pool.commands
 
-    TTL-Aware Mode (replaces TestProcessPoolManager):
-        pool = TestProcessPool(ttl_aware=True)
-        pool.execute_workspace_command("cmd", cache_ttl=60)
-        # Second call returns cached result if within TTL
-
     Tracking Mode (replaces TestProcessPoolDouble):
         pool = TestProcessPool(track_kwargs=True)
         pool.execute_workspace_command("cmd", timeout=30)
         assert pool.command_kwargs["cmd"]["timeout"] == 30
 
     Args:
-        ttl_aware: If True, enable TTL-based caching (like TestProcessPoolManager)
         track_kwargs: If True, track kwargs for each command (like TestProcessPoolDouble)
 
     """
 
     __test__ = False  # Prevent pytest from collecting this as a test class
-    _instance: TestProcessPool | None = None
 
     def __init__(
         self,
-        ttl_aware: bool = False,
         track_kwargs: bool = False,
         strict: bool = True,
         allow_main_thread: bool = False,
@@ -558,7 +549,6 @@ class TestProcessPool:
         """Initialize the test double.
 
         Args:
-            ttl_aware: Enable TTL-based caching behavior
             track_kwargs: Enable command kwargs tracking
             strict: If True (default), raises AssertionError when execute_workspace_command
                    is called without first calling set_outputs(). This prevents tests from
@@ -574,7 +564,6 @@ class TestProcessPool:
 
         """
         # Feature flags
-        self._ttl_aware = ttl_aware
         self._track_kwargs = track_kwargs
         self._strict = strict
         # Default False to match production behavior (UI-thread calls raise RuntimeError)
@@ -595,16 +584,16 @@ class TestProcessPool:
         self.fail_with_message: str | None = None
         self._errors: str = ""  # Legacy compatibility
 
-        # TTL-aware cache: command -> (output, timestamp)
-        self._cache: dict[str, tuple[str, float]] = {}
-
         # Kwargs tracking
         self.command_kwargs: dict[str, dict[str, Any]] = {}
 
-        # Metrics
-        self.call_count = 0
+        # Cache
+        self._cache: dict[str, str] = {}
         self._cache_hits = 0
         self._cache_misses = 0
+
+        # Metrics
+        self.call_count = 0
 
         # Delay simulation
         self.simulated_delay = 0.0
@@ -660,7 +649,7 @@ class TestProcessPool:
 
         Args:
             command: Command to execute
-            cache_ttl: Cache TTL in seconds (used if ttl_aware=True)
+            cache_ttl: Cache TTL in seconds (accepted for interface compatibility, not used)
             timeout: Command timeout (tracked if track_kwargs=True)
             **kwargs: Additional parameters (tracked if track_kwargs=True)
 
@@ -702,16 +691,8 @@ class TestProcessPool:
             time.sleep(self.simulated_delay)
             self.execution_delays.append(self.simulated_delay)
 
-        # TTL-aware caching
-        if self._ttl_aware and cache_ttl and cache_ttl > 0 and command in self._cache:
-            cached_output, cached_time = self._cache[command]
-            if time.time() - cached_time < cache_ttl:
-                self._cache_hits += 1
-                return cached_output
-
         # Record command execution
         self.commands.append(command)
-        self._cache_misses += 1
 
         # Check failure conditions
         if self.fail_with_timeout:
@@ -725,10 +706,6 @@ class TestProcessPool:
 
         # Determine output
         output = self._get_next_output()
-
-        # Cache result if TTL-aware mode
-        if self._ttl_aware and cache_ttl and cache_ttl > 0:
-            self._cache[command] = (output, time.time())
 
         self.command_completed.emit(command, output)
         return output
@@ -856,19 +833,6 @@ class TestProcessPool:
             last_cmd = self.commands[-1]
             return self.command_kwargs.get(last_cmd, {})
         return {}
-
-    @classmethod
-    def get_instance(cls) -> TestProcessPool:
-        """Get a singleton instance (for compatibility with TestProcessPoolManager)."""
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
-
-    @classmethod
-    def reset_instance(cls) -> None:
-        """Reset the singleton instance."""
-        cls._instance = None
-
 
 class TestCompletedProcess:
     """Test double for subprocess.CompletedProcess."""
@@ -1116,20 +1080,7 @@ class PopenDouble:
 # ---------------------------------------------------------------------------
 
 import time as _time_module
-from dataclasses import dataclass
 from typing import ClassVar
-
-
-@dataclass
-class TestProgressOperation:
-    """Minimal test double for progress operations (internal to TestProgressManager)."""
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    title: str
-    cancelable: bool = False
-    progress: int = 0
-    finished: bool = False
 
 
 class TestProgressManager:
@@ -1137,20 +1088,20 @@ class TestProgressManager:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    _current_operation: ClassVar[TestProgressOperation | None] = None
-    _operations_started: ClassVar[list[TestProgressOperation]] = []
+    _current_operation: ClassVar[dict[str, Any] | None] = None
+    _operations_started: ClassVar[list[dict[str, Any]]] = []
     _operations_finished: ClassVar[list[dict[str, Any]]] = []
 
     @classmethod
-    def start_operation(cls, config: Any) -> TestProgressOperation:
+    def start_operation(cls, config: Any) -> dict[str, Any]:
         """Start a new progress operation."""
         if isinstance(config, str):
-            operation = TestProgressOperation(title=config)
+            operation: dict[str, Any] = {"title": config, "cancelable": False, "progress": 0, "finished": False}
         else:
             # Handle config object
             title = getattr(config, "title", "Test Operation")
             cancelable = getattr(config, "cancelable", False)
-            operation = TestProgressOperation(title=title, cancelable=cancelable)
+            operation = {"title": title, "cancelable": cancelable, "progress": 0, "finished": False}
 
         cls._current_operation = operation
         cls._operations_started.append(operation)
@@ -1171,10 +1122,9 @@ class TestProgressManager:
             cls._current_operation = None
 
     @classmethod
-    def get_current_operation(cls) -> TestProgressOperation | None:
+    def get_current_operation(cls) -> dict[str, Any] | None:
         """Get the current progress operation."""
         return cls._current_operation
-
 
     @classmethod
     def get_operations_started_count(cls) -> int:

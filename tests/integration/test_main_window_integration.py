@@ -143,7 +143,7 @@ def main_window_with_real_components(
 
     monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
-    test_pool = TestProcessPool(ttl_aware=True, allow_main_thread=True)
+    test_pool = TestProcessPool(allow_main_thread=True)
     test_pool.set_outputs("workspace /test/path")
 
     def mock_get_instance() -> TestProcessPool:

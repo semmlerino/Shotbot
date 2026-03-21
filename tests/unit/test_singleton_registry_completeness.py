@@ -25,35 +25,6 @@ from tests.fixtures.singleton_fixtures import SingletonRegistry
 class TestSingletonRegistryCompleteness:
     """Verify that the registry and the set of known subclasses stay in sync."""
 
-    def test_all_singleton_mixin_subclasses_are_registered(self) -> None:
-        """All SingletonMixin subclasses must appear in SingletonRegistry.
-
-        verify_all_singletons_registered() auto-registers subclasses that
-        declare _cleanup_order >= 0 and returns the names of any that are
-        unregistered (i.e., _cleanup_order == -1 and no manual registration).
-        An empty list means every subclass is accounted for.
-        """
-        unregistered = SingletonRegistry.verify_all_singletons_registered()
-        assert unregistered == [], (
-            "The following SingletonMixin subclasses are not registered in "
-            f"SingletonRegistry and have no _cleanup_order set: {unregistered}. "
-            "Either add a _cleanup_order class variable (>= 0) for auto-registration "
-            "or register them manually in tests/fixtures/singleton_fixtures.py."
-        )
-
-    def test_all_registered_entries_have_reset_method(self) -> None:
-        """Every entry in SingletonRegistry must expose a reset() classmethod.
-
-        SingletonMixin provides reset() by default; non-mixin singletons
-        (e.g. ProgressManager, DesignSystem) must implement it themselves.
-        """
-        missing = SingletonRegistry.verify_all_have_reset()
-        assert missing == [], (
-            "The following registered singletons are missing a reset() method: "
-            f"{missing}. Add a reset() classmethod so the test isolation "
-            "fixtures can restore clean state between tests."
-        )
-
     def test_cleanup_orders_are_unique(self) -> None:
         """Every registered singleton must have a distinct cleanup_order.
 

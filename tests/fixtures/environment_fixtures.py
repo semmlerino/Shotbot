@@ -13,7 +13,7 @@ Functions (caching):
 
 Fixtures (caching):
     caching_enabled:        Enable caching with isolated temp directory
-    isolated_cache_manager: CacheCoordinator with isolated temp directory
+
 
 Fixtures (temp_directories):
     temp_cache_dir:  Temporary cache directory
@@ -44,8 +44,6 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from types import TracebackType
-
-    from cache import CacheCoordinator
 
 
 _logger = logging.getLogger(__name__)
@@ -160,55 +158,6 @@ def caching_enabled(tmp_path: Path) -> Iterator[Path]:
     else:
         os.environ.pop("SHOTBOT_TEST_CACHE_DIR", None)
 
-
-@pytest.fixture
-def isolated_cache_manager(tmp_path: Path) -> Iterator[CacheCoordinator]:
-    """Provide a CacheCoordinator instance with isolated temp directory.
-
-    This fixture:
-    - Creates an isolated cache directory
-    - Instantiates real cache sub-managers (not test doubles)
-    - Properly shuts down the coordinator after test
-
-    Use this for integration tests that need to test cache behavior
-    with real file I/O but isolated from the production cache.
-
-    Yields:
-        CacheCoordinator instance with isolated cache directory
-
-    Example:
-        def test_cache_persistence(isolated_cache_manager):
-            coordinator = isolated_cache_manager
-            coordinator.shot_cache.cache_shots([shot_data])
-            # Verify data is persisted
-
-    """
-    from cache import (
-        CacheCoordinator,
-        LatestFileCache,
-        SceneDiskCache,
-        ShotDataCache,
-        ThumbnailCache,
-    )
-
-    cache_dir = tmp_path / "cache"
-    cache_dir.mkdir(exist_ok=True)
-
-    thumbnail_cache = ThumbnailCache(cache_dir)
-    shot_cache = ShotDataCache(cache_dir)
-    scene_disk_cache = SceneDiskCache(cache_dir)
-    latest_file_cache = LatestFileCache(cache_dir)
-    coordinator = CacheCoordinator(cache_dir, thumbnail_cache, shot_cache, scene_disk_cache, latest_file_cache)
-
-    _logger.debug("Created isolated CacheCoordinator at: %s", cache_dir)
-
-    yield coordinator
-
-    # Cleanup
-    try:
-        coordinator.shutdown()
-    except Exception as e:  # noqa: BLE001
-        _logger.debug("CacheCoordinator shutdown exception: %s", e)
 
 
 # ---------------------------------------------------------------------------

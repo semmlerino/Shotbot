@@ -6,7 +6,7 @@ All test doubles have been consolidated into domain-specific modules:
                     FakePreviousShotsWorker, create_test_shot, create_test_shots
 - process_fixtures: TestProcessPool, TestCompletedProcess, TestSubprocess,
                     PopenDouble, simulate_work_without_sleep,
-                    TestProgressManager, TestProgressOperation, test_process_pool
+                    TestProgressManager, test_process_pool
 
 Import directly from domain modules for new code.
 """
@@ -30,7 +30,6 @@ from tests.fixtures.process_fixtures import (
     TestCompletedProcess,
     TestProcessPool,
     TestProgressManager,
-    TestProgressOperation,
     TestSubprocess,
     simulate_work_without_sleep,
     test_process_pool,
@@ -48,7 +47,6 @@ __all__ = [
     "TestFileSystem",
     "TestProcessPool",
     "TestProgressManager",
-    "TestProgressOperation",
     "TestShot",
     "TestShotModel",
     "TestSubprocess",

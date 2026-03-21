@@ -74,7 +74,7 @@ def build_infrastructure(cache_dir: Path | None, parent: QObject | None) -> AppI
     """Create process pool, caches, managers, and settings infrastructure."""
     process_pool: ProcessPoolInterface
     if is_mock_mode():
-        from tests.fixtures.mock_workspace_pool import create_mock_pool_from_filesystem
+        from mock_workspace_pool import create_mock_pool_from_filesystem
 
         process_pool = create_mock_pool_from_filesystem()  # pyright: ignore[reportAssignmentType]
         logger.info("Using MockWorkspacePool for process execution")
