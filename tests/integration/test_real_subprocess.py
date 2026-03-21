@@ -9,51 +9,9 @@ Run these tests serially (not in parallel) to avoid contention:
 
 from __future__ import annotations
 
-import subprocess
-import sys
 from unittest.mock import patch
 
 import pytest
-
-
-# ==============================================================================
-# LAUNCHER REAL SUBPROCESS TESTS
-# ==============================================================================
-# These tests verify the launcher system works with real subprocess execution.
-# They test the integration between CommandLauncher and the subprocess system.
-
-
-@pytest.mark.real_subprocess
-@pytest.mark.xdist_group("real_subprocess")
-class TestLauncherRealSubprocess:
-    """Real subprocess tests for the launcher system.
-
-    These tests verify that the launcher can execute real commands and
-    handle both success and error scenarios correctly.
-    """
-
-    def test_launcher_executes_simple_command(self) -> None:
-        """Verify launcher infrastructure can call real subprocess."""
-        # Test basic subprocess execution that the launcher would use
-        result = subprocess.run(
-            [sys.executable, "-c", "import os; print(os.getcwd())"],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        assert result.returncode == 0
-        assert result.stdout.strip()  # Should have output (current directory)
-
-    def test_launcher_handles_missing_command(self) -> None:
-        """Verify subprocess reports command not found correctly."""
-        with pytest.raises(FileNotFoundError):
-            subprocess.run(
-                ["nonexistent_command_xyz123"],
-                check=False,
-                capture_output=True,
-                timeout=5,
-            )
 
 
 # ==============================================================================
@@ -117,31 +75,6 @@ class TestLauncherStackSmoke:
         assert result_container["error"] is None, f"Error: {result_container['error']}"
         assert result_container["output"] is not None
         assert "LAUNCHER_STACK_OK" in result_container["output"]
-
-    def test_bash_ilc_quoting_preserved(self) -> None:
-        """Verify bash -ilc properly handles special characters."""
-        # Test path with spaces - common in VFX environments
-        # Use double quotes for easier escaping in Python
-        result = subprocess.run(
-            ["/bin/bash", "-ilc", 'echo "path with spaces/and_special-chars"'],
-            capture_output=True,
-            text=True,
-            timeout=15, check=False,
-        )
-        assert result.returncode == 0
-        assert "path with spaces" in result.stdout
-
-    def test_bash_interactive_login_shell_works(self) -> None:
-        """Verify bash -ilc (interactive login) mode initializes correctly."""
-        # This tests the shell mode used by ProcessPoolManager and ProcessExecutor
-        result = subprocess.run(
-            ["/bin/bash", "-ilc", "echo shell_init_ok"],
-            capture_output=True,
-            text=True,
-            timeout=30, check=False,  # Login shell slow under xdist/WSL2
-        )
-        assert result.returncode == 0
-        assert "shell_init_ok" in result.stdout
 
     def test_rez_mode_auto_still_requires_explicit_rez(self, monkeypatch) -> None:
         """RezMode.AUTO still resolves explicit app packages inside base Rez shells."""

@@ -217,7 +217,7 @@ class TestAsyncWorkflowIntegration:
             qtbot.wait(1)  # Minimal event processing
 
         # Wait for components to stabilize after rapid changes
-        qtbot.waitUntil(lambda: item_model.rowCount() >= 0, timeout=2000)
+        qtbot.waitUntil(lambda: item_model.rowCount() == 1, timeout=2000)
 
         # Components should be stable without crashes
         assert item_model.rowCount() == 1
@@ -300,14 +300,9 @@ class TestAsyncWorkflowIntegration:
         )
 
         # Both components should handle errors gracefully
-        # Model should show failed loading state
+        # Model should show failed loading state (non-existent image)
         loading_state = item_model._thumbnail_loader.loading_states.get(bad_shot.full_name)
-        assert loading_state in [
-            "failed",
-            "idle",
-            "loading",
-            "loaded",
-        ]  # Accept any valid state
+        assert loading_state in ["failed", "loaded"]  # Should not remain loading/idle
 
         # Panel should show placeholder
         assert info_panel._current_shot == bad_shot

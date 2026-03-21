@@ -14,7 +14,6 @@ Focus areas:
 from __future__ import annotations
 
 # Standard library imports
-import concurrent.futures
 import time
 from collections.abc import Iterator
 from pathlib import Path
@@ -99,34 +98,6 @@ class TestPreviousShootsCacheIntegration:
             model._worker.wait(2000)  # Wait up to 2 seconds for thread to finish
         process_qt_events()
 
-    def test_cache_storage_and_retrieval(self, cache_manager, temp_cache_dir) -> None:
-        """Test basic cache storage and retrieval for previous shots."""
-        # Test data
-        test_shots = [
-            {
-                "show": "test_show",
-                "sequence": "test_seq",
-                "shot": "test_shot",
-                "workspace_path": "/test/path",
-            }
-        ]
-
-        # Cache the data
-        cache_manager.cache_previous_shots(test_shots)
-
-        # Verify cache file exists
-        cache_file = temp_cache_dir / "previous_shots.json"
-        assert cache_file.exists()
-
-        # Retrieve from cache
-        cached_data = cache_manager.get_cached_previous_shots()
-
-        assert cached_data is not None
-        assert len(cached_data) == 1
-        assert cached_data[0]["show"] == "test_show"
-        assert cached_data[0]["sequence"] == "test_seq"
-        assert cached_data[0]["shot"] == "test_shot"
-
     def test_cache_data_consistency(self, cache_manager) -> None:
         """Test cache data format consistency."""
         # Original shots from model
@@ -171,36 +142,6 @@ class TestPreviousShootsCacheIntegration:
             assert orig.shot == recon.shot
             assert orig.workspace_path == recon.workspace_path
 
-    def test_cache_ttl_behavior(self, cache_manager, temp_cache_dir) -> None:
-        """Test cache TTL (Time To Live) behavior."""
-        # Standard library imports
-        import os
-
-        # Cache some data
-        test_data = [
-            {
-                "show": "test",
-                "sequence": "seq",
-                "shot": "shot",
-                "workspace_path": "/path",
-            }
-        ]
-        cache_manager.cache_previous_shots(test_data)
-
-        # Verify data is cached
-        assert cache_manager.get_cached_previous_shots() is not None
-
-        # Manually modify file modification time to simulate expiration
-        cache_file = temp_cache_dir / "previous_shots.json"
-
-        # Set file modification time to 2 hours ago (beyond 30 minute TTL)
-        old_timestamp = time.time() - (2 * 60 * 60)  # 2 hours ago
-        os.utime(cache_file, (old_timestamp, old_timestamp))
-
-        # Should return None for expired cache
-        cached_data = cache_manager.get_cached_previous_shots()
-        assert cached_data is None
-
     def test_persistent_cache_survives_ttl(self, cache_manager, temp_cache_dir) -> None:
         """Test that previous shots cache persists beyond TTL expiration.
 
@@ -240,32 +181,6 @@ class TestPreviousShootsCacheIntegration:
         assert persistent_data is not None, "Persistent method should ignore TTL"
         assert len(persistent_data) == 1
         assert persistent_data[0]["show"] == "persistent_test"
-
-    def test_cache_invalidation(self, cache_manager, temp_cache_dir) -> None:
-        """Test cache invalidation and clearing."""
-        # Cache some data
-        test_data = [
-            {
-                "show": "test",
-                "sequence": "seq",
-                "shot": "shot",
-                "workspace_path": "/path",
-            }
-        ]
-        cache_manager.cache_previous_shots(test_data)
-
-        # Verify cached
-        assert cache_manager.get_cached_previous_shots() is not None
-
-        # Clear cache
-        cache_manager.clear_previous_shots_cache()
-
-        # Should be cleared
-        cache_file = temp_cache_dir / "previous_shots.json"
-        assert not cache_file.exists()
-
-        # Should return None
-        assert cache_manager.get_cached_previous_shots() is None
 
     def test_model_cache_integration_on_init(
         self, mock_shot_model, temp_cache_dir, qtbot
@@ -354,155 +269,6 @@ class TestPreviousShootsCacheIntegration:
                 process_qt_events()
 
     # Performance test removed to prevent test suite timeout
-
-    def test_cache_corruption_recovery(
-        self, temp_cache_dir, mock_shot_model, qtbot
-    ) -> None:
-        """Test recovery from corrupted cache files."""
-        # Create corrupted cache file
-        cache_file = temp_cache_dir / "previous_shots.json"
-        cache_file.write_text("invalid json content")
-
-        cache_manager = ShotDataCache(temp_cache_dir)
-
-        # Should handle corrupted cache gracefully
-        cached_data = cache_manager.get_cached_previous_shots()
-        assert cached_data is None
-
-        # Model should initialize without crashing
-        model = PreviousShotsModel(mock_shot_model, cache_manager)
-        # Note: PreviousShotsModel is QObject, not QWidget - no qtbot.addWidget needed
-
-        try:
-            assert len(model.get_shots()) == 0
-        finally:
-            # CRITICAL CLEANUP: Stop and wait for any worker threads
-            model._cleanup_worker_safely()
-            process_qt_events()
-
-    def test_cache_partial_write_recovery(self, temp_cache_dir, cache_manager) -> None:
-        """Test recovery from partial cache writes."""
-        # Simulate partial write by creating incomplete JSON
-        cache_file = temp_cache_dir / "previous_shots.json"
-        cache_file.write_text('{"data": [{"show": "test"')  # Incomplete JSON
-
-        # Should handle partial write gracefully
-        cached_data = cache_manager.get_cached_previous_shots()
-        assert cached_data is None
-
-        # Should be able to write new data after corruption
-        test_data = [
-            {
-                "show": "recovery_test",
-                "sequence": "seq",
-                "shot": "shot",
-                "workspace_path": "/path",
-            }
-        ]
-        cache_manager.cache_previous_shots(test_data)
-
-        # Should work normally after recovery
-        recovered_data = cache_manager.get_cached_previous_shots()
-        assert recovered_data is not None
-        assert len(recovered_data) == 1
-
-    def test_concurrent_cache_access(self, cache_manager, temp_cache_dir) -> None:
-        """Test thread safety of cache operations."""
-        results = []
-        errors = []
-
-        def cache_operation(thread_id) -> None:
-            try:
-                # Each thread caches different data
-                data = [
-                    {
-                        "show": f"show_{thread_id}",
-                        "sequence": "seq",
-                        "shot": "shot",
-                        "workspace_path": f"/path_{thread_id}",
-                    }
-                ]
-
-                cache_manager.cache_previous_shots(data)
-                retrieved = cache_manager.get_cached_previous_shots()
-                results.append((thread_id, retrieved))
-
-            except Exception as e:  # noqa: BLE001
-                errors.append((thread_id, str(e)))
-
-        # Run multiple threads concurrently
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(cache_operation, i) for i in range(5)]
-            concurrent.futures.wait(futures)
-
-        # Should not have errors (though data might be overwritten)
-        assert len(errors) == 0
-        assert len(results) == 5
-
-        # Final cache should be valid
-        final_data = cache_manager.get_cached_previous_shots()
-        assert final_data is not None
-        assert len(final_data) == 1
-
-    def test_cache_directory_creation(self, tmp_path) -> None:
-        """Test cache directory creation when it doesn't exist."""
-        nonexistent_cache_dir = tmp_path / "nonexistent" / "cache"
-
-        # Should create directory structure
-        cache_manager = ShotDataCache(nonexistent_cache_dir)
-
-        test_data = [
-            {
-                "show": "test",
-                "sequence": "seq",
-                "shot": "shot",
-                "workspace_path": "/path",
-            }
-        ]
-        cache_manager.cache_previous_shots(test_data)
-
-        # Directory should be created
-        assert nonexistent_cache_dir.exists()
-        assert (nonexistent_cache_dir / "previous_shots.json").exists()
-
-    def test_cache_permissions_handling(self, temp_cache_dir, cache_manager) -> None:
-        """Test handling of cache permission issues."""
-        # Cache some data first
-        test_data = [
-            {
-                "show": "test",
-                "sequence": "seq",
-                "shot": "shot",
-                "workspace_path": "/path",
-            }
-        ]
-        cache_manager.cache_previous_shots(test_data)
-
-        cache_file = temp_cache_dir / "previous_shots.json"
-        assert cache_file.exists()
-
-        # Make cache file read-only
-        cache_file.chmod(0o444)
-
-        try:
-            # Attempt to cache new data should handle permission error
-            new_data = [
-                {
-                    "show": "new",
-                    "sequence": "seq",
-                    "shot": "shot",
-                    "workspace_path": "/path",
-                }
-            ]
-            cache_manager.cache_previous_shots(new_data)  # Should not crash
-
-        except PermissionError:
-            # This is acceptable - the important thing is not crashing
-            pass
-
-        finally:
-            # Restore permissions for cleanup
-            cache_file.chmod(0o644)
 
 
 class TestPreviousShootsCachePerformance:

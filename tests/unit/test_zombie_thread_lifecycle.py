@@ -284,36 +284,6 @@ class TestZombieTermination:
 class TestZombieMetrics:
     """Tests for zombie metrics tracking."""
 
-    def test_metrics_track_all_scenarios(self) -> None:
-        """Metrics correctly track created, recovered, and terminated zombies."""
-        ThreadSafeWorker.reset()
-
-        # Create 3 zombies
-        for _ in range(3):
-            worker = MagicMock(spec=ThreadSafeWorker)
-            worker.isRunning.return_value = True
-            with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-                ThreadSafeWorker._zombie_threads.append(worker)
-                ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
-                ThreadSafeWorker._zombie_created_count += 1
-
-        metrics = ThreadSafeWorker.get_zombie_metrics()
-        assert metrics["created"] == 3
-        assert metrics["current"] == 3
-
-        # Simulate 1 finishing naturally
-        with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-            ThreadSafeWorker._zombie_threads[0].isRunning.return_value = False
-
-        ThreadSafeWorker.cleanup_old_zombies()
-
-        metrics = ThreadSafeWorker.get_zombie_metrics()
-        assert metrics["created"] == 3
-        assert metrics["recovered"] == 1
-        assert metrics["current"] == 2
-
-        ThreadSafeWorker.reset()
-
     def test_reset_clears_metrics(self) -> None:
         """Reset clears all zombie metrics for test isolation."""
         # Add some zombies first

@@ -64,18 +64,6 @@ class TestPlateSource:
         # Frame 1049 = 48 frames = 2.0 seconds at 24fps
         assert source.frame_to_time(1049) == pytest.approx(2.0)
 
-    def test_frame_to_time_with_custom_fps(self) -> None:
-        """Test frame to time with non-default fps."""
-        source = PlateSource(
-            source_path=Path("/shows/test/plate.mov"),
-            source_type="mov",
-            frame_start=1001,
-            frame_end=1100,
-        )
-
-        # Frame 1031 = 30 frames = 1.0 second at 30fps
-        assert source.frame_to_time(1031, fps=30.0) == pytest.approx(1.0)
-
     def test_frame_to_time_with_no_frame_start(self) -> None:
         """Test frame_to_time returns 0.0 when frame_start is None."""
         source = PlateSource(

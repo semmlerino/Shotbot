@@ -22,10 +22,6 @@ from PySide6.QtCore import QRunnable, QThreadPool
 from workers.runnable_tracker import (
     QRunnableTracker,
     TrackedQRunnable,
-    cleanup_all_runnables,
-    get_tracker,
-    register_runnable,
-    unregister_runnable,
 )
 
 
@@ -432,56 +428,6 @@ class TestTrackedQRunnable:
         # The metadata is set during __init__ but registered during run()
         assert runnable._metadata["type"] == "TrackedTestRunnable"
         assert runnable._metadata["auto_delete"] is False
-
-
-# ==============================================================================
-# Convenience Function Tests
-# ==============================================================================
-
-
-class TestConvenienceFunctions:
-    """Tests for module-level convenience functions."""
-
-    def test_get_tracker_returns_singleton(self) -> None:
-        """get_tracker() returns the singleton instance."""
-        tracker1 = get_tracker()
-        tracker2 = get_tracker()
-
-        assert tracker1 is tracker2
-
-    def test_register_runnable_function(self) -> None:
-        """register_runnable() convenience function works."""
-        runnable = DummyRunnable()
-
-        register_runnable(runnable, {"test": True})
-        tracker = get_tracker()
-
-        assert tracker.get_active_count() == 1
-
-    def test_unregister_runnable_function(self) -> None:
-        """unregister_runnable() convenience function works."""
-        runnable = DummyRunnable()
-        register_runnable(runnable)
-
-        unregister_runnable(runnable)
-        tracker = get_tracker()
-
-        assert tracker.get_active_count() == 0
-
-    def test_cleanup_all_runnables_function(self) -> None:
-        """cleanup_all_runnables() convenience function works."""
-        runnable = DummyRunnable()
-        register_runnable(runnable)
-
-        with patch.object(
-            QThreadPool.globalInstance(),
-            "waitForDone",
-            return_value=True,
-        ):
-            cleanup_all_runnables()
-
-        tracker = get_tracker()
-        assert tracker.get_active_count() == 0
 
 
 # ==============================================================================

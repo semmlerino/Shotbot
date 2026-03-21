@@ -267,63 +267,61 @@ class TestPreviousShotsModel:
         # Should not emit shots_updated since no changes
         assert shots_updated_spy.count() == 0
 
+    @pytest.mark.parametrize(
+        "scenario",
+        [
+            pytest.param("concurrent_refresh", id="concurrent_refresh"),
+            pytest.param("concurrent_is_scanning", id="concurrent_is_scanning"),
+        ],
+    )
     def test_thread_safety_concurrent_refresh(
-        self, model: PreviousShotsModel, test_finder: FakePreviousShotsFinder
+        self,
+        model: PreviousShotsModel,
+        test_finder: FakePreviousShotsFinder,
+        scenario: str,
     ) -> None:
-        """Test thread safety with concurrent refresh calls.
+        """Test thread safety with concurrent refresh calls and scanning state access.
 
         Following UNIFIED_TESTING_GUIDE:
         - Test actual threading behavior
         - Verify lock prevents race conditions
         """
-        model._finder = test_finder
-        results = []
+        if scenario == "concurrent_refresh":
+            model._finder = test_finder
+            results = []
 
-        def refresh_worker() -> None:
-            """Worker function for thread."""
-            result = model.refresh_shots()
-            results.append(result)
+            def refresh_worker() -> None:
+                result = model.refresh_shots()
+                results.append(result)
 
-        # Start multiple threads trying to refresh simultaneously
-        threads = []
-        for _ in range(5):
-            thread = threading.Thread(target=refresh_worker)
-            threads.append(thread)
-            thread.start()
+            threads = []
+            for _ in range(5):
+                thread = threading.Thread(target=refresh_worker)
+                threads.append(thread)
+                thread.start()
 
-        # Wait for all threads
-        for thread in threads:
-            thread.join(timeout=2.0)
+            for thread in threads:
+                thread.join(timeout=2.0)
 
-        # Only one refresh should succeed at a time
-        # Due to the lock, some should return False
-        assert len(results) == 5
-        true_count = sum(1 for r in results if r is True)
-        false_count = sum(1 for r in results if r is False)
+            assert len(results) == 5
+            true_count = sum(1 for r in results if r is True)
+            # At least one should succeed
+            assert true_count >= 1
 
-        # At least one should succeed
-        assert true_count >= 1
-        # Some should be blocked
-        assert false_count >= 0
+        else:  # concurrent_is_scanning
+            scan_results: list[bool] = []
 
-    def test_concurrent_is_scanning_access(self, model: PreviousShotsModel) -> None:
-        """Test thread-safe access to is_scanning flag."""
-        results = []
+            def check_scanning() -> None:
+                for _ in range(100):
+                    scan_results.append(model.is_scanning())
+                    threading.Event().wait(0.001)
 
-        def check_scanning() -> None:
-            for _ in range(100):
-                is_scanning = model.is_scanning()
-                results.append(is_scanning)
-                # Use threading.Event for proper synchronization instead of sleep
-                threading.Event().wait(0.001)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                futures = [executor.submit(check_scanning) for _ in range(3)]
+                concurrent.futures.wait(futures, timeout=5.0)
 
-        # Multiple threads checking scanning state
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [executor.submit(check_scanning) for _ in range(3)]
-            concurrent.futures.wait(futures, timeout=5.0)
-
-        # Should not crash or raise exceptions
-        assert len(results) == 300  # 3 threads * 100 checks
+            # Should not crash or raise exceptions
+            assert len(scan_results) == 300  # 3 threads * 100 checks
 
     def test_refresh_shots_error_handling(
         self, model: PreviousShotsModel, qtbot: QtBot
@@ -568,73 +566,3 @@ class TestPreviousShotsModel:
         process_qt_events()
 
 
-class TestPreviousShotsModelIntegration:
-    """Integration tests with multiple real components."""
-
-    @pytest.fixture
-    def integration_setup(
-        self, tmp_path: Path, qtbot: QtBot
-    ) -> Generator[tuple[PreviousShotsModel, FakeShotModel, ShotDataCache], None, None]:
-        """Set up integration test with real components."""
-        cache_manager = ShotDataCache(tmp_path / "cache")
-        shot_model = FakeShotModel()
-        shot_model.set_shots(
-            [
-                create_test_shot("active", "seq1", "shot1"),
-            ]
-        )
-
-        model = PreviousShotsModel(shot_model, cache_manager)
-
-        yield model, shot_model, cache_manager
-
-        model.deleteLater()
-        process_qt_events()
-
-    def test_full_workflow(
-        self,
-        integration_setup: tuple[PreviousShotsModel, FakeShotModel, ShotDataCache],
-        qtbot: QtBot,
-    ) -> None:
-        """Test complete workflow with real components."""
-        # Local application imports
-        from tests.fixtures.model_fixtures import (
-            FakePreviousShotsWorker,
-        )
-
-        model, _shot_model, cache_manager = integration_setup
-        test_shot = create_test_shot("approved", "seq1", "shot1")
-
-        # Configure finder with approved shots
-        test_finder = FakePreviousShotsFinder()
-        test_finder.approved_shots_to_return = [test_shot]
-
-        test_worker = FakePreviousShotsWorker()
-        test_worker.shots_to_find = [test_shot]
-
-        # Set up signal spy
-        shots_updated_spy = QSignalSpy(model.shots_updated)
-
-        # Mock worker creation and trigger workflow
-        with patch(
-            "previous_shots.model.PreviousShotsWorker", return_value=test_worker
-        ):
-            success = model.refresh_shots()
-
-            # Manually trigger completion
-            shot_dict = {
-                "show": test_shot.show,
-                "sequence": test_shot.sequence,
-                "shot": test_shot.shot,
-                "workspace_path": test_shot.workspace_path,
-            }
-            model._on_scan_finished([shot_dict])
-
-        assert success
-        assert shots_updated_spy.count() == 1
-        assert model.get_shot_count() == 1
-
-        # Verify caching worked
-        cached = cache_manager.get_cached_previous_shots()
-        assert cached is not None
-        assert len(cached) == 1

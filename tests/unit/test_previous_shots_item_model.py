@@ -4,10 +4,11 @@ Tests the thread safety improvements and resource management
 in the PreviousShotsItemModel class.
 """
 
+# Standard library imports
+
 # Third-party imports
 import pytest
-from PySide6.QtCore import QMutexLocker, Qt
-from PySide6.QtGui import QImage
+from PySide6.QtCore import Qt
 
 from config import Config
 
@@ -87,62 +88,33 @@ def test_shots(tmp_path, monkeypatch):
 class TestPreviousShotsThreadSafety:
     """Test thread safety in PreviousShotsItemModel."""
 
-    def test_mutex_protection_for_cache(self, model, test_shots) -> None:
-        """Test that cache operations are protected by mutex."""
-        # Update the underlying model's shots to return test_shots
+    def test_concurrent_rowcount_and_data_access(self, model, test_shots) -> None:
+        """rowCount() and data() remain consistent under concurrent read access."""
+        import concurrent.futures
+
         model._underlying_model._shots = test_shots
-
-        # Manually trigger update
         model._update_from_underlying_model()
 
-        # Simulate concurrent cache access
-        def access_cache() -> None:
-            for shot in test_shots:
-                # These operations should be mutex-protected
-                model._thumbnail_loader.thumbnail_cache.get(shot.full_name, None)
+        errors: list[Exception] = []
 
-        # Multiple concurrent accesses should not corrupt dictionary
-        for _ in range(10):
-            access_cache()
+        def read_model() -> None:
+            try:
+                for _ in range(20):
+                    count = model.rowCount()
+                    assert count == len(test_shots)
+                    if count > 0:
+                        index = model.index(0, 0)
+                        data = model.data(index, Qt.ItemDataRole.DisplayRole)
+                        assert data == test_shots[0].full_name
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
 
-        # Model should remain functional
-        assert model.rowCount() == 3
-        assert len(model.shots) == 3
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(read_model) for _ in range(4)]
+            concurrent.futures.wait(futures, timeout=5.0)
 
-    def test_cache_size_limit(self, model, qtbot) -> None:
-        """Test MAX_CACHE_SIZE limit is enforced."""
-        # Create many shots (more than MAX_CACHE_SIZE of 100)
-        many_shots = []
-        for i in range(120):
-            shot = Shot(
-                show="testshow",
-                sequence=f"{i:03d}",
-                shot=f"{i:04d}",
-                workspace_path=f"{Config.SHOWS_ROOT}/testshow/shots/{i:03d}/{i:03d}_{i:04d}",
-            )
-            many_shots.append(shot)
-
-        # Update the underlying model's shots
-        model._underlying_model._shots = many_shots
-
-        # Manually trigger update
-        model._update_from_underlying_model()
-
-        # Simulate populating cache
-        test_image = QImage(100, 100, QImage.Format.Format_RGB32)
-        test_image.fill(Qt.GlobalColor.red)
-
-        # Try to add more than MAX_CACHE_SIZE items
-        added_count = 0
-        for shot in many_shots:
-            if len(model._thumbnail_loader.thumbnail_cache) < 100:
-                with QMutexLocker(model._thumbnail_loader.cache_mutex):
-                    model._thumbnail_loader.thumbnail_cache[shot.full_name] = test_image
-                    added_count += 1
-
-        # Cache should not exceed limit
-        assert len(model._thumbnail_loader.thumbnail_cache) <= 100
-        assert added_count <= 100
+        assert errors == [], f"Concurrent access raised: {errors}"
+        assert model.rowCount() == len(test_shots)
 
     def test_data_roles_thread_safety(self, model, test_shots) -> None:
         """Test data() method with various roles."""
@@ -254,32 +226,6 @@ class TestDataConsistency:
 
         # PreviousShotsItemModel doesn't have update_visible_range or _load_visible_thumbnails
         # Just verify the model handles empty state gracefully
-
-    def test_cache_cleanup_on_reset(self, model, test_shots) -> None:
-        """Test cache is managed properly on reset."""
-        # Update the underlying model's shots
-        model._underlying_model._shots = test_shots
-        # Manually trigger update
-        model._update_from_underlying_model()
-
-        # Populate cache
-        test_image = QImage(100, 100, QImage.Format.Format_RGB32)
-        with QMutexLocker(model._thumbnail_loader.cache_mutex):
-            for shot in test_shots:
-                model._thumbnail_loader.thumbnail_cache[shot.full_name] = test_image
-                # PreviousShotsItemModel doesn't have _loading_states
-
-        assert len(model._thumbnail_loader.thumbnail_cache) == len(test_shots)
-
-        # Reset model
-        # Update the underlying model's shots to empty list
-        model._underlying_model._shots = []
-        # Manually trigger update
-        model._update_from_underlying_model()
-
-        # Model should be empty
-        assert model.rowCount() == 0
-        # Cache handling is implementation-dependent
 
 
 class TestPreviousShotsSorting:

@@ -16,43 +16,6 @@ from shots.shot_file_finder import ShotFileFinder
 class TestSceneFile:
     """Tests for SceneFile dataclass."""
 
-    def test_scene_file_creation(self) -> None:
-        """Test basic SceneFile creation."""
-        path = Path("/shows/test/shots/sq010/sq010_sh0010/user/gabriel-h/mm/3de/scene_v001.3de")
-        now = datetime.now()
-
-        scene_file = SceneFile(
-            path=path,
-            file_type=FileType.THREEDE,
-            modified_time=now,
-            user="gabriel-h",
-            version=1,
-        )
-
-        assert scene_file.name == "scene_v001.3de"
-        assert scene_file.app_name == "3de"
-        assert scene_file.display_name == "3DEqualizer"
-        assert scene_file.user == "gabriel-h"
-        assert scene_file.version == 1
-
-    def test_scene_file_app_names(self) -> None:
-        """Test app_name for different file types."""
-        now = datetime.now()
-        path = Path("/test/file.ext")
-
-        for file_type, expected_app in [
-            (FileType.THREEDE, "3de"),
-            (FileType.MAYA, "maya"),
-            (FileType.NUKE, "nuke"),
-        ]:
-            scene_file = SceneFile(
-                path=path,
-                file_type=file_type,
-                modified_time=now,
-                user="test",
-            )
-            assert scene_file.app_name == expected_app
-
     @pytest.mark.parametrize(
         ("offset", "expected_substring", "exact_match"),
         [

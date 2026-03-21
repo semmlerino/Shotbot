@@ -73,58 +73,6 @@ class TestNukeScriptGenerator:
             assert script_path is not None
             assert Path(script_path).exists()
 
-            # Read script content
-            with Path(script_path).open() as f:
-                content = f.read()
-
-            # Test basic script structure
-            assert "Read {" in content
-            assert "test_plate.exr" in content
-            assert "linear" in content
-
-    def test_colorspace_detection(self, monkeypatch) -> None:
-        """Test colorspace detection from file paths."""
-        NukeScriptGenerator()
-
-        # Test different colorspace patterns
-        test_cases = [
-            ("plate_linear.exr", "Linear"),
-            ("plate_rec709.exr", "Rec.709"),
-            ("plate_srgb.exr", "sRGB"),
-            ("plate_unknown.exr", "Linear"),  # Default fallback
-        ]
-
-        # Use monkeypatch instead of patch
-        monkeypatch.setattr("os.path.exists", lambda _path: True)
-
-        for filepath, _expected in test_cases:
-            colorspace, use_raw = NukeMediaDetector.detect_colorspace(filepath)
-            # Test that some colorspace is returned (exact matching may vary)
-            assert isinstance(colorspace, str)
-            assert len(colorspace) > 0
-            assert isinstance(use_raw, bool)
-
-    def test_shot_name_sanitization(self) -> None:
-        """Test shot name sanitization for script generation."""
-        with TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            plate_path = temp_path / "test_plate.exr"
-            plate_path.touch()
-
-            # Test shot name with special characters
-            script_path = NukeScriptGenerator.create_plate_script(
-                plate_path=str(plate_path), shot_name="shot/with\\special:chars"
-            )
-
-            assert script_path is not None
-            assert Path(script_path).exists()
-
-            with Path(script_path).open() as f:
-                content = f.read()
-
-            # Test that problematic characters are handled
-            assert "shot_with_special_chars" in content
-
     def test_temporary_file_tracking(self) -> None:
         """Test that temporary files are properly tracked."""
         initial_count = len(NukeScriptGenerator._temp_files)

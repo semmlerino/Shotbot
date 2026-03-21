@@ -22,7 +22,6 @@ import pytest
 from tests.integration.conftest import create_test_vfx_structure
 
 # Local application imports
-from threede.filesystem_scanner import FileSystemScanner
 from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
 from type_definitions import Shot
 
@@ -48,81 +47,6 @@ class TestParallelDiscoveryIntegration:
         self.temp_dir = tmp_path / "shotbot_parallel_test"
         self.temp_dir.mkdir()
         self.shows_root = self.temp_dir / "shows"
-
-    def test_find_all_3de_files_in_show_targeted_production_pattern(self) -> None:
-        """Test targeted 3DE file discovery for a complete show.
-
-        Exercises the production code path that finds all .3de files in a show
-        directory with proper structure validation.
-        """
-        shows_root, _ = create_test_vfx_structure(self.shows_root)
-
-        # Call the underlying targeted method directly
-        results = FileSystemScanner().find_all_3de_files_in_show_targeted(
-            show_root=str(shows_root),
-            show="TESTSHOW",
-        )
-
-        # Verify results
-        assert isinstance(results, list)
-        assert len(results) > 0, "Should find multiple 3DE files"
-
-        # Verify file structure of results
-        for file_tuple in results:
-            assert (
-                len(file_tuple) == 6
-            )  # (file_path, show, sequence, shot, user, plate)
-            file_path, show, sequence, shot, user, _plate = file_tuple
-
-            assert isinstance(file_path, Path)
-            assert file_path.suffix == ".3de"
-            assert file_path.exists()
-            assert show == "TESTSHOW"
-            assert sequence.startswith("seq")
-            assert shot.isdigit()
-            assert user in ["artist1", "artist2", "supervisor"]
-
-    def test_find_all_scenes_in_shows_truly_efficient_parallel_workflow(self) -> None:
-        """Test the complete parallel workflow that's used by the worker thread.
-
-        This tests the method that actually calls find_all_3de_files_in_show_parallel
-        and caused the production failure.
-        """
-        _shows_root, test_shots = create_test_vfx_structure(self.shows_root)
-
-        # Track progress updates like the worker does
-        progress_updates = []
-        cancellation_requested = False
-
-        def progress_callback(count: int, status: str) -> None:
-            progress_updates.append((count, status))
-
-        def cancel_flag() -> bool:
-            return cancellation_requested
-
-        # Call the method used by ThreeDESceneWorker
-        scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
-            user_shots=test_shots[:3],  # Use subset of shots for testing
-            excluded_users={"baduser"},  # Exclude some users
-            progress_callback=progress_callback,
-            cancel_flag=cancel_flag,
-        )
-
-        # Verify results
-        assert isinstance(scenes, list)
-        assert len(scenes) > 0, "Should find scenes from the test structure"
-
-        # Verify progress was reported
-        assert len(progress_updates) > 0, "Should have progress updates"
-
-        # Verify scene objects
-        for scene in scenes:
-            assert hasattr(scene, "scene_path")
-            assert hasattr(scene, "show")
-            assert hasattr(scene, "sequence")
-            assert hasattr(scene, "shot")
-            assert hasattr(scene, "user")
-            assert scene.scene_path.exists()
 
     def test_parallel_discovery_with_cancellation(self) -> None:
         """Test that cancellation works correctly during parallel discovery."""

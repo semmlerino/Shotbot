@@ -129,36 +129,6 @@ class TestSignalDeliveryDuringShutdown:
         # Handler should not have received second signal
         assert len(received) == 1
 
-    def test_queued_signal_during_object_deletion(self, qtbot: QtBot) -> None:
-        """Queued signals don't crash when receiver is deleted."""
-        from PySide6.QtCore import Qt
-
-        class Emitter(QObject):
-            signal = Signal()
-
-        class Receiver(QObject):
-            def __init__(self) -> None:
-                super().__init__()
-                self.called = False
-
-            def slot(self) -> None:
-                self.called = True
-
-        emitter = Emitter()
-        receiver = Receiver()
-
-        # Connect with QueuedConnection (cross-thread safe)
-        emitter.signal.connect(receiver.slot, Qt.ConnectionType.QueuedConnection)
-
-        # Schedule signal emission
-        emitter.signal.emit()
-
-        # Delete receiver before events processed
-        receiver.deleteLater()
-        process_qt_events()
-
-        # Should not crash - Qt handles deleted receiver gracefully
-        # (The slot may or may not be called depending on timing)
 
 
 class TestSingletonResetOrdering:

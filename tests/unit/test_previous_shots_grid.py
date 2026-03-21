@@ -35,12 +35,12 @@ from previous_shots.model import PreviousShotsModel
 from previous_shots.view import PreviousShotsView
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.fixtures.model_fixtures import create_test_shot, create_test_shots
 from tests.fixtures.test_doubles import (
     TestCacheManager,
     TestProgressManager,
 )
 from tests.test_helpers import SynchronizationHelpers, process_qt_events
-from type_definitions import Shot
 
 
 if TYPE_CHECKING:
@@ -48,22 +48,9 @@ if TYPE_CHECKING:
 
     from pytestqt.qtbot import QtBot
 
+    from type_definitions import Shot
+
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
-
-
-def create_test_shot(
-    show: str = "testshow", sequence: str = "seq01", shot: str = "0010"
-) -> Shot:
-    """Create test shot for testing."""
-    return Shot(show, sequence, shot, f"{Config.SHOWS_ROOT}/{show}")
-
-
-def create_test_shots(count: int = 3) -> list[Shot]:
-    """Create multiple test shots."""
-    return [
-        create_test_shot("show1", "seq01", f"{(i + 1) * 10:04d}")
-        for i in range(count)
-    ]
 
 
 def _prepare_view_for_cleanup(view: PreviousShotsView) -> None:

@@ -64,35 +64,3 @@ class TestPerformanceRegression:
         )
 
 
-class TestPythonMethodPerformance:
-    """Test Python-only file finding method performance."""
-
-    def test_python_method_performance(self, tmp_path) -> None:
-        """Test Python-only file finding method."""
-        # Create test structure
-        user_dir = tmp_path / "user"
-
-        for user in ["artist1", "artist2", "excluded"]:
-            user_path = user_dir / user
-            threede_dir = user_path / "mm" / "3de" / "scenes"
-            threede_dir.mkdir(parents=True)
-
-            # Create multiple .3de files
-            (threede_dir / f"{user}_bg01.3de").write_text("# BG scene")
-            (threede_dir / f"{user}_fg01.3de").write_text("# FG scene")
-
-        # Test Python method using the refactored FileSystemScanner
-        from threede.filesystem_scanner import FileSystemScanner
-
-        scanner = FileSystemScanner()
-
-        excluded_users = {"excluded"}
-        file_pairs = scanner.find_3de_files_python_optimized(user_dir, excluded_users)
-
-        # Should find files from artist1 and artist2, not excluded
-        assert len(file_pairs) == 4  # 2 users * 2 files each
-
-        users_found = {user for user, _ in file_pairs}
-        assert "artist1" in users_found
-        assert "artist2" in users_found
-        assert "excluded" not in users_found

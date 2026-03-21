@@ -226,29 +226,6 @@ class TestFindLatestNukeScript:
         assert latest is not None
         assert latest.name.endswith("v012.nk")
 
-    def test_find_latest_script_no_scripts(
-        self, tmp_path: Path, shot_name: str
-    ) -> None:
-        """Test finding latest script when none exist."""
-        script_dir = tmp_path / "scripts"
-        script_dir.mkdir()
-
-        latest = NukeWorkspaceManager.find_latest_nuke_script(script_dir, shot_name)
-
-        assert latest is None
-
-    def test_find_latest_script_nonexistent_directory(
-        self, tmp_path: Path, shot_name: str
-    ) -> None:
-        """Test finding latest script in nonexistent directory."""
-        nonexistent_dir = tmp_path / "nonexistent"
-
-        latest = NukeWorkspaceManager.find_latest_nuke_script(
-            nonexistent_dir, shot_name
-        )
-
-        assert latest is None
-
     def test_find_latest_script_custom_plate_and_pass(
         self, tmp_path: Path, shot_name: str
     ) -> None:
@@ -412,24 +389,6 @@ class TestListAllNukeScripts:
         assert len(scripts) == 5
         versions = [version for _, version in scripts]
         assert versions == [1, 3, 5, 7, 10]
-
-    def test_list_all_scripts_empty_directory(self, workspace_path: str) -> None:
-        """Test listing scripts in empty directory."""
-        scripts = NukeWorkspaceManager.list_all_nuke_scripts(
-            workspace_path, user="testuser"
-        )
-
-        assert scripts == []
-
-    def test_list_all_scripts_nonexistent_directory(self, tmp_path: Path) -> None:
-        """Test listing scripts when workspace doesn't exist."""
-        workspace_path = str(tmp_path / "nonexistent")
-
-        scripts = NukeWorkspaceManager.list_all_nuke_scripts(
-            workspace_path, user="testuser"
-        )
-
-        assert scripts == []
 
     def test_list_all_scripts_returns_paths_and_versions(
         self, workspace_path: str, shot_name: str
@@ -642,3 +601,32 @@ class TestEdgeCasesAndIntegration:
             script_dir, shot_name
         )
         assert version == 1000
+
+    @pytest.mark.parametrize(
+        "use_nonexistent_dir",
+        [
+            pytest.param(False, id="empty_directory"),
+            pytest.param(True, id="nonexistent_directory"),
+        ],
+    )
+    def test_empty_or_nonexistent_dir_returns_no_results(
+        self, tmp_path: Path, shot_name: str, use_nonexistent_dir: bool
+    ) -> None:
+        """Test that empty and nonexistent dirs both return no results."""
+        if use_nonexistent_dir:
+            script_dir = tmp_path / "nonexistent"
+            workspace_path = str(tmp_path / "nonexistent_workspace")
+        else:
+            script_dir = tmp_path / "scripts"
+            script_dir.mkdir()
+            workspace_path = str(tmp_path / "workspace")
+
+        # find_latest_nuke_script returns None
+        latest = NukeWorkspaceManager.find_latest_nuke_script(script_dir, shot_name)
+        assert latest is None
+
+        # list_all_nuke_scripts returns empty list
+        scripts = NukeWorkspaceManager.list_all_nuke_scripts(
+            workspace_path, user="testuser"
+        )
+        assert scripts == []

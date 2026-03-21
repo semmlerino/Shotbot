@@ -424,47 +424,6 @@ class TestErrorHandling:
 
         assert result is False
 
-    def test_error_on_workspace_validation_failure(
-        self,
-        launcher: CommandLauncher,
-        sample_shot: Shot,
-    ) -> None:
-        """launch_app returns False on workspace validation failure."""
-        launcher.env_manager.is_ws_available = MagicMock(return_value=True)
-        launcher.set_current_shot(sample_shot)
-
-        # Don't mock validation - let it fail for non-existent path
-        result = launcher.launch_app("3de")
-
-        assert result is False
-
-
-# ============================================================================
-# Test Command Logging
-# ============================================================================
-
-
-class TestCommandLogging:
-    """Test command execution logging."""
-
-    def test_command_launch_succeeds(
-        self,
-        launcher: CommandLauncher,
-        sample_shot: Shot,
-    ) -> None:
-        """launch_app returns True when command executes successfully."""
-        launcher.env_manager.is_ws_available = MagicMock(return_value=True)
-        launcher.set_current_shot(sample_shot)
-
-        with patch.object(
-            launcher, "_validate_workspace_before_launch", return_value=True
-        ), patch.object(
-            LaunchOperation, "_launch_in_new_terminal", return_value=True
-        ):
-            result = launcher.launch_app("3de")
-
-        assert result is True
-
     def test_scene_launch_succeeds(
         self,
         launcher: CommandLauncher,

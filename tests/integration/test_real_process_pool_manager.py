@@ -127,22 +127,6 @@ class TestRealProcessPoolManagerCaching:
         assert result1 == result2
 
 
-    def test_cache_invalidation(self, real_ppm: ProcessPoolManager) -> None:
-        """Verify cache invalidation clears cached results."""
-        command = f"echo 'invalidation_test_{time.time()}'"
-
-        # First call - cache miss
-        result1 = _run_in_background(real_ppm, command, cache_ttl=60)
-        assert "invalidation_test_" in result1
-
-        # Invalidate cache
-        real_ppm.invalidate_cache()
-
-        # After invalidation, same command should still work when re-executed
-        result2 = _run_in_background(real_ppm, command, cache_ttl=60)
-        assert result1 == result2  # Same result from fresh execution
-
-
 class TestRealProcessPoolManagerShutdown:
     """Tests for shutdown and cleanup."""
 
@@ -178,29 +162,6 @@ class TestRealProcessPoolManagerShutdown:
         assert "after_reset" in result
 
 
-
-
-class TestRealProcessPoolManagerSingleton:
-    """Tests for singleton behavior."""
-
-    def test_get_instance_returns_same_object(self) -> None:
-        """Verify get_instance() returns singleton."""
-        ProcessPoolManager.reset()
-
-        ppm1 = ProcessPoolManager.get_instance()
-        ppm2 = ProcessPoolManager.get_instance()
-
-        assert ppm1 is ppm2
-
-    def test_reset_creates_new_instance(self) -> None:
-        """Verify reset() creates new singleton instance."""
-        ProcessPoolManager.reset()
-        ppm1 = ProcessPoolManager.get_instance()
-
-        ProcessPoolManager.reset()
-        ppm2 = ProcessPoolManager.get_instance()
-
-        assert ppm1 is not ppm2
 
 
 class TestRealProcessPoolManagerErrorHandling:

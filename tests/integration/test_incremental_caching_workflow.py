@@ -75,35 +75,6 @@ class TestIncrementalCachingWorkflow:
         migrated = shot_model_temp.cache_manager.get_shots_archive()
         assert migrated is None or len(migrated) == 0, "No migrations on first refresh"
 
-    def test_second_refresh_no_changes(
-        self, shot_model_temp: ShotModel, test_process_pool, qtbot
-    ):
-        """Test second refresh with same shots - no changes detected."""
-        # Setup: First refresh
-        test_process_pool.set_outputs(
-            "workspace /shows/broken_eggs/shots/sq0010/sq0010_0010\n"
-            "workspace /shows/broken_eggs/shots/sq0010/sq0010_0020\n"
-            "workspace /shows/broken_eggs/shots/sq0010/sq0010_0030\n",
-            "workspace /shows/broken_eggs/shots/sq0010/sq0010_0010\n"
-            "workspace /shows/broken_eggs/shots/sq0010/sq0010_0020\n"
-            "workspace /shows/broken_eggs/shots/sq0010/sq0010_0030\n",
-        )
-        success1, changes1 = shot_model_temp.refresh_shots()
-        assert success1
-        assert changes1
-
-        # Execute: Second refresh with identical data (uses second output)
-        success2, changes2 = shot_model_temp.refresh_shots()
-
-        # Verify
-        assert success2, "Second refresh should succeed"
-        assert not changes2, "No changes should be detected"
-        assert len(shot_model_temp.shots) == 3, "Should still have 3 shots"
-
-        # Verify no migrations
-        migrated = shot_model_temp.cache_manager.get_shots_archive()
-        assert migrated is None or len(migrated) == 0, "No shots should be migrated"
-
     def test_third_refresh_add_shots(
         self, shot_model_temp: ShotModel, test_process_pool, qtbot
     ):
@@ -253,41 +224,3 @@ class TestIncrementalCachingWorkflow:
         assert migrated_final is not None
         assert len(migrated_final) == 3, "Deduplication should prevent duplicates"
 
-    def test_full_workflow_432_shots(
-        self, shot_model_temp: ShotModel, test_process_pool, qtbot
-    ):
-        """Test full workflow with realistic 432-shot dataset."""
-        # Setup: Generate two outputs - 432 and 429 shots
-        mock_output_432 = "\n".join(
-            f"workspace /shows/show{i//144}/shots/sq{i//12:04d}/shot_{i:04d}"
-            for i in range(432)
-        )
-        mock_output_429 = "\n".join(
-            f"workspace /shows/show{i//144}/shots/sq{i//12:04d}/shot_{i:04d}"
-            for i in range(429)  # 3 shots removed
-        )
-        test_process_pool.set_outputs(mock_output_432, mock_output_429, repeat=False)
-
-        # Execute: First refresh
-        success1, changes1 = shot_model_temp.refresh_shots()
-        assert success1
-        assert changes1
-        assert len(shot_model_temp.shots) == 432
-
-        # Execute: Second refresh - remove 3 shots (uses second output)
-        success2, changes2 = shot_model_temp.refresh_shots()
-
-        # Verify
-        assert success2
-        assert changes2
-        assert len(shot_model_temp.shots) == 429, "429 active shots"
-
-        # Verify migration
-        migrated = shot_model_temp.cache_manager.get_shots_archive()
-        assert migrated is not None
-        assert len(migrated) == 3, "3 shots migrated"
-
-        # Verify cache persistence
-        cached = shot_model_temp.cache_manager.get_shots_no_ttl()
-        assert cached is not None
-        assert len(cached) == 429

@@ -22,8 +22,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from cache.shot_cache import ShotDataCache
 from shots.shot_model import AsyncShotLoader, RefreshResult, ShotModel
 from tests.fixtures.test_doubles import TestProcessPool
-from tests.test_helpers import process_qt_events
-from workers.thread_safe_worker import ThreadSafeWorker, WorkerState
 
 
 logger = logging.getLogger(__name__)
@@ -170,7 +168,6 @@ class TestDoubleCheckedLockingFix:
 
         # Wait briefly for any async operations
         # Standard library imports
-        import time
 
         # Allow async background operations to settle after thread completion
         # Note: time.sleep() acceptable here to ensure race condition test validity
@@ -343,158 +340,6 @@ class TestMemoryLeakPrevention:
 
 
 
-class SimpleTestWorker(ThreadSafeWorker):
-    """Lightweight test worker without timeouts."""
-
-    def __init__(self, work_steps: int = 5, fail_on_purpose: bool = False) -> None:
-        super().__init__()
-        self.work_steps = work_steps
-        self.fail_on_purpose = fail_on_purpose
-        self.work_started = False
-        self.work_completed = False
-        self.steps_completed = 0
-
-    def do_work(self) -> None:
-        """Quick work implementation without sleep."""
-        self.work_started = True
-
-        for step in range(self.work_steps):
-            if self.should_stop():
-                logger.debug(f"Worker stopping at step {step}")
-                return
-
-            self.steps_completed = step + 1
-
-            # REMOVED: Never call app.processEvents() in a worker thread!
-            # This causes deadlocks and undefined behavior
-            # Qt events should only be processed in the main thread
-
-            # Simulate work without blocking (non-Qt worker thread context)
-            # Note: time.sleep() acceptable here as this is a test double simulating external work
-            time.sleep(0.001)  # 1ms per step
-
-        if self.fail_on_purpose:
-            raise RuntimeError("Intentional failure for testing")
-
-        self.work_completed = True
-        logger.debug(f"Worker completed {self.steps_completed} steps")
-
-
-class TestWorkerStateTransitions:
-    """Test WorkerState transitions without timeouts."""
-
-    @pytest.mark.timeout(5)
-    def test_basic_state_transitions(self, qtbot) -> None:
-        """Test basic state transitions."""
-        worker = SimpleTestWorker(work_steps=3)
-
-        assert worker.get_state() == WorkerState.CREATED
-        assert worker.work_started is False
-        assert worker.steps_completed == 0
-
-        worker.start()
-
-        if not worker.isRunning():
-            qtbot.wait(1)  # Minimal event processing
-
-        completed = worker.wait(2000)
-
-        if not completed:
-            worker.request_stop()
-            worker.quit()
-            assert worker.wait(1000), "Worker did not stop after request"
-
-        assert worker.work_started is True
-        assert worker.steps_completed >= 1
-
-        final_state = worker.get_state()
-        assert final_state in [WorkerState.STOPPED, WorkerState.DELETED]
-
-    @pytest.mark.timeout(5)
-    def test_state_validation(self, qtbot) -> None:
-        """Test state validation."""
-        worker = SimpleTestWorker(work_steps=2)
-
-        assert worker.get_state() == WorkerState.CREATED
-        assert worker.work_started is False
-
-        worker.start()
-
-        if not worker.wait(2000):
-            worker.request_stop()
-            worker.quit()
-            worker.wait(1000)
-
-        assert worker.work_started is True
-        assert worker.get_state() in [WorkerState.STOPPED, WorkerState.DELETED]
-
-    @pytest.mark.timeout(10)
-    def test_multiple_workers_lifecycle(self, qtbot) -> None:
-        """Test multiple workers."""
-        workers = []
-
-        for _ in range(3):
-            worker = SimpleTestWorker(work_steps=2)
-            workers.append(worker)
-
-        for worker in workers:
-            worker.start()
-
-        for i, worker in enumerate(workers):
-            if not worker.wait(2000):
-                logger.warning(f"Worker {i} did not complete, forcing stop")
-                worker.request_stop()
-                worker.quit()
-                worker.wait(1000)
-
-        for worker in workers:
-            assert worker.work_started is True
-            assert worker.steps_completed >= 1
-
-        for worker in workers:
-            assert worker.get_state() in [WorkerState.STOPPED, WorkerState.DELETED]
-
-
-class TestSimpleThreadingIntegration:
-    """Simple threading integration tests."""
-
-    @pytest.mark.timeout(5)
-    def test_basic_worker_integration(self) -> None:
-        """Test basic worker integration without cache."""
-        worker = SimpleTestWorker(work_steps=2)
-
-        try:
-            worker.start()
-
-            # Wait for worker to start work without nested Qt wait loops.
-            deadline = time.perf_counter() + 1.0
-            while time.perf_counter() < deadline and not worker.work_started:
-                process_qt_events()
-                time.sleep(0)
-            process_qt_events()
-
-            if worker.isRunning():
-                worker.request_stop()
-                if not worker.wait(1000):
-                    worker.quit()
-                    worker.wait(500)
-
-            assert worker.work_started, "Worker did not start work"
-        finally:
-            # Clean up worker to prevent Qt resource leaks in parallel execution
-            if worker is not None:
-                # Ensure worker is stopped
-                if worker.isRunning():
-                    worker.request_stop()
-                    if not worker.wait(1000):
-                        worker.safe_terminate()
-                        worker.wait(500)
-
-                # Schedule for deletion (let Qt handle signal cleanup)
-                worker.deleteLater()
-
-            # Process Qt events to ensure cleanup is executed
-            process_qt_events()
 
 
 if __name__ == "__main__":

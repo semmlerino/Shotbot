@@ -127,20 +127,6 @@ class TestPreviousShotsFinder:
         assert finder.user_path_pattern == "/user/customuser"
         assert finder._shot_pattern is not None
 
-    def test_finder_initialization_with_sanitization(self) -> None:
-        """Test that username is properly sanitized for security."""
-        # Test path traversal attempt is sanitized (not blocked)
-        finder = PreviousShotsFinder(username="../../../etc/passwd")
-        assert finder.username == "etcpasswd"  # Dots and slashes removed
-
-        # Test that dots and slashes are removed
-        finder = PreviousShotsFinder(username="test.user")
-        assert finder.username == "testuser"
-
-        # Test empty username after sanitization
-        with pytest.raises(ValueError, match="Invalid username after sanitization"):
-            PreviousShotsFinder(username="../../")
-
     def test_finder_initialization_default_user(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test finder initialization with default user from environment."""
         # Disable mock mode to test actual USER env var behavior

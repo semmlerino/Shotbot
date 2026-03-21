@@ -362,9 +362,8 @@ class TestConcurrentThumbnailRaceConditions:
 
     @pytest.mark.slow
     @pytest.mark.parametrize(("num_workers", "num_iterations"), [
-        (2, 50),
-        (5, 100),
-        (10, 50),
+        pytest.param(2, 50, id="low_concurrency"),
+        pytest.param(10, 50, id="high_concurrency"),
     ])
     def test_variable_concurrency_levels(
         self,

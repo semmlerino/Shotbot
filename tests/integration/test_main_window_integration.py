@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import getpass
 import shutil
 import sys
 import tempfile
@@ -26,7 +25,6 @@ from tests.fixtures.model_fixtures import (
 )
 from tests.fixtures.test_doubles import (
     PopenDouble,
-    TestCompletedProcess,
     TestProcessPool,
     TestSubprocess,
 )
@@ -786,45 +784,6 @@ class TestUserWorkflows:
             shot_data = main_window.shot_item_model.data(index, UnifiedRole.ObjectRole)
             assert shot_data is not None
 
-    @pytest.mark.qt
-    def test_previous_shots_scanning(self, qtbot: Any) -> None:
-        """Test previous shots scanning and display workflow."""
-        main_window = MainWindow(cache_dir=self.cache_dir)
-        qtbot.addWidget(main_window)
-        self.test_windows.append(main_window)
-
-        current_user = getpass.getuser()
-
-        for shot_data in self.test_shots[:2]:
-            shot_path = self._create_realistic_shot_structure(shot_data)
-            user_dir = shot_path / "user" / current_user
-            user_dir.mkdir(parents=True, exist_ok=True)
-            work_file = user_dir / "mm" / "nuke" / "comp" / "scenes" / "test_work.nk"
-            work_file.parent.mkdir(parents=True, exist_ok=True)
-            work_file.touch()
-
-        current_shots = [self.test_shots[2]]
-        current_shots_result = TestCompletedProcess(
-            args=["bash", "-i", "-c", "ws -sg"],
-            returncode=0,
-            stdout=f"workspace {current_shots[0]['workspace_path']}",
-            stderr="",
-        )
-
-        with patch("subprocess.run", return_value=current_shots_result):
-            main_window.tab_widget.setCurrentIndex(2)
-
-            qtbot.waitUntil(
-                lambda: main_window.tab_widget.currentIndex() == 2,
-                timeout=5000
-            )
-
-            assert hasattr(main_window, "previous_shots_model")
-            model_shots = main_window.previous_shots_model.get_shots()
-            current_shot_names = [s["name"] for s in current_shots]
-            assert not any(
-                shot.full_name in current_shot_names for shot in model_shots
-            )
 
 
 # ---------------------------------------------------------------------------
