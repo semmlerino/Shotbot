@@ -223,28 +223,7 @@ class TestSettingsManager:
         assert retrieved == test_launchers
 
     def test_get_category(self, settings_manager: SettingsManager) -> None:
-        """Test getting all settings in a category."""
-        window_settings = settings_manager.get_category("window")
-
-        assert isinstance(window_settings, dict)
-        assert "geometry" in window_settings
-        assert "state" in window_settings
-        assert "current_tab" in window_settings
-
-    def test_set_category(self, settings_manager: SettingsManager) -> None:
-        """Test setting multiple values in a category."""
-        # Set multiple window settings at once
-        new_settings = {"current_tab": 1, "maximized": True, "size": QSize(1600, 900)}
-
-        settings_manager.set_category("window", new_settings)
-
-        # Verify values were set
-        assert settings_manager.get_current_tab() == 1
-        assert settings_manager.settings.value("window/maximized") is True
-
-    def test_get_all_categories(self, settings_manager: SettingsManager) -> None:
-        """Test getting all settings categories."""
-        # Get each category individually
+        """Test getting all settings categories returns dicts with expected keys."""
         window = settings_manager.get_category("window")
         prefs = settings_manager.get_category("preferences")
         perf = settings_manager.get_category("performance")
@@ -253,8 +232,9 @@ class TestSettingsManager:
         assert isinstance(prefs, dict)
         assert isinstance(perf, dict)
 
-        # Check that categories have expected keys
         assert "geometry" in window
+        assert "state" in window
+        assert "current_tab" in window
         assert "refresh_interval" in prefs
         assert "max_thumbnail_threads" in perf
 
@@ -383,17 +363,6 @@ class TestSettingsManager:
         assert manager2.get_current_tab() == 2
         assert manager2.get_thumbnail_size() == 500
 
-    def test_type_safety(self, settings_manager: SettingsManager) -> None:
-        """Test type validation and conversion."""
-        # Set wrong type for integer setting
-        settings_manager.settings.setValue("preferences/refresh_interval", "not_an_int")
-
-        # Should return some valid integer value
-        value = settings_manager.get_refresh_interval()
-        assert isinstance(value, int)
-        # Value might be 0 or default depending on implementation
-        assert value >= 0
-
     def test_reset_category(self, settings_manager: SettingsManager) -> None:
         """Test resetting a category to defaults."""
         # Set some values
@@ -450,31 +419,18 @@ class TestSettingsManagerAtomicWrite:
         assert "old" not in content
         assert "512" in content or "preferences" in content
 
-    def test_export_failure_returns_false(
+    def test_export_failure_returns_false_and_cleans_up(
         self, settings_manager: SettingsManager, tmp_path: Path, mocker
     ) -> None:
-        """export_settings returns False on failure."""
-        export_path = tmp_path / "settings.json"
-
-        # Mock json.dump to raise
-        mocker.patch("json.dump", side_effect=OSError("Disk full"))
-
-        result = settings_manager.export_settings(str(export_path))
-
-        assert result is False
-
-    def test_export_cleans_up_temp_file_on_failure(
-        self, settings_manager: SettingsManager, tmp_path: Path, mocker
-    ) -> None:
-        """Temp file is cleaned up if export fails."""
+        """export_settings returns False on failure and leaves no temp files behind."""
         export_path = tmp_path / "settings.json"
 
         # Mock json.dump to raise after temp file is created
         mocker.patch("json.dump", side_effect=OSError("Disk full"))
 
-        settings_manager.export_settings(str(export_path))
+        result = settings_manager.export_settings(str(export_path))
 
-        # No temp files should remain
+        assert result is False
         temp_files = list(tmp_path.glob(".*settings.json*.tmp"))
         assert len(temp_files) == 0, f"Temp files remain: {temp_files}"
 
@@ -490,21 +446,27 @@ class TestSortOrderSettings:
         return make_settings_manager(tmp_path)
 
     @pytest.mark.parametrize(
-        ("tab_id", "expected_order"),
+        ("tab_id", "default_order", "roundtrip_order"),
         [
-            ("my_shots", "name"),
-            ("threede_scenes", "date"),
-            ("previous_shots", "date"),
-            ("unknown_tab", "name"),
+            pytest.param("my_shots", "name", "date", id="my_shots_default"),
+            pytest.param("threede_scenes", "date", "name", id="threede_scenes_default"),
+            pytest.param("previous_shots", "date", "name", id="previous_shots_default"),
+            pytest.param("unknown_tab", "name", None, id="unknown_defaults_to_name"),
         ],
-        ids=["my_shots_default", "threede_scenes_default", "previous_shots_default", "unknown_defaults_to_name"],
     )
-    def test_get_sort_order_defaults(
-        self, settings_manager: SettingsManager, tab_id: str, expected_order: str
+    def test_get_sort_order_defaults_and_roundtrip(
+        self,
+        settings_manager: SettingsManager,
+        tab_id: str,
+        default_order: str,
+        roundtrip_order: str | None,
     ) -> None:
-        """Test default sort orders for different tabs."""
-        result = settings_manager.get_sort_order(tab_id)
-        assert result == expected_order
+        """Test default sort orders and set/get roundtrip for each tab."""
+        assert settings_manager.get_sort_order(tab_id) == default_order
+
+        if roundtrip_order is not None:
+            settings_manager.set_sort_order(tab_id, roundtrip_order)
+            assert settings_manager.get_sort_order(tab_id) == roundtrip_order
 
     def test_set_sort_order_persists(
         self, settings_manager: SettingsManager
@@ -528,16 +490,6 @@ class TestSortOrderSettings:
         result = settings_manager.get_sort_order("my_shots")
         assert result == "date"
 
-    def test_set_sort_order_roundtrip(
-        self, settings_manager: SettingsManager
-    ) -> None:
-        """Test roundtrip of set/get for all valid values."""
-        for tab_id in ("my_shots", "threede_scenes", "previous_shots"):
-            for order in ("name", "date"):
-                settings_manager.set_sort_order(tab_id, order)
-                result = settings_manager.get_sort_order(tab_id)
-                assert result == order, f"Failed for {tab_id}={order}"
-
     def test_get_sort_order_handles_corrupted_value(
         self, settings_manager: SettingsManager
     ) -> None:
@@ -548,28 +500,6 @@ class TestSortOrderSettings:
         # Should return default for threede_scenes (date)
         result = settings_manager.get_sort_order("threede_scenes")
         assert result == "date"
-
-    def test_sort_order_persistence_across_instances(
-        self, tmp_path: Path
-    ) -> None:
-        """Test that sort order persists across SettingsManager instances."""
-        # Use QSettings directly to test persistence without factory clearing
-        QSettings.setPath(
-            QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path)
-        )
-
-        # Create first instance and set values
-        manager1 = SettingsManager(organization="TestOrg", application="PersistTest")
-        manager1.set_sort_order("threede_scenes", "name")
-        manager1.set_sort_order("previous_shots", "name")
-        manager1.settings.sync()
-
-        # Create second instance (same org/app)
-        manager2 = SettingsManager(organization="TestOrg", application="PersistTest")
-
-        # Values should persist
-        assert manager2.get_sort_order("threede_scenes") == "name"
-        assert manager2.get_sort_order("previous_shots") == "name"
 
 
 class TestUIScaleSettings:

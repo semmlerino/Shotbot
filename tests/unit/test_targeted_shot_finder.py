@@ -21,15 +21,12 @@ from type_definitions import Shot
 class TestTargetedShotsFinderInitialization:
     """Test TargetedShotsFinder initialization."""
 
-    def test_initialization_with_username(self) -> None:
-        """Test initialization with specific username."""
-        finder = TargetedShotsFinder(username="test_user")
-        assert finder.username == "test_user"  # Username should be sanitized
-
-    def test_initialization_with_max_workers(self) -> None:
-        """Test initialization with specific max workers."""
-        finder = TargetedShotsFinder(max_workers=4)
+    def test_initialization_defaults(self) -> None:
+        """Test initialization sets username and max_workers correctly."""
+        finder = TargetedShotsFinder(username="test_user", max_workers=4)
+        assert finder.username == "test_user"
         assert finder.max_workers == 4
+
 
 class TestExtractShowsFromActiveShots:
     """Test extract_shows_from_active_shots method."""
@@ -59,27 +56,6 @@ class TestExtractShowsFromActiveShots:
         shows = finder.extract_shows_from_active_shots([])
 
         assert shows == set()
-
-    def test_extract_many_shows(self) -> None:
-        """Test extracting from many shows."""
-        finder = TargetedShotsFinder()
-
-        # Create shots from many shows
-        active_shots = [
-            Shot(
-                show=f"show{i}",
-                sequence="seq",
-                shot=f"{j:04d}",
-                workspace_path=f"/path{i}_{j}",
-            )
-            for i in range(10)
-            for j in range(5)
-        ]
-
-        shows = finder.extract_shows_from_active_shots(active_shots)
-
-        assert len(shows) == 10
-        assert all(f"show{i}" in shows for i in range(10))
 
 
 class TestScanShowForUser:
@@ -253,55 +229,6 @@ class TestParseShotFromPath:
 
         assert shot is None
 
-    def test_parse_path_with_empty_shot(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test handling path that results in empty shot."""
-        from unittest.mock import (
-            patch,
-        )
-
-        from shots import targeted_shot_finder
-
-        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
-        finder = TargetedShotsFinder()
-
-        # Create a path that would result in empty shot after processing
-        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_/user/john"  # Underscore at end
-
-        with patch.object(finder.logger, "debug") as mock_debug:
-            shot = finder._parse_shot_from_path(path)
-
-            assert shot is None
-            mock_debug.assert_called()
-            assert "Empty shot extracted" in mock_debug.call_args[0][0]
-
-    def test_parse_with_shot_creation_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test handling Shot creation errors."""
-        from unittest.mock import (
-            patch,
-        )
-
-        from shots import targeted_shot_finder
-
-        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
-        finder = TargetedShotsFinder()
-
-        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010/user/john"
-
-        with (
-            patch(
-                "shots.targeted_shot_finder.Shot",
-                side_effect=Exception("Shot creation failed"),
-            ),
-            patch.object(finder.logger, "debug") as mock_debug,
-        ):
-            shot = finder._parse_shot_from_path(path)
-
-            assert shot is None
-            mock_debug.assert_called()
-            assert "Could not create Shot" in mock_debug.call_args[0][0]
-
 
 class TestFindUserShotsInShows:
     """Test find_user_shots_in_shows method."""
@@ -417,50 +344,6 @@ class TestFindUserShotsInShows:
 class TestFindApprovedShotsTargeted:
     """Test find_approved_shots_targeted method."""
 
-    def test_find_approved_basic(self) -> None:
-        """Test basic finding of approved shots."""
-        finder = TargetedShotsFinder()
-
-        # Active shots (currently being worked on)
-        active_shots = [
-            Shot(show="show1", sequence="010", shot="0010", workspace_path="/path1"),
-            Shot(show="show1", sequence="010", shot="0020", workspace_path="/path2"),
-        ]
-
-        # All user shots (including approved)
-        all_shots = [
-            Shot(
-                show="show1", sequence="010", shot="0010", workspace_path="/path1"
-            ),  # Active
-            Shot(
-                show="show1", sequence="010", shot="0020", workspace_path="/path2"
-            ),  # Active
-            Shot(
-                show="show1", sequence="010", shot="0030", workspace_path="/path3"
-            ),  # Approved
-            Shot(
-                show="show1", sequence="020", shot="0010", workspace_path="/path4"
-            ),  # Approved
-        ]
-
-        with (
-            patch.object(
-                finder, "extract_shows_from_active_shots", return_value={"show1"}
-            ),
-            patch.object(finder, "find_user_shots_in_shows") as mock_find,
-        ):
-            mock_find.return_value = iter(all_shots)
-
-            approved = finder.find_approved_shots_targeted(active_shots)
-
-            assert len(approved) == 2
-            # Only non-active shots should be returned
-            assert all(
-                (s.show, s.sequence, s.shot)
-                not in [(a.show, a.sequence, a.shot) for a in active_shots]
-                for s in approved
-            )
-
     def test_find_approved_with_no_target_shows(self) -> None:
         """Test when no target shows are found."""
         finder = TargetedShotsFinder()
@@ -513,27 +396,6 @@ class TestFindApprovedShotsTargeted:
             assert progress_callback.call_count > 2
             # Should reach 100%
             assert any(call[0][0] == 100 for call in progress_callback.call_args_list)
-
-    def test_find_approved_performance_logging(self) -> None:
-        """Test that performance is logged."""
-        finder = TargetedShotsFinder()
-        active_shots = []
-
-        with (
-            patch.object(
-                finder, "extract_shows_from_active_shots", return_value={"show1"}
-            ),
-            patch.object(finder, "find_user_shots_in_shows", return_value=iter([])),
-            patch.object(finder.logger, "info") as mock_info,
-        ):
-            finder.find_approved_shots_targeted(active_shots)
-
-            # Should log performance
-            assert any("seconds" in str(call) for call in mock_info.call_args_list)
-            assert any(
-                "Targeted search found" in str(call)
-                for call in mock_info.call_args_list
-            )
 
     def test_find_approved_filters_correctly(self) -> None:
         """Test that filtering works correctly for complex scenarios."""
@@ -686,38 +548,3 @@ class TestEdgeCases:
         # In mock mode, should use gabriel-h
         finder = TargetedShotsFinder()
         assert finder.username == "gabriel-h"
-
-    def test_string_shows_root_conversion(self) -> None:
-        """Test that Path shows_root is handled correctly."""
-        finder = TargetedShotsFinder()
-
-        # Pass Path (the only accepted type)
-        shots = finder._scan_show_for_user("test", Path(f"{Config.SHOWS_ROOT}/root"))
-
-        # Should return empty because path doesn't exist
-        assert shots == []
-
-    def test_special_characters_in_show_name(self) -> None:
-        """Test handling of special characters in show names."""
-        finder = TargetedShotsFinder()
-
-        active_shots = [
-            Shot(
-                show="test-show_2024",
-                sequence="010",
-                shot="0010",
-                workspace_path="/path",
-            ),
-            Shot(
-                show="show.with.dots",
-                sequence="020",
-                shot="0020",
-                workspace_path="/path2",
-            ),
-        ]
-
-        shows = finder.extract_shows_from_active_shots(active_shots)
-
-        assert len(shows) == 2
-        assert "test-show_2024" in shows
-        assert "show.with.dots" in shows

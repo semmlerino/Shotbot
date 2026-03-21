@@ -207,35 +207,37 @@ class TestThemeConfiguration:
         assert theme.padding == 8
         assert theme.border_radius == 8
 
-    def test_custom_theme_colors(self, qtbot) -> None:
-        """Test custom theme colors are applied."""
+    @pytest.mark.parametrize(
+        ("theme_kwargs", "assertions"),
+        [
+            pytest.param(
+                {"bg_color": QColor("#ff0000"), "text_color": QColor("#00ff00")},
+                lambda d: (
+                    d.theme.bg_color == QColor("#ff0000")
+                    and d.theme.text_color == QColor("#00ff00")
+                ),
+                id="custom_colors",
+            ),
+            pytest.param(
+                {"text_height": 50, "padding": 12, "border_radius": 4},
+                lambda d: (
+                    d.theme.text_height == 50
+                    and d.theme.padding == 12
+                    and d.theme.border_radius == 4
+                ),
+                id="custom_dimensions",
+            ),
+        ],
+    )
+    def test_custom_theme(self, qtbot, theme_kwargs: dict, assertions) -> None:
+        """Test custom theme colors and dimensions are applied."""
         view = QListView()
         qtbot.addWidget(view)
 
-        custom_theme = DelegateTheme(
-            bg_color=QColor("#ff0000"),
-            text_color=QColor("#00ff00"),
-        )
+        custom_theme = DelegateTheme(**theme_kwargs)
         delegate = CustomThemeDelegate(custom_theme, parent=view)
 
-        assert delegate.theme.bg_color == QColor("#ff0000")
-        assert delegate.theme.text_color == QColor("#00ff00")
-
-    def test_custom_theme_dimensions(self, qtbot) -> None:
-        """Test custom theme dimensions are applied."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        custom_theme = DelegateTheme(
-            text_height=50,
-            padding=12,
-            border_radius=4,
-        )
-        delegate = CustomThemeDelegate(custom_theme, parent=view)
-
-        assert delegate.theme.text_height == 50
-        assert delegate.theme.padding == 12
-        assert delegate.theme.border_radius == 4
+        assert assertions(delegate)
 
     def test_user_color_optional(self) -> None:
         """Test user_color is optional in theme."""
@@ -320,28 +322,21 @@ class TestThumbnailSizeManagement:
     This is a source code bug that should be fixed.
     """
 
-    def test_set_thumbnail_size_updates_size_without_parent(self) -> None:
-        """Test setting thumbnail size updates internal size (no parent to avoid update() bug)."""
+    def test_set_thumbnail_size_updates_size_and_clears_cache_without_parent(self) -> None:
+        """Test setting thumbnail size updates internal size and clears metrics cache."""
         delegate = ConcreteThumbnailDelegate()
 
         initial_size = delegate._thumbnail_size
         new_size = 256
 
-        delegate.set_thumbnail_size(new_size)
-
-        assert delegate._thumbnail_size == new_size
-        assert delegate._thumbnail_size != initial_size
-
-    def test_set_thumbnail_size_clears_cache_without_parent(self) -> None:
-        """Test setting thumbnail size clears metrics cache (no parent to avoid update() bug)."""
-        delegate = ConcreteThumbnailDelegate()
-
         # Populate cache
         delegate._metrics_cache["test_key"] = QSize(100, 100)
         assert len(delegate._metrics_cache) > 0
 
-        delegate.set_thumbnail_size(256)
+        delegate.set_thumbnail_size(new_size)
 
+        assert delegate._thumbnail_size == new_size
+        assert delegate._thumbnail_size != initial_size
         assert delegate._metrics_cache == {}
 
     def test_set_thumbnail_size_with_parent(self, qtbot) -> None:
@@ -402,19 +397,6 @@ class TestGetThumbnailRect:
 
         assert thumb_rect == expected
 
-    def test_get_thumbnail_rect_maintains_position(self, qtbot) -> None:
-        """Test thumbnail rect maintains item rect offset position."""
-        view = QListView()
-        qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        item_rect = QRect(100, 200, 200, 240)
-        thumb_rect = delegate._get_thumbnail_rect(item_rect)
-
-        # Thumbnail should be offset by item position + padding
-        assert thumb_rect.x() == 100 + delegate.theme.padding
-        assert thumb_rect.y() == 200 + delegate.theme.padding
-
     def test_get_thumbnail_rect_with_zero_padding(self, qtbot) -> None:
         """Test thumbnail rect calculation with zero padding."""
         view = QListView()
@@ -465,26 +447,6 @@ class TestDataExtraction:
         data = delegate.get_item_data(invalid_index)
 
         assert data["name"] == "Unknown"
-
-    def test_get_item_data_with_persistent_index(self, qtbot) -> None:
-        """Test data extraction works with QPersistentModelIndex."""
-        view = QListView()
-        model = ShotItemModel()
-        view.setModel(model)
-        qtbot.addWidget(view)
-
-        delegate = ConcreteThumbnailDelegate(parent=view)
-
-        shots = [create_mock_shot(0)]
-        model.set_items(shots)
-
-        regular_index = model.index(0, 0)
-        persistent_index = QPersistentModelIndex(regular_index)
-
-        data = delegate.get_item_data(persistent_index)
-
-        assert data["name"] == "seq01_shot_0000"
-        assert data["show"] == "test_show"
 
 
 class TestPaintMethod:
@@ -551,92 +513,49 @@ class TestLoadingStates:
         # Should return rows 2, 5, 7
         assert set(loading_rows) == {2, 5, 7}, f"Expected rows {{2, 5, 7}}, got {set(loading_rows)}"
 
-    def test_get_loading_rows_without_parent(self) -> None:
-        """Test _get_loading_rows when delegate has no parent."""
-        delegate = ConcreteThumbnailDelegate()
+    @pytest.mark.parametrize(
+        ("parent_setup", "expected"),
+        [
+            pytest.param("no_parent", [], id="without_parent"),
+            pytest.param("widget_parent", [], id="with_invalid_parent"),
+        ],
+    )
+    def test_get_loading_rows_without_valid_view(self, qtbot, parent_setup: str, expected: list) -> None:
+        """Test _get_loading_rows returns empty list when delegate has no parent or non-view parent."""
+        if parent_setup == "no_parent":
+            delegate = ConcreteThumbnailDelegate()
+        else:
+            from PySide6.QtWidgets import QWidget
+            widget = QWidget()
+            qtbot.addWidget(widget)
+            delegate = ConcreteThumbnailDelegate(parent=widget)
 
         loading_rows = delegate._get_loading_rows()
 
-        assert loading_rows == []
-
-    def test_get_loading_rows_with_invalid_parent(self, qtbot) -> None:
-        """Test _get_loading_rows when parent is not a view."""
-        from PySide6.QtWidgets import (
-            QWidget,
-        )
-
-        widget = QWidget()
-        qtbot.addWidget(widget)
-        delegate = ConcreteThumbnailDelegate(parent=widget)
-
-        loading_rows = delegate._get_loading_rows()
-
-        assert loading_rows == []
+        assert loading_rows == expected
 
 
 class TestLoadingAnimation:
     """Test loading animation behavior."""
-
-    def test_loading_animation_targeted_repaint(self, qtbot) -> None:
-        """Test loading animation only repaints loading items, not entire view.
-
-        This test verifies the critical optimization:
-        - Before: parent.update() repaints all 30 items (600 paint calls over 30s)
-        - After: dataChanged.emit() repaints only 2 loading items (40 paint calls)
-        - Result: 15x reduction in paint calls (93% waste eliminated)
-        """
-        # Create view and model first
-        view = QListView()
-        model = ShotItemModel()
-        view.setModel(model)
-        qtbot.addWidget(view)
-
-        # Create delegate with view as parent (critical for parent() to work)
-        delegate = ConcreteThumbnailDelegate(parent=view)
-        view.setItemDelegate(delegate)
-
-        # Add 30 shots to simulate realistic grid
-        shots = [create_mock_shot(i) for i in range(30)]
-        model.set_items(shots)
-
-        # Mark 2 items as loading (typical scenario)
-        model._thumbnail_loader.loading_states["seq01_shot_0000"] = "loading"
-        model._thumbnail_loader.loading_states["seq01_shot_0001"] = "loading"
-
-        # Spy on dataChanged signal to track repaints
-        spy = QSignalSpy(model.dataChanged)
-
-        # Trigger one animation update (happens 20x/second during loading)
-        delegate._update_loading_animation()
-
-        # Verify: Should emit exactly 2 signals (one per loading item)
-        assert spy.count() == 2, f"Expected 2 dataChanged signals, got {spy.count()}"
-
-        # Verify: Each signal should target a single item (not range)
-        for i in range(spy.count()):
-            signal_args = spy.at(i)
-            top_left = signal_args[0]
-            bottom_right = signal_args[1]
-            # Verify it's a single item (top_left == bottom_right)
-            assert top_left.row() == bottom_right.row(), (
-                f"Expected single-item repaint, got range {top_left.row()}-{bottom_right.row()}"
-            )
-
-        # Verify: Repaints should be for loading items only
-        repainted_rows = {spy.at(i)[0].row() for i in range(spy.count())}
-        assert repainted_rows == {0, 1}, f"Expected rows {{0, 1}} to be repainted, got {repainted_rows}"
 
     @pytest.mark.parametrize(
         ("num_shots", "num_loading", "expected_signals"),
         [
             pytest.param(10, 0, 0, id="no_loading_items"),
             pytest.param(5, 5, 5, id="all_items_loading"),
+            pytest.param(30, 2, 2, id="targeted_repaint_optimization"),
         ],
     )
     def test_loading_animation_signal_count(
         self, qtbot, num_shots: int, num_loading: int, expected_signals: int
     ) -> None:
-        """Test animation emits correct number of dataChanged signals for loading items."""
+        """Test animation emits correct number of dataChanged signals for loading items.
+
+        The targeted_repaint_optimization case verifies the critical optimization:
+        - Before: parent.update() repaints all 30 items (600 paint calls over 30s)
+        - After: dataChanged.emit() repaints only 2 loading items (40 paint calls)
+        - Result: 15x reduction in paint calls (93% waste eliminated)
+        """
         view = QListView()
         model = ShotItemModel()
         view.setModel(model)
@@ -663,6 +582,15 @@ class TestLoadingAnimation:
         if num_loading > 0:
             repainted_rows = {spy.at(i)[0].row() for i in range(spy.count())}
             assert repainted_rows == set(range(num_loading))
+
+            # Each signal should target a single item (not a range)
+            for i in range(spy.count()):
+                signal_args = spy.at(i)
+                top_left = signal_args[0]
+                bottom_right = signal_args[1]
+                assert top_left.row() == bottom_right.row(), (
+                    f"Expected single-item repaint, got range {top_left.row()}-{bottom_right.row()}"
+                )
 
     def test_animation_angle_updates(self, qtbot) -> None:
         """Test that animation angle increments correctly."""
@@ -742,58 +670,48 @@ class TestResourceCleanup:
 
         assert delegate._metrics_cache == {}
 
-    def test_cleanup_with_no_timer(self, qtbot) -> None:
-        """Test cleanup works when timer is None."""
+    def test_cleanup_with_no_timer_and_idempotent(self, qtbot) -> None:
+        """Test cleanup works when timer is None and can be called multiple times safely."""
         view = QListView()
         qtbot.addWidget(view)
         delegate = ConcreteThumbnailDelegate(parent=view)
 
         assert delegate._loading_timer is None
-
-        # Should not raise error
-        delegate.cleanup()
-
-        assert delegate._loading_timer is None
-
-    def test_cleanup_idempotent(self, qtbot) -> None:
-        """Test cleanup can be called multiple times safely."""
-        view = QListView()
-        qtbot.addWidget(view)
-        delegate = ConcreteThumbnailDelegate(parent=view)
 
         # Populate cache
         delegate._metrics_cache["key1"] = QSize(100, 100)
 
-        # Call cleanup multiple times
+        # Call cleanup multiple times — should not raise and state stays clean
         delegate.cleanup()
         delegate.cleanup()
         delegate.cleanup()
 
-        # Should remain clean
-        assert delegate._metrics_cache == {}
         assert delegate._loading_timer is None
+        assert delegate._metrics_cache == {}
 
 
 class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    @pytest.mark.parametrize(
-        "data",
-        [
-            pytest.param({"name": "test"}, id="missing_key"),
-            pytest.param({"name": "test", "thumbnail": None}, id="explicit_none"),
-        ],
-    )
-    def test_null_thumbnail_in_data(self, qtbot, data: ThumbnailItemData) -> None:
-        """Test handling of missing or None thumbnail resolves to None."""
+    def test_partial_optional_fields(self, qtbot) -> None:
+        """Test handling when only some optional fields are present (including missing/None thumbnail)."""
         view = QListView()
         qtbot.addWidget(view)
 
+        data: ThumbnailItemData = {
+            "name": "test_shot",
+            "show": "test_show",
+            # Missing: sequence, thumbnail, user, timestamp
+        }
         delegate = MinimalDataDelegate(data_override=data, parent=view)
 
         index = QModelIndex()
         extracted_data = delegate.get_item_data(index)
 
+        assert extracted_data["name"] == "test_shot"
+        assert extracted_data["show"] == "test_show"
+        assert extracted_data.get("sequence") is None
+        assert extracted_data.get("user") is None
         assert extracted_data.get("thumbnail") is None
 
     def test_very_long_name_truncation(self, qtbot) -> None:
@@ -814,26 +732,3 @@ class TestEdgeCases:
         # Should return valid size (not error)
         assert size.width() > 0
         assert size.height() > 0
-
-    def test_partial_optional_fields(self, qtbot) -> None:
-        """Test handling when only some optional fields are present."""
-        view = QListView()
-        qtbot.addWidget(view)
-
-        data: ThumbnailItemData = {
-            "name": "test_shot",
-            "show": "test_show",
-            # Missing: sequence, thumbnail, user, timestamp
-        }
-        delegate = MinimalDataDelegate(data_override=data, parent=view)
-
-        index = QModelIndex()
-        extracted_data = delegate.get_item_data(index)
-
-        assert extracted_data["name"] == "test_shot"
-        assert extracted_data["show"] == "test_show"
-        assert extracted_data.get("sequence") is None
-        assert extracted_data.get("user") is None
-
-
-

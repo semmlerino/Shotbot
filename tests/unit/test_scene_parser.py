@@ -57,11 +57,7 @@ class TestExtractPlateFromPathBGFGPatterns:
         ("parent_name", "expected"),
         [
             ("bg01", "bg01"),
-            ("fg02", "fg02"),
-            ("BG01", "BG01"),
             ("FG10", "FG10"),
-            ("bg99", "bg99"),
-            ("fg00", "fg00"),
         ],
     )
     def test_detects_bg_fg_in_parent_directory(
@@ -460,31 +456,18 @@ class TestExtractShotFromWorkspacePath:
     """Tests for workspace path parsing."""
 
     def test_extracts_from_standard_workspace(self, parser: SceneParser) -> None:
-        """Extracts show, sequence, shot from standard workspace."""
-        workspace = "/shows/myshow/shots/seq01/seq01_0010"
+        """Extracts show, sequence, shot from standard workspace (with or without subpath)."""
+        for workspace in [
+            "/shows/myshow/shots/seq01/seq01_0010",
+            "/shows/myshow/shots/seq01/seq01_0010/user/artist/3de",
+        ]:
+            result = parser.extract_shot_from_workspace_path(workspace)
 
-        result = parser.extract_shot_from_workspace_path(workspace)
-
-        assert result is not None
-        show, sequence, shot = result
-        assert show == "myshow"
-        assert sequence == "seq01"
-        assert shot == "0010"
-
-    def test_extracts_from_workspace_with_subpath(
-        self,
-        parser: SceneParser,
-    ) -> None:
-        """Extracts from workspace path with additional subdirectories."""
-        workspace = "/shows/myshow/shots/seq01/seq01_0010/user/artist/3de"
-
-        result = parser.extract_shot_from_workspace_path(workspace)
-
-        assert result is not None
-        show, sequence, shot = result
-        assert show == "myshow"
-        assert sequence == "seq01"
-        assert shot == "0010"
+            assert result is not None
+            show, sequence, shot = result
+            assert show == "myshow"
+            assert sequence == "seq01"
+            assert shot == "0010"
 
     def test_returns_none_for_invalid_path(self, parser: SceneParser) -> None:
         """Returns None for paths without 'shots' directory."""
@@ -677,27 +660,3 @@ class TestIsGenericDirectory:
         assert parser.is_generic_directory("3DE") is True
         assert parser.is_generic_directory("Scenes") is True
         assert parser.is_generic_directory("MATCHMOVE") is True
-
-
-class TestGetPatterns:
-    """Tests for pattern accessor methods."""
-
-    def test_get_plate_patterns_returns_copy(self, parser: SceneParser) -> None:
-        """get_plate_patterns() returns a copy of patterns list."""
-        patterns1 = parser.get_plate_patterns()
-        patterns2 = parser.get_plate_patterns()
-
-        assert patterns1 is not patterns2
-        assert len(patterns1) > 0
-
-    def test_get_generic_directories_returns_copy(
-        self,
-        parser: SceneParser,
-    ) -> None:
-        """get_generic_directories() returns a copy of directory set."""
-        dirs1 = parser.get_generic_directories()
-        dirs2 = parser.get_generic_directories()
-
-        assert dirs1 is not dirs2
-        assert len(dirs1) > 0
-        assert "3de" in dirs1

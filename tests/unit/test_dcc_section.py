@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -17,6 +19,7 @@ from dcc.dcc_section import (
     DCCConfig,
     DCCSection,
 )
+from dcc.scene_file import FileType, SceneFile
 from tests.test_helpers import process_qt_events
 
 
@@ -68,6 +71,41 @@ def nuke_config() -> DCCConfig:
             ),
         ],
     )
+
+
+@pytest.fixture
+def config_with_files() -> DCCConfig:
+    """Create config with embedded files section enabled."""
+    return DCCConfig(
+        name="test_dcc",
+        display_name="Test DCC",
+        color="#333333",
+        shortcut="T",
+        has_files_section=True,
+        file_type=FileType.THREEDE,
+    )
+
+
+@pytest.fixture
+def sample_scene_files() -> list:
+    """Create sample scene files for testing."""
+    now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
+    return [
+        SceneFile(
+            path=Path("/path/to/scene_v005.3de"),
+            file_type=FileType.THREEDE,
+            modified_time=now,
+            user="artist1",
+            version=5,
+        ),
+        SceneFile(
+            path=Path("/path/to/scene_v003.3de"),
+            file_type=FileType.THREEDE,
+            modified_time=now,
+            user="artist2",
+            version=3,
+        ),
+    ]
 
 
 class TestDCCConfigDefaults:
@@ -170,45 +208,25 @@ class TestDCCSectionLaunch:
 class TestDCCSectionCheckboxes:
     """Tests for checkbox handling."""
 
-    def test_checkboxes_created_from_config(
+    def test_checkboxes_state(
         self, qtbot: QtBot, nuke_config: DCCConfig
     ) -> None:
-        """Checkboxes created based on config."""
+        """Checkboxes are created with correct defaults and states are readable."""
         section = DCCSection(nuke_config)
         qtbot.addWidget(section)
 
+        # Checkboxes exist
         assert "open_latest_scene" in section._checkboxes
         assert "create_new_file" in section._checkboxes
 
-    def test_checkbox_default_values(
-        self, qtbot: QtBot, nuke_config: DCCConfig
-    ) -> None:
-        """Checkbox defaults match config."""
-        section = DCCSection(nuke_config)
-        qtbot.addWidget(section)
-
-        # open_latest_scene default is True
+        # Defaults match config
         assert section._checkboxes["open_latest_scene"].isChecked()
-        # create_new_file default is False
         assert not section._checkboxes["create_new_file"].isChecked()
 
-    def test_get_checkbox_states(
-        self, qtbot: QtBot, nuke_config: DCCConfig
-    ) -> None:
-        """Can retrieve current checkbox states."""
-        section = DCCSection(nuke_config)
-        qtbot.addWidget(section)
-
+        # get_checkbox_states and get_options both reflect same state
         states = section.get_checkbox_states()
         assert states["open_latest_scene"] is True
         assert states["create_new_file"] is False
-
-    def test_get_options_includes_checkboxes(
-        self, qtbot: QtBot, nuke_config: DCCConfig
-    ) -> None:
-        """get_options includes checkbox states."""
-        section = DCCSection(nuke_config)
-        qtbot.addWidget(section)
 
         options = section.get_options()
         assert "open_latest_scene" in options
@@ -218,28 +236,20 @@ class TestDCCSectionCheckboxes:
 class TestDCCSectionPlateSelector:
     """Tests for plate selector functionality."""
 
-    def test_plate_selector_exists_when_configured(
+    def test_plate_selector_initial_state(
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
-        """Plate selector created when has_plate_selector is True."""
+        """Plate selector exists but is disabled until plates are set."""
         section = DCCSection(threede_config)
         qtbot.addWidget(section)
 
         assert section._plate_selector is not None
-
-    def test_plate_selector_disabled_initially(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """Plate selector disabled until plates are set."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-
         assert not section._plate_selector.isEnabled()
 
-    def test_set_available_plates(
+    def test_set_available_plates_and_get_selected(
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
-        """Can set available plates."""
+        """Setting plates enables selector and allows reading selection; get_options includes plate."""
         section = DCCSection(threede_config)
         qtbot.addWidget(section)
 
@@ -248,27 +258,8 @@ class TestDCCSectionPlateSelector:
         assert section._plate_selector.isEnabled()
         assert section._plate_selector.count() == 2
 
-    def test_get_selected_plate(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """Can get currently selected plate."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-
-        section.set_available_plates(["FG01", "BG01"])
         section._plate_selector.setCurrentIndex(0)
-
         assert section.get_selected_plate() == "FG01"
-
-    def test_get_options_includes_plate(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """get_options includes selected plate."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-
-        section.set_available_plates(["FG01"])
-        section._plate_selector.setCurrentIndex(0)
 
         options = section.get_options()
         assert options["selected_plate"] == "FG01"
@@ -291,50 +282,38 @@ class TestDCCSectionPlateSelector:
 class TestDCCSectionVersionInfo:
     """Tests for version info display."""
 
+    @pytest.mark.parametrize(
+        ("version", "age", "expect_visible", "expect_texts"),
+        [
+            pytest.param("v005", "21m ago", True, ["v005", "21m"], id="with_age"),
+            pytest.param("v005", None, True, ["v005"], id="without_age"),
+            pytest.param(None, None, False, [], id="none_hidden"),
+        ],
+    )
     def test_set_version_info(
-        self, qtbot: QtBot, threede_config: DCCConfig
+        self,
+        qtbot: QtBot,
+        threede_config: DCCConfig,
+        version: str | None,
+        age: str | None,
+        expect_visible: bool,
+        expect_texts: list[str],
     ) -> None:
-        """Can set version info."""
+        """Version label visibility and content matches arguments."""
         section = DCCSection(threede_config)
         qtbot.addWidget(section)
         section.show()
         process_qt_events()
 
-        section.set_version_info("v005", "21m ago")
+        if age is not None:
+            section.set_version_info(version, age)
+        else:
+            section.set_version_info(version)
         process_qt_events()
 
-        assert section._version_label.isVisible()
-        assert "v005" in section._version_label.text()
-        assert "21m" in section._version_label.text()
-
-    def test_version_info_hidden_when_none(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """Version label hidden when version is None."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-        section.show()
-        process_qt_events()
-
-        section.set_version_info(None)
-        process_qt_events()
-
-        assert not section._version_label.isVisible()
-
-    def test_version_info_without_age(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
-        """Can set version without age."""
-        section = DCCSection(threede_config)
-        qtbot.addWidget(section)
-        section.show()
-        process_qt_events()
-
-        section.set_version_info("v005")
-        process_qt_events()
-
-        assert section._version_label.isVisible()
-        assert "v005" in section._version_label.text()
+        assert section._version_label.isVisible() == expect_visible
+        for text in expect_texts:
+            assert text in section._version_label.text()
 
 
 class TestDCCSectionEnableDisable:
@@ -379,20 +358,6 @@ class TestDCCSectionEmbeddedFiles:
     """Tests for embedded files sub-section functionality."""
 
     @pytest.fixture
-    def config_with_files(self) -> DCCConfig:
-        """Create config with embedded files section enabled."""
-        from dcc.scene_file import FileType
-
-        return DCCConfig(
-            name="test_dcc",
-            display_name="Test DCC",
-            color="#333333",
-            shortcut="T",
-            has_files_section=True,
-            file_type=FileType.THREEDE,
-        )
-
-    @pytest.fixture
     def config_without_files(self) -> DCCConfig:
         """Create config with embedded files section disabled."""
         return DCCConfig(
@@ -403,32 +368,6 @@ class TestDCCSectionEmbeddedFiles:
             has_files_section=False,
             file_type=None,
         )
-
-    @pytest.fixture
-    def sample_scene_files(self) -> list:
-        """Create sample scene files for testing."""
-        from datetime import datetime
-        from pathlib import Path
-
-        from dcc.scene_file import FileType, SceneFile
-
-        now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
-        return [
-            SceneFile(
-                path=Path("/path/to/scene_v005.3de"),
-                file_type=FileType.THREEDE,
-                modified_time=now,
-                user="artist1",
-                version=5,
-            ),
-            SceneFile(
-                path=Path("/path/to/scene_v003.3de"),
-                file_type=FileType.THREEDE,
-                modified_time=now,
-                user="artist2",
-                version=3,
-            ),
-        ]
 
     def test_files_section_created_when_configured(
         self, qtbot: QtBot, config_with_files: DCCConfig
@@ -538,50 +477,10 @@ class TestDCCSectionEmbeddedFiles:
 class TestDCCSectionFileDoubleClick:
     """Tests for double-click file opening functionality."""
 
-    @pytest.fixture
-    def config_with_files(self) -> DCCConfig:
-        """Create config with embedded files section enabled."""
-        from dcc.scene_file import FileType
-
-        return DCCConfig(
-            name="test_dcc",
-            display_name="Test DCC",
-            color="#333333",
-            shortcut="T",
-            has_files_section=True,
-            file_type=FileType.THREEDE,
-        )
-
-    @pytest.fixture
-    def sample_scene_files(self) -> list:
-        """Create sample scene files for testing."""
-        from datetime import datetime
-        from pathlib import Path
-
-        from dcc.scene_file import FileType, SceneFile
-
-        now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
-        return [
-            SceneFile(
-                path=Path("/path/to/scene_v005.3de"),
-                file_type=FileType.THREEDE,
-                modified_time=now,
-                user="artist1",
-                version=5,
-            ),
-            SceneFile(
-                path=Path("/path/to/scene_v003.3de"),
-                file_type=FileType.THREEDE,
-                modified_time=now,
-                user="artist2",
-                version=3,
-            ),
-        ]
-
-    def test_double_click_emits_launch_requested(
+    def test_double_click_all_outcomes(
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
-        """Double-clicking a file emits launch_requested signal."""
+        """Double-clicking a file emits launch_requested, emits file_selected, and updates selected file."""
         section = DCCSection(config_with_files)
         qtbot.addWidget(section)
         section.set_enabled(True)
@@ -592,7 +491,7 @@ class TestDCCSectionFileDoubleClick:
         section.set_files(sample_scene_files)
         process_qt_events()
 
-        # Double-click the first row
+        # Double-click the first row — verify launch_requested emitted with correct app name
         with qtbot.waitSignal(section.launch_requested, timeout=1000) as blocker:
             index = section._dcc_file_table.file_model.index(0, 0)
             section._dcc_file_table.file_table.doubleClicked.emit(index)
@@ -601,21 +500,7 @@ class TestDCCSectionFileDoubleClick:
         app_name, _options = blocker.args
         assert app_name == "test_dcc"
 
-    def test_double_click_emits_file_selected(
-        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
-    ) -> None:
-        """Double-clicking a file also emits file_selected signal."""
-        section = DCCSection(config_with_files)
-        qtbot.addWidget(section)
-        section.set_enabled(True)
-        section.set_expanded(True)
-        section.show()
-        process_qt_events()
-
-        section.set_files(sample_scene_files)
-        process_qt_events()
-
-        # Double-click the second row
+        # Double-click the second row — verify file_selected emitted with correct file
         with qtbot.waitSignal(section.file_selected, timeout=1000) as blocker:
             index = section._dcc_file_table.file_model.index(1, 0)
             section._dcc_file_table.file_table.doubleClicked.emit(index)
@@ -624,28 +509,9 @@ class TestDCCSectionFileDoubleClick:
         selected_file = blocker.args[0]
         assert selected_file.version == 3
 
-    def test_double_click_updates_selected_file(
-        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
-    ) -> None:
-        """Double-clicking updates the selected file."""
-        section = DCCSection(config_with_files)
-        qtbot.addWidget(section)
-        section.set_enabled(True)
-        section.set_expanded(True)
-        section.show()
-        process_qt_events()
-
-        section.set_files(sample_scene_files)
-        process_qt_events()
-
-        # Double-click the second row (v003)
-        index = section._dcc_file_table.file_model.index(1, 0)
-        section._dcc_file_table.file_table.doubleClicked.emit(index)
-        process_qt_events()
-
-        selected = section.get_selected_file()
-        assert selected is not None
-        assert selected.version == 3
+        # Verify selected file state was updated
+        assert section.get_selected_file() is not None
+        assert section.get_selected_file().version == 3
 
     def test_double_click_invalid_index_does_nothing(
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
@@ -678,39 +544,6 @@ class TestDCCSectionFileDoubleClick:
 class TestDCCSectionFileContextMenu:
     """Tests for file context menu functionality."""
 
-    @pytest.fixture
-    def config_with_files(self) -> DCCConfig:
-        """Create config with embedded files section enabled."""
-        from dcc.scene_file import FileType
-
-        return DCCConfig(
-            name="test_dcc",
-            display_name="Test DCC",
-            color="#333333",
-            shortcut="T",
-            has_files_section=True,
-            file_type=FileType.THREEDE,
-        )
-
-    @pytest.fixture
-    def sample_scene_files(self) -> list:
-        """Create sample scene files for testing."""
-        from datetime import datetime
-        from pathlib import Path
-
-        from dcc.scene_file import FileType, SceneFile
-
-        now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
-        return [
-            SceneFile(
-                path=Path("/path/to/scene_v005.3de"),
-                file_type=FileType.THREEDE,
-                modified_time=now,
-                user="artist1",
-                version=5,
-            ),
-        ]
-
     def test_context_menu_policy_set(
         self, qtbot: QtBot, config_with_files: DCCConfig
     ) -> None:
@@ -720,10 +553,10 @@ class TestDCCSectionFileContextMenu:
 
         assert section._dcc_file_table.file_table.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
 
-    def test_launch_file_emits_launch_requested(
+    def test_launch_file_emits_and_updates_selection(
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
-        """Launching file emits launch_requested signal."""
+        """Launching a file emits launch_requested and updates selection state."""
         section = DCCSection(config_with_files)
         qtbot.addWidget(section)
         section.set_enabled(True)
@@ -741,23 +574,6 @@ class TestDCCSectionFileContextMenu:
 
         app_name, _options = blocker.args
         assert app_name == "test_dcc"
-
-    def test_launch_file_updates_selection(
-        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
-    ) -> None:
-        """Launching file updates selection state."""
-        section = DCCSection(config_with_files)
-        qtbot.addWidget(section)
-        section.set_enabled(True)
-        section.show()
-        process_qt_events()
-
-        section.set_files(sample_scene_files)
-        process_qt_events()
-
-        file = sample_scene_files[0]
-        section._dcc_file_table.launch_file(file)
-        process_qt_events()
 
         selected = section.get_selected_file()
         assert selected == file
@@ -789,27 +605,8 @@ class TestDCCSectionFileCopyPath:
     """Tests for copy file path functionality."""
 
     @pytest.fixture
-    def config_with_files(self) -> DCCConfig:
-        """Create config with embedded files section enabled."""
-        from dcc.scene_file import FileType
-
-        return DCCConfig(
-            name="test_dcc",
-            display_name="Test DCC",
-            color="#333333",
-            shortcut="T",
-            has_files_section=True,
-            file_type=FileType.THREEDE,
-        )
-
-    @pytest.fixture
     def sample_scene_file(self):
         """Create a sample scene file for testing."""
-        from datetime import datetime
-        from pathlib import Path
-
-        from dcc.scene_file import FileType, SceneFile
-
         now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
         return SceneFile(
             path=Path("/path/to/scene_v005.3de"),

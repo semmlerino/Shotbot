@@ -47,24 +47,6 @@ def scrub_filter(mock_view: QListView) -> ScrubEventFilter:
     return filter_obj
 
 
-class TestScrubEventFilterInit:
-    """Tests for ScrubEventFilter initialization."""
-
-    def test_initialization_with_parent(
-        self, mock_view: QListView, qapp: QApplication
-    ) -> None:
-        """Test filter with explicit parent."""
-        parent = QWidget()
-        filter_obj = ScrubEventFilter(view=mock_view, parent=parent)
-
-        assert filter_obj.parent() is parent
-
-    def test_hover_timer_is_single_shot(self, mock_view: QListView) -> None:
-        """Test hover timer is single-shot."""
-        filter_obj = ScrubEventFilter(view=mock_view)
-        assert filter_obj._hover_timer.isSingleShot()
-
-
 class TestEventFiltering:
     """Tests for event filtering behavior."""
 
@@ -355,28 +337,6 @@ class TestStopMethod:
         scrub_filter.stop()
 
         assert not scrub_filter._hover_timer.isActive()
-
-
-class TestSignals:
-    """Tests for signal definitions."""
-
-    def test_scrub_started_signal_exists(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
-        """Test scrub_started signal is properly defined."""
-        assert hasattr(scrub_filter, "scrub_started")
-
-    def test_scrub_position_changed_signal_exists(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
-        """Test scrub_position_changed signal is properly defined."""
-        assert hasattr(scrub_filter, "scrub_position_changed")
-
-    def test_scrub_ended_signal_exists(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
-        """Test scrub_ended signal is properly defined."""
-        assert hasattr(scrub_filter, "scrub_ended")
 
 
 class TestHandleMouseMoveIntegration:

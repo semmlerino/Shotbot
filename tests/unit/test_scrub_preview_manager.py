@@ -95,16 +95,29 @@ class TestScrubState:
         assert state.current_pixmap is pixmap
 
 
+class TestInvalidIndexReturnsNone:
+    """Tests that all query methods return None/False for invalid index."""
+
+    @pytest.mark.parametrize(
+        ("method_name", "expected"),
+        [
+            pytest.param("get_scrub_state", None, id="get_scrub_state"),
+            pytest.param("is_scrubbing", False, id="is_scrubbing"),
+            pytest.param("get_current_frame", None, id="get_current_frame"),
+            pytest.param("get_current_pixmap", None, id="get_current_pixmap"),
+        ],
+    )
+    def test_returns_none_for_invalid_index(
+        self, qapp: QApplication, method_name: str, expected: object
+    ) -> None:
+        """Test each query method returns None/False for an invalid QModelIndex."""
+        manager = ScrubPreviewManager()
+        result = getattr(manager, method_name)(QModelIndex())
+        assert result == expected
+
+
 class TestGetScrubState:
     """Tests for get_scrub_state method."""
-
-    def test_get_scrub_state_returns_none_for_invalid_index(
-        self, qapp: QApplication
-    ) -> None:
-        """Test get_scrub_state returns None for invalid index."""
-        manager = ScrubPreviewManager()
-        result = manager.get_scrub_state(QModelIndex())
-        assert result is None
 
     def test_get_scrub_state_returns_none_for_unknown_row(
         self, qapp: QApplication
@@ -145,20 +158,20 @@ class TestGetScrubState:
         assert result is state
 
 
-class TestIsScrubbing:
-    """Tests for is_scrubbing method."""
+class TestInactiveStateReturnsDefault:
+    """Tests that query methods return inactive values when state is not active."""
 
-    def test_is_scrubbing_false_for_invalid_index(
-        self, qapp: QApplication
+    @pytest.mark.parametrize(
+        ("method_name", "expected"),
+        [
+            pytest.param("is_scrubbing", False, id="is_scrubbing_when_not_active"),
+            pytest.param("get_current_frame", None, id="get_current_frame_when_not_active"),
+        ],
+    )
+    def test_returns_default_when_not_active(
+        self, qapp: QApplication, method_name: str, expected: object
     ) -> None:
-        """Test is_scrubbing returns False for invalid index."""
-        manager = ScrubPreviewManager()
-        assert not manager.is_scrubbing(QModelIndex())
-
-    def test_is_scrubbing_false_when_not_active(
-        self, qapp: QApplication
-    ) -> None:
-        """Test is_scrubbing returns False when state not active."""
+        """Test each method returns its default when state is present but not active."""
         manager = ScrubPreviewManager()
 
         state = ScrubState(
@@ -166,6 +179,7 @@ class TestIsScrubbing:
             workspace_path="/path",
             frame_start=1001,
             frame_end=1100,
+            current_frame=1050,
             is_active=False,
         )
         manager._scrub_states[5] = state
@@ -174,7 +188,11 @@ class TestIsScrubbing:
         index.isValid.return_value = True
         index.row.return_value = 5
 
-        assert not manager.is_scrubbing(index)
+        assert getattr(manager, method_name)(index) == expected
+
+
+class TestIsScrubbing:
+    """Tests for is_scrubbing method."""
 
     def test_is_scrubbing_true_when_active(
         self, qapp: QApplication
@@ -201,35 +219,6 @@ class TestIsScrubbing:
 class TestGetCurrentFrame:
     """Tests for get_current_frame method."""
 
-    def test_get_current_frame_returns_none_for_invalid_index(
-        self, qapp: QApplication
-    ) -> None:
-        """Test get_current_frame returns None for invalid index."""
-        manager = ScrubPreviewManager()
-        assert manager.get_current_frame(QModelIndex()) is None
-
-    def test_get_current_frame_returns_none_when_not_active(
-        self, qapp: QApplication
-    ) -> None:
-        """Test get_current_frame returns None when not active."""
-        manager = ScrubPreviewManager()
-
-        state = ScrubState(
-            shot_key="test/shot",
-            workspace_path="/path",
-            frame_start=1001,
-            frame_end=1100,
-            current_frame=1050,
-            is_active=False,
-        )
-        manager._scrub_states[5] = state
-
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
-
-        assert manager.get_current_frame(index) is None
-
     def test_get_current_frame_returns_frame_when_active(
         self, qapp: QApplication
     ) -> None:
@@ -255,13 +244,6 @@ class TestGetCurrentFrame:
 
 class TestGetCurrentPixmap:
     """Tests for get_current_pixmap method."""
-
-    def test_get_current_pixmap_returns_none_for_invalid_index(
-        self, qapp: QApplication
-    ) -> None:
-        """Test get_current_pixmap returns None for invalid index."""
-        manager = ScrubPreviewManager()
-        assert manager.get_current_pixmap(QModelIndex()) is None
 
     def test_get_current_pixmap_returns_pixmap_when_active(
         self, qapp: QApplication
@@ -302,7 +284,7 @@ class TestEndScrub:
     def test_end_scrub_clears_state(
         self, qapp: QApplication
     ) -> None:
-        """Test end_scrub clears scrub state."""
+        """Test end_scrub clears scrub state and emits scrub_ended and request_repaint."""
         manager = ScrubPreviewManager()
 
         state = ScrubState(
@@ -314,6 +296,11 @@ class TestEndScrub:
         )
         manager._scrub_states[5] = state
         manager._key_to_row["test/shot"] = 5
+
+        ended_signals: list[QModelIndex] = []
+        repaint_signals: list[QModelIndex] = []
+        manager.scrub_ended.connect(ended_signals.append)
+        manager.request_repaint.connect(repaint_signals.append)
 
         index = MagicMock(spec=QModelIndex)
         index.isValid.return_value = True
@@ -327,35 +314,6 @@ class TestEndScrub:
         assert 5 not in manager._scrub_states
         assert "test/shot" not in manager._key_to_row
         assert manager._active_index is None
-
-    def test_end_scrub_emits_signals(
-        self, qapp: QApplication
-    ) -> None:
-        """Test end_scrub emits scrub_ended and request_repaint."""
-        manager = ScrubPreviewManager()
-
-        state = ScrubState(
-            shot_key="test/shot",
-            workspace_path="/path",
-            frame_start=1001,
-            frame_end=1100,
-            is_active=True,
-        )
-        manager._scrub_states[5] = state
-
-        ended_signals: list[QModelIndex] = []
-        repaint_signals: list[QModelIndex] = []
-
-        manager.scrub_ended.connect(ended_signals.append)
-        manager.request_repaint.connect(repaint_signals.append)
-
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
-
-        manager.end_scrub(index)
-        process_qt_events()
-
         assert len(ended_signals) == 1
         assert len(repaint_signals) == 1
 
@@ -433,10 +391,17 @@ class TestOnFrameReady:
 
         assert state.current_pixmap is not None
 
-    def test_on_frame_ready_ignores_different_frame(
-        self, qapp: QApplication
+    @pytest.mark.parametrize(
+        ("shot_key", "frame", "desc"),
+        [
+            pytest.param("test/shot", 1055, "different_frame"),
+            pytest.param("unknown/shot", 1050, "unknown_shot"),
+        ],
+    )
+    def test_on_frame_ready_ignores_non_current(
+        self, qapp: QApplication, shot_key: str, frame: int, desc: str
     ) -> None:
-        """Test _on_frame_ready ignores frames that aren't current."""
+        """Test _on_frame_ready ignores frames that aren't current or shots unknown."""
         manager = ScrubPreviewManager()
 
         state = ScrubState(
@@ -444,27 +409,16 @@ class TestOnFrameReady:
             workspace_path="/path",
             frame_start=1001,
             frame_end=1100,
-            current_frame=1050,  # Current frame is 1050
+            current_frame=1050,
             is_active=True,
         )
         manager._scrub_states[5] = state
         manager._key_to_row["test/shot"] = 5
 
-        # Call handler with different frame
         image = QImage(100, 100, QImage.Format.Format_ARGB32)
-        manager._on_frame_ready("test/shot", 1055, image)  # Not current
+        manager._on_frame_ready(shot_key, frame, image)  # Should not raise or update
 
         assert state.current_pixmap is None
-
-    def test_on_frame_ready_ignores_unknown_shot(
-        self, qapp: QApplication
-    ) -> None:
-        """Test _on_frame_ready ignores unknown shots."""
-        manager = ScrubPreviewManager()
-
-        # Should not raise
-        image = QImage(100, 100, QImage.Format.Format_ARGB32)
-        manager._on_frame_ready("unknown/shot", 1050, image)
 
 
 class TestOnFrameFailed:
@@ -483,107 +437,94 @@ class TestOnFrameFailed:
 class TestShotDataExtraction:
     """Tests for shot data extraction methods."""
 
-    def test_get_shot_key_with_shot_object(
-        self, qapp: QApplication
+    @pytest.mark.parametrize(
+        ("show", "sequence", "shot_name", "expected_key"),
+        [
+            pytest.param("myshow", "sq010", "sh0010", "myshow/sq010/sh0010", id="shot_object"),
+            pytest.param("show", "seq", "shot", "show/seq/shot", id="fallback_naming"),
+        ],
+    )
+    def test_get_shot_key(
+        self,
+        qapp: QApplication,
+        show: str,
+        sequence: str,
+        shot_name: str,
+        expected_key: str,
     ) -> None:
         """Test _get_shot_key extracts key from Shot-like object."""
         manager = ScrubPreviewManager()
 
-        # Mock a Shot-like object
         shot = MagicMock()
-        shot.show = "myshow"
-        shot.sequence = "sq010"
-        shot.shot = "sh0010"
+        shot.show = show
+        shot.sequence = sequence
+        shot.shot = shot_name
 
         key = manager._get_shot_key(shot)
-        assert key == "myshow/sq010/sh0010"
+        assert key == expected_key
 
-    def test_get_shot_key_fallback(
-        self, qapp: QApplication
+    @pytest.mark.parametrize(
+        ("workspace_path", "expected"),
+        [
+            pytest.param("/shows/myshow/shots/sq010/sh0010", "/shows/myshow/shots/sq010/sh0010", id="with_path"),
+            pytest.param("", "", id="empty_path"),
+        ],
+    )
+    def test_get_workspace_path(
+        self, qapp: QApplication, workspace_path: str, expected: str
     ) -> None:
-        """Test _get_shot_key works with protocol-conforming object."""
+        """Test _get_workspace_path extracts workspace_path from Shot-like object."""
         manager = ScrubPreviewManager()
 
         shot = MagicMock()
-        shot.show = "show"
-        shot.sequence = "seq"
-        shot.shot = "shot"
-        key = manager._get_shot_key(shot)
-        assert key == "show/seq/shot"
-
-    def test_get_workspace_path_with_shot_object(
-        self, qapp: QApplication
-    ) -> None:
-        """Test _get_workspace_path extracts path from Shot-like object."""
-        manager = ScrubPreviewManager()
-
-        shot = MagicMock()
-        shot.workspace_path = "/shows/myshow/shots/sq010/sh0010"
+        shot.workspace_path = workspace_path
 
         path = manager._get_workspace_path(shot)
-        assert path == "/shows/myshow/shots/sq010/sh0010"
+        assert path == expected
 
-    def test_get_workspace_path_returns_empty_for_missing(
-        self, qapp: QApplication
+    @pytest.mark.parametrize(
+        ("frame_start", "frame_end", "expected_start", "expected_end"),
+        [
+            pytest.param(1001, 1100, 1001, 1100, id="with_range"),
+            pytest.param(None, None, None, None, id="none_range"),
+        ],
+    )
+    def test_get_frame_range(
+        self,
+        qapp: QApplication,
+        frame_start: int | None,
+        frame_end: int | None,
+        expected_start: int | None,
+        expected_end: int | None,
     ) -> None:
-        """Test _get_workspace_path returns empty string if workspace_path is empty."""
+        """Test _get_frame_range extracts range or returns None if absent."""
         manager = ScrubPreviewManager()
 
         shot = MagicMock()
-        shot.workspace_path = ""
-        path = manager._get_workspace_path(shot)
-        assert path == ""
-
-    def test_get_frame_range_with_shot_object(
-        self, qapp: QApplication
-    ) -> None:
-        """Test _get_frame_range extracts range from Shot-like object."""
-        manager = ScrubPreviewManager()
-
-        shot = MagicMock()
-        shot.frame_start = 1001
-        shot.frame_end = 1100
+        shot.frame_start = frame_start
+        shot.frame_end = frame_end
 
         start, end = manager._get_frame_range(shot)
-        assert start == 1001
-        assert end == 1100
-
-    def test_get_frame_range_returns_none_for_missing(
-        self, qapp: QApplication
-    ) -> None:
-        """Test _get_frame_range returns None if frame_start/frame_end are None."""
-        manager = ScrubPreviewManager()
-
-        shot = MagicMock()
-        shot.frame_start = None
-        shot.frame_end = None
-        start, end = manager._get_frame_range(shot)
-        assert start is None
-        assert end is None
+        assert start == expected_start
+        assert end == expected_end
 
 
 class TestUpdateScrubPosition:
     """Tests for update_scrub_position method."""
 
-    def test_update_scrub_position_with_invalid_index(
+    def test_update_scrub_position_no_op_for_missing_state(
         self, qapp: QApplication
     ) -> None:
-        """Test update_scrub_position handles invalid index."""
+        """Test update_scrub_position handles invalid index or missing state gracefully."""
         manager = ScrubPreviewManager()
-        # Should not raise
+
+        # Invalid index should not raise
         manager.update_scrub_position(QModelIndex(), 0.5)
 
-    def test_update_scrub_position_with_no_state(
-        self, qapp: QApplication
-    ) -> None:
-        """Test update_scrub_position handles missing state."""
-        manager = ScrubPreviewManager()
-
+        # Valid index with no registered state should also not raise
         index = MagicMock(spec=QModelIndex)
         index.isValid.return_value = True
         index.row.return_value = 5
-
-        # Should not raise
         manager.update_scrub_position(index, 0.5)
 
     def test_update_scrub_position_updates_current_frame(

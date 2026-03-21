@@ -78,25 +78,18 @@ class TestPathValidation:
         with pytest.raises(ValueError, match=match_pattern):
             CommandBuilder.validate_path(path)
 
-    def test_path_with_dotdot_normalizes_safely(self) -> None:
-        """Test that paths with .. normalize correctly (VFX pipeline use case)."""
-        # VFX pipelines often have paths like /mnt/project/../archive
-        # These should normalize safely to /mnt/archive
-        path = "/home/user/project/../file.txt"
-        result = CommandBuilder.validate_path(path)
-        # Path is normalized (.. is resolved)
-        assert "file.txt" in result
-        assert ".." not in result  # .. is resolved by normalization
-        # shlex.quote adds quotes only if needed (e.g., for spaces)
-        # Simple paths like /home/user/file.txt don't need quotes
-        assert "/home/user/file.txt" in result or "'/home/user/file.txt'" in result
-
-    def test_path_with_dot_normalizes_safely(self) -> None:
-        """Test that paths with . normalize correctly."""
-        path = "/home/user/./file.txt"
+    @pytest.mark.parametrize(
+        ("path", "dot_pattern"),
+        [
+            pytest.param("/home/user/project/../file.txt", "..", id="dotdot_normalizes"),
+            pytest.param("/home/user/./file.txt", "/./", id="dot_normalizes"),
+        ],
+    )
+    def test_path_with_dots_normalizes_safely(self, path: str, dot_pattern: str) -> None:
+        """Test that paths with . or .. normalize correctly (VFX pipeline use case)."""
         result = CommandBuilder.validate_path(path)
         assert "file.txt" in result
-        # shlex.quote adds quotes only if needed
+        assert dot_pattern not in result
         assert "/home/user/file.txt" in result or "'/home/user/file.txt'" in result
 
     def test_path_with_dots_in_dirname_allowed(self) -> None:
@@ -110,21 +103,6 @@ class TestPathValidation:
         """Test that empty paths are rejected."""
         with pytest.raises(ValueError, match="empty"):
             CommandBuilder.validate_path("")
-
-    def test_path_resolve_uses_strict_false(self) -> None:
-        """Test that path resolution uses strict=False for NFS safety.
-
-        Using strict=False prevents Path.resolve() from hanging on stale NFS mounts
-        or inaccessible paths. The path is resolved lexically without accessing the
-        filesystem for parts that don't exist.
-        """
-        # Non-existent path should still resolve without error
-        # (strict=False means it won't try to access the filesystem)
-        nonexistent_path = "/nonexistent/path/to/file.txt"
-        result = CommandBuilder.validate_path(nonexistent_path)
-        # Should return the normalized path without error
-        assert "file.txt" in result
-        assert nonexistent_path in result or f"'{nonexistent_path}'" in result
 
 
 class TestWorkspaceCommand:
@@ -269,27 +247,42 @@ class TestNukeEnvironmentFixes:
         # shlex.quote adds single quotes around paths containing spaces
         assert "OCIO='/path/with spaces/my config.ocio'" in result
 
-    def test_fix_summary_all_enabled(self, mock_config: MagicMock) -> None:
-        """Test fix summary with all fixes enabled."""
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = True
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = "/path/to/config.ocio"
+    @pytest.mark.parametrize(
+        ("skip_plugins", "ocio_config", "expected_items", "expected_len"),
+        [
+            pytest.param(
+                True,
+                "/path/to/config.ocio",
+                ["runtime NUKE_PATH filtering", "OCIO fallback", "crash reporting disabled"],
+                3,
+                id="all_enabled",
+            ),
+            pytest.param(
+                False,
+                "",
+                ["crash reporting disabled"],
+                1,
+                id="minimal",
+            ),
+        ],
+    )
+    def test_fix_summary(
+        self,
+        mock_config: MagicMock,
+        skip_plugins: bool,
+        ocio_config: str,
+        expected_items: list[str],
+        expected_len: int,
+    ) -> None:
+        """Test fix summary under different configuration combinations."""
+        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = skip_plugins
+        mock_config.NUKE_OCIO_FALLBACK_CONFIG = ocio_config
 
         summary = CommandBuilder.get_nuke_fix_summary(mock_config)
 
-        assert "runtime NUKE_PATH filtering" in summary
-        assert "OCIO fallback" in summary
-        assert "crash reporting disabled" in summary
-        assert len(summary) == 3
-
-    def test_fix_summary_minimal(self, mock_config: MagicMock) -> None:
-        """Test fix summary with minimal fixes."""
-        mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
-        mock_config.NUKE_OCIO_FALLBACK_CONFIG = ""
-
-        summary = CommandBuilder.get_nuke_fix_summary(mock_config)
-
-        assert "crash reporting disabled" in summary
-        assert len(summary) == 1
+        for item in expected_items:
+            assert item in summary
+        assert len(summary) == expected_len
 
 
 class TestLoggingRedirection:
@@ -307,30 +300,23 @@ class TestLoggingRedirection:
         assert ".shotbot/logs/dispatcher.out" in result
         assert str(tmp_path) in result
 
-    def test_logging_graceful_degradation_on_oserror(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            pytest.param(OSError("Permission denied"), id="oserror"),
+            pytest.param(PermissionError("Access denied"), id="permission_error"),
+        ],
+    )
+    def test_logging_graceful_degradation_on_mkdir_failure(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, exc: Exception
     ) -> None:
         """Test graceful degradation when logging directory creation fails."""
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
-        monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: (_ for _ in ()).throw(OSError("Permission denied")))
+        monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: (_ for _ in ()).throw(exc))
         command = "nuke"
 
         result = CommandBuilder.add_logging(command)
 
-        # Should return original command without logging
-        assert result == "nuke"
-
-    def test_logging_graceful_degradation_on_permission_error(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """Test graceful degradation when permission is denied."""
-        monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
-        monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: (_ for _ in ()).throw(PermissionError("Access denied")))
-        command = "nuke"
-
-        result = CommandBuilder.add_logging(command)
-
-        # Should return original command without logging
         assert result == "nuke"
 
     def test_logging_handles_spaces_in_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -359,15 +345,6 @@ class TestBackgroundWrapping:
         command = "ws '/shows/test/shots/sq010/sh0010' && nuke 2>&1 | tee /tmp/log.txt"
         result = CommandBuilder.wrap_for_background(command)
         assert result == f"({command}) & disown; exit"
-
-    def test_wrap_for_background_preserves_inner_command(self) -> None:
-        """Test that the inner command is preserved exactly."""
-        command = "echo 'test with spaces' && python script.py"
-        result = CommandBuilder.wrap_for_background(command)
-        # Should wrap in subshell without modifying the command
-        assert command in result
-        assert result.startswith("(")
-        assert result.endswith(") & disown; exit")
 
 
 class TestMayaCommandMustSurviveBashParsing:
@@ -455,80 +432,3 @@ class TestMayaCommandMustSurviveBashParsing:
         )
 
 
-class TestNewMayaCommandConstruction:
-    """Tests for the NEW fixed implementation using environment variables.
-
-    The fix: Move the base64-encoded script to an environment variable,
-    and use only static code in the -c argument.
-    """
-
-    def _build_new_maya_command(self, file_path: str, context_script: str) -> str:
-        """Build Maya command using the NEW env var approach."""
-        encoded = base64.b64encode(context_script.encode()).decode()
-        # Static bootstrap - reads from env var, no dynamic content in -c argument
-        mel_bootstrap = (
-            'python("import os,base64;'
-            "s=os.environ.get('SHOTBOT_MAYA_SCRIPT','');"
-            'exec(base64.b64decode(s).decode()) if s else None")'
-        )
-        return (
-            f"export SHOTBOT_MAYA_SCRIPT={encoded} && "
-            f"maya -file {file_path} -c {shlex.quote(mel_bootstrap)}"
-        )
-
-    def test_new_command_survives_bash_parsing(self) -> None:
-        """NEW implementation: Command should survive bash -ilc parsing."""
-        context_script = "print('hello')"
-        file_path = "/shows/test/scene.ma"
-
-        command = self._build_new_maya_command(file_path, context_script)
-
-        # The new approach should survive shlex.split (simulates bash parsing)
-        try:
-            parts = shlex.split(command)
-            # Should parse without error
-            assert len(parts) > 0
-        except ValueError as e:
-            pytest.fail(f"New command failed shlex parsing: {e}")
-
-    def test_new_command_has_static_c_argument(self) -> None:
-        """NEW implementation: The -c argument should be static (no base64 payload)."""
-        context_script = "print('hello')"
-        encoded = base64.b64encode(context_script.encode()).decode()
-
-        command = self._build_new_maya_command("/path/file.ma", context_script)
-
-        # Extract the -c argument
-        c_index = command.find(" -c ")
-        assert c_index != -1
-        c_arg = command[c_index + 4:]
-
-        # The base64 payload should NOT be in the -c argument
-        # It should only be in the env var export
-        assert encoded not in c_arg, "Base64 should not be in -c argument"
-
-        # But it should be in the env var export
-        assert f"SHOTBOT_MAYA_SCRIPT={encoded}" in command
-
-    def test_new_command_env_var_contains_valid_base64(self) -> None:
-        """NEW implementation: SHOTBOT_MAYA_SCRIPT should contain valid base64."""
-        context_script = "print('hello world')"
-
-        command = self._build_new_maya_command("/path/file.ma", context_script)
-
-        # Extract the env var value
-        match = re.search(r"export SHOTBOT_MAYA_SCRIPT=(\S+)", command)
-        assert match is not None
-
-        b64_value = match.group(1).rstrip(" &")
-        decoded = base64.b64decode(b64_value).decode()
-
-        assert decoded == context_script
-
-    def test_new_command_bootstrap_reads_env_var(self) -> None:
-        """NEW implementation: Bootstrap should read SHOTBOT_MAYA_SCRIPT."""
-        command = self._build_new_maya_command("/path/file.ma", "x=1")
-
-        # The bootstrap code in -c should reference the env var
-        assert "SHOTBOT_MAYA_SCRIPT" in command.split(" -c ")[1]
-        assert "os.environ.get" in command

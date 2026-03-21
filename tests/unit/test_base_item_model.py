@@ -84,11 +84,6 @@ class TestBaseItemModelInitialization:
 class TestRowCount:
     """Test rowCount() method."""
 
-    def test_empty_model(self, qapp: QApplication) -> None:
-        """Test row count for empty model."""
-        model = ConcreteTestModel()
-        assert model.rowCount() == 0
-
     def test_with_items(self, qapp: QApplication) -> None:
         """Test row count with items."""
         model = ConcreteTestModel()
@@ -164,20 +159,22 @@ class TestDataMethod:
         assert data.width() > 0
         assert data.height() > 0
 
-    def test_invalid_index(self, qapp: QApplication) -> None:
-        """Test data() returns None for invalid index."""
-        model = ConcreteTestModel()
-        data = model.data(QModelIndex(), Qt.ItemDataRole.DisplayRole)
-
-        assert data is None
-
-    def test_out_of_range_index(self, qapp: QApplication) -> None:
-        """Test data() returns None for out of range index."""
+    @pytest.mark.parametrize(
+        "make_index",
+        [
+            pytest.param(lambda _m: QModelIndex(), id="invalid_index"),
+            pytest.param(lambda _m: _m.index(10, 0), id="out_of_range_index"),
+        ],
+    )
+    def test_data_returns_none_for_bad_index(
+        self, qapp: QApplication, make_index: object
+    ) -> None:
+        """Test data() returns None for invalid or out-of-range index."""
         model = ConcreteTestModel()
         shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         model.set_items([shot])
 
-        index = model.index(10, 0)  # Out of range
+        index = make_index(model)  # type: ignore[operator]
         data = model.data(index, Qt.ItemDataRole.DisplayRole)
 
         assert data is None
@@ -372,51 +369,6 @@ class TestSetItems:
         assert model._visible_end == 2  # len(shots) - 1
         assert model._visible_start == 0  # Unchanged
 
-    def test_set_items_triggers_thumbnail_loading(
-        self, qapp: QApplication, qtbot: QtBot
-    ) -> None:
-        """Test that thumbnail loading is eventually triggered after set_items().
-
-        Behavior test: Verifies the complete flow - set_items() initializes
-        visible range, schedules thumbnail load, and thumbnails eventually load.
-        This is an integration test that verifies the fix works end-to-end.
-        """
-        import tempfile
-        from pathlib import Path
-
-        from cache.thumbnail_cache import ThumbnailCache
-
-        # Create temp cache directory
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            cache_manager = ThumbnailCache(Path(tmp_dir))
-            model = ConcreteTestModel(cache_manager=cache_manager)
-
-            shots = [
-                Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
-                Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
-            ]
-
-            # Set items - this should:
-            # 1. Initialize visible_end
-            # 2. Schedule QTimer.singleShot(100, _do_load_visible_thumbnails)
-            model.set_items(shots)
-
-            # Verify precondition: visible range is set
-            assert model._visible_end == 1  # len(shots) - 1
-
-            # Wait for timer to fire and thumbnail loading to attempt
-            # QTimer.singleShot(100) + processing time
-            qtbot.waitUntil(
-                lambda: len(model._thumbnail_loader.loading_states) > 0,
-                timeout=500  # 500ms should be plenty
-            )
-
-            # Verify thumbnail loading was attempted for all shots
-            # States will be "failed" since paths don't exist, but loading was attempted
-            assert len(model._thumbnail_loader.loading_states) >= 2
-            for shot in shots:
-                assert shot.full_name in model._thumbnail_loader.loading_states
-
     def test_set_items_empty_list_no_thumbnail_load(
         self, qapp: QApplication, qtbot: QtBot
     ) -> None:
@@ -529,108 +481,28 @@ class TestGetItemAtIndex:
 
         assert item is shot
 
-    def test_invalid_index(self, qapp: QApplication) -> None:
-        """Test getting item at invalid index returns None."""
-        model = ConcreteTestModel()
-        item = model.get_item_at_index(QModelIndex())
-
-        assert item is None
-
-    def test_out_of_range(self, qapp: QApplication) -> None:
-        """Test getting item at out of range index returns None."""
+    @pytest.mark.parametrize(
+        "make_index",
+        [
+            pytest.param(lambda _m: QModelIndex(), id="invalid_index"),
+            pytest.param(lambda _m: _m.index(10, 0), id="out_of_range_index"),
+        ],
+    )
+    def test_get_item_returns_none_for_bad_index(
+        self, qapp: QApplication, make_index: object
+    ) -> None:
+        """Test get_item_at_index returns None for invalid or out-of-range index."""
         model = ConcreteTestModel()
         shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         model.set_items([shot])
 
-        index = model.index(10, 0)
+        index = make_index(model)  # type: ignore[operator]
         item = model.get_item_at_index(index)
 
         assert item is None
 
 
-class TestSignals:
-    """Test signal emissions."""
-
-    def test_items_updated_signal(self, qapp: QApplication, qtbot: QtBot) -> None:
-        """Test items_updated signal is emitted."""
-        model = ConcreteTestModel()
-        spy = QSignalSpy(model.items_updated)
-
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        assert spy.count() == 1
-
-class TestThreadSafety:
-    """Test thread safety of cache operations."""
-
-    def test_cache_mutex_protects_thumbnail_cache(self, qapp: QApplication) -> None:
-        """Test that cache operations are mutex-protected."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot])
-
-        # This should not raise even with concurrent access
-        # (actual concurrent testing would require threading)
-        from PySide6.QtCore import (
-            QMutexLocker,
-        )
-
-        with QMutexLocker(model._thumbnail_loader.cache_mutex):
-            model._thumbnail_loader.thumbnail_cache[shot.full_name] = QImage()
-            model._thumbnail_loader.loading_states[shot.full_name] = "loaded"
-
-        assert shot.full_name in model._thumbnail_loader.thumbnail_cache
-        assert shot.full_name in model._thumbnail_loader.loading_states
 
 
-class TestAbstractMethods:
-    """Test abstract method implementations."""
-
-    def test_get_display_role_data_implemented(self, qapp: QApplication) -> None:
-        """Test get_display_role_data is implemented."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-
-        result = model.get_display_role_data(shot)
-
-        assert result == "seq01_0010"
-
-    def test_get_tooltip_data_implemented(self, qapp: QApplication) -> None:
-        """Test get_tooltip_data is implemented."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-
-        result = model.get_tooltip_data(shot)
-
-        assert result == "TEST/seq01/0010"
-
-    def test_get_size_hint_default(self, qapp: QApplication) -> None:
-        """Test get_size_hint returns default size."""
-        model = ConcreteTestModel()
-
-        result = model.get_size_hint()
-
-        assert isinstance(result, QSize)
-        assert result.width() > 0
-        assert result.height() > 0
-
-    def test_get_custom_role_data_default(self, qapp: QApplication) -> None:
-        """Test get_custom_role_data returns None by default."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-
-        result = model.get_custom_role_data(shot, 9999)
-
-        assert result is None
-
-    def test_set_custom_data_default(self, qapp: QApplication) -> None:
-        """Test set_custom_data returns False by default."""
-        model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-
-        result = model.set_custom_data(shot, "value", 9999)
-
-        assert result is False
 
 

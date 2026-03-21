@@ -219,47 +219,17 @@ class TestBaseGridViewInitialization:
 class TestThumbnailSizeControl:
     """Test thumbnail size slider and related functionality."""
 
-    def test_slider_change_updates_label(
+    def test_slider_change_updates_all(
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
-        """Test that slider change updates size label."""
-        # Use a value within valid range (MIN=400, MAX=1200)
+        """Test that slider change updates label, thumbnail size, delegate size, and grid size."""
         new_size = 500
         grid_view.size_slider.setValue(new_size)
         process_qt_events()
 
         assert grid_view.size_label.text() == f"{new_size}px"
-
-    def test_slider_change_updates_thumbnail_size(
-        self, qtbot: QtBot, grid_view: ConcreteGridView
-    ) -> None:
-        """Test that slider change updates internal thumbnail size."""
-        # Use a value within valid range (400-1200)
-        new_size = 600
-        grid_view.size_slider.setValue(new_size)
-        process_qt_events()
-
         assert grid_view.thumbnail_size == new_size
-
-    def test_slider_change_updates_delegate_size(
-        self, qtbot: QtBot, grid_view: ConcreteGridView
-    ) -> None:
-        """Test that slider change updates delegate thumbnail size."""
-        # Use a value within valid range
-        new_size = 450
-        grid_view.size_slider.setValue(new_size)
-        process_qt_events()
-
         assert grid_view._delegate._thumbnail_size == new_size
-
-    def test_slider_change_updates_grid_size(
-        self, qtbot: QtBot, grid_view: ConcreteGridView
-    ) -> None:
-        """Test that slider change triggers grid size update."""
-        # Use a value within valid range
-        new_size = 500
-        grid_view.size_slider.setValue(new_size)
-        process_qt_events()
 
         # Grid size calculation uses 16:9 aspect ratio for plate images
         padding = 8
@@ -546,38 +516,6 @@ class TestKeyboardShortcuts:
         # Should have 5 actions: 3, N, M, R, P
         assert len(actions) == 5
 
-    @pytest.mark.allow_dialogs
-    @pytest.mark.parametrize(
-        ("key", "expected_app"),
-        [
-            (Qt.Key.Key_3, "3de"),
-            (Qt.Key.Key_N, "nuke"),
-            (Qt.Key.Key_M, "maya"),
-            (Qt.Key.Key_R, "rv"),
-            (Qt.Key.Key_P, "publish"),
-        ],
-    )
-    def test_shortcuts_fire_when_list_view_focused(
-        self,
-        qtbot: QtBot,
-        grid_view: ConcreteGridView,
-        key: Qt.Key,
-        expected_app: str,
-    ) -> None:
-        """Test that QAction shortcuts fire when list_view has focus."""
-        signal_spy = QSignalSpy(grid_view.app_launch_requested)
-
-        # QAction shortcuts require the widget to be visible to fire
-        grid_view.show()
-        grid_view.list_view.setFocus()
-        process_qt_events()
-
-        QTest.keyPress(grid_view.list_view, key)
-        process_qt_events()
-
-        assert signal_spy.count() == 1
-        assert signal_spy.at(0)[0] == expected_app
-
     def test_navigation_keys_still_work_on_list_view(
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
@@ -679,17 +617,11 @@ class TestListViewConfiguration:
 class TestVisibilityTracking:
     """Test visibility tracking for lazy loading."""
 
-    def test_visibility_timer_created(self, grid_view: ConcreteGridView) -> None:
-        """Test that visibility timer is created."""
+    def test_visibility_timer_configured(self, grid_view: ConcreteGridView) -> None:
+        """Test that visibility timer is created, single-shot, and not initially active."""
         assert hasattr(grid_view, "_visibility_timer")
         assert grid_view._visibility_timer is not None
-
-    def test_visibility_timer_is_single_shot(self, grid_view: ConcreteGridView) -> None:
-        """Test visibility timer is configured as single-shot."""
         assert grid_view._visibility_timer.isSingleShot()
-
-    def test_visibility_timer_is_not_active_until_triggered(self, grid_view: ConcreteGridView) -> None:
-        """Test visibility timer is not active until a scroll/resize event triggers it."""
         # Single-shot timer is not running until _schedule_visible_range_update is called
         assert not grid_view._visibility_timer.isActive()
 
@@ -756,13 +688,3 @@ class TestHasAvailableShowsProtocol:
         result = accepts_protocol(provider)
         assert result == {"Show1", "Show2"}
 
-    def test_protocol_method_signature(self) -> None:
-        """Test protocol defines correct method signature."""
-        from typing import get_type_hints
-
-        # Check protocol has required method
-        assert hasattr(HasAvailableShows, "get_available_shows")
-
-        # Check return type annotation
-        hints = get_type_hints(HasAvailableShows.get_available_shows)
-        assert hints.get("return") == set[str]

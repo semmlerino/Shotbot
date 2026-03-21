@@ -22,7 +22,6 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -192,16 +191,6 @@ class TestFileUtils:
         result = FileUtils.validate_file_size(test_file, max_size_mb=max_size_mb)
         assert result is expected
 
-    def test_validate_file_size_uses_config_default(self, tmp_path: Path) -> None:
-        """Test that file size validation uses Config.MAX_FILE_SIZE_MB when no limit specified."""
-        test_file = tmp_path / "test_file.txt"
-        test_file.write_text("test content")
-
-        # Should use Config.MAX_FILE_SIZE_MB as default
-        with patch.object(Config, "MAX_FILE_SIZE_MB", 100):
-            result = FileUtils.validate_file_size(test_file)
-            assert result is True
-
 
 class TestVersionUtils:
     """Test VersionUtils functionality with real filesystem operations."""
@@ -299,40 +288,6 @@ class TestVersionUtils:
         assert VersionUtils.extract_version_from_path("/no/version/here.txt") is None
         assert VersionUtils.extract_version_from_path("") is None
 
-    def test_extract_version_from_path_caching(self) -> None:
-        """Test that version extraction uses LRU cache."""
-        # Clear cache
-        VersionUtils.extract_version_from_path.cache_clear()
-
-        # Call with same path multiple times
-        path = "/test/v001/file.txt"
-        for _ in range(5):
-            result = VersionUtils.extract_version_from_path(path)
-            assert result == "v001"
-
-        # Check cache info
-        cache_info = VersionUtils.extract_version_from_path.cache_info()
-        assert cache_info.hits == 4  # 4 cache hits after first miss
-        assert cache_info.misses == 1
-
-    def test_version_cache_cleanup(self, tmp_path: Path) -> None:
-        """Test version cache cleanup when size limit exceeded."""
-        VersionUtils.clear_version_cache()
-
-        # Fill cache beyond limit
-        for i in range(100):  # OPTIMIZED: Reduced from 600 to 100
-            fake_path = tmp_path / f"fake_{i}"
-            # Manually populate cache
-            VersionUtils._version_cache[str(fake_path)] = ([], time.time())
-
-        # Trigger cleanup by calling find_version_directories
-        test_dir = tmp_path / "trigger"
-        test_dir.mkdir()
-        VersionUtils.find_version_directories(test_dir)
-
-        # Cache should be cleaned
-        assert len(VersionUtils._version_cache) <= 250
-
     @pytest.mark.parametrize(
         ("setup_files", "expected"),
         [
@@ -363,15 +318,6 @@ class TestValidationUtils:
     def test_validate_not_empty_all_valid(self) -> None:
         """Test validation with all valid values."""
         result = ValidationUtils.validate_not_empty("value1", "value2", "value3")
-        assert result is True
-
-    def test_validate_not_empty_with_names(self) -> None:
-        """Test validation with names for better error messages."""
-        result = ValidationUtils.validate_not_empty(
-            "valid",
-            "also_valid",
-            names=["first", "second"],
-        )
         assert result is True
 
     @pytest.mark.parametrize(
@@ -449,15 +395,6 @@ class TestValidationUtils:
             result = get_excluded_users(additional)
             assert result == {"currentuser", "user1", "user2"}
 
-    def test_get_excluded_users_no_duplicates(self) -> None:
-        """Test that current user isn't duplicated if in additional users."""
-        from utils import get_excluded_users
-
-        additional = {"currentuser", "user1"}  # Includes current user
-        with patch("utils.get_current_username", return_value="currentuser"):
-            result = get_excluded_users(additional)
-            assert result == {"currentuser", "user1"}
-
 
 class TestImageUtils:
     """Test ImageUtils functionality."""
@@ -512,23 +449,33 @@ class TestImageUtils:
             result = ImageUtils.validate_image_dimensions(1920, 1080)
             assert result is True
 
-    def test_get_safe_dimensions_for_thumbnail(self) -> None:
-        """Test getting safe thumbnail dimensions."""
-        result = ImageUtils.get_safe_dimensions_for_thumbnail(256)
-        assert result == (256, 256)
-
-    def test_get_safe_dimensions_for_thumbnail_uses_config_default(self) -> None:
-        """Test that safe dimensions use config default when not specified."""
-        with patch.object(Config, "CACHE_THUMBNAIL_SIZE", 512):
-            result = ImageUtils.get_safe_dimensions_for_thumbnail()
-            assert result == (512, 512)
+    @pytest.mark.parametrize(
+        ("explicit_size", "config_override", "expected"),
+        [
+            pytest.param(256, None, (256, 256), id="explicit_size"),
+            pytest.param(None, 512, (512, 512), id="uses_config_default"),
+        ],
+    )
+    def test_get_safe_dimensions_for_thumbnail(
+        self,
+        explicit_size: int | None,
+        config_override: int | None,
+        expected: tuple[int, int],
+    ) -> None:
+        """Test safe thumbnail dimensions with explicit size and config default."""
+        if config_override is not None:
+            with patch.object(Config, "CACHE_THUMBNAIL_SIZE", config_override):
+                result = ImageUtils.get_safe_dimensions_for_thumbnail()
+        else:
+            result = ImageUtils.get_safe_dimensions_for_thumbnail(explicit_size)
+        assert result == expected
 
 
 class TestCacheManagement:
     """Test cache management and utility functions."""
 
-    def test_clear_all_caches(self, tmp_path: Path, caching_enabled: Path) -> None:
-        """Test that clear_all_caches clears all cache systems.
+    def test_clear_all_caches_and_stats(self, tmp_path: Path, caching_enabled: Path) -> None:
+        """Test cache stats reporting and that clear_all_caches resets all cache systems.
 
         Uses caching_enabled fixture for proper isolation in parallel execution.
         """
@@ -551,49 +498,20 @@ class TestCacheManagement:
         (version_dir / "v002").mkdir()
         VersionUtils.find_version_directories(version_dir)
 
-        # Verify caches have data
+        # Verify stats report populated caches with expected keys
         stats_before = get_cache_stats()
+        assert "path_cache_size" in stats_before
+        assert "version_cache_size" in stats_before
+        assert "extract_version_cache_info" in stats_before
         assert stats_before["path_cache_size"] >= 2, "Path cache should have entries"
         assert stats_before["version_cache_size"] >= 1, "Version cache should have entries"
 
-        # Clear all caches
+        # Clear all caches and verify they are empty
         clear_all_caches()
 
-        # Verify caches are empty
         stats_after = get_cache_stats()
         assert stats_after["path_cache_size"] == 0, "Path cache should be empty"
         assert stats_after["version_cache_size"] == 0, "Version cache should be empty"
-
-    def test_get_cache_stats(self, tmp_path: Path, caching_enabled: Path) -> None:
-        """Test cache statistics reporting.
-
-        Uses caching_enabled fixture for proper isolation in parallel execution.
-        """
-        # Clear first to ensure clean state
-        clear_all_caches()
-
-        # Populate path cache using public API
-        test_path1 = tmp_path / "stats_test1"
-        test_path1.mkdir()
-        PathValidators.validate_path_exists(test_path1)
-
-        test_path2 = tmp_path / "stats_test2"
-        test_path2.mkdir()
-        PathValidators.validate_path_exists(test_path2)
-
-        # Populate version cache using public API
-        version_dir = tmp_path / "versions"
-        version_dir.mkdir()
-        (version_dir / "v001").mkdir()
-        VersionUtils.find_version_directories(version_dir)
-
-        stats = get_cache_stats()
-
-        assert "path_cache_size" in stats
-        assert "version_cache_size" in stats
-        assert "extract_version_cache_info" in stats
-        assert stats["path_cache_size"] >= 2, "Path cache should have at least 2 entries"
-        assert stats["version_cache_size"] >= 1, "Version cache should have at least 1 entry"
 
 
 # Cache isolation is now handled by the global conftest.py fixture

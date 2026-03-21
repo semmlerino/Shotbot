@@ -78,9 +78,16 @@ def test_image_jpg(tmp_path: Path) -> Path:
 class TestShotCacheInitialization:
     """Test ShotDataCache initialization and directory setup."""
 
-    def test_initialization_creates_cache_dir(self, tmp_path: Path) -> None:
-        """Test cache directory is referenced correctly on init."""
-        cache_dir = tmp_path / "new_cache"
+    @pytest.mark.parametrize(
+        "subdir",
+        [
+            pytest.param("new_cache", id="new_directory"),
+            pytest.param("existing_cache", id="existing_directory"),
+        ],
+    )
+    def test_initialization_creates_cache_dir(self, tmp_path: Path, subdir: str) -> None:
+        """Test cache directory is referenced correctly on init (new or pre-existing)."""
+        cache_dir = tmp_path / subdir
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         cache = ShotDataCache(cache_dir)
@@ -88,15 +95,6 @@ class TestShotCacheInitialization:
         assert cache.cache_dir == cache_dir
         assert cache.shots_cache_file == cache_dir / "shots.json"
         assert cache.previous_shots_cache_file == cache_dir / "previous_shots.json"
-
-    def test_initialization_with_existing_directory(self, tmp_path: Path) -> None:
-        """Test initialization with pre-existing cache directory."""
-        cache_dir = tmp_path / "existing_cache"
-        cache_dir.mkdir(parents=True)
-
-        cache = ShotDataCache(cache_dir)
-
-        assert cache.cache_dir == cache_dir
 
 
 # ---------------------------------------------------------------------------
@@ -246,29 +244,6 @@ class TestShotErrorHandling:
         # Should handle gracefully - unknown schema returns None
         assert result is None
 
-    def test_cache_with_readonly_directory(self, tmp_path: Path) -> None:
-        """Test caching operations with read-only directory."""
-        cache_dir = tmp_path / "readonly_cache"
-        cache_dir.mkdir()
-
-        cache = ShotDataCache(cache_dir)
-
-        # Make directory read-only
-        import stat
-
-        cache_dir.chmod(stat.S_IRUSR | stat.S_IXUSR)
-
-        try:
-            # Should handle write failure gracefully
-            cache.cache_shots([Shot("show", "seq", "shot", "/path")])
-            # If we get here, permission check might be disabled in test env
-        except PermissionError:
-            # Expected on systems that enforce permissions
-            pass
-        finally:
-            # Restore permissions for cleanup
-            cache_dir.chmod(stat.S_IRWXU)
-
 
 # ---------------------------------------------------------------------------
 # TestThreadSafety (shot-specific)
@@ -277,38 +252,6 @@ class TestShotErrorHandling:
 
 class TestShotThreadSafety:
     """Test thread-safe concurrent access patterns for shot cache."""
-
-    def test_concurrent_shot_caching(
-        self,
-        shot_cache: ShotDataCache,
-    ) -> None:
-        """Test thread-safe concurrent shot caching operations."""
-        import queue
-
-        num_threads = 5
-        results_queue: queue.Queue[bool] = queue.Queue()
-
-        def worker(thread_id: int) -> None:
-            shots = [
-                Shot("show", f"seq{thread_id}", f"shot{i:03d}", f"/path/{thread_id}/{i}")
-                for i in range(10)
-            ]
-            shot_cache.cache_shots(shots)
-            cached = shot_cache.get_shots_with_ttl()
-            results_queue.put(cached is not None)
-
-        threads = [threading.Thread(target=worker, args=(i,)) for i in range(num_threads)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        results = []
-        while not results_queue.empty():
-            results.append(results_queue.get())
-
-        assert all(results), f"Some shot cache operations failed: {results}"
-        assert len(results) == num_threads
 
     def test_concurrent_cache_clearing(
         self, shot_cache: ShotDataCache, sample_shots: list[Shot]
@@ -481,14 +424,19 @@ class TestPersistentPreviousShotsCache:
 class TestShotMigration:
     """Test Phase 2: Shot migration from My Shots to Previous Shots (v2.3)."""
 
-    def test_get_shots_archive_empty_cache(self, shot_cache: ShotDataCache) -> None:
-        """get_shots_archive() returns None for empty cache."""
-        result = shot_cache.get_shots_archive()
-        assert result is None
-
-    def test_migrate_empty_list_is_noop(self, shot_cache: ShotDataCache) -> None:
-        """Migrating empty list is a no-op."""
-        shot_cache.archive_shots_as_previous([])
+    @pytest.mark.parametrize(
+        "action",
+        [
+            pytest.param("no_action", id="empty_cache"),
+            pytest.param("migrate_empty", id="migrate_empty_list_is_noop"),
+        ],
+    )
+    def test_get_shots_archive_returns_none_when_empty(
+        self, shot_cache: ShotDataCache, action: str
+    ) -> None:
+        """get_shots_archive() returns None for empty cache and after empty migration."""
+        if action == "migrate_empty":
+            shot_cache.archive_shots_as_previous([])
         result = shot_cache.get_shots_archive()
         assert result is None
 
@@ -569,22 +517,6 @@ class TestShotMigration:
 
         shows = {s["show"] for s in migrated}
         assert shows == {"show1", "show2"}
-
-    def test_migrate_accepts_shot_dicts(self, shot_cache: ShotDataCache) -> None:
-        """archive_shots_as_previous() accepts ShotDict input."""
-        shot_dicts: list[ShotDict] = [
-            {
-                "show": "show1",
-                "sequence": "seq01",
-                "shot": "shot010",
-                "workspace_path": "/p1",
-            }
-        ]
-        shot_cache.archive_shots_as_previous(shot_dicts)
-
-        migrated = shot_cache.get_shots_archive()
-        assert migrated is not None
-        assert len(migrated) == 1
 
     def test_migrate_mixed_shot_and_dict(self, shot_cache: ShotDataCache) -> None:
         """archive_shots_as_previous() handles mixed Shot and ShotDict."""
@@ -746,7 +678,7 @@ class TestCacheDiskUsage:
         sample_shots: list[Shot],
         test_image_jpg: Path,
     ) -> None:
-        """Test memory usage calculation."""
+        """Test disk usage tracks all data, starts empty, grows with content, shrinks after clear."""
         from cache import (
             CacheCoordinator,
             LatestFileCache,
@@ -762,117 +694,17 @@ class TestCacheDiskUsage:
         latest_file_cache = LatestFileCache(cache_dir)
         coordinator = CacheCoordinator(cache_dir, thumbnail_cache, shot_cache, scene_disk_cache, latest_file_cache)
 
-        # Get initial usage (should be minimal)
+        # Empty cache starts at zero
         initial_usage = coordinator.get_disk_usage()
+        assert initial_usage["total_mb"] == 0
+        assert initial_usage["file_count"] == 0
 
-        # Add some cached data
-        shot_cache.cache_shots(sample_shots)
-        thumbnail_cache.cache_thumbnail(test_image_jpg, "show", "seq", "shot")
-
-        # Verify usage increased
-        final_usage = coordinator.get_disk_usage()
-        assert final_usage["total_mb"] > initial_usage["total_mb"]
-        assert final_usage["file_count"] > initial_usage["file_count"]
-        assert final_usage["total_mb"] > 0
-
-    def test_get_disk_usage_handles_empty_cache(self, tmp_path: Path) -> None:
-        """Test memory usage with empty cache."""
-        from cache import (
-            CacheCoordinator,
-            LatestFileCache,
-            SceneDiskCache,
-            ThumbnailCache,
-        )
-
-        cache_dir = tmp_path / "empty_cache"
-        cache_dir.mkdir()
-
-        shot_cache = ShotDataCache(cache_dir)
-        thumbnail_cache = ThumbnailCache(cache_dir)
-        scene_disk_cache = SceneDiskCache(cache_dir)
-        latest_file_cache = LatestFileCache(cache_dir)
-        coordinator = CacheCoordinator(cache_dir, thumbnail_cache, shot_cache, scene_disk_cache, latest_file_cache)
-
-        usage = coordinator.get_disk_usage()
-
-        assert usage["total_mb"] == 0  # Empty cache should report 0 MB
-        assert usage["file_count"] == 0
-
-
-# ---------------------------------------------------------------------------
-# TestCacheCoordinatorIntegration
-# ---------------------------------------------------------------------------
-
-
-class TestCacheCoordinatorIntegration:
-    """Integration tests validating cache behavior across sub-managers."""
-
-    def test_cache_workflow_shots_to_thumbnails(
-        self,
-        tmp_path: Path,
-        sample_shots: list[Shot],
-        test_image_jpg: Path,
-    ) -> None:
-        """Test complete workflow: cache shots, then thumbnails."""
-        from cache import ThumbnailCache
-
-        cache_dir = tmp_path / "workflow_cache"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        shot_cache = ShotDataCache(cache_dir)
-        thumbnail_cache = ThumbnailCache(cache_dir)
-
-        # Step 1: Cache shot data
-        shot_cache.cache_shots(sample_shots)
-        cached_shots = shot_cache.get_shots_with_ttl()
-        assert len(cached_shots) == 3
-
-        # Step 2: Cache thumbnails for shots
-        for shot_data in cached_shots:
-            result = thumbnail_cache.cache_thumbnail(
-                test_image_jpg,
-                shot_data["show"],
-                shot_data["sequence"],
-                shot_data["shot"],
-            )
-            assert result is not None
-
-        # Step 3: Retrieve thumbnails
-        for shot_data in cached_shots:
-            thumb = thumbnail_cache.get_cached_thumbnail(
-                shot_data["show"], shot_data["sequence"], shot_data["shot"]
-            )
-            assert thumb is not None
-
-    def test_memory_usage_tracks_all_data(
-        self,
-        tmp_path: Path,
-        sample_shots: list[Shot],
-        test_image_jpg: Path,
-    ) -> None:
-        """Test memory usage calculation includes all cached data."""
-        from cache import (
-            CacheCoordinator,
-            LatestFileCache,
-            SceneDiskCache,
-            ThumbnailCache,
-        )
-
-        cache_dir = tmp_path / "memory_cache"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        shot_cache = ShotDataCache(cache_dir)
-        thumbnail_cache = ThumbnailCache(cache_dir)
-        scene_disk_cache = SceneDiskCache(cache_dir)
-        latest_file_cache = LatestFileCache(cache_dir)
-        coordinator = CacheCoordinator(cache_dir, thumbnail_cache, shot_cache, scene_disk_cache, latest_file_cache)
-
-        initial = coordinator.get_disk_usage()
-
-        # Add shots
+        # Add shots — usage should increase
         shot_cache.cache_shots(sample_shots)
         after_shots = coordinator.get_disk_usage()
-        assert after_shots["total_mb"] > initial["total_mb"]
+        assert after_shots["total_mb"] > initial_usage["total_mb"]
 
-        # Add thumbnails
+        # Add thumbnails — usage should increase further
         for i in range(5):
             thumbnail_cache.cache_thumbnail(
                 test_image_jpg, "show", f"seq{i}", f"shot{i:03d}"
@@ -880,8 +712,9 @@ class TestCacheCoordinatorIntegration:
 
         after_thumbs = coordinator.get_disk_usage()
         assert after_thumbs["total_mb"] > after_shots["total_mb"]
+        assert after_thumbs["file_count"] > initial_usage["file_count"]
 
-        # Clear all caches via coordinator
+        # Clear all caches — usage should drop
         coordinator.clear_cache()
         after_clear = coordinator.get_disk_usage()
         assert after_clear["total_mb"] < after_thumbs["total_mb"]

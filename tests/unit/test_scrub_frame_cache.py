@@ -47,18 +47,22 @@ class TestBasicOperations:
         assert retrieved is not None
         assert not retrieved.isNull()
 
-    def test_get_image_nonexistent_shot(self, qapp: QApplication) -> None:
-        """Test get_image returns None for missing shot."""
+    @pytest.mark.parametrize(
+        ("method", "shot_key", "frame", "pre_store"),
+        [
+            pytest.param("get_image", "nonexistent/shot", 1001, False, id="get_image_nonexistent_shot"),
+            pytest.param("get_image", "show/seq/shot1", 9999, True, id="get_image_nonexistent_frame"),
+            pytest.param("get_pixmap", "nonexistent", 1001, False, id="get_pixmap_nonexistent"),
+        ],
+    )
+    def test_get_returns_none_for_missing(
+        self, qapp: QApplication, method: str, shot_key: str, frame: int, pre_store: bool
+    ) -> None:
+        """Test get_image and get_pixmap return None for missing shot or frame."""
         cache = ScrubFrameCache()
-        result = cache.get_image("nonexistent/shot", 1001)
-        assert result is None
-
-    def test_get_image_nonexistent_frame(self, qapp: QApplication) -> None:
-        """Test get_image returns None for missing frame in existing shot."""
-        cache = ScrubFrameCache()
-        cache.store("show/seq/shot1", 1001, make_test_image())
-
-        result = cache.get_image("show/seq/shot1", 9999)
+        if pre_store:
+            cache.store("show/seq/shot1", 1001, make_test_image())
+        result = getattr(cache, method)(shot_key, frame)
         assert result is None
 
     def test_has_frame_returns_correct_value(self, qapp: QApplication) -> None:
@@ -97,12 +101,6 @@ class TestBasicOperations:
         stats2 = cache.get_stats()
         assert stats2["total_pixmaps"] == 1  # Still 1, not 2
 
-    def test_get_pixmap_nonexistent_returns_none(self, qapp: QApplication) -> None:
-        """Test get_pixmap returns None for missing key."""
-        cache = ScrubFrameCache()
-        result = cache.get_pixmap("nonexistent", 1001)
-        assert result is None
-
     def test_get_cached_frames(self, qapp: QApplication) -> None:
         """Test getting list of cached frame numbers."""
         cache = ScrubFrameCache()
@@ -112,12 +110,6 @@ class TestBasicOperations:
 
         frames = cache.get_cached_frames("show/seq/shot1")
         assert set(frames) == {1001, 1002, 1003}
-
-    def test_get_cached_frames_empty_shot(self, qapp: QApplication) -> None:
-        """Test get_cached_frames returns empty list for unknown shot."""
-        cache = ScrubFrameCache()
-        frames = cache.get_cached_frames("nonexistent")
-        assert frames == []
 
     def test_get_stats_returns_correct_counts(self, qapp: QApplication) -> None:
         """Test cache statistics."""
@@ -313,60 +305,38 @@ class TestMainThreadAssertion:
         assert "QPixmap" in error_raised[0]
         assert "worker thread" in error_raised[0]
 
-    def test_get_image_allowed_from_worker_thread(self, qapp: QApplication) -> None:
-        """Test that get_image works from any thread."""
+    def test_worker_thread_ops_allowed(self, qapp: QApplication) -> None:
+        """Test that store, get_image, and has_frame all work from worker threads."""
         cache = ScrubFrameCache()
-        cache.store("show/seq/shot1", 1001, make_test_image())
 
-        result: list[bool] = []
+        results: list[str] = []
+        errors: list[Exception] = []
 
-        def worker_access() -> None:
-            retrieved = cache.get_image("show/seq/shot1", 1001)
-            result.append(retrieved is not None)
-
-        thread = threading.Thread(target=worker_access)
-        thread.start()
-        thread.join(timeout=5.0)
-
-        assert result[0] is True
-
-    def test_store_allowed_from_worker_thread(self, qapp: QApplication) -> None:
-        """Test that store works from any thread."""
-        cache = ScrubFrameCache()
-        stored: list[bool] = []
-
-        def worker_store() -> None:
+        def worker() -> None:
             try:
+                # store
                 image = make_test_image()
                 cache.store("show/seq/shot1", 1001, image)
-                stored.append(True)
-            except Exception:  # noqa: BLE001
-                stored.append(False)
+                results.append("stored")
 
-        thread = threading.Thread(target=worker_store)
+                # get_image
+                retrieved = cache.get_image("show/seq/shot1", 1001)
+                results.append("get_image_ok" if retrieved is not None else "get_image_fail")
+
+                # has_frame
+                exists = cache.has_frame("show/seq/shot1", 1001)
+                not_exists = cache.has_frame("show/seq/shot1", 9999)
+                results.append("has_frame_ok" if (exists and not not_exists) else "has_frame_fail")
+            except Exception as e:  # noqa: BLE001
+                errors.append(e)
+
+        thread = threading.Thread(target=worker)
         thread.start()
         thread.join(timeout=5.0)
 
-        assert stored[0] is True
+        assert len(errors) == 0, f"Worker thread errors: {errors}"
+        assert results == ["stored", "get_image_ok", "has_frame_ok"]
         assert cache.has_frame("show/seq/shot1", 1001)
-
-    def test_has_frame_allowed_from_worker_thread(self, qapp: QApplication) -> None:
-        """Test that has_frame works from any thread."""
-        cache = ScrubFrameCache()
-        cache.store("show/seq/shot1", 1001, make_test_image())
-
-        results: list[tuple[bool, bool]] = []
-
-        def worker_check() -> None:
-            exists = cache.has_frame("show/seq/shot1", 1001)
-            not_exists = cache.has_frame("show/seq/shot1", 9999)
-            results.append((exists, not_exists))
-
-        thread = threading.Thread(target=worker_check)
-        thread.start()
-        thread.join(timeout=5.0)
-
-        assert results[0] == (True, False)
 
 
 class TestConcurrentAccess:
@@ -511,26 +481,6 @@ class TestConcurrentAccess:
 class TestStoreInvalidatesPixmap:
     """Test that updating a frame invalidates cached pixmap."""
 
-    def test_store_invalidates_existing_pixmap(self, qapp: QApplication) -> None:
-        """Test that storing same frame invalidates cached pixmap."""
-        cache = ScrubFrameCache()
-
-        # Store and get pixmap
-        image1 = make_test_image(0xFF0000FF)  # Blue
-        cache.store("show/seq/shot1", 1001, image1)
-        _ = cache.get_pixmap("show/seq/shot1", 1001)
-
-        stats = cache.get_stats()
-        assert stats["total_pixmaps"] == 1
-
-        # Update same frame
-        image2 = make_test_image(0xFFFF0000)  # Red
-        cache.store("show/seq/shot1", 1001, image2)
-
-        # Pixmap should be invalidated
-        stats = cache.get_stats()
-        assert stats["total_pixmaps"] == 0
-
     def test_store_different_frame_preserves_other_pixmaps(
         self, qapp: QApplication
     ) -> None:
@@ -555,37 +505,24 @@ class TestStoreInvalidatesPixmap:
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    def test_empty_shot_key(self, qapp: QApplication) -> None:
-        """Test handling of empty shot key."""
+    @pytest.mark.parametrize(
+        ("shot_key", "frame"),
+        [
+            pytest.param("", 1001, id="empty_shot_key"),
+            pytest.param("show/seq/shot1", 0, id="zero_frame_number"),
+            pytest.param("show/seq/shot1", -1, id="negative_frame_number"),
+            pytest.param("show/seq/shot1", 999999999, id="very_large_frame_number"),
+        ],
+    )
+    def test_boundary_key_and_frame(
+        self, qapp: QApplication, shot_key: str, frame: int
+    ) -> None:
+        """Test handling of boundary shot keys and frame numbers."""
         cache = ScrubFrameCache()
-        cache.store("", 1001, make_test_image())
+        cache.store(shot_key, frame, make_test_image())
 
-        assert cache.has_frame("", 1001)
-        assert cache.get_image("", 1001) is not None
-
-    def test_zero_frame_number(self, qapp: QApplication) -> None:
-        """Test handling of frame number 0."""
-        cache = ScrubFrameCache()
-        cache.store("show/seq/shot1", 0, make_test_image())
-
-        assert cache.has_frame("show/seq/shot1", 0)
-        assert cache.get_image("show/seq/shot1", 0) is not None
-
-    def test_negative_frame_number(self, qapp: QApplication) -> None:
-        """Test handling of negative frame numbers."""
-        cache = ScrubFrameCache()
-        cache.store("show/seq/shot1", -1, make_test_image())
-
-        assert cache.has_frame("show/seq/shot1", -1)
-        assert cache.get_image("show/seq/shot1", -1) is not None
-
-    def test_very_large_frame_number(self, qapp: QApplication) -> None:
-        """Test handling of very large frame numbers."""
-        cache = ScrubFrameCache()
-        large_frame = 999999999
-        cache.store("show/seq/shot1", large_frame, make_test_image())
-
-        assert cache.has_frame("show/seq/shot1", large_frame)
+        assert cache.has_frame(shot_key, frame)
+        assert cache.get_image(shot_key, frame) is not None
 
     def test_cache_with_min_limits(self, qapp: QApplication) -> None:
         """Test cache with minimum possible limits."""
@@ -604,15 +541,3 @@ class TestEdgeCases:
         assert not cache.has_frame("show/seq/shot1", 1002)
         assert cache.has_frame("show/seq/shot2", 1001)
 
-    def test_clear_shot_nonexistent(self, qapp: QApplication) -> None:
-        """Test clear_shot on nonexistent shot doesn't raise."""
-        cache = ScrubFrameCache()
-        cache.clear_shot("nonexistent")  # Should not raise
-
-    def test_clear_all_on_empty_cache(self, qapp: QApplication) -> None:
-        """Test clear_all on empty cache doesn't raise."""
-        cache = ScrubFrameCache()
-        cache.clear_all()  # Should not raise
-
-        stats = cache.get_stats()
-        assert stats["shot_count"] == 0

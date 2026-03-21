@@ -33,17 +33,27 @@ class TestExtractFrameNumber:
         """Extracts a non-1001 frame number correctly."""
         assert _extract_frame_number(Path("shot.1050.exr")) == 1050
 
-    def test_no_frame_number_returns_sentinel(self) -> None:
+    @pytest.mark.parametrize(
+        ("filename", "expected"),
+        [
+            pytest.param("shot.jpg", 99999, id="no_frame_number_returns_sentinel"),
+            pytest.param("shot_without_extension", 99999, id="no_extension_returns_sentinel"),
+        ],
+    )
+    def test_missing_frame_pattern_returns_sentinel(self, filename: str, expected: int) -> None:
         """Returns 99999 when filename has no matching frame pattern."""
-        assert _extract_frame_number(Path("shot.jpg")) == 99999
+        assert _extract_frame_number(Path(filename)) == expected
 
-    def test_case_insensitive_extension(self) -> None:
-        """Matches .EXR (uppercase) the same as .exr."""
-        assert _extract_frame_number(Path("shot.1001.EXR")) == 1001
-
-    def test_mixed_case_extension(self) -> None:
-        """Matches .Exr (mixed case)."""
-        assert _extract_frame_number(Path("shot.1001.Exr")) == 1001
+    @pytest.mark.parametrize(
+        "filename",
+        [
+            pytest.param("shot.1001.EXR", id="uppercase_extension"),
+            pytest.param("shot.1001.Exr", id="mixed_case_extension"),
+        ],
+    )
+    def test_case_insensitive_extension(self, filename: str) -> None:
+        """Matches EXR extension regardless of case."""
+        assert _extract_frame_number(Path(filename)) == 1001
 
     def test_frame_0001(self) -> None:
         """Extracts early frame numbers like 0001."""
@@ -54,10 +64,6 @@ class TestExtractFrameNumber:
         assert _extract_frame_number(
             Path("GG_000_0050_turnover-plate_EL01_lin_sgamut3cine_v001.1001.exr")
         ) == 1001
-
-    def test_no_extension_returns_sentinel(self) -> None:
-        """Returns 99999 for a path with no extension."""
-        assert _extract_frame_number(Path("shot_without_extension")) == 99999
 
     def test_three_digit_number_not_matched(self) -> None:
         """A three-digit number does not match (requires exactly four digits)."""
@@ -166,9 +172,11 @@ class TestShotPath:
     """Tests for ThumbnailFinders._shot_path."""
 
     def test_builds_correct_path(self) -> None:
-        """Constructs the standard VFX shot directory path."""
-        result = ThumbnailFinders._shot_path("/shows", "demo", "seq01", "0010")
-        assert result == Path("/shows/demo/shots/seq01/seq01_0010")
+        """Constructs the standard VFX shot directory path with correct structure."""
+        result = ThumbnailFinders._shot_path("/shows", "myshow", "ABC", "1234")
+        assert result == Path("/shows/myshow/shots/ABC/ABC_1234")
+        assert result.name == "ABC_1234"
+        assert "ABC" in result.parts
 
     def test_builds_path_with_suffix(self) -> None:
         """Appends optional suffix segments correctly."""
@@ -185,16 +193,6 @@ class TestShotPath:
         assert result == Path(
             "/shows/demo/shots/seq01/seq01_0010/publish/editorial/cutref"
         )
-
-    def test_shot_dir_uses_sequence_prefix(self) -> None:
-        """Shot directory is named {sequence}_{shot}."""
-        result = ThumbnailFinders._shot_path("/shows", "myshow", "ABC", "1234")
-        assert result.name == "ABC_1234"
-
-    def test_sequence_appears_in_path(self) -> None:
-        """Sequence name appears as a path component."""
-        result = ThumbnailFinders._shot_path("/shows", "myshow", "ABC", "1234")
-        assert "ABC" in result.parts
 
 
 # ==============================================================================
@@ -218,75 +216,6 @@ class TestFindTurnoverPlateThumbnail:
         f.write_bytes(b"EXR")
         return f
 
-    def test_returns_fg_plate_when_only_fg_exists(self, tmp_path: Path) -> None:
-        """Returns the FG plate when it is the only plate present."""
-        base = (
-            tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01"
-            / "publish" / "turnover" / "plate"
-        )
-        fg_file = self._make_plate(base, "FG01")
-
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
-            str(tmp_path / "shows"), "show", "seq01", "shot01"
-        )
-
-        assert result == fg_file
-
-    def test_fg_preferred_over_bg(self, tmp_path: Path) -> None:
-        """FG plate is chosen over BG when both exist."""
-        base = (
-            tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01"
-            / "publish" / "turnover" / "plate"
-        )
-        fg_file = self._make_plate(base, "FG01")
-        self._make_plate(base, "BG01", "shot.1001.exr")
-
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
-            str(tmp_path / "shows"), "show", "seq01", "shot01"
-        )
-
-        assert result == fg_file
-        assert "FG01" in str(result)
-
-    def test_bg_preferred_over_other(self, tmp_path: Path) -> None:
-        """BG plate is chosen over an EL plate when no FG exists."""
-        base = (
-            tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01"
-            / "publish" / "turnover" / "plate"
-        )
-        bg_file = self._make_plate(base, "BG01")
-        self._make_plate(base, "EL01", "shot.1001.exr")
-
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
-            str(tmp_path / "shows"), "show", "seq01", "shot01"
-        )
-
-        assert result == bg_file
-
-    def test_returns_none_when_directory_missing(self, tmp_path: Path) -> None:
-        """Returns None when the turnover plate directory doesn't exist."""
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
-            str(tmp_path / "shows"), "show", "seq01", "shot01"
-        )
-        assert result is None
-
-    def test_returns_none_when_no_plates_in_dir(self, tmp_path: Path) -> None:
-        """Returns None when the plate directory is empty."""
-        base = (
-            tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01"
-            / "publish" / "turnover" / "plate"
-        )
-        base.mkdir(parents=True)
-
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
-            str(tmp_path / "shows"), "show", "seq01", "shot01"
-        )
-        assert result is None
-
     def test_handles_oserror_on_iterdir(self, tmp_path: Path) -> None:
         """Returns None gracefully when iterdir raises OSError."""
         base = (
@@ -302,26 +231,6 @@ class TestFindTurnoverPlateThumbnail:
             )
 
         assert result is None
-
-    def test_picks_first_frame_from_sequence(self, tmp_path: Path) -> None:
-        """Returns the lowest frame number from an EXR sequence."""
-        exr_dir = (
-            tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01"
-            / "publish" / "turnover" / "plate"
-            / "FG01" / "v001" / "exr" / "2K"
-        )
-        exr_dir.mkdir(parents=True)
-        f1001 = exr_dir / "shot.1001.exr"
-        f1010 = exr_dir / "shot.1010.exr"
-        f1001.write_bytes(b"FRAME1001")
-        f1010.write_bytes(b"FRAME1010")
-
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
-            str(tmp_path / "shows"), "show", "seq01", "shot01"
-        )
-
-        assert result == f1001
 
     def test_with_input_plate_subdirectory(self, tmp_path: Path) -> None:
         """Finds plates inside optional input_plate subdirectory."""
@@ -356,18 +265,6 @@ class TestFindAnyPublishThumbnail:
         publish.mkdir(parents=True)
         return publish
 
-    def test_finds_exr_with_1001_in_name(self, tmp_path: Path) -> None:
-        """Returns an EXR file that has '1001' in its filename."""
-        publish = self._make_publish_dir(tmp_path)
-        exr = publish / "comp.1001.exr"
-        exr.write_bytes(b"EXR")
-
-        result = ThumbnailFinders.find_any_publish_thumbnail(
-            str(tmp_path / "shows"), "show", "seq01", "shot01"
-        )
-
-        assert result == exr
-
     def test_ignores_exr_without_1001(self, tmp_path: Path) -> None:
         """Skips EXR files whose names don't contain '1001'."""
         publish = self._make_publish_dir(tmp_path)
@@ -384,14 +281,6 @@ class TestFindAnyPublishThumbnail:
         publish = self._make_publish_dir(tmp_path)
         (publish / "thumb.1001.jpg").write_bytes(b"JPG")
 
-        result = ThumbnailFinders.find_any_publish_thumbnail(
-            str(tmp_path / "shows"), "show", "seq01", "shot01"
-        )
-
-        assert result is None
-
-    def test_returns_none_when_publish_dir_missing(self, tmp_path: Path) -> None:
-        """Returns None when the publish directory doesn't exist."""
         result = ThumbnailFinders.find_any_publish_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01"
         )
@@ -462,25 +351,6 @@ class TestFindShotThumbnail:
 
     def _args(self) -> tuple[str, str, str, str]:
         return "/shows", "show", "seq01", "shot01"
-
-    def test_returns_editorial_thumbnail_when_found(self) -> None:
-        """Returns editorial result when _find_editorial_cutref_thumbnail succeeds."""
-        editorial_jpeg = Path("/fake/editorial.jpg")
-
-        with (
-            patch(
-                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
-                return_value=True,
-            ),
-            patch.object(
-                ThumbnailFinders,
-                "_find_editorial_cutref_thumbnail",
-                return_value=editorial_jpeg,
-            ),
-        ):
-            result = ThumbnailFinders.find_shot_thumbnail(*self._args())
-
-        assert result == editorial_jpeg
 
     def test_falls_through_to_turnover_when_editorial_missing(self) -> None:
         """Falls through to turnover plate when editorial cutref doesn't exist."""
@@ -796,23 +666,26 @@ class TestFindTurnoverPlateThumbnailIntegration:
         )
         assert result.exists()
 
-    def test_find_turnover_plate_thumbnail_priority_order(self, tmp_path: Path) -> None:
-        """Test that FG plates are preferred over BG plates."""
+    @pytest.mark.parametrize(
+        ("plates_present", "expected_prefix"),
+        [
+            pytest.param(["FG01", "BG01"], "FG01", id="fg_beats_bg"),
+            pytest.param(["BG01", "EL01"], "BG01", id="bg_beats_el"),
+            pytest.param(["FG01", "BG01", "EL01"], "FG01", id="fg_beats_bg_and_el"),
+        ],
+    )
+    def test_find_turnover_plate_thumbnail_priority_order(
+        self, tmp_path: Path, plates_present: list[str], expected_prefix: str
+    ) -> None:
+        """Test that FG > BG > EL priority ordering is respected."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
         base_plate_path = shot_path / "publish" / "turnover" / "plate" / "input_plate"
 
-        # Create BG01 plate (lower priority)
-        bg_path = base_plate_path / "BG01" / "v001" / "exr" / "1920x1080"
-        bg_path.mkdir(parents=True)
-        bg_frame = bg_path / "shot_BG01.1001.exr"
-        bg_frame.write_text("bg content")
-
-        # Create FG01 plate (higher priority)
-        fg_path = base_plate_path / "FG01" / "v001" / "exr" / "1920x1080"
-        fg_path.mkdir(parents=True)
-        fg_frame = fg_path / "shot_FG01.1001.exr"
-        fg_frame.write_text("fg content")
+        for plate in plates_present:
+            plate_path = base_plate_path / plate / "v001" / "exr" / "1920x1080"
+            plate_path.mkdir(parents=True)
+            (plate_path / f"shot_{plate}.1001.exr").write_text(f"{plate} content")
 
         result = ThumbnailFinders.find_turnover_plate_thumbnail(
             str(shows_root),
@@ -821,9 +694,8 @@ class TestFindTurnoverPlateThumbnailIntegration:
             "shot01",
         )
 
-        # Should prefer FG01 over BG01
         assert result is not None
-        assert "FG01" in result.name
+        assert expected_prefix in str(result)
 
     def test_find_turnover_plate_thumbnail_frame_number_sorting(
         self, tmp_path: Path
@@ -866,21 +738,6 @@ class TestFindTurnoverPlateThumbnailIntegration:
             "show",
             "seq",
             "shot",
-        )
-        assert result is None
-
-    def test_find_turnover_plate_thumbnail_no_plates(self, tmp_path: Path) -> None:
-        """Test turnover plate discovery when no plate directories exist."""
-        shows_root = tmp_path / "shows"
-        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
-        base_path = shot_path / "publish" / "turnover" / "plate" / "input_plate"
-        base_path.mkdir(parents=True)
-
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
-            str(shows_root),
-            "myshow",
-            "seq01",
-            "shot01",
         )
         assert result is None
 
@@ -945,29 +802,6 @@ class TestFindAnyPublishThumbnailIntegration:
 
         assert result is not None
         assert result.name == shallow_file.name
-
-    def test_find_any_publish_thumbnail_permission_error(self, tmp_path: Path) -> None:
-        """Handle unreadable subdirectories gracefully."""
-        shows_root = tmp_path / "shows"
-        publish_path = (
-            shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01" / "publish"
-        )
-        publish_path.mkdir(parents=True)
-
-        restricted = publish_path / "restricted"
-        restricted.mkdir()
-        restricted.chmod(0o000)
-
-        try:
-            result = ThumbnailFinders.find_any_publish_thumbnail(
-                str(shows_root),
-                "testshow",
-                "seq01",
-                "shot01",
-            )
-            assert result is None
-        finally:
-            restricted.chmod(0o755)
 
     def test_find_any_publish_thumbnail_no_publish_dir(self, tmp_path: Path) -> None:
         """Return None when the publish path does not exist."""

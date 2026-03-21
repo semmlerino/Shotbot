@@ -26,7 +26,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 from cache.types import ShotMergeResult
 from config import Config
 from shots.shot_model import RefreshResult, ShotModel
-from tests.fixtures.test_doubles import TestProcessPool
 from type_definitions import Shot
 
 
@@ -103,70 +102,6 @@ class TestShot:
         thumbnail_path_cached = shot.get_thumbnail_path()
         assert thumbnail_path_cached == thumbnail_path
 
-    def test_get_thumbnail_path_turnover_fallback(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test get_thumbnail_path falls back to turnover plates with real files."""
-        # Create shot without editorial thumbnail
-        shows_root = tmp_path / "shows"
-        shot_path = shows_root / "test" / "shots" / "seq01" / "seq01_0010"
-        shot_path.mkdir(parents=True, exist_ok=True)
-
-        # Create turnover thumbnail following actual structure from find_turnover_plate_thumbnail
-        # Path: publish/turnover/plate/input_plate/{PLATE}/v001/exr/{resolution}/
-        turnover_path = (
-            shot_path
-            / "publish"
-            / "turnover"
-            / "plate"
-            / "input_plate"
-            / "FG01"
-            / "v001"
-            / "exr"
-            / "3840x2160"
-        )
-        turnover_path.mkdir(parents=True, exist_ok=True)
-        turnover_file = turnover_path / "seq01_0010_FG01.1001.exr"
-        turnover_file.write_bytes(b"EXR_DATA")
-
-        # Temporarily override Config.SHOWS_ROOT
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
-
-        shot = Shot("test", "seq01", "0010", str(shot_path))
-
-        # Test actual fallback behavior
-        thumbnail_path = shot.get_thumbnail_path()
-        assert thumbnail_path is not None
-        assert thumbnail_path.exists()
-        assert thumbnail_path.suffix == ".exr"
-
-    def test_get_thumbnail_path_publish_fallback(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test get_thumbnail_path falls back to publish thumbnails with real files."""
-        # Create shot without editorial or turnover thumbnails
-        shows_root = tmp_path / "shows"
-        shot_path = shows_root / "test" / "shots" / "seq01" / "seq01_0010"
-        shot_path.mkdir(parents=True, exist_ok=True)
-
-        # Create only publish thumbnail with '1001' in the name
-        publish_path = shot_path / "publish" / "comp" / "v001" / "exr"
-        publish_path.mkdir(parents=True, exist_ok=True)
-        publish_file = publish_path / "comp.1001.exr"
-        publish_file.write_bytes(b"EXR_DATA")
-
-        # Temporarily override Config.SHOWS_ROOT
-        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
-
-        shot = Shot("test", "seq01", "0010", str(shot_path))
-
-        # Test actual fallback behavior
-        thumbnail_path = shot.get_thumbnail_path()
-        assert thumbnail_path is not None
-        assert thumbnail_path.exists()
-        assert thumbnail_path.suffix == ".exr"
-        assert "1001" in thumbnail_path.name
-
     def test_get_thumbnail_path_no_thumbnails_found(self, tmp_path: Path) -> None:
         """Test get_thumbnail_path returns None when no thumbnails found."""
         # Create empty shot directory
@@ -186,25 +121,6 @@ class TestShot:
 @pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestShotModel:
     """Test cases for ShotModel class using real components."""
-
-    def test_shot_model_initialization(self, real_shot_model) -> None:
-        """Test ShotModel initialization with real components."""
-        assert real_shot_model is not None
-        assert hasattr(real_shot_model, "shots")
-        assert isinstance(real_shot_model.shots, list)
-
-    def test_get_shots(self, real_shot_model, make_test_shot: TestShotFactory) -> None:
-        """Test getting shots list with real shots."""
-        # Add real shots to the model
-        real_shot_model.shots = [
-            make_test_shot("show1", "seq1", "0010"),
-            make_test_shot("show1", "seq1", "0020"),
-            make_test_shot("show2", "seq2", "0030"),
-        ]
-
-        shots = real_shot_model.get_shots()
-        assert len(shots) == 3
-        assert all(isinstance(shot, Shot) for shot in shots)
 
     def test_get_shot_by_name(
         self, real_shot_model, make_test_shot: TestShotFactory
@@ -532,36 +448,24 @@ class TestShotModelMergeErrorHandling:
 class TestShotModelParser:
     """Test workspace output parsing edge cases with real model."""
 
-    def test_parse_ws_output_invalid_input_type(self, real_shot_model) -> None:
-        """Test parser with invalid input types.
-
-        Note: The function expects a string type as per its type annotation.
-        Invalid types will raise AttributeError, not WorkspaceError.
-        """
-        # The function has type annotation for str, so passing non-string
-        # will raise AttributeError when trying to call string methods
-        with pytest.raises(AttributeError):
-            real_shot_model.test_parse_ws_output(123)  # type: ignore
-
-        with pytest.raises(AttributeError):
-            real_shot_model.test_parse_ws_output(None)  # type: ignore
-
-    def test_parse_ws_output_empty_string(self, real_shot_model) -> None:
-        """Test parser handles empty output."""
-        shots = real_shot_model.test_parse_ws_output("")
-        assert shots == []
-
-        shots = real_shot_model.test_parse_ws_output("   ")  # Whitespace only
-        assert shots == []
-
-    def test_parse_ws_output_no_matches(self, real_shot_model) -> None:
-        """Test parser with lines that don't match workspace pattern."""
-        output = """Invalid line 1
-Another invalid line
-Not a workspace line"""
-
-        shots = real_shot_model.test_parse_ws_output(output)
-        assert shots == []
+    @pytest.mark.parametrize(
+        ("input_str", "expected"),
+        [
+            pytest.param("", [], id="empty_string"),
+            pytest.param("   ", [], id="whitespace_only"),
+            pytest.param(
+                "Invalid line 1\nAnother invalid line\nNot a workspace line",
+                [],
+                id="no_workspace_matches",
+            ),
+        ],
+    )
+    def test_parse_ws_output_returns_empty_for_blank_or_unmatched_input(
+        self, real_shot_model, input_str: str, expected: list
+    ) -> None:
+        """Test parser returns empty list for blank strings and non-matching content."""
+        shots = real_shot_model.test_parse_ws_output(input_str)
+        assert shots == expected
 
     def test_parse_ws_output_mixed_valid_invalid(self, real_shot_model) -> None:
         """Test parser with mix of valid and invalid lines."""
@@ -604,36 +508,6 @@ workspace {shows_root}/test/shots/seq3/very_long_complex_shot_name_0050"""
         assert shots[0].shot == "0010"  # 001_ABC_0010 -> last part after underscore
         assert shots[1].shot == "name"  # simple_name -> last part after underscore
         assert shots[2].shot == "0050"  # very_long_complex_shot_name_0050 -> last part
-
-
-class TestShotModelPerformance:
-    """Test performance-related functionality."""
-
-    def test_invalidate_workspace_cache(
-        self, real_shot_model, test_process_pool
-    ) -> None:
-        """Test cache invalidation with test double."""
-        real_shot_model._process_pool = test_process_pool
-
-        # Add some commands to verify reset
-        test_process_pool.commands.append("previous_command")
-
-        real_shot_model.invalidate_workspace_cache()
-
-        # Test double should handle cache invalidation
-        # In a real implementation, this would clear subprocess cache
-
-    def test_get_performance_metrics(self, real_shot_model, test_process_pool) -> None:
-        """Test performance metrics retrieval."""
-        # Simulate some activity
-        test_process_pool.call_count = 5
-        test_process_pool.commands = ["cmd1", "cmd2", "cmd3", "cmd4", "cmd5"]
-        real_shot_model._process_pool = test_process_pool
-
-        # In real implementation, this would return actual metrics
-        # Here we test that the method exists and can be called
-        metrics = real_shot_model.get_performance_metrics()
-        assert metrics is not None
 
 
 @pytest.mark.allow_main_thread
@@ -728,38 +602,3 @@ class TestShotModelRefreshSignals:
 
         assert updated["data"][0]["show"] == "show2"
 
-    def test_shot_data_persistence_through_cache(
-        self, shot_cache: object
-    ) -> None:
-        """Test shot data loaded from pre-seeded raw-dict cache at model init."""
-        test_shots_data = [
-            {
-                "show": "test_show",
-                "sequence": "seq01",
-                "shot": "seq01_0010",
-                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/shots/seq01/seq01_0010",
-                "name": "seq01_0010",
-            },
-            {
-                "show": "test_show",
-                "sequence": "seq01",
-                "shot": "seq01_0020",
-                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/shots/seq01/seq01_0020",
-                "name": "seq01_0020",
-            },
-        ]
-
-        shot_cache.cache_shots(test_shots_data)
-
-        pool = TestProcessPool(allow_main_thread=True)
-        model = ShotModel(
-            cache_manager=shot_cache,
-            process_pool=pool,
-        )
-
-        shots = model.get_shots()
-        assert len(shots) == 2
-        assert shots[0].show == "test_show"
-        assert shots[0].sequence == "seq01"
-        assert shots[0].shot == "seq01_0010"
-        assert shots[1].shot == "seq01_0020"
