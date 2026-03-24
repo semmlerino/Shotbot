@@ -27,6 +27,7 @@ covers current root-level reference docs as well as `docs/`.
 
 ## Module-Scoped Reference Docs
 
+- `tests/README.md` - Canonical testing policy and common commands
 - `tests/fixtures/README.md` - Fixture catalog and usage notes
 - `tests/integration/README.md` - Integration-suite scope and commands
 - `dev-tools/README.md` - Development-only scripts

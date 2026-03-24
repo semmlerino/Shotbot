@@ -7,12 +7,14 @@ Integration test coverage includes:
 - 3DE discovery and launch flows
 - main window coordination and shutdown lifecycle
 
+For the canonical test execution policy, see `tests/README.md`.
+
 ## Quick Start
 
 ```bash
 # Run all integration tests
 uv run pytest tests/integration/ -v
 
-# Run in parallel with Qt-safe grouping
+# Optional isolation check: run in parallel with Qt-safe grouping
 uv run pytest tests/integration/ -n auto --dist=loadgroup
 ```

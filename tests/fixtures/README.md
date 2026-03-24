@@ -1,6 +1,7 @@
 # Test Fixtures
 
 Fixtures are organized by category and auto-loaded via `pytest_plugins` in `tests/conftest.py`.
+For the canonical test execution policy and common commands, see `tests/README.md`.
 
 ## Fixture Index
 
