@@ -175,7 +175,9 @@ class TestShotSelectionController:
         from controllers.shot_selection_controller import ShotSelectionController
 
         target = ShotSelectionTargetDouble()
-        controller = ShotSelectionController(target, command_launcher=target.command_launcher)  # type: ignore[arg-type]
+        controller = ShotSelectionController(
+            target, command_launcher=target.command_launcher
+        )  # type: ignore[arg-type]
         shot = ShotDouble()
 
         controller.on_shot_selected(shot)
@@ -187,7 +189,9 @@ class TestShotSelectionController:
         from controllers.shot_selection_controller import ShotSelectionController
 
         target = ShotSelectionTargetDouble()
-        controller = ShotSelectionController(target, command_launcher=target.command_launcher)  # type: ignore[arg-type]
+        controller = ShotSelectionController(
+            target, command_launcher=target.command_launcher
+        )  # type: ignore[arg-type]
         shot = ShotDouble()
 
         controller.on_shot_selected(shot)
@@ -199,7 +203,9 @@ class TestShotSelectionController:
         from controllers.shot_selection_controller import ShotSelectionController
 
         target = ShotSelectionTargetDouble()
-        controller = ShotSelectionController(target, command_launcher=target.command_launcher)  # type: ignore[arg-type]
+        controller = ShotSelectionController(
+            target, command_launcher=target.command_launcher
+        )  # type: ignore[arg-type]
 
         # First select a shot
         shot = ShotDouble()
@@ -218,7 +224,9 @@ class TestShotSelectionController:
         from controllers.shot_selection_controller import ShotSelectionController
 
         target = ShotSelectionTargetDouble()
-        controller = ShotSelectionController(target, command_launcher=target.command_launcher)  # type: ignore[arg-type]
+        controller = ShotSelectionController(
+            target, command_launcher=target.command_launcher
+        )  # type: ignore[arg-type]
 
         # Create a mock worker
         mock_worker = MagicMock()
@@ -239,7 +247,9 @@ class TestShotSelectionController:
         target.command_launcher._current_shot = None
         target.threede_shot_grid._selected_scene = None
 
-        controller = ShotSelectionController(target, command_launcher=target.command_launcher)  # type: ignore[arg-type]
+        controller = ShotSelectionController(
+            target, command_launcher=target.command_launcher
+        )  # type: ignore[arg-type]
 
         with patch("managers.notification_manager.NotificationManager") as mock_notif:
             controller.on_recover_crashes_requested()
@@ -250,7 +260,9 @@ class TestShotSelectionController:
         from controllers.shot_selection_controller import ShotSelectionController
 
         target = ShotSelectionTargetDouble()
-        controller = ShotSelectionController(target, command_launcher=target.command_launcher)  # type: ignore[arg-type]
+        controller = ShotSelectionController(
+            target, command_launcher=target.command_launcher
+        )  # type: ignore[arg-type]
 
         # Create a mock worker
         mock_worker = MagicMock()

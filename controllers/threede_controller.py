@@ -151,7 +151,9 @@ class ThreeDEController(LoggingMixin):
         # GUARD: If worker is already running, skip this request entirely
         # This prevents duplicate progress operations during rapid refresh calls
         if self._worker_manager.has_active_worker:
-            self.logger.debug("3DE worker already running, skipping duplicate refresh request")
+            self.logger.debug(
+                "3DE worker already running, skipping duplicate refresh request"
+            )
             return
 
         # DEBOUNCE: Prevent scan restart spam (e.g., rapid shot refreshes)
@@ -186,7 +188,11 @@ class ThreeDEController(LoggingMixin):
 
         # Show loading state
         self.window.threede_item_model.set_loading_state(True)
-        status_msg = "Scanning for 3DE scene updates..." if cached_scenes else "Starting enhanced 3DE scene discovery..."
+        status_msg = (
+            "Scanning for 3DE scene updates..."
+            if cached_scenes
+            else "Starting enhanced 3DE scene discovery..."
+        )
         self.window.update_status(status_msg)
 
         # Delegate worker creation, signal wiring, and start to the manager
@@ -205,11 +211,17 @@ class ThreeDEController(LoggingMixin):
             # If another operation was started after ours, don't finish the wrong one
             current_top = ProgressManager.get_current_operation()
             if current_top == self._current_progress_operation:
-                self.logger.debug("Finishing orphaned progress operation during cleanup")
-                ProgressManager.finish_operation(success=False, error_message="Operation cancelled during shutdown")
+                self.logger.debug(
+                    "Finishing orphaned progress operation during cleanup"
+                )
+                ProgressManager.finish_operation(
+                    success=False, error_message="Operation cancelled during shutdown"
+                )
             # Our operation was already finished or another operation is on top
             elif current_top is None:
-                self.logger.debug("3DE progress operation already finished during cleanup")
+                self.logger.debug(
+                    "3DE progress operation already finished during cleanup"
+                )
             else:
                 self.logger.warning(
                     "3DE progress operation not on top of stack during cleanup - skipping finish to prevent stack corruption"
@@ -231,7 +243,9 @@ class ThreeDEController(LoggingMixin):
             return
 
         # Start progress for 3DE discovery and store reference for cleanup
-        self._current_progress_operation = ProgressManager.start_operation("3DE Scenes: Scanning user directories")
+        self._current_progress_operation = ProgressManager.start_operation(
+            "3DE Scenes: Scanning user directories"
+        )
 
     @Slot(int, int, float, str, str)  # pyright: ignore[reportAny]
     def on_discovery_progress(
@@ -325,7 +339,6 @@ class ThreeDEController(LoggingMixin):
             "Check that you have read permissions for the scan directories.",
         )
 
-
     @Slot(int, int, str)  # pyright: ignore[reportAny]
     def on_scan_progress(
         self,
@@ -416,7 +429,7 @@ class ThreeDEController(LoggingMixin):
         if not scene:
             NotificationManager.warning(
                 "No Scene Selected",
-                "Please select a 3DE scene before attempting crash recovery."
+                "Please select a 3DE scene before attempting crash recovery.",
             )
             return
 
@@ -424,6 +437,7 @@ class ThreeDEController(LoggingMixin):
         self.logger.info(f"Scanning for crash files in: {workspace_path}")
 
         from controllers.crash_recovery import execute_crash_recovery
+
         execute_crash_recovery(
             workspace_path=workspace_path,
             display_name=scene.full_name,

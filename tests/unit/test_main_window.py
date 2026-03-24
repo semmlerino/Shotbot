@@ -72,7 +72,6 @@ def setup_qt_imports() -> None:
     )
 
 
-
 @pytest.fixture(autouse=True)
 def stable_main_window_startup(monkeypatch: pytest.MonkeyPatch) -> None:
     """Disable background startup work unrelated to these UI behavior tests."""
@@ -211,14 +210,14 @@ class TestShotSelection:
 class TestShotRefresh:
     """Test shot refresh functionality."""
 
-    def test_refresh_shots_updates_display(
-        self, qtbot: QtBot, tmp_path: Path
-    ) -> None:
+    def test_refresh_shots_updates_display(self, qtbot: QtBot, tmp_path: Path) -> None:
         """Test that MainWindow refresh delegates to the refresh orchestrator."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        with patch.object(main_window.refresh_coordinator, "refresh_tab") as mock_refresh_tab:
+        with patch.object(
+            main_window.refresh_coordinator, "refresh_tab"
+        ) as mock_refresh_tab:
             main_window._refresh_shots()
 
         mock_refresh_tab.assert_called_once_with(0)
@@ -280,7 +279,6 @@ class TestApplicationLaunching:
         assert main_window.command_launcher.current_shot is None
 
 
-
 class TestStatusBar:
     """Test status bar functionality."""
 
@@ -297,9 +295,7 @@ class TestStatusBar:
         # Verify status bar shows fetching message
         assert "Fetching fresh data" in main_window.status_bar.currentMessage()
 
-    def test_show_filter_updates_status_bar(
-        self, qtbot: QtBot, tmp_path: Path
-    ) -> None:
+    def test_show_filter_updates_status_bar(self, qtbot: QtBot, tmp_path: Path) -> None:
         """Test that applying show filter updates status bar with count."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
@@ -323,7 +319,9 @@ class TestStatusBar:
         main_window.shot_item_model.set_shots(test_shots)
 
         # Apply filter via the filter coordinator (new proxy-based interface)
-        main_window.filter_coordinator.apply_show_filter(main_window.shot_proxy, "My Shots", "TestShow")
+        main_window.filter_coordinator.apply_show_filter(
+            main_window.shot_proxy, "My Shots", "TestShow"
+        )
 
         # Verify status bar shows filter result
         message = main_window.status_bar.currentMessage()
@@ -334,9 +332,7 @@ class TestStatusBar:
 class TestMainWindowIntegration:
     """Integration tests for MainWindow end-to-end workflows."""
 
-    def test_complete_shot_workflow(
-        self, qtbot: QtBot, tmp_path: Path
-    ) -> None:
+    def test_complete_shot_workflow(self, qtbot: QtBot, tmp_path: Path) -> None:
         """Test complete workflow: set a shot, select it, and launch an app."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
@@ -356,9 +352,13 @@ class TestMainWindowIntegration:
 
         # Verify DCC section launch buttons enabled (test behavior)
         assert "nuke" in main_window.right_panel._dcc_accordion._sections
-        assert main_window.right_panel._dcc_accordion._sections["nuke"]._launch_btn.isEnabled()
+        assert main_window.right_panel._dcc_accordion._sections[
+            "nuke"
+        ]._launch_btn.isEnabled()
 
-        with patch.object(main_window.command_launcher, "launch_app", return_value=True) as mock_launch:
+        with patch.object(
+            main_window.command_launcher, "launch_app", return_value=True
+        ) as mock_launch:
             main_window.launch_app("nuke")
 
         mock_launch.assert_called_once_with("nuke")
@@ -396,7 +396,9 @@ class TestCrashRecovery:
             mock_manager = mock_manager_class.return_value
             mock_manager.find_crash_files.return_value = [mock_crash_info]
 
-            with patch("threede.recovery_dialog.ThreeDERecoveryDialog") as mock_dialog_class:
+            with patch(
+                "threede.recovery_dialog.ThreeDERecoveryDialog"
+            ) as mock_dialog_class:
                 mock_dialog = mock_dialog_class.return_value
                 mock_dialog.exec.return_value = 0  # Dialog rejected
 
@@ -449,7 +451,9 @@ class TestCrashRecovery:
             mock_manager = mock_manager_class.return_value
             mock_manager.find_crash_files.return_value = [mock_crash_info]
 
-            with patch("threede.recovery_dialog.ThreeDERecoveryDialog") as mock_dialog_class:
+            with patch(
+                "threede.recovery_dialog.ThreeDERecoveryDialog"
+            ) as mock_dialog_class:
                 mock_dialog = mock_dialog_class.return_value
                 mock_dialog.exec.return_value = 0
 

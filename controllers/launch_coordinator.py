@@ -1,4 +1,5 @@
 """Launch coordination extracted from MainWindow."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, final
@@ -31,20 +32,21 @@ class LaunchCoordinator(LoggingMixin):
         self._command_launcher = command_launcher
         self._threede_shot_grid = threede_shot_grid
 
-    def on_right_panel_launch(
-        self, app_name: str, options: dict[str, Any]
-    ) -> None:
+    def on_right_panel_launch(self, app_name: str, options: dict[str, Any]) -> None:
         """Handle launch request from right panel DCC section."""
         selected_file = options.get("selected_file")
         if isinstance(selected_file, SceneFile):
             workspace_path = self.get_current_workspace_path()
             if workspace_path:
                 from launch.launch_request import LaunchRequest
-                _ = self._command_launcher.launch(LaunchRequest(
-                    app_name=app_name,
-                    file_path=selected_file.path,
-                    workspace_path=workspace_path,
-                ))
+
+                _ = self._command_launcher.launch(
+                    LaunchRequest(
+                        app_name=app_name,
+                        file_path=selected_file.path,
+                        workspace_path=workspace_path,
+                    )
+                )
                 return
             NotificationManager.error(
                 "Cannot Launch File",
@@ -63,20 +65,23 @@ class LaunchCoordinator(LoggingMixin):
             selected_plate=options.get("selected_plate"),
             sequence_path=options.get("sequence_path"),
         )
-        _ = self._command_launcher.launch(LaunchRequest(
-            app_name=app_name,
-            context=context,
-        ))
+        _ = self._command_launcher.launch(
+            LaunchRequest(
+                app_name=app_name,
+                context=context,
+            )
+        )
 
-    def launch_app_opening_scene_file(
-        self, app_name: str, scene: ThreeDEScene
-    ) -> None:
+    def launch_app_opening_scene_file(self, app_name: str, scene: ThreeDEScene) -> None:
         """Launch an application and open the specific 3DE scene file."""
         from launch.launch_request import LaunchRequest
-        _ = self._command_launcher.launch(LaunchRequest(
-            app_name=app_name,
-            scene=scene,
-        ))
+
+        _ = self._command_launcher.launch(
+            LaunchRequest(
+                app_name=app_name,
+                scene=scene,
+            )
+        )
 
     def get_current_workspace_path(self) -> str | None:
         """Get workspace path from current shot or selected 3DE scene."""

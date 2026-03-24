@@ -96,11 +96,13 @@ class ShotDiscoveryWorker(TrackedQRunnable):
 
             # Emit results
             if not self._cancelled:
-                self.signals.finished.emit({
-                    "shot": self.shot,
-                    "plates": plates,
-                    "files": files_by_type,
-                })
+                self.signals.finished.emit(
+                    {
+                        "shot": self.shot,
+                        "plates": plates,
+                        "files": files_by_type,
+                    }
+                )
         except Exception as e:
             if not self._cancelled:
                 logger.exception("Shot discovery failed")
@@ -149,7 +151,9 @@ class ShotSelectionController(QObject, LoggingMixin):
         """Connect UI signals to controller slots."""
         # My Shots grid signals
         _ = self.window.shot_grid.shot_selected.connect(self.on_shot_selected)  # pyright: ignore[reportAny]
-        _ = self.window.shot_grid.shot_double_clicked.connect(self.on_shot_double_clicked)  # pyright: ignore[reportAny]
+        _ = self.window.shot_grid.shot_double_clicked.connect(
+            self.on_shot_double_clicked
+        )  # pyright: ignore[reportAny]
         _ = self.window.shot_grid.recover_crashes_requested.connect(
             self.on_recover_crashes_requested  # pyright: ignore[reportAny]
         )
@@ -211,7 +215,9 @@ class ShotSelectionController(QObject, LoggingMixin):
             self.window.right_panel.set_shot(shot, discover_files=False)
 
             # Update window title
-            self.window.setWindowTitle(f"{Config.APP_NAME} - {shot.full_name} ({shot.show})")
+            self.window.setWindowTitle(
+                f"{Config.APP_NAME} - {shot.full_name} ({shot.show})"
+            )
 
             # Update status
             self.window.update_status(f"Selected: {shot.full_name} ({shot.show})")
@@ -222,7 +228,9 @@ class ShotSelectionController(QObject, LoggingMixin):
 
             # Start async discovery for plates and files (non-blocking)
             self._discovery_worker = ShotDiscoveryWorker(shot)
-            _ = self._discovery_worker.signals.finished.connect(self._on_discovery_complete)  # pyright: ignore[reportAny]
+            _ = self._discovery_worker.signals.finished.connect(
+                self._on_discovery_complete
+            )  # pyright: ignore[reportAny]
             _ = self._discovery_worker.signals.error.connect(self._on_discovery_error)  # pyright: ignore[reportAny]
             QThreadPool.globalInstance().start(self._discovery_worker)
 
@@ -260,7 +268,9 @@ class ShotSelectionController(QObject, LoggingMixin):
 
         # Update files
         if isinstance(files, dict):
-            self.window.right_panel.set_files(cast("dict[FileType, list[SceneFile]]", files))
+            self.window.right_panel.set_files(
+                cast("dict[FileType, list[SceneFile]]", files)
+            )
 
         # Discover RV sequences (Maya playblasts, Nuke renders)
         self.window.right_panel.discover_rv_sequences(shot)
@@ -302,9 +312,10 @@ class ShotSelectionController(QObject, LoggingMixin):
         if not current_shot and not current_scene:
             # Local application imports
             from managers.notification_manager import NotificationManager
+
             NotificationManager.warning(
                 "No Shot Selected",
-                "Please select a shot before attempting crash recovery."
+                "Please select a shot before attempting crash recovery.",
             )
             return
 
@@ -318,9 +329,12 @@ class ShotSelectionController(QObject, LoggingMixin):
             assert current_scene is not None  # Type narrowing
             workspace_path = current_scene.workspace_path
             full_name = current_scene.full_name
-        self.logger.info(f"Scanning for crash files in shot workspace: {workspace_path}")
+        self.logger.info(
+            f"Scanning for crash files in shot workspace: {workspace_path}"
+        )
 
         from controllers.crash_recovery import execute_crash_recovery
+
         execute_crash_recovery(
             workspace_path=workspace_path,
             display_name=full_name,

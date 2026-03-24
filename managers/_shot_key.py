@@ -24,4 +24,5 @@ def key_from_workspace_path(workspace_path: str) -> tuple[str, str, str] | None:
         Tuple key or None if path can't be parsed
     """
     from paths.shot_dir_parser import parse_workspace_path
+
     return parse_workspace_path(workspace_path)

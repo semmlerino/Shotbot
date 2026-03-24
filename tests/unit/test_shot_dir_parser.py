@@ -1,4 +1,5 @@
 """Tests for the canonical shot directory parser."""
+
 from __future__ import annotations
 
 from paths.shot_dir_parser import parse_shot_from_dir, parse_workspace_path

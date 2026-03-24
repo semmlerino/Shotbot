@@ -1,4 +1,5 @@
 """Data event handlers extracted from MainWindow."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, final

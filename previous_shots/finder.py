@@ -127,6 +127,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
             # Extract shot number from directory name (consistent with base_shot_model logic)
             from paths.shot_dir_parser import parse_shot_from_dir
+
             shot = parse_shot_from_dir(sequence, shot_dir)
         else:
             return None
@@ -394,6 +395,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
             Shot objects as they are discovered
 
         """
+
         # Helper to check both internal and external cancellation
         def should_cancel() -> bool:
             return self._stop_requested or (cancel_flag is not None and cancel_flag())

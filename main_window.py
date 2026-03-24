@@ -108,11 +108,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if not isinstance(app_instance, QApplication) and not is_test_environment:
             msg = (
                 "MainWindow: QCoreApplication instance is not a QApplication. "
-                 f"Type: {type(app_instance)}"
+                f"Type: {type(app_instance)}"
             )
-            raise RuntimeError(
-                msg
-            )
+            raise RuntimeError(msg)
 
         super().__init__(parent)
 
@@ -169,7 +167,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.logger.info("MainWindow.__init__() COMPLETE - returning to Qt event loop")
         self.logger.info("=" * 60)
 
-
     def _init_controllers(self) -> None:
         """Initialize controllers that require UI widgets to be set up first."""
         self.filter_coordinator = FilterCoordinator(
@@ -203,10 +200,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             launch_coordinator=self.launch_coordinator,
         )
 
-        self.shot_selection_controller: ShotSelectionController = ShotSelectionController(
-            self,
-            command_launcher=self.command_launcher,
-            parent=self,
+        self.shot_selection_controller: ShotSelectionController = (
+            ShotSelectionController(
+                self,
+                command_launcher=self.command_launcher,
+                parent=self,
+            )
         )
 
         self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)
@@ -318,10 +317,16 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Connect signals."""
         # Shot model -> RefreshCoordinator connections
         self.refresh_coordinator.setup_signals()
-        _ = self.shot_model.error_occurred.connect(self.data_event_handler.on_shot_error)
+        _ = self.shot_model.error_occurred.connect(
+            self.data_event_handler.on_shot_error
+        )
         # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
-        _ = self.shot_model.cache_updated.connect(self.data_event_handler.on_cache_updated)
-        _ = self.shot_model.data_recovery_occurred.connect(self.data_event_handler.on_data_recovery)
+        _ = self.shot_model.cache_updated.connect(
+            self.data_event_handler.on_cache_updated
+        )
+        _ = self.shot_model.data_recovery_occurred.connect(
+            self.data_event_handler.on_data_recovery
+        )
         # Background load signals for status feedback during initial async load
         _ = self.shot_model.background_load_started.connect(
             self.data_event_handler.on_background_load_started
@@ -335,18 +340,30 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # My Shots filter signals
         _ = self.shot_grid.show_filter_requested.connect(
-            partial(self.filter_coordinator.apply_show_filter, self.shot_proxy, "My Shots")  # pyright: ignore[reportAny]
+            partial(
+                self.filter_coordinator.apply_show_filter, self.shot_proxy, "My Shots"
+            )  # pyright: ignore[reportAny]
         )
         _ = self.shot_grid.text_filter_requested.connect(
-            partial(self.filter_coordinator.apply_text_filter, self.shot_proxy, "My Shots")  # pyright: ignore[reportAny]
+            partial(
+                self.filter_coordinator.apply_text_filter, self.shot_proxy, "My Shots"
+            )  # pyright: ignore[reportAny]
         )
 
         # Previous Shots filter signals
         _ = self.previous_shots_grid.show_filter_requested.connect(
-            partial(self.filter_coordinator.apply_show_filter, self.previous_shots_proxy, "Previous Shots")  # pyright: ignore[reportAny]
+            partial(
+                self.filter_coordinator.apply_show_filter,
+                self.previous_shots_proxy,
+                "Previous Shots",
+            )  # pyright: ignore[reportAny]
         )
         _ = self.previous_shots_grid.text_filter_requested.connect(
-            partial(self.filter_coordinator.apply_text_filter, self.previous_shots_proxy, "Previous Shots")  # pyright: ignore[reportAny]
+            partial(
+                self.filter_coordinator.apply_text_filter,
+                self.previous_shots_proxy,
+                "Previous Shots",
+            )  # pyright: ignore[reportAny]
         )
 
         # Previous shots model updates (repopulate show filter when shots change)
@@ -360,7 +377,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.shot_grid.shot_visibility_changed.connect(
             self.data_event_handler.on_shot_visibility_changed
         )
-        _ = self.shot_grid.show_hidden_changed.connect(self.data_event_handler.on_show_hidden_changed)
+        _ = self.shot_grid.show_hidden_changed.connect(
+            self.data_event_handler.on_show_hidden_changed
+        )
 
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
@@ -393,9 +412,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.threede_controller.refresh_threede_scenes
         )
 
-        _ = self.tab_widget.currentChanged.connect(self.shot_selection_controller.on_tab_activated)  # pyright: ignore[reportAny]
-        _ = self.tab_widget.currentChanged.connect(self.threede_controller.on_tab_activated)  # pyright: ignore[reportAny]
-        _ = self.right_panel.launch_requested.connect(self.launch_coordinator.on_right_panel_launch)
+        _ = self.tab_widget.currentChanged.connect(
+            self.shot_selection_controller.on_tab_activated
+        )  # pyright: ignore[reportAny]
+        _ = self.tab_widget.currentChanged.connect(
+            self.threede_controller.on_tab_activated
+        )  # pyright: ignore[reportAny]
+        _ = self.right_panel.launch_requested.connect(
+            self.launch_coordinator.on_right_panel_launch
+        )
         _ = self.right_panel.status_message.connect(self.update_status)
 
         # Async file search state - update launch button during search
@@ -410,10 +435,18 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Sort order changes - connect view signals to model and settings persistence
         _ = self.threede_shot_grid.sort_order_changed.connect(
-            partial(self.filter_coordinator.on_sort_order_changed, "threede_scenes", self.threede_item_model)
+            partial(
+                self.filter_coordinator.on_sort_order_changed,
+                "threede_scenes",
+                self.threede_item_model,
+            )
         )
         _ = self.previous_shots_grid.sort_order_changed.connect(
-            partial(self.filter_coordinator.on_sort_order_changed, "previous_shots", self.previous_shots_item_model)
+            partial(
+                self.filter_coordinator.on_sort_order_changed,
+                "previous_shots",
+                self.previous_shots_item_model,
+            )
         )
 
     def _refresh_shots(self) -> None:
@@ -567,8 +600,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 _ = warmer.request_stop()
 
                 import sys
+
                 is_test_environment = "pytest" in sys.modules
-                session_timeout_ms = 200 if is_test_environment else TimeoutConfig.SESSION_WARMER_STOP_MS
+                session_timeout_ms = (
+                    200 if is_test_environment else TimeoutConfig.SESSION_WARMER_STOP_MS
+                )
 
                 if not warmer.wait(session_timeout_ms):
                     self.logger.warning(
@@ -626,10 +662,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             app.processEvents()
 
         from workers.runnable_tracker import cleanup_all_runnables
+
         self.logger.debug("Cleaning up tracked QRunnables")
         cleanup_all_runnables()
 
         import gc
+
         _ = gc.collect()
 
         self.logger.debug("MainWindow cleanup sequence completed")

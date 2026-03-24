@@ -207,7 +207,9 @@ class ThreeDEGridView(BaseGridView):
         """
         return ThreeDEGridDelegate(self)
 
-    def set_model(self, model: ThreeDEItemModel, proxy: QSortFilterProxyModel | None = None) -> None:
+    def set_model(
+        self, model: ThreeDEItemModel, proxy: QSortFilterProxyModel | None = None
+    ) -> None:
         """Set the item model.
 
         Args:
@@ -272,9 +274,7 @@ class ThreeDEGridView(BaseGridView):
         self._populate_filter_combo(self.artist_combo, artist_list, "All Artists")
         artist_count = len(artist_list)
         artist_word = "artist" if artist_count == 1 else "artists"
-        self.logger.info(
-            f"Populated artist filter with {artist_count} {artist_word}"
-        )
+        self.logger.info(f"Populated artist filter with {artist_count} {artist_word}")
 
     def _populate_filter_combo(
         self,
@@ -509,10 +509,30 @@ class ThreeDEGridView(BaseGridView):
         self._build_standard_actions(
             menu,
             [
-                ("Open Shot Folder", "folder", "#FFB347", lambda: self._open_shot_folder(scene)),
-                ("Open Main Plate in RV", "play", "#FF4757", lambda: self._open_main_plate_in_rv(scene)),
-                ("Copy Shot Path", "clipboard", "#95A5A6", lambda: self._copy_path_to_clipboard(scene.workspace_path)),
-                (note_label, "note", "#F1C40F", lambda s=scene: self._edit_scene_note(s)),
+                (
+                    "Open Shot Folder",
+                    "folder",
+                    "#FFB347",
+                    lambda: self._open_shot_folder(scene),
+                ),
+                (
+                    "Open Main Plate in RV",
+                    "play",
+                    "#FF4757",
+                    lambda: self._open_main_plate_in_rv(scene),
+                ),
+                (
+                    "Copy Shot Path",
+                    "clipboard",
+                    "#95A5A6",
+                    lambda: self._copy_path_to_clipboard(scene.workspace_path),
+                ),
+                (
+                    note_label,
+                    "note",
+                    "#F1C40F",
+                    lambda s=scene: self._edit_scene_note(s),
+                ),
             ],
         )
 
@@ -674,4 +694,3 @@ class ThreeDEGridView(BaseGridView):
     def is_loading(self) -> bool:
         """Check if loading is in progress."""
         return self._is_loading
-

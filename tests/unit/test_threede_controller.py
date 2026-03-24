@@ -753,9 +753,7 @@ class TestSceneUpdates:
         """Test that update_scenes_with_changes shows empty message when no scenes."""
         controller.update_scenes_with_changes([])
 
-        assert any(
-            "No 3DE scenes" in msg for msg in window_double._status_messages
-        )
+        assert any("No 3DE scenes" in msg for msg in window_double._status_messages)
 
 
 # ============================================================================
@@ -941,5 +939,3 @@ class TestCacheOperations:
         assert len(cached) == 2
         assert cached[0]["show"] == "testshow"
         assert cached[0]["sequence"] == "sq010"
-
-

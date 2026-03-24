@@ -6,6 +6,7 @@ patterns and parsing logic.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
+
 from __future__ import annotations
 
 # Standard library imports
@@ -31,7 +32,9 @@ class SceneParser(LoggingMixin):
     """
 
     # Pre-compiled regex patterns for performance
-    _BG_FG_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^[bf]g\d{2}$", re.IGNORECASE)
+    _BG_FG_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
+        r"^[bf]g\d{2}$", re.IGNORECASE
+    )
     _PLATE_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
         re.compile(r"^[bf]g\d{2}$", re.IGNORECASE),
         re.compile(r"^plate_?\d+$", re.IGNORECASE),
@@ -76,6 +79,7 @@ class SceneParser(LoggingMixin):
             if no underscore is found.
         """
         from paths.shot_dir_parser import parse_shot_from_dir
+
         return parse_shot_from_dir(sequence, shot_dir)
 
     def extract_plate_from_path(self, file_path: Path, user_path: Path) -> str:
@@ -257,7 +261,9 @@ class SceneParser(LoggingMixin):
             frame_end=frame_end,
         )
 
-        _logger.debug("Created scene: %s/%s/%s - %s/%s", show, sequence, shot, user, plate)
+        _logger.debug(
+            "Created scene: %s/%s/%s - %s/%s", show, sequence, shot, user, plate
+        )
         return scene
 
     def extract_shot_from_workspace_path(
@@ -274,6 +280,7 @@ class SceneParser(LoggingMixin):
             Tuple of (show, sequence, shot) or None if parsing fails
         """
         from paths.shot_dir_parser import parse_workspace_path
+
         return parse_workspace_path(workspace_path)
 
     def validate_scene_file(self, scene_path: Path) -> bool:

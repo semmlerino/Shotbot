@@ -4,6 +4,7 @@ All code that needs to extract a shot identifier from a directory name
 like ``{sequence}_{shot}`` should call :func:`parse_shot_from_dir` instead
 of reimplementing the logic.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,7 +27,7 @@ def parse_shot_from_dir(sequence: str, shot_dir: str) -> str:
     """
     prefix = f"{sequence}_"
     if shot_dir.startswith(prefix):
-        return shot_dir[len(prefix):]
+        return shot_dir[len(prefix) :]
     parts = shot_dir.rsplit("_", 1)
     return parts[1] if len(parts) == 2 else shot_dir
 

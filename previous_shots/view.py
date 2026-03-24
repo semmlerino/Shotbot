@@ -136,7 +136,9 @@ class PreviousShotsView(BaseShotGridView):
 
         # Status label
         self._status_label = QLabel("Approved Shots (Persistent Cache)")
-        self._status_label.setStyleSheet(f"font-weight: bold; font-size: {design_system.typography.size_body}px;")
+        self._status_label.setStyleSheet(
+            f"font-weight: bold; font-size: {design_system.typography.size_body}px;"
+        )
         header_layout.addWidget(self._status_label)
 
         header_layout.addStretch()
@@ -211,7 +213,9 @@ class PreviousShotsView(BaseShotGridView):
                 Qt.ConnectionType.QueuedConnection,
             )
 
-    def set_model(self, model: PreviousShotsItemModel, proxy: QSortFilterProxyModel | None = None) -> None:
+    def set_model(
+        self, model: PreviousShotsItemModel, proxy: QSortFilterProxyModel | None = None
+    ) -> None:
         """Set the data model for the view.
 
         Args:
@@ -267,7 +271,9 @@ class PreviousShotsView(BaseShotGridView):
         self._status_label.setText("Scanning for new approved shots...")
 
         # Start progress operation
-        _ = ProgressManager.start_operation("Previous Shots: Discovering archived shots")
+        _ = ProgressManager.start_operation(
+            "Previous Shots: Discovering archived shots"
+        )
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_scan_finished(self) -> None:

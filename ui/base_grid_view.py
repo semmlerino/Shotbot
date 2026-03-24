@@ -95,16 +95,21 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
     # Common signals that all views share
     app_launch_requested: ClassVar[Signal] = Signal(str)  # app_name
-    show_filter_requested: ClassVar[Signal] = Signal(str)  # show name or empty string for all
-    text_filter_requested: ClassVar[Signal] = Signal(str)  # filter text for real-time search
-    pin_shot_requested: ClassVar[Signal] = Signal(object)  # fallback when no pin_manager
+    show_filter_requested: ClassVar[Signal] = Signal(
+        str
+    )  # show name or empty string for all
+    text_filter_requested: ClassVar[Signal] = Signal(
+        str
+    )  # filter text for real-time search
+    pin_shot_requested: ClassVar[Signal] = Signal(
+        object
+    )  # fallback when no pin_manager
     sort_order_changed: ClassVar[Signal] = Signal(str)  # "name" or "date"
 
     # Manager attribute declarations — subclasses initialize these.
     # Declared here so shared handler methods (_pin_shot, etc.) type-check correctly.
     _pin_manager: ShotPinManager | None
     _notes_manager: NotesManager | None
-
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the base grid view.
@@ -507,9 +512,13 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
                     if source_idx.isValid():
                         source_rows.append(source_idx.row())
                 if source_rows:
-                    self._handle_visible_range_update(min(source_rows), max(source_rows) + 1)
+                    self._handle_visible_range_update(
+                        min(source_rows), max(source_rows) + 1
+                    )
             else:
-                self._handle_visible_range_update(first_index.row(), last_index.row() + 1)
+                self._handle_visible_range_update(
+                    first_index.row(), last_index.row() + 1
+                )
 
     def _handle_visible_range_update(self, start: int, end: int) -> None:
         """Handle the visible range update.
@@ -701,6 +710,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         """
         from launch.rv_launcher import open_plate_in_rv
+
         open_plate_in_rv(item.workspace_path)  # type: ignore[union-attr]
 
     # Common properties

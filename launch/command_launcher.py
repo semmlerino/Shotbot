@@ -139,6 +139,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Cache manager for latest files
         if cache_manager is None:
             from cache.latest_file_cache import make_default_latest_file_cache
+
             cache_manager = make_default_latest_file_cache()
         self._cache_manager = cache_manager
 
@@ -174,8 +175,8 @@ class CommandLauncher(LoggingMixin, QObject):
                 scripts_dir=Config.SCRIPTS_DIR,
                 cache_manager=self._cache_manager,
                 start_async_search=self._start_async_file_search,
-                apply_file_result=lambda app, cmd, path: LaunchOperation.apply_file_result(
-                    app, cmd, path, self._emit_error
+                apply_file_result=lambda app, cmd, path: (
+                    LaunchOperation.apply_file_result(app, cmd, path, self._emit_error)
                 ),
                 emit_error=self._emit_error,
             ),
@@ -183,8 +184,8 @@ class CommandLauncher(LoggingMixin, QObject):
                 bootstrap_script=maya_commands.MAYA_BOOTSTRAP_SCRIPT,
                 cache_manager=self._cache_manager,
                 start_async_search=self._start_async_file_search,
-                apply_file_result=lambda app, cmd, path: LaunchOperation.apply_file_result(
-                    app, cmd, path, self._emit_error
+                apply_file_result=lambda app, cmd, path: (
+                    LaunchOperation.apply_file_result(app, cmd, path, self._emit_error)
                 ),
                 emit_error=self._emit_error,
             ),
@@ -357,6 +358,7 @@ class CommandLauncher(LoggingMixin, QObject):
         if self.process_executor.is_gui_app(app_name):
             # Local application imports
             from managers.notification_manager import NotificationManager
+
             NotificationManager.warning(
                 "Launch Verification Failed",
                 f"{app_name} may have failed to start. "
@@ -390,9 +392,7 @@ class CommandLauncher(LoggingMixin, QObject):
     def _on_launch_crash_detected(self, app_name: str) -> None:
         """Handle launch crash detection from ProcessExecutor."""
         # Local application imports
-        NotificationManager.error(
-            "Launch Failed", f"{app_name} crashed immediately"
-        )
+        NotificationManager.error("Launch Failed", f"{app_name} crashed immediately")
 
     # ========================================================================
     # Async Latest File Search — Coordinator Interface
@@ -420,7 +420,9 @@ class CommandLauncher(LoggingMixin, QObject):
             return
 
         pending = PendingLaunch(app_name=app_name, context=context, command=command)
-        self._file_search_coordinator.start_async_file_search(pending, self.current_shot)
+        self._file_search_coordinator.start_async_file_search(
+            pending, self.current_shot
+        )
 
     def _on_search_result_ready(
         self,
@@ -459,7 +461,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Add scene path to command based on results
         if app_name == "3de":
-            result = LaunchOperation.apply_file_result("3de", command, threede, self._emit_error)
+            result = LaunchOperation.apply_file_result(
+                "3de", command, threede, self._emit_error
+            )
             if result is None:
                 self._phase = LaunchPhase.IDLE
                 self.logger.debug("LaunchPhase: %s", self._phase.value)
@@ -467,7 +471,9 @@ class CommandLauncher(LoggingMixin, QObject):
             command = result
 
         if app_name == "maya":
-            result = LaunchOperation.apply_file_result("maya", command, maya, self._emit_error)
+            result = LaunchOperation.apply_file_result(
+                "maya", command, maya, self._emit_error
+            )
             if result is None:
                 self._phase = LaunchPhase.IDLE
                 self.logger.debug("LaunchPhase: %s", self._phase.value)
@@ -560,7 +566,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         """
         # Precondition: caller must have verified current_shot is not None
-        assert self.current_shot is not None, "_build_app_command called without a current shot"
+        assert self.current_shot is not None, (
+            "_build_app_command called without a current shot"
+        )
         base_cmd = Config.APPS[app_name]
         handler = self._app_handlers.get(app_name, self._default_handler)
         return handler.build_launch_command(base_cmd, context, self.current_shot)
@@ -585,7 +593,9 @@ class CommandLauncher(LoggingMixin, QObject):
         if not self._validate_app_name(request.app_name):
             return False
 
-        if request.app_name in ("nuke", "3de") and not self._validate_scripts_dir(request.app_name):
+        if request.app_name in ("nuke", "3de") and not self._validate_scripts_dir(
+            request.app_name
+        ):
             return False
 
         # --- Dispatch based on request type ---
@@ -698,6 +708,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Thin wrapper around :meth:`launch` for backward compatibility.
         """
         from launch.launch_request import LaunchRequest
+
         return self.launch(LaunchRequest(app_name=app_name, context=context))
 
     def launch_app_opening_scene_file(self, app_name: str, scene: ThreeDEScene) -> bool:
@@ -706,6 +717,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Thin wrapper around :meth:`launch` for backward compatibility.
         """
         from launch.launch_request import LaunchRequest
+
         return self.launch(LaunchRequest(app_name=app_name, scene=scene))
 
     def launch_with_file(
@@ -719,11 +731,14 @@ class CommandLauncher(LoggingMixin, QObject):
         Thin wrapper around :meth:`launch` for backward compatibility.
         """
         from launch.launch_request import LaunchRequest
-        return self.launch(LaunchRequest(
-            app_name=app_name,
-            file_path=file_path,
-            workspace_path=workspace_path,
-        ))
+
+        return self.launch(
+            LaunchRequest(
+                app_name=app_name,
+                file_path=file_path,
+                workspace_path=workspace_path,
+            )
+        )
 
     # Methods removed - now using launch components:
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)

@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 # Module-level lazy import fixture (required by all classes in this module)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
@@ -57,6 +58,7 @@ pytestmark = [
 # ---------------------------------------------------------------------------
 # Shared window-cleanup helper
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def stable_main_window_startup(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -85,7 +87,11 @@ def _stop_window_background_work(window: Any) -> None:
         with contextlib.suppress(RuntimeError, TypeError, AttributeError):
             window.command_launcher.cleanup()
 
-    if hasattr(window, "threede_worker") and window.threede_worker and window.threede_worker.isRunning():
+    if (
+        hasattr(window, "threede_worker")
+        and window.threede_worker
+        and window.threede_worker.isRunning()
+    ):
         with contextlib.suppress(RuntimeError):
             window.threede_worker.quit()
             window.threede_worker.wait(1000)
@@ -121,6 +127,7 @@ def _close_windows(windows: list[Any], qtbot: Any) -> None:
 # Shared fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def real_cache_manager(tmp_path: Path) -> Path:
     """Real cache directory for testing."""
@@ -147,9 +154,11 @@ def main_window_with_real_components(
         return test_pool
 
     from workers.process_pool_manager import ProcessPoolManager
+
     monkeypatch.setattr(ProcessPoolManager, "get_instance", mock_get_instance)
 
     from managers.notification_manager import NotificationManager
+
     TestNotificationManager.clear()
 
     original_notification_methods = {
@@ -164,6 +173,7 @@ def main_window_with_real_components(
     NotificationManager.success = TestNotificationManager.success
 
     from managers.progress_manager import ProgressManager
+
     test_progress_manager = MainWindowTestProgressManager()
     original_operation = ProgressManager.operation
     original_start_operation = ProgressManager.start_operation
@@ -173,6 +183,7 @@ def main_window_with_real_components(
     ProgressManager.finish_operation = test_progress_manager.finish_operation
 
     import types
+
     class MockThreeDELatestFinder:
         def find_latest_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
             return None
@@ -233,6 +244,7 @@ def main_window_with_real_components(
 # ---------------------------------------------------------------------------
 # TestCrossTabSynchronization
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.allow_main_thread
 class TestCrossTabSynchronization:
@@ -319,6 +331,7 @@ class TestCrossTabSynchronization:
     ) -> None:
         """Test that show filtering propagates correctly within a tab."""
         from shots.shot_model import AsyncShotLoader
+
         original_init_async = AsyncShotLoader.__init__
 
         def no_op_init(self: Any, *args: Any, **kwargs: Any) -> None:
@@ -328,6 +341,7 @@ class TestCrossTabSynchronization:
         AsyncShotLoader.__init__ = no_op_init
 
         from PySide6.QtCore import QTimer
+
         original_singleshot = QTimer.singleShot
         QTimer.singleShot = lambda *_args, **_kwargs: None
 
@@ -343,6 +357,7 @@ class TestCrossTabSynchronization:
         window.shot_item_model.set_shots([])
 
         from PySide6.QtCore import QMutexLocker
+
         with QMutexLocker(window.shot_model._loader_lock):
             if window.shot_model._async_loader:
                 window.shot_model._async_loader.stop()
@@ -384,6 +399,7 @@ class TestCrossTabSynchronization:
 # TestMainWindowUICoordination
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
 @pytest.mark.qt_heavy
@@ -422,7 +438,9 @@ class TestMainWindowUICoordination:
         if open_latest_checkbox:
             open_latest_checkbox.setChecked(False)
 
-        with patch.object(window.command_launcher, "launch", return_value=True) as mock_launch:
+        with patch.object(
+            window.command_launcher, "launch", return_value=True
+        ) as mock_launch:
             section_3de._launch_btn.click()
             qtbot.wait(1)
 
@@ -464,6 +482,7 @@ class TestMainWindowUICoordination:
 # TestMainWindowKeyboardShortcuts
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
 class TestMainWindowKeyboardShortcuts:
@@ -497,6 +516,7 @@ class TestMainWindowKeyboardShortcuts:
 # ---------------------------------------------------------------------------
 # TestMainWindowErrorScenarios
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
@@ -532,11 +552,10 @@ class TestMainWindowErrorScenarios:
         assert len(error_notifications) > 0
 
 
-
-
 # ---------------------------------------------------------------------------
 # TestUserWorkflows
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
@@ -583,9 +602,15 @@ class TestUserWorkflows:
         self.test_subprocess = TestSubprocess()
 
         self.test_processes = {
-            "nuke": PopenDouble(["nuke"], returncode=0, stdout="Nuke started", stderr=""),
-            "maya": PopenDouble(["maya"], returncode=0, stdout="Maya started", stderr=""),
-            "custom": PopenDouble(["custom_tool"], returncode=0, stdout="Custom tool started", stderr=""),
+            "nuke": PopenDouble(
+                ["nuke"], returncode=0, stdout="Nuke started", stderr=""
+            ),
+            "maya": PopenDouble(
+                ["maya"], returncode=0, stdout="Maya started", stderr=""
+            ),
+            "custom": PopenDouble(
+                ["custom_tool"], returncode=0, stdout="Custom tool started", stderr=""
+            ),
         }
         self.test_processes["nuke"].pid = 11111
         self.test_processes["maya"].pid = 22222
@@ -594,7 +619,9 @@ class TestUserWorkflows:
         self.signal_events: list[tuple] = []
 
         self.progress_operation = ProgressOperationDouble()
-        self.progress_patcher = patch("managers.progress_manager.ProgressManager.start_operation")
+        self.progress_patcher = patch(
+            "managers.progress_manager.ProgressManager.start_operation"
+        )
         self.mock_progress = self.progress_patcher.start()
         self.mock_progress.return_value = self.progress_operation
 
@@ -613,6 +640,7 @@ class TestUserWorkflows:
     def _track_signal(self, signal_name: str) -> Any:
         def handler(*args: Any) -> None:
             self.signal_events.append((signal_name, args, time.time()))
+
         return handler
 
     def _create_realistic_shot_structure(self, shot_data: dict[str, str]) -> Path:
@@ -644,7 +672,8 @@ class TestUserWorkflows:
         thumbnail_path.write_bytes(b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x00" * 200)
 
         scene_path = (
-            shot_path / "user/alice/mm/3de/mm-default/scenes/scene/FG01/v001/alice_scene.3de"
+            shot_path
+            / "user/alice/mm/3de/mm-default/scenes/scene/FG01/v001/alice_scene.3de"
         )
         scene_path.write_bytes(b"3DE_SCENE_DATA" * 50)
 
@@ -694,12 +723,16 @@ class TestUserWorkflows:
             if mock_popen.call_args:
                 call_args = mock_popen.call_args
                 command_str = " ".join(call_args[0][0]) if call_args[0] else ""
-                assert "nuke" in command_str.lower(), f"Expected 'nuke' in command: {command_str}"
+                assert "nuke" in command_str.lower(), (
+                    f"Expected 'nuke' in command: {command_str}"
+                )
 
         assert main_window.command_launcher.current_shot == test_shot
 
     @pytest.mark.qt
-    def test_thumbnail_loading_workflow(self, qtbot: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_thumbnail_loading_workflow(
+        self, qtbot: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test thumbnail loading and display workflow."""
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -718,6 +751,7 @@ class TestUserWorkflows:
         self.test_windows.append(main_window)
 
         from PySide6.QtCore import QMutexLocker
+
         with QMutexLocker(main_window.shot_model._loader_lock):
             if main_window.shot_model._async_loader:
                 main_window.shot_model._async_loader.stop()
@@ -757,23 +791,23 @@ class TestUserWorkflows:
         main_window.refresh_coordinator.handle_shots_changed(all_shots)
 
         qtbot.waitUntil(
-            lambda: main_window.shot_item_model.rowCount() > 0,
-            timeout=1000
+            lambda: main_window.shot_item_model.rowCount() > 0, timeout=1000
         )
 
         assert main_window.shot_item_model.rowCount() > 0, "No shots in item model"
 
         from ui.base_item_model import BaseItemRole as UnifiedRole
+
         for i in range(main_window.shot_item_model.rowCount()):
             index = main_window.shot_item_model.index(i, 0)
             shot_data = main_window.shot_item_model.data(index, UnifiedRole.ObjectRole)
             assert shot_data is not None
 
 
-
 # ---------------------------------------------------------------------------
 # Standalone helpers (preserved from test_user_workflows.py)
 # ---------------------------------------------------------------------------
+
 
 def setup_test_environment() -> Path:
     """Set up isolated test environment for standalone testing."""
@@ -800,6 +834,7 @@ if __name__ == "__main__":
         print("Running critical user workflow integration tests...")
         print("1. Testing Nuke launch workflow...")
         try:
+
             class StandaloneQtBot:
                 def addWidget(self, widget: Any) -> None:
                     pass
@@ -822,7 +857,11 @@ if __name__ == "__main__":
             test_instance.config_dir = test_instance.temp_dir / "config"
             test_instance.cache_dir = test_instance.temp_dir / "cache"
             test_instance.shows_dir = test_instance.temp_dir / "shows"
-            for d in [test_instance.config_dir, test_instance.cache_dir, test_instance.shows_dir]:
+            for d in [
+                test_instance.config_dir,
+                test_instance.cache_dir,
+                test_instance.shows_dir,
+            ]:
                 d.mkdir(parents=True, exist_ok=True)
             test_instance.test_shots = [
                 {
@@ -835,12 +874,16 @@ if __name__ == "__main__":
             ]
             test_instance.test_subprocess = TestSubprocess()
             test_instance.test_processes = {
-                "nuke": PopenDouble(["nuke"], returncode=0, stdout="Nuke started", stderr=""),
+                "nuke": PopenDouble(
+                    ["nuke"], returncode=0, stdout="Nuke started", stderr=""
+                ),
             }
             test_instance.test_processes["nuke"].pid = 11111
             test_instance.signal_events = []
             test_instance.progress_operation = ProgressOperationDouble()
-            test_instance.progress_patcher = patch("managers.progress_manager.ProgressManager.start_operation")
+            test_instance.progress_patcher = patch(
+                "managers.progress_manager.ProgressManager.start_operation"
+            )
             test_instance.mock_progress = test_instance.progress_patcher.start()
             test_instance.mock_progress.return_value = test_instance.progress_operation
 

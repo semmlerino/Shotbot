@@ -1,4 +1,5 @@
 """Filter and sort coordination for MainWindow grid views."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, final
@@ -79,11 +80,14 @@ class FilterCoordinator(LoggingMixin):
         total = proxy.sourceModel().rowCount()
         if filter_text:
             self._status_bar.showMessage(
-                f"{tab_label}: {filtered_count} of {total} (filter: '{filter_text}')", 2500
+                f"{tab_label}: {filtered_count} of {total} (filter: '{filter_text}')",
+                2500,
             )
         else:
             self._status_bar.showMessage(f"{tab_label}: {total} shots", 2500)
-        self.logger.debug(f"{tab_label} text filter: '{filter_text}' - {filtered_count} shots")
+        self.logger.debug(
+            f"{tab_label} text filter: '{filter_text}' - {filtered_count} shots"
+        )
 
     def on_previous_shots_updated(self) -> None:
         """Handle previous shots updated signal."""

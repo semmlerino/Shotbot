@@ -47,14 +47,21 @@ class TestShotItemModelFiltering:
     @pytest.fixture
     def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel with test process pool."""
-        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
+        model = ShotModel(
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"),
+            load_cache=False,
+        )
         model._process_pool = TestProcessPool(allow_main_thread=True)
         return model
 
     @pytest.fixture
-    def shot_item_model(self, tmp_path: Path, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
+    def shot_item_model(
+        self, tmp_path: Path, qtbot: QtBot
+    ) -> Generator[ShotItemModel, None, None]:
         """Create ShotItemModel for testing."""
-        model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"))
+        model = ShotItemModel(
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache")
+        )
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
@@ -120,7 +127,10 @@ class TestPreviousShotsModelFiltering:
     @pytest.fixture
     def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a base ShotModel."""
-        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
+        model = ShotModel(
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"),
+            load_cache=False,
+        )
         model._process_pool = TestProcessPool(allow_main_thread=True)
         return model
 
@@ -129,7 +139,9 @@ class TestPreviousShotsModelFiltering:
         self, tmp_path: Path, shot_model: ShotModel, qtbot: QtBot
     ) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel."""
-        model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
+        model = PreviousShotsModel(
+            shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2")
+        )
         yield model
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         model.deleteLater()
@@ -182,14 +194,21 @@ class TestShotGridViewShowFilter:
     @pytest.fixture
     def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel."""
-        model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
+        model = ShotModel(
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"),
+            load_cache=False,
+        )
         model._process_pool = TestProcessPool(allow_main_thread=True)
         return model
 
     @pytest.fixture
-    def shot_item_model(self, tmp_path: Path, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
+    def shot_item_model(
+        self, tmp_path: Path, qtbot: QtBot
+    ) -> Generator[ShotItemModel, None, None]:
         """Create ShotItemModel."""
-        model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"))
+        model = ShotItemModel(
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache")
+        )
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
@@ -264,9 +283,14 @@ class TestPreviousShotsViewShowFilter:
         self, tmp_path: Path, qtbot: QtBot
     ) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel."""
-        shot_model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
+        shot_model = ShotModel(
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"),
+            load_cache=False,
+        )
         shot_model._process_pool = TestProcessPool(allow_main_thread=True)
-        model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
+        model = PreviousShotsModel(
+            shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2")
+        )
         yield model
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         model.deleteLater()
@@ -276,7 +300,9 @@ class TestPreviousShotsViewShowFilter:
         self, tmp_path: Path, previous_shots_model: PreviousShotsModel, qtbot: QtBot
     ) -> Generator[PreviousShotsItemModel, None, None]:
         """Create PreviousShotsItemModel."""
-        model = PreviousShotsItemModel(previous_shots_model, TestCacheManager(cache_dir=tmp_path / "cache3"))
+        model = PreviousShotsItemModel(
+            previous_shots_model, TestCacheManager(cache_dir=tmp_path / "cache3")
+        )
         yield model
         model.deleteLater()
 
@@ -369,14 +395,18 @@ class TestMainWindowFilterHandlers:
 
         # Create test models
         window.shot_model = ShotModel(
-            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"),
+            load_cache=False,
         )
         window.shot_model._process_pool = TestProcessPool(allow_main_thread=True)
 
-        window.shot_item_model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
+        window.shot_item_model = ShotItemModel(
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2")
+        )
 
         window.previous_shots_model = PreviousShotsModel(
-            window.shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache3")
+            window.shot_model,
+            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache3"),
         )
         window.previous_shots_item_model = PreviousShotsItemModel(
             window.previous_shots_model, TestCacheManager(cache_dir=tmp_path / "cache4")
@@ -400,6 +430,7 @@ class TestMainWindowFilterHandlers:
 
         # Add mock status bar for filter feedback
         from unittest.mock import Mock
+
         window.status_bar = Mock()
         window._contextual_logger = Mock()
 
@@ -422,6 +453,7 @@ class TestMainWindowFilterHandlers:
                 class _Src:
                     def rowCount(self) -> int:
                         return 0
+
                 return _Src()
 
         window.shot_proxy = _ProxyDouble()
@@ -450,18 +482,24 @@ class TestMainWindowFilterHandlers:
 
     def test_on_shot_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for My Shots show filter request."""
-        mock_main_window.filter_coordinator.apply_show_filter(mock_main_window.shot_proxy, "My Shots", "show1")
+        mock_main_window.filter_coordinator.apply_show_filter(
+            mock_main_window.shot_proxy, "My Shots", "show1"
+        )
 
         # Verify the filter was applied to the proxy (proxy handles filtering)
         assert mock_main_window.shot_proxy._show_filter == "show1"
 
         # Test clearing filter
-        mock_main_window.filter_coordinator.apply_show_filter(mock_main_window.shot_proxy, "My Shots", "")
+        mock_main_window.filter_coordinator.apply_show_filter(
+            mock_main_window.shot_proxy, "My Shots", ""
+        )
         assert mock_main_window.shot_proxy._show_filter is None
 
     def test_on_previous_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for Previous Shots show filter request."""
-        mock_main_window.filter_coordinator.apply_show_filter(mock_main_window.previous_shots_proxy, "Previous Shots", "showA")
+        mock_main_window.filter_coordinator.apply_show_filter(
+            mock_main_window.previous_shots_proxy, "Previous Shots", "showA"
+        )
 
         # Verify the filter was applied to the proxy (proxy handles filtering)
         assert mock_main_window.previous_shots_proxy._show_filter == "showA"
@@ -517,7 +555,9 @@ class TestMainWindowFilterHandlers:
 
     def test_filter_updates_status_bar(self, mock_main_window: Any) -> None:
         """Test that applying show filter updates status bar."""
-        mock_main_window.filter_coordinator.apply_show_filter(mock_main_window.shot_proxy, "My Shots", "show1")
+        mock_main_window.filter_coordinator.apply_show_filter(
+            mock_main_window.shot_proxy, "My Shots", "show1"
+        )
 
         # Verify status bar was updated with filter info
         mock_main_window.status_bar.showMessage.assert_called()

@@ -3,6 +3,7 @@
 Extracted from :class:`launch.command_launcher.CommandLauncher` so that
 workspace validation logic is reusable and independently testable.
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,7 +42,9 @@ def validate_workspace(workspace_path: str, app_name: str) -> str | None:
     ws_path = Path(workspace_path)
 
     if not ws_path.exists():
-        return f"Cannot launch {app_name}: Workspace path does not exist: {workspace_path}"
+        return (
+            f"Cannot launch {app_name}: Workspace path does not exist: {workspace_path}"
+        )
 
     if not ws_path.is_dir():
         return f"Cannot launch {app_name}: Workspace path is not a directory: {workspace_path}"
