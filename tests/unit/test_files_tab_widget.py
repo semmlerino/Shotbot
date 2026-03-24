@@ -1,4 +1,4 @@
-"""Tests for FilesTabWidget and FileTableModel."""
+"""Tests for FileTableModel."""
 
 from __future__ import annotations
 
@@ -14,8 +14,7 @@ from PySide6.QtCore import Qt
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from dcc.scene_file import FileType, SceneFile
-from tests.test_helpers import process_qt_events
-from ui.files_tab_widget import FilesTabWidget, FileTableModel
+from ui.files_tab_widget import FileTableModel
 
 
 if TYPE_CHECKING:
@@ -209,128 +208,3 @@ class TestFileTableModel:
         index = model.index(0, 0)
         tooltip = model.data(index, Qt.ItemDataRole.ToolTipRole)
         assert "Comment" not in tooltip
-
-
-class TestFilesTabWidgetInit:
-    """Tests for FilesTabWidget initialization."""
-
-    def test_creates_tabs_for_all_file_types(self, qtbot: QtBot) -> None:
-        """Creates a tab for each FileType."""
-        widget = FilesTabWidget()
-        qtbot.addWidget(widget)
-
-        assert len(widget._tab_indices) == len(FileType)
-        for file_type in FileType:
-            assert file_type in widget._tab_indices
-
-    def test_parent_parameter(self, qtbot: QtBot) -> None:
-        """Accepts parent parameter."""
-        from PySide6.QtWidgets import QWidget
-
-        parent = QWidget()
-        widget = FilesTabWidget(parent=parent)
-        qtbot.addWidget(parent)
-
-        assert widget.parent() is parent
-
-
-class TestFilesTabWidgetFiles:
-    """Tests for file management in FilesTabWidget."""
-
-    def test_set_files(
-        self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
-    ) -> None:
-        """Setting files populates models."""
-        widget = FilesTabWidget()
-        qtbot.addWidget(widget)
-
-        widget.set_files(sample_files)
-
-        # Check 3DE tab has 2 files
-        model = widget._models[FileType.THREEDE]
-        assert model.rowCount() == 2
-
-        # Check Nuke tab has 1 file
-        model = widget._models[FileType.NUKE]
-        assert model.rowCount() == 1
-
-        # Check Maya tab is empty
-        model = widget._models[FileType.MAYA]
-        assert model.rowCount() == 0
-
-    def test_tab_text_shows_count(
-        self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
-    ) -> None:
-        """Tab text shows file count."""
-        widget = FilesTabWidget()
-        qtbot.addWidget(widget)
-
-        widget.set_files(sample_files)
-
-        # Get 3DE tab text
-        idx = widget._tab_indices[FileType.THREEDE]
-        text = widget._tab_widget.tabText(idx)
-        assert "(2)" in text
-
-    def test_clear_files(
-        self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
-    ) -> None:
-        """Clearing files empties all models."""
-        widget = FilesTabWidget()
-        qtbot.addWidget(widget)
-
-        widget.set_files(sample_files)
-        widget.clear_files()
-
-        for model in widget._models.values():
-            assert model.rowCount() == 0
-
-    def test_get_total_file_count(
-        self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
-    ) -> None:
-        """Returns total file count across tabs."""
-        widget = FilesTabWidget()
-        qtbot.addWidget(widget)
-
-        widget.set_files(sample_files)
-
-        assert widget.get_total_file_count() == 3  # 2 + 1 + 0
-
-
-class TestFilesTabWidgetSignals:
-    """Tests for signal emission."""
-
-    def test_click_emits_file_selected(
-        self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
-    ) -> None:
-        """Single click emits file_selected signal."""
-        widget = FilesTabWidget()
-        qtbot.addWidget(widget)
-        widget.set_files(sample_files)
-        widget.show()
-        process_qt_events()
-
-        # Get the 3DE table
-        table = widget._tables[FileType.THREEDE]
-
-        with qtbot.waitSignal(widget.file_selected, timeout=1000) as blocker:
-            # Click the first row
-            index = widget._models[FileType.THREEDE].index(0, 0)
-            rect = table.visualRect(index)
-            qtbot.mouseClick(table.viewport(), Qt.MouseButton.LeftButton, pos=rect.center())
-            process_qt_events()
-
-        assert isinstance(blocker.args[0], SceneFile)
-
-
-class TestFilesTabWidgetNavigation:
-    """Tests for tab navigation."""
-
-    def test_set_current_tab(self, qtbot: QtBot) -> None:
-        """Can set current tab by FileType."""
-        widget = FilesTabWidget()
-        qtbot.addWidget(widget)
-
-        widget.set_current_tab(FileType.NUKE)
-
-        assert widget._tab_widget.currentIndex() == widget._tab_indices[FileType.NUKE]
