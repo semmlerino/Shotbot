@@ -276,25 +276,6 @@ class TestScriptVersionDetection:
 class TestScriptPathConstruction:
     """Test script path construction and naming."""
 
-    def test_get_script_directory(self, tmp_path: Path) -> None:
-        """Correct path: workspace/publish/turnover/plate/input_plate/PLATE/v001/exr/resolution."""
-        workspace_path = tmp_path / "workspace"
-        plate_name = "FG01"
-
-        # Create directory structure with resolution
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
-        script_dir.mkdir(parents=True, exist_ok=True)
-
-        result = PlateDiscovery.get_plate_script_directory(str(workspace_path), plate_name)
-
-        assert result is not None
-        assert result == script_dir
-        assert "publish" in result.parts
-        assert "turnover" in result.parts
-        assert "plate" in result.parts
-        assert "input_plate" in result.parts
-        assert plate_name in result.parts
-
     def test_construct_script_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Correct name: SHOT_mm-default_PLATE_scene_vVER.nk."""
         monkeypatch.setenv("USER", "testuser")
@@ -376,17 +357,6 @@ class TestScriptPathConstruction:
 class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_missing_plate_directory(self, tmp_path: Path) -> None:
-        """Graceful handling when plate directory doesn't exist."""
-        workspace_path = tmp_path / "workspace"
-        plate_name = "FG01"
-
-        # Don't create the plate directory
-
-        result = PlateDiscovery.get_plate_script_directory(str(workspace_path), plate_name)
-
-        assert result is None, "Should return None when plate directory missing"
-
     def test_no_existing_scripts_in_plate(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Empty plate directory returns empty list."""
         monkeypatch.setenv("USER", "testuser")
@@ -429,15 +399,6 @@ class TestEdgeCases:
         assert len(result) == 1
         _path, version = result[0]
         assert version == 1
-
-    def test_workspace_path_not_exist(self, tmp_path: Path) -> None:
-        """Non-existent workspace handled gracefully."""
-        workspace_path = tmp_path / "nonexistent_workspace"
-        plate_name = "FG01"
-
-        result = PlateDiscovery.get_plate_script_directory(str(workspace_path), plate_name)
-
-        assert result is None, "Should return None for non-existent workspace"
 
     def test_empty_shot_name(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Validation for empty inputs."""
@@ -505,36 +466,6 @@ class TestEdgeCases:
 
         assert result is not None
         assert result.name == "1920x1080", "Should only match valid resolution pattern"
-
-    def test_no_version_directory_in_plate(self, tmp_path: Path) -> None:
-        """Handles plate directory with no version subdirectories."""
-        workspace_path = tmp_path / "workspace"
-        plate_name = "FG01"
-
-        # Create plate directory but no version subdirectory
-        plate_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name
-        plate_dir.mkdir(parents=True, exist_ok=True)
-
-        result = PlateDiscovery.get_plate_script_directory(str(workspace_path), plate_name)
-
-        assert result is None, "Should return None when no version directories exist"
-
-    def test_multiple_version_directories_selects_latest(self, tmp_path: Path) -> None:
-        """Selects latest version when multiple exist."""
-        workspace_path = tmp_path / "workspace"
-        plate_name = "FG01"
-
-        plate_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name
-
-        # Create multiple version directories
-        for version in ["v001", "v002", "v005"]:
-            version_dir = plate_dir / version / "exr" / "1920x1080"
-            version_dir.mkdir(parents=True, exist_ok=True)
-
-        result = PlateDiscovery.get_plate_script_directory(str(workspace_path), plate_name)
-
-        assert result is not None
-        assert "v005" in str(result), "Should select latest version (v005)"
 
     def test_permission_error_handling(self, tmp_path: Path) -> None:
         """Gracefully handles permission errors during directory scan."""

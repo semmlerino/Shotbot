@@ -15,8 +15,6 @@ from config import Config
 from discovery.file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
 from paths.validators import PathValidators
-from utils import find_path_case_insensitive
-from version_utils import VersionUtils
 
 
 # Module logger
@@ -115,63 +113,6 @@ class PlateDiscovery:
             f"Selected highest resolution: {highest_dir.name} ({highest_pixels:,} pixels)"
         )
         return highest_dir
-
-    @staticmethod
-    def get_plate_script_directory(
-        workspace_path: str, plate_name: str
-    ) -> Path | None:
-        """DEPRECATED: Get plate media directory (NOT for script storage).
-
-        WARNING: This method returns the plate MEDIA directory, not the script workspace.
-        For script storage, use get_workspace_script_directory() instead.
-
-        This method is kept for backward compatibility but should not be used for
-        Nuke script storage as it couples scripts to plate media versions, breaking
-        "open latest" workflow when plates are updated.
-
-        Builds path: {workspace}/publish/turnover/plate/input_plate/{plate}/v{version}/exr/{resolution}/
-
-        Args:
-            workspace_path: Shot workspace path
-            plate_name: Plate name (e.g., "FG01", "BG01")
-
-        Returns:
-            Path to highest resolution directory for the latest version, or None if not found
-
-        See Also:
-            get_workspace_script_directory(): Recommended method for script storage
-
-        """
-        logger.warning(
-            "get_plate_script_directory() is deprecated for script storage. "
-             "Use get_workspace_script_directory() instead."
-        )
-        base_path = Path(workspace_path, *Config.RAW_PLATE_SEGMENTS)
-
-        # Get plate directory with case-insensitive lookup
-        plate_dir = find_path_case_insensitive(base_path, plate_name)
-        if plate_dir is None:
-            logger.error(f"Plate directory not found: {plate_name}")
-            return None
-
-        # Get latest version directory
-        latest_version = VersionUtils.get_latest_version(plate_dir)
-        if not latest_version:
-            logger.error(f"No version directory found for plate {plate_name}")
-            return None
-
-        # Get highest resolution directory
-        exr_base = plate_dir / latest_version / "exr"
-        resolution_dir = PlateDiscovery.get_highest_resolution_dir(exr_base)
-
-        if not resolution_dir:
-            logger.error(
-                f"No resolution directory found for {plate_name}/{latest_version}"
-            )
-            return None
-
-        logger.info(f"Plate script directory: {resolution_dir}")
-        return resolution_dir
 
     @staticmethod
     def get_workspace_script_directory(

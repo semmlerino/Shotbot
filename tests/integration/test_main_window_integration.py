@@ -173,11 +173,6 @@ def main_window_with_real_components(
     ProgressManager.finish_operation = test_progress_manager.finish_operation
 
     import types
-    class MockNukeScriptGenerator:
-        @staticmethod
-        def create_plate_script(*_args: Any, **_kwargs: Any) -> str | None:
-            return None
-
     class MockThreeDELatestFinder:
         def find_latest_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
             return None
@@ -185,11 +180,6 @@ def main_window_with_real_components(
     class MockMayaLatestFinder:
         def find_latest_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
             return None
-
-    mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
-    mock_nuke_script_generator.NukeScriptGenerator = MockNukeScriptGenerator
-    original_nuke_script_generator = sys.modules.get("nuke_script_generator")
-    sys.modules["nuke_script_generator"] = mock_nuke_script_generator
 
     mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
     mock_threede_latest_finder.ThreeDELatestFinder = MockThreeDELatestFinder
@@ -215,7 +205,6 @@ def main_window_with_real_components(
         yield window
     finally:
         for module_name, original_module in (
-            ("nuke_script_generator", original_nuke_script_generator),
             ("threede_latest_finder", original_threede_latest_finder),
             ("maya_latest_finder", original_maya_latest_finder),
         ):
