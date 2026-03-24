@@ -236,12 +236,40 @@ class PreviousShotsModel(LoggingMixin, QObject):
         Connected directly to ShotDataCache.shots_migrated, bypassing
         MainWindow relay for simpler signal routing.
 
+        Merges the migrated payload directly into the in-memory list and
+        persists it — no filesystem scan required.
+
         Args:
             migrated_shots: List of ShotDict objects that were migrated
 
         """
+        if not migrated_shots:
+            return
+
         self.logger.info(f"{len(migrated_shots)} shots migrated to Previous Shots cache")
-        _ = self.refresh_shots()
+
+        # Build a set of existing (show, sequence, shot) keys for deduplication
+        existing_ids = {(s.show, s.sequence, s.shot) for s in self._previous_shots}
+
+        # Convert incoming ShotDicts to Shot objects, skipping duplicates
+        new_shots = [
+            Shot.from_dict(shot_dict)
+            for shot_dict in migrated_shots
+            if (shot_dict["show"], shot_dict["sequence"], shot_dict["shot"])
+            not in existing_ids
+        ]
+
+        if not new_shots:
+            self.logger.debug("All migrated shots already present — cache unchanged")
+            return
+
+        self._previous_shots.extend(new_shots)
+        self._save_to_cache()
+        self.shots_updated.emit()
+        self.logger.info(
+            f"Merged {len(new_shots)} migrated shots "
+            f"(total: {len(self._previous_shots)} shots)"
+        )
 
     def _on_scan_finished(self, approved_shots: list[dict[str, str]]) -> None:
         """Handle worker completion with incremental merge strategy.

@@ -565,4 +565,127 @@ class TestPreviousShotsModel:
         model.deleteLater()
         process_qt_events()
 
+    def test_on_cache_shots_migrated_merges_without_filesystem_scan(
+        self,
+        test_shot_model: FakeShotModel,
+        test_cache_manager: TestCacheManager,
+        qtbot: QtBot,
+    ) -> None:
+        """Emitting shots_migrated merges shots without spawning a worker.
+
+        Verifies that _on_cache_shots_migrated():
+        - Adds all new migrated shots to get_shots()
+        - Does NOT start a filesystem scan (no PreviousShotsWorker spawned)
+        - Persists via _save_to_cache() (shots survive a reload)
+        - Emits shots_updated for UI refresh
+        """
+        model = PreviousShotsModel(test_shot_model, test_cache_manager)
+
+        migrated_payload = [
+            {
+                "show": "showA",
+                "sequence": "seqA",
+                "shot": "shot001",
+                "workspace_path": "/shows/showA/seqA/shot001",
+            },
+            {
+                "show": "showA",
+                "sequence": "seqA",
+                "shot": "shot002",
+                "workspace_path": "/shows/showA/seqA/shot002",
+            },
+        ]
+
+        shots_updated_spy = QSignalSpy(model.shots_updated)
+        scan_started_spy = QSignalSpy(model.scan_started)
+
+        with patch(
+            "previous_shots.model.PreviousShotsWorker"
+        ) as mock_worker_cls:
+            test_cache_manager.shots_migrated.emit(migrated_payload)
+            process_qt_events()
+
+            # Worker constructor must never have been called
+            mock_worker_cls.assert_not_called()
+
+        # Both shots appear in get_shots()
+        shots = model.get_shots()
+        shot_keys = {(s.show, s.sequence, s.shot) for s in shots}
+        assert ("showA", "seqA", "shot001") in shot_keys
+        assert ("showA", "seqA", "shot002") in shot_keys
+
+        # UI was notified
+        assert shots_updated_spy.count() == 1
+
+        # No filesystem scan was started
+        assert scan_started_spy.count() == 0
+
+        # Data was persisted: a fresh model loads the same shots
+        reloaded = PreviousShotsModel(test_shot_model, test_cache_manager)
+        reloaded_keys = {(s.show, s.sequence, s.shot) for s in reloaded.get_shots()}
+        assert ("showA", "seqA", "shot001") in reloaded_keys
+        assert ("showA", "seqA", "shot002") in reloaded_keys
+        reloaded.deleteLater()
+
+        model.deleteLater()
+        process_qt_events()
+
+    def test_on_cache_shots_migrated_deduplicates_existing_shots(
+        self,
+        test_shot_model: FakeShotModel,
+        test_cache_manager: TestCacheManager,
+        qtbot: QtBot,
+    ) -> None:
+        """Migrated shots that already exist in the model are not duplicated."""
+        model = PreviousShotsModel(test_shot_model, test_cache_manager)
+
+        existing = create_test_shot("showB", "seqB", "shot001")
+        model._previous_shots = [existing]
+
+        # Migrate one duplicate + one new
+        migrated_payload = [
+            {
+                "show": "showB",
+                "sequence": "seqB",
+                "shot": "shot001",  # already present
+                "workspace_path": "/shows/showB/seqB/shot001",
+            },
+            {
+                "show": "showB",
+                "sequence": "seqB",
+                "shot": "shot002",  # new
+                "workspace_path": "/shows/showB/seqB/shot002",
+            },
+        ]
+
+        shots_updated_spy = QSignalSpy(model.shots_updated)
+
+        test_cache_manager.shots_migrated.emit(migrated_payload)
+        process_qt_events()
+
+        shots = model.get_shots()
+        # Exactly 2 shots: original + the one new one
+        assert len(shots) == 2
+        shot_keys = {(s.show, s.sequence, s.shot) for s in shots}
+        assert ("showB", "seqB", "shot001") in shot_keys
+        assert ("showB", "seqB", "shot002") in shot_keys
+
+        # Update was emitted because there was at least one new shot
+        assert shots_updated_spy.count() == 1
+
+        model.deleteLater()
+        process_qt_events()
+
+    def test_on_cache_shots_migrated_empty_payload_is_noop(
+        self,
+        model: PreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
+        """An empty migrated payload does not touch cache or emit signals."""
+        shots_updated_spy = QSignalSpy(model.shots_updated)
+
+        model._on_cache_shots_migrated([])
+
+        assert shots_updated_spy.count() == 0
+        assert model.get_shots() == []
 
