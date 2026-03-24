@@ -6,10 +6,10 @@ from __future__ import annotations
 import os
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, final
+from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QGroupBox,
@@ -34,10 +34,7 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QCloseEvent
 
     # Local application imports
-    from previous_shots import PreviousShotsItemModel
-    from threede import ThreeDEItemModel
-    from type_definitions import Shot, ThreeDEScene
-    from ui.proxy_models import PreviousShotsProxyModel, ShotProxyModel
+    from type_definitions import Shot
     from ui.settings_dialog import SettingsDialog
     from workers.startup_coordinator import StartupCoordinator
 
@@ -45,6 +42,9 @@ if TYPE_CHECKING:
 # Local application imports
 from app_services import build_infrastructure, build_models
 from config import Config, is_mock_mode
+from controllers.data_event_handler import DataEventHandler
+from controllers.filter_coordinator import FilterCoordinator
+from controllers.launch_coordinator import LaunchCoordinator
 from controllers.shot_selection_controller import (
     ShotSelectionController,  # Refactored shot selection management
 )
@@ -53,7 +53,6 @@ from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
 from controllers.thumbnail_size_manager import ThumbnailSizeManager
-from dcc.scene_file import SceneFile
 from logging_mixin import LoggingMixin, get_module_logger
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
@@ -152,7 +151,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._setup_menu()
         self._connect_signals()
         self.settings_controller.load_settings()
-        self._restore_sort_orders()
+        self.filter_coordinator.restore_sort_orders()
 
         # Skip initial load in test environments if requested
         if not os.environ.get("SHOTBOT_NO_INITIAL_LOAD"):
@@ -178,6 +177,31 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.shot_selection_controller: ShotSelectionController = ShotSelectionController(self, parent=self)
 
         self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)
+
+        self.filter_coordinator = FilterCoordinator(
+            shot_proxy=self.shot_proxy,
+            previous_shots_proxy=self.previous_shots_proxy,
+            threede_proxy=self.threede_proxy,
+            threede_item_model=self.threede_item_model,
+            previous_shots_item_model=self.previous_shots_item_model,
+            threede_shot_grid=self.threede_shot_grid,
+            previous_shots_grid=self.previous_shots_grid,
+            previous_shots_model=self.previous_shots_model,
+            settings_manager=self.settings_manager,
+            status_bar=self.status_bar,
+        )
+
+        self.data_event_handler = DataEventHandler(
+            shot_proxy=self.shot_proxy,
+            previous_shots_proxy=self.previous_shots_proxy,
+            pin_manager=self.pin_manager,
+            status_bar=self.status_bar,
+        )
+
+        self.launch_coordinator = LaunchCoordinator(
+            command_launcher=self.command_launcher,
+            threede_shot_grid=self.threede_shot_grid,
+        )
 
     def _setup_ui(self) -> None:
         """Set up the main UI."""
@@ -286,16 +310,16 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Connect signals."""
         # Shot model -> RefreshCoordinator connections
         self.refresh_coordinator.setup_signals()
-        _ = self.shot_model.error_occurred.connect(self._on_shot_error)
+        _ = self.shot_model.error_occurred.connect(self.data_event_handler.on_shot_error)
         # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
-        _ = self.shot_model.cache_updated.connect(self._on_cache_updated)
-        _ = self.shot_model.data_recovery_occurred.connect(self._on_data_recovery)
+        _ = self.shot_model.cache_updated.connect(self.data_event_handler.on_cache_updated)
+        _ = self.shot_model.data_recovery_occurred.connect(self.data_event_handler.on_data_recovery)
         # Background load signals for status feedback during initial async load
         _ = self.shot_model.background_load_started.connect(
-            self._on_background_load_started
+            self.data_event_handler.on_background_load_started
         )
         _ = self.shot_model.background_load_finished.connect(
-            self._on_background_load_finished
+            self.data_event_handler.on_background_load_finished
         )
 
         # Shot selection - handled by ShotSelectionController when active
@@ -303,38 +327,38 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # My Shots filter signals
         _ = self.shot_grid.show_filter_requested.connect(
-            partial(self._apply_show_filter, self.shot_proxy, "My Shots")  # pyright: ignore[reportAny]
+            partial(self.filter_coordinator.apply_show_filter, self.shot_proxy, "My Shots")  # pyright: ignore[reportAny]
         )
         _ = self.shot_grid.text_filter_requested.connect(
-            partial(self._apply_text_filter, self.shot_proxy, "My Shots")  # pyright: ignore[reportAny]
+            partial(self.filter_coordinator.apply_text_filter, self.shot_proxy, "My Shots")  # pyright: ignore[reportAny]
         )
 
         # Previous Shots filter signals
         _ = self.previous_shots_grid.show_filter_requested.connect(
-            partial(self._apply_show_filter, self.previous_shots_proxy, "Previous Shots")  # pyright: ignore[reportAny]
+            partial(self.filter_coordinator.apply_show_filter, self.previous_shots_proxy, "Previous Shots")  # pyright: ignore[reportAny]
         )
         _ = self.previous_shots_grid.text_filter_requested.connect(
-            partial(self._apply_text_filter, self.previous_shots_proxy, "Previous Shots")  # pyright: ignore[reportAny]
+            partial(self.filter_coordinator.apply_text_filter, self.previous_shots_proxy, "Previous Shots")  # pyright: ignore[reportAny]
         )
 
         # Previous shots model updates (repopulate show filter when shots change)
         _ = self.previous_shots_item_model.shots_updated.connect(
-            self._on_previous_shots_updated  # pyright: ignore[reportAny]
+            self.filter_coordinator.on_previous_shots_updated  # pyright: ignore[reportAny]
         )
 
         _ = self.shot_grid.app_launch_requested.connect(
             self.command_launcher.launch_app
         )
         _ = self.shot_grid.shot_visibility_changed.connect(
-            self._on_shot_visibility_changed
+            self.data_event_handler.on_shot_visibility_changed
         )
-        _ = self.shot_grid.show_hidden_changed.connect(self._on_show_hidden_changed)
+        _ = self.shot_grid.show_hidden_changed.connect(self.data_event_handler.on_show_hidden_changed)
 
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
         # Handle app launch with scene context (signal emits app_name, scene)
         _ = self.threede_shot_grid.app_launch_requested.connect(
-            self._launch_app_opening_scene_file
+            self.launch_coordinator.launch_app_opening_scene_file
         )
 
         # 3DE show filter - handled by controller
@@ -348,10 +372,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Pin sort-order refresh — fallback path when view has no pin_manager set
         _ = self.shot_grid.pin_shot_requested.connect(
-            self._on_shot_grid_pin_requested
+            self.data_event_handler.on_shot_grid_pin_requested
         )
         _ = self.previous_shots_grid.pin_shot_requested.connect(
-            self._on_previous_shots_pin_requested
+            self.data_event_handler.on_previous_shots_pin_requested
         )
 
         _ = self.shot_selection_controller.settings_save_requested.connect(
@@ -363,7 +387,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         _ = self.tab_widget.currentChanged.connect(self.shot_selection_controller.on_tab_activated)  # pyright: ignore[reportAny]
         _ = self.tab_widget.currentChanged.connect(self.threede_controller.on_tab_activated)  # pyright: ignore[reportAny]
-        _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
+        _ = self.right_panel.launch_requested.connect(self.launch_coordinator.on_right_panel_launch)
         _ = self.right_panel.status_message.connect(self.update_status)
 
         # Async file search state - update launch button during search
@@ -378,32 +402,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Sort order changes - connect view signals to model and settings persistence
         _ = self.threede_shot_grid.sort_order_changed.connect(
-            partial(self._on_sort_order_changed, "threede_scenes", self.threede_item_model)
+            partial(self.filter_coordinator.on_sort_order_changed, "threede_scenes", self.threede_item_model)
         )
         _ = self.previous_shots_grid.sort_order_changed.connect(
-            partial(self._on_sort_order_changed, "previous_shots", self.previous_shots_item_model)
+            partial(self.filter_coordinator.on_sort_order_changed, "previous_shots", self.previous_shots_item_model)
         )
-
-    def _restore_sort_orders(self) -> None:
-        """Restore sort order settings for each tab.
-
-        Called after load_settings() to restore persisted sort orders
-        to both the item models and the view UI buttons.
-        """
-        threede_order = self.settings_manager.ui.get_sort_order("threede_scenes")
-        self.threede_item_model.set_sort_order(threede_order)
-        self.threede_proxy.set_sort_order(threede_order)
-        self.threede_shot_grid.set_sort_order(threede_order)
-        self.logger.debug(f"Restored 3DE scenes sort order: {threede_order}")
-
-        # Restore Previous Shots sort order
-        previous_order = self.settings_manager.ui.get_sort_order("previous_shots")
-        self.previous_shots_item_model.set_sort_order(previous_order)
-        self.previous_shots_proxy.set_sort_order(previous_order)
-        self.previous_shots_grid.set_sort_order(previous_order)
-        self.logger.debug(f"Restored Previous Shots sort order: {previous_order}")
-
-        # My Shots tab always sorts by name - no user-configurable sort order
 
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
@@ -439,234 +442,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def reset_splitter_sizes(self, sizes: list[int]) -> None:
         """Reset splitter to given sizes."""
         self.splitter.setSizes(sizes)
-
-    def _on_shot_error(self, error_msg: str) -> None:
-        """Handle error signal from model.
-
-        Args:
-            error_msg: The error message
-
-        """
-        self.logger.error(f"Shot model error: {error_msg}")
-        self.update_status(f"Error: {error_msg}")
-
-    def _on_data_recovery(self, title: str, details: str) -> None:
-        """Handle data recovery notification from model.
-
-        Shows a warning dialog to inform the user about cache corruption recovery.
-
-        Args:
-            title: The dialog title
-            details: Detailed message about the recovery
-
-        """
-        self.logger.warning(f"Data recovery: {title} - {details}")
-        NotificationManager.warning(title, details)
-
-    def _on_background_load_started(self) -> None:
-        """Handle background load started signal from model.
-
-        Shows a status message while fresh data is being fetched in the background.
-        """
-        self.status_bar.showMessage("Fetching fresh data...")
-
-    def _on_background_load_finished(self) -> None:
-        """Handle background load finished signal from model.
-
-        Intentionally empty: completion status is handled by the shots_loaded /
-        shots_changed signals via RefreshCoordinator.
-        """
-        pass  # noqa: PIE790
-
-    def _on_shot_visibility_changed(self) -> None:
-        """Handle shot hide/unhide — refresh the shot grid display."""
-        self.shot_proxy.invalidate()
-
-    def _on_show_hidden_changed(self, show: bool) -> None:
-        """Handle Show Hidden checkbox toggle.
-
-        Args:
-            show: True to show hidden shots, False to hide them
-
-        """
-        self.shot_proxy.set_show_hidden(show)
-
-    def _on_shot_grid_pin_requested(self, shot: Shot) -> None:
-        """Handle pin request from the My Shots grid (fallback when no pin_manager on view).
-
-        Args:
-            shot: Shot to pin
-
-        """
-        self.pin_manager.pin_shot(shot)
-        self.shot_proxy.refresh_sort()
-
-    def _on_previous_shots_pin_requested(self, shot: Shot) -> None:
-        """Handle pin request from the Previous Shots grid (fallback when no pin_manager on view).
-
-        Args:
-            shot: Shot to pin
-
-        """
-        self.pin_manager.pin_shot(shot)
-        self.previous_shots_proxy.refresh_sort()
-
-    def _on_cache_updated(self) -> None:
-        """Handle cache updated signal from model."""
-        self.logger.debug("Shot cache updated")
-
-    def _launch_app_opening_scene_file(
-        self, app_name: str, scene: ThreeDEScene
-    ) -> None:
-        """Launch an application and open the specific 3DE scene file.
-
-        This method is used when app_launch_requested signal is emitted from
-        ThreeDEGridView with both app_name and scene parameters.
-
-        Args:
-            app_name: Name of the application to launch
-            scene: 3DE scene file to open
-
-        """
-        from launch.launch_request import LaunchRequest
-        _ = self.command_launcher.launch(LaunchRequest(
-            app_name=app_name,
-            scene=scene,
-        ))
-
-    def _on_right_panel_launch(
-        self, app_name: str, options: dict[str, Any]
-    ) -> None:
-        """Handle launch request from right panel DCC section.
-
-        Converts options dict to launch_app parameters. If a specific file
-        is selected in the DCC section, launches with that file instead.
-
-        Args:
-            app_name: Name of the application to launch
-            options: Dict containing checkbox states, selected plate, and
-                optionally a selected_file (SceneFile) to open
-
-        """
-        # Check if a specific file was selected for launch
-        selected_file = options.get("selected_file")
-        if isinstance(selected_file, SceneFile):
-            # Get workspace path from current context (shot or 3DE scene)
-            workspace_path = self._get_current_workspace_path()
-            if workspace_path:
-                from launch.launch_request import LaunchRequest
-                _ = self.command_launcher.launch(LaunchRequest(
-                    app_name=app_name,
-                    file_path=selected_file.path,
-                    workspace_path=workspace_path,
-                ))
-                return
-            # If no workspace context, show error
-            NotificationManager.error(
-                "Cannot Launch File",
-                "No shot or scene context available. Select a shot first.",
-            )
-            return
-
-        # Standard launch without specific file
-        from launch.command_launcher import LaunchContext
-
-        context = LaunchContext(
-            open_latest_threede=bool(options.get("open_latest_threede", False)),  # pyright: ignore[reportAny]
-            open_latest_maya=bool(options.get("open_latest_maya", False)),  # pyright: ignore[reportAny]
-            open_latest_scene=bool(options.get("open_latest_scene", False)),  # pyright: ignore[reportAny]
-            create_new_file=bool(options.get("create_new_file", False)),  # pyright: ignore[reportAny]
-            selected_plate=options.get("selected_plate"),
-            sequence_path=options.get("sequence_path"),
-        )
-        from launch.launch_request import LaunchRequest
-        _ = self.command_launcher.launch(LaunchRequest(
-            app_name=app_name,
-            context=context,
-        ))
-
-    def _get_current_workspace_path(self) -> str | None:
-        """Get workspace path from current shot or selected 3DE scene.
-
-        Used when launching files from the DCC panel - needs workspace
-        context from either "My Shots" or "Other 3DE Scenes" tab.
-
-        Returns:
-            Workspace path string, or None if no context available
-
-        """
-        # Try current shot first (My Shots or Previous Shots tab)
-        current_shot = self.command_launcher.current_shot
-        if current_shot:
-            return current_shot.workspace_path
-
-        # Fall back to selected 3DE scene (Other 3DE Scenes tab)
-        selected_scene = self.threede_shot_grid.selected_scene
-        if selected_scene:
-            return selected_scene.workspace_path
-
-        return None
-
-    # Size methods moved to ThumbnailSizeManager
-
-    def _apply_show_filter(
-        self, proxy: ShotProxyModel | PreviousShotsProxyModel, tab_label: str, show: str
-    ) -> None:
-        """Apply show filter to the given proxy model and update the status bar."""
-        show_filter = show or None
-        proxy.set_show_filter(show_filter)
-        filtered_count = proxy.rowCount()
-        total = proxy.sourceModel().rowCount()
-        filter_desc = show or "All Shows"
-        self.status_bar.showMessage(
-            f"{tab_label}: {filtered_count} of {total} ({filter_desc})", 2500
-        )
-        self.logger.info(f"Applied {tab_label} show filter: {filter_desc}")
-
-    def _apply_text_filter(
-        self, proxy: ShotProxyModel | PreviousShotsProxyModel, tab_label: str, text: str
-    ) -> None:
-        """Apply text filter to the given proxy model and update the status bar."""
-        filter_text = text.strip() if text else None
-        proxy.set_text_filter(filter_text)
-        filtered_count = proxy.rowCount()
-        total = proxy.sourceModel().rowCount()
-        if filter_text:
-            self.status_bar.showMessage(
-                f"{tab_label}: {filtered_count} of {total} (filter: '{filter_text}')", 2500
-            )
-        else:
-            self.status_bar.showMessage(f"{tab_label}: {total} shots", 2500)
-        self.logger.debug(f"{tab_label} text filter: '{filter_text}' - {filtered_count} shots")
-
-    @Slot()  # pyright: ignore[reportAny]
-    def _on_previous_shots_updated(self) -> None:
-        """Handle previous shots updated signal."""
-        self.previous_shots_grid.populate_show_filter(self.previous_shots_model)
-        self.logger.debug("Previous shots updated, refreshed show filter")
-
-    def _on_sort_order_changed(
-        self,
-        settings_key: str,
-        item_model: ThreeDEItemModel | PreviousShotsItemModel,
-        order: str,
-    ) -> None:
-        """Handle sort order change for any grid view.
-
-        Args:
-            settings_key: Settings key for persistence (e.g., "threede_scenes")
-            item_model: The item model to update
-            order: Sort order ("name" or "date")
-
-        """
-        item_model.set_sort_order(order)
-        # Also update the proxy model's sort order
-        if settings_key == "previous_shots":
-            self.previous_shots_proxy.set_sort_order(order)
-        elif settings_key == "threede_scenes":
-            self.threede_proxy.set_sort_order(order)
-        self.settings_manager.ui.set_sort_order(settings_key, order)
-        self.logger.info(f"{settings_key} sort order changed to: {order}")
 
     def get_window_size(self) -> tuple[int, int]:
         """Get window size as tuple for SettingsTarget protocol compliance."""

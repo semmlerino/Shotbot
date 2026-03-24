@@ -292,7 +292,7 @@ class TestStatusBar:
         qtbot.addWidget(main_window)
 
         # Directly call the handler (simulating signal emission)
-        main_window._on_background_load_started()
+        main_window.data_event_handler.on_background_load_started()
 
         # Verify status bar shows fetching message
         assert "Fetching fresh data" in main_window.status_bar.currentMessage()
@@ -323,7 +323,7 @@ class TestStatusBar:
         main_window.shot_item_model.set_shots(test_shots)
 
         # Apply filter via the filter coordinator (new proxy-based interface)
-        main_window._apply_show_filter(main_window.shot_proxy, "My Shots", "TestShow")
+        main_window.filter_coordinator.apply_show_filter(main_window.shot_proxy, "My Shots", "TestShow")
 
         # Verify status bar shows filter result
         message = main_window.status_bar.currentMessage()
@@ -567,7 +567,7 @@ class TestRightPanelFileLaunch:
         ) as mock_launch:
             # Simulate right panel launch with selected file
             options = {"selected_file": maya_file}
-            main_window._on_right_panel_launch("maya", options)
+            main_window.launch_coordinator.on_right_panel_launch("maya", options)
 
             # Verify launch was called with correct LaunchRequest
             mock_launch.assert_called_once()
@@ -614,7 +614,7 @@ class TestRightPanelFileLaunch:
             main_window.command_launcher, "launch", return_value=True
         ) as mock_launch:
             options = {"selected_file": maya_file}
-            main_window._on_right_panel_launch("maya", options)
+            main_window.launch_coordinator.on_right_panel_launch("maya", options)
 
             # Verify launch was called with scene's workspace
             mock_launch.assert_called_once()
@@ -645,7 +645,7 @@ class TestRightPanelFileLaunch:
         )
 
         options = {"selected_file": nuke_file}
-        main_window._on_right_panel_launch("nuke", options)
+        main_window.launch_coordinator.on_right_panel_launch("nuke", options)
 
         # Verify a critical error dialog was shown with correct message
         expect_dialog.assert_shown("critical", "Cannot Launch File")
@@ -669,7 +669,7 @@ class TestRightPanelFileLaunch:
         ) as mock_launch:
             # Launch without selected_file
             options = {"open_latest_maya": True}
-            main_window._on_right_panel_launch("maya", options)
+            main_window.launch_coordinator.on_right_panel_launch("maya", options)
 
             # Verify launch was called with no file_path (standard launch)
             mock_launch.assert_called_once()
@@ -695,7 +695,7 @@ class TestGetCurrentWorkspacePath:
         main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Verify workspace path comes from shot
-        result = main_window._get_current_workspace_path()
+        result = main_window.launch_coordinator.get_current_workspace_path()
         assert result == shot.workspace_path
 
     def test_returns_scene_workspace_when_no_shot(
@@ -720,7 +720,7 @@ class TestGetCurrentWorkspacePath:
         main_window.command_launcher.set_current_shot(None)
 
         # Verify workspace path comes from scene
-        result = main_window._get_current_workspace_path()
+        result = main_window.launch_coordinator.get_current_workspace_path()
         assert result == scene.workspace_path
 
     def test_prefers_shot_over_scene(self, qtbot: QtBot, tmp_path: Path) -> None:
@@ -745,7 +745,7 @@ class TestGetCurrentWorkspacePath:
         main_window.threede_shot_grid._selected_scene = scene
 
         # Verify shot workspace is preferred
-        result = main_window._get_current_workspace_path()
+        result = main_window.launch_coordinator.get_current_workspace_path()
         assert result == shot.workspace_path
         assert result != scene.workspace_path
 
@@ -758,5 +758,5 @@ class TestGetCurrentWorkspacePath:
         main_window.command_launcher.set_current_shot(None)
         main_window.threede_shot_grid._selected_scene = None
 
-        result = main_window._get_current_workspace_path()
+        result = main_window.launch_coordinator.get_current_workspace_path()
         assert result is None

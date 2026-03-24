@@ -259,6 +259,22 @@ class TestMainWindowTextFilterHandlers:
         window.shot_proxy = _ProxyDouble()
         window.previous_shots_proxy = _ProxyDouble()
 
+        # Build a FilterCoordinator so tests can call it directly
+        from controllers.filter_coordinator import FilterCoordinator
+
+        window.filter_coordinator = FilterCoordinator(
+            shot_proxy=window.shot_proxy,  # type: ignore[arg-type]
+            previous_shots_proxy=window.previous_shots_proxy,  # type: ignore[arg-type]
+            threede_proxy=Mock(),  # type: ignore[arg-type]
+            threede_item_model=Mock(),  # type: ignore[arg-type]
+            previous_shots_item_model=Mock(),  # type: ignore[arg-type]
+            threede_shot_grid=Mock(),  # type: ignore[arg-type]
+            previous_shots_grid=Mock(),  # type: ignore[arg-type]
+            previous_shots_model=Mock(),  # type: ignore[arg-type]
+            settings_manager=Mock(),  # type: ignore[arg-type]
+            status_bar=window.status_bar,  # type: ignore[arg-type]
+        )
+
         return window
 
         # Cleanup
@@ -266,37 +282,33 @@ class TestMainWindowTextFilterHandlers:
 
     def test_on_shot_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for My Shots text filter request."""
-        from main_window import MainWindow
-        MainWindow._apply_text_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "dm")
+        mock_main_window.filter_coordinator.apply_text_filter(mock_main_window.shot_proxy, "My Shots", "dm")  # type: ignore[attr-defined]
 
         # Verify the filter was applied to the proxy (proxy handles filtering)
         assert mock_main_window.shot_proxy._text_filter == "dm"  # type: ignore[attr-defined]
 
         # Test clearing filter
-        MainWindow._apply_text_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "")
+        mock_main_window.filter_coordinator.apply_text_filter(mock_main_window.shot_proxy, "My Shots", "")  # type: ignore[attr-defined]
         assert mock_main_window.shot_proxy._text_filter is None  # type: ignore[attr-defined]
 
     def test_on_previous_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for Previous Shots text filter request."""
-        from main_window import MainWindow
-        MainWindow._apply_text_filter(mock_main_window, mock_main_window.previous_shots_proxy, "Previous Shots", "dm")
+        mock_main_window.filter_coordinator.apply_text_filter(mock_main_window.previous_shots_proxy, "Previous Shots", "dm")  # type: ignore[attr-defined]
 
         # Verify the filter was applied to the proxy
         assert mock_main_window.previous_shots_proxy._text_filter == "dm"  # type: ignore[attr-defined]
 
     def test_text_and_show_filters_together(self, mock_main_window: MainWindow) -> None:
         """Test that text and show filters work together via proxy."""
-        from main_window import MainWindow
-        MainWindow._apply_show_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "show1")
+        mock_main_window.filter_coordinator.apply_show_filter(mock_main_window.shot_proxy, "My Shots", "show1")  # type: ignore[attr-defined]
         assert mock_main_window.shot_proxy._show_filter == "show1"  # type: ignore[attr-defined]
 
-        MainWindow._apply_text_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "dm")
+        mock_main_window.filter_coordinator.apply_text_filter(mock_main_window.shot_proxy, "My Shots", "dm")  # type: ignore[attr-defined]
         assert mock_main_window.shot_proxy._text_filter == "dm"  # type: ignore[attr-defined]
 
     def test_text_filter_updates_status_bar(self, mock_main_window: MainWindow) -> None:
         """Test that applying text filter updates status bar."""
-        from main_window import MainWindow
-        MainWindow._apply_text_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "dm")
+        mock_main_window.filter_coordinator.apply_text_filter(mock_main_window.shot_proxy, "My Shots", "dm")  # type: ignore[attr-defined]
 
         # Verify status bar was updated with filter info
         mock_main_window.status_bar.showMessage.assert_called()

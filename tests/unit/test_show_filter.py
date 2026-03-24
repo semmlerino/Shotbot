@@ -427,7 +427,21 @@ class TestMainWindowFilterHandlers:
         window.shot_proxy = _ProxyDouble()
         window.previous_shots_proxy = _ProxyDouble()
 
-        # Logger is already provided by LoggingMixin
+        # Build a FilterCoordinator so tests can call it directly
+        from controllers.filter_coordinator import FilterCoordinator
+
+        window.filter_coordinator = FilterCoordinator(
+            shot_proxy=window.shot_proxy,  # type: ignore[arg-type]
+            previous_shots_proxy=window.previous_shots_proxy,  # type: ignore[arg-type]
+            threede_proxy=Mock(),  # type: ignore[arg-type]
+            threede_item_model=Mock(),  # type: ignore[arg-type]
+            previous_shots_item_model=Mock(),  # type: ignore[arg-type]
+            threede_shot_grid=Mock(),  # type: ignore[arg-type]
+            previous_shots_grid=window.previous_shots_grid,
+            previous_shots_model=window.previous_shots_model,
+            settings_manager=Mock(),  # type: ignore[arg-type]
+            status_bar=window.status_bar,  # type: ignore[arg-type]
+        )
 
         return window
 
@@ -436,20 +450,18 @@ class TestMainWindowFilterHandlers:
 
     def test_on_shot_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for My Shots show filter request."""
-        from main_window import MainWindow
-        MainWindow._apply_show_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "show1")
+        mock_main_window.filter_coordinator.apply_show_filter(mock_main_window.shot_proxy, "My Shots", "show1")
 
         # Verify the filter was applied to the proxy (proxy handles filtering)
         assert mock_main_window.shot_proxy._show_filter == "show1"
 
         # Test clearing filter
-        MainWindow._apply_show_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "")
+        mock_main_window.filter_coordinator.apply_show_filter(mock_main_window.shot_proxy, "My Shots", "")
         assert mock_main_window.shot_proxy._show_filter is None
 
     def test_on_previous_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for Previous Shots show filter request."""
-        from main_window import MainWindow
-        MainWindow._apply_show_filter(mock_main_window, mock_main_window.previous_shots_proxy, "Previous Shots", "showA")
+        mock_main_window.filter_coordinator.apply_show_filter(mock_main_window.previous_shots_proxy, "Previous Shots", "showA")
 
         # Verify the filter was applied to the proxy (proxy handles filtering)
         assert mock_main_window.previous_shots_proxy._show_filter == "showA"
@@ -490,8 +502,7 @@ class TestMainWindowFilterHandlers:
         ]
         mock_main_window.previous_shots_model._previous_shots = test_shots
 
-        from main_window import MainWindow
-        MainWindow._on_previous_shots_updated(mock_main_window)
+        mock_main_window.filter_coordinator.on_previous_shots_updated()
 
         # Check that show filter was populated
         assert (
@@ -506,8 +517,7 @@ class TestMainWindowFilterHandlers:
 
     def test_filter_updates_status_bar(self, mock_main_window: Any) -> None:
         """Test that applying show filter updates status bar."""
-        from main_window import MainWindow
-        MainWindow._apply_show_filter(mock_main_window, mock_main_window.shot_proxy, "My Shots", "show1")
+        mock_main_window.filter_coordinator.apply_show_filter(mock_main_window.shot_proxy, "My Shots", "show1")
 
         # Verify status bar was updated with filter info
         mock_main_window.status_bar.showMessage.assert_called()
