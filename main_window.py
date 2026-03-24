@@ -172,12 +172,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _init_controllers(self) -> None:
         """Initialize controllers that require UI widgets to be set up first."""
-        self.threede_controller = ThreeDEController(self)
-
-        self.shot_selection_controller: ShotSelectionController = ShotSelectionController(self, parent=self)
-
-        self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)
-
         self.filter_coordinator = FilterCoordinator(
             shot_proxy=self.shot_proxy,
             previous_shots_proxy=self.previous_shots_proxy,
@@ -202,6 +196,20 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             command_launcher=self.command_launcher,
             threede_shot_grid=self.threede_shot_grid,
         )
+
+        self.threede_controller = ThreeDEController(
+            self,
+            command_launcher=self.command_launcher,
+            launch_coordinator=self.launch_coordinator,
+        )
+
+        self.shot_selection_controller: ShotSelectionController = ShotSelectionController(
+            self,
+            command_launcher=self.command_launcher,
+            parent=self,
+        )
+
+        self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)
 
     def _setup_ui(self) -> None:
         """Set up the main UI."""

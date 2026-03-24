@@ -284,6 +284,18 @@ class CommandLauncherDouble:
         return True
 
 
+class LaunchCoordinatorDouble:
+    """Test double for LaunchCoordinator."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self._launched: list[tuple[str, Any]] = []
+
+    def launch_app_opening_scene_file(self, app_name: str, scene: Any) -> None:
+        self._launched.append((app_name, scene))
+
+
 class StatusBarDouble:
     """Test double for QStatusBar."""
 
@@ -417,7 +429,11 @@ def window_double() -> ThreeDETargetDouble:
 @pytest.fixture
 def controller(window_double: ThreeDETargetDouble) -> ThreeDEController:
     """Create a ThreeDEController with test double."""
-    return ThreeDEController(window_double)  # type: ignore[arg-type]
+    return ThreeDEController(
+        window_double,  # type: ignore[arg-type]
+        command_launcher=window_double.command_launcher,  # type: ignore[arg-type]
+        launch_coordinator=LaunchCoordinatorDouble(),  # type: ignore[arg-type]
+    )
 
 
 @pytest.fixture

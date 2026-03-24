@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from cache import CacheCoordinator, SceneDiskCache
     from controllers.refresh_coordinator import RefreshCoordinator
     from controllers.threede_controller import ThreeDEController
-    from launch.command_launcher import CommandLauncher
     from managers.settings_manager import SettingsManager
     from previous_shots.model import PreviousShotsModel
     from previous_shots.view import PreviousShotsView
@@ -188,7 +187,6 @@ class ThreeDETarget(Protocol):
     threede_item_model: ThreeDEItemModel  # skylos: ignore
     threede_proxy: ThreeDEProxyModel  # skylos: ignore
     scene_disk_cache: SceneDiskCache  # skylos: ignore
-    command_launcher: CommandLauncher  # skylos: ignore
 
     # Required methods
     def setWindowTitle(self, __title: str) -> None: ...
@@ -226,9 +224,6 @@ class ShotSelectionTarget(Protocol):
     shot_grid: ShotGridView
     previous_shots_grid: PreviousShotsView
     threede_shot_grid: ThreeDEGridView
-
-    # Controller and launcher references
-    command_launcher: CommandLauncher
 
     # State tracking
     @property

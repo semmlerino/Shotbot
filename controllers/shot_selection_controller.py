@@ -24,6 +24,7 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     from dcc.scene_file import FileType, SceneFile  # used in cast()
+    from launch.command_launcher import CommandLauncher
     from protocols import ShotSelectionTarget
     from type_definitions import Shot
 
@@ -121,17 +122,25 @@ class ShotSelectionController(QObject, LoggingMixin):
 
     settings_save_requested: ClassVar[Signal] = Signal()
 
-    def __init__(self, window: ShotSelectionTarget, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        window: ShotSelectionTarget,
+        *,
+        command_launcher: CommandLauncher,
+        parent: QObject | None = None,
+    ) -> None:
         """Initialize shot selection controller.
 
         Args:
             window: MainWindow instance implementing ShotSelectionTarget protocol
+            command_launcher: Launcher for DCC commands
             parent: Optional Qt parent object
 
         """
         super().__init__(parent)
         LoggingMixin.__init__(self)
         self.window: ShotSelectionTarget = window
+        self._command_launcher: CommandLauncher = command_launcher
         self._discovery_worker: ShotDiscoveryWorker | None = None
         self._setup_signals()
         self.logger.debug("ShotSelectionController initialized")
@@ -179,7 +188,7 @@ class ShotSelectionController(QObject, LoggingMixin):
 
         if shot is None:
             # Handle deselection
-            self.window.command_launcher.set_current_shot(None)
+            self._command_launcher.set_current_shot(None)
             self.window.right_panel.set_shot(None, discover_files=False)
 
             # Clear plate selectors
@@ -196,7 +205,7 @@ class ShotSelectionController(QObject, LoggingMixin):
             self.settings_save_requested.emit()
         else:
             # Handle selection
-            self.window.command_launcher.set_current_shot(shot)
+            self._command_launcher.set_current_shot(shot)
 
             # Update right panel immediately (without file discovery - that's async)
             self.window.right_panel.set_shot(shot, discover_files=False)
@@ -220,7 +229,7 @@ class ShotSelectionController(QObject, LoggingMixin):
     @Slot(object)  # pyright: ignore[reportAny]
     def on_shot_double_clicked(self, _shot: Shot) -> None:
         """Handle shot double click - launch default app."""
-        _ = self.window.command_launcher.launch_app(Config.DEFAULT_APP)
+        _ = self._command_launcher.launch_app(Config.DEFAULT_APP)
 
     @Slot(object)  # pyright: ignore[reportAny]
     def _on_discovery_complete(self, result: dict[str, object]) -> None:
@@ -238,7 +247,7 @@ class ShotSelectionController(QObject, LoggingMixin):
         files = result.get("files", {})
 
         # Verify this result is for the currently selected shot (may have changed)
-        current_shot = self.window.command_launcher.current_shot
+        current_shot = self._command_launcher.current_shot
         if current_shot is None or not isinstance(shot, Shot):
             return
         if current_shot.full_name != shot.full_name:
@@ -287,7 +296,7 @@ class ShotSelectionController(QObject, LoggingMixin):
         """
         # Get current shot or scene
         # Check both since either can provide workspace context
-        current_shot = self.window.command_launcher.current_shot
+        current_shot = self._command_launcher.current_shot
         current_scene = self.window.threede_shot_grid.selected_scene
 
         if not current_shot and not current_scene:
