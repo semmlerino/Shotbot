@@ -1,7 +1,7 @@
 # ShotBot - Matchmove Shot Launcher
 
 Shotbot is a PySide6 desktop tool for matchmove workflow execution in a VFX studio pipeline.
-It provides shot browsing and one-click DCC launching with workspace context.
+It provides shot browsing and one-click application launching with workspace context.
 
 ## Workflow Scope
 
@@ -12,7 +12,7 @@ Shotbot is designed around this pipeline:
 Primary use cases:
 
 - Browse active shots from `ws -sg`
-- Launch DCCs in shot context (`3de`, `maya`, `nuke`, `rv`, `publish`)
+- Launch tools in shot context (`3de`, `maya`, `nuke`, `rv`, `publish`)
 - Browse other artists' 3DE scenes
 - Resume prior work via Previous Shots
 
@@ -42,6 +42,17 @@ uv run python shotbot.py
 uv run python shotbot.py --mock
 # or
 SHOTBOT_MOCK=1 uv run python shotbot.py
+```
+
+## Headless And Diagnostics
+
+```bash
+# headless CI-style launch (uses mock mode automatically)
+uv run python shotbot.py --headless --mock
+
+# auto-capture a screenshot after N seconds
+# current implementation writes to C:\temp\shotbot_auto.png
+uv run python shotbot.py --mock --screenshot 10
 ```
 
 ## Development Commands
@@ -75,7 +86,7 @@ For full testing policy and troubleshooting, see `tests/fixtures/README.md` and 
 
 ## Documentation
 
-See `docs/README.md` for the full documentation index.
+See `docs/README.md` for the active documentation index and root reference docs.
 
 ## Configuration Notes
 

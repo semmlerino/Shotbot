@@ -1,11 +1,19 @@
 # Shotbot Documentation Index
 
-This index separates active documentation from historical artifacts.
+This index separates active documentation from historical artifacts and
+covers current root-level reference docs as well as `docs/`.
 
 ## Start Here
 
 - `README.md` - User-facing project overview and quick start
 - `CLAUDE.md` - Agent-facing development rules and constraints
+
+## Project-Root References
+
+- `RECOMMENDATIONS.md` - Current development workflow and tooling recommendations
+- `BLUEBOLT_REZ_PACKAGES.md` - Curated BlueBolt Rez inventory notes and key package findings
+- `BLUEBOLT_REZ_PACKAGES_FULL.md` - Full BlueBolt Rez package snapshot captured for this project
+- `segfault.md` - Crash triage runbook
 
 ## Active Documentation
 
@@ -16,7 +24,6 @@ This index separates active documentation from historical artifacts.
 - `docs/LAUNCHER_AND_VFX_ENVIRONMENT.md` - Launcher behavior, BlueBolt shell environment, wrapper-vs-Rez diagnostics, and delayed-context Toolkit/workfiles debugging
 - `docs/THREADING_ARCHITECTURE.md` - Threading model and guardrails
 - `docs/SIGNAL_ROUTING.md` - MainWindow signal-routing invariants and change checklist
-- `segfault.md` - Crash triage runbook
 
 ## Module-Scoped Reference Docs
 

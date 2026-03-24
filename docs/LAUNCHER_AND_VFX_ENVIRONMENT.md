@@ -4,11 +4,14 @@ This document defines launcher behavior assumptions for the BlueBolt environment
 
 ## Launcher Role
 
-`CommandLauncher` is the production entrypoint for DCC launches with shot context.
+`CommandLauncher` is the production entrypoint for application launches with shot context.
 It coordinates workspace setup, environment handling, and app dispatch.
 Internally, it delegates to the `launch/` subpackage: `CommandBuilder`, `EnvironmentManager`, `ProcessExecutor`, `FileSearchCoordinator`, and `LaunchOperation`.
 
-Supported DCCs: `3de`, `maya`, `nuke`, `rv`.
+Supported launch targets: `3de`, `maya`, `nuke`, `rv`, `publish`.
+The file-open and Toolkit-specific sections below focus on the DCC-heavy paths;
+`publish` uses the same workspace/Rez launch pipeline but does not add extra
+scene/workfile startup hooks.
 
 ## Environment Assumptions
 

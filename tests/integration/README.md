@@ -1,6 +1,6 @@
 # Integration Tests
 
-15 integration test files covering:
+Integration test coverage includes:
 - async and cross-component workflows
 - cache correctness and recovery
 - subprocess/process-pool real behavior

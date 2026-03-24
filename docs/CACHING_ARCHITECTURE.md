@@ -3,6 +3,16 @@
 Shotbot uses layered caches (disk + memory) with different lifecycles by data type.
 This document captures behavior and invariants, not full API listings.
 
+## Default Cache Roots
+
+The paths below use the production cache root as the concrete example.
+The default resolver also supports mode-specific roots:
+
+- Production: `~/.shotbot/cache/production`
+- Test: `~/.shotbot/cache_test` when running under `pytest` or `SHOTBOT_MODE=test`
+- Mock: `~/.shotbot/cache/mock` when mock mode is active
+- Explicit test override: `SHOTBOT_TEST_CACHE_DIR`
+
 ## Persistent Caches (Disk)
 
 | Cache | Location | Lifecycle | Strategy |

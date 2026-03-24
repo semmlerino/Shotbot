@@ -28,6 +28,9 @@ Environment Variables:
 Usage:
     Command line execution:
         $ python shotbot.py                    # Standard execution
+        $ python shotbot.py --mock             # Mock workspace/process mode
+        $ python shotbot.py --headless --mock  # Headless CI-style mode
+        $ python shotbot.py --mock --screenshot 10
         $ SHOTBOT_DEBUG=1 python shotbot.py    # Debug mode
         $ rez env PySide6_Essentials -- python3 shotbot.py  # Rez environment
 
@@ -42,7 +45,7 @@ Usage:
 
 Dependencies:
     - PySide6: Qt for Python GUI framework
-    - Python 3.8+: Modern Python with type annotation support
+    - Python 3.11+: Modern Python with type annotation support
     - ws command: VFX workspace tool (must be available in shell)
     - Standard library: pathlib, logging, subprocess, threading
 
@@ -178,6 +181,8 @@ def main() -> None:
 Examples:
   shotbot.py              # Run normally (requires ws command)
   shotbot.py --mock       # Run with mock VFX data (no ws needed)
+  shotbot.py --headless --mock
+  shotbot.py --mock --screenshot 10
 
 Environment Variables:
   SHOTBOT_DEBUG=1         # Enable debug logging
@@ -240,6 +245,8 @@ Environment Variables:
         logger.debug("Mock mode enabled")
         # Set environment variable so all code knows we're in mock mode
         os.environ["SHOTBOT_MOCK"] = "1"
+        # Keep cache/model helpers on the mock cache root instead of production.
+        os.environ.setdefault("SHOTBOT_MODE", "mock")
         # MainWindow will detect SHOTBOT_MOCK and create MockWorkspacePool
 
     # Now import Qt and main window AFTER logging is configured
