@@ -246,7 +246,7 @@ Environment Variables:
         # Set environment variable so all code knows we're in mock mode
         os.environ["SHOTBOT_MOCK"] = "1"
         # Keep cache/model helpers on the mock cache root instead of production.
-        os.environ.setdefault("SHOTBOT_MODE", "mock")
+        _ = os.environ.setdefault("SHOTBOT_MODE", "mock")
         # MainWindow will detect SHOTBOT_MOCK and create MockWorkspacePool
 
     # Now import Qt and main window AFTER logging is configured

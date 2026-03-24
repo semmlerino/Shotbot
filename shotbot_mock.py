@@ -14,7 +14,7 @@ import sys
 
 # CRITICAL: Set mock mode FIRST
 os.environ["SHOTBOT_MOCK"] = "1"
-os.environ.setdefault("SHOTBOT_MODE", "mock")
+_ = os.environ.setdefault("SHOTBOT_MODE", "mock")
 
 # CRITICAL: Set SHOWS_ROOT immediately to ensure Config uses mock path
 # This MUST happen before ANY module imports that might load Config
