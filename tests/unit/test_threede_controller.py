@@ -443,6 +443,7 @@ class TestSignalSetup:
             ("scene_double_clicked", "on_scene_double_clicked"),
             ("recover_crashes_requested", "on_recover_crashes_clicked"),
             ("artist_filter_requested", "_on_artist_filter_requested"),
+            ("show_filter_requested", "_on_show_filter_requested"),
         ],
     )
     def test_signal_connected(
@@ -749,7 +750,23 @@ class TestSceneUpdates:
 class TestFilterHandling:
     """Test filter request handling."""
 
-    def test_artist_filter_applies_to_scene_model(
+    def test_show_filter_applies_to_proxy(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that show filter is applied to proxy model."""
+        controller._on_show_filter_requested("SHOW_A")
+
+        assert window_double.threede_proxy._show_filter == "SHOW_A"
+
+    def test_show_filter_empty_string_sets_none(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that empty show filter string is normalized to None."""
+        controller._on_show_filter_requested("")
+
+        assert window_double.threede_proxy._show_filter is None
+
+    def test_artist_filter_applies_to_proxy(
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
         """Test that artist filter is applied to proxy model."""

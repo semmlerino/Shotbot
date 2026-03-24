@@ -106,7 +106,8 @@ class ThreeDEController(LoggingMixin):
         # Crash recovery
         _ = grid.recover_crashes_requested.connect(self.on_recover_crashes_clicked)  # pyright: ignore[reportAny]
 
-        # Artist filtering
+        # Filtering
+        _ = grid.show_filter_requested.connect(self._on_show_filter_requested)  # pyright: ignore[reportAny]
         _ = grid.artist_filter_requested.connect(self._on_artist_filter_requested)  # pyright: ignore[reportAny]
 
         self.logger.debug("ThreeDEController signals connected")
@@ -417,6 +418,13 @@ class ThreeDEController(LoggingMixin):
             parent_widget=self.window.threede_shot_grid,
             post_recovery_callback=self.refresh_threede_scenes,
         )
+
+    @Slot(str)  # pyright: ignore[reportAny]
+    def _on_show_filter_requested(self, show: str) -> None:
+        """Handle show filter requests from 3DE grid."""
+        filter_show = show.strip() if show else None
+        self.window.threede_proxy.set_show_filter(filter_show)
+        self.logger.debug(f"3DE show filter applied: {filter_show!r}")
 
     @Slot(str)  # pyright: ignore[reportAny]
     def _on_artist_filter_requested(self, artist: str) -> None:
