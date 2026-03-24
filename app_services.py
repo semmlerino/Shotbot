@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import QObject
-
 from cache import (
     CacheCoordinator,
     LatestFileCache,
@@ -34,6 +32,8 @@ from workers.process_pool_manager import ProcessPoolManager
 
 
 if TYPE_CHECKING:
+    from PySide6.QtCore import QObject
+
     from protocols import ProcessPoolInterface
     from ui.base_shot_model import BaseShotModel  # used in cast()
 
@@ -108,7 +108,7 @@ def build_infrastructure(cache_dir: Path | None, parent: QObject | None) -> AppI
     refresh_coordinator = RefreshCoordinator(parent)  # pyright: ignore[reportArgumentType]
 
     settings_manager = SettingsManager()
-    saved_scale = settings_manager.get_ui_scale()
+    saved_scale = settings_manager.ui.get_ui_scale()
     design_system.set_ui_scale(saved_scale)
 
     settings_controller = SettingsController(parent)  # pyright: ignore[reportArgumentType]

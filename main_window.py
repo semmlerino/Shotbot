@@ -390,14 +390,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Called after load_settings() to restore persisted sort orders
         to both the item models and the view UI buttons.
         """
-        threede_order = self.settings_manager.get_sort_order("threede_scenes")
+        threede_order = self.settings_manager.ui.get_sort_order("threede_scenes")
         self.threede_item_model.set_sort_order(threede_order)
         self.threede_proxy.set_sort_order(threede_order)
         self.threede_shot_grid.set_sort_order(threede_order)
         self.logger.debug(f"Restored 3DE scenes sort order: {threede_order}")
 
         # Restore Previous Shots sort order
-        previous_order = self.settings_manager.get_sort_order("previous_shots")
+        previous_order = self.settings_manager.ui.get_sort_order("previous_shots")
         self.previous_shots_item_model.set_sort_order(previous_order)
         self.previous_shots_proxy.set_sort_order(previous_order)
         self.previous_shots_grid.set_sort_order(previous_order)
@@ -656,7 +656,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.previous_shots_proxy.set_sort_order(order)
         elif settings_key == "threede_scenes":
             self.threede_proxy.set_sort_order(order)
-        self.settings_manager.set_sort_order(settings_key, order)
+        self.settings_manager.ui.set_sort_order(settings_key, order)
         self.logger.info(f"{settings_key} sort order changed to: {order}")
 
     def get_window_size(self) -> tuple[int, int]:

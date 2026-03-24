@@ -200,12 +200,12 @@ class TestFullRoundtrip:
     def test_geometry_bytes_survive_disk_flush(self, tmp_path: Path) -> None:
         """Geometry bytes written with sync() are intact after a fresh SettingsManager."""
         manager1 = make_real_manager(tmp_path, name="flush_test")
-        manager1.set_window_geometry(QByteArray(b"\x00\xff\xab\xcd"))
+        manager1.window.set_window_geometry(QByteArray(b"\x00\xff\xab\xcd"))
         manager1.sync()
 
         # Simulate a restart: new SettingsManager reads the same file
         manager2 = make_real_manager(tmp_path, name="flush_test")
-        assert manager2.get_window_geometry() == QByteArray(b"\x00\xff\xab\xcd")
+        assert manager2.window.get_window_geometry() == QByteArray(b"\x00\xff\xab\xcd")
 
 
 # ============================================================================
@@ -230,10 +230,10 @@ class TestSimulatedCrash:
         manager._migrate_old_settings()
 
         # Must return defaults without raising
-        assert manager.get_thumbnail_size() == Config.DEFAULT_THUMBNAIL_SIZE
-        assert manager.get_current_tab() == 0
-        assert manager.get_window_geometry().isEmpty()
-        assert manager.is_window_maximized() is False
+        assert manager.ui.get_thumbnail_size() == Config.DEFAULT_THUMBNAIL_SIZE
+        assert manager.window.get_current_tab() == 0
+        assert manager.window.get_window_geometry().isEmpty()
+        assert manager.window.is_window_maximized() is False
 
     def test_corrupted_binary_splitter_state_falls_back_gracefully(
         self, tmp_path: Path
@@ -246,7 +246,7 @@ class TestSimulatedCrash:
         """
         manager = make_real_manager(tmp_path)
         garbage = QByteArray(b"\xde\xad\xbe\xef" * 64)
-        manager.set_splitter_state("main", garbage)
+        manager.window.set_splitter_state("main", garbage)
 
         window = _WindowDouble(manager)
         ctrl = SettingsController(window)  # type: ignore[arg-type]
@@ -353,16 +353,16 @@ class TestImportExportRoundtrip:
     ) -> None:
         """Exported cache expiry is restored after import."""
         manager = make_real_manager(tmp_path)
-        manager.set_cache_expiry_minutes(120)
+        manager.performance.set_cache_expiry_minutes(120)
         manager.sync()
 
         export_path = str(tmp_path / "cache_settings.json")
         assert manager.export_settings(export_path) is True
 
-        manager.set_cache_expiry_minutes(Config.CACHE_EXPIRY_MINUTES)
+        manager.performance.set_cache_expiry_minutes(Config.CACHE_EXPIRY_MINUTES)
 
         assert manager.import_settings(export_path) is True
-        assert manager.get_cache_expiry_minutes() == 120
+        assert manager.performance.get_cache_expiry_minutes() == 120
 
     def test_import_with_extra_unknown_keys_does_not_raise(
         self, tmp_path: Path
@@ -400,13 +400,13 @@ class TestEdgeCases:
     """Boundary values, type mismatches, and validation clamping."""
 
     @pytest.mark.parametrize(
-        ("setter", "input_value", "getter", "expected"),
+        ("domain", "setter", "input_value", "getter", "expected"),
         [
-            ("set_thumbnail_size", 0, "get_thumbnail_size", Config.MIN_THUMBNAIL_SIZE),
-            ("set_cache_expiry_minutes", 0, "get_cache_expiry_minutes", 5),
-            ("set_cache_expiry_minutes", 999_999, "get_cache_expiry_minutes", 10080),
-            ("set_refresh_interval", 0, "get_refresh_interval", 1),
-            ("set_refresh_interval", 99_999, "get_refresh_interval", 1440),
+            ("ui", "set_thumbnail_size", 0, "get_thumbnail_size", Config.MIN_THUMBNAIL_SIZE),
+            ("performance", "set_cache_expiry_minutes", 0, "get_cache_expiry_minutes", 5),
+            ("performance", "set_cache_expiry_minutes", 999_999, "get_cache_expiry_minutes", 10080),
+            ("refresh", "set_refresh_interval", 0, "get_refresh_interval", 1),
+            ("refresh", "set_refresh_interval", 99_999, "get_refresh_interval", 1440),
         ],
         ids=[
             "thumbnail_zero_clamped",
@@ -419,21 +419,23 @@ class TestEdgeCases:
     def test_value_clamped_to_valid_range(
         self,
         real_manager: SettingsManager,
+        domain: str,
         setter: str,
         input_value: int,
         getter: str,
         expected: int,
     ) -> None:
         """Out-of-range values are clamped to valid boundaries."""
-        getattr(real_manager, setter)(input_value)
-        assert getattr(real_manager, getter)() == expected
+        domain_obj = getattr(real_manager, domain)
+        getattr(domain_obj, setter)(input_value)
+        assert getattr(domain_obj, getter)() == expected
 
     def test_empty_geometry_does_not_trigger_restore(
         self, window: _WindowDouble, controller: SettingsController
     ) -> None:
         """load_settings skips restoreGeometry when the stored value is empty."""
         original_geometry = window._geometry
-        window.settings_manager.set_window_geometry(QByteArray())  # empty
+        window.settings_manager.window.set_window_geometry(QByteArray())  # empty
 
         controller.load_settings()
 
@@ -472,16 +474,16 @@ class TestConcurrentAccess:
         ctrl_b.save_settings()  # Overwrites ctrl_a's values
 
         # Verify persisted state matches ctrl_b (last writer)
-        assert manager.get_current_tab() == 3
-        assert manager.get_thumbnail_size() == 700
+        assert manager.window.get_current_tab() == 3
+        assert manager.ui.get_thumbnail_size() == 700
 
     def test_first_load_does_not_affect_second_controllers_window(
         self, tmp_path: Path
     ) -> None:
         """Loading settings into one window does not mutate a sibling window."""
         manager = make_real_manager(tmp_path)
-        manager.set_current_tab(2)
-        manager.set_thumbnail_size(800)
+        manager.window.set_current_tab(2)
+        manager.ui.set_thumbnail_size(800)
 
         window_a = _WindowDouble(manager)
         window_b = _WindowDouble(manager)

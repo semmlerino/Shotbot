@@ -97,7 +97,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
             # Restore expanded state from settings if available
             if self._settings_manager is not None:
-                expanded = self._settings_manager.is_section_expanded(config.name)
+                expanded = self._settings_manager.ui.is_section_expanded(config.name)
                 section.set_expanded(expanded)
 
                 # Save expanded state changes to settings
@@ -106,7 +106,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
                     name: str,
                 ) -> Callable[[str, bool], None]:
                     def save_expanded(_app_name: str, is_expanded: bool) -> None:
-                        settings_mgr.set_section_expanded(name, is_expanded)
+                        settings_mgr.ui.set_section_expanded(name, is_expanded)
 
                     return save_expanded
 
