@@ -122,7 +122,7 @@ class TestShot:
 class TestShotModel:
     """Test cases for ShotModel class using real components."""
 
-    def test_get_shot_by_name(
+    def test_find_shot_by_name(
         self, real_shot_model, make_test_shot: TestShotFactory
     ) -> None:
         """Test getting specific shot by name."""
@@ -138,7 +138,7 @@ class TestShotModel:
         assert shot.sequence == "seq1"
         assert shot.shot == "0010"
 
-    def test_get_shot_by_name_not_found(
+    def test_find_shot_by_name_not_found(
         self, real_shot_model, make_test_shot: TestShotFactory
     ) -> None:
         """Test getting non-existent shot."""

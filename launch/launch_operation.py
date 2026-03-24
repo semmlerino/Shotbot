@@ -138,7 +138,6 @@ class LaunchOperation(LoggingMixin):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        has_rez_wrapper = False
         if Config.REZ_MODE != RezMode.DISABLED:
             rez_packages = self._env_manager.get_rez_packages(app_name, Config)
             if not rez_packages:
@@ -153,7 +152,6 @@ class LaunchOperation(LoggingMixin):
                 return False
 
             app_command = CommandBuilder.wrap_with_rez(app_command, rez_packages)
-            has_rez_wrapper = True
 
         full_command = CommandBuilder.build_workspace_command(safe_workspace_path, app_command)
         full_command = CommandBuilder.add_logging(full_command, Config)
@@ -168,7 +166,7 @@ class LaunchOperation(LoggingMixin):
         )
 
         return self._launch_in_new_terminal(
-            full_command, app_name, self._error_context, has_rez_wrapper=has_rez_wrapper
+            full_command, app_name, self._error_context
         )
 
     # ------------------------------------------------------------------
@@ -180,7 +178,6 @@ class LaunchOperation(LoggingMixin):
         full_command: str,
         app_name: str,
         error_context: str = "",
-        has_rez_wrapper: bool = False,
     ) -> bool:
         """Spawn the command in a new terminal window.
 
@@ -190,8 +187,6 @@ class LaunchOperation(LoggingMixin):
             full_command: Complete shell command to execute.
             app_name: Application name (for verification and error messages).
             error_context: Appended to the failure error message.
-            has_rez_wrapper: When True the command already contains a Rez
-                wrapper with an inner ``bash -ilc``, enabling shell optimisation.
 
         Returns:
             True if the process was spawned successfully, False otherwise.
@@ -219,7 +214,7 @@ class LaunchOperation(LoggingMixin):
         enqueue_time = time.time()
 
         process = self._process_executor.execute_in_new_terminal(
-            full_command, app_name, terminal, has_rez_wrapper=has_rez_wrapper
+            full_command, app_name, terminal
         )
 
         if process is None:

@@ -335,9 +335,6 @@ class Config:
     PROGRESSIVE_SCAN_MIN_BATCH_SIZE: int = 5  # Minimum batch size for last batch
     PROGRESSIVE_SCAN_MAX_BATCH_SIZE: int = 100  # Maximum batch size limit
 
-    # Backward compatibility constant for tests
-    THREEDE_BATCH_SIZE: int = PROGRESSIVE_SCAN_BATCH_SIZE  # Alias for backward compatibility
-
     # Progress reporting configuration
     PROGRESS_FILES_PER_UPDATE: int = 10  # Update progress every N files processed
     PROGRESS_ENABLE_ETA: bool = True  # Enable ETA calculation and display

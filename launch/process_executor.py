@@ -140,15 +140,13 @@ class ProcessExecutor(QObject):
         logger.debug(f"Workspace environment vars: {ws_values}")
 
     def _build_terminal_command(
-        self, terminal: str | None, command: str, has_rez_wrapper: bool = False
+        self, terminal: str | None, command: str
     ) -> list[str]:
         """Build terminal-specific command list.
 
         Args:
             terminal: Terminal emulator name, or None for headless execution
             command: The command to execute
-            has_rez_wrapper: Retained for API compatibility. Launcher commands
-                always use bash -ilc so studio shell functions like 'ws' are available.
 
         Returns:
             Command list suitable for subprocess.Popen
@@ -161,7 +159,7 @@ class ProcessExecutor(QObject):
         shell_cmd = ["/bin/bash", "-ilc", command]
 
         # Log the shell command for debugging file dialog issues
-        logger.debug(f"Shell command (rez_wrapper={has_rez_wrapper}): {shell_cmd}")
+        logger.debug(f"Shell command: {shell_cmd}")
 
         if terminal == "gnome-terminal":
             return ["gnome-terminal", "--", *shell_cmd]
@@ -187,7 +185,6 @@ class ProcessExecutor(QObject):
         command: str,
         app_name: str,
         terminal: str | None = None,
-        has_rez_wrapper: bool = False,
     ) -> subprocess.Popen[bytes] | None:
         """Execute command in new terminal or headless if no terminal available.
 
@@ -195,7 +192,6 @@ class ProcessExecutor(QObject):
             command: Command to execute
             app_name: Application name (for error messages and verification)
             terminal: Terminal emulator name, or None for headless execution
-            has_rez_wrapper: Retained for API compatibility.
 
         Returns:
             Popen object on success, None on failure
@@ -222,7 +218,7 @@ class ProcessExecutor(QObject):
         logger.debug(f"Raw command to execute: {command}")
 
         # Build command for the detected terminal (or headless)
-        term_cmd = self._build_terminal_command(terminal, command, has_rez_wrapper)
+        term_cmd = self._build_terminal_command(terminal, command)
 
         # Log the final terminal command
         logger.debug(f"Final terminal command: {term_cmd}")

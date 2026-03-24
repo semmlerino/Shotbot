@@ -492,7 +492,6 @@ class CommandLauncher(LoggingMixin, QObject):
         app_name: str,
         command: str,
         workspace_path: str | None = None,
-        nuke_env_context: str = "",
         log_suffix: str = "",
         error_context: str = "",
         command_prefix: str = "",
@@ -500,8 +499,6 @@ class CommandLauncher(LoggingMixin, QObject):
         """Create a LaunchOperation and execute it.
 
         Thin shim: all execution logic now lives in LaunchOperation.execute().
-        The nuke_env_context parameter is accepted for call-site compatibility
-        but is not forwarded (the NukeLaunchHandler object is used directly).
 
         """
         return LaunchOperation(
@@ -532,7 +529,6 @@ class CommandLauncher(LoggingMixin, QObject):
         return self._file_search_coordinator.is_search_pending
 
     # Methods removed - now using launch components:
-    # - _is_rez_available() → self.env_manager.is_rez_available(Config)
     # - _get_rez_packages_for_app() → self.env_manager.get_rez_packages(app_name, Config)
     # - _detect_available_terminal() → self.env_manager.detect_terminal()
     # - _validate_path_for_shell() → CommandBuilder.validate_path(path)
@@ -663,7 +659,6 @@ class CommandLauncher(LoggingMixin, QObject):
             app_name,
             command,
             workspace_path=scene.workspace_path,
-            nuke_env_context="Nuke scene launch",
             log_suffix=f" (Scene by: {scene.user}, Plate: {scene.plate})",
             error_context=" with scene",
             command_prefix=command_prefix,
@@ -735,7 +730,6 @@ class CommandLauncher(LoggingMixin, QObject):
             app_name,
             command,
             workspace_path=workspace_path,
-            nuke_env_context="File launch",
             log_suffix=f" (File: {file_path.name})",
             error_context=" with file",
             command_prefix=sgtk_export,

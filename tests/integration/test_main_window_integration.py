@@ -67,7 +67,6 @@ def stable_main_window_startup(monkeypatch: pytest.MonkeyPatch) -> None:
         return RefreshResult(success=True, has_changes=False)
 
     monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
-    monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
     monkeypatch.setattr("shots.shot_model.ShotModel.initialize_async", _skip_async_init)
     monkeypatch.setattr(
         "launch.environment_manager.EnvironmentManager.warm_cache_async",
@@ -140,8 +139,6 @@ def main_window_with_real_components(
     NotificationManager and ProgressManager before window creation.
     """
     assert qapp is not None, "QApplication must exist before creating widgets"
-
-    monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
     test_pool = TestProcessPool(allow_main_thread=True)
     test_pool.set_outputs("workspace /test/path")
@@ -715,8 +712,6 @@ class TestUserWorkflows:
     def test_thumbnail_loading_workflow(self, qtbot: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test thumbnail loading and display workflow."""
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-        monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
         test_pool = TestProcessPool(allow_main_thread=True)
         test_pool.set_outputs("")

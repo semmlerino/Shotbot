@@ -522,29 +522,6 @@ class ShotModel(BaseShotModel):
         self.logger.info("Already loading - skipping refresh request (returning success=True)")
         return RefreshResult(success=True, has_changes=False)
 
-    def pre_warm_sessions(self) -> None:
-        """Pre-warm bash sessions during idle time to reduce first-call overhead.
-
-        Call this during splash screen or after UI is displayed.
-        """
-        if self._session_warmed:
-            return
-
-        self.logger.info("Pre-warming bash sessions for faster first load")
-
-        # Create a dummy command to initialize the session pool
-        try:
-            # This will trigger lazy initialization of bash sessions
-            _ = self._process_pool.execute_workspace_command(
-                "echo warming",
-                cache_ttl=1,  # Very short cache
-                timeout=TimeoutConfig.SHOT_CACHE_OPERATION,
-            )
-            self._session_warmed = True
-            self.logger.info("Session pre-warming complete")
-        except Exception:  # noqa: BLE001
-            self.logger.warning("Session pre-warming failed", exc_info=True)
-
     @override
     def get_performance_metrics(self) -> PerformanceMetricsDict:
         """Get performance metrics including cache statistics."""
@@ -618,18 +595,6 @@ class ShotModel(BaseShotModel):
         if 0 <= index < len(self.shots):
             return self.shots[index]
         return None
-
-    def get_shot_by_name(self, full_name: str) -> Shot | None:
-        """Get shot by full name (alias for find_shot_by_name).
-
-        Args:
-            full_name: Full shot name (e.g., "show_seq_shot")
-
-        Returns:
-            Shot if found, None otherwise
-
-        """
-        return self.find_shot_by_name(full_name)
 
     @override
     def invalidate_workspace_cache(self) -> None:
@@ -805,9 +770,6 @@ def create_optimized_shot_model(
 
         # UI displays instantly with cached/empty data
         # Fresh data loads in background and updates UI when ready
-
-        # Optional: Pre-warm during splash or idle
-        QTimer.singleShot(100, self.shot_model.pre_warm_sessions)
     """
     return ShotModel(cache_manager)
 

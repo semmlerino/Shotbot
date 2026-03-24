@@ -43,7 +43,7 @@ class TestRezAvailability:
         """Test that Rez is not used when disabled in config."""
         mock_config.REZ_MODE = RezMode.DISABLED
 
-        assert env_manager.is_rez_available(mock_config) is False
+        assert env_manager.should_wrap_with_rez(mock_config) is False
 
     @patch("shutil.which")
     def test_rez_auto_still_requires_rez_command_when_rez_used_is_set(
@@ -56,7 +56,7 @@ class TestRezAvailability:
         mock_which.return_value = "/usr/bin/rez"
 
         with patch.dict("os.environ", {"REZ_USED": "1"}):
-            assert env_manager.is_rez_available(mock_config) is True
+            assert env_manager.should_wrap_with_rez(mock_config) is True
             mock_which.assert_called_once_with("rez")
 
     def test_rez_force_mode_checks_rez_command(
@@ -68,7 +68,7 @@ class TestRezAvailability:
         with patch.dict("os.environ", {"REZ_USED": "1"}), patch(
             "shutil.which", return_value=None
         ):
-            assert env_manager.is_rez_available(mock_config) is False
+            assert env_manager.should_wrap_with_rez(mock_config) is False
 
     @patch("shutil.which")
     def test_rez_available_via_command(
@@ -82,7 +82,7 @@ class TestRezAvailability:
         mock_which.return_value = "/usr/bin/rez"
 
         with patch.dict("os.environ", {}, clear=True):
-            assert env_manager.is_rez_available(mock_config) is True
+            assert env_manager.should_wrap_with_rez(mock_config) is True
             mock_which.assert_called_once_with("rez")
 
     @patch("shutil.which")
@@ -97,7 +97,7 @@ class TestRezAvailability:
         mock_which.return_value = None
 
         with patch.dict("os.environ", {}, clear=True):
-            assert env_manager.is_rez_available(mock_config) is False
+            assert env_manager.should_wrap_with_rez(mock_config) is False
             mock_which.assert_called_once_with("rez")
 
     @patch("shutil.which")
@@ -113,12 +113,12 @@ class TestRezAvailability:
 
         with patch.dict("os.environ", {}, clear=True):
             # First call - should check
-            result1 = env_manager.is_rez_available(mock_config)
+            result1 = env_manager.should_wrap_with_rez(mock_config)
             assert result1 is True
             assert mock_which.call_count == 1
 
             # Second call - should use cache
-            result2 = env_manager.is_rez_available(mock_config)
+            result2 = env_manager.should_wrap_with_rez(mock_config)
             assert result2 is True
             assert mock_which.call_count == 1  # Not called again
 
@@ -132,7 +132,7 @@ class TestRezAvailability:
             "os.environ", {}, clear=True
         ):
             # Cache result
-            env_manager.is_rez_available(mock_config)
+            env_manager.should_wrap_with_rez(mock_config)
             assert env_manager._rez_available_cache is True
 
             # Reset cache
@@ -298,7 +298,7 @@ class TestCacheManagement:
 
         with patch.dict(os.environ, {}, clear=True):
             # Cache Rez availability
-            env_manager.is_rez_available(mock_config)
+            env_manager.should_wrap_with_rez(mock_config)
             assert env_manager._rez_available_cache is not None
 
         mock_which.return_value = "/usr/bin/gnome-terminal"

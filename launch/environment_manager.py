@@ -79,21 +79,6 @@ class EnvironmentManager:
         self._terminal_cache_time: float = 0.0
         self._cache_warm_event: threading.Event = threading.Event()
 
-    def is_rez_available(self, config: "type[Config]") -> bool:
-        """Check if rez wrapping should be applied to commands.
-
-        This is a compatibility wrapper around should_wrap_with_rez() which
-        uses the modern RezMode enum configuration.
-
-        Args:
-            config: Application configuration
-
-        Returns:
-            True if rez wrapping should be applied, False to skip wrapping
-
-        """
-        return self.should_wrap_with_rez(config)
-
     def should_wrap_with_rez(self, config: "type[Config]") -> bool:
         """Determine if commands should be wrapped with rez environment.
 
@@ -282,7 +267,7 @@ class EnvironmentManager:
 
         Call this at startup to avoid blocking the main thread on first
         environment checks. The caches will be populated in the background
-        and subsequent calls to is_rez_available(), is_ws_available(), and
+        and subsequent calls to should_wrap_with_rez(), is_ws_available(), and
         detect_terminal() will return immediately from cache.
 
         Sets _cache_warm_event when complete so is_ws_available() can avoid
