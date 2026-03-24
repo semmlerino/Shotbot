@@ -86,6 +86,7 @@ class SceneFile:
     user: str
     version: int | None = None
     read_only: bool = False
+    comment: str | None = None
 
     @property
     def name(self) -> str:

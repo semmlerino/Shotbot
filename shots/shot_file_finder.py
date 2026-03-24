@@ -68,8 +68,24 @@ class ShotFileFinder(LoggingMixin):
             List of SceneFile objects for Maya files, sorted by mtime (newest first)
 
         """
+        from dataclasses import replace
+
+        from discovery.maya_comment_reader import load_maya_comments
+
         paths = MayaLatestFinder.find_all_scenes(shot.workspace_path)
-        return self._paths_to_scene_files(paths, FileType.MAYA)
+        scene_files = self._paths_to_scene_files(paths, FileType.MAYA)
+
+        # Attach version-up comments from ~/.maya_version_up/
+        comments = load_maya_comments([f.path for f in scene_files])
+        if comments:
+            scene_files = [
+                replace(f, comment=comments[str(f.path)])
+                if str(f.path) in comments
+                else f
+                for f in scene_files
+            ]
+
+        return scene_files
 
     def _find_nuke_files(self, shot: Shot) -> list[SceneFile]:
         """Find Nuke script files for a shot.

@@ -65,9 +65,9 @@ class TestFileTableModel:
         assert model.rowCount() == 0
 
     def test_column_count(self, qtbot: QtBot) -> None:
-        """Model has 3 columns (Version, Age, User)."""
+        """Model has 4 columns (Version, Age, User, Comment)."""
         model = FileTableModel()
-        assert model.columnCount() == 3
+        assert model.columnCount() == 4
 
     def test_set_files(
         self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
@@ -103,6 +103,7 @@ class TestFileTableModel:
         assert model.headerData(0, Qt.Orientation.Horizontal) == "Version"
         assert model.headerData(1, Qt.Orientation.Horizontal) == "Age"
         assert model.headerData(2, Qt.Orientation.Horizontal) == "User"
+        assert model.headerData(3, Qt.Orientation.Horizontal) == "Comment"
 
     def test_display_data_version(
         self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
@@ -148,6 +149,66 @@ class TestFileTableModel:
         index = model.index(0, 0)
         tooltip = model.data(index, Qt.ItemDataRole.ToolTipRole)
         assert "/path/to/scene_v005.3de" in tooltip
+
+    def test_comment_column_empty_when_no_comment(self, qtbot: QtBot) -> None:
+        """Comment column shows empty string when file has no comment."""
+        model = FileTableModel()
+        file = SceneFile(
+            path=Path("/path/to/scene_v001.ma"),
+            file_type=FileType.MAYA,
+            modified_time=datetime.now(),  # noqa: DTZ005
+            user="artist",
+            version=1,
+        )
+        model.set_files([file])
+        index = model.index(0, 3)
+        assert model.data(index, Qt.ItemDataRole.DisplayRole) == ""
+
+    def test_comment_column_shows_comment(self, qtbot: QtBot) -> None:
+        """Comment column shows the comment text."""
+        model = FileTableModel()
+        file = SceneFile(
+            path=Path("/path/to/scene_v001.ma"),
+            file_type=FileType.MAYA,
+            modified_time=datetime.now(),  # noqa: DTZ005
+            user="artist",
+            version=1,
+            comment="Fixed camera drift",
+        )
+        model.set_files([file])
+        index = model.index(0, 3)
+        assert model.data(index, Qt.ItemDataRole.DisplayRole) == "Fixed camera drift"
+
+    def test_tooltip_includes_comment(self, qtbot: QtBot) -> None:
+        """Tooltip includes comment when present."""
+        model = FileTableModel()
+        file = SceneFile(
+            path=Path("/path/to/scene_v001.ma"),
+            file_type=FileType.MAYA,
+            modified_time=datetime.now(),  # noqa: DTZ005
+            user="artist",
+            version=1,
+            comment="Fixed camera drift",
+        )
+        model.set_files([file])
+        index = model.index(0, 0)
+        tooltip = model.data(index, Qt.ItemDataRole.ToolTipRole)
+        assert "Comment: Fixed camera drift" in tooltip
+
+    def test_tooltip_no_comment_line_when_none(self, qtbot: QtBot) -> None:
+        """Tooltip omits comment line when no comment."""
+        model = FileTableModel()
+        file = SceneFile(
+            path=Path("/path/to/scene_v001.ma"),
+            file_type=FileType.MAYA,
+            modified_time=datetime.now(),  # noqa: DTZ005
+            user="artist",
+            version=1,
+        )
+        model.set_files([file])
+        index = model.index(0, 0)
+        tooltip = model.data(index, Qt.ItemDataRole.ToolTipRole)
+        assert "Comment" not in tooltip
 
 
 class TestFilesTabWidgetInit:

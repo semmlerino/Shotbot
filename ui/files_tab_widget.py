@@ -39,7 +39,7 @@ class FileTableModel(QAbstractTableModel):
     Stores SceneFile objects for retrieval on selection.
     """
 
-    COLUMNS: ClassVar[list[str]] = ["Version", "Age", "User"]
+    COLUMNS: ClassVar[list[str]] = ["Version", "Age", "User", "Comment"]
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the model.
@@ -170,9 +170,14 @@ class FileTableModel(QAbstractTableModel):
                 return file.relative_age
             if col == 2:  # User
                 return file.user
+            if col == 3:  # Comment
+                return file.comment or ""
 
         elif role == Qt.ItemDataRole.ToolTipRole:
-            return f"{file.name}\n{file.path}\n{file.formatted_time}"
+            tip = f"{file.name}\n{file.path}\n{file.formatted_time}"
+            if file.comment:
+                tip += f"\n\nComment: {file.comment}"
+            return tip
 
         elif role == Qt.ItemDataRole.UserRole:
             # Return the SceneFile object for easy retrieval
