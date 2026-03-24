@@ -65,10 +65,7 @@ class SceneParser(LoggingMixin):
     def extract_shot_name(sequence: str, shot_dir: str) -> str:
         """Extract the shot identifier from a shot directory name.
 
-        Shot directories follow the convention ``{sequence}_{shot}``.
-        This method strips the sequence prefix to yield just the shot token.
-        If the directory does not start with the expected prefix, it falls back
-        to splitting on the last underscore.
+        Delegates to the canonical :func:`paths.shot_dir_parser.parse_shot_from_dir`.
 
         Args:
             sequence: Sequence name (e.g. "SQ010").
@@ -77,12 +74,9 @@ class SceneParser(LoggingMixin):
         Returns:
             Shot identifier string (e.g. "0010"), or the full ``shot_dir``
             if no underscore is found.
-
         """
-        if shot_dir.startswith(f"{sequence}_"):
-            return shot_dir[len(sequence) + 1:]  # +1 for the underscore
-        shot_parts = shot_dir.rsplit("_", 1)
-        return shot_parts[1] if len(shot_parts) == 2 else shot_dir
+        from paths.shot_dir_parser import parse_shot_from_dir
+        return parse_shot_from_dir(sequence, shot_dir)
 
     def extract_plate_from_path(self, file_path: Path, user_path: Path) -> str:
         """Optimized plate extraction with fast path lookup.
@@ -271,46 +265,16 @@ class SceneParser(LoggingMixin):
     ) -> tuple[str, str, str] | None:
         """Extract show, sequence, and shot from a workspace path.
 
+        Delegates to the canonical :func:`paths.shot_dir_parser.parse_workspace_path`.
+
         Args:
             workspace_path: Full path to shot workspace
 
         Returns:
             Tuple of (show, sequence, shot) or None if parsing fails
-
         """
-        try:
-            path = Path(workspace_path)
-            parts = path.parts
-
-            # Find the 'shots' directory in the path
-            shots_idx = None
-            for i, part in enumerate(parts):
-                if part == "shots":
-                    shots_idx = i
-                    break
-
-            if shots_idx is None or len(parts) <= shots_idx + 2:
-                return None
-
-            # Extract show (directory before 'shots')
-            show = parts[shots_idx - 1] if shots_idx > 0 else "unknown"
-
-            # Extract sequence and shot directory
-            sequence = parts[shots_idx + 1]
-            shot_dir = parts[shots_idx + 2]
-
-            # Parse shot from shot directory name
-            if shot_dir.startswith(f"{sequence}_"):
-                shot = shot_dir[len(sequence) + 1 :]
-            else:
-                shot_parts = shot_dir.rsplit("_", 1)
-                shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
-
-            return (show, sequence, shot)
-
-        except (IndexError, ValueError) as e:
-            self.logger.debug(f"Could not parse workspace path {workspace_path}: {e}")
-            return None
+        from paths.shot_dir_parser import parse_workspace_path
+        return parse_workspace_path(workspace_path)
 
     def validate_scene_file(self, scene_path: Path) -> bool:
         """Validate that a scene file is a valid .3de file.

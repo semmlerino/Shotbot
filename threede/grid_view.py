@@ -26,7 +26,6 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QApplication,
-    QButtonGroup,
     QComboBox,
     QHBoxLayout,
     QInputDialog,
@@ -77,7 +76,6 @@ class ThreeDEGridView(BaseGridView):
     # Override to add scene parameter
     app_launch_requested = Signal(str, object)  # app_name, scene
     recover_crashes_requested = Signal()  # User clicked recover crashes button
-    sort_order_changed = Signal(str)  # "name" or "date"
     artist_filter_requested = Signal(str)  # artist name or empty string for all
 
     def __init__(
@@ -105,9 +103,6 @@ class ThreeDEGridView(BaseGridView):
         self.count_label: QLabel
         self.recover_button: QPushButton
         self.artist_combo: QComboBox
-        self.sort_name_btn: QPushButton
-        self.sort_date_btn: QPushButton
-        self._sort_button_group: QButtonGroup
         self._pin_manager: ShotPinManager | None = pin_manager
         self._notes_manager: NotesManager | None = notes_manager
 
@@ -180,28 +175,7 @@ class ThreeDEGridView(BaseGridView):
         )
         layout.addWidget(self.artist_combo)
 
-        # Sort toggle buttons
-        sort_label = QLabel("Sort:")
-        layout.addWidget(sort_label)
-
-        self.sort_name_btn = QPushButton("Name")
-        self.sort_name_btn.setCheckable(True)
-        self.sort_name_btn.setToolTip("Sort by shot name alphabetically")
-        self.sort_name_btn.setFixedWidth(50)
-        layout.addWidget(self.sort_name_btn)
-
-        self.sort_date_btn = QPushButton("Date")
-        self.sort_date_btn.setCheckable(True)
-        self.sort_date_btn.setChecked(True)  # Default: date (newest first)
-        self.sort_date_btn.setToolTip("Sort by modification date (newest first)")
-        self.sort_date_btn.setFixedWidth(50)
-        layout.addWidget(self.sort_date_btn)
-
-        # Button group for exclusive selection
-        self._sort_button_group = QButtonGroup(self)
-        self._sort_button_group.addButton(self.sort_name_btn, 0)
-        self._sort_button_group.addButton(self.sort_date_btn, 1)
-        _ = self._sort_button_group.idClicked.connect(self._on_sort_button_clicked)
+        self._create_sort_buttons(layout)
 
         # Add some spacing
         layout.addSpacing(10)
@@ -701,35 +675,3 @@ class ThreeDEGridView(BaseGridView):
         """Check if loading is in progress."""
         return self._is_loading
 
-    # ============= Sort order methods =============
-
-    def _on_sort_button_clicked(self, button_id: int) -> None:
-        """Handle sort button click.
-
-        Args:
-            button_id: ID of clicked button (0=name, 1=date)
-
-        """
-        order = "name" if button_id == 0 else "date"
-        self.sort_order_changed.emit(order)
-        self.logger.info(f"Sort order changed to: {order}")
-
-    def set_sort_order(self, order: str) -> None:
-        """Set the sort order and update button states.
-
-        Called by MainWindow when restoring settings or syncing with model.
-
-        Args:
-            order: Sort order ("name" or "date")
-
-        """
-        if order not in ("name", "date"):
-            return
-
-        # Update button states without emitting signal
-        _ = self._sort_button_group.blockSignals(True)
-        if order == "name":
-            self.sort_name_btn.setChecked(True)
-        else:
-            self.sort_date_btn.setChecked(True)
-        _ = self._sort_button_group.blockSignals(False)

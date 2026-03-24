@@ -126,12 +126,8 @@ class PreviousShotsFinder(ShotFinderBase):
             workspace_path, show, sequence, shot_dir = match.groups()
 
             # Extract shot number from directory name (consistent with base_shot_model logic)
-            if shot_dir.startswith(f"{sequence}_"):
-                shot = shot_dir[len(sequence) + 1 :]  # +1 for underscore
-            else:
-                # Non-standard naming, skip
-                self.logger.debug(f"Non-standard shot naming: {shot_dir}")
-                return None
+            from paths.shot_dir_parser import parse_shot_from_dir
+            shot = parse_shot_from_dir(sequence, shot_dir)
         else:
             return None
 

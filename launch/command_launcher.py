@@ -10,7 +10,6 @@ from __future__ import annotations
 
 # Standard library imports
 import enum
-import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -751,51 +750,14 @@ class CommandLauncher(LoggingMixin, QObject):
     ) -> bool:
         """Validate workspace is accessible before launching application.
 
-        Performs pre-flight checks (advisory):
-        1. Workspace directory exists
-        2. Workspace path is a directory (not a file)
-        3. User has read and execute permissions
-
-        Note:
-            Permission checks are advisory only due to TOCTOU (time-of-check to
-            time-of-use) race conditions. Permissions could change between check
-            and actual use. These checks provide early user feedback but don't
-            guarantee success.
-
-            Disk space is NOT checked - VFX production storage always has
-            sufficient space, and the statvfs() call can block for 10+ seconds
-            on slow NFS mounts, causing UI freezes.
-
-        Args:
-            workspace_path: Path to the workspace directory
-            app_name: Name of the application (for error messages)
-
-        Returns:
-            True if validation passes, False otherwise
-
+        Delegates to :func:`launch.workspace_validator.validate_workspace`.
         """
-        # Check directory exists
-        ws_path = Path(workspace_path)
-        if not ws_path.exists():
-            self._emit_error(
-                f"Cannot launch {app_name}: Workspace path does not exist: {workspace_path}"
-            )
-            return False
+        from launch.workspace_validator import validate_workspace
 
-        # Check it's actually a directory
-        if not ws_path.is_dir():
-            self._emit_error(
-                f"Cannot launch {app_name}: Workspace path is not a directory: {workspace_path}"
-            )
+        error = validate_workspace(workspace_path, app_name)
+        if error:
+            self._emit_error(error)
             return False
-
-        # Check read/execute permissions
-        if not os.access(workspace_path, os.R_OK | os.X_OK):
-            self._emit_error(
-                f"Cannot launch {app_name}: No read/execute permission for: {workspace_path}"
-            )
-            return False
-
         return True
 
     def _validate_scripts_dir(self, app_name: str) -> bool:

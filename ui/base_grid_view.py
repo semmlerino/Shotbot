@@ -24,6 +24,7 @@ from PySide6.QtCore import (
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QButtonGroup,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListView,
     QMenu,
+    QPushButton,
     QSlider,
     QVBoxLayout,
     QWidget,
@@ -96,6 +98,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
     show_filter_requested: ClassVar[Signal] = Signal(str)  # show name or empty string for all
     text_filter_requested: ClassVar[Signal] = Signal(str)  # filter text for real-time search
     pin_shot_requested: ClassVar[Signal] = Signal(object)  # fallback when no pin_manager
+    sort_order_changed: ClassVar[Signal] = Signal(str)  # "name" or "date"
 
     # Manager attribute declarations — subclasses initialize these.
     # Declared here so shared handler methods (_pin_shot, etc.) type-check correctly.
@@ -118,6 +121,11 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         # Scrub preview bridge
         self._scrub_bridge: ScrubPreviewBridge = ScrubPreviewBridge(self)
+
+        # Sort button attributes — populated by _create_sort_buttons()
+        self._sort_name_btn: QPushButton | None = None
+        self._sort_date_btn: QPushButton | None = None
+        self._sort_button_group: QButtonGroup | None = None
 
         # Create the UI
         self._setup_base_ui()
@@ -619,6 +627,68 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         if clipboard:
             clipboard.setText(path)
             self.logger.debug(f"Copied path to clipboard: {path}")
+
+    def _create_sort_buttons(self, layout: QHBoxLayout) -> None:
+        """Create sort toggle buttons and add them to the given layout.
+
+        Args:
+            layout: The layout to add the sort buttons to
+
+        """
+        sort_label = QLabel("Sort:")
+        layout.addWidget(sort_label)
+
+        self._sort_name_btn = QPushButton("Name")
+        self._sort_name_btn.setCheckable(True)
+        self._sort_name_btn.setToolTip("Sort by shot name alphabetically")
+        self._sort_name_btn.setFixedWidth(50)
+        layout.addWidget(self._sort_name_btn)
+
+        self._sort_date_btn = QPushButton("Date")
+        self._sort_date_btn.setCheckable(True)
+        self._sort_date_btn.setChecked(True)  # Default: date (newest first)
+        self._sort_date_btn.setToolTip("Sort by date (newest first)")
+        self._sort_date_btn.setFixedWidth(50)
+        layout.addWidget(self._sort_date_btn)
+
+        self._sort_button_group = QButtonGroup(self)
+        self._sort_button_group.addButton(self._sort_name_btn, 0)
+        self._sort_button_group.addButton(self._sort_date_btn, 1)
+        _ = self._sort_button_group.idClicked.connect(self._on_sort_button_clicked)
+
+    def _on_sort_button_clicked(self, button_id: int) -> None:
+        """Handle sort button click.
+
+        Args:
+            button_id: ID of clicked button (0=name, 1=date)
+
+        """
+        order = "name" if button_id == 0 else "date"
+        self.sort_order_changed.emit(order)
+        self.logger.info(f"Sort order changed to: {order}")
+
+    def set_sort_order(self, order: str) -> None:
+        """Set the sort order and update button states.
+
+        Called by MainWindow when restoring settings or syncing with model.
+
+        Args:
+            order: Sort order ("name" or "date")
+
+        """
+        if order not in ("name", "date"):
+            return
+
+        # Update button states without emitting signal
+        assert self._sort_button_group is not None
+        assert self._sort_name_btn is not None
+        assert self._sort_date_btn is not None
+        _ = self._sort_button_group.blockSignals(True)
+        if order == "name":
+            self._sort_name_btn.setChecked(True)
+        else:
+            self._sort_date_btn.setChecked(True)
+        _ = self._sort_button_group.blockSignals(False)
 
     def _open_main_plate_in_rv(self, item: object) -> None:
         """Open the main plate in RV.

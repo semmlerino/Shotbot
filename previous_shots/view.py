@@ -8,18 +8,16 @@ with virtualization and proper Model/View architecture.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import (
     QAbstractItemModel,
     QSortFilterProxyModel,
     Qt,
-    Signal,
     Slot,
 )
 from PySide6.QtWidgets import (
-    QButtonGroup,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -63,9 +61,6 @@ class PreviousShotsView(BaseShotGridView):
     - 98% memory reduction vs widget-based approach
     """
 
-    # Additional signals specific to PreviousShotsView
-    sort_order_changed: ClassVar[Signal] = Signal(str)  # "name" or "date"
-
     # Class-level type annotation for base class _model attribute
     _model: QAbstractItemModel | None
 
@@ -91,9 +86,6 @@ class PreviousShotsView(BaseShotGridView):
         # These are set in methods called during base class initialization
         self._status_label: QLabel | None = None
         self._refresh_button: QPushButton | None = None
-        self._sort_name_btn: QPushButton | None = None
-        self._sort_date_btn: QPushButton | None = None
-        self._sort_button_group: QButtonGroup | None = None
         self._notes_manager: NotesManager | None = notes_manager
 
         # Initialize base class
@@ -149,28 +141,7 @@ class PreviousShotsView(BaseShotGridView):
 
         header_layout.addStretch()
 
-        # Sort toggle buttons
-        sort_label = QLabel("Sort:")
-        header_layout.addWidget(sort_label)
-
-        self._sort_name_btn = QPushButton("Name")
-        self._sort_name_btn.setCheckable(True)
-        self._sort_name_btn.setToolTip("Sort by shot name alphabetically")
-        self._sort_name_btn.setFixedWidth(50)
-        header_layout.addWidget(self._sort_name_btn)
-
-        self._sort_date_btn = QPushButton("Date")
-        self._sort_date_btn.setCheckable(True)
-        self._sort_date_btn.setChecked(True)  # Default: date (newest first)
-        self._sort_date_btn.setToolTip("Sort by discovery date (newest first)")
-        self._sort_date_btn.setFixedWidth(50)
-        header_layout.addWidget(self._sort_date_btn)
-
-        # Button group for exclusive selection
-        self._sort_button_group = QButtonGroup(self)
-        self._sort_button_group.addButton(self._sort_name_btn, 0)
-        self._sort_button_group.addButton(self._sort_date_btn, 1)
-        _ = self._sort_button_group.idClicked.connect(self._on_sort_button_clicked)
+        self._create_sort_buttons(header_layout)
 
         # Add some spacing
         header_layout.addSpacing(10)
@@ -365,42 +336,6 @@ class PreviousShotsView(BaseShotGridView):
         self._visibility_timer.stop()
         super().closeEvent(event)
         self.logger.debug("PreviousShotsView cleaned up resources on close")
-
-    # ============= Sort order methods =============
-
-    def _on_sort_button_clicked(self, button_id: int) -> None:
-        """Handle sort button click.
-
-        Args:
-            button_id: ID of clicked button (0=name, 1=date)
-
-        """
-        order = "name" if button_id == 0 else "date"
-        self.sort_order_changed.emit(order)
-        self.logger.info(f"Sort order changed to: {order}")
-
-    def set_sort_order(self, order: str) -> None:
-        """Set the sort order and update button states.
-
-        Called by MainWindow when restoring settings or syncing with model.
-
-        Args:
-            order: Sort order ("name" or "date")
-
-        """
-        if order not in ("name", "date"):
-            return
-
-        # Update button states without emitting signal
-        assert self._sort_button_group is not None
-        assert self._sort_name_btn is not None
-        assert self._sort_date_btn is not None
-        _ = self._sort_button_group.blockSignals(True)
-        if order == "name":
-            self._sort_name_btn.setChecked(True)
-        else:
-            self._sort_date_btn.setChecked(True)
-        _ = self._sort_button_group.blockSignals(False)
 
     # ============= Pin methods =============
 

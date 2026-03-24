@@ -65,26 +65,9 @@ class OptimizedShotParser:
 
         workspace_path, show, sequence, shot_dir = match.groups()
 
-        # Optimized: Use startswith which is C-optimized in Python
-        # This is actually faster than manual slicing for prefix check
-        if shot_dir.startswith(sequence):
-            seq_len = len(sequence)
-            # Fast check for underscore at expected position
-            if len(shot_dir) > seq_len and shot_dir[seq_len] == "_":
-                # Direct slice after validation
-                return ParseResult(
-                    show, sequence, shot_dir[seq_len + 1 :], workspace_path
-                )
-
-        # Fallback: rfind is faster than rsplit for single character search
-        underscore_pos = shot_dir.rfind("_")
-        if underscore_pos > 0:
-            return ParseResult(
-                show, sequence, shot_dir[underscore_pos + 1 :], workspace_path
-            )
-
-        # Edge case: No underscore, use full directory
-        return ParseResult(show, sequence, shot_dir, workspace_path)
+        from paths.shot_dir_parser import parse_shot_from_dir
+        shot = parse_shot_from_dir(sequence, shot_dir)
+        return ParseResult(show, sequence, shot, workspace_path)
 
     def parse_shot_path(self, path: str) -> ParseResult | None:
         """Ultra-optimized path parser with same optimization strategy.
@@ -104,23 +87,9 @@ class OptimizedShotParser:
         # Pre-compute workspace path once
         workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
 
-        # Use C-optimized startswith for prefix check
-        if shot_dir.startswith(sequence):
-            seq_len = len(sequence)
-            if len(shot_dir) > seq_len and shot_dir[seq_len] == "_":
-                return ParseResult(
-                    show, sequence, shot_dir[seq_len + 1 :], workspace_path
-                )
-
-        # Fast fallback: Single rfind
-        underscore_pos = shot_dir.rfind("_")
-        if underscore_pos > 0:
-            return ParseResult(
-                show, sequence, shot_dir[underscore_pos + 1 :], workspace_path
-            )
-
-        # Edge case: No underscore
-        return ParseResult(show, sequence, shot_dir, workspace_path)
+        from paths.shot_dir_parser import parse_shot_from_dir
+        shot = parse_shot_from_dir(sequence, shot_dir)
+        return ParseResult(show, sequence, shot, workspace_path)
 
 
 def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
