@@ -561,20 +561,20 @@ class TestRightPanelFileLaunch:
             user="other_user",
         )
 
-        # Mock launch_with_file to verify it's called correctly
+        # Mock launch to verify it's called correctly
         with patch.object(
-            main_window.command_launcher, "launch_with_file", return_value=True
+            main_window.command_launcher, "launch", return_value=True
         ) as mock_launch:
             # Simulate right panel launch with selected file
             options = {"selected_file": maya_file}
             main_window._on_right_panel_launch("maya", options)
 
-            # Verify launch_with_file was called with correct args
-            mock_launch.assert_called_once_with(
-                "maya",
-                maya_file.path,
-                shot.workspace_path,
-            )
+            # Verify launch was called with correct LaunchRequest
+            mock_launch.assert_called_once()
+            request = mock_launch.call_args.args[0]
+            assert request.app_name == "maya"
+            assert request.file_path == maya_file.path
+            assert request.workspace_path == shot.workspace_path
 
     def test_launch_with_selected_file_from_scene_context(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
@@ -609,19 +609,19 @@ class TestRightPanelFileLaunch:
             user="another_user",
         )
 
-        # Mock launch_with_file
+        # Mock launch
         with patch.object(
-            main_window.command_launcher, "launch_with_file", return_value=True
+            main_window.command_launcher, "launch", return_value=True
         ) as mock_launch:
             options = {"selected_file": maya_file}
             main_window._on_right_panel_launch("maya", options)
 
-            # Verify launch_with_file was called with scene's workspace
-            mock_launch.assert_called_once_with(
-                "maya",
-                maya_file.path,
-                scene.workspace_path,
-            )
+            # Verify launch was called with scene's workspace
+            mock_launch.assert_called_once()
+            request = mock_launch.call_args.args[0]
+            assert request.app_name == "maya"
+            assert request.file_path == maya_file.path
+            assert request.workspace_path == scene.workspace_path
 
     def test_launch_with_selected_file_no_context_shows_error(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
@@ -663,19 +663,20 @@ class TestRightPanelFileLaunch:
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
         main_window.shot_selection_controller.on_shot_selected(shot)
 
-        # Mock both launch methods
+        # Mock launch
         with patch.object(
-            main_window.command_launcher, "launch_app", return_value=True
-        ) as mock_launch_app, patch.object(
-            main_window.command_launcher, "launch_with_file", return_value=True
-        ) as mock_launch_with_file:
+            main_window.command_launcher, "launch", return_value=True
+        ) as mock_launch:
             # Launch without selected_file
             options = {"open_latest_maya": True}
             main_window._on_right_panel_launch("maya", options)
 
-            # Verify launch_app was called, not launch_with_file
-            mock_launch_app.assert_called_once()
-            mock_launch_with_file.assert_not_called()
+            # Verify launch was called with no file_path (standard launch)
+            mock_launch.assert_called_once()
+            request = mock_launch.call_args.args[0]
+            assert request.app_name == "maya"
+            assert request.file_path is None
+            assert request.scene is None
 
 
 class TestGetCurrentWorkspacePath:

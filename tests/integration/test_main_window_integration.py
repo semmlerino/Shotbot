@@ -422,13 +422,14 @@ class TestMainWindowUICoordination:
         if open_latest_checkbox:
             open_latest_checkbox.setChecked(False)
 
-        with patch.object(window.command_launcher, "launch_app", return_value=True) as mock_launch_app:
+        with patch.object(window.command_launcher, "launch", return_value=True) as mock_launch:
             section_3de._launch_btn.click()
             qtbot.wait(1)
 
-        mock_launch_app.assert_called_once()
-        assert mock_launch_app.call_args is not None
-        assert mock_launch_app.call_args.args[0] == "3de"
+        mock_launch.assert_called_once()
+        assert mock_launch.call_args is not None
+        request = mock_launch.call_args.args[0]
+        assert request.app_name == "3de"
 
     def test_progress_indication_during_operations(
         self, main_window_with_real_components: Any, qtbot: Any

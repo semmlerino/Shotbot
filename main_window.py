@@ -528,7 +528,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             scene: 3DE scene file to open
 
         """
-        _ = self.command_launcher.launch_app_opening_scene_file(app_name, scene)
+        from launch.launch_request import LaunchRequest
+        _ = self.command_launcher.launch(LaunchRequest(
+            app_name=app_name,
+            scene=scene,
+        ))
 
     def _on_right_panel_launch(
         self, app_name: str, options: dict[str, Any]
@@ -550,11 +554,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             # Get workspace path from current context (shot or 3DE scene)
             workspace_path = self._get_current_workspace_path()
             if workspace_path:
-                _ = self.command_launcher.launch_with_file(
-                    app_name,
-                    selected_file.path,
-                    workspace_path,
-                )
+                from launch.launch_request import LaunchRequest
+                _ = self.command_launcher.launch(LaunchRequest(
+                    app_name=app_name,
+                    file_path=selected_file.path,
+                    workspace_path=workspace_path,
+                ))
                 return
             # If no workspace context, show error
             NotificationManager.error(
@@ -574,7 +579,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             selected_plate=options.get("selected_plate"),
             sequence_path=options.get("sequence_path"),
         )
-        _ = self.command_launcher.launch_app(app_name, context)
+        from launch.launch_request import LaunchRequest
+        _ = self.command_launcher.launch(LaunchRequest(
+            app_name=app_name,
+            context=context,
+        ))
 
     def _get_current_workspace_path(self) -> str | None:
         """Get workspace path from current shot or selected 3DE scene.

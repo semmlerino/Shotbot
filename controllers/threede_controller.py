@@ -375,7 +375,8 @@ class ThreeDEController(LoggingMixin):
     def on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene double click - launch 3de with the scene."""
         self.logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
-        _ = self.window.command_launcher.launch_app_opening_scene_file("3de", scene)
+        from launch.launch_request import LaunchRequest
+        _ = self.window.command_launcher.launch(LaunchRequest(app_name="3de", scene=scene))
 
     @Slot(int)  # pyright: ignore[reportAny]
     def on_tab_activated(self, tab_index: int) -> None:

@@ -43,6 +43,7 @@ from nuke import NukeLaunchHandler, SimpleNukeLauncher
 if TYPE_CHECKING:
     # Local application imports
     from cache.latest_file_cache import LatestFileCache
+    from launch.launch_request import LaunchRequest
     from type_definitions import Shot, ThreeDEScene
 
 
@@ -564,80 +565,65 @@ class CommandLauncher(LoggingMixin, QObject):
         handler = self._app_handlers.get(app_name, self._default_handler)
         return handler.build_launch_command(base_cmd, context, self.current_shot)
 
-    def launch_app(
-        self,
-        app_name: str,
-        context: LaunchContext | None = None,
-    ) -> bool:
-        """Launch an application in the current shot context.
+    def launch(self, request: LaunchRequest) -> bool:
+        """Unified launch entry point.
+
+        Dispatches to the appropriate internal path based on which fields
+        are set on *request*.
 
         Args:
-            app_name: Name of the application to launch
-            context: Launch context with options
+            request: Launch request with all context.
 
         Returns:
-            True if launch was successful, False otherwise
-
+            True if launch was successful or async search started, False otherwise.
         """
-        if context is None:
-            context = LaunchContext()
 
         self._phase = LaunchPhase.VERIFYING_APP
         self.logger.debug("LaunchPhase: %s", self._phase.value)
+
+        # --- Common validation ---
+        if not self._validate_app_name(request.app_name):
+            return False
+
+        if request.app_name in ("nuke", "3de") and not self._validate_scripts_dir(request.app_name):
+            return False
+
+        # --- Dispatch based on request type ---
+        if request.scene is not None:
+            return self._launch_with_scene(request)
+        if request.file_path is not None:
+            return self._launch_with_explicit_file(request)
+        return self._launch_standard(request)
+
+    def _launch_standard(self, request: LaunchRequest) -> bool:
+        """Standard app launch using current shot context."""
+        context = request.context if request.context is not None else LaunchContext()
 
         if not self.current_shot:
             self._emit_error("No shot selected")
             return False
 
-        if not self._validate_app_name(app_name):
-            return False
-
-        if app_name in ("nuke", "3de") and not self._validate_scripts_dir(app_name):
-            return False
-
-        # Validate workspace before launching
         if not self._validate_workspace_before_launch(
-            self.current_shot.workspace_path, app_name
+            self.current_shot.workspace_path, request.app_name
         ):
             return False
 
-        command, is_async = self._build_app_command(app_name, context)
+        command, is_async = self._build_app_command(request.app_name, context)
         if command is None:
-            return is_async  # True = async started, False = error
+            return is_async
+        return self._finish_launch(request.app_name, command)
 
-        return self._finish_launch(app_name, command)
-
-    def launch_app_opening_scene_file(self, app_name: str, scene: ThreeDEScene) -> bool:
-        """Launch an application and open a specific 3DE scene file.
-
-        Args:
-            app_name: Name of the application to launch
-            scene: The 3DE scene file to open
-
-        Returns:
-            True if launch was successful, False otherwise
-
-        """
-        self._phase = LaunchPhase.VERIFYING_APP
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
-
-        if not self._validate_app_name(app_name):
-            return False
-
-        if app_name in ("nuke", "3de") and not self._validate_scripts_dir(app_name):
-            return False
-
-        # Get the command
+    def _launch_with_scene(self, request: LaunchRequest) -> bool:
+        """Launch opening a specific 3DE scene file."""
+        assert request.scene is not None
+        scene = request.scene
+        app_name = request.app_name
         command = Config.APPS[app_name]
 
-        # Include the scene file in the command
-        # Validate and escape scene path to prevent injection
         try:
             safe_scene_path = CommandBuilder.validate_path(str(scene.scene_path))
             command_prefix = ""
-            # Add app-specific command-line flags for scene file
             if app_name == "3de":
-                # 3DE gets the scene file + scripts export + SGTK context
                 tde_scripts_export = (
                     f"export PYTHON_CUSTOM_SCRIPTS_3DE4={Config.SCRIPTS_DIR}:"
                     "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
@@ -645,12 +631,10 @@ class CommandLauncher(LoggingMixin, QObject):
                 sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
                 command = f"{command} -open {safe_scene_path}"
                 command_prefix = f"{tde_scripts_export}{sgtk_export}"
-
         except ValueError as e:
             self._emit_error(f"Invalid scene path: {e!s}")
             return False
 
-        # Validate workspace before attempting launch
         if not self._validate_workspace_before_launch(scene.workspace_path, app_name):
             return False
 
@@ -663,61 +647,31 @@ class CommandLauncher(LoggingMixin, QObject):
             command_prefix=command_prefix,
         )
 
-    def launch_with_file(
-        self,
-        app_name: str,
-        file_path: Path,
-        workspace_path: str,
-    ) -> bool:
-        """Launch an application with a specific file.
+    def _launch_with_explicit_file(self, request: LaunchRequest) -> bool:
+        """Launch with a specific file from the DCC file panel."""
+        assert request.file_path is not None
+        assert request.workspace_path is not None
+        app_name = request.app_name
+        file_path = request.file_path
+        workspace_path = request.workspace_path
 
-        Args:
-            app_name: Name of the application to launch (e.g., '3de', 'maya', 'nuke')
-            file_path: Path to the file to open
-            workspace_path: Shot workspace path for environment setup
-
-        Returns:
-            True if launch was successful, False otherwise
-
-        """
-        self._phase = LaunchPhase.VERIFYING_APP
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
-
-        if not self._validate_app_name(app_name):
-            return False
-
-        if app_name in ("nuke", "3de") and not self._validate_scripts_dir(app_name):
-            return False
-
-        # Get the command
         command = Config.APPS[app_name]
 
-        # Include the file in the command
-        # Validate and escape file path to prevent injection
         try:
             safe_file_path = CommandBuilder.validate_path(str(file_path))
             handler = self._app_handlers.get(app_name, self._default_handler)
             command = handler.build_file_command(command, safe_file_path)
-
-            # Log file launch details for debugging file dialog issues
             self.logger.debug(
-                f"launch_with_file: app={app_name}, "
-                f"file_path={file_path}, "
-                f"safe_file_path={safe_file_path}, "
-                f"command={command}"
+                f"launch: app={app_name}, file_path={file_path}, "
+                f"safe_file_path={safe_file_path}, command={command}"
             )
         except ValueError as e:
             self._emit_error(f"Invalid file path: {e!s}")
             return False
 
-        # Validate workspace before attempting launch
         if not self._validate_workspace_before_launch(workspace_path, app_name):
             return False
 
-        # Set SGTK_FILE_TO_OPEN for SGTK-enabled apps (Maya, Nuke, 3DE)
-        # This tells ShotGrid Toolkit to bootstrap context from the file path,
-        # ensuring the full environment is loaded when opening via command line
-        # safe_file_path was validated above in the command-building block
         handler = self._app_handlers.get(app_name, self._default_handler)
         if handler.needs_sgtk_file_to_open():
             sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_file_path} && "
@@ -733,6 +687,43 @@ class CommandLauncher(LoggingMixin, QObject):
             error_context=" with file",
             command_prefix=sgtk_export,
         )
+
+    def launch_app(
+        self,
+        app_name: str,
+        context: LaunchContext | None = None,
+    ) -> bool:
+        """Launch an application in the current shot context.
+
+        Thin wrapper around :meth:`launch` for backward compatibility.
+        """
+        from launch.launch_request import LaunchRequest
+        return self.launch(LaunchRequest(app_name=app_name, context=context))
+
+    def launch_app_opening_scene_file(self, app_name: str, scene: ThreeDEScene) -> bool:
+        """Launch an application and open a specific 3DE scene file.
+
+        Thin wrapper around :meth:`launch` for backward compatibility.
+        """
+        from launch.launch_request import LaunchRequest
+        return self.launch(LaunchRequest(app_name=app_name, scene=scene))
+
+    def launch_with_file(
+        self,
+        app_name: str,
+        file_path: Path,
+        workspace_path: str,
+    ) -> bool:
+        """Launch an application with a specific file.
+
+        Thin wrapper around :meth:`launch` for backward compatibility.
+        """
+        from launch.launch_request import LaunchRequest
+        return self.launch(LaunchRequest(
+            app_name=app_name,
+            file_path=file_path,
+            workspace_path=workspace_path,
+        ))
 
     # Methods removed - now using launch components:
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
