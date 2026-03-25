@@ -131,25 +131,16 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.thumbnail_size_label: QLabel
         self.ui_scale_slider: QSlider
         self.ui_scale_label: QLabel
-        self.grid_columns_spin: QSpinBox
         self.animations_check: QCheckBox
         self.refresh_interval_spin: QSpinBox
         self.background_refresh_check: QCheckBox
         self.double_click_combo: QComboBox
         self.terminal_edit: QLineEdit
-        self.remember_directory_check: QCheckBox
-        self.show_hidden_check: QCheckBox
-        self.confirm_delete_check: QCheckBox
 
         # Performance tab widgets
         self.max_threads_spin: QSpinBox
-        self.max_operations_spin: QSpinBox
         self.cache_memory_spin: QSpinBox
         self.cache_expiry_spin: QSpinBox
-        self.lazy_loading_check: QCheckBox
-        self.preload_thumbnails_check: QCheckBox
-        self.progressive_loading_check: QCheckBox
-        self.cache_compression_check: QCheckBox
 
         # Applications tab widgets
         self.default_app_combo: QComboBox
@@ -164,11 +155,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Advanced tab widgets
         self.debug_mode_check: QCheckBox
         self.log_level_combo: QComboBox
-        self.profiling_check: QCheckBox
-        self.memory_monitoring_check: QCheckBox
-        self.beta_features_check: QCheckBox
-        self.experimental_caching_check: QCheckBox
-        self.performance_overlay_check: QCheckBox
 
         # Dialog widgets
         self.tab_widget: QTabWidget
@@ -303,24 +289,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         scroll_layout.addWidget(behavior_group)
 
-        # File Handling Group
-        file_group = QGroupBox("File Handling")
-        file_layout = QFormLayout(file_group)
-
-        # Remember last directory
-        self.remember_directory_check = QCheckBox("Remember Last Directory")
-        file_layout.addRow(self.remember_directory_check)
-
-        # Show hidden files
-        self.show_hidden_check = QCheckBox("Show Hidden Files")
-        file_layout.addRow(self.show_hidden_check)
-
-        # Confirm delete
-        self.confirm_delete_check = QCheckBox("Confirm Delete Operations")
-        file_layout.addRow(self.confirm_delete_check)
-
-        scroll_layout.addWidget(file_group)
-
         scroll_layout.addStretch()
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
@@ -347,12 +315,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.max_threads_spin.setMaximum(16)
         threading_layout.addRow("Max Thumbnail Threads:", self.max_threads_spin)
 
-        # Max concurrent operations
-        self.max_operations_spin = QSpinBox()
-        self.max_operations_spin.setMinimum(1)
-        self.max_operations_spin.setMaximum(10)
-        threading_layout.addRow("Max Concurrent Operations:", self.max_operations_spin)
-
         scroll_layout.addWidget(threading_group)
 
         # Memory Management Group
@@ -374,28 +336,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         memory_layout.addRow("Cache Expiry Time:", self.cache_expiry_spin)
 
         scroll_layout.addWidget(memory_group)
-
-        # Optimization Group
-        optimization_group = QGroupBox("Optimization")
-        optimization_layout = QFormLayout(optimization_group)
-
-        # Lazy loading
-        self.lazy_loading_check = QCheckBox("Enable Lazy Loading")
-        optimization_layout.addRow(self.lazy_loading_check)
-
-        # Preload thumbnails
-        self.preload_thumbnails_check = QCheckBox("Preload Thumbnails")
-        optimization_layout.addRow(self.preload_thumbnails_check)
-
-        # Progressive loading
-        self.progressive_loading_check = QCheckBox("Enable Progressive Loading")
-        optimization_layout.addRow(self.progressive_loading_check)
-
-        # Cache compression
-        self.cache_compression_check = QCheckBox("Enable Cache Compression")
-        optimization_layout.addRow(self.cache_compression_check)
-
-        scroll_layout.addWidget(optimization_group)
 
         scroll_layout.addStretch()
         scroll.setWidget(scroll_widget)
@@ -524,33 +464,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
         debug_layout.addRow("Log Level:", self.log_level_combo)
 
-        # Enable profiling
-        self.profiling_check = QCheckBox("Enable Performance Profiling")
-        debug_layout.addRow(self.profiling_check)
-
-        # Memory monitoring
-        self.memory_monitoring_check = QCheckBox("Enable Memory Monitoring")
-        debug_layout.addRow(self.memory_monitoring_check)
-
         scroll_layout.addWidget(debug_group)
-
-        # Experimental Features Group
-        experimental_group = QGroupBox("Experimental Features")
-        experimental_layout = QFormLayout(experimental_group)
-
-        # Beta features
-        self.beta_features_check = QCheckBox("Enable Beta Features")
-        experimental_layout.addRow(self.beta_features_check)
-
-        # Experimental caching
-        self.experimental_caching_check = QCheckBox("Experimental Caching")
-        experimental_layout.addRow(self.experimental_caching_check)
-
-        # Performance overlay
-        self.performance_overlay_check = QCheckBox("Performance Overlay")
-        experimental_layout.addRow(self.performance_overlay_check)
-
-        scroll_layout.addWidget(experimental_group)
 
         # System Information Group
         system_group = QGroupBox("System Information")
@@ -796,6 +710,12 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
             if reply == QMessageBox.StandardButton.Yes:
                 self.settings_manager.reset_category(category)
+                if current_index == 0:
+                    # General tab: also reset ui_scale (stored under "ui/" prefix,
+                    # not "preferences/", so reset_category("preferences") misses it)
+                    self.settings_manager.ui.set_ui_scale(1.0)
+                    self.ui_scale_slider.setValue(100)
+                    design_system.set_ui_scale(1.0)
                 self.load_current_settings()
                 _ = QMessageBox.information(
                     self,
