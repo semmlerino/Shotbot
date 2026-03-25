@@ -405,33 +405,6 @@ class DCCFileTable(QWidget):
         if self._file_model is not None:
             self._file_model.set_current_default(file)
 
-    # ------------------------------------------------------------------
-    # Public attribute accessors (used by DCCSectionWidget backward-compat layer)
-    # ------------------------------------------------------------------
-
-    @property
-    def file_table(self) -> QTableView | None:
-        """The QTableView widget."""
-        return self._file_table
-
-    @property
-    def file_model(self) -> FileTableModel | None:
-        """The FileTableModel backing the table."""
-        return self._file_model
-
-    @property
-    def files_header_btn(self) -> QPushButton | None:
-        """The collapsible-header button."""
-        return self._files_header_btn
-
-    @property
-    def current_selected_file(self) -> SceneFile | None:
-        """Currently selected/default file."""
-        return self._current_selected_file
-
-    @current_selected_file.setter
-    def current_selected_file(self, value: SceneFile | None) -> None:
-        self._current_selected_file = value
 
     def on_file_double_clicked(self, index: QModelIndex) -> None:
         """Handle a double-click on a file row (public wrapper)."""

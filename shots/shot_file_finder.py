@@ -6,27 +6,27 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from dcc.scene_file import FileType, SceneFile
 from discovery.maya_latest_finder import MayaLatestFinder
-from logging_mixin import LoggingMixin
 from threede import ThreeDELatestFinder
+from version_mixin import VersionHandlingMixin
 
 
 if TYPE_CHECKING:
     from type_definitions import Shot
 
 
-class ShotFileFinder(LoggingMixin):
+class ShotFileFinder(VersionHandlingMixin):
     """Discovers files for a shot using existing finders.
 
     Provides a unified interface for finding 3DE, Maya, and Nuke files
     associated with a shot workspace.
     """
 
-    # Version extraction patterns
-    VERSION_PATTERN: re.Pattern[str] = re.compile(r"_v(\d{3})\.[^.]+$")
+    # Version extraction patterns — end-anchored to match _v001.ext at filename end only
+    VERSION_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"_v(\d{3})\.[^.]+$")
 
     def find_all_files(self, shot: Shot) -> dict[FileType, list[SceneFile]]:
         """Find all files grouped by type.
@@ -195,23 +195,3 @@ class ShotFileFinder(LoggingMixin):
         except ValueError:
             pass
         return "unknown"
-
-    def _extract_version(self, path: Path) -> int | None:
-        """Extract version number from filename.
-
-        Expects pattern: *_v###.ext (e.g., scene_v001.3de)
-
-        Args:
-            path: File path
-
-        Returns:
-            Version number or None if not found
-
-        """
-        match = self.VERSION_PATTERN.search(path.name)
-        if match:
-            try:
-                return int(match.group(1))
-            except ValueError:
-                pass
-        return None

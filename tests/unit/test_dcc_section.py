@@ -377,7 +377,7 @@ class TestDCCSectionEmbeddedFiles:
         qtbot.addWidget(section)
 
         assert section._dcc_file_table is not None
-        assert section._dcc_file_table.file_table is not None
+        assert section._dcc_file_table._file_table is not None
 
     def test_no_files_section_when_disabled(
         self, qtbot: QtBot, config_without_files: DCCConfig
@@ -399,7 +399,7 @@ class TestDCCSectionEmbeddedFiles:
         process_qt_events()
 
         assert section._dcc_file_table is not None
-        assert section._dcc_file_table.file_model.rowCount() == 2
+        assert section._dcc_file_table._file_model.rowCount() == 2
 
     def test_set_files_updates_header_count(
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
@@ -415,7 +415,7 @@ class TestDCCSectionEmbeddedFiles:
 
         # Header button should show file count
         assert section._dcc_file_table is not None
-        header_text = section._dcc_file_table.files_header_btn.text()
+        header_text = section._dcc_file_table._files_header_btn.text()
         assert "2" in header_text
 
     def test_get_selected_file_returns_latest(
@@ -458,8 +458,8 @@ class TestDCCSectionEmbeddedFiles:
 
         # Click the second row in the table
         with qtbot.waitSignal(section.file_selected, timeout=1000):
-            index = section._dcc_file_table.file_model.index(1, 0)
-            section._dcc_file_table.file_table.clicked.emit(index)
+            index = section._dcc_file_table._file_model.index(1, 0)
+            section._dcc_file_table._file_table.clicked.emit(index)
             process_qt_events()
 
     def test_default_configs_have_files_section(self, qtbot: QtBot) -> None:
@@ -493,8 +493,8 @@ class TestDCCSectionFileDoubleClick:
 
         # Double-click the first row — verify launch_requested emitted with correct app name
         with qtbot.waitSignal(section.launch_requested, timeout=1000) as blocker:
-            index = section._dcc_file_table.file_model.index(0, 0)
-            section._dcc_file_table.file_table.doubleClicked.emit(index)
+            index = section._dcc_file_table._file_model.index(0, 0)
+            section._dcc_file_table._file_table.doubleClicked.emit(index)
             process_qt_events()
 
         app_name, _options = blocker.args
@@ -502,8 +502,8 @@ class TestDCCSectionFileDoubleClick:
 
         # Double-click the second row — verify file_selected emitted with correct file
         with qtbot.waitSignal(section.file_selected, timeout=1000) as blocker:
-            index = section._dcc_file_table.file_model.index(1, 0)
-            section._dcc_file_table.file_table.doubleClicked.emit(index)
+            index = section._dcc_file_table._file_model.index(1, 0)
+            section._dcc_file_table._file_table.doubleClicked.emit(index)
             process_qt_events()
 
         selected_file = blocker.args[0]
@@ -551,7 +551,7 @@ class TestDCCSectionFileContextMenu:
         section = DCCSection(config_with_files)
         qtbot.addWidget(section)
 
-        assert section._dcc_file_table.file_table.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
+        assert section._dcc_file_table._file_table.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
 
     def test_launch_file_emits_and_updates_selection(
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
