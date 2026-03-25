@@ -52,13 +52,13 @@ class StartupOrchestrator:
 
         # Show cached shots immediately if available
         if has_cached_shots:
-            target._refresh_shot_display()  # pyright: ignore[reportPrivateUsage]
+            target.refresh_coordinator.refresh_shot_display()
             logger.info(f"Displayed {len(target.shot_model.shots)} cached shots instantly")
         else:
             logger.info("No cached shots found on initial check, attempting explicit cache load")
             if target.shot_model.try_load_from_cache():
                 has_cached_shots = True
-                target._refresh_shot_display()  # pyright: ignore[reportPrivateUsage]
+                target.refresh_coordinator.refresh_shot_display()
                 logger.info(f"Loaded and displayed {len(target.shot_model.shots)} shots from cache")
 
             # Restore last selected shot if available
@@ -80,10 +80,10 @@ class StartupOrchestrator:
                 f"Loaded {len(target.shot_model.shots)} shots and "
                 f"{len(target.threede_scene_model.scenes)} 3DE scenes from cache"
             )
-            QTimer.singleShot(paint_yield_ms, target._refresh_shots)  # pyright: ignore[reportPrivateUsage]
+            QTimer.singleShot(paint_yield_ms, lambda: target.refresh_coordinator.refresh_tab(0))
         elif has_cached_shots:
             target.update_status(f"Loaded {len(target.shot_model.shots)} shots from cache")
-            QTimer.singleShot(paint_yield_ms, target._refresh_shots)  # pyright: ignore[reportPrivateUsage]
+            QTimer.singleShot(paint_yield_ms, lambda: target.refresh_coordinator.refresh_tab(0))
         elif has_cached_scenes:
             target.update_status(
                 f"Loaded {len(target.threede_scene_model.scenes)} 3DE scenes from cache"
