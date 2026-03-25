@@ -720,26 +720,6 @@ class CommandLauncher(LoggingMixin, QObject):
 
         return self.launch(LaunchRequest(app_name=app_name, scene=scene))
 
-    def launch_with_file(
-        self,
-        app_name: str,
-        file_path: Path,
-        workspace_path: str,
-    ) -> bool:
-        """Launch an application with a specific file.
-
-        Thin wrapper around :meth:`launch` for backward compatibility.
-        """
-        from launch.launch_request import LaunchRequest
-
-        return self.launch(
-            LaunchRequest(
-                app_name=app_name,
-                file_path=file_path,
-                workspace_path=workspace_path,
-            )
-        )
-
     # Methods removed - now using launch components:
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
     # - _verify_spawn() → self.process_executor._verify_spawn(process, app_name)

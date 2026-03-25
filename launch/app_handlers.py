@@ -1,7 +1,7 @@
 """App-specific command handlers for CommandLauncher.
 
 Each handler encapsulates the per-DCC command-building logic used by
-launch_with_file and launch_app.  Adding a new DCC means adding one class
+launch_app.  Adding a new DCC means adding one class
 and one dict entry in CommandLauncher._app_handlers.
 
 AppHandler is a Protocol (structural subtyping) — no base class required.

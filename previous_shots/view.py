@@ -30,13 +30,9 @@ from shots.shot_grid_delegate import ShotGridDelegate
 from typing_compat import override
 
 # Local application imports
-from ui.base_item_model import BaseItemRole
 from ui.base_shot_grid_view import BaseShotGridView
 from ui.design_system import design_system
 
-
-# Backward compatibility alias
-ShotRole = BaseItemRole
 
 if TYPE_CHECKING:
     # Third-party imports
