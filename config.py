@@ -215,10 +215,6 @@ class Config:
     MEMORY_PRESSURE_MODERATE: float = 85.0  # Start considering eviction
     MEMORY_PRESSURE_HIGH: float = 95.0  # Aggressive eviction needed
 
-    # Performance monitoring
-    ENABLE_PERFORMANCE_MONITORING: bool = True
-    CACHE_STATS_LOG_INTERVAL: int = 300  # Log cache stats every 5 minutes
-
     # (Notification timeouts moved to TimeoutConfig.NOTIFICATION_SUCCESS_MS / NOTIFICATION_ERROR_MS)
 
     # VFX pipeline settings
@@ -319,9 +315,6 @@ class Config:
     ]
 
     # Show-wide search configuration
-    SHOW_SEARCH_ENABLED: bool = (
-        True  # Enable searching all shots in shows (not just user's shots)
-    )
     SHOW_ROOT_PATHS: ClassVar[list[str]] = [
         SHOWS_ROOT
     ]  # Root directories where shows are stored (uses configured SHOWS_ROOT)
@@ -332,8 +325,6 @@ class Config:
     # Progressive file scanning configuration
     PROGRESSIVE_SCAN_ENABLED: bool = True  # Enable progressive/batched file scanning
     PROGRESSIVE_SCAN_BATCH_SIZE: int = 20  # Number of files to process per batch
-    PROGRESSIVE_SCAN_MIN_BATCH_SIZE: int = 5  # Minimum batch size for last batch
-    PROGRESSIVE_SCAN_MAX_BATCH_SIZE: int = 100  # Maximum batch size limit
 
     # Progress reporting configuration
     PROGRESS_FILES_PER_UPDATE: int = 10  # Update progress every N files processed

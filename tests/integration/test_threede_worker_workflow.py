@@ -166,7 +166,6 @@ class TestThreeDEWorkerWorkflow:
         worker = ThreeDESceneWorker(
             shots=test_shots[:4],  # Subset for testing
             excluded_users={"excludeduser"},
-            enable_progressive=True,
             scan_all_shots=True,  # This triggers the parallel discovery path that failed
         )
 
@@ -253,7 +252,6 @@ class TestThreeDEWorkerWorkflow:
         worker = ThreeDESceneWorker(
             shots=test_shots,
             excluded_users=set(),
-            enable_progressive=True,
             scan_all_shots=True,
         )
 

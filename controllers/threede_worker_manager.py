@@ -94,7 +94,6 @@ class ThreeDEWorkerManager(LoggingMixin):
         """
         worker = ThreeDESceneWorker(
             shots=shots,
-            enable_progressive=True,
             batch_size=None,
             scan_all_shots=True,
         )

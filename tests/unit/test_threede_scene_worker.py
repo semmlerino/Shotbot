@@ -253,7 +253,6 @@ class TestThreeDESceneWorker:
             shots=test_shots,
             excluded_users={"excluded_user"},
             batch_size=2,
-            enable_progressive=True,
             scan_all_shots=False,
         )
 
@@ -276,7 +275,6 @@ class TestThreeDESceneWorker:
         assert worker.scan_all_shots is False
         assert "excluded_user" in worker.excluded_users
         assert worker.batch_size == 2
-        assert worker.enable_progressive is True
         assert not worker._is_paused
 
     def test_stop_and_pause_resume_mechanism(self, worker) -> None:
@@ -290,7 +288,6 @@ class TestThreeDESceneWorker:
         fresh = ThreeDESceneWorker(
             shots=[Shot("test_show", "seq01", "0010", f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010")],
             excluded_users=set(),
-            enable_progressive=False,
         )
         try:
             assert not fresh._is_paused
@@ -304,7 +301,7 @@ class TestThreeDESceneWorker:
 
     def test_run_with_no_shots(self, qtbot) -> None:
         """Test worker behavior with empty shot list."""
-        worker = ThreeDESceneWorker(shots=[], enable_progressive=False)
+        worker = ThreeDESceneWorker(shots=[])
 
         # Track signals with lambda handlers (not QSignalSpy)
         started_count = []
@@ -382,7 +379,6 @@ class TestThreeDESceneWorker:
 
         worker = ThreeDESceneWorker(
             shots=test_shots,
-            enable_progressive=True,  # Use progressive path which works with our test double
             batch_size=10,
         )
 
@@ -451,7 +447,7 @@ class TestThreeDESceneWorker:
         # Configure test double to raise an exception
         test_finder.raise_error_on_next_call(Exception("Test error"))
 
-        worker = ThreeDESceneWorker(shots=test_shots, enable_progressive=False)
+        worker = ThreeDESceneWorker(shots=test_shots)
 
         # Track signals with lambda handlers (not QSignalSpy)
         error_messages = []
@@ -536,7 +532,7 @@ class TestWorkerInterruption:
             for i in range(100)
         ]
         worker = ThreeDESceneWorker(
-            shots=shots, excluded_users=set(), enable_progressive=True
+            shots=shots, excluded_users=set()
         )
 
         try:

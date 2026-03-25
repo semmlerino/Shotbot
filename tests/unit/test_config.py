@@ -498,18 +498,3 @@ class TestProgressConfigurationValidation:
             assert isinstance(interval, int), f"{name} must be integer"
             assert interval > 0, f"{name} must be positive, got {interval}"
 
-    def test_batch_size_constraints(self) -> None:
-        """Validate progressive scan batch size constraints.
-
-        Min batch size should be <= default <= max batch size.
-        """
-        min_batch = Config.PROGRESSIVE_SCAN_MIN_BATCH_SIZE
-        default_batch = Config.PROGRESSIVE_SCAN_BATCH_SIZE
-        max_batch = Config.PROGRESSIVE_SCAN_MAX_BATCH_SIZE
-
-        assert min_batch <= default_batch <= max_batch, (
-            f"Batch size constraint violation: "
-            f"MIN ({min_batch}) <= DEFAULT ({default_batch}) <= MAX ({max_batch})"
-        )
-        assert min_batch > 0, "PROGRESSIVE_SCAN_MIN_BATCH_SIZE must be positive"
-        assert max_batch > 0, "PROGRESSIVE_SCAN_MAX_BATCH_SIZE must be positive"

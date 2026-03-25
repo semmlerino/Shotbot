@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Standard library imports
 import time
-from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
@@ -71,7 +70,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         shots: list[Shot],
         excluded_users: set[str] | None = None,
         batch_size: int | None = None,
-        enable_progressive: bool = True,
         scan_all_shots: bool = False,
     ) -> None:
         """Initialize the enhanced worker with shots to search.
@@ -80,7 +78,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             shots: List of shots to use for determining shows to search
             excluded_users: Set of usernames to exclude from search
             batch_size: Number of scenes per batch for progressive scanning
-            enable_progressive: Enable progressive scanning (vs. traditional all-at-once)
             scan_all_shots: If True, scan ALL shots in shows (not just provided shots)
 
         """
@@ -90,7 +87,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         self.scan_all_shots = scan_all_shots
         self.excluded_users = excluded_users or get_excluded_users()
         self.batch_size = batch_size or Config.PROGRESSIVE_SCAN_BATCH_SIZE
-        self.enable_progressive = enable_progressive and Config.PROGRESSIVE_SCAN_ENABLED
 
         # Control flags
         self._is_paused = False  # Only pause flag needed, stop is managed by base class
@@ -298,11 +294,8 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 _ = self._emit_finished_signal_once([])
                 return
 
-            # Choose discovery method based on configuration
-            if self.enable_progressive:
-                scenes = self._discover_scenes_progressive()
-            else:
-                scenes = self._discover_scenes_traditional()
+            # Perform progressive scene discovery
+            scenes = self._discover_scenes_progressive()
 
             # Final cancellation check
             if self.should_stop():
@@ -534,116 +527,3 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         return other_scenes
 
-    def _discover_scenes_traditional(self) -> list[ThreeDEScene]:
-        """Traditional scene discovery method for backward compatibility.
-
-        Returns:
-            List of discovered ThreeDEScene objects
-
-        """
-        self.logger.info("Using traditional 3DE scene discovery method")
-
-        all_scenes: list[ThreeDEScene] = []
-
-        # Extract unique shows and show roots
-        shows_to_search: set[str] = set()
-        show_roots: set[str] = set()
-
-        for shot in self.shots:
-            shows_to_search.add(shot.show)
-            # Extract show root from workspace path
-            workspace_parts = Path(shot.workspace_path).parts
-            if "shows" in workspace_parts:
-                shows_idx = workspace_parts.index("shows")
-                show_root = "/".join(workspace_parts[: shows_idx + 1])
-                show_roots.add(show_root)
-
-        if not show_roots:
-            # Use configured show roots or fallback
-            configured_roots = (
-                Config.SHOW_ROOT_PATHS
-                if hasattr(Config, "SHOW_ROOT_PATHS")
-                else ["/shows"]
-            )
-            show_roots = set(configured_roots)
-
-        total_shows = len(shows_to_search)
-        current_show = 0
-
-        # Process each show
-        for show_root in show_roots:
-            for show in shows_to_search:
-                if not self._check_pause_and_cancel():
-                    break
-
-                current_show += 1
-                self.progress.emit(
-                    current_show,
-                    total_shows,
-                    0.0,
-                    f"Discovering shots in {show}",
-                    "",
-                )
-
-                # Discover all shots in this show
-                all_shots = FileSystemScanner().discover_all_shots_in_show(
-                    show_root,
-                    show,
-                )
-
-                if not all_shots:
-                    self.logger.warning(f"No shots discovered in {show}")
-                    continue
-
-                self.progress.emit(
-                    current_show,
-                    total_shows,
-                    0.0,
-                    f"Searching {len(all_shots)} shots in {show}",
-                    "",
-                )
-
-                # Search each discovered shot with periodic progress updates
-                for shot_count, (workspace_path, show_name, sequence, shot) in enumerate(
-                    all_shots, start=1
-                ):
-                    if not self._check_pause_and_cancel():
-                        break
-
-                    # Update progress every 10 shots to avoid too many signals
-                    if shot_count % 10 == 0:
-                        progress_pct = (shot_count / len(all_shots)) * 100
-                        self.progress.emit(
-                            current_show,
-                            total_shows,
-                            progress_pct,
-                            f"Searching {show} ({shot_count}/{len(all_shots)} shots)",
-                            "",
-                        )
-
-                    scenes = SceneDiscoveryCoordinator().find_scenes_for_shot(
-                        workspace_path,
-                        show_name,
-                        sequence,
-                        shot,
-                        self.excluded_users,
-                    )
-                    all_scenes.extend(scenes)
-
-                if not self._check_pause_and_cancel():
-                    break
-
-            if not self._check_pause_and_cancel():
-                break
-
-        # Final progress update
-        if self._check_pause_and_cancel():
-            self.progress.emit(
-                total_shows,
-                total_shows,
-                100.0,
-                f"Discovery complete: {len(all_scenes)} scenes found",
-                "",
-            )
-
-        return all_scenes
