@@ -11,6 +11,9 @@ import pytest
 
 # Local application imports
 from discovery.maya_latest_finder import MayaLatestFinder
+from utils import get_current_username
+
+_USERNAME: str = get_current_username()
 
 
 class TestFindLatestMayaScene:
@@ -19,7 +22,7 @@ class TestFindLatestMayaScene:
     def test_find_latest_mixed_extensions(self, tmp_path: Path) -> None:
         """Test handling of mixed .ma and .mb files."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "artist" / "mm" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / _USERNAME / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Mix of ASCII and Binary files
@@ -40,7 +43,7 @@ class TestFindAllMayaScenes:
     def test_exclude_autosave_by_default(self, tmp_path: Path) -> None:
         """Test that autosave files are excluded by default."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / _USERNAME / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Create regular and autosave files
@@ -56,7 +59,7 @@ class TestFindAllMayaScenes:
     def test_include_autosave_when_requested(self, tmp_path: Path) -> None:
         """Test that autosave files are always excluded (no include_autosave param)."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / _USERNAME / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Create regular and autosave files
@@ -101,39 +104,43 @@ class TestEdgeCases:
     def test_symlinks_handling(self, tmp_path: Path) -> None:
         """Test handling of symlinks in directory structure."""
         workspace = tmp_path / "workspace"
-        real_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
+        real_scenes = workspace / "user" / _USERNAME / "mm" / "maya" / "scenes"
         real_scenes.mkdir(parents=True)
         (real_scenes / "scene_v001.ma").touch()
 
-        # Create symlink to another user's directory
-        link_target = workspace / "user" / "alice"
+        # Create symlink from another user pointing to current user's directory
+        link_target = workspace / "user" / "other-artist"
         link_target.mkdir(parents=True)
         symlink = link_target / "maya"
-        symlink.symlink_to(workspace / "user" / "john" / "maya")
+        symlink.symlink_to(workspace / "user" / _USERNAME / "maya")
 
         finder = MayaLatestFinder()
         latest = finder.find_latest_scene(str(workspace))
 
         assert latest is not None
-        # Should find the file through either path
+        assert _USERNAME in str(latest)
 
-    def test_deeply_nested_users(self, tmp_path: Path) -> None:
-        """Test with non-standard user directory structure."""
+    def test_other_users_filtered_out(self, tmp_path: Path) -> None:
+        """Only current user's files are found; other users are filtered out."""
         workspace = tmp_path / "workspace"
 
-        # Create multiple user directories with Maya scenes
-        users = ["alice", "bob", "charlie", "diana"]
-        for i, user in enumerate(users):
+        # Create files under other users — should be invisible
+        for user in ["alice", "bob", "charlie"]:
             scenes = workspace / "user" / user / "mm" / "maya" / "scenes"
             scenes.mkdir(parents=True)
-            (scenes / f"scene_v{i + 1:03d}.ma").touch()
+            (scenes / "scene_v010.ma").touch()
+
+        # Create file under current user
+        my_scenes = workspace / "user" / _USERNAME / "mm" / "maya" / "scenes"
+        my_scenes.mkdir(parents=True)
+        (my_scenes / "scene_v001.ma").touch()
 
         finder = MayaLatestFinder()
         latest = finder.find_latest_scene(str(workspace))
 
         assert latest is not None
-        assert latest.name == "scene_v004.ma"
-        assert "diana" in str(latest.parent)
+        assert latest.name == "scene_v001.ma"
+        assert _USERNAME in str(latest.parent)
 
     def test_permission_denied_handling(self, tmp_path: Path) -> None:
         """Test that permission errors are raised (not handled)."""

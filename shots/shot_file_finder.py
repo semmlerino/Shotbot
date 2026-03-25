@@ -11,7 +11,11 @@ from typing import TYPE_CHECKING, ClassVar
 from dcc.scene_file import FileType, SceneFile
 from discovery.maya_latest_finder import MayaLatestFinder
 from threede import ThreeDELatestFinder
+from utils import get_current_username
 from version_mixin import VersionHandlingMixin
+
+
+_CURRENT_USERNAME: str = get_current_username()
 
 
 if TYPE_CHECKING:
@@ -113,6 +117,9 @@ class ShotFileFinder(VersionHandlingMixin):
         try:
             for user_dir in user_base.iterdir():
                 if not user_dir.is_dir():
+                    continue
+
+                if user_dir.name != _CURRENT_USERNAME:
                     continue
 
                 # Check for nuke directory structure (with mm/ department prefix)

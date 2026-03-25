@@ -12,6 +12,9 @@ from discovery.thumbnail_finders import (
     _extract_frame_number,
     _find_first_jpeg_in_version_tree,
 )
+from utils import get_current_username
+
+_USERNAME: str = get_current_username()
 
 
 pytestmark = pytest.mark.unit
@@ -570,7 +573,7 @@ class TestFindUserWorkspaceJpegThumbnail:
             tmp_path
             / "shows" / "show" / "shots" / "seq01" / "seq01_shot01" / "user"
         )
-        user_path = user_dir / "artistname"
+        user_path = user_dir / _USERNAME
         mm_default_base = user_path / "mm" / "nuke" / "outputs" / "mm-default"
         plate_undistorted = mm_default_base / "undistort" / "FG01" / "undistorted_plate"
         jpeg_dir = plate_undistorted / "v001" / "2K" / "jpeg"
@@ -609,7 +612,7 @@ class TestFindUserWorkspaceJpegThumbnail:
             / "shows" / "show" / "shots" / "seq01" / "seq01_shot01" / "user"
         )
         # Create user directory but without the expected mm/nuke/outputs structure
-        (user_dir / "someuser").mkdir(parents=True)
+        (user_dir / _USERNAME).mkdir(parents=True)
 
         result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01"
@@ -825,7 +828,7 @@ class TestUserWorkspaceJPEGDiscovery:
         [
             (
                 "undistort",
-                "ryan-p",
+                _USERNAME,
                 "SF_000",
                 "0030",
                 "pl01",
@@ -833,7 +836,7 @@ class TestUserWorkspaceJPEGDiscovery:
             ),
             (
                 "scene",
-                "sarah-b",
+                _USERNAME,
                 "DA_000",
                 "0005",
                 "FG01",
@@ -894,7 +897,7 @@ class TestUserWorkspaceJPEGDiscovery:
         undistort_jpeg = (
             shot_path
             / "user"
-            / "user1"
+            / _USERNAME
             / "mm"
             / "nuke"
             / "outputs"
@@ -913,7 +916,7 @@ class TestUserWorkspaceJPEGDiscovery:
         scene_jpeg = (
             shot_path
             / "user"
-            / "user1"
+            / _USERNAME
             / "mm"
             / "nuke"
             / "outputs"
@@ -948,7 +951,7 @@ class TestUserWorkspaceJPEGDiscovery:
         jpeg_dir = (
             shot_path
             / "user"
-            / "artist"
+            / _USERNAME
             / "mm"
             / "nuke"
             / "outputs"
@@ -986,18 +989,15 @@ class TestUserWorkspaceJPEGDiscovery:
         assert result is None  # Should return None, not crash
 
     def test_find_user_workspace_jpeg_multiple_users(self, tmp_path: Path) -> None:
-        """Test that it discovers JPEGs from any user's workspace."""
+        """Only current user's JPEGs are found; other users' are filtered out."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
 
-        # Create JPEG in second user's directory (first has none)
-        (shot_path / "user" / "user1" / "mm" / "nuke" / "outputs").mkdir(
-            parents=True
-        )  # Empty
-        user2_jpeg_dir = (
+        # Create JPEG under another user — should be invisible
+        other_jpeg_dir = (
             shot_path
             / "user"
-            / "user2"
+            / "other-artist"
             / "mm"
             / "nuke"
             / "outputs"
@@ -1009,17 +1009,20 @@ class TestUserWorkspaceJPEGDiscovery:
             / "4096x2160"
             / "jpeg"
         )
-        user2_jpeg_dir.mkdir(parents=True)
-        jpeg_file = user2_jpeg_dir / "user2_work.jpeg"
-        jpeg_file.write_text("jpeg from user2")
+        other_jpeg_dir.mkdir(parents=True)
+        (other_jpeg_dir / "other_work.jpeg").write_text("jpeg from other")
+
+        # Current user has no JPEG output structure
+        (shot_path / "user" / _USERNAME / "mm" / "nuke" / "outputs").mkdir(
+            parents=True
+        )
 
         result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
-        # Should find JPEG from user2
-        assert result is not None
-        assert "user2" in str(result)
+        # Other user's JPEG is filtered out; current user has none
+        assert result is None
 
 
 class TestThumbnailFallbackOrder:

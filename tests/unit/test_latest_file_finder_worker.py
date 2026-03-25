@@ -22,6 +22,9 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from discovery.latest_file_finder_worker import LatestFileFinderWorker
 from tests.test_helpers import process_qt_events
+from utils import get_current_username
+
+_USERNAME: str = get_current_username()
 
 
 if TYPE_CHECKING:
@@ -41,7 +44,7 @@ def workspace(tmp_path: Path) -> Path:
 
     # Create Maya scene structure:
     # user/{user}/mm/maya/scenes/*.ma
-    maya_dir = workspace_path / "user" / "artist" / "mm" / "maya" / "scenes"
+    maya_dir = workspace_path / "user" / _USERNAME / "mm" / "maya" / "scenes"
     maya_dir.mkdir(parents=True)
     (maya_dir / "scene_v001.ma").touch()
     (maya_dir / "scene_v002.ma").touch()
@@ -51,7 +54,7 @@ def workspace(tmp_path: Path) -> Path:
     threede_dir = (
         workspace_path
         / "user"
-        / "artist"
+        / _USERNAME
         / "mm"
         / "3de"
         / "mm-default"

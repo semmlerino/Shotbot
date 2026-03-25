@@ -18,9 +18,11 @@ from config import (
 from discovery.file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
 from paths.validators import PathValidators
-from utils import FileUtils, find_path_case_insensitive
+from utils import FileUtils, find_path_case_insensitive, get_current_username
 from version_utils import VersionUtils
 
+
+_CURRENT_USERNAME: str = get_current_username()
 
 logger = get_module_logger(__name__)
 
@@ -451,6 +453,9 @@ class ThumbnailFinders:
         try:
             for user_path in user_dir.iterdir():
                 if not user_path.is_dir():
+                    continue
+
+                if user_path.name != _CURRENT_USERNAME:
                     continue
 
                 mm_default_base = user_path / "mm" / "nuke" / "outputs" / "mm-default"

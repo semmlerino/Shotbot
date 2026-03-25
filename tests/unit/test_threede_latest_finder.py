@@ -8,6 +8,9 @@ from pathlib import Path
 # Third-party imports
 # Local application imports
 from threede import ThreeDELatestFinder
+from utils import get_current_username
+
+_USERNAME: str = get_current_username()
 
 
 class TestFindLatestThreeDEScene:
@@ -19,7 +22,7 @@ class TestFindLatestThreeDEScene:
         base_3de = (
             workspace
             / "user"
-            / "artist"
+            / _USERNAME
             / "mm"
             / "3de"
             / "mm-default"
@@ -56,7 +59,7 @@ class TestFindLatestThreeDEScene:
         correct_path = (
             workspace
             / "user"
-            / "john"
+            / _USERNAME
             / "mm"
             / "3de"
             / "mm-default"
@@ -68,7 +71,7 @@ class TestFindLatestThreeDEScene:
         (correct_path / "track_v001.3de").touch()
 
         # Incorrect structure (like Maya's)
-        wrong_path = workspace / "user" / "john" / "3de" / "scenes"
+        wrong_path = workspace / "user" / _USERNAME / "3de" / "scenes"
         wrong_path.mkdir(parents=True)
         (wrong_path / "track_v002.3de").touch()  # Should not be found
 
@@ -89,7 +92,7 @@ class TestFindAllThreeDEScenes:
         base_3de = (
             workspace
             / "user"
-            / "john"
+            / _USERNAME
             / "mm"
             / "3de"
             / "mm-default"
@@ -149,7 +152,7 @@ class TestPlateHandling:
         base_3de = (
             workspace
             / "user"
-            / "john"
+            / _USERNAME
             / "mm"
             / "3de"
             / "mm-default"
@@ -177,7 +180,7 @@ class TestPlateHandling:
         base_3de = (
             workspace
             / "user"
-            / "john"
+            / _USERNAME
             / "mm"
             / "3de"
             / "mm-default"
@@ -211,7 +214,7 @@ class TestEdgeCases:
         base_3de = (
             workspace
             / "user"
-            / "john"
+            / _USERNAME
             / "mm"
             / "3de"
             / "mm-default"
@@ -241,7 +244,7 @@ class TestEdgeCases:
         real_3de = (
             workspace
             / "user"
-            / "john"
+            / _USERNAME
             / "mm"
             / "3de"
             / "mm-default"
@@ -252,11 +255,11 @@ class TestEdgeCases:
         real_3de.mkdir(parents=True)
         (real_3de / "track_v001.3de").touch()
 
-        # Create symlink from another user
+        # Create symlink from another user (should be filtered out)
         link_base = (
             workspace
             / "user"
-            / "alice"
+            / "other-artist"
             / "mm"
             / "3de"
             / "mm-default"
@@ -269,8 +272,8 @@ class TestEdgeCases:
 
         all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
 
-        # Should find files through both paths
-        assert len(all_scenes) >= 1
+        # Only current user's files found; symlink under other user is filtered out
+        assert len(all_scenes) == 1
 
     def test_special_characters_in_filenames(self, tmp_path: Path) -> None:
         """Test handling of special characters in filenames."""
@@ -278,7 +281,7 @@ class TestEdgeCases:
         threede_scenes = (
             workspace
             / "user"
-            / "john-doe"
+            / _USERNAME
             / "mm"
             / "3de"
             / "mm-default"

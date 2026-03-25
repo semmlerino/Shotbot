@@ -17,6 +17,10 @@ from typing import ClassVar
 
 # Local application imports
 from logging_mixin import LoggingMixin
+from utils import get_current_username
+
+
+_CURRENT_USERNAME: str = get_current_username()
 
 
 class VersionHandlingMixin(LoggingMixin):
@@ -171,6 +175,9 @@ class VersionHandlingMixin(LoggingMixin):
                 return None
 
             if not user_dir.is_dir():
+                continue
+
+            if user_dir.name != _CURRENT_USERNAME:
                 continue
 
             scene_base = user_dir / dcc_subpath

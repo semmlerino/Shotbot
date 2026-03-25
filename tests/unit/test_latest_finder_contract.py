@@ -15,7 +15,10 @@ import pytest
 
 from discovery.maya_latest_finder import MayaLatestFinder
 from threede import ThreeDELatestFinder
+from utils import get_current_username
 from version_mixin import VersionHandlingMixin
+
+_USERNAME: str = get_current_username()
 
 
 # ---------------------------------------------------------------------------
@@ -41,13 +44,13 @@ class FinderAdapter:
 # ---------------------------------------------------------------------------
 
 
-def _create_maya_dir(workspace: Path, username: str = "john") -> Path:
+def _create_maya_dir(workspace: Path, username: str = _USERNAME) -> Path:
     scenes = workspace / "user" / username / "mm" / "maya" / "scenes"
     scenes.mkdir(parents=True, exist_ok=True)
     return scenes
 
 
-def _create_threede_dir(workspace: Path, username: str = "john") -> Path:
+def _create_threede_dir(workspace: Path, username: str = _USERNAME) -> Path:
     scenes = (
         workspace
         / "user"
@@ -172,18 +175,18 @@ class TestFindLatestContract:
     def test_find_latest_across_users(
         self, finder_adapter: FinderAdapter, tmp_path: Path
     ) -> None:
-        """Latest file is found even when it lives under a different user."""
-        scenes_alice = finder_adapter.create_scene_dir(tmp_path, username="alice")
-        finder_adapter.create_versioned_file(scenes_alice, 2)
+        """Only files from the current user are found; other users are filtered out."""
+        scenes_other = finder_adapter.create_scene_dir(tmp_path, username="other-artist")
+        finder_adapter.create_versioned_file(scenes_other, 5)
 
-        scenes_bob = finder_adapter.create_scene_dir(tmp_path, username="bob")
-        finder_adapter.create_versioned_file(scenes_bob, 5)
+        scenes_me = finder_adapter.create_scene_dir(tmp_path, username=_USERNAME)
+        finder_adapter.create_versioned_file(scenes_me, 2)
 
         result = finder_adapter.find_latest(str(tmp_path))
 
         assert result is not None
-        assert "v005" in result.name
-        assert "bob" in str(result)
+        assert "v002" in result.name
+        assert _USERNAME in str(result)
 
     def test_empty_workspace_returns_none(
         self, finder_adapter: FinderAdapter, tmp_path: Path
