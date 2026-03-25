@@ -48,7 +48,7 @@ from workers.thread_safe_worker import ThreadSafeWorker
 
 
 # Re-export Shot for backward compatibility with existing imports
-__all__ = ["AsyncShotLoader", "Shot", "ShotModel", "create_optimized_shot_model"]
+__all__ = ["AsyncShotLoader", "Shot", "ShotModel"]
 
 
 
@@ -191,7 +191,7 @@ class ShotModel(BaseShotModel):
         # Performance metrics
         self._last_load_time = 0.0
 
-        # Set to True to force synchronous refresh (used by tests)
+        # Set to True to force synchronous refresh (test seam)
         self._force_sync_refresh: bool = False
 
     def initialize_async(self) -> RefreshResult:
@@ -708,31 +708,11 @@ class ShotModel(BaseShotModel):
             self.refresh_finished.emit(False, False)
             return RefreshResult(success=False, has_changes=False)
 
-    # ================================================================
-    # Test-Specific Accessor Methods
-    # ================================================================
-    # WARNING: These methods are for testing purposes ONLY.
-    # They provide controlled access to private attributes for tests.
-    # DO NOT use these methods in production code.
-
-    @property
-    def test_process_pool(self) -> ProcessPoolInterface:
-        """Test-only access to process pool manager."""
-        return self._process_pool
-
     def try_load_from_cache(self) -> bool:
-        """Test-only access to _load_from_cache method."""
+        """Load from cache; used by startup orchestrator and tests."""
         return self._load_from_cache()
 
-    def test_parse_ws_output(
-        self,
-        output: str,
-        cached_frame_ranges: dict[str, tuple[int, int]] | None = None,
-    ) -> list[Shot]:
-        """Test-only access to _parse_ws_output method."""
-        return self._parse_ws_output(output, cached_frame_ranges)
-
-    def wait_for_async_load(self, timeout_ms: int = 5000) -> bool:
+    def _wait_for_async_load(self, timeout_ms: int = 5000) -> bool:  # pyright: ignore[reportUnusedFunction]
         """Wait for async loading to complete.
 
         Args:
@@ -753,63 +733,3 @@ class ShotModel(BaseShotModel):
         # If flag says loading but no loader, that's a desync - return False
         # If not loading, return True (already complete)
         return not loading
-
-
-# Example usage for immediate UI display
-def create_optimized_shot_model(
-    cache_manager: ShotDataCache | None = None,
-) -> ShotModel:
-    """Create an optimized shot model with instant UI display.
-
-    Usage:
-        # In main window __init__:
-        self.shot_model = create_optimized_shot_model(cache_manager)
-
-        # Initialize with cached data (returns immediately)
-        result = self.shot_model.initialize_async()
-
-        # UI displays instantly with cached/empty data
-        # Fresh data loads in background and updates UI when ready
-    """
-    return ShotModel(cache_manager)
-
-    # Example: Connect to UI update signals
-    # model.shots_loaded.connect(
-    #     lambda shots: print(f"UI can display {len(shots)} shots")
-    # )
-    # model.shots_changed.connect(
-    #     lambda shots: print(f"UI should update to {len(shots)} shots")
-    # )
-
-
-
-if __name__ == "__main__":
-    # Demo the optimized model
-    # Standard library imports
-    import sys
-    import time
-
-    # Third-party imports
-    from PySide6.QtWidgets import QApplication
-
-    app = QApplication.instance() or QApplication(sys.argv)
-
-    print("Creating optimized shot model...")
-    start = time.perf_counter()
-
-    model = create_optimized_shot_model()
-    result = model.initialize_async()
-
-    elapsed = time.perf_counter() - start
-    print(f"UI ready in {elapsed:.3f}s (target: <0.1s)")
-    print(f"Initial shots: {len(model.shots)}")
-
-    # Simulate UI event loop
-    print("Waiting for background load...")
-    app.processEvents()
-
-    # In real app, this would be handled by Qt event loop
-    _ = model.wait_for_async_load(5000)
-
-    print(f"Final shots: {len(model.shots)}")
-    print(f"Performance metrics: {model.get_performance_metrics()}")

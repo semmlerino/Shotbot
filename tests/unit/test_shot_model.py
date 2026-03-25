@@ -464,7 +464,7 @@ class TestShotModelParser:
         self, real_shot_model, input_str: str, expected: list
     ) -> None:
         """Test parser returns empty list for blank strings and non-matching content."""
-        shots = real_shot_model.test_parse_ws_output(input_str)
+        shots = real_shot_model._parse_ws_output(input_str)
         assert shots == expected
 
     def test_parse_ws_output_mixed_valid_invalid(self, real_shot_model) -> None:
@@ -476,7 +476,7 @@ Another invalid line
 workspace {shows_root}/test2/shots/seq2/seq2_0020
 Yet another invalid"""
 
-        shots = real_shot_model.test_parse_ws_output(output)
+        shots = real_shot_model._parse_ws_output(output)
         assert len(shots) == 2
         assert shots[0].show == "test1"
         assert shots[1].show == "test2"
@@ -490,7 +490,7 @@ workspace {shows_root}/test2/shots/seq2/seq2_0020
 
 """
 
-        shots = real_shot_model.test_parse_ws_output(output)
+        shots = real_shot_model._parse_ws_output(output)
         assert len(shots) == 2
 
     def test_parse_ws_output_complex_shot_names(self, real_shot_model) -> None:
@@ -500,7 +500,7 @@ workspace {shows_root}/test2/shots/seq2/seq2_0020
 workspace {shows_root}/test/shots/seq2/simple_name
 workspace {shows_root}/test/shots/seq3/very_long_complex_shot_name_0050"""
 
-        shots = real_shot_model.test_parse_ws_output(output)
+        shots = real_shot_model._parse_ws_output(output)
         assert len(shots) == 3
 
         # Test shot name extraction logic with new parsing:
