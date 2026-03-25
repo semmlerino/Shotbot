@@ -47,6 +47,9 @@ class StartupOrchestrator:
             self._session_warmer.start()
             logger.debug("StartupCoordinator started")
 
+        # Signals are wired before execute() is called — safe to start background refresh
+        target.shot_model.start_background_refresh()
+
         has_cached_shots = bool(target.shot_model.shots)
         has_cached_scenes = bool(target.threede_scene_model.scenes)
 
@@ -90,7 +93,7 @@ class StartupOrchestrator:
             )
         else:
             target.update_status("Loading shots and scenes...")
-            logger.info("No cached data found - background refresh already in progress from initialize_async()")
+            logger.info("No cached data found - background refresh in progress")
 
         # If shots are already loaded from cache, trigger refresh immediately
         if target.shot_model.shots:

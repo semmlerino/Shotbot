@@ -242,6 +242,31 @@ class ShotModel(BaseShotModel):
 
         return RefreshResult(success=True, has_changes=False)
 
+    def load_cache_sync(self) -> RefreshResult:
+        """Load cached shots synchronously. No background thread started.
+
+        Called by build_models() so cached data is available before signal wiring.
+
+        Note: Does not reset self.shots on cache miss, and does not perform the
+        expired-cache check that initialize_async() does. Callers that need the
+        full initialisation sequence should use initialize_async() instead.
+        """
+        self.logger.debug("ShotModel.load_cache_sync() starting")
+        cached_shots = self.cache_manager.get_shots_with_ttl()
+        if not cached_shots:
+            return RefreshResult(success=False, has_changes=False)
+        try:
+            self.shots = [Shot.from_dict(s) for s in cached_shots]
+            self.logger.info(f"Loaded {len(self.shots)} shots from cache (sync)")
+            return RefreshResult(success=True, has_changes=False)
+        except (KeyError, TypeError, ValueError) as e:
+            self.logger.warning(f"Corrupted cache in load_cache_sync, ignoring: {e}")
+            return RefreshResult(success=False, has_changes=False)
+
+    def start_background_refresh(self) -> None:
+        """Start async background refresh. Called by StartupOrchestrator after signal wiring."""
+        self._start_background_refresh()
+
     def _start_background_refresh(self) -> None:
         """Start loading shots in background without blocking UI.
 

@@ -136,10 +136,10 @@ def build_models(infra: AppInfrastructure, parent: QObject | None) -> AppModels:
 
     logger.info("Creating ShotModel with 366x faster startup")
     shot_model = ShotModel(infra.shot_cache, process_pool=infra.process_pool)
-    init_result = shot_model.initialize_async()
+    init_result = shot_model.load_cache_sync()
     if init_result.success:
         cached_count = len(shot_model.shots)
-        logger.debug(f"Model initialized: {cached_count} shots in memory")
+        logger.debug(f"Cache loaded: {cached_count} shots in memory")
 
     threede_scene_model = ThreeDESceneModel(infra.scene_disk_cache)
     previous_shots_model = PreviousShotsModel(
