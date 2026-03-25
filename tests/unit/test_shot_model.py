@@ -602,3 +602,37 @@ class TestShotModelRefreshSignals:
 
         assert updated["data"][0]["show"] == "show2"
 
+
+def test_apply_and_cache_merge_corruption_falls_back_to_fresh(tmp_path):
+    """_apply_and_cache_merge emits data_recovery_occurred and uses fresh_shots on deserialization failure."""
+    from unittest.mock import MagicMock, patch
+
+    from shots.shot_model import ShotMergeResult, ShotModel
+    from type_definitions import Shot
+
+    cache_manager = MagicMock()
+    cache_manager.get_shots_with_ttl.return_value = []
+    model = ShotModel(cache_manager=cache_manager, load_cache=False)
+
+    recovery_calls: list[tuple[str, str]] = []
+    model.data_recovery_occurred.connect(lambda title, detail: recovery_calls.append((title, detail)))
+
+    fresh_mock = MagicMock(spec=Shot)
+    fresh_mock.to_dict.return_value = {"name": "SHOW_SEQ_0010"}
+
+    bad_merge = ShotMergeResult(
+        updated_shots=[{"INVALID_KEY": True}],
+        new_shots=[],
+        removed_shots=[],
+        has_changes=True,
+    )
+
+    with patch.object(Shot, "from_dict", side_effect=KeyError("bad key")):
+        _final_merge, did_change = model._apply_and_cache_merge(
+            bad_merge, [fresh_mock], old_count=0, context="Test"
+        )
+
+    assert len(recovery_calls) == 1, "Expected one data_recovery_occurred emission"
+    assert "corruption" in recovery_calls[0][1].lower()
+    assert did_change is True
+    assert model.shots == [fresh_mock], "Expected model.shots to be set to fresh_shots on corruption recovery"

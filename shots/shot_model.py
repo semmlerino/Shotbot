@@ -383,6 +383,56 @@ class ShotModel(BaseShotModel):
 
         return merge_result
 
+    def _apply_and_cache_merge(
+        self,
+        merge_result: ShotMergeResult,
+        fresh_shots: list[Shot],
+        old_count: int,
+        context: str,
+    ) -> tuple[ShotMergeResult, bool]:
+        """Deserialize merge result, update self.shots, write cache if changed.
+
+        Returns (final_merge_result, did_change).
+        On deserialization failure, falls back to fresh_shots and emits data_recovery_occurred.
+        """
+        try:
+            new_shot_objects = [Shot.from_dict(d) for d in merge_result.updated_shots]
+        except (KeyError, TypeError, ValueError) as e:
+            self.logger.exception("Merge result corrupted, using fresh data")
+            new_shot_objects = fresh_shots
+            merge_result = ShotMergeResult(
+                updated_shots=[s.to_dict() for s in fresh_shots],
+                new_shots=[],
+                removed_shots=[],
+                has_changes=False,
+            )
+            self.data_recovery_occurred.emit(
+                "Shot Data Recovery",
+                f"Cache corruption detected. Using fresh data only.\n"
+                f"Previous shot history may be incomplete.\n\n"
+                f"Technical details: {e}",
+            )
+
+        old_shot_dicts = [s.to_dict() for s in self.shots]
+        did_change = merge_result.updated_shots != old_shot_dicts
+
+        if did_change:
+            self.shots = new_shot_objects
+            self.logger.info(
+                f"{context} refresh complete: {old_count} → {len(self.shots)} shots "
+                f"(+{len(merge_result.new_shots)} new, -{len(merge_result.removed_shots)} removed)"
+            )
+            if self.shots:
+                try:
+                    self.cache_manager.cache_shots(self.shots)
+                    self.cache_updated.emit()
+                except OSError:
+                    self.logger.warning("Failed to cache shots", exc_info=True)
+        else:
+            self.logger.info(f"{context} refresh: no changes detected")
+
+        return merge_result, did_change
+
     @Slot(list)  # type: ignore[reportAny]
     def _on_shots_loaded(self, fresh_shots: list[Shot]) -> None:
         """Handle shots loaded in background (INCREMENTAL VERSION).
@@ -405,57 +455,17 @@ class ShotModel(BaseShotModel):
             self.refresh_finished.emit(False, False)
             return
 
-        # ALWAYS update with merged data (includes metadata updates)
-        # This prevents stale workspace_path even when has_changes=False
-        try:
-            new_shot_objects = [Shot.from_dict(d) for d in merge_result.updated_shots]
-        except (KeyError, TypeError, ValueError) as e:
-            # Corrupted merge result - use fresh data
-            self.logger.exception("Merge result corrupted, using fresh data")
-            new_shot_objects = fresh_shots
-            merge_result = ShotMergeResult(
-                updated_shots=[s.to_dict() for s in fresh_shots],
-                new_shots=[],
-                removed_shots=[],
-                has_changes=False,
-            )
-            self.data_recovery_occurred.emit(
-                "Shot Data Recovery",
-                f"Cache corruption detected. Using fresh data only.\n"
-                f"Previous shot history may be incomplete.\n\n"
-                f"Technical details: {e}",
-            )
-
-        # Check if data actually changed (including metadata)
-        old_shot_dicts = [s.to_dict() for s in self.shots]
-        if merge_result.updated_shots != old_shot_dicts:
-            # Update model
-            self.shots = new_shot_objects
-
-            self.logger.info(
-                f"Background load complete: {old_count} → {len(self.shots)} shots "
-                 f"(+{len(merge_result.new_shots)} new, "
-                 f"-{len(merge_result.removed_shots)} removed)"
-            )
-
-            # Cache the updated shots (persistent, no TTL)
-            try:
-                self.cache_manager.cache_shots(self.shots)
-                self.cache_updated.emit()
-            except OSError:
-                self.logger.warning("Failed to cache shots", exc_info=True)
-
-            # Choose the appropriate signal based on context:
-            # - First load (0 → N): Use shots_loaded
-            # - Subsequent updates with changes: Use shots_changed
+        merge_result, did_change = self._apply_and_cache_merge(
+            merge_result, fresh_shots, old_count, "Background"
+        )
+        # Choose signal based on context:
+        # - First load (0 → N shots): use shots_loaded so subscribers know initial data is ready
+        # - Subsequent update with changes: use shots_changed
+        if did_change:
             if old_count == 0 and len(self.shots) > 0:
-                # Special case for first load - emit shots_loaded
                 self.shots_loaded.emit(self.shots)
             elif merge_result.has_changes:
-                # Structural change after initial load - emit shots_changed
                 self.shots_changed.emit(self.shots)
-        else:
-            self.logger.info("Async refresh: no changes detected")
 
         # Always emit refresh finished with change status
         self.refresh_finished.emit(True, merge_result.has_changes)
@@ -645,52 +655,11 @@ class ShotModel(BaseShotModel):
                 self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
 
-            # ALWAYS update with merged data (includes metadata updates)
-            # Protect against corrupted merge results
-            try:
-                new_shot_objects = [Shot.from_dict(d) for d in merge_result.updated_shots]
-            except (KeyError, TypeError, ValueError) as e:
-                # Corrupted merge result - use fresh data
-                self.logger.exception("Merge result corrupted, using fresh data")
-                new_shot_objects = fresh_shots
-                merge_result = ShotMergeResult(
-                    updated_shots=[s.to_dict() for s in fresh_shots],
-                    new_shots=[],
-                    removed_shots=[],
-                    has_changes=False,
-                )
-                self.data_recovery_occurred.emit(
-                    "Shot Data Recovery",
-                    f"Cache corruption detected. Using fresh data only.\n"
-                    f"Previous shot history may be incomplete.\n\n"
-                    f"Technical details: {e}",
-                )
-
-            # Check if data actually changed (including metadata)
-            old_shot_dicts = [s.to_dict() for s in self.shots]
-            if merge_result.updated_shots != old_shot_dicts:
-                # Update model
-                self.shots = new_shot_objects
-
-                self.logger.info(
-                    f"Sync refresh complete: {old_count} → {len(self.shots)} shots "
-                     f"(+{len(merge_result.new_shots)} new, "
-                     f"-{len(merge_result.removed_shots)} removed)"
-                )
-
-                # Emit structural change signal ONLY if shots added/removed
-                if merge_result.has_changes:
-                    self.shots_changed.emit(self.shots)
-
-                # Cache the results (persistent, no TTL)
-                if self.shots:
-                    try:
-                        self.cache_manager.cache_shots(self.shots)
-                        self.cache_updated.emit()
-                    except OSError:
-                        self.logger.warning("Failed to cache shots", exc_info=True)
-            else:
-                self.logger.info("Sync refresh: no changes detected")
+            merge_result, did_change = self._apply_and_cache_merge(
+                merge_result, fresh_shots, old_count, "Sync"
+            )
+            if did_change and merge_result.has_changes:
+                self.shots_changed.emit(self.shots)
 
             self.refresh_finished.emit(True, merge_result.has_changes)
             return RefreshResult(success=True, has_changes=merge_result.has_changes)
