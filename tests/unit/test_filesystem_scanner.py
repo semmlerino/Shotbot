@@ -676,7 +676,6 @@ class TestThreeDEWorkerStopAndCancel:
         worker = ThreeDESceneWorker(
             shots=[self._make_shot()],
             excluded_users=set(),
-            scan_all_shots=True,
         )
 
         with patch(
@@ -732,7 +731,6 @@ class TestThreeDEWorkerStopAndCancel:
                 worker = ThreeDESceneWorker(
                     shots=[self._make_shot()],
                     excluded_users=set(),
-                    scan_all_shots=True,
                 )
                 thread = threading.Thread(target=worker.run, daemon=True)
                 thread.start()
@@ -758,7 +756,6 @@ class TestThreeDEWorkerStopAndCancel:
         worker = ThreeDESceneWorker(
             shots=[self._make_shot()],
             excluded_users=set(),
-            scan_all_shots=True,
         )
 
         original_should_stop = worker.should_stop

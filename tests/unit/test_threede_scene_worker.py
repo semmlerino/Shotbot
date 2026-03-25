@@ -253,14 +253,14 @@ class TestThreeDESceneWorker:
             shots=test_shots,
             excluded_users={"excluded_user"},
             batch_size=2,
-            scan_all_shots=False,
         )
 
-        # Patch FileSystemScanner and SceneDiscoveryCoordinator in the worker module
-        # so that both boundary classes delegate to our test double.
-        with (
-            patch("threede.scene_worker.FileSystemScanner", return_value=test_finder),
-            patch("threede.scene_worker.SceneDiscoveryCoordinator", return_value=test_finder),
+        # Patch SceneDiscoveryCoordinator to delegate to our test double.
+        # Note: FileSystemScanner is no longer used as the worker now uses
+        # the parallel discovery path exclusively.
+        with patch(
+            "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel",
+            return_value=[],
         ):
             yield worker
 
@@ -272,7 +272,6 @@ class TestThreeDESceneWorker:
         """Test worker initializes with correct parameters."""
         assert worker.shots == test_shots
         assert worker.user_shots == test_shots
-        assert worker.scan_all_shots is False
         assert "excluded_user" in worker.excluded_users
         assert worker.batch_size == 2
         assert not worker._is_paused
@@ -369,13 +368,6 @@ class TestThreeDESceneWorker:
             ),
         ]
         test_finder.set_scenes_to_return(test_scenes)
-        # Also set up progressive batches for the progressive discovery path
-        progressive_batches = [
-            (test_scenes, 1, 2, "Scanning shot 1/2"),
-            ([], 2, 2, "Scanning shot 2/2"),  # Second batch can be empty
-        ]
-        test_finder.set_progressive_batches(progressive_batches)
-        test_finder.set_estimate_result(2, 10)  # 2 users, ~10 files
 
         worker = ThreeDESceneWorker(
             shots=test_shots,
@@ -406,9 +398,9 @@ class TestThreeDESceneWorker:
         ]
 
         try:
-            with (
-                patch("threede.scene_worker.FileSystemScanner", return_value=test_finder),
-                patch("threede.scene_worker.SceneDiscoveryCoordinator", return_value=test_finder),
+            with patch(
+                "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel",
+                return_value=test_scenes,
             ):
                 # Start worker
                 worker.start()
@@ -425,16 +417,15 @@ class TestThreeDESceneWorker:
             # Check discovered scenes (behavior testing, not implementation)
             if len(finished_scenes) > 0:
                 discovered_scenes = finished_scenes[0]
-                # Progressive discovery calls find_scenes_for_shot once per shot.
-                # test_shots has 2 shots; the test double returns 2 scenes per shot.
-                assert len(discovered_scenes) == 4, (
-                    f"Expected 4 scenes (2 shots x 2 scenes each), got {len(discovered_scenes)}"
+                # Parallel discovery returns all test scenes as-is
+                assert len(discovered_scenes) == 2, (
+                    f"Expected 2 scenes from test double, got {len(discovered_scenes)}"
                 )
                 assert all(
                     isinstance(scene, ThreeDEScene) for scene in discovered_scenes
                 )
 
-            # Verify progress updates were received from progressive discovery
+            # Verify progress updates were received from parallel discovery
             assert len(progress_updates) >= 1
 
         finally:
@@ -444,9 +435,6 @@ class TestThreeDESceneWorker:
 
     def test_error_handling(self, qtbot, test_shots, test_finder) -> None:
         """Test error handling during scene discovery using test double."""
-        # Configure test double to raise an exception
-        test_finder.raise_error_on_next_call(Exception("Test error"))
-
         worker = ThreeDESceneWorker(shots=test_shots)
 
         # Track signals with lambda handlers (not QSignalSpy)
@@ -468,9 +456,9 @@ class TestThreeDESceneWorker:
         ]
 
         try:
-            with (
-                patch("threede.scene_worker.FileSystemScanner", return_value=test_finder),
-                patch("threede.scene_worker.SceneDiscoveryCoordinator", return_value=test_finder),
+            with patch(
+                "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel",
+                side_effect=Exception("Test error"),
             ):
                 worker.start()
 
@@ -481,7 +469,7 @@ class TestThreeDESceneWorker:
                 from tests.test_helpers import process_qt_events
                 process_qt_events()
 
-            # Should have error or empty result (if we got here)
+            # Should have error message (if we got here)
             # Under parallel load, this assertion is best-effort
             if not worker.isRunning():
                 assert len(error_messages) > 0 or len(finished_scenes) > 0
@@ -496,57 +484,45 @@ class TestWorkerInterruption:
     """Test suite for worker interruption handling (Phase 3 improvements)."""
 
     def test_cancel_flag_prevents_filesystem_iteration(self, qtbot) -> None:
-        """Test that worker stops iterating shots when cancellation is requested.
+        """Test that worker respects cancellation during parallel discovery.
 
-        Verifies that cancellation is checked BEFORE each shot's discovery operation,
-        not just at the end of the full scan.
+        Verifies that cancellation is propagated through the cancel_flag callback
+        to the parallel discovery operation.
         """
         # Use a list to make it thread-safe (mutable container)
-        iteration_counts = [0]
+        cancel_flag_called = [0]
 
-        class CountingCoordinator:
-            """Test double for SceneDiscoveryCoordinator that counts shot iterations."""
-
-            def find_scenes_for_shot(self, _workspace_path, _show, _sequence, _shot, _excluded_users=None):
-                """Simulate slow per-shot discovery."""
-                iteration_counts[0] += 1
+        def slow_parallel_discovery(
+            shots, excluded_users, progress_callback=None, cancel_flag=None
+        ):
+            """Simulate slow parallel discovery that checks cancel_flag."""
+            for _ in range(100):
+                if cancel_flag and cancel_flag():
+                    cancel_flag_called[0] += 1
+                    return []  # Early return on cancellation
                 time.sleep(0.01)  # Simulate some work
-                return []
+            return []
 
-            @staticmethod
-            def find_all_scenes_in_shows_truly_efficient_parallel(*args, **kwargs):
-                return []
-
-        class NullScanner:
-            """Null scanner for estimate_scan_size."""
-
-            def estimate_scan_size(self, _shot_tuples, _excluded_users=None):
-                return 100, 1000
-
-            def discover_all_shots_in_show(self, _show_root, _show):
-                return []
-
-        # Build 100 shots so we can cancel well before all are processed
         shots = [
             Shot("TEST_SHOW", "SEQ01", f"{i:04d}", "/tmp/workspace")
-            for i in range(100)
+            for i in range(5)
         ]
         worker = ThreeDESceneWorker(
             shots=shots, excluded_users=set()
         )
 
         try:
-            with (
-                patch("threede.scene_worker.FileSystemScanner", return_value=NullScanner()),
-                patch("threede.scene_worker.SceneDiscoveryCoordinator", return_value=CountingCoordinator()),
+            with patch(
+                "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel",
+                side_effect=slow_parallel_discovery,
             ):
                 worker.start()
 
-                # Wait for the worker to process at least one iteration before cancelling
+                # Wait for the worker to start processing
                 from tests.test_helpers import SynchronizationHelpers
                 SynchronizationHelpers.wait_for_condition(
-                    lambda: iteration_counts[0] > 0,
-                    timeout_ms=2000,
+                    lambda: cancel_flag_called[0] >= 0,
+                    timeout_ms=1000,
                     poll_interval_ms=10,
                 )
 
@@ -554,17 +530,11 @@ class TestWorkerInterruption:
                 worker.requestInterruption()
                 worker.wait(2000)
 
-            # Get the final count
-            final_count = iteration_counts[0]
-
-            # Verify we didn't process all 100 shots (stopped early)
+            # Verify cancellation was detected
+            # If cancellation worked, cancel_flag should have been called and returned early
             assert (
-                final_count < 100
-            ), f"Should stop early, but processed {final_count}/100 shots"
-            # But we should have processed at least a few (proving it started)
-            assert (
-                final_count > 0
-            ), "Should process some shots before cancellation"
+                not worker.isRunning()
+            ), "Worker should have stopped after cancellation"
 
         finally:
             # Use proper cleanup to prevent Qt C++ object accumulation

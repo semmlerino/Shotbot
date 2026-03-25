@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # Standard library imports
-import time
 from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
@@ -18,10 +17,8 @@ from PySide6.QtCore import (
 
 # Local application imports
 from config import Config
-from threede.filesystem_scanner import FileSystemScanner
 from threede.progress_tracker import ProgressCalculator, QtProgressReporter
 from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
-from timeout_config import TimeoutConfig
 from typing_compat import override
 from utils import get_excluded_users
 from workers.thread_safe_worker import ThreadSafeWorker
@@ -70,7 +67,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         shots: list[Shot],
         excluded_users: set[str] | None = None,
         batch_size: int | None = None,
-        scan_all_shots: bool = False,
     ) -> None:
         """Initialize the enhanced worker with shots to search.
 
@@ -78,13 +74,11 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             shots: List of shots to use for determining shows to search
             excluded_users: Set of usernames to exclude from search
             batch_size: Number of scenes per batch for progressive scanning
-            scan_all_shots: If True, scan ALL shots in shows (not just provided shots)
 
         """
         super().__init__()
         self.shots = shots
         self.user_shots = shots  # Keep track of user's shots for filtering
-        self.scan_all_shots = scan_all_shots
         self.excluded_users = excluded_users or get_excluded_users()
         self.batch_size = batch_size or Config.PROGRESSIVE_SCAN_BATCH_SIZE
 
@@ -231,30 +225,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             # Also emit scan progress for compatibility
             self.scan_progress.emit(files_found, 0, status)
 
-    def _check_pause_and_cancel(self) -> bool:
-        """Check for pause/cancel requests and handle them.
-
-        Returns:
-            True if should continue, False if should exit
-
-        """
-        # Check for cancellation using base class method
-        if self.should_stop():
-            self.logger.debug("Worker received stop signal")
-            return False
-
-        # Check for pause
-        with QMutexLocker(self._pause_mutex):
-            while self._is_paused and not self.should_stop():
-                self.logger.debug("Worker paused, waiting for resume...")
-                _ = self._pause_condition.wait(
-                    self._pause_mutex,
-                    TimeoutConfig.WORKER_PAUSE_CHECK_MS,
-                )
-
-        # Check cancellation again after pause
-        return not self.should_stop()
-
     @override
     def do_work(self) -> None:
         """Enhanced main worker thread execution with progressive scanning.
@@ -325,105 +295,9 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         """
         self.logger.info("Starting progressive 3DE scene discovery")
 
-        if self.scan_all_shots:
-            # When scanning all shots, use the efficient file-first discovery
-            # This finds ALL 3DE files in the shows, then filters
-            return self._discover_all_scenes_in_shows()
-
-        # Original behavior: scan only the provided shots
-        # Convert shots to the format expected by the finder
-        shot_tuples: list[tuple[str, str, str, str]] = [
-            (str(shot.workspace_path), shot.show, shot.sequence, shot.shot)
-            for shot in self.shots
-        ]
-
-        # Get size estimation for progress calculation
-        try:
-            estimated_users, estimated_files = FileSystemScanner().estimate_scan_size(
-                shot_tuples,
-                self.excluded_users,
-            )
-            self.logger.debug(
-                f"Scan estimate: {estimated_users} users, ~{estimated_files} files",
-            )
-
-            # Initialize progress tracking
-            self._progress_calculator = ProgressCalculator()
-            self._files_processed = 0
-
-            # Emit initial progress
-            progress_pct, eta_str = self._progress_calculator.update(0, estimated_files)
-            self.progress.emit(
-                0,
-                estimated_files,
-                progress_pct,
-                f"Starting scan of {len(shot_tuples)} shots",
-                eta_str,
-            )
-
-        except Exception:  # noqa: BLE001
-            self.logger.warning("Could not estimate scan size", exc_info=True)
-            estimated_files = len(shot_tuples) * 10  # Fallback estimate
-
-        # Discover scenes per shot and emit batches with progress updates
-        coordinator = SceneDiscoveryCoordinator()
-        total_shots = len(shot_tuples)
-        try:
-            for current_shot_idx, (workspace_path, show, sequence, shot) in enumerate(
-                shot_tuples, start=1
-            ):
-                # Check for pause/cancel between shots
-                if not self._check_pause_and_cancel():
-                    break
-
-                status_msg = f"Scanning {show}/{sequence}/{shot}"
-                scene_batch = coordinator.find_scenes_for_shot(
-                    workspace_path, show, sequence, shot, self.excluded_users
-                )
-
-                # Add batch to accumulated results
-                if scene_batch:
-                    self._all_scenes.extend(scene_batch)
-                    self.batch_ready.emit(scene_batch)
-
-                    self.logger.debug(f"Processed batch of {len(scene_batch)} scenes")
-
-                # Update progress tracking
-                self._files_processed += len(scene_batch)
-
-                # Throttle progress updates
-                current_time = time.time()
-                if (current_time - self._last_progress_time) >= (
-                    TimeoutConfig.PROGRESS_UPDATE_INTERVAL_MS / 1000.0
-                ):
-                    progress_pct, eta_str = self._progress_calculator.update(
-                        self._files_processed,
-                        estimated_files,
-                    )
-
-                    detailed_status = (
-                        f"{status_msg} ({len(self._all_scenes)} scenes found)"
-                    )
-
-                    self.progress.emit(
-                        current_shot_idx,
-                        total_shots,
-                        progress_pct,
-                        detailed_status,
-                        eta_str,
-                    )
-
-                    self._last_progress_time = current_time
-
-                # Emit scan progress for fine-grained updates
-                self.scan_progress.emit(current_shot_idx, total_shots, status_msg)
-
-        except Exception:
-            self.logger.exception("Error in progressive discovery")
-            raise
-
-        self.discovery_errors = coordinator.stats["errors"]
-        return self._all_scenes
+        # Use the efficient file-first discovery
+        # This finds ALL 3DE files in the shows, then filters
+        return self._discover_all_scenes_in_shows()
 
     def _discover_all_scenes_in_shows(self) -> list[ThreeDEScene]:
         """Discover ALL 3DE scenes in the shows using parallel scanning.
@@ -477,45 +351,20 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             self.logger.info("3DE scene discovery cancelled during parallel scan")
             return []
 
-        # Create a set of user's shot identifiers for filtering
-        user_shot_ids: set[str] = set()
-        for shot in self.user_shots:
-            shot_id = f"{shot.show}/{shot.sequence}/{shot.shot}"
-            user_shot_ids.add(shot_id)
-
-        # Filter to keep only scenes from user's shots (from other users)
+        # Keep ALL scenes from other users in the shows where user works
         other_scenes: list[ThreeDEScene] = []
         for scene in all_scenes:
             if self.should_stop():
                 break
+            other_scenes.append(scene)
 
-            scene_id = f"{scene.show}/{scene.sequence}/{scene.shot}"
-
-            # When scan_all_shots=True, keep ALL scenes from other users in the shows
-            # Otherwise, only keep scenes from user's specific shots
-            if self.scan_all_shots:
-                # Keep all scenes from other users in the shows where user works
-                other_scenes.append(scene)
-            elif scene_id in user_shot_ids:
-                # Keep only scenes from user's specific shots
-                other_scenes.append(scene)
-
-        # Log appropriate message based on scan mode
-        if self.scan_all_shots:
-            self.logger.info(
-                f"Found {len(all_scenes)} total scenes using parallel scan, keeping all {len(other_scenes)} scenes from other users",
-            )
-        else:
-            self.logger.info(
-                f"Found {len(all_scenes)} total scenes using parallel scan, {len(other_scenes)} are from other users on assigned shots",
-            )
+        self.logger.info(
+            f"Found {len(all_scenes)} total scenes using parallel scan, keeping all {len(other_scenes)} scenes from other users",
+        )
 
         # Emit final progress update
         if not self.should_stop():
-            if self.scan_all_shots:
-                status_msg = f"Completed: Found {len(other_scenes)} scenes from other users in all shows"
-            else:
-                status_msg = f"Completed: Found {len(other_scenes)} scenes from other users on your shots"
+            status_msg = f"Completed: Found {len(other_scenes)} scenes from other users in all shows"
 
             self.progress.emit(
                 len(other_scenes),

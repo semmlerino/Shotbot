@@ -166,7 +166,6 @@ class TestThreeDEWorkerWorkflow:
         worker = ThreeDESceneWorker(
             shots=test_shots[:4],  # Subset for testing
             excluded_users={"excludeduser"},
-            scan_all_shots=True,  # This triggers the parallel discovery path that failed
         )
 
         # Track signals received
@@ -252,7 +251,6 @@ class TestThreeDEWorkerWorkflow:
         worker = ThreeDESceneWorker(
             shots=test_shots,
             excluded_users=set(),
-            scan_all_shots=True,
         )
 
         # Use thread-safe collections for signal tracking

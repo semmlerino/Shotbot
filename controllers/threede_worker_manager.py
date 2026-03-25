@@ -95,7 +95,6 @@ class ThreeDEWorkerManager(LoggingMixin):
         worker = ThreeDESceneWorker(
             shots=shots,
             batch_size=None,
-            scan_all_shots=True,
         )
 
         with QMutexLocker(self._worker_mutex):
