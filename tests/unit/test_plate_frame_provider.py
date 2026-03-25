@@ -84,64 +84,38 @@ class TestPlateSource:
         )
         assert source.get_exr_path_for_frame(1050) is None
 
-    def test_get_exr_path_for_frame_constructs_path(self) -> None:
+    @pytest.mark.parametrize(
+        ("source_path", "frame_start", "frame_end", "frame", "expected_name"),
+        [
+            ("/shows/test/plate.1001.exr", 1001, 1100, 1050, "plate.1050.exr"),   # dot separator
+            ("/shows/test/plate_1001.exr", 1001, 1100, 1050, "plate_1050.exr"),   # underscore separator
+            ("/shows/test/plate.1001.exr", 1001, 1100, 50, "plate.0050.exr"),     # 4-digit padding
+            ("/shows/test/plate.10001.exr", 10001, 10100, 50, "plate.00050.exr"), # 5-digit padding
+            ("/shows/test/plate.exr", 1001, 1100, 1050, None),                    # no frame number
+        ],
+    )
+    def test_get_exr_path_for_frame(
+        self,
+        source_path: str,
+        frame_start: int,
+        frame_end: int,
+        frame: int,
+        expected_name: str | None,
+    ) -> None:
         """Test get_exr_path_for_frame constructs correct EXR path."""
         source = PlateSource(
-            source_path=Path("/shows/test/plate.1001.exr"),
+            source_path=Path(source_path),
             source_type="exr",
-            frame_start=1001,
-            frame_end=1100,
+            frame_start=frame_start,
+            frame_end=frame_end,
         )
-        result = source.get_exr_path_for_frame(1050)
-        assert result is not None
-        assert result.name == "plate.1050.exr"
-        assert result.parent == Path("/shows/test")
-
-    def test_get_exr_path_with_underscore_separator(self) -> None:
-        """Test EXR path with underscore separator."""
-        source = PlateSource(
-            source_path=Path("/shows/test/plate_1001.exr"),
-            source_type="exr",
-            frame_start=1001,
-            frame_end=1100,
-        )
-        result = source.get_exr_path_for_frame(1050)
-        assert result is not None
-        assert result.name == "plate_1050.exr"
-
-    def test_get_exr_path_preserves_padding(self) -> None:
-        """Test EXR path preserves frame number padding."""
-        # 4-digit padding
-        source = PlateSource(
-            source_path=Path("/shows/test/plate.1001.exr"),
-            source_type="exr",
-            frame_start=1001,
-            frame_end=1100,
-        )
-        result = source.get_exr_path_for_frame(50)
-        assert result is not None
-        assert "0050" in result.name
-
-        # 5-digit padding
-        source5 = PlateSource(
-            source_path=Path("/shows/test/plate.10001.exr"),
-            source_type="exr",
-            frame_start=10001,
-            frame_end=10100,
-        )
-        result5 = source5.get_exr_path_for_frame(50)
-        assert result5 is not None
-        assert "00050" in result5.name
-
-    def test_get_exr_path_no_match_returns_none(self) -> None:
-        """Test EXR path returns None if pattern doesn't match."""
-        source = PlateSource(
-            source_path=Path("/shows/test/plate.exr"),  # No frame number
-            source_type="exr",
-            frame_start=1001,
-            frame_end=1100,
-        )
-        assert source.get_exr_path_for_frame(1050) is None
+        result = source.get_exr_path_for_frame(frame)
+        if expected_name is None:
+            assert result is None
+        else:
+            assert result is not None
+            assert result.name == expected_name
+            assert result.parent == Path("/shows/test")
 
 
 class TestFrameExtractionRunnable:
@@ -319,15 +293,33 @@ class TestPlateFrameProvider:
         # Should have called extract for 1047-1053
         assert set(extracted_frames) == {1047, 1048, 1049, 1050, 1051, 1052, 1053}
 
-    def test_prefetch_frames_respects_frame_bounds(self, qapp: QApplication) -> None:
-        """Test prefetch_frames doesn't go outside frame range."""
+    @pytest.mark.parametrize(
+        ("frame_start", "frame_end", "center_frame", "radius", "expect_min", "expect_max", "expect_empty"),
+        [
+            (1001, 1010, 1003, 5, 1001, None, False),  # respects start bound
+            (1001, 1010, 1008, 5, None, 1010, False),  # respects end bound
+            (None, None, 1050, 5, None, None, True),   # no frame range → empty
+        ],
+    )
+    def test_prefetch_frame_bounds(
+        self,
+        qapp: QApplication,
+        frame_start: int | None,
+        frame_end: int | None,
+        center_frame: int,
+        radius: int,
+        expect_min: int | None,
+        expect_max: int | None,
+        expect_empty: bool,
+    ) -> None:
+        """Test prefetch_frames respects frame bounds and handles missing range."""
         provider = PlateFrameProvider()
 
         source = PlateSource(
             source_path=Path("/shows/test/plate.mov"),
             source_type="mov",
-            frame_start=1001,
-            frame_end=1010,
+            frame_start=frame_start,
+            frame_end=frame_end,
         )
 
         extracted_frames: list[int] = []
@@ -337,37 +329,15 @@ class TestPlateFrameProvider:
 
         provider.extract_frame = mock_extract  # type: ignore[method-assign]
 
-        # Center near start
-        provider.prefetch_frames("test/shot", source, center_frame=1003, radius=5)
-        assert min(extracted_frames) >= 1001  # Respects start bound
+        provider.prefetch_frames("test/shot", source, center_frame=center_frame, radius=radius)
 
-        extracted_frames.clear()
-
-        # Center near end
-        provider.prefetch_frames("test/shot", source, center_frame=1008, radius=5)
-        assert max(extracted_frames) <= 1010  # Respects end bound
-
-    def test_prefetch_with_no_frame_range(self, qapp: QApplication) -> None:
-        """Test prefetch_frames does nothing if no frame range."""
-        provider = PlateFrameProvider()
-
-        source = PlateSource(
-            source_path=Path("/shows/test/plate.mov"),
-            source_type="mov",
-            frame_start=None,
-            frame_end=None,
-        )
-
-        extracted_frames: list[int] = []
-
-        def mock_extract(key: str, src: PlateSource, frame: int) -> None:
-            extracted_frames.append(frame)
-
-        provider.extract_frame = mock_extract  # type: ignore[method-assign]
-
-        provider.prefetch_frames("test/shot", source, center_frame=1050, radius=5)
-
-        assert len(extracted_frames) == 0
+        if expect_empty:
+            assert len(extracted_frames) == 0
+        else:
+            if expect_min is not None:
+                assert min(extracted_frames) >= expect_min
+            if expect_max is not None:
+                assert max(extracted_frames) <= expect_max
 
     def test_clear_shot_cache_clears_specific_shot(self, qapp: QApplication) -> None:
         """Test clear_shot_cache clears frames for specific shot."""

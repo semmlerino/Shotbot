@@ -369,15 +369,26 @@ class TestDCCSectionEmbeddedFiles:
             file_type=None,
         )
 
-    def test_files_section_created_when_configured(
-        self, qtbot: QtBot, config_with_files: DCCConfig
+    def test_files_section_creation_and_population(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
-        """Files sub-section created when has_files_section is True."""
+        """Files section initializes, populates table, and updates header count."""
         section = DCCSection(config_with_files)
         qtbot.addWidget(section)
+        section.show()
+        process_qt_events()
 
+        # Section created with file table
         assert section._dcc_file_table is not None
         assert section._dcc_file_table._file_table is not None
+
+        # Set files populates table and updates header
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        assert section._dcc_file_table._file_model.rowCount() == 2
+        header_text = section._dcc_file_table._files_header_btn.text()
+        assert "2" in header_text
 
     def test_no_files_section_when_disabled(
         self, qtbot: QtBot, config_without_files: DCCConfig
@@ -387,36 +398,6 @@ class TestDCCSectionEmbeddedFiles:
         qtbot.addWidget(section)
 
         assert section._dcc_file_table is None
-
-    def test_set_files_populates_table(
-        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
-    ) -> None:
-        """Setting files populates the file table."""
-        section = DCCSection(config_with_files)
-        qtbot.addWidget(section)
-
-        section.set_files(sample_scene_files)
-        process_qt_events()
-
-        assert section._dcc_file_table is not None
-        assert section._dcc_file_table._file_model.rowCount() == 2
-
-    def test_set_files_updates_header_count(
-        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
-    ) -> None:
-        """Setting files updates the section header count."""
-        section = DCCSection(config_with_files)
-        qtbot.addWidget(section)
-        section.show()
-        process_qt_events()
-
-        section.set_files(sample_scene_files)
-        process_qt_events()
-
-        # Header button should show file count
-        assert section._dcc_file_table is not None
-        header_text = section._dcc_file_table._files_header_btn.text()
-        assert "2" in header_text
 
     def test_get_selected_file_returns_latest(
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list

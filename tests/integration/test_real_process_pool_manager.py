@@ -80,33 +80,22 @@ def cleanup_ppm() -> None:
 class TestRealProcessPoolManagerExecution:
     """Tests for real command execution."""
 
-    def test_execute_echo_command(self, real_ppm: ProcessPoolManager) -> None:
-        """Verify real echo command execution."""
-        result = _run_in_background(real_ppm, "echo 'hello world'", cache_ttl=0)
-        assert "hello world" in result
-
-    def test_execute_python_command(self, real_ppm: ProcessPoolManager) -> None:
-        """Verify real Python command execution."""
-        result = _run_in_background(
-            real_ppm, f"{sys.executable} -c 'print(42)'", cache_ttl=0
-        )
-        assert "42" in result
-
-    def test_execute_multiline_output(self, real_ppm: ProcessPoolManager) -> None:
-        """Verify commands with multiline output work correctly."""
-        result = _run_in_background(
-            real_ppm, "echo 'line1'; echo 'line2'; echo 'line3'", cache_ttl=0
-        )
-        assert "line1" in result
-        assert "line2" in result
-        assert "line3" in result
-
-    def test_execute_with_env_variable(self, real_ppm: ProcessPoolManager) -> None:
-        """Verify environment variables work in commands."""
-        result = _run_in_background(
-            real_ppm, "TEST_VAR='test_value' && echo $TEST_VAR", cache_ttl=0
-        )
-        assert "test_value" in result
+    @pytest.mark.parametrize(
+        ("command", "expected_outputs"),
+        [
+            ("echo 'hello world'", ["hello world"]),
+            (f"{sys.executable} -c 'print(42)'", ["42"]),
+            ("echo 'line1'; echo 'line2'; echo 'line3'", ["line1", "line2", "line3"]),
+            ("TEST_VAR='test_value' && echo $TEST_VAR", ["test_value"]),
+        ],
+    )
+    def test_execute_command(
+        self, real_ppm: ProcessPoolManager, command: str, expected_outputs: list[str]
+    ) -> None:
+        """Verify real command execution produces expected output."""
+        result = _run_in_background(real_ppm, command, cache_ttl=0)
+        for expected in expected_outputs:
+            assert expected in result
 
 
 class TestRealProcessPoolManagerCaching:

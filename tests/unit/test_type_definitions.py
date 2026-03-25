@@ -308,78 +308,64 @@ class TestShotThreadSafety:
 class TestShotEdgeCases:
     """Tests for Shot edge cases and boundary conditions."""
 
-    def test_empty_string_fields(self) -> None:
-        """Shot can be created with empty string fields."""
+    @pytest.mark.parametrize(
+        ("show", "sequence", "shot_num", "workspace_path", "expected_full_name"),
+        [
+            ("", "", "", "", "_"),  # empty strings
+            (
+                "テスト",
+                "日本語",
+                "0010",
+                "/shows/テスト/shots/日本語/日本語_0010",
+                "日本語_0010",
+            ),  # unicode
+            (
+                "testshow",
+                "sq010",
+                "0010",
+                "/shows/" + "a" * 500 + "/shots/seq/shot",
+                "sq010_0010",
+            ),  # long path
+            (
+                "test-show_v2",
+                "sq.010",
+                "0010-final",
+                "/shows/test-show_v2/shots/sq.010/sq.010_0010-final",
+                "sq.010_0010-final",
+            ),  # special chars
+        ],
+    )
+    def test_field_edge_cases(
+        self,
+        show: str,
+        sequence: str,
+        shot_num: str,
+        workspace_path: str,
+        expected_full_name: str,
+    ) -> None:
+        """Shot handles edge-case field values correctly."""
         shot = Shot(
-            show="",
-            sequence="",
-            shot="",
-            workspace_path="",
+            show=show,
+            sequence=sequence,
+            shot=shot_num,
+            workspace_path=workspace_path,
         )
 
-        assert shot.show == ""
-        assert shot.full_name == "_"  # sequence_shot with empty strings
+        assert shot.show == show
+        assert shot.sequence == sequence
+        assert shot.shot == shot_num
+        assert shot.workspace_path == workspace_path
+        assert shot.full_name == expected_full_name
 
-    def test_unicode_in_fields(self) -> None:
-        """Shot handles unicode characters in fields."""
-        shot = Shot(
-            show="テスト",
-            sequence="日本語",
-            shot="0010",
-            workspace_path="/shows/テスト/shots/日本語/日本語_0010",
-        )
-
-        assert shot.show == "テスト"
-        assert shot.sequence == "日本語"
-        assert shot.full_name == "日本語_0010"
-
-    def test_very_long_paths(self) -> None:
-        """Shot handles very long workspace paths."""
-        long_path = "/shows/" + "a" * 500 + "/shots/seq/shot"
-        shot = Shot(
-            show="testshow",
-            sequence="sq010",
-            shot="0010",
-            workspace_path=long_path,
-        )
-
-        assert shot.workspace_path == long_path
-
-    def test_special_characters_in_names(self) -> None:
-        """Shot handles special characters in show/sequence/shot names."""
-        shot = Shot(
-            show="test-show_v2",
-            sequence="sq.010",
-            shot="0010-final",
-            workspace_path="/shows/test-show_v2/shots/sq.010/sq.010_0010-final",
-        )
-
-        assert shot.show == "test-show_v2"
-        assert shot.sequence == "sq.010"
-        assert shot.shot == "0010-final"
-
-    def test_discovered_at_negative_timestamp(self) -> None:
-        """Shot accepts negative discovered_at (before epoch)."""
-        shot = Shot(
-            show="testshow",
-            sequence="sq010",
-            shot="0010",
-            workspace_path="/shows/testshow/shots/sq010/sq010_0010",
-            discovered_at=-1000.0,
-        )
-
-        assert shot.discovered_at == -1000.0
-
-    def test_discovered_at_very_large_timestamp(self) -> None:
-        """Shot accepts very large discovered_at timestamps (far future)."""
-        # Year 3000 timestamp
-        future_ts = 32503680000.0
+    @pytest.mark.parametrize("timestamp", [-1000.0, 32503680000.0])
+    def test_discovered_at_extreme_timestamps(self, timestamp: float) -> None:
+        """Shot accepts extreme discovered_at values."""
         shot = Shot(
             show="testshow",
             sequence="sq010",
             shot="0010",
             workspace_path="/shows/testshow/shots/sq010/sq010_0010",
-            discovered_at=future_ts,
+            discovered_at=timestamp,
         )
 
-        assert shot.discovered_at == future_ts
+        assert shot.discovered_at == timestamp

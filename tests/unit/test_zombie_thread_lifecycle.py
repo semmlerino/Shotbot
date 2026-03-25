@@ -306,8 +306,8 @@ class TestZombieMetrics:
 class TestZombieCleanupTimer:
     """Tests for periodic zombie cleanup timer."""
 
-    def test_cleanup_timer_can_start_and_stop(self, qtbot: QtBot) -> None:
-        """Cleanup timer can be started and stopped without errors."""
+    def test_timer_start_stop_and_idempotent(self, qtbot: QtBot) -> None:
+        """Timer starts, stops, and multiple starts are idempotent."""
         ThreadSafeWorker.reset()
 
         # Initially no timer
@@ -315,8 +315,13 @@ class TestZombieCleanupTimer:
 
         # Start timer
         ThreadSafeWorker.start_zombie_cleanup_timer()
-        assert ThreadSafeWorker._zombie_cleanup_timer is not None
-        assert ThreadSafeWorker._zombie_cleanup_timer.isActive()
+        timer1 = ThreadSafeWorker._zombie_cleanup_timer
+        assert timer1 is not None
+        assert timer1.isActive()
+
+        # Second start returns same timer (idempotent)
+        ThreadSafeWorker.start_zombie_cleanup_timer()
+        assert ThreadSafeWorker._zombie_cleanup_timer is timer1
 
         # Stop timer
         ThreadSafeWorker.stop_zombie_cleanup_timer()
@@ -324,40 +329,22 @@ class TestZombieCleanupTimer:
 
         ThreadSafeWorker.reset()
 
-    def test_multiple_start_calls_are_idempotent(self) -> None:
-        """Multiple start_zombie_cleanup_timer calls don't create multiple timers."""
+    def test_timer_interval_and_safe_stop(self, qtbot: QtBot) -> None:
+        """Timer uses correct interval; stopping when not running is a no-op."""
         ThreadSafeWorker.reset()
 
+        # Stop when not running is safe
+        assert ThreadSafeWorker._zombie_cleanup_timer is None
+        ThreadSafeWorker.stop_zombie_cleanup_timer()
+        assert ThreadSafeWorker._zombie_cleanup_timer is None
+
+        # Started timer has correct interval
         ThreadSafeWorker.start_zombie_cleanup_timer()
-        timer1 = ThreadSafeWorker._zombie_cleanup_timer
-
-        ThreadSafeWorker.start_zombie_cleanup_timer()
-        timer2 = ThreadSafeWorker._zombie_cleanup_timer
-
-        # Same timer instance
-        assert timer1 is timer2
-
-        ThreadSafeWorker.reset()
-
-    def test_timer_has_correct_interval(self, qtbot: QtBot) -> None:
-        """Timer interval matches the configured cleanup interval constant."""
-        ThreadSafeWorker.reset()
-        ThreadSafeWorker.start_zombie_cleanup_timer()
-
         timer = ThreadSafeWorker._zombie_cleanup_timer
         assert timer is not None
         assert timer.interval() == ThreadSafeWorker._ZOMBIE_CLEANUP_INTERVAL_MS
 
         ThreadSafeWorker.reset()
-
-    def test_stop_when_not_running_is_safe(self) -> None:
-        """Stopping a non-running timer is a safe no-op."""
-        ThreadSafeWorker.reset()
-        assert ThreadSafeWorker._zombie_cleanup_timer is None
-
-        # Should not raise
-        ThreadSafeWorker.stop_zombie_cleanup_timer()
-        assert ThreadSafeWorker._zombie_cleanup_timer is None
 
 
 class TestZombieThreadSafety:

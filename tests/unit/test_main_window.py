@@ -367,83 +367,41 @@ class TestMainWindowIntegration:
 class TestCrashRecovery:
     """Test 3DE crash recovery functionality."""
 
-    def test_crash_recovery_with_current_shot(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    @pytest.mark.parametrize("context_type", ["shot", "scene"])
+    def test_crash_recovery_with_selection(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, context_type: str
     ) -> None:
-        """Test crash recovery works when current_shot is set (from My Shots).
+        """Test crash recovery uses workspace_path from the active selection.
 
-        This is the bug fix test - crash recovery should work when a shot
-        is selected from "My Shots" tab, not just when a 3DE scene is selected.
+        'shot' — shot selected from My Shots tab; scene is None.
+        'scene' — 3DE scene selected from Other 3DE Scenes tab; shot is None.
         """
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        # Create and select a shot (simulates clicking in "My Shots" tab)
         shows_root = Config.SHOWS_ROOT
-        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-        main_window.shot_selection_controller.on_shot_selected(shot)
 
-        # Verify shot is set and scene is None (important for the bug fix)
-        assert main_window.command_launcher.current_shot == shot
-        assert main_window.threede_shot_grid.selected_scene is None
+        if context_type == "shot":
+            shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
+            main_window.shot_selection_controller.on_shot_selected(shot)
+            assert main_window.command_launcher.current_shot == shot
+            assert main_window.threede_shot_grid.selected_scene is None
+            expected_workspace = shot.workspace_path
+        else:
+            scene = ThreeDEScene(
+                show="test_show",
+                sequence="seq01",
+                shot="0010",
+                workspace_path=f"{shows_root}/test/seq01/0010",
+                user="test_user",
+                plate="FG01",
+                scene_path=Path(f"{shows_root}/test/seq01/0010/test.3de"),
+            )
+            main_window.threede_shot_grid._selected_scene = scene
+            assert main_window.threede_shot_grid.selected_scene == scene
+            assert main_window.command_launcher.current_shot is None
+            expected_workspace = scene.workspace_path
 
-        # Mock the recovery components to avoid filesystem operations
-        # Patch where they're imported, not where they're called from
-        mock_crash_info = MagicMock()
-        mock_crash_info.crash_path.name = "test_scene.3de.crash"
-
-        with patch("threede.recovery.ThreeDERecoveryManager") as mock_manager_class:
-            mock_manager = mock_manager_class.return_value
-            mock_manager.find_crash_files.return_value = [mock_crash_info]
-
-            with patch(
-                "threede.recovery_dialog.ThreeDERecoveryDialog"
-            ) as mock_dialog_class:
-                mock_dialog = mock_dialog_class.return_value
-                mock_dialog.exec.return_value = 0  # Dialog rejected
-
-                # Trigger crash recovery
-                main_window.shot_selection_controller.on_recover_crashes_requested()
-
-                # Verify recovery manager was called with shot's workspace_path
-                mock_manager.find_crash_files.assert_called_once_with(
-                    shot.workspace_path, recursive=True
-                )
-
-                # Verify dialog was shown
-                mock_dialog_class.assert_called_once()
-
-    def test_crash_recovery_with_current_scene(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch
-    ) -> None:
-        """Test crash recovery works when current_scene is set (from Other 3DE Scenes).
-
-        Scene selection clears current_shot, so crash recovery should use
-        scene's workspace_path instead.
-        """
-        main_window = MainWindow(cache_dir=tmp_path / "cache")
-        qtbot.addWidget(main_window)
-
-        # Create and select a 3DE scene (simulates clicking in "Other 3DE Scenes" tab)
-        shows_root = Config.SHOWS_ROOT
-        scene = ThreeDEScene(
-            show="test_show",
-            sequence="seq01",
-            shot="0010",
-            workspace_path=f"{shows_root}/test/seq01/0010",
-            user="test_user",
-            plate="FG01",
-            scene_path=Path(f"{shows_root}/test/seq01/0010/test.3de"),
-        )
-        # Simulate scene selection by setting the grid's internal state directly
-        # (in production, this is set by user clicking on a scene in the grid)
-        main_window.threede_shot_grid._selected_scene = scene
-
-        # Verify scene is set and shot is None
-        assert main_window.threede_shot_grid.selected_scene == scene
-        assert main_window.command_launcher.current_shot is None
-
-        # Mock the recovery components
         mock_crash_info = MagicMock()
         mock_crash_info.crash_path.name = "test_scene.3de.crash"
 
@@ -457,16 +415,11 @@ class TestCrashRecovery:
                 mock_dialog = mock_dialog_class.return_value
                 mock_dialog.exec.return_value = 0
 
-                # Trigger crash recovery
                 main_window.shot_selection_controller.on_recover_crashes_requested()
 
-                # Verify recovery manager was called with scene's workspace_path
-                # (since current_shot is None, we fall back to scene)
                 mock_manager.find_crash_files.assert_called_once_with(
-                    scene.workspace_path, recursive=True
+                    expected_workspace, recursive=True
                 )
-
-                # Verify dialog was shown
                 mock_dialog_class.assert_called_once()
 
     def test_crash_recovery_no_shot_selected(
@@ -686,46 +639,52 @@ class TestRightPanelFileLaunch:
 class TestGetCurrentWorkspacePath:
     """Test the _get_current_workspace_path helper method."""
 
-    def test_returns_shot_workspace_when_shot_selected(
-        self, qtbot: QtBot, tmp_path: Path
+    @pytest.mark.parametrize(
+        ("context", "expected_source"),
+        [
+            ("shot", "shot"),
+            ("scene", "scene"),
+            ("none", None),
+        ],
+    )
+    def test_workspace_path_resolution(
+        self, qtbot: QtBot, tmp_path: Path, context: str, expected_source: str | None
     ) -> None:
-        """Test returns workspace from current_shot when available."""
+        """Test workspace path resolution for each selection context.
+
+        'shot' — shot selected; result comes from shot.workspace_path.
+        'scene' — 3DE scene selected, no shot; result comes from scene.workspace_path.
+        'none' — nothing selected; result is None.
+        """
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        # Select a shot
         shows_root = Config.SHOWS_ROOT
-        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-        main_window.shot_selection_controller.on_shot_selected(shot)
 
-        # Verify workspace path comes from shot
+        if context == "shot":
+            shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
+            main_window.shot_selection_controller.on_shot_selected(shot)
+            expected = shot.workspace_path
+        elif context == "scene":
+            scene = ThreeDEScene(
+                show="test_show",
+                sequence="seq01",
+                shot="0010",
+                workspace_path=f"{shows_root}/test/seq01/0010",
+                user="user",
+                plate="FG01",
+                scene_path=Path(f"{shows_root}/test/seq01/0010/track.3de"),
+            )
+            main_window.threede_shot_grid._selected_scene = scene
+            main_window.command_launcher.set_current_shot(None)
+            expected = scene.workspace_path
+        else:
+            main_window.command_launcher.set_current_shot(None)
+            main_window.threede_shot_grid._selected_scene = None
+            expected = None
+
         result = main_window.launch_coordinator.get_current_workspace_path()
-        assert result == shot.workspace_path
-
-    def test_returns_scene_workspace_when_no_shot(
-        self, qtbot: QtBot, tmp_path: Path
-    ) -> None:
-        """Test returns workspace from selected_scene when no shot selected."""
-        main_window = MainWindow(cache_dir=tmp_path / "cache")
-        qtbot.addWidget(main_window)
-
-        # Select a 3DE scene without a shot
-        shows_root = Config.SHOWS_ROOT
-        scene = ThreeDEScene(
-            show="test_show",
-            sequence="seq01",
-            shot="0010",
-            workspace_path=f"{shows_root}/test/seq01/0010",
-            user="user",
-            plate="FG01",
-            scene_path=Path(f"{shows_root}/test/seq01/0010/track.3de"),
-        )
-        main_window.threede_shot_grid._selected_scene = scene
-        main_window.command_launcher.set_current_shot(None)
-
-        # Verify workspace path comes from scene
-        result = main_window.launch_coordinator.get_current_workspace_path()
-        assert result == scene.workspace_path
+        assert result == expected
 
     def test_prefers_shot_over_scene(self, qtbot: QtBot, tmp_path: Path) -> None:
         """Test that shot workspace is preferred when both are available."""
@@ -753,14 +712,3 @@ class TestGetCurrentWorkspacePath:
         assert result == shot.workspace_path
         assert result != scene.workspace_path
 
-    def test_returns_none_when_no_context(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test returns None when neither shot nor scene is selected."""
-        main_window = MainWindow(cache_dir=tmp_path / "cache")
-        qtbot.addWidget(main_window)
-
-        # Ensure no context
-        main_window.command_launcher.set_current_shot(None)
-        main_window.threede_shot_grid._selected_scene = None
-
-        result = main_window.launch_coordinator.get_current_workspace_path()
-        assert result is None
