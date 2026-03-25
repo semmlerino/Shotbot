@@ -39,6 +39,7 @@ from version_utils import VersionUtils
 
 
 @pytest.mark.thread_leak_ok
+@pytest.mark.qt_heavy
 class TestConcurrentThumbnailRaceConditions:
     """Test suite for concurrent thumbnail loading race conditions."""
 

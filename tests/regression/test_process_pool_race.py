@@ -42,6 +42,7 @@ def cleanup_process_pool():
 
 
 @pytest.mark.slow
+@pytest.mark.qt_heavy
 @pytest.mark.xdist_group("process_pool_race")
 def test_process_pool_manager_race_condition() -> None:
     """Demonstrate race condition in ProcessPoolManager singleton initialization.

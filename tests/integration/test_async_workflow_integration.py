@@ -37,6 +37,7 @@ from workers.runnable_tracker import get_tracker
 pytestmark = [
     pytest.mark.qt,
     pytest.mark.slow,
+    pytest.mark.qt_heavy,
 ]
 
 

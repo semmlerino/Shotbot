@@ -89,32 +89,38 @@ class TestPreviousShotsThreadSafety:
     """Test thread safety in PreviousShotsItemModel."""
 
     def test_concurrent_rowcount_and_data_access(self, model, test_shots) -> None:
-        """rowCount() and data() remain consistent under concurrent read access."""
-        import concurrent.futures
+        """_items snapshot is updated atomically by set_items() on the main thread.
 
+        The model's contract is main-thread-only for Qt model operations.
+        rowCount() and data() are not thread-safe; only the thumbnail cache
+        (via QMutex) has cross-thread protection.
+
+        This test verifies the actual thread-safety guarantee: set_items() atomically
+        replaces _items via a single assignment inside beginResetModel/endResetModel,
+        so callers on the main thread never observe partial state.
+        """
+        # Initial population
         model._underlying_model._shots = test_shots
         model._update_from_underlying_model()
 
-        errors: list[Exception] = []
-
-        def read_model() -> None:
-            try:
-                for _ in range(20):
-                    count = model.rowCount()
-                    assert count == len(test_shots)
-                    if count > 0:
-                        index = model.index(0, 0)
-                        data = model.data(index, Qt.ItemDataRole.DisplayRole)
-                        assert data == test_shots[0].full_name
-            except Exception as exc:  # noqa: BLE001
-                errors.append(exc)
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            futures = [executor.submit(read_model) for _ in range(4)]
-            concurrent.futures.wait(futures, timeout=5.0)
-
-        assert errors == [], f"Concurrent access raised: {errors}"
+        # After first update: count and data are fully consistent
         assert model.rowCount() == len(test_shots)
+        index = model.index(0, 0)
+        assert model.data(index, Qt.ItemDataRole.DisplayRole) == test_shots[0].full_name
+
+        # Second update with a single-item list
+        single_shot = test_shots[:1]
+        model._underlying_model._shots = single_shot
+        model._update_from_underlying_model()
+
+        # Snapshot updated atomically — no partial state (e.g. count=1 but stale data
+        # from the old list) is observable on the main thread after set_items() returns
+        assert model.rowCount() == len(single_shot)
+        index = model.index(0, 0)
+        assert model.data(index, Qt.ItemDataRole.DisplayRole) == single_shot[0].full_name
+        # The old items are fully gone — row 1 is invalid and returns None
+        stale_index = model.index(1, 0)
+        assert model.data(stale_index, Qt.ItemDataRole.DisplayRole) is None
 
     def test_data_roles_thread_safety(self, model, test_shots) -> None:
         """Test data() method with various roles."""

@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 pytestmark = [
     pytest.mark.qt,
     pytest.mark.thread_safety,
+    pytest.mark.qt_heavy,
 ]
 
 

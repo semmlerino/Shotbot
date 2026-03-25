@@ -50,6 +50,7 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.slow,  # CRITICAL for parallel safety
+    pytest.mark.qt_heavy,
 ]
 
 if TYPE_CHECKING:
