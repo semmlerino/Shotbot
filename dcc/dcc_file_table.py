@@ -316,6 +316,14 @@ class DCCFileTable(QWidget):
         open_folder_action = menu.addAction("Open Containing Folder")
         _ = open_folder_action.triggered.connect(lambda: self._open_file_folder(file))
 
+        # Edit Comment (Maya files only)
+        if self._dcc_name == "maya":
+            edit_comment_action = menu.addAction("Edit Comment...")
+            row = index.row()
+            _ = edit_comment_action.triggered.connect(
+                lambda: self._edit_maya_comment(file, row)
+            )
+
         _ = menu.addSeparator()
 
         copy_path_action = menu.addAction("Copy Path")
@@ -362,6 +370,27 @@ class DCCFileTable(QWidget):
         """
         clipboard = QApplication.clipboard()
         clipboard.setText(str(file.path))
+
+    def _edit_maya_comment(self, file: SceneFile, row: int) -> None:
+        """Show dialog to edit the Maya version-up comment for *file*."""
+        from PySide6.QtWidgets import QInputDialog
+
+        from discovery.maya_comment_reader import save_maya_comment
+
+        current = file.comment or ""
+        new_comment, ok = QInputDialog.getMultiLineText(
+            self,
+            f"Edit Comment - {file.name}",
+            "Comment:",
+            current,
+        )
+        if not ok:
+            return
+
+        save_maya_comment(file.path, new_comment)
+
+        if self._file_model is not None:
+            _ = self._file_model.update_file_comment(row, new_comment)
 
     # ------------------------------------------------------------------
     # Public data API

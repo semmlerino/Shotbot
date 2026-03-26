@@ -7,7 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from discovery.maya_comment_reader import _parse_base, load_maya_comments
+from discovery.maya_comment_reader import (
+    _parse_base,
+    load_maya_comments,
+    save_maya_comment,
+)
+
 
 pytestmark = [pytest.mark.unit]
 
@@ -127,5 +132,104 @@ class TestLoadMayaComments:
                 "/shot/sceneA_v001.ma": "comment A",
                 "/shot/sceneB_v003.ma": "comment B",
             }
+        finally:
+            mod._COMMENTS_DIR = original
+
+
+class TestSaveMayaComment:
+    """Tests for save_maya_comment — writing to ~/.maya_version_up/."""
+
+    def test_creates_dir_and_file(self, tmp_path: Path) -> None:
+        """Creates the comments directory and JSON file when they don't exist."""
+        import discovery.maya_comment_reader as mod
+
+        comments_dir = tmp_path / ".maya_version_up"
+        original = mod._COMMENTS_DIR
+        mod._COMMENTS_DIR = comments_dir
+        try:
+            save_maya_comment(Path("/shot/scene_v001.ma"), "New layout")
+
+            json_path = comments_dir / "scene.json"
+            assert json_path.exists()
+            data = json.loads(json_path.read_text())
+            assert data == {"/shot/scene_v001.ma": "New layout"}
+        finally:
+            mod._COMMENTS_DIR = original
+
+    def test_preserves_existing_entries(self, tmp_path: Path) -> None:
+        """Preserves other entries in the JSON file when adding a new comment."""
+        import discovery.maya_comment_reader as mod
+
+        comments_dir = tmp_path / ".maya_version_up"
+        comments_dir.mkdir()
+        json_path = comments_dir / "scene.json"
+        json_path.write_text(json.dumps({"/shot/scene_v001.ma": "Old comment"}))
+
+        original = mod._COMMENTS_DIR
+        mod._COMMENTS_DIR = comments_dir
+        try:
+            save_maya_comment(Path("/shot/scene_v002.ma"), "Second version")
+
+            data = json.loads(json_path.read_text())
+            assert data == {
+                "/shot/scene_v001.ma": "Old comment",
+                "/shot/scene_v002.ma": "Second version",
+            }
+        finally:
+            mod._COMMENTS_DIR = original
+
+    def test_overwrites_existing_comment(self, tmp_path: Path) -> None:
+        """Overwrites an existing comment for the same path."""
+        import discovery.maya_comment_reader as mod
+
+        comments_dir = tmp_path / ".maya_version_up"
+        comments_dir.mkdir()
+        json_path = comments_dir / "scene.json"
+        json_path.write_text(json.dumps({"/shot/scene_v001.ma": "Old comment"}))
+
+        original = mod._COMMENTS_DIR
+        mod._COMMENTS_DIR = comments_dir
+        try:
+            save_maya_comment(Path("/shot/scene_v001.ma"), "Updated comment")
+
+            data = json.loads(json_path.read_text())
+            assert data == {"/shot/scene_v001.ma": "Updated comment"}
+        finally:
+            mod._COMMENTS_DIR = original
+
+    def test_empty_comment_removes_entry(self, tmp_path: Path) -> None:
+        """Empty comment removes the entry from the JSON file."""
+        import discovery.maya_comment_reader as mod
+
+        comments_dir = tmp_path / ".maya_version_up"
+        comments_dir.mkdir()
+        json_path = comments_dir / "scene.json"
+        json_path.write_text(
+            json.dumps({
+                "/shot/scene_v001.ma": "Will be removed",
+                "/shot/scene_v002.ma": "Stays",
+            })
+        )
+
+        original = mod._COMMENTS_DIR
+        mod._COMMENTS_DIR = comments_dir
+        try:
+            save_maya_comment(Path("/shot/scene_v001.ma"), "")
+
+            data = json.loads(json_path.read_text())
+            assert data == {"/shot/scene_v002.ma": "Stays"}
+        finally:
+            mod._COMMENTS_DIR = original
+
+    def test_no_version_token_is_noop(self, tmp_path: Path) -> None:
+        """Paths without a version token are silently ignored."""
+        import discovery.maya_comment_reader as mod
+
+        comments_dir = tmp_path / ".maya_version_up"
+        original = mod._COMMENTS_DIR
+        mod._COMMENTS_DIR = comments_dir
+        try:
+            save_maya_comment(Path("/shot/no_version.ma"), "Should not write")
+            assert not comments_dir.exists()
         finally:
             mod._COMMENTS_DIR = original

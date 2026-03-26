@@ -208,3 +208,45 @@ class TestFileTableModel:
         index = model.index(0, 0)
         tooltip = model.data(index, Qt.ItemDataRole.ToolTipRole)
         assert "Comment" not in tooltip
+
+    def test_update_file_comment(self, qtbot: QtBot) -> None:
+        """update_file_comment replaces the comment and refreshes the row."""
+        model = FileTableModel()
+        file = SceneFile(
+            path=Path("/path/to/scene_v001.ma"),
+            file_type=FileType.MAYA,
+            modified_time=datetime.now(),  # noqa: DTZ005
+            user="artist",
+            version=1,
+        )
+        model.set_files([file])
+
+        updated = model.update_file_comment(0, "Camera fix")
+        assert updated is not None
+        assert updated.comment == "Camera fix"
+
+        index = model.index(0, 3)
+        assert model.data(index, Qt.ItemDataRole.DisplayRole) == "Camera fix"
+
+    def test_update_file_comment_empty_clears(self, qtbot: QtBot) -> None:
+        """Empty string sets comment to None."""
+        model = FileTableModel()
+        file = SceneFile(
+            path=Path("/path/to/scene_v001.ma"),
+            file_type=FileType.MAYA,
+            modified_time=datetime.now(),  # noqa: DTZ005
+            user="artist",
+            version=1,
+            comment="Old comment",
+        )
+        model.set_files([file])
+
+        updated = model.update_file_comment(0, "")
+        assert updated is not None
+        assert updated.comment is None
+
+    def test_update_file_comment_out_of_range(self, qtbot: QtBot) -> None:
+        """Returns None for out-of-range row."""
+        model = FileTableModel()
+        assert model.update_file_comment(0, "nope") is None
+        assert model.update_file_comment(-1, "nope") is None

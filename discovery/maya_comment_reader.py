@@ -71,3 +71,43 @@ def load_maya_comments(scene_paths: list[Path]) -> dict[str, str]:
                 comments[path_str] = data[path_str]
 
     return comments
+
+
+def save_maya_comment(scene_path: Path, comment: str) -> None:
+    """Save a version-up comment for a Maya scene path.
+
+    Writes to ``~/.maya_version_up/{base}.json``, matching the storage
+    format used by the Maya version_up script and read by :func:`load_maya_comments`.
+
+    An empty *comment* removes the entry for *scene_path* from the JSON file.
+
+    Args:
+        scene_path: Maya scene file path.
+        comment: Comment text. Empty string removes the comment.
+
+    """
+    base = _parse_base(scene_path.stem)
+    if not base:
+        return
+
+    _COMMENTS_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = _COMMENTS_DIR / f"{base}.json"
+
+    # Load existing data.
+    data: dict[str, str] = {}
+    try:
+        with json_path.open(encoding="utf-8") as f:
+            loaded = json.load(f)  # pyright: ignore[reportAny]
+        if isinstance(loaded, dict):
+            data = loaded  # pyright: ignore[reportUnknownVariableType]
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
+
+    path_str = str(scene_path)
+    if comment:
+        data[path_str] = comment
+    else:
+        _ = data.pop(path_str, None)
+
+    with json_path.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)

@@ -96,6 +96,29 @@ class FileTableModel(QAbstractTableModel):
         except ValueError:
             pass  # File not in list
 
+    def update_file_comment(self, row: int, comment: str) -> SceneFile | None:
+        """Replace the comment on the file at *row* and refresh.
+
+        Returns the updated :class:`SceneFile`, or ``None`` if *row* is out of
+        range.
+        """
+        if row < 0 or row >= len(self._files):
+            return None
+
+        from dataclasses import replace
+
+        old = self._files[row]
+        updated = replace(old, comment=comment or None)
+        self._files[row] = updated
+
+        if old == self._current_default:
+            self._current_default = updated
+
+        top_left = self.index(row, 0)
+        bottom_right = self.index(row, len(self.COLUMNS) - 1)
+        self.dataChanged.emit(top_left, bottom_right)
+        return updated
+
     @override
     def rowCount(
         self, parent: QModelIndex | QPersistentModelIndex | None = None
