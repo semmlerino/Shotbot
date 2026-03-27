@@ -26,7 +26,6 @@ from cache.thumbnail_cache import ThumbnailCache
 
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,
 ]
 
 
