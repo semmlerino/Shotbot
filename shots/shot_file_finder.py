@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from dcc.scene_file import FileType, SceneFile
-from discovery.maya_latest_finder import MayaLatestFinder
+from discovery import MayaLatestFinder
 from threede import ThreeDELatestFinder
 from utils import get_current_username
 from version_mixin import VersionHandlingMixin
@@ -74,7 +74,7 @@ class ShotFileFinder(VersionHandlingMixin):
         """
         from dataclasses import replace
 
-        from discovery.maya_comment_reader import load_maya_comments
+        from discovery import load_maya_comments
 
         paths = MayaLatestFinder.find_all_scenes(shot.workspace_path)
         scene_files = self._paths_to_scene_files(paths, FileType.MAYA)

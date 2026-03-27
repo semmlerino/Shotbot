@@ -283,7 +283,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """
         try:
             # Local application imports
-            from discovery.frame_range_extractor import extract_frame_range
+            from discovery import extract_frame_range
 
             # Convert dictionaries to Shot objects with current timestamp
             current_time = time.time()

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QObject, Qt, Signal
 
-from discovery.latest_file_finder_worker import LatestFileFinderWorker
+from discovery import LatestFileFinderWorker
 from logging_mixin import LoggingMixin
 from timeout_config import TimeoutConfig
 

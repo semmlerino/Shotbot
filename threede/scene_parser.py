@@ -235,7 +235,7 @@ class SceneParser(LoggingMixin):
 
         """
         # Local application imports
-        from discovery.frame_range_extractor import extract_frame_range
+        from discovery import extract_frame_range
 
         # Get file modification time for sorting (0.0 if unavailable)
         try:

@@ -7,7 +7,7 @@ import re
 from typing import ClassVar
 
 # Local application imports
-from discovery.latest_finder_base import BaseLatestFinder
+from discovery import BaseLatestFinder
 
 
 class ThreeDELatestFinder(BaseLatestFinder):

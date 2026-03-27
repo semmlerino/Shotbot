@@ -33,7 +33,7 @@ try:
     from shot_model import Shot
 
     from config import Config
-    from discovery.thumbnail_finders import ThumbnailFinders
+    from discovery import ThumbnailFinders
     from paths.validators import PathValidators
     from utils import FileUtils, get_cache_stats
 

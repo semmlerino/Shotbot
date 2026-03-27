@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 
 # Local application imports
-from discovery.finder_utils import sanitize_username
+from discovery import sanitize_username
 
 
 class TestSanitizeUsername:

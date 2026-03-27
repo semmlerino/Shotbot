@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from discovery.user_sequence_finder import UserSequenceFinder
+from discovery import UserSequenceFinder
 
 
 class TestFindMayaPlayblasts:

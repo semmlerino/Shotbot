@@ -16,7 +16,7 @@ import pytest
 @pytest.fixture
 def file_discovery():
     """Import FileDiscovery at runtime to avoid circular import."""
-    from discovery.file_discovery import FileDiscovery
+    from discovery import FileDiscovery
 
     return FileDiscovery
 

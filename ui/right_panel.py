@@ -269,7 +269,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         """
         try:
-            from discovery.user_sequence_finder import UserSequenceFinder
+            from discovery import UserSequenceFinder
 
             rv_section = self._dcc_accordion.get_section("rv")
             if rv_section is None:

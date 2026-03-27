@@ -20,9 +20,10 @@ import pytest
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
-from discovery.latest_file_finder_worker import LatestFileFinderWorker
+from discovery import LatestFileFinderWorker
 from tests.test_helpers import process_qt_events
 from utils import get_current_username
+
 
 _USERNAME: str = get_current_username()
 

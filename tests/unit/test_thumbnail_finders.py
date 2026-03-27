@@ -7,12 +7,13 @@ from unittest.mock import patch
 
 import pytest
 
+from discovery import ThumbnailFinders
 from discovery.thumbnail_finders import (
-    ThumbnailFinders,
     _extract_frame_number,
     _find_first_jpeg_in_version_tree,
 )
 from utils import get_current_username
+
 
 _USERNAME: str = get_current_username()
 

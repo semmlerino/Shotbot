@@ -10,8 +10,9 @@ from unittest.mock import patch
 import pytest
 
 # Local application imports
-from discovery.maya_latest_finder import MayaLatestFinder
+from discovery import MayaLatestFinder
 from utils import get_current_username
+
 
 _USERNAME: str = get_current_username()
 

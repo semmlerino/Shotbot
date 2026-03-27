@@ -15,7 +15,7 @@ from typing_extensions import Unpack
 
 # Local application imports
 from config import Config
-from discovery.finder_utils import sanitize_username
+from discovery import sanitize_username
 from progress_mixin import ProgressReportingMixin
 from shots.shot_parser import OptimizedShotParser
 from type_definitions import Shot
@@ -177,7 +177,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         """
         # Local application imports
-        from discovery.thumbnail_finders import ThumbnailFinders
+        from discovery import ThumbnailFinders
         from utils import FileUtils
 
         try:

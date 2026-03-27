@@ -13,10 +13,11 @@ from typing import Any
 
 import pytest
 
-from discovery.maya_latest_finder import MayaLatestFinder
+from discovery import MayaLatestFinder
 from threede import ThreeDELatestFinder
 from utils import get_current_username
 from version_mixin import VersionHandlingMixin
+
 
 _USERNAME: str = get_current_username()
 

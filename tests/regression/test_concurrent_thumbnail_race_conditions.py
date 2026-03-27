@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from discovery.thumbnail_finders import ThumbnailFinders
+from discovery import ThumbnailFinders
 
 # Local application imports
 from paths.validators import (  # type: ignore[reportPrivateUsage]

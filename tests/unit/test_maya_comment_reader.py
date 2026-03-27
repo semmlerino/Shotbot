@@ -7,11 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from discovery.maya_comment_reader import (
-    _parse_base,
-    load_maya_comments,
-    save_maya_comment,
-)
+from discovery import load_maya_comments, save_maya_comment
+from discovery.maya_comment_reader import _parse_base
 
 
 pytestmark = [pytest.mark.unit]

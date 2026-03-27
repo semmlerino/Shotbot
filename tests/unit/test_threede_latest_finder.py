@@ -10,6 +10,7 @@ from pathlib import Path
 from threede import ThreeDELatestFinder
 from utils import get_current_username
 
+
 _USERNAME: str = get_current_username()
 
 
