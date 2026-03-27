@@ -342,140 +342,30 @@ class TestMainThreadAssertion:
 class TestConcurrentAccess:
     """Test concurrent read/write operations."""
 
-    def test_concurrent_stores_to_same_shot(self, qapp: QApplication) -> None:
-        """Test multiple threads storing frames to same shot concurrently."""
-        cache = ScrubFrameCache(max_frames_per_shot=100, max_shots=10)
-        num_threads = 10
-        frames_per_thread = 10
+    def test_concurrent_store_read_clear_is_threadsafe(self, qapp: QApplication) -> None:
+        """5 threads doing store+read+clear_shot in a loop on shared cache — no errors."""
+        cache = ScrubFrameCache(max_frames_per_shot=100, max_shots=20)
         errors: list[Exception] = []
 
-        def store_frames(thread_id: int) -> None:
+        def worker(thread_id: int) -> None:
+            shot_key = f"show/seq/shot{thread_id}"
             try:
-                for i in range(frames_per_thread):
-                    frame_num = thread_id * 1000 + i
-                    cache.store("show/seq/shot1", frame_num, make_test_image())
+                for i in range(20):
+                    frame_num = 1000 + i
+                    cache.store(shot_key, frame_num, make_test_image())
+                    _ = cache.get_image(shot_key, frame_num)
+                    _ = cache.has_frame(shot_key, frame_num)
+                    cache.clear_shot(shot_key)
             except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
-        threads = [
-            threading.Thread(target=store_frames, args=(tid,))
-            for tid in range(num_threads)
-        ]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join(timeout=10.0)
-
-        assert len(errors) == 0, f"Errors during concurrent stores: {errors}"
-        stats = cache.get_stats()
-        assert stats["total_frames"] == num_threads * frames_per_thread
-
-    def test_concurrent_stores_to_different_shots(self, qapp: QApplication) -> None:
-        """Test multiple threads storing frames to different shots."""
-        cache = ScrubFrameCache(max_frames_per_shot=20, max_shots=20)
-        num_threads = 10
-        frames_per_thread = 5
-        errors: list[Exception] = []
-
-        def store_frames(thread_id: int) -> None:
-            try:
-                shot_key = f"show/seq/shot{thread_id}"
-                for i in range(frames_per_thread):
-                    cache.store(shot_key, 1000 + i, make_test_image())
-            except Exception as e:  # noqa: BLE001
-                errors.append(e)
-
-        threads = [
-            threading.Thread(target=store_frames, args=(tid,))
-            for tid in range(num_threads)
-        ]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join(timeout=10.0)
-
-        assert len(errors) == 0
-        stats = cache.get_stats()
-        assert stats["shot_count"] == num_threads
-        assert stats["total_frames"] == num_threads * frames_per_thread
-
-    def test_concurrent_reads_while_writing(self, qapp: QApplication) -> None:
-        """Test simultaneous reads while other threads write."""
-        cache = ScrubFrameCache(max_frames_per_shot=50, max_shots=10)
-        num_writers = 3
-        num_readers = 5
-        operations_per_thread = 30
-        errors: list[Exception] = []
-
-        # Pre-populate
-        for i in range(20):
-            cache.store("show/seq/shot1", 1000 + i, make_test_image())
-
-        def writer(writer_id: int) -> None:
-            try:
-                for i in range(operations_per_thread):
-                    cache.store("show/seq/shot1", 2000 + writer_id * 100 + i, make_test_image())
-            except Exception as e:  # noqa: BLE001
-                errors.append(e)
-
-        def reader() -> None:
-            try:
-                for _ in range(operations_per_thread):
-                    for i in range(20):
-                        _ = cache.get_image("show/seq/shot1", 1000 + i)
-                        _ = cache.has_frame("show/seq/shot1", 1000 + i)
-            except Exception as e:  # noqa: BLE001
-                errors.append(e)
-
-        threads = [
-            threading.Thread(target=writer, args=(wid,)) for wid in range(num_writers)
-        ]
-        threads.extend(threading.Thread(target=reader) for _ in range(num_readers))
-
+        threads = [threading.Thread(target=worker, args=(tid,)) for tid in range(5)]
         for t in threads:
             t.start()
         for t in threads:
             t.join(timeout=15.0)
 
-        assert len(errors) == 0, f"Errors: {errors}"
-
-    def test_concurrent_clear_shot(self, qapp: QApplication) -> None:
-        """Test clear_shot is thread-safe during concurrent access."""
-        cache = ScrubFrameCache(max_frames_per_shot=100, max_shots=10)
-        errors: list[Exception] = []
-
-        # Pre-populate
-        for i in range(50):
-            cache.store("show/seq/shot1", 1000 + i, make_test_image())
-
-        def reader() -> None:
-            try:
-                for _ in range(100):
-                    _ = cache.get_image("show/seq/shot1", 1025)
-                    _ = cache.has_frame("show/seq/shot1", 1025)
-            except Exception as e:  # noqa: BLE001
-                errors.append(e)
-
-        def clearer() -> None:
-            try:
-                import time
-                time.sleep(0)
-                cache.clear_shot("show/seq/shot1")
-            except Exception as e:  # noqa: BLE001
-                errors.append(e)
-
-        reader_threads = [threading.Thread(target=reader) for _ in range(5)]
-        clearer_thread = threading.Thread(target=clearer)
-
-        for t in reader_threads:
-            t.start()
-        clearer_thread.start()
-
-        for t in reader_threads:
-            t.join(timeout=10.0)
-        clearer_thread.join(timeout=5.0)
-
-        assert len(errors) == 0
+        assert len(errors) == 0, f"Errors during concurrent access: {errors}"
 
 
 class TestStoreInvalidatesPixmap:

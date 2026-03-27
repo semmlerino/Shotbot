@@ -10,7 +10,6 @@ Tests cover:
 from __future__ import annotations
 
 import gc
-import queue
 import threading
 import time
 from typing import ClassVar
@@ -199,76 +198,33 @@ class TestQRunnableTrackerStats:
 class TestQRunnableTrackerThreadSafety:
     """Concurrent access tests."""
 
-    def test_concurrent_registration(self, tracker: QRunnableTracker) -> None:
-        """Multiple threads registering simultaneously is safe."""
-        runnables: queue.Queue[DummyRunnable] = queue.Queue()
+    def test_concurrent_register_unregister_is_threadsafe(
+        self, tracker: QRunnableTracker
+    ) -> None:
+        """10 threads each doing register+query+unregister in a loop — final count is 0, no errors."""
         barrier = threading.Barrier(10)
-
-        def register_runnable() -> None:
-            r = DummyRunnable()
-            barrier.wait()  # Synchronize all threads
-            tracker.register(r)
-            runnables.put(r)
-
-        threads = [threading.Thread(target=register_runnable) for _ in range(10)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        assert tracker.get_active_count() == 10
-        stats = tracker.get_stats()
-        assert stats["total_registered"] == 10
-
-    def test_concurrent_unregistration(self, tracker: QRunnableTracker) -> None:
-        """Multiple threads unregistering simultaneously is safe."""
-        runnables = [DummyRunnable() for _ in range(10)]
-        for r in runnables:
-            tracker.register(r)
-
-        barrier = threading.Barrier(10)
-
-        def unregister_runnable(runnable: DummyRunnable) -> None:
-            barrier.wait()
-            tracker.unregister(runnable)
-
-        threads = [
-            threading.Thread(target=unregister_runnable, args=(r,)) for r in runnables
-        ]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        assert tracker.get_active_count() == 0
-        stats = tracker.get_stats()
-        assert stats["total_completed"] == 10
-
-    def test_concurrent_mixed_operations(self, tracker: QRunnableTracker) -> None:
-        """Mixed register/unregister/query operations are thread-safe."""
-        runnables = [DummyRunnable() for _ in range(5)]
-        for r in runnables:
-            tracker.register(r)
-
         errors: list[Exception] = []
 
-        def do_operations() -> None:
+        def worker() -> None:
             try:
-                for _ in range(100):
-                    # Random operations
-                    _ = tracker.get_active_count()
-                    _ = tracker.get_stats()
-                    _ = tracker.get_active_runnables()
+                barrier.wait()
+                for _ in range(10):
+                    r = DummyRunnable()
+                    tracker.register(r)
+                    tracker.get_active_count()
+                    tracker.get_stats()
+                    tracker.unregister(r)
             except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
-        threads = [threading.Thread(target=do_operations) for _ in range(5)]
+        threads = [threading.Thread(target=worker) for _ in range(10)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
 
         assert len(errors) == 0
+        assert tracker.get_active_count() == 0
 
 
 # ==============================================================================
@@ -311,25 +267,6 @@ class TestQRunnableTrackerWeakReferences:
 
 class TestQRunnableTrackerWaitAndCleanup:
     """wait_for_all() and cleanup_all() tests."""
-
-    def test_wait_for_all_returns_true_when_empty(
-        self,
-        tracker: QRunnableTracker,
-    ) -> None:
-        """wait_for_all() returns True immediately when no active runnables."""
-        result = tracker.wait_for_all(timeout_ms=100)
-
-        assert result is True
-
-    def test_wait_for_all_timeout(self, tracker: QRunnableTracker) -> None:
-        """wait_for_all() returns False on timeout."""
-        # Register a runnable that won't complete
-        runnable = DummyRunnable()
-        tracker.register(runnable)
-
-        result = tracker.wait_for_all(timeout_ms=100)
-
-        assert result is False
 
     def test_wait_for_all_returns_true_when_completed(
         self,

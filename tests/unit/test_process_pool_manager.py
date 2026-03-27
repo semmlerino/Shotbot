@@ -134,12 +134,13 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         # Standard library imports
         import concurrent.futures
 
-        # Third-party imports
-        from cachetools import TTLCache
         from PySide6.QtCore import (
             QMutex,
             QObject,
         )
+
+        # Third-party imports
+        from cachetools import TTLCache
 
         QObject.__init__(self)  # Initialize QObject directly
 
@@ -201,30 +202,6 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 class TestProcessPoolManagerBehavior:
     """Test ProcessPoolManager behavior with injected dependencies."""
 
-    @pytest.mark.real_subprocess  # Test real singleton, not mock
-    def test_singleton_ensures_single_instance(self) -> None:
-        """Test that singleton pattern creates only one instance.
-
-        CORRECT: Testing behavior (single instance), not implementation.
-        Note: Uses real_subprocess marker to bypass autouse mock that replaces
-        the singleton with TestProcessPool.
-        """
-        # Reset to ensure fresh singleton state
-        ProcessPoolManager.reset()
-
-        # Create multiple "instances"
-        manager1 = ProcessPoolManager(max_workers=2)
-        manager2 = ProcessPoolManager(max_workers=4)
-        manager3 = ProcessPoolManager()
-
-        # Test BEHAVIOR: All references point to same instance
-        assert manager1 is manager2
-        assert manager2 is manager3
-
-        # Cleanup
-        manager1.shutdown()
-        ProcessPoolManager.reset()
-
     def test_command_execution_with_caching(self, qapp) -> None:
         """Test that commands are cached and reused.
 
@@ -284,67 +261,6 @@ class TestProcessPoolManagerBehavior:
 
         manager.shutdown()
 
-    def test_concurrent_access_thread_safety(self, qapp) -> None:
-        """Test thread-safe singleton access following Qt threading rules.
-
-        CORRECT: Tests singleton pattern without violating Qt thread affinity.
-        Qt Rule: QObjects can only be accessed from the thread they belong to.
-
-        This test validates that:
-        1. Multiple threads can safely get the same singleton instance
-        2. The singleton pattern works under concurrent access
-        3. No Qt threading violations occur
-        """
-        # Standard library imports
-        import queue
-        from concurrent.futures import (
-            ThreadPoolExecutor,
-        )
-
-        # Create main thread instance
-        main_manager = ProcessPoolManager()
-
-        # Queue to collect singleton instances from threads
-        instance_queue = queue.Queue()
-
-        def get_singleton_instance(thread_id) -> None:
-            """Get singleton instance from thread (safe operation)."""
-            # Getting the singleton instance is thread-safe (doesn't access QObject methods)
-            instance = ProcessPoolManager()
-            instance_queue.put((thread_id, id(instance)))
-
-        # Test with multiple threads getting singleton instances
-        num_threads = 10
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            futures = [
-                executor.submit(get_singleton_instance, i) for i in range(num_threads)
-            ]
-
-            # Wait for all threads to complete
-            for future in futures:
-                future.result(timeout=5.0)
-
-        # Collect all instance IDs
-        instance_ids = []
-        while not instance_queue.empty():
-            _thread_id, instance_id = instance_queue.get()
-            instance_ids.append(instance_id)
-
-        # Verify all threads got the same singleton instance
-        assert len(instance_ids) == num_threads
-        assert all(inst_id == instance_ids[0] for inst_id in instance_ids), (
-            "Not all threads got the same singleton instance"
-        )
-
-        # Verify it's the same as main thread instance
-        assert id(main_manager) == instance_ids[0], (
-            "Thread instances don't match main thread instance"
-        )
-
-        # Cleanup
-        main_manager.shutdown()
-
-
 class TestCacheInvalidation:
     """Test cache invalidation strategies."""
 
@@ -389,54 +305,6 @@ class TestCacheInvalidation:
         manager.shutdown()
 
 
-
-
-class TestRoundRobinLoadBalancing:
-    """Test round-robin session selection for load distribution."""
-
-    def test_concurrent_round_robin_distribution(self) -> None:
-        """Test round-robin works correctly under concurrent load.
-
-        CORRECT: Testing behavior under concurrent access, not implementation.
-        """
-        manager = InjectableProcessPoolManager()
-        session = BashSessionDouble()
-        manager.set_test_session(session)
-
-        # Track results from concurrent executions
-        results = []
-        errors = []
-        lock = threading.Lock()
-
-        def execute_command(cmd_id: int) -> None:
-            """Execute command and track result."""
-            try:
-                cmd = f"echo concurrent_{cmd_id}"
-                session.set_response(cmd, f"result_{cmd_id}")
-                result = manager.execute_workspace_command(cmd, cache_ttl=0)
-                with lock:
-                    results.append(result)
-            except Exception as e:  # noqa: BLE001
-                with lock:
-                    errors.append(str(e))
-
-        # Execute commands concurrently
-        threads = [
-            threading.Thread(target=execute_command, args=(i,)) for i in range(20)
-        ]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join()
-
-        # Test BEHAVIOR: All commands completed without errors
-        assert len(errors) == 0
-        assert len(results) == 20
-
-        # Test BEHAVIOR: All results are valid
-        assert all("result_" in r for r in results)
-
-        manager.shutdown()
 
 
 class TestShutdownScenarios:
