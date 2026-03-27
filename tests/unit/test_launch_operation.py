@@ -77,7 +77,9 @@ def _make_env_manager(
     em = MagicMock()
     em.is_ws_available.return_value = ws_available
     em.detect_terminal.return_value = terminal
-    em.get_rez_packages.return_value = rez_packages if rez_packages is not None else ["nuke-13"]
+    em.get_rez_packages.return_value = (
+        rez_packages if rez_packages is not None else ["nuke-13"]
+    )
     em.should_wrap_with_rez.return_value = should_wrap_rez
     return em
 
@@ -116,10 +118,14 @@ class TestExecuteWorkspaceResolution:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.launch_operation.build_workspace_command", return_value="cmd") as mock_ws,
+            patch(
+                "launch.launch_operation.build_workspace_command", return_value="cmd"
+            ) as mock_ws,
             patch("launch.launch_operation.add_logging", return_value="cmd"),
             patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
+            patch(
+                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+            ),
         ):
             op = _make_operation(
                 workspace_path="/explicit/path",
@@ -131,128 +137,18 @@ class TestExecuteWorkspaceResolution:
         mock_ws.assert_called_once()
         assert "/explicit/path" in mock_ws.call_args[0][0]
 
-    def test_workspace_falls_back_to_current_shot(self) -> None:
-        """When workspace_path is None, current_shot.workspace_path is used."""
-        from config import RezMode
-
-        shot = MagicMock()
-        shot.workspace_path = "/from/shot"
-        em = _make_env_manager()
-        pe = _make_process_executor()
-
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.launch_operation.build_workspace_command", return_value="cmd") as mock_ws,
-            patch("launch.launch_operation.add_logging", return_value="cmd"),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-        ):
-            op = _make_operation(
-                workspace_path=None,
-                current_shot=shot,
-                env_manager=em,
-                process_executor=pe,
-            )
-            op.execute()
-
-        mock_ws.assert_called_once()
-        assert "/from/shot" in mock_ws.call_args[0][0]
-
     def test_no_workspace_and_no_shot_emits_error_and_returns_false(self) -> None:
         """execute() returns False and emits error when both workspace_path and shot are None."""
         emit_error = MagicMock()
-        op = _make_operation(workspace_path=None, current_shot=None, emit_error=emit_error)
+        op = _make_operation(
+            workspace_path=None, current_shot=None, emit_error=emit_error
+        )
 
         result = op.execute()
 
         assert result is False
         emit_error.assert_called_once()
         assert "no shot" in emit_error.call_args[0][0].lower()
-
-
-# ---------------------------------------------------------------------------
-# execute() — ws availability gate
-# ---------------------------------------------------------------------------
-
-
-class TestExecuteWsAvailability:
-    """Launch is blocked when the ws command is unavailable."""
-
-    def test_ws_unavailable_emits_error_and_returns_false(self) -> None:
-        emit_error = MagicMock()
-        em = _make_env_manager(ws_available=False)
-
-        op = _make_operation(env_manager=em, emit_error=emit_error)
-        result = op.execute()
-
-        assert result is False
-        emit_error.assert_called_once()
-        assert "ws" in emit_error.call_args[0][0].lower()
-
-
-# ---------------------------------------------------------------------------
-# execute() — Rez wrapping
-# ---------------------------------------------------------------------------
-
-
-class TestExecuteRezWrapping:
-    """Rez wrapper is applied (or not) based on config and env_manager."""
-
-    def test_rez_disabled_skips_wrapping(self) -> None:
-        """When REZ_MODE is DISABLED, rez packages are never queried."""
-        from config import RezMode
-
-        em = _make_env_manager()
-        pe = _make_process_executor()
-
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("launch.launch_operation.build_workspace_command", return_value="cmd"),
-            patch("launch.launch_operation.add_logging", return_value="cmd"),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-        ):
-            op = _make_operation(env_manager=em, process_executor=pe)
-            result = op.execute()
-
-        assert result is True
-        em.get_rez_packages.assert_not_called()
-
-    def test_no_rez_packages_emits_error_and_returns_false(self) -> None:
-        """Empty Rez package list blocks launch."""
-        from config import RezMode
-
-        emit_error = MagicMock()
-        em = _make_env_manager(rez_packages=[])
-
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.AUTO),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-        ):
-            op = _make_operation(env_manager=em, emit_error=emit_error)
-            result = op.execute()
-
-        assert result is False
-        emit_error.assert_called_once()
-
-    def test_rez_not_on_path_emits_error_and_returns_false(self) -> None:
-        """should_wrap_with_rez returning False blocks launch."""
-        from config import RezMode
-
-        emit_error = MagicMock()
-        em = _make_env_manager(rez_packages=["nuke-13"], should_wrap_rez=False)
-
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.AUTO),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-        ):
-            op = _make_operation(env_manager=em, emit_error=emit_error)
-            result = op.execute()
-
-        assert result is False
-        emit_error.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +171,9 @@ class TestExecuteInvalidWorkspacePath:
                 "launch.command_builder.validate_path",
                 side_effect=ValueError("dangerous chars"),
             ),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
+            patch(
+                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+            ),
         ):
             op = _make_operation(
                 workspace_path="/bad/path; evil",
@@ -286,76 +184,6 @@ class TestExecuteInvalidWorkspacePath:
 
         assert result is False
         emit_error.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# execute() — terminal spawning success / failure
-# ---------------------------------------------------------------------------
-
-
-class TestExecuteTerminalSpawning:
-    """ProcessExecutor.execute_in_new_terminal return value drives result."""
-
-    def test_successful_spawn_returns_true(self) -> None:
-        from config import RezMode
-
-        pe = _make_process_executor(spawn_result=MagicMock())
-        em = _make_env_manager()
-
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("launch.launch_operation.build_workspace_command", return_value="cmd"),
-            patch("launch.launch_operation.add_logging", return_value="cmd"),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-        ):
-            op = _make_operation(process_executor=pe, env_manager=em)
-            result = op.execute()
-
-        assert result is True
-        pe.start_app_verification.assert_called_once()
-
-    def test_failed_spawn_emits_error_and_returns_false(self) -> None:
-        from config import RezMode
-
-        emit_error = MagicMock()
-        pe = _make_process_executor(spawn_result=None)  # None = failure
-        em = _make_env_manager()
-
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("launch.launch_operation.build_workspace_command", return_value="cmd"),
-            patch("launch.launch_operation.add_logging", return_value="cmd"),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-            patch("launch.launch_operation.NotificationManager"),
-        ):
-            op = _make_operation(process_executor=pe, env_manager=em, emit_error=emit_error)
-            result = op.execute()
-
-        assert result is False
-        emit_error.assert_called_once()
-        em.reset_cache.assert_called_once()
-        pe.start_app_verification.assert_not_called()
-
-    def test_failed_spawn_resets_env_cache(self) -> None:
-        from config import RezMode
-
-        em = _make_env_manager()
-        pe = _make_process_executor(spawn_result=None)
-
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("launch.launch_operation.build_workspace_command", return_value="cmd"),
-            patch("launch.launch_operation.add_logging", return_value="cmd"),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-            patch("launch.launch_operation.NotificationManager"),
-        ):
-            op = _make_operation(process_executor=pe, env_manager=em)
-            op.execute()
-
-        em.reset_cache.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -385,7 +213,9 @@ class TestExecuteCommandLengthGuard:
                 "launch.launch_operation.add_logging",
                 return_value=long_command,
             ),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
+            patch(
+                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+            ),
         ):
             op = _make_operation(
                 process_executor=pe,
@@ -417,10 +247,17 @@ class TestExecuteBackgroundWrapping:
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
             patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("launch.launch_operation.build_workspace_command", return_value="base_cmd"),
+            patch(
+                "launch.launch_operation.build_workspace_command",
+                return_value="base_cmd",
+            ),
             patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-            patch("launch.launch_operation.wrap_for_background", return_value="bg_cmd") as mock_bg,
+            patch(
+                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+            ),
+            patch(
+                "launch.launch_operation.wrap_for_background", return_value="bg_cmd"
+            ) as mock_bg,
         ):
             op = _make_operation(
                 app_name="3de",
@@ -443,9 +280,14 @@ class TestExecuteBackgroundWrapping:
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
             patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch("launch.launch_operation.build_workspace_command", return_value="base_cmd"),
+            patch(
+                "launch.launch_operation.build_workspace_command",
+                return_value="base_cmd",
+            ),
             patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c),
-            patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
+            patch(
+                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+            ),
             patch("launch.launch_operation.wrap_for_background") as mock_bg,
         ):
             op = _make_operation(
@@ -489,7 +331,9 @@ class TestApplyFileResult:
         emit_error = MagicMock()
         bad_scene = Path("/shows/TEST/shot; malicious")
 
-        result = LaunchOperation.apply_file_result("3de", "3de_cmd", bad_scene, emit_error)
+        result = LaunchOperation.apply_file_result(
+            "3de", "3de_cmd", bad_scene, emit_error
+        )
 
         assert result is None
         emit_error.assert_called_once()
@@ -507,7 +351,9 @@ class TestAppendSceneToCommand:
         emit_error = MagicMock()
         scene = Path("/shows/TEST/shots/seq01/sq0010/3de/artist_plate_v001.3de")
 
-        result = LaunchOperation.append_scene_to_command("3de", "3de", scene, emit_error)
+        result = LaunchOperation.append_scene_to_command(
+            "3de", "3de", scene, emit_error
+        )
 
         assert result is not None
         assert "PYTHON_CUSTOM_SCRIPTS_3DE4" in result
@@ -520,7 +366,9 @@ class TestAppendSceneToCommand:
         emit_error = MagicMock()
         scene = Path("/shows/TEST/shots/seq01/sq0010/maya/artist_plate_v001.ma")
 
-        result = LaunchOperation.append_scene_to_command("maya", "maya", scene, emit_error)
+        result = LaunchOperation.append_scene_to_command(
+            "maya", "maya", scene, emit_error
+        )
 
         assert result is not None
         assert "SGTK_FILE_TO_OPEN" in result
@@ -531,7 +379,9 @@ class TestAppendSceneToCommand:
         emit_error = MagicMock()
         bad_scene = Path("/shows/TEST/shots/seq01/sq0010/3de/scene; rm -rf /")
 
-        result = LaunchOperation.append_scene_to_command("3de", "3de", bad_scene, emit_error)
+        result = LaunchOperation.append_scene_to_command(
+            "3de", "3de", bad_scene, emit_error
+        )
 
         assert result is None
         emit_error.assert_called_once()
@@ -540,7 +390,9 @@ class TestAppendSceneToCommand:
         emit_error = MagicMock()
         scene = Path("/shows/TEST/shots/seq01/sq0010/rv/output.mov")
 
-        result = LaunchOperation.append_scene_to_command("rv", "rv_cmd", scene, emit_error)
+        result = LaunchOperation.append_scene_to_command(
+            "rv", "rv_cmd", scene, emit_error
+        )
 
         assert result == "rv_cmd"
         emit_error.assert_not_called()

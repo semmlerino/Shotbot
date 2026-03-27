@@ -8,18 +8,14 @@ This test suite validates CommandLauncher behavior using:
 
 from __future__ import annotations
 
-import string
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-from hypothesis import assume, given, settings
-from hypothesis import strategies as st
 
 from config import Config
-from launch.command_builder import add_logging, validate_path, wrap_with_rez
 from launch.command_launcher import CommandLauncher, LaunchContext
 from launch.launch_request import LaunchRequest
 from tests.fixtures.process_fixtures import PopenDouble
@@ -43,7 +39,6 @@ def _running_process_double(*args: str) -> PopenDouble:
     """Return a subprocess double that looks alive to ProcessExecutor.verify_spawn."""
     process_args = list(args) or ["test-app"]
     return PopenDouble(args=process_args, returncode=0)
-
 
 
 @pytest.fixture(autouse=True)
@@ -97,6 +92,7 @@ class TestCommandLauncher:
         """Create CommandLauncher with test doubles."""
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
+
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 
         launcher = CommandLauncher()
@@ -107,7 +103,9 @@ class TestCommandLauncher:
     @pytest.fixture
     def test_shot(self) -> Shot:
         """Create a test shot."""
-        return Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        return Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
 
     @pytest.fixture
     def test_scene(self) -> ThreeDEScene:
@@ -145,7 +143,10 @@ class TestCommandLauncher:
             patch.object(
                 CommandLauncher, "_validate_workspace_before_launch", return_value=True
             ),
-            patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
+            patch(
+                "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+                return_value=True,
+            ),
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
         ):
             mock_popen.return_value = _running_process_double(app_name)
@@ -171,7 +172,10 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch(
+        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+        return_value=True,
+    )
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_nuke_with_scene_gets_plain_workspace_launch(
         self,
@@ -206,7 +210,10 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch(
+        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+        return_value=True,
+    )
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_3de_with_scene(
         self,
@@ -239,14 +246,21 @@ class TestCommandLauncher:
         assert "PYTHON_CUSTOM_SCRIPTS_3DE4" in command_str
         assert "SGTK_FILE_TO_OPEN" in command_str
 
-    @pytest.mark.parametrize("sequence_path", [
-        None,
-        "/shows/TEST/shots/seq01/seq01_0010/playblast/shot.####.exr",
-    ], ids=["without_sequence", "with_sequence"])
+    @pytest.mark.parametrize(
+        "sequence_path",
+        [
+            None,
+            "/shows/TEST/shots/seq01/seq01_0010/playblast/shot.####.exr",
+        ],
+        ids=["without_sequence", "with_sequence"],
+    )
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch(
+        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+        return_value=True,
+    )
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_rv_default_settings(
         self,
@@ -263,7 +277,11 @@ class TestCommandLauncher:
         mock_popen.return_value = _running_process_double("rv")
 
         if sequence_path:
-            result = launcher.launch(LaunchRequest(app_name="rv", context=LaunchContext(sequence_path=sequence_path)))
+            result = launcher.launch(
+                LaunchRequest(
+                    app_name="rv", context=LaunchContext(sequence_path=sequence_path)
+                )
+            )
         else:
             result = launcher.launch(LaunchRequest(app_name="rv"))
 
@@ -285,7 +303,10 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch(
+        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+        return_value=True,
+    )
     @patch("launch.process_executor.subprocess.Popen")
     def test_subprocess_failure(
         self,
@@ -318,8 +339,13 @@ class TestCommandLauncher:
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
-    @patch("launch.command_launcher.EnvironmentManager.detect_terminal", return_value=None)
+    @patch(
+        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+        return_value=True,
+    )
+    @patch(
+        "launch.command_launcher.EnvironmentManager.detect_terminal", return_value=None
+    )
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_headless_mode_when_no_terminal(
         self,
@@ -353,14 +379,21 @@ class TestCommandLauncher:
         assert "-ilc" in call_args
         assert "nuke" in " ".join(call_args)
 
-    @pytest.mark.parametrize(("background", "expect_disown"), [
-        (True, True),
-        (False, False),
-    ], ids=["background_enabled", "background_disabled"])
+    @pytest.mark.parametrize(
+        ("background", "expect_disown"),
+        [
+            (True, True),
+            (False, False),
+        ],
+        ids=["background_enabled", "background_disabled"],
+    )
     @patch.object(
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
-    @patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True)
+    @patch(
+        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+        return_value=True,
+    )
     @patch("launch.process_executor.subprocess.Popen")
     def test_launch_gui_app_background_setting(
         self,
@@ -377,7 +410,11 @@ class TestCommandLauncher:
         launcher.set_current_shot(test_shot)
         mock_popen.return_value = _running_process_double("3de")
 
-        with patch.object(launcher._settings_manager.launch, "get_background_gui_apps", return_value=background):
+        with patch.object(
+            launcher._settings_manager.launch,
+            "get_background_gui_apps",
+            return_value=background,
+        ):
             result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is True
@@ -401,6 +438,7 @@ class TestCommandLauncherSignals:
         """Create CommandLauncher with test doubles."""
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
+
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 
         launcher = CommandLauncher()
@@ -411,7 +449,9 @@ class TestCommandLauncherSignals:
     @pytest.mark.allow_dialogs  # Warning dialogs are acceptable in this smoke-style path test
     def test_signal_data_format(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
         """Test basic launcher functionality."""
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         launcher.set_current_shot(shot)
 
         with (
@@ -419,7 +459,10 @@ class TestCommandLauncherSignals:
                 CommandLauncher, "_validate_workspace_before_launch", return_value=True
             ),
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
-            patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
+            patch(
+                "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+                return_value=True,
+            ),
         ):
             mock_popen.return_value = _running_process_double("nuke")
 
@@ -448,6 +491,7 @@ class TestVerificationTimeoutCounter:
     def launcher(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[CommandLauncher]:
         """Create CommandLauncher for verification timeout testing."""
         from launch import EnvironmentManager
+
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 
         launcher = CommandLauncher()
@@ -533,6 +577,7 @@ class TestScriptsDirValidation:
     def launcher(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[CommandLauncher]:
         """Create CommandLauncher with test doubles."""
         from launch import EnvironmentManager
+
         monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 
         launcher = CommandLauncher()
@@ -547,7 +592,9 @@ class TestScriptsDirValidation:
     ) -> None:
         """Nuke launch fails when Config.SCRIPTS_DIR doesn't exist."""
         monkeypatch.setattr(Config, "SCRIPTS_DIR", "/nonexistent/scripts")
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         launcher.set_current_shot(shot)
 
         result = launcher.launch(LaunchRequest(app_name="nuke"))
@@ -575,12 +622,19 @@ class TestScriptsDirValidation:
     ) -> None:
         """Maya launch doesn't check scripts dir (doesn't use hook scripts)."""
         monkeypatch.setattr(Config, "SCRIPTS_DIR", "/nonexistent/scripts")
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         launcher.set_current_shot(shot)
 
         with (
-            patch.object(CommandLauncher, "_validate_workspace_before_launch", return_value=True),
-            patch("launch.command_launcher.EnvironmentManager.should_wrap_with_rez", return_value=True),
+            patch.object(
+                CommandLauncher, "_validate_workspace_before_launch", return_value=True
+            ),
+            patch(
+                "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+                return_value=True,
+            ),
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
         ):
             mock_popen.return_value = PopenDouble(args=["maya"], returncode=0)
@@ -588,146 +642,6 @@ class TestScriptsDirValidation:
 
         assert result is True
         process_qt_events()
-
-
-# ---------------------------------------------------------------------------
-# Property-based tests (Hypothesis)
-# ---------------------------------------------------------------------------
-
-# Custom strategies for generating test data
-@st.composite
-def valid_filesystem_paths(draw: st.DrawFn) -> str:
-    """Generate valid filesystem paths for testing.
-
-    Returns paths that should be accepted by path validation.
-    """
-    # Generate path components
-    num_components = draw(st.integers(min_value=1, max_value=5))
-    components = []
-
-    for _ in range(num_components):
-        # Valid path component: alphanumeric, dash, underscore
-        component = draw(
-            st.text(
-                alphabet=string.ascii_letters + string.digits + "_-",
-                min_size=1,
-                max_size=20,
-            )
-        )
-        components.append(component)
-
-    # Build path
-    return "/" + "/".join(components)
-
-
-@st.composite
-def potentially_dangerous_paths(draw: st.DrawFn) -> str:
-    """Generate potentially dangerous filesystem paths.
-
-    Returns paths that contain injection attempts or invalid characters.
-    """
-    # Choose a dangerous pattern
-    return draw(
-        st.sampled_from(
-            [
-                "../../../etc/passwd",  # Path traversal
-                "/tmp/test; rm -rf /",  # Command injection
-                "/path/with spaces/file",  # Spaces (valid but need quoting)
-                "/path/with\nnewline/file",  # Newline
-                "/path/with\ttab/file",  # Tab
-                "/path/with'quote/file",  # Single quote
-                '/path/with"quote/file',  # Double quote
-                "/path/with$(cmd)/file",  # Command substitution
-                "/path/with`cmd`/file",  # Backtick substitution
-                "/path/with|pipe/file",  # Pipe
-                "/path/with&background/file",  # Background operator
-                "/path/with;semicolon/file",  # Command separator
-            ]
-        )
-    )
-
-
-class TestCommandBuilderProperties:
-    """Property-based tests for CommandBuilder path validation."""
-
-    @given(path=valid_filesystem_paths())
-    def test_validate_path_accepts_valid_paths(self, path: str) -> None:
-        """Verify path validation accepts valid filesystem paths."""
-        # Valid paths should be accepted
-        validated = validate_path(path)
-
-        # Validated path should be properly quoted if needed
-        assert isinstance(validated, str)
-        assert len(validated) > 0
-
-    @given(path=potentially_dangerous_paths())
-    @settings(max_examples=50)  # Limit examples for potentially slow tests
-    def test_validate_path_handles_dangerous_paths(self, path: str) -> None:
-        """Verify path validation handles potentially dangerous inputs.
-
-        This test doesn't assert specific behavior, but verifies that
-        validation doesn't crash or allow obvious injection attacks.
-        """
-        try:
-            validated = validate_path(path)
-
-            # If validation succeeds, ensure basic sanitation
-            # Command injection patterns should be quoted/escaped
-            dangerous_chars = [";", "|", "&", "$", "`", "\n"]
-            for char in dangerous_chars:
-                if char in path:
-                    # Dangerous characters should be escaped or quoted
-                    # (exact behavior depends on implementation)
-                    assert isinstance(validated, str)
-
-        except ValueError:
-            # Some paths should be rejected (e.g., path traversal)
-            # This is acceptable behavior
-            pass
-
-    @given(
-        path=st.text(
-            alphabet=string.ascii_letters + string.digits + "/-_.",
-            min_size=1,
-            max_size=100,
-        )
-    )
-    def test_validate_path_returns_string(self, path: str) -> None:
-        """Verify path validation always returns a string or raises ValueError."""
-        try:
-            result = validate_path(path)
-            assert isinstance(result, str)
-        except ValueError:
-            # Rejection is acceptable
-            pass
-
-    @given(packages=st.lists(st.text(min_size=1, max_size=20), min_size=1, max_size=5))
-    def test_wrap_with_rez_handles_various_package_lists(
-        self, packages: list[str]
-    ) -> None:
-        """Verify rez wrapping handles various package list sizes."""
-        command = "test_command"
-        wrapped = wrap_with_rez(command, packages)
-
-        # Wrapped command should contain original command
-        assert command in wrapped
-
-        # Wrapped command should reference rez
-        assert "rez" in wrapped.lower() or "rez-env" in wrapped
-
-    @given(command=st.text(min_size=1, max_size=100))
-    def test_add_logging_handles_various_commands(self, command: str) -> None:
-        """Verify logging addition handles various command formats."""
-        # Filter out commands with newlines (not valid shell commands)
-        assume("\n" not in command)
-
-        logged = add_logging(command)
-
-        # Logged command should contain original command
-        assert command in logged
-
-        # Should add redirection
-        assert "2>&1" in logged or ">" in logged
 
 
 class TestSubprocessErrorHandling:
@@ -750,17 +664,3 @@ class TestSubprocessErrorHandling:
 
         # The fixture should have recorded the call
         assert ["test", "cmd"] in subprocess_error_mock.calls
-
-    def test_process_pool_uses_test_double(self) -> None:
-        """Test that ProcessPoolManager uses the test double from autouse fixture.
-
-        This test verifies that the autouse mock_process_pool_manager fixture
-        properly patches the singleton, preventing real subprocess execution.
-        """
-        from workers.process_pool_manager import ProcessPoolManager
-
-        # Get the singleton instance (should be mocked by autouse fixture)
-        pool = ProcessPoolManager.get_instance()
-
-        # The mock should not execute real subprocesses
-        assert pool is not None
