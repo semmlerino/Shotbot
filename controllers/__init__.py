@@ -5,14 +5,17 @@ part of the monolithic MainWindow class. Each controller handles a specific
 aspect of functionality with clear separation of concerns.
 
 Controllers:
-    - SettingsController: Manages application settings and preferences
-    - UISetupController: Handles UI initialization and layout setup
-    - ThreeDEController: Manages 3DE scene discovery and handling
-    - ShotController: Handles shot management and model operations
-    - LauncherCoordinator: Manages application launching and custom launchers
+    - CrashRecovery: Manages crash recovery and state restoration
+    - DataEventHandler: Handles data-driven events and updates
+    - FilterCoordinator: Coordinates filtering operations across the application
+    - LaunchCoordinator: Manages application launching and custom launchers
     - RefreshCoordinator: Coordinates shot refresh across tabs
-
-This refactoring follows the established plan in MAINWINDOW_SAFE_REFACTORING_PLAN_DO_NOT_DELETE.md
+    - SettingsController: Manages application settings and preferences
+    - ShotSelectionController: Handles shot selection and navigation
+    - StartupOrchestrator: Orchestrates application startup sequence
+    - ThreeDEController: Manages 3DE scene discovery and handling
+    - ThreeDEWorkerManager: Manages threaded operations for 3DE processing
+    - ThumbnailSizeManager: Manages thumbnail sizing and display
 """
 
 from .refresh_coordinator import RefreshCoordinator
