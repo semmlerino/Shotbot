@@ -77,11 +77,11 @@ class DCCFileTable(QWidget):
         self._current_selected_file: SceneFile | None = None
 
         # UI references populated by _setup_ui
-        self._files_header_btn: QPushButton | None = None
-        self._files_content: QWidget | None = None
-        self._file_table: QTableView | None = None
-        self._file_model: FileTableModel | None = None
-        self._file_table_frame: ResizableFrame | None = None
+        self._files_header_btn: QPushButton
+        self._files_content: QWidget
+        self._file_table: QTableView
+        self._file_model: FileTableModel
+        self._file_table_frame: ResizableFrame
 
         self._setup_ui()
 
@@ -158,8 +158,7 @@ class DCCFileTable(QWidget):
 
     def apply_styles(self) -> None:
         """Apply / refresh styles using the current design system values."""
-        if self._files_header_btn is not None:
-            self._files_header_btn.setStyleSheet(f"""
+        self._files_header_btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: transparent;
                     border: none;
@@ -174,9 +173,8 @@ class DCCFileTable(QWidget):
                 }}
             """)
 
-        if self._file_table is not None:
-            color = self._accent_color
-            self._file_table.setStyleSheet(f"""
+        color = self._accent_color
+        self._file_table.setStyleSheet(f"""
                 QTableView {{
                     background-color: #1e1e1e;
                     alternate-background-color: #232323;
@@ -211,15 +209,13 @@ class DCCFileTable(QWidget):
     def _toggle_files_expanded(self) -> None:
         """Toggle the files subsection expanded state."""
         self._files_expanded = not self._files_expanded
-        if self._files_content is not None:
-            self._files_content.setVisible(self._files_expanded)
+        self._files_content.setVisible(self._files_expanded)
         self._update_files_header()
 
     def _update_files_header(self) -> None:
         """Update files header text with indicator and count."""
-        if self._files_header_btn is not None:
-            indicator = "\u25bc" if self._files_expanded else "\u25b6"
-            self._files_header_btn.setText(f"{indicator}  Files ({self._files_count})")
+        indicator = "\u25bc" if self._files_expanded else "\u25b6"
+        self._files_header_btn.setText(f"{indicator}  Files ({self._files_count})")
 
     def set_files_expanded(self, expanded: bool) -> None:
         """Set the files subsection expanded state.
@@ -230,8 +226,7 @@ class DCCFileTable(QWidget):
         """
         if self._files_expanded != expanded:
             self._files_expanded = expanded
-            if self._files_content is not None:
-                self._files_content.setVisible(expanded)
+            self._files_content.setVisible(expanded)
             self._update_files_header()
 
     def is_files_expanded(self) -> bool:
@@ -249,10 +244,9 @@ class DCCFileTable(QWidget):
             index: The clicked model index.
 
         """
-        if self._file_model is not None:
-            file = self._file_model.get_file(index.row())
-            if file is not None:
-                self._select_file(file)
+        file = self._file_model.get_file(index.row())
+        if file is not None:
+            self._select_file(file)
 
     def _select_file(self, file: SceneFile) -> None:
         """Set *file* as the current selection and notify listeners.
@@ -262,8 +256,7 @@ class DCCFileTable(QWidget):
 
         """
         self._current_selected_file = file
-        if self._file_model is not None:
-            self._file_model.set_current_default(file)
+        self._file_model.set_current_default(file)
         self.file_selected.emit(file)
 
     def _select_and_launch_file(self, file: SceneFile) -> None:
@@ -283,8 +276,6 @@ class DCCFileTable(QWidget):
             index: The double-clicked model index.
 
         """
-        if self._file_model is None:
-            return
         file = self._file_model.get_file(index.row())
         if file is None:
             return
@@ -297,9 +288,6 @@ class DCCFileTable(QWidget):
             pos: Position where context menu was requested.
 
         """
-        if self._file_table is None or self._file_model is None:
-            return
-
         index = self._file_table.indexAt(pos)
         if not index.isValid():
             return
@@ -389,8 +377,7 @@ class DCCFileTable(QWidget):
 
         save_maya_comment(file.path, new_comment)
 
-        if self._file_model is not None:
-            _ = self._file_model.update_file_comment(row, new_comment)
+        _ = self._file_model.update_file_comment(row, new_comment)
 
     # ------------------------------------------------------------------
     # Public data API
@@ -403,16 +390,15 @@ class DCCFileTable(QWidget):
             files: List of scene files to display.
 
         """
-        if self._file_model is not None:
-            self._file_model.set_files(files)
-            self._files_count = len(files)
-            self._update_files_header()
+        self._file_model.set_files(files)
+        self._files_count = len(files)
+        self._update_files_header()
 
-            if files:
-                self._current_selected_file = files[0]
-                self._file_model.set_current_default(files[0])
-            else:
-                self._current_selected_file = None
+        if files:
+            self._current_selected_file = files[0]
+            self._file_model.set_current_default(files[0])
+        else:
+            self._current_selected_file = None
 
     def get_selected_file(self) -> SceneFile | None:
         """Get the currently selected file.
@@ -431,8 +417,7 @@ class DCCFileTable(QWidget):
 
         """
         self._current_selected_file = file
-        if self._file_model is not None:
-            self._file_model.set_current_default(file)
+        self._file_model.set_current_default(file)
 
     def on_file_double_clicked(self, index: QModelIndex) -> None:
         """Handle a double-click on a file row (public wrapper)."""

@@ -6,7 +6,7 @@ tab-activation, crash-recovery, and filter-delegation logic.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import Slot
 
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from threede.grid_view import ThreeDEGridView
 
 
+@final
 class ThreeDESelectionHandler(LoggingMixin):
     """Handles scene selection, double-click, tab, crash recovery and filters.
 

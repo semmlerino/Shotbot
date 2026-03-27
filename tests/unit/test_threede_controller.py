@@ -751,7 +751,7 @@ class TestFilterHandling:
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
         """Test that show filter is applied to proxy model."""
-        controller._on_show_filter_requested("SHOW_A")
+        controller._selection_handler.on_show_filter_requested("SHOW_A")
 
         assert window_double.threede_proxy._show_filter == "SHOW_A"
 
@@ -759,7 +759,7 @@ class TestFilterHandling:
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
         """Test that empty show filter string is normalized to None."""
-        controller._on_show_filter_requested("")
+        controller._selection_handler.on_show_filter_requested("")
 
         assert window_double.threede_proxy._show_filter is None
 
@@ -767,7 +767,7 @@ class TestFilterHandling:
         self, controller: ThreeDEController, window_double: ThreeDETargetDouble
     ) -> None:
         """Test that artist filter is applied to proxy model."""
-        controller._on_artist_filter_requested("artist_a")
+        controller._selection_handler.on_artist_filter_requested("artist_a")
 
         assert window_double.threede_proxy._artist_filter == "artist_a"
 

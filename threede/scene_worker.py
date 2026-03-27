@@ -204,8 +204,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         """
         try:
             # Set thread priority now that thread is running
-            if hasattr(self, "_desired_priority"):
-                self.setPriority(self._desired_priority)
+            self.setPriority(self._desired_priority)
 
             # Create progress reporter in worker thread to prevent race condition
             # This ensures it's created in the correct thread context from the start
@@ -235,7 +234,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 return
 
             # Perform progressive scene discovery
-            scenes = self._discover_scenes_progressive()
+            scenes = self._discover_all_scenes_in_shows()
 
             # Final cancellation check
             if self.should_stop():
@@ -255,19 +254,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             self.error.emit(str(e))
             # Re-raise to trigger worker_error signal from base class
             raise
-
-    def _discover_scenes_progressive(self) -> list[ThreeDEScene]:
-        """Progressive scene discovery with batch processing and detailed progress.
-
-        Returns:
-            List of all discovered ThreeDEScene objects
-
-        """
-        self.logger.info("Starting progressive 3DE scene discovery")
-
-        # Use the efficient file-first discovery
-        # This finds ALL 3DE files in the shows, then filters
-        return self._discover_all_scenes_in_shows()
 
     def _discover_all_scenes_in_shows(self) -> list[ThreeDEScene]:
         """Discover ALL 3DE scenes in the shows using parallel scanning.
@@ -322,11 +308,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             return []
 
         # Keep ALL scenes from other users in the shows where user works
-        other_scenes: list[ThreeDEScene] = []
-        for scene in all_scenes:
-            if self.should_stop():
-                break
-            other_scenes.append(scene)
+        other_scenes = all_scenes
 
         self.logger.info(
             f"Found {len(all_scenes)} total scenes using parallel scan, keeping all {len(other_scenes)} scenes from other users",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import QTimer
 
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 logger = get_module_logger(__name__)
 
 
+@final
 class StartupOrchestrator:
     """Orchestrates the full application startup sequence.
 

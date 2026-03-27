@@ -181,15 +181,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         if not crash_files:
             return None
 
-        # List should already be sorted by modification_time (newest first)
-        # but we'll sort again to be safe
-        sorted_files = sorted(
-            crash_files,
-            key=lambda x: x.modification_time,
-            reverse=True,
-        )
-
-        latest = sorted_files[0]
+        latest = crash_files[0]
         self.logger.info(
             f"Latest crash file: {latest.crash_path.name} (modified: {latest.modification_time})"
         )

@@ -803,7 +803,7 @@ class FileSystemScanner(LoggingMixin):
             return []
 
         excluded_users = excluded_users or set()
-        start_time = time.time()
+        start_time = time.monotonic()
         results: list[tuple[Path, str, str, str, str, str]] = []
         user_results: list[tuple[Path, str, str, str, str, str]] = []
         user_timed_out = False
@@ -860,7 +860,7 @@ class FileSystemScanner(LoggingMixin):
         except Exception:
             self.logger.exception("Error in optimized search")
 
-        elapsed = time.time() - start_time
+        elapsed = time.monotonic() - start_time
         self._log_scan_summary(results, user_results, user_timed_out, elapsed)
 
         return results
@@ -884,7 +884,7 @@ class FileSystemScanner(LoggingMixin):
         excluded_users = excluded_users or set()
 
         self.logger.info("Using Python-based fallback search")
-        start_time = time.time()
+        start_time = time.monotonic()
         file_count = 0
 
         try:
@@ -901,7 +901,7 @@ class FileSystemScanner(LoggingMixin):
         except Exception:
             self.logger.exception("Error in Python fallback search")
 
-        elapsed = time.time() - start_time
+        elapsed = time.monotonic() - start_time
         self.logger.info(f"Python search found {file_count} files in {elapsed:.2f}s")
 
         return results

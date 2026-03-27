@@ -50,7 +50,6 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         # ThreeDEScene-specific state
         self._is_loading = False
-        self._updating_filter = False  # Recursion guard for filter updates
 
         # Connect generic items_updated to scene-specific signal
         _ = self.items_updated.connect(self.scenes_updated)

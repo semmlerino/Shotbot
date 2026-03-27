@@ -26,7 +26,7 @@ from launch.command_builder import (
     wrap_for_background,
     wrap_with_rez,
 )
-from logging_mixin import LoggingMixin
+from logging_mixin import LoggingMixin, get_module_logger
 from managers.notification_manager import NotificationManager
 
 
@@ -36,6 +36,9 @@ if TYPE_CHECKING:
     from managers.settings_manager import SettingsManager
     from nuke import NukeLaunchHandler
     from type_definitions import Shot
+
+
+logger = get_module_logger(__name__)
 
 
 @final
@@ -306,9 +309,7 @@ class LaunchOperation(LoggingMixin):
             return f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {updated}"
 
         # Unsupported app — caller should not reach this path
-        import logging
-
-        logging.getLogger(__name__).warning(
+        logger.warning(
             "append_scene_to_command called for unsupported app: %s", app_name
         )
         return command

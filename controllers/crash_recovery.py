@@ -6,16 +6,17 @@ execution logic used by both ShotSelectionController and ThreeDEController.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from logging_mixin import get_module_logger
 
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 
 def execute_crash_recovery(

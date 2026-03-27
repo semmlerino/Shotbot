@@ -6,7 +6,7 @@ Extracted from ThreeDEController to isolate cache I/O from orchestration logic.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from logging_mixin import LoggingMixin
 from type_definitions import ThreeDEScene
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from threede.scene_model import ThreeDESceneModel
 
 
+@final
 class ThreeDECacheAdapter(LoggingMixin):
     """Handles loading and saving 3DE scenes to/from the persistent disk cache.
 

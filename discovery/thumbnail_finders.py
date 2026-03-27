@@ -93,8 +93,8 @@ def _find_jpeg_in_resolution_dirs(
                     f" plate: {plate_name}, version: {latest_version})"
                 )
                 return jpeg_file
-    except (OSError, PermissionError):
-        pass
+    except (OSError, PermissionError) as e:
+        logger.debug(f"Error scanning resolution directories in {potential_jpeg_path}: {e}")
 
     return None
 
@@ -212,8 +212,11 @@ def find_turnover_plate_thumbnail(
     for plate_dir in sorted_plates:
         plate_name = plate_dir.name
 
-        # Look for v001/exr/*/
-        version_path = plate_dir / "v001" / "exr"
+        # Look for latest version/exr/*/
+        latest_version = VersionUtils.get_latest_version(plate_dir)
+        if not latest_version:
+            continue
+        version_path = plate_dir / latest_version / "exr"
         if not version_path.exists():
             continue
 

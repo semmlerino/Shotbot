@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, final
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
+from ui.tab_constants import TAB_MY_SHOTS, TAB_OTHER_3DE, TAB_PREVIOUS
 
 
 if TYPE_CHECKING:
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
     from type_definitions import Shot
 
 
+@final
 class RefreshCoordinator(QObject, LoggingMixin):
     """Orchestrates refresh operations across different tabs in MainWindow.
 
@@ -84,11 +86,11 @@ class RefreshCoordinator(QObject, LoggingMixin):
             index: Tab index (0=My Shots, 1=Other 3DE, 2=Previous)
 
         """
-        if index == 0:  # My Shots tab
+        if index == TAB_MY_SHOTS:
             self._refresh_shots()
-        elif index == 1:  # Other 3DE tab
+        elif index == TAB_OTHER_3DE:
             self._refresh_threede()
-        elif index == 2:  # Previous Shots tab
+        elif index == TAB_PREVIOUS:
             self._refresh_previous()
 
     def _refresh_shots(self) -> None:

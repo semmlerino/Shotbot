@@ -1,12 +1,4 @@
-"""SceneDiscoveryCoordinator - Template Method Pattern implementation
-
-This module provides the main coordinator that orchestrates scene discovery using
-all the extracted components (FileSystemScanner, SceneParser).
-It implements the Template Method pattern to provide a unified interface while
-maintaining backward compatibility.
-
-Part of the Phase 2 refactoring to break down the monolithic scene finder.
-"""
+"""SceneDiscoveryCoordinator - scene discovery orchestration."""
 
 from __future__ import annotations
 
@@ -37,14 +29,10 @@ if TYPE_CHECKING:
 
 @final
 class SceneDiscoveryCoordinator(LoggingMixin):
-    """Main coordinator for scene discovery using Template Method pattern.
+    """Main coordinator for scene discovery.
 
-    This class orchestrates all the extracted components to provide a unified
-    interface for scene discovery while maintaining backward compatibility with
-    the original monolithic scene finder.
-
-    The Template Method pattern is used to define the algorithm skeleton while
-    allowing different strategies to be plugged in for specific steps.
+    Orchestrates the extracted components (FileSystemScanner, SceneParser) to
+    provide a unified interface for scene discovery.
     """
 
     # Type annotations for lazy-loaded attributes
@@ -94,16 +82,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         try:
             from pathlib import Path
 
-            from utils import ValidationUtils, get_excluded_users
-
-            # Input validation
-            if not ValidationUtils.validate_shot_components(show, sequence, shot):
-                self.logger.warning("Invalid shot components provided")
-                return []
-
-            if not shot_workspace_path:
-                self.logger.warning("Empty shot workspace path provided")
-                return []
+            from utils import get_excluded_users
 
             if excluded_users is None:
                 excluded_users = get_excluded_users()
@@ -224,10 +203,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         return scenes
 
     # ------------------------------------------------------------------
-    # Template Methods
+    # Public API
     # ------------------------------------------------------------------
 
-    # Template Method - defines the algorithm skeleton
     @log_execution(include_args=False)  # pyright: ignore[reportUntypedFunctionDecorator]
     def find_scenes_for_shot(
         self,
@@ -237,13 +215,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         shot: str,
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
-        """Template method for finding scenes in a specific shot.
-
-        This method defines the algorithm structure:
-        1. Validate input
-        2. Discover scenes using strategy
-        3. Parse and validate results
-        4. Return results
+        """Find scenes in a specific shot.
 
         Args:
             shot_workspace_path: Path to shot workspace
@@ -288,7 +260,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             )
             return []
 
-    # Hook methods
+    # Validation helpers
 
     def _validate_shot_input(
         self, shot_workspace_path: str, show: str, sequence: str, shot: str

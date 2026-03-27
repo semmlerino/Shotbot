@@ -10,7 +10,7 @@ from __future__ import annotations
 # Standard library imports
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from type_definitions import Shot, ThreeDEScene
 
 
+@final
 class ThreeDEWorkerManager(LoggingMixin):
     """Manages the lifecycle of a ThreeDESceneWorker.
 

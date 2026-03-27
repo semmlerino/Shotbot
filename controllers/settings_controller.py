@@ -20,7 +20,7 @@ separation of concerns and easier testing.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtWidgets import (  # QWidget used in cast()
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from protocols import SettingsTarget
 
 
+@final
 class SettingsController(LoggingMixin):
     """Controller for managing all settings-related functionality.
 
@@ -170,8 +171,7 @@ class SettingsController(LoggingMixin):
             expiry_minutes = (
                 self.window.settings_manager.performance.get_cache_expiry_minutes()
             )
-            if hasattr(self.window.cache_coordinator, "set_expiry_minutes"):
-                self.window.cache_coordinator.set_expiry_minutes(expiry_minutes)
+            self.window.cache_coordinator.set_expiry_minutes(expiry_minutes)
 
             self.logger.debug("Cache settings applied")
 

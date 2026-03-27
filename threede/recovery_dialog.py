@@ -7,6 +7,7 @@ recover them to the next available version number.
 from __future__ import annotations
 
 # Standard library imports
+from collections import defaultdict
 from pathlib import Path
 from typing import final
 
@@ -92,13 +93,10 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: i
             Dictionary mapping base scene names to lists of crash files
 
         """
-        groups: dict[str, list[CrashFileInfo]] = {}
+        groups: dict[str, list[CrashFileInfo]] = defaultdict(list)
 
         for crash_info in self.crash_files:
-            base_name = crash_info.base_name
-            if base_name not in groups:
-                groups[base_name] = []
-            groups[base_name].append(crash_info)
+            groups[crash_info.base_name].append(crash_info)
 
         # Sort each group by modification time (newest first)
         for crash_list in groups.values():

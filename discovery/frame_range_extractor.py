@@ -6,12 +6,13 @@ combining plate discovery with frame range detection.
 
 from __future__ import annotations
 
-import logging
 import re
 from pathlib import Path
 
+from logging_mixin import get_module_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_module_logger(__name__)
 
 
 def detect_frame_range(directory: Path, extension: str = "exr") -> tuple[int, int]:
