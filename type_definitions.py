@@ -11,7 +11,7 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, NamedTuple, NotRequired, TypedDict
+from typing import NamedTuple, NotRequired, TypedDict
 
 
 logger = logging.getLogger(__name__)
@@ -361,56 +361,6 @@ class ThreeDESceneDict(TypedDict):
     thumbnail_path: NotRequired[str]  # Persisted thumbnail path (validated on restore)
 
 
-class LauncherDict(TypedDict, total=False):
-    """Dictionary representation of a custom launcher."""
-
-    id: str
-    name: str
-    command: str
-    description: str | None
-    icon: str | None
-    category: str | None
-    show_in_menu: bool
-    requires_shot: bool
-
-
-class ProcessInfoDict(TypedDict):
-    """Information about a running process.
-
-    Used by LauncherProcessManager.get_active_process_info() to return
-    normalized information about both subprocesses and workers.
-    """
-
-    type: Literal["subprocess", "worker"]
-    key: str
-    launcher_id: str
-    launcher_name: str
-    command: str
-    pid: int
-    running: bool
-    start_time: float
-
-
-class CacheMetricsDict(TypedDict):
-    """Cache performance metrics."""
-
-    total_size_bytes: int
-    item_count: int
-    hit_rate: float
-    miss_rate: float
-    eviction_count: int
-    last_cleanup: float
-
-
-class ThumbnailInfoDict(TypedDict, total=False):
-    """Thumbnail information with metadata."""
-
-    path: str
-    size_bytes: int
-    width: int
-    height: int
-    format: str
-    cached_at: float
 
 
 # ==============================================================================
