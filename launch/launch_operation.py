@@ -19,7 +19,13 @@ from typing import TYPE_CHECKING, final
 
 from commands import nuke_commands
 from config import Config, RezMode
-from launch.command_builder import CommandBuilder
+from launch.command_builder import (
+    add_logging,
+    build_workspace_command,
+    validate_path,
+    wrap_for_background,
+    wrap_with_rez,
+)
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 
@@ -131,7 +137,7 @@ class LaunchOperation(LoggingMixin):
 
         # Build the full app command: prefix + Nuke env fixes + DCC command
         try:
-            safe_workspace_path = CommandBuilder.validate_path(workspace_path)
+            safe_workspace_path = validate_path(workspace_path)
             env_fixes = nuke_commands.build_nuke_environment_prefix(self._nuke_env, app_name)
             app_command = f"{self._command_prefix}{env_fixes}{command}"
         except ValueError as e:
@@ -151,10 +157,10 @@ class LaunchOperation(LoggingMixin):
                 )
                 return False
 
-            app_command = CommandBuilder.wrap_with_rez(app_command, rez_packages)
+            app_command = wrap_with_rez(app_command, rez_packages)
 
-        full_command = CommandBuilder.build_workspace_command(safe_workspace_path, app_command)
-        full_command = CommandBuilder.add_logging(full_command, Config)
+        full_command = build_workspace_command(safe_workspace_path, app_command)
+        full_command = add_logging(full_command, Config)
 
         self.logger.debug(
             "Constructed command for %s:\n  Command: %r\n  Length: %d chars\n  Workspace: %s%s",
@@ -197,7 +203,7 @@ class LaunchOperation(LoggingMixin):
             self._process_executor.is_gui_app(app_name)
             and self._settings_manager.launch.get_background_gui_apps()
         ):
-            full_command = CommandBuilder.wrap_for_background(full_command)
+            full_command = wrap_for_background(full_command)
             self.logger.info("Backgrounding %s — terminal will close immediately", app_name)
 
         # Guard against silent truncation by terminal emulators
@@ -279,7 +285,7 @@ class LaunchOperation(LoggingMixin):
         from commands import maya_commands  # lazy — avoids circular import risk
 
         try:
-            safe_scene_path = CommandBuilder.validate_path(str(scene_path))
+            safe_scene_path = validate_path(str(scene_path))
         except ValueError as e:
             emit_error(
                 f"Cannot launch {app_name.upper()}: Invalid scene path '{scene_path}': {e!s}"

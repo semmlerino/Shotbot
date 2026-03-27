@@ -18,7 +18,15 @@ from unittest.mock import MagicMock
 import pytest
 
 from config import Config
-from launch.command_builder import CommandBuilder
+from launch.command_builder import (
+    add_logging,
+    apply_nuke_environment_fixes,
+    build_workspace_command,
+    get_nuke_fix_summary,
+    validate_path,
+    wrap_for_background,
+    wrap_with_rez,
+)
 
 
 @pytest.fixture
@@ -36,7 +44,7 @@ class TestPathValidation:
     def test_valid_simple_path(self) -> None:
         """Test validation of simple path without special characters."""
         path = "/home/user/project/file.txt"
-        result = CommandBuilder.validate_path(path)
+        result = validate_path(path)
         # shlex.quote only adds quotes when needed (spaces/special chars)
         # For simple paths, it returns as-is
         assert result == "/home/user/project/file.txt"
@@ -44,14 +52,14 @@ class TestPathValidation:
     def test_valid_path_with_spaces(self) -> None:
         """Test validation of path with spaces."""
         path = "/home/user/My Documents/file.txt"
-        result = CommandBuilder.validate_path(path)
+        result = validate_path(path)
         # shlex.quote adds single quotes and escapes internal quotes
         assert "My Documents" in result
 
     def test_valid_path_with_single_quote(self) -> None:
         """Test validation of path with single quote (properly escaped)."""
         path = "/home/user/It's a file.txt"
-        result = CommandBuilder.validate_path(path)
+        result = validate_path(path)
         # shlex.quote should escape the single quote
         assert result == "'/home/user/It'\"'\"'s a file.txt'"
 
@@ -76,7 +84,7 @@ class TestPathValidation:
     def test_dangerous_characters_rejected(self, path: str, match_pattern: str) -> None:
         """Test rejection of paths containing dangerous shell characters."""
         with pytest.raises(ValueError, match=match_pattern):
-            CommandBuilder.validate_path(path)
+            validate_path(path)
 
     @pytest.mark.parametrize(
         ("path", "dot_pattern"),
@@ -87,7 +95,7 @@ class TestPathValidation:
     )
     def test_path_with_dots_normalizes_safely(self, path: str, dot_pattern: str) -> None:
         """Test that paths with . or .. normalize correctly (VFX pipeline use case)."""
-        result = CommandBuilder.validate_path(path)
+        result = validate_path(path)
         assert "file.txt" in result
         assert dot_pattern not in result
         assert "/home/user/file.txt" in result or "'/home/user/file.txt'" in result
@@ -95,14 +103,14 @@ class TestPathValidation:
     def test_path_with_dots_in_dirname_allowed(self) -> None:
         """Test that paths with dots in directory names are allowed (e.g., v2.5)."""
         path = "/projects/v2.5/scenes/shot.nk"
-        result = CommandBuilder.validate_path(path)
+        result = validate_path(path)
         assert "v2.5" in result
         assert "shot.nk" in result
 
     def test_empty_path_rejected(self) -> None:
         """Test that empty paths are rejected."""
         with pytest.raises(ValueError, match="empty"):
-            CommandBuilder.validate_path("")
+            validate_path("")
 
 
 class TestWorkspaceCommand:
@@ -112,14 +120,14 @@ class TestWorkspaceCommand:
         """Test building workspace command with simple paths."""
         workspace = "'/workspace/path'"
         app_command = "nuke"
-        result = CommandBuilder.build_workspace_command(workspace, app_command)
+        result = build_workspace_command(workspace, app_command)
         assert result == "ws '/workspace/path' && nuke"
 
     def test_workspace_command_with_env_fixes(self) -> None:
         """Test building workspace command with environment fixes."""
         workspace = "'/workspace/path'"
         app_command = "NUKE_CRASH_REPORTS=0 && nuke"
-        result = CommandBuilder.build_workspace_command(workspace, app_command)
+        result = build_workspace_command(workspace, app_command)
         assert result == "ws '/workspace/path' && NUKE_CRASH_REPORTS=0 && nuke"
 
 
@@ -130,7 +138,7 @@ class TestRezWrapping:
         """Test wrapping command with single Rez package."""
         command = "nuke"
         packages = ["nuke"]
-        result = CommandBuilder.wrap_with_rez(command, packages)
+        result = wrap_with_rez(command, packages)
         # shlex.quote('nuke') returns 'nuke' (no quotes needed for simple strings)
         assert result == "rez env nuke -- bash -lc nuke"
 
@@ -138,14 +146,14 @@ class TestRezWrapping:
         """Test wrapping command with multiple Rez packages."""
         command = "nuke"
         packages = ["nuke", "nuke-plugins", "ocio"]
-        result = CommandBuilder.wrap_with_rez(command, packages)
+        result = wrap_with_rez(command, packages)
         assert result == "rez env nuke nuke-plugins ocio -- bash -lc nuke"
 
     def test_rez_wrap_preserves_complex_command(self) -> None:
         """Test that Rez wrapping preserves complex commands."""
         command = "NUKE_CRASH_REPORTS=0 && nuke"
         packages = ["nuke"]
-        result = CommandBuilder.wrap_with_rez(command, packages)
+        result = wrap_with_rez(command, packages)
         # shlex.quote() wraps complex commands with special chars in single quotes
         assert result == "rez env nuke -- bash -lc 'NUKE_CRASH_REPORTS=0 && nuke'"
 
@@ -157,7 +165,7 @@ class TestRezWrapping:
         """
         command = 'nuke -F "ShotBot Template"'
         packages = ["nuke"]
-        result = CommandBuilder.wrap_with_rez(command, packages)
+        result = wrap_with_rez(command, packages)
         # shlex.quote() wraps in single quotes to preserve internal double quotes
         assert result == "rez env nuke -- bash -lc 'nuke -F \"ShotBot Template\"'"
 
@@ -165,7 +173,7 @@ class TestRezWrapping:
         """Test that Rez wrapping handles commands with single quotes."""
         command = "nuke -m \"It's working\""
         packages = ["nuke"]
-        result = CommandBuilder.wrap_with_rez(command, packages)
+        result = wrap_with_rez(command, packages)
         # shlex.quote() escapes single quotes inside the command
         assert "It" in result
         assert "working" in result
@@ -174,7 +182,7 @@ class TestRezWrapping:
         """Test complex command with quotes, spaces, and special characters."""
         command = 'maya -command "loadPlugin(\'shotbot\')" -file "/path/with spaces/scene.ma"'
         packages = ["maya"]
-        result = CommandBuilder.wrap_with_rez(command, packages)
+        result = wrap_with_rez(command, packages)
         # Verify the command is properly quoted
         assert "rez env maya -- bash -lc" in result
         # Verify command is preserved (exact format depends on shlex.quote implementation)
@@ -227,7 +235,7 @@ class TestNukeEnvironmentFixes:
         mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = skip_plugins
         mock_config.NUKE_OCIO_FALLBACK_CONFIG = ocio_config
 
-        result = CommandBuilder.apply_nuke_environment_fixes("nuke", mock_config)
+        result = apply_nuke_environment_fixes("nuke", mock_config)
 
         for substring in expected_present:
             assert substring in result, f"Expected {substring!r} in result: {result!r}"
@@ -241,7 +249,7 @@ class TestNukeEnvironmentFixes:
         mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = False
         mock_config.NUKE_OCIO_FALLBACK_CONFIG = "/path/with spaces/my config.ocio"
 
-        result = CommandBuilder.apply_nuke_environment_fixes(command, mock_config)
+        result = apply_nuke_environment_fixes(command, mock_config)
 
         # Path with spaces must be properly quoted to prevent shell word splitting
         # shlex.quote adds single quotes around paths containing spaces
@@ -278,7 +286,7 @@ class TestNukeEnvironmentFixes:
         mock_config.NUKE_SKIP_PROBLEMATIC_PLUGINS = skip_plugins
         mock_config.NUKE_OCIO_FALLBACK_CONFIG = ocio_config
 
-        summary = CommandBuilder.get_nuke_fix_summary(mock_config)
+        summary = get_nuke_fix_summary(mock_config)
 
         for item in expected_items:
             assert item in summary
@@ -293,7 +301,7 @@ class TestLoggingRedirection:
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
         command = "nuke"
 
-        result = CommandBuilder.add_logging(command)
+        result = add_logging(command)
 
         # Result should include pipefail for exit code preservation
         assert result.startswith("set -o pipefail; nuke 2>&1 | tee -a ")
@@ -315,7 +323,7 @@ class TestLoggingRedirection:
         monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: (_ for _ in ()).throw(exc))
         command = "nuke"
 
-        result = CommandBuilder.add_logging(command)
+        result = add_logging(command)
 
         assert result == "nuke"
 
@@ -325,7 +333,7 @@ class TestLoggingRedirection:
         monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: None)
         command = "nuke"
 
-        result = CommandBuilder.add_logging(command)
+        result = add_logging(command)
 
         # Path should be quoted
         assert "'/home/user with spaces" in result or '"/home/user with spaces' in result
@@ -337,13 +345,13 @@ class TestBackgroundWrapping:
 
     def test_wrap_for_background_simple_command(self) -> None:
         """Test wrapping a simple command for background execution."""
-        result = CommandBuilder.wrap_for_background("nuke")
+        result = wrap_for_background("nuke")
         assert result == "(nuke) & disown; exit"
 
     def test_wrap_for_background_complex_command(self) -> None:
         """Test wrapping a complex command with workspace and pipes."""
         command = "ws '/shows/test/shots/sq010/sh0010' && nuke 2>&1 | tee /tmp/log.txt"
-        result = CommandBuilder.wrap_for_background(command)
+        result = wrap_for_background(command)
         assert result == f"({command}) & disown; exit"
 
 

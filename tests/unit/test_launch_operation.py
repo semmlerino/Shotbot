@@ -116,9 +116,9 @@ class TestExecuteWorkspaceResolution:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.command_builder.CommandBuilder.build_workspace_command", return_value="cmd") as mock_ws,
-            patch("launch.command_builder.CommandBuilder.add_logging", return_value="cmd"),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.build_workspace_command", return_value="cmd") as mock_ws,
+            patch("launch.launch_operation.add_logging", return_value="cmd"),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
         ):
             op = _make_operation(
@@ -142,9 +142,9 @@ class TestExecuteWorkspaceResolution:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.command_builder.CommandBuilder.build_workspace_command", return_value="cmd") as mock_ws,
-            patch("launch.command_builder.CommandBuilder.add_logging", return_value="cmd"),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.build_workspace_command", return_value="cmd") as mock_ws,
+            patch("launch.launch_operation.add_logging", return_value="cmd"),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
         ):
             op = _make_operation(
@@ -207,9 +207,9 @@ class TestExecuteRezWrapping:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
-            patch("launch.command_builder.CommandBuilder.build_workspace_command", return_value="cmd"),
-            patch("launch.command_builder.CommandBuilder.add_logging", return_value="cmd"),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.build_workspace_command", return_value="cmd"),
+            patch("launch.launch_operation.add_logging", return_value="cmd"),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
         ):
             op = _make_operation(env_manager=em, process_executor=pe)
@@ -227,7 +227,7 @@ class TestExecuteRezWrapping:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.AUTO),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
         ):
             op = _make_operation(env_manager=em, emit_error=emit_error)
@@ -245,7 +245,7 @@ class TestExecuteRezWrapping:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.AUTO),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
         ):
             op = _make_operation(env_manager=em, emit_error=emit_error)
@@ -261,7 +261,7 @@ class TestExecuteRezWrapping:
 
 
 class TestExecuteInvalidWorkspacePath:
-    """CommandBuilder.validate_path raises ValueError for dangerous paths."""
+    """validate_path raises ValueError for dangerous paths."""
 
     def test_dangerous_workspace_path_emits_error_and_returns_false(self) -> None:
         from config import RezMode
@@ -272,7 +272,7 @@ class TestExecuteInvalidWorkspacePath:
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
             patch(
-                "launch.command_builder.CommandBuilder.validate_path",
+                "launch.command_builder.validate_path",
                 side_effect=ValueError("dangerous chars"),
             ),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
@@ -304,9 +304,9 @@ class TestExecuteTerminalSpawning:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
-            patch("launch.command_builder.CommandBuilder.build_workspace_command", return_value="cmd"),
-            patch("launch.command_builder.CommandBuilder.add_logging", return_value="cmd"),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.build_workspace_command", return_value="cmd"),
+            patch("launch.launch_operation.add_logging", return_value="cmd"),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
         ):
             op = _make_operation(process_executor=pe, env_manager=em)
@@ -324,9 +324,9 @@ class TestExecuteTerminalSpawning:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
-            patch("launch.command_builder.CommandBuilder.build_workspace_command", return_value="cmd"),
-            patch("launch.command_builder.CommandBuilder.add_logging", return_value="cmd"),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.build_workspace_command", return_value="cmd"),
+            patch("launch.launch_operation.add_logging", return_value="cmd"),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
             patch("launch.launch_operation.NotificationManager"),
         ):
@@ -346,9 +346,9 @@ class TestExecuteTerminalSpawning:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
-            patch("launch.command_builder.CommandBuilder.build_workspace_command", return_value="cmd"),
-            patch("launch.command_builder.CommandBuilder.add_logging", return_value="cmd"),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.build_workspace_command", return_value="cmd"),
+            patch("launch.launch_operation.add_logging", return_value="cmd"),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
             patch("launch.launch_operation.NotificationManager"),
         ):
@@ -376,13 +376,13 @@ class TestExecuteCommandLengthGuard:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
             patch(
-                "launch.command_builder.CommandBuilder.build_workspace_command",
+                "launch.launch_operation.build_workspace_command",
                 return_value=long_command,
             ),
             patch(
-                "launch.command_builder.CommandBuilder.add_logging",
+                "launch.launch_operation.add_logging",
                 return_value=long_command,
             ),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
@@ -416,11 +416,11 @@ class TestExecuteBackgroundWrapping:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
-            patch("launch.command_builder.CommandBuilder.build_workspace_command", return_value="base_cmd"),
-            patch("launch.command_builder.CommandBuilder.add_logging", side_effect=lambda c, _cfg: c),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.build_workspace_command", return_value="base_cmd"),
+            patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-            patch("launch.command_builder.CommandBuilder.wrap_for_background", return_value="bg_cmd") as mock_bg,
+            patch("launch.launch_operation.wrap_for_background", return_value="bg_cmd") as mock_bg,
         ):
             op = _make_operation(
                 app_name="3de",
@@ -442,11 +442,11 @@ class TestExecuteBackgroundWrapping:
 
         with (
             patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.command_builder.CommandBuilder.validate_path", side_effect=lambda p: p),
-            patch("launch.command_builder.CommandBuilder.build_workspace_command", return_value="base_cmd"),
-            patch("launch.command_builder.CommandBuilder.add_logging", side_effect=lambda c, _cfg: c),
+            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
+            patch("launch.launch_operation.build_workspace_command", return_value="base_cmd"),
+            patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c),
             patch("commands.nuke_commands.build_nuke_environment_prefix", return_value=""),
-            patch("launch.command_builder.CommandBuilder.wrap_for_background") as mock_bg,
+            patch("launch.launch_operation.wrap_for_background") as mock_bg,
         ):
             op = _make_operation(
                 app_name="3de",

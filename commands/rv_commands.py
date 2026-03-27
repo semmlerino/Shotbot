@@ -22,12 +22,12 @@ def build_rv_command(command: str, sequence_path: str | None) -> str | None:
         Complete RV command string, or None if the sequence path is invalid.
 
     """
-    from launch.command_builder import CommandBuilder
+    from launch.command_builder import validate_path
 
     command = f"{command} -fps 12 -play -eval 'setPlayMode(2)'"
     if sequence_path:
         try:
-            safe_sequence_path = CommandBuilder.validate_path(sequence_path)
+            safe_sequence_path = validate_path(sequence_path)
             command = f"{command} {safe_sequence_path}"
         except ValueError:
             logger.error(

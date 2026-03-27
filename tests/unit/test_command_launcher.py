@@ -19,7 +19,7 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from config import Config
-from launch import CommandBuilder
+from launch.command_builder import add_logging, validate_path, wrap_with_rez
 from launch.command_launcher import CommandLauncher, LaunchContext
 from launch.launch_request import LaunchRequest
 from tests.fixtures.process_fixtures import PopenDouble
@@ -654,7 +654,7 @@ class TestCommandBuilderProperties:
     def test_validate_path_accepts_valid_paths(self, path: str) -> None:
         """Verify path validation accepts valid filesystem paths."""
         # Valid paths should be accepted
-        validated = CommandBuilder.validate_path(path)
+        validated = validate_path(path)
 
         # Validated path should be properly quoted if needed
         assert isinstance(validated, str)
@@ -669,7 +669,7 @@ class TestCommandBuilderProperties:
         validation doesn't crash or allow obvious injection attacks.
         """
         try:
-            validated = CommandBuilder.validate_path(path)
+            validated = validate_path(path)
 
             # If validation succeeds, ensure basic sanitation
             # Command injection patterns should be quoted/escaped
@@ -695,7 +695,7 @@ class TestCommandBuilderProperties:
     def test_validate_path_returns_string(self, path: str) -> None:
         """Verify path validation always returns a string or raises ValueError."""
         try:
-            result = CommandBuilder.validate_path(path)
+            result = validate_path(path)
             assert isinstance(result, str)
         except ValueError:
             # Rejection is acceptable
@@ -707,7 +707,7 @@ class TestCommandBuilderProperties:
     ) -> None:
         """Verify rez wrapping handles various package list sizes."""
         command = "test_command"
-        wrapped = CommandBuilder.wrap_with_rez(command, packages)
+        wrapped = wrap_with_rez(command, packages)
 
         # Wrapped command should contain original command
         assert command in wrapped
@@ -721,7 +721,7 @@ class TestCommandBuilderProperties:
         # Filter out commands with newlines (not valid shell commands)
         assume("\n" not in command)
 
-        logged = CommandBuilder.add_logging(command)
+        logged = add_logging(command)
 
         # Logged command should contain original command
         assert command in logged

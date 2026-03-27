@@ -2,7 +2,7 @@
 
 This package contains focused components for managing application launches:
 - EnvironmentManager: Environment detection and configuration
-- CommandBuilder: Command assembly and validation
+- Command builders: Command assembly and validation (module-level functions)
 - ProcessExecutor: Process execution and management
 - AppHandler: Protocol and per-DCC handler classes
 - CommandLauncher: Production launcher orchestrator
@@ -19,7 +19,15 @@ from launch.app_handlers import (
     RVAppHandler,
     ThreeDEAppHandler,
 )
-from launch.command_builder import CommandBuilder
+from launch.command_builder import (
+    add_logging,
+    apply_nuke_environment_fixes,
+    build_workspace_command,
+    get_nuke_fix_summary,
+    validate_path,
+    wrap_for_background,
+    wrap_with_rez,
+)
 from launch.command_launcher import CommandLauncher, LaunchContext
 from launch.environment_manager import EnvironmentManager
 from launch.headless_mode import HeadlessMode
@@ -29,7 +37,6 @@ from launch.rv_launcher import open_plate_in_rv
 
 __all__ = [
     "AppHandler",
-    "CommandBuilder",
     "CommandLauncher",
     "EnvironmentManager",
     "GenericAppHandler",
@@ -40,5 +47,12 @@ __all__ = [
     "ProcessExecutor",
     "RVAppHandler",
     "ThreeDEAppHandler",
+    "add_logging",
+    "apply_nuke_environment_fixes",
+    "build_workspace_command",
+    "get_nuke_fix_summary",
     "open_plate_in_rv",
+    "validate_path",
+    "wrap_for_background",
+    "wrap_with_rez",
 ]

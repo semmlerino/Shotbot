@@ -91,15 +91,15 @@ class TestLauncherStackSmoke:
             assert should_wrap, "RezMode.AUTO should still resolve explicit app packages"
 
     def test_command_builder_validates_paths(self) -> None:
-        """CommandBuilder.validate_path handles various path formats."""
-        from launch.command_builder import CommandBuilder
+        """validate_path handles various path formats."""
+        from launch.command_builder import validate_path
 
         # Safe path - no escaping needed
-        safe_path = CommandBuilder.validate_path("/shows/myshow/shots/sq010/sh0010")
+        safe_path = validate_path("/shows/myshow/shots/sq010/sh0010")
         assert safe_path == "/shows/myshow/shots/sq010/sh0010"
 
         # Path with spaces - should be quoted
-        space_path = CommandBuilder.validate_path("/shows/my show/shots/sq010/sh0010")
+        space_path = validate_path("/shows/my show/shots/sq010/sh0010")
         # Verify it doesn't crash and returns something valid
         assert space_path is not None
 

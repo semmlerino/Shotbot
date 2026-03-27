@@ -30,7 +30,7 @@ from launch.app_handlers import (
     RVAppHandler,
     ThreeDEAppHandler,
 )
-from launch.command_builder import CommandBuilder
+from launch.command_builder import validate_path
 from launch.environment_manager import EnvironmentManager
 from launch.file_search_coordinator import FileSearchCoordinator
 from launch.launch_operation import LaunchOperation
@@ -538,7 +538,7 @@ class CommandLauncher(LoggingMixin, QObject):
     # Methods removed - now using launch components:
     # - _get_rez_packages_for_app() → self.env_manager.get_rez_packages(app_name, Config)
     # - _detect_available_terminal() → self.env_manager.detect_terminal()
-    # - _validate_path_for_shell() → CommandBuilder.validate_path(path)
+    # - _validate_path_for_shell() → validate_path(path)
     # - _launch_in_new_terminal() → LaunchOperation._launch_in_new_terminal()
     # - _append_scene_to_command() → LaunchOperation.append_scene_to_command()
     # - _apply_file_result() → LaunchOperation.apply_file_result()
@@ -632,7 +632,7 @@ class CommandLauncher(LoggingMixin, QObject):
         command = Config.APPS[app_name]
 
         try:
-            safe_scene_path = CommandBuilder.validate_path(str(scene.scene_path))
+            safe_scene_path = validate_path(str(scene.scene_path))
             command_prefix = ""
             if app_name == "3de":
                 tde_scripts_export = build_threede_scripts_export(Config.SCRIPTS_DIR)
@@ -666,7 +666,7 @@ class CommandLauncher(LoggingMixin, QObject):
         command = Config.APPS[app_name]
 
         try:
-            safe_file_path = CommandBuilder.validate_path(str(file_path))
+            safe_file_path = validate_path(str(file_path))
             handler = self._app_handlers.get(app_name, self._default_handler)
             command = handler.build_file_command(command, safe_file_path)
             self.logger.debug(
@@ -758,7 +758,7 @@ class CommandLauncher(LoggingMixin, QObject):
         return True
 
     # Method removed - now using launch components:
-    # - _add_dispatcher_logging() → CommandBuilder.add_logging(command)
+    # - _add_dispatcher_logging() → add_logging(command)
 
     def _emit_error(self, error: str) -> None:
         """Log an error with timestamp."""
