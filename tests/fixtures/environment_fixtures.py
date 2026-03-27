@@ -207,8 +207,6 @@ def cache_manager(temp_cache_dir: Path) -> Iterator[object]:
     latest_file_cache = LatestFileCache(temp_cache_dir)
     manager = CacheCoordinator(temp_cache_dir, thumbnail_cache, shot_cache, scene_disk_cache, latest_file_cache)
     yield manager
-    # Cleanup
-    manager.clear_cache()
 
 
 @pytest.fixture

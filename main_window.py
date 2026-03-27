@@ -104,7 +104,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
 
-        if not isinstance(app_instance, QApplication) and not is_test_environment:
+        if not is_test_environment and not isinstance(app_instance, QApplication):
             msg = (
                 "MainWindow: QCoreApplication instance is not a QApplication. "
                 f"Type: {type(app_instance)}"

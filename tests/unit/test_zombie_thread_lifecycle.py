@@ -74,6 +74,19 @@ class StubWorker(ThreadSafeWorker):
                 time.sleep(0.01)
 
 
+def _make_zombie_mock() -> MagicMock:
+    """Create a mock worker configured to become a zombie on safe_terminate().
+
+    Must be called from the main thread (QMutex construction is not safe
+    from background threads when pytestqt is processing events).
+    """
+    mock_worker: MagicMock = MagicMock(spec=ThreadSafeWorker)
+    mock_worker._state_mutex = QMutex()
+    mock_worker.isRunning.return_value = True
+    mock_worker.wait.return_value = False
+    return mock_worker
+
+
 def _make_zombie_via_public_api() -> MagicMock:
     """Create a zombie entry in the registry via the public safe_terminate() API.
 
@@ -81,10 +94,7 @@ def _make_zombie_via_public_api() -> MagicMock:
     zombie_registry.safe_terminate(). The mock's wait() always returns False
     and isRunning() always returns True, forcing the zombie code path.
     """
-    mock_worker: MagicMock = MagicMock(spec=ThreadSafeWorker)
-    mock_worker._state_mutex = QMutex()
-    mock_worker.isRunning.return_value = True
-    mock_worker.wait.return_value = False
+    mock_worker = _make_zombie_mock()
     # get_state() returns a MagicMock (not STOPPED/DELETED), so safe_terminate proceeds
     zombie_registry.safe_terminate(mock_worker)
     return mock_worker
@@ -339,45 +349,42 @@ class TestZombieThreadSafety:
     """Tests for thread-safe access to zombie collections."""
 
     def test_concurrent_zombie_access_no_crash(self) -> None:
-        """Concurrent access to zombie collections doesn't cause crashes."""
+        """Concurrent reads/cleanup of zombie collections don't crash.
+
+        Zombies are seeded on the main thread via safe_terminate() (which
+        performs heavy Qt operations unsuitable for background threads).
+        Background threads only read metrics and run cleanup — the
+        operations that must be thread-safe in production.
+        """
         ThreadSafeWorker.reset()
 
-        errors: list[Exception] = []
-        iterations_per_thread = 50
+        # Seed zombies from the main thread (safe_terminate uses
+        # QMutexLocker and Qt methods that crash from background threads
+        # when pytestqt is processing events).
+        for _ in range(20):
+            _make_zombie_via_public_api()
 
-        def add_zombies() -> None:
-            """Add zombies from a background thread via the public safe_terminate() path."""
-            try:
-                for _ in range(iterations_per_thread):
-                    mock_worker: MagicMock = MagicMock(spec=ThreadSafeWorker)
-                    mock_worker._state_mutex = QMutex()
-                    mock_worker.isRunning.return_value = True
-                    mock_worker.wait.return_value = False
-                    zombie_registry.safe_terminate(mock_worker)
-            except Exception as e:  # noqa: BLE001
-                errors.append(e)
+        errors: list[Exception] = []
+        iterations = 50
 
         def read_metrics() -> None:
-            """Read metrics from a background thread."""
             try:
-                for _ in range(iterations_per_thread):
+                for _ in range(iterations):
                     _ = ThreadSafeWorker.get_zombie_metrics()
             except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
         def cleanup_zombies() -> None:
-            """Run cleanup from a background thread."""
             try:
-                for _ in range(iterations_per_thread // 5):
+                for _ in range(iterations // 5):
                     _ = ThreadSafeWorker.cleanup_old_zombies()
             except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
-        # Run concurrent operations
         threads = [
-            threading.Thread(target=add_zombies),
-            threading.Thread(target=add_zombies),
             threading.Thread(target=read_metrics),
+            threading.Thread(target=read_metrics),
+            threading.Thread(target=cleanup_zombies),
             threading.Thread(target=cleanup_zombies),
         ]
 
@@ -386,7 +393,6 @@ class TestZombieThreadSafety:
         for t in threads:
             t.join(timeout=5.0)
 
-        # No errors should have occurred
         assert errors == [], f"Concurrent access caused errors: {errors}"
 
         ThreadSafeWorker.reset()

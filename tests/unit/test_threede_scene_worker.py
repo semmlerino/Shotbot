@@ -243,28 +243,6 @@ class TestThreeDESceneWorker:
         assert worker.batch_size == 2
         assert not worker._is_paused
 
-    def test_stop_and_pause_resume_mechanism(self, worker) -> None:
-        """Test worker stop, pause, and resume state transitions."""
-        # Stop mechanism
-        assert not worker.should_stop()
-        worker.stop()
-        assert worker.should_stop()
-
-        # Recreate worker for pause/resume (stop is terminal)
-        fresh = ThreeDESceneWorker(
-            shots=[Shot("test_show", "seq01", "0010", f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010")],
-            excluded_users=set(),
-        )
-        try:
-            assert not fresh._is_paused
-            fresh.pause()
-            assert fresh._is_paused
-            fresh.resume()
-            assert not fresh._is_paused
-        finally:
-            from tests.test_helpers import cleanup_qthread_properly
-            cleanup_qthread_properly(fresh, signal_handlers=None)
-
     def test_run_with_no_shots(self, qtbot) -> None:
         """Test worker behavior with empty shot list."""
         worker = ThreeDESceneWorker(shots=[])

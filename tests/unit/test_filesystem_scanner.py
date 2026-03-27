@@ -690,7 +690,7 @@ class TestThreeDEWorkerStopAndCancel:
     These are regression tests for the zombie thread issue where workers
     would get stuck in blocking subprocess.run() calls for up to 5 seconds.
     The fix threads a cancel_flag through to filesystem operations so that
-    worker.stop() propagates quickly.
+    worker.request_stop() propagates quickly via should_stop().
     """
 
     def _make_shot(self) -> Shot:
@@ -742,7 +742,7 @@ class TestThreeDEWorkerStopAndCancel:
             scan_started_event.wait(timeout=2.0)
 
             stop_start = time.time()
-            worker.stop()
+            worker.request_stop()
             thread.join(timeout=3.0)
             stop_duration = time.time() - stop_start
 
@@ -774,7 +774,7 @@ class TestThreeDEWorkerStopAndCancel:
 
                 worker_startup_delay = threading.Event()
                 worker_startup_delay.wait(timeout=0.1)
-                worker.stop()
+                worker.request_stop()
                 thread.join(timeout=1.0)
 
                 assert not thread.is_alive(), f"Cycle {cycle}: thread should be stopped"
@@ -787,7 +787,7 @@ class TestThreeDEWorkerStopAndCancel:
     def test_should_stop_consulted_as_cancel_flag(self) -> None:
         """should_stop() is wired as the cancel_flag passed to filesystem ops.
 
-        Verifies the integration: worker.stop() → worker.should_stop() returns
+        Verifies the integration: worker.request_stop() → worker.should_stop() returns
         True → cancel_flag() returns True → scanner exits early.
         """
         from collections.abc import Callable
@@ -829,7 +829,7 @@ class TestThreeDEWorkerStopAndCancel:
 
             worker_startup_delay = threading.Event()
             worker_startup_delay.wait(timeout=0.1)
-            worker.stop()
+            worker.request_stop()
             thread.join(timeout=1.0)
 
             assert should_stop_calls >= 5, (
