@@ -243,7 +243,7 @@ class TestShowFiltering:
 
         # Verify filtered shots are correct
         for i in range(shot_item_model.rowCount()):
-            shot = shot_item_model.get_shot_at_index(shot_item_model.index(i, 0))
+            shot = shot_item_model.get_item_at_index(shot_item_model.index(i, 0))
             assert shot is not None
             assert shot.show == "show1"
 
@@ -287,7 +287,7 @@ class TestShowFiltering:
 
         # Verify all visible shots are from show2
         for i in range(shot_item_model.rowCount()):
-            shot = shot_item_model.get_shot_at_index(shot_item_model.index(i, 0))
+            shot = shot_item_model.get_item_at_index(shot_item_model.index(i, 0))
             assert shot is not None
             assert shot.show == "show2"
 
@@ -390,20 +390,20 @@ class TestShotSpecificMethods:
         assert result.success is True
         assert result.has_changes is False
 
-    def test_get_shot_at_index(
+    def test_get_item_at_index(
         self, shot_item_model: ShotItemModel, qtbot: QtBot, test_shots: list[Shot]
     ) -> None:
-        """Test get_shot_at_index method."""
+        """Test get_item_at_index method."""
         shot_item_model.set_shots(test_shots)
 
         # Valid index
         index = shot_item_model.index(0, 0)
-        shot = shot_item_model.get_shot_at_index(index)
+        shot = shot_item_model.get_item_at_index(index)
         assert shot is test_shots[0]
 
         # Invalid index
         invalid_index = QModelIndex()
-        shot = shot_item_model.get_shot_at_index(invalid_index)
+        shot = shot_item_model.get_item_at_index(invalid_index)
         assert shot is None
 
 

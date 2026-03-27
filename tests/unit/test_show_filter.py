@@ -90,14 +90,14 @@ class TestShotItemModelFiltering:
         shot_item_model.set_show_filter(shot_model, "show1")
         assert shot_item_model.rowCount() == 2
         for i in range(shot_item_model.rowCount()):
-            shot = shot_item_model.get_shot_at_index(shot_item_model.index(i, 0))
+            shot = shot_item_model.get_item_at_index(shot_item_model.index(i, 0))
             assert shot is not None
             assert shot.show == "show1"
 
         # Filter to show2 and check model state
         shot_item_model.set_show_filter(shot_model, "show2")
         assert shot_item_model.rowCount() == 1
-        shot = shot_item_model.get_shot_at_index(shot_item_model.index(0, 0))
+        shot = shot_item_model.get_item_at_index(shot_item_model.index(0, 0))
         assert shot is not None
         assert shot.show == "show2"
 

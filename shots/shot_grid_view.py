@@ -34,9 +34,6 @@ from ui.base_item_model import BaseItemRole
 from ui.base_shot_grid_view import BaseShotGridView
 
 
-# Backward compatibility alias
-ShotRole = BaseItemRole
-
 if TYPE_CHECKING:
     # Third-party imports
     # Local application imports
@@ -277,7 +274,7 @@ class ShotGridView(BaseShotGridView):
             index = model.index(row, 0)
 
             # Get shot object - index.data() returns Any from Qt API
-            shot: Shot | None = cast("Shot | None", index.data(ShotRole.ObjectRole))
+            shot: Shot | None = cast("Shot | None", index.data(BaseItemRole.ObjectRole))
 
             if shot and shot.full_name == shot_name:
                 # Select in view

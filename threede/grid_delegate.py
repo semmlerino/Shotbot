@@ -25,9 +25,6 @@ from ui.base_thumbnail_delegate import (
 )
 
 
-# Backward compatibility alias
-ThreeDERole = BaseItemRole
-
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QModelIndex, QPersistentModelIndex
@@ -104,7 +101,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
         # Qt's index.data() returns Any - cast to expected type and validate at runtime
         timestamp_data = cast(
             "float | int | None",
-            index.data(ThreeDERole.ModifiedTimeRole),
+            index.data(BaseItemRole.ModifiedTimeRole),
         )
         if timestamp_data is not None and timestamp_data != 0:
             try:
@@ -117,14 +114,14 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
                 timestamp_str = ""
 
         return {
-            "name": index.data(ThreeDERole.DisplayRole) or "Unknown",
-            "show": index.data(ThreeDERole.ShowRole),
-            "sequence": index.data(ThreeDERole.SequenceRole),
-            "shot": index.data(ThreeDERole.ItemSpecificRole1),  # Maps to shot
-            "thumbnail": index.data(ThreeDERole.ThumbnailPixmapRole),
-            "loading_state": index.data(ThreeDERole.LoadingStateRole),
+            "name": index.data(BaseItemRole.DisplayRole) or "Unknown",
+            "show": index.data(BaseItemRole.ShowRole),
+            "sequence": index.data(BaseItemRole.SequenceRole),
+            "shot": index.data(BaseItemRole.ItemSpecificRole1),  # Maps to shot
+            "thumbnail": index.data(BaseItemRole.ThumbnailPixmapRole),
+            "loading_state": index.data(BaseItemRole.LoadingStateRole),
             "user": index.data(
-                ThreeDERole.ItemSpecificRole2
+                BaseItemRole.ItemSpecificRole2
             ),  # Maps to user for THREEDE
             "timestamp": timestamp_str,
         }

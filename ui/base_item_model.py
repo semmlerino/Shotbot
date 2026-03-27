@@ -516,18 +516,6 @@ class BaseItemModel(
         """
         self.set_items(shots)
 
-    def get_shot_at_index(self, index: QModelIndex) -> T | None:
-        """Get shot at the given index.
-
-        Args:
-            index: Model index
-
-        Returns:
-            Shot object or None if invalid
-
-        """
-        return self.get_item_at_index(index)
-
     def _find_shot_by_full_name(self, full_name: str) -> tuple[T, int] | None:
         """Find a shot by its full name.
 

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, final
 from PySide6.QtCore import QModelIndex, QObject, Signal
 
 from typing_compat import override
-from ui.base_item_model import BaseItemModel
+from ui.base_item_model import BaseItemModel, BaseItemRole
 
 
 if TYPE_CHECKING:
@@ -100,19 +100,16 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             Data for the role or None
 
         """
-        # ThreeDEScene-specific roles using Qt.ItemDataRole.UserRole offsets
-        from PySide6.QtCore import Qt
-
-        if role == (Qt.ItemDataRole.UserRole + 20):  # ItemSpecificRole1
+        if role == BaseItemRole.ItemSpecificRole1:
             # Return shot name
             return item.shot
-        if role == (Qt.ItemDataRole.UserRole + 21):  # ItemSpecificRole2
+        if role == BaseItemRole.ItemSpecificRole2:
             # Return user
             return item.user
-        if role == (Qt.ItemDataRole.UserRole + 22):  # ItemSpecificRole3
+        if role == BaseItemRole.ItemSpecificRole3:
             # Return scene path
             return item.scene_path
-        if role == (Qt.ItemDataRole.UserRole + 23):  # ModifiedTimeRole
+        if role == BaseItemRole.ModifiedTimeRole:
             # Return modification time
             scene_path = item.scene_path
             try:

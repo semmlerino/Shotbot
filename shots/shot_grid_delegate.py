@@ -24,9 +24,6 @@ from ui.base_thumbnail_delegate import (
 )
 
 
-# Backward compatibility alias
-ShotRole = BaseItemRole
-
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QModelIndex, QPersistentModelIndex
@@ -97,13 +94,13 @@ class ShotGridDelegate(BaseThumbnailDelegate):
             return {"name": "", "loading_state": ""}
 
         return {
-            "name": index.data(ShotRole.FullNameRole) or "Unknown",
-            "show": index.data(ShotRole.ShowRole),
-            "sequence": index.data(ShotRole.SequenceRole),
-            "thumbnail": index.data(ShotRole.ThumbnailPixmapRole),
-            "loading_state": index.data(ShotRole.LoadingStateRole),
-            "is_pinned": index.data(ShotRole.IsPinnedRole) or False,
-            "is_hidden": index.data(ShotRole.IsHiddenRole) or False,
-            "has_note": index.data(ShotRole.HasNoteRole) or False,
-            "frame_range": index.data(ShotRole.FrameRangeRole) or "No plate",
+            "name": index.data(BaseItemRole.FullNameRole) or "Unknown",
+            "show": index.data(BaseItemRole.ShowRole),
+            "sequence": index.data(BaseItemRole.SequenceRole),
+            "thumbnail": index.data(BaseItemRole.ThumbnailPixmapRole),
+            "loading_state": index.data(BaseItemRole.LoadingStateRole),
+            "is_pinned": index.data(BaseItemRole.IsPinnedRole) or False,
+            "is_hidden": index.data(BaseItemRole.IsHiddenRole) or False,
+            "has_note": index.data(BaseItemRole.HasNoteRole) or False,
+            "frame_range": index.data(BaseItemRole.FrameRangeRole) or "No plate",
         }
