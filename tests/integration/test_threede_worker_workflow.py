@@ -211,7 +211,9 @@ class TestThreeDEWorkerWorkflow:
                 timeout = 60000
 
             # Following Signal Testing Pattern (lines 375-387): waitSignal BEFORE action
-            with qtbot.waitSignal(worker.discovery_finished, timeout=timeout) as blocker:
+            with qtbot.waitSignal(
+                worker.discovery_finished, timeout=timeout
+            ) as blocker:
                 worker.start()
 
             # Verify workflow completed successfully
@@ -268,10 +270,13 @@ class TestThreeDEWorkerWorkflow:
         # Create wrapper functions to store connections
         def started_wrapper():
             return track_signal("started")
+
         def progress_wrapper(*args):
             return track_signal("progress", *args)
+
         def finished_wrapper(scenes):
             return track_signal("finished", len(scenes))
+
         def error_wrapper(msg):
             return track_signal("error", msg)
 

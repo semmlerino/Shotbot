@@ -55,9 +55,24 @@ def shot_cache(tmp_path: Path) -> ShotDataCache:
 def sample_shots() -> list[Shot]:
     """Provide realistic shot data for testing."""
     return [
-        Shot("test_show", "seq01", "shot010", f"{Config.SHOWS_ROOT}/test_show/seq01/shot010"),
-        Shot("test_show", "seq01", "shot020", f"{Config.SHOWS_ROOT}/test_show/seq01/shot020"),
-        Shot("test_show", "seq02", "shot030", f"{Config.SHOWS_ROOT}/test_show/seq02/shot030"),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot010",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
+        ),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot020",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
+        ),
+        Shot(
+            "test_show",
+            "seq02",
+            "shot030",
+            f"{Config.SHOWS_ROOT}/test_show/seq02/shot030",
+        ),
     ]
 
 
@@ -85,7 +100,9 @@ class TestShotCacheInitialization:
             pytest.param("existing_cache", id="existing_directory"),
         ],
     )
-    def test_initialization_creates_cache_dir(self, tmp_path: Path, subdir: str) -> None:
+    def test_initialization_creates_cache_dir(
+        self, tmp_path: Path, subdir: str
+    ) -> None:
         """Test cache directory is referenced correctly on init (new or pre-existing)."""
         cache_dir = tmp_path / subdir
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -501,13 +518,13 @@ class TestShotMigration:
         assert len(migrated) == 1
         assert migrated[0]["workspace_path"] == "/new/path"
 
-    def test_migration_cross_show_uniqueness(
-        self, shot_cache: ShotDataCache
-    ) -> None:
+    def test_migration_cross_show_uniqueness(self, shot_cache: ShotDataCache) -> None:
         """Composite key prevents cross-show collisions."""
         shots = [
             Shot("show1", "seq01", "shot010", "/show1/path"),
-            Shot("show2", "seq01", "shot010", "/show2/path"),  # Same seq_shot, different show
+            Shot(
+                "show2", "seq01", "shot010", "/show2/path"
+            ),  # Same seq_shot, different show
         ]
         shot_cache.archive_shots_as_previous(shots)
 
@@ -533,9 +550,7 @@ class TestShotMigration:
         assert migrated is not None
         assert len(migrated) == 2
 
-    def test_migration_no_signal_on_empty(
-        self, shot_cache: ShotDataCache
-    ) -> None:
+    def test_migration_no_signal_on_empty(self, shot_cache: ShotDataCache) -> None:
         """No signal emitted for empty migration."""
         signal_emitted = False
 
@@ -661,7 +676,6 @@ class TestCacheWriteFailureSignals:
 
         result = shot_cache.archive_shots_as_previous(shots_input)
         assert result is expected_result
-
 
 
 # ---------------------------------------------------------------------------

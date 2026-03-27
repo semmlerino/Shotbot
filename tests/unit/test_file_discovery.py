@@ -24,7 +24,9 @@ def file_discovery():
 class TestSafeMkdir:
     """Tests for FileDiscovery.safe_mkdir()."""
 
-    def test_creates_nested_directories(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_creates_nested_directories(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Creates nested directories with parents=True."""
         nested = tmp_path / "a" / "b" / "c" / "d"
 
@@ -46,7 +48,9 @@ class TestSafeMkdir:
 class TestFindMovFileForPath:
     """Tests for FileDiscovery.find_mov_file_for_path()."""
 
-    def test_finds_mov_in_version_directory(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_finds_mov_in_version_directory(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Finds MOV file in sibling mov/ directory."""
         # Create structure: .../v001/exr/file.exr and .../v001/mov/file.mov
         version_dir = tmp_path / "publish" / "v001"
@@ -66,7 +70,9 @@ class TestFindMovFileForPath:
         assert result is not None
         assert result.name == "movie.mov"
 
-    def test_returns_none_no_version_directory(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_returns_none_no_version_directory(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Returns None when no version directory found."""
         flat_dir = tmp_path / "flat"
         flat_dir.mkdir()
@@ -77,7 +83,9 @@ class TestFindMovFileForPath:
 
         assert result is None
 
-    def test_returns_none_no_mov_directory(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_returns_none_no_mov_directory(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Returns None when mov/ directory doesn't exist."""
         version_dir = tmp_path / "v001"
         exr_dir = version_dir / "exr"
@@ -90,7 +98,9 @@ class TestFindMovFileForPath:
 
         assert result is None
 
-    def test_returns_none_no_mov_files(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_returns_none_no_mov_files(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Returns None when mov/ directory exists but is empty."""
         version_dir = tmp_path / "v001"
         exr_dir = version_dir / "exr"
@@ -106,7 +116,9 @@ class TestFindMovFileForPath:
 
         assert result is None
 
-    def test_handles_uppercase_mov_extension(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_handles_uppercase_mov_extension(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Finds files with .MOV extension."""
         version_dir = tmp_path / "v001"
         exr_dir = version_dir / "exr"
@@ -125,7 +137,9 @@ class TestFindMovFileForPath:
         assert result is not None
         assert result.name == "file.MOV"
 
-    def test_returns_first_mov_sorted(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_returns_first_mov_sorted(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Returns first MOV file when multiple exist (sorted)."""
         version_dir = tmp_path / "v001"
         exr_dir = version_dir / "exr"
@@ -183,7 +197,9 @@ class TestDiscoverPlateDirectories:
         plate_names = [name for name, _ in result]
         assert plate_name in plate_names
 
-    def test_case_insensitive_matching(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_case_insensitive_matching(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Matches plate names case-insensitively."""
         (tmp_path / "bg01").mkdir()
         (tmp_path / "BG02").mkdir()
@@ -197,7 +213,9 @@ class TestDiscoverPlateDirectories:
         assert "BG02" in plate_names
         assert "Bg03" in plate_names
 
-    def test_skips_non_plate_directories(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_skips_non_plate_directories(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Skips directories that don't match plate patterns."""
         (tmp_path / "FG01").mkdir()  # Valid
         (tmp_path / "reference").mkdir()  # Invalid
@@ -247,7 +265,9 @@ class TestDiscoverPlateDirectories:
             priorities = [priority for _, priority in result]
             assert priorities == sorted(priorities)
 
-    def test_returns_tuples_with_priority(self, tmp_path: Path, file_discovery: type) -> None:
+    def test_returns_tuples_with_priority(
+        self, tmp_path: Path, file_discovery: type
+    ) -> None:
         """Returns list of (plate_name, priority) tuples."""
         (tmp_path / "FG01").mkdir()
 

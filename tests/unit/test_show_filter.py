@@ -30,7 +30,8 @@ from shots.shot_grid_view import ShotGridView
 # Local application imports
 from shots.shot_item_model import ShotItemModel
 from shots.shot_model import ShotModel
-from tests.fixtures.test_doubles import TestCacheManager, TestProcessPool
+from tests.fixtures.model_fixtures import TestCacheManager
+from tests.fixtures.process_fixtures import TestProcessPool
 from type_definitions import Shot
 
 
@@ -388,10 +389,8 @@ class TestMainWindowFilterHandlers:
 
         # Set up minimal required attributes
         # Local application imports
-        from tests.fixtures.test_doubles import (
-            TestCacheManager,
-            TestProcessPool,
-        )
+        from tests.fixtures.model_fixtures import TestCacheManager
+        from tests.fixtures.process_fixtures import TestProcessPool
 
         # Create test models
         window.shot_model = ShotModel(

@@ -89,11 +89,15 @@ class TestPathValidation:
     @pytest.mark.parametrize(
         ("path", "dot_pattern"),
         [
-            pytest.param("/home/user/project/../file.txt", "..", id="dotdot_normalizes"),
+            pytest.param(
+                "/home/user/project/../file.txt", "..", id="dotdot_normalizes"
+            ),
             pytest.param("/home/user/./file.txt", "/./", id="dot_normalizes"),
         ],
     )
-    def test_path_with_dots_normalizes_safely(self, path: str, dot_pattern: str) -> None:
+    def test_path_with_dots_normalizes_safely(
+        self, path: str, dot_pattern: str
+    ) -> None:
         """Test that paths with . or .. normalize correctly (VFX pipeline use case)."""
         result = validate_path(path)
         assert "file.txt" in result
@@ -171,7 +175,7 @@ class TestRezWrapping:
 
     def test_rez_wrap_escapes_single_quotes(self) -> None:
         """Test that Rez wrapping handles commands with single quotes."""
-        command = "nuke -m \"It's working\""
+        command = 'nuke -m "It\'s working"'
         packages = ["nuke"]
         result = wrap_with_rez(command, packages)
         # shlex.quote() escapes single quotes inside the command
@@ -180,7 +184,9 @@ class TestRezWrapping:
 
     def test_rez_wrap_handles_mixed_quotes_and_special_chars(self) -> None:
         """Test complex command with quotes, spaces, and special characters."""
-        command = 'maya -command "loadPlugin(\'shotbot\')" -file "/path/with spaces/scene.ma"'
+        command = (
+            'maya -command "loadPlugin(\'shotbot\')" -file "/path/with spaces/scene.ma"'
+        )
         packages = ["maya"]
         result = wrap_with_rez(command, packages)
         # Verify the command is properly quoted
@@ -199,7 +205,13 @@ class TestNukeEnvironmentFixes:
             (
                 True,
                 "/path/to/config.ocio",
-                ["NUKE_PATH=$(", "case", "problematic_plugins", "OCIO=/path/to/config.ocio", "NUKE_CRASH_REPORTS=0"],
+                [
+                    "NUKE_PATH=$(",
+                    "case",
+                    "problematic_plugins",
+                    "OCIO=/path/to/config.ocio",
+                    "NUKE_CRASH_REPORTS=0",
+                ],
                 [],
             ),
             (
@@ -221,7 +233,12 @@ class TestNukeEnvironmentFixes:
                 ["NUKE_PATH"],
             ),
         ],
-        ids=["all_fixes", "crash_reporting_only", "plugin_filtering_only", "ocio_fallback_only"],
+        ids=[
+            "all_fixes",
+            "crash_reporting_only",
+            "plugin_filtering_only",
+            "ocio_fallback_only",
+        ],
     )
     def test_nuke_environment_fixes(
         self,
@@ -240,7 +257,9 @@ class TestNukeEnvironmentFixes:
         for substring in expected_present:
             assert substring in result, f"Expected {substring!r} in result: {result!r}"
         for substring in expected_absent:
-            assert substring not in result, f"Did not expect {substring!r} in result: {result!r}"
+            assert substring not in result, (
+                f"Did not expect {substring!r} in result: {result!r}"
+            )
         assert result.endswith("&& nuke")
 
     def test_ocio_path_with_spaces(self, mock_config: MagicMock) -> None:
@@ -261,7 +280,11 @@ class TestNukeEnvironmentFixes:
             pytest.param(
                 True,
                 "/path/to/config.ocio",
-                ["runtime NUKE_PATH filtering", "OCIO fallback", "crash reporting disabled"],
+                [
+                    "runtime NUKE_PATH filtering",
+                    "OCIO fallback",
+                    "crash reporting disabled",
+                ],
                 3,
                 id="all_enabled",
             ),
@@ -296,7 +319,9 @@ class TestNukeEnvironmentFixes:
 class TestLoggingRedirection:
     """Tests for logging redirection."""
 
-    def test_logging_added_successfully(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_logging_added_successfully(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """Test that logging redirection is added successfully with pipefail."""
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
         command = "nuke"
@@ -320,24 +345,31 @@ class TestLoggingRedirection:
     ) -> None:
         """Test graceful degradation when logging directory creation fails."""
         monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
-        monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: (_ for _ in ()).throw(exc))
+        monkeypatch.setattr(
+            Path, "mkdir", lambda *_a, **_kw: (_ for _ in ()).throw(exc)
+        )
         command = "nuke"
 
         result = add_logging(command)
 
         assert result == "nuke"
 
-    def test_logging_handles_spaces_in_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_logging_handles_spaces_in_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that logging handles spaces in log file path."""
-        monkeypatch.setattr("launch.command_builder.Path.home", lambda: Path("/home/user with spaces"))
+        monkeypatch.setattr(
+            "launch.command_builder.Path.home", lambda: Path("/home/user with spaces")
+        )
         monkeypatch.setattr(Path, "mkdir", lambda *_a, **_kw: None)
         command = "nuke"
 
         result = add_logging(command)
 
         # Path should be quoted
-        assert "'/home/user with spaces" in result or '"/home/user with spaces' in result
-
+        assert (
+            "'/home/user with spaces" in result or '"/home/user with spaces' in result
+        )
 
 
 class TestBackgroundWrapping:
@@ -385,7 +417,9 @@ class TestMayaCommandMustSurviveBashParsing:
         file_path = "/shows/test/scene.ma"
 
         # Call the underlying function directly
-        command = maya_commands.build_maya_context_command("maya", file_path, context_script)
+        command = maya_commands.build_maya_context_command(
+            "maya", file_path, context_script
+        )
 
         # Wrap for bash -ilc (as ProcessExecutor does)
         wrapped = f"bash -ilc {shlex.quote(command)}"
@@ -417,10 +451,14 @@ class TestMayaCommandMustSurviveBashParsing:
                 if part == "-c" and i + 1 < len(inner_parts):
                     c_arg = inner_parts[i + 1]
                     # Look for base64.b64decode("...") or base64.b64decode('...')
-                    b64_match = re.search(r'base64\.b64decode\(["\']([^"\']+)["\']', c_arg)
+                    b64_match = re.search(
+                        r'base64\.b64decode\(["\']([^"\']+)["\']', c_arg
+                    )
                     if b64_match:
                         try:
-                            decoded_script = base64.b64decode(b64_match.group(1)).decode()
+                            decoded_script = base64.b64decode(
+                                b64_match.group(1)
+                            ).decode()
                             base64_found = True
                         except Exception:  # noqa: BLE001
                             pass
@@ -438,5 +476,3 @@ class TestMayaCommandMustSurviveBashParsing:
             f"Expected: {context_script!r}\n"
             f"Got: {decoded_script!r}"
         )
-
-

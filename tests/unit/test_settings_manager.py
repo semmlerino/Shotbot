@@ -22,7 +22,9 @@ from managers.settings_manager import SettingsManager
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,  # Critical for parallel execution safety
-    pytest.mark.xdist_group("settings_manager"),  # Batch on same worker to avoid setup overhead
+    pytest.mark.xdist_group(
+        "settings_manager"
+    ),  # Batch on same worker to avoid setup overhead
 ]
 
 
@@ -70,7 +72,9 @@ class TestSettingsManager:
 
     @pytest.fixture
     def settings_manager(
-        self, tmp_path: Path, make_settings_manager: Callable[[Path, str, str], SettingsManager]
+        self,
+        tmp_path: Path,
+        make_settings_manager: Callable[[Path, str, str], SettingsManager],
     ) -> SettingsManager:
         """Create settings manager with temporary storage."""
         return make_settings_manager(tmp_path)
@@ -78,8 +82,18 @@ class TestSettingsManager:
     @pytest.mark.parametrize(
         ("getter_name", "domain", "setter_name", "test_value"),
         [
-            ("get_window_geometry", "window", "set_window_geometry", QByteArray(b"test_geometry_data")),
-            ("get_window_state", "window", "set_window_state", QByteArray(b"test_state_data")),
+            (
+                "get_window_geometry",
+                "window",
+                "set_window_geometry",
+                QByteArray(b"test_geometry_data"),
+            ),
+            (
+                "get_window_state",
+                "window",
+                "set_window_state",
+                QByteArray(b"test_state_data"),
+            ),
             ("get_background_refresh", "refresh", "set_background_refresh", True),
             ("get_background_gui_apps", "launch", "set_background_gui_apps", False),
         ],
@@ -186,7 +200,9 @@ class TestSettingsManager:
         settings_manager.ui.set_thumbnail_size(2000)
         assert settings_manager.ui.get_thumbnail_size() <= Config.MAX_THUMBNAIL_SIZE
 
-    def test_last_directory(self, settings_manager: SettingsManager, tmp_path: Path) -> None:
+    def test_last_directory(
+        self, settings_manager: SettingsManager, tmp_path: Path
+    ) -> None:
         """Test last directory path handling."""
         # Test default
         default_dir = settings_manager.launch.get_last_directory()
@@ -253,7 +269,9 @@ class TestSettingsManager:
         assert settings_manager.window.get_current_tab() == 0
         assert settings_manager.ui.get_thumbnail_size() == Config.DEFAULT_THUMBNAIL_SIZE
 
-    def test_export_settings(self, settings_manager: SettingsManager, tmp_path: Path) -> None:
+    def test_export_settings(
+        self, settings_manager: SettingsManager, tmp_path: Path
+    ) -> None:
         """Test exporting settings to JSON file."""
         # Set some custom values (within valid range MIN=400, MAX=1200)
         settings_manager.window.set_current_tab(1)
@@ -274,7 +292,9 @@ class TestSettingsManager:
         assert exported["window"]["current_tab"] == 1
         assert exported["preferences"]["thumbnail_size"] == 500
 
-    def test_import_settings(self, settings_manager: SettingsManager, tmp_path: Path) -> None:
+    def test_import_settings(
+        self, settings_manager: SettingsManager, tmp_path: Path
+    ) -> None:
         """Test importing settings from JSON file."""
         # Create import file (using valid thumbnail size within range)
         import_data = {
@@ -293,7 +313,9 @@ class TestSettingsManager:
         assert settings_manager.window.get_current_tab() == 2
         assert settings_manager.ui.get_thumbnail_size() == 600
 
-    def test_import_invalid_file(self, settings_manager: SettingsManager, tmp_path: Path) -> None:
+    def test_import_invalid_file(
+        self, settings_manager: SettingsManager, tmp_path: Path
+    ) -> None:
         """Test importing from invalid file."""
         # Non-existent file
         result = settings_manager.import_settings("/nonexistent/file.json")
@@ -380,13 +402,14 @@ class TestSettingsManager:
         assert default_size.width() == Config.DEFAULT_WINDOW_WIDTH
 
 
-
 class TestSettingsManagerAtomicWrite:
     """Tests for atomic write pattern in export_settings."""
 
     @pytest.fixture
     def settings_manager(
-        self, tmp_path: Path, make_settings_manager: Callable[[Path, str, str], SettingsManager]
+        self,
+        tmp_path: Path,
+        make_settings_manager: Callable[[Path, str, str], SettingsManager],
     ) -> SettingsManager:
         """Create settings manager with temporary storage."""
         return make_settings_manager(tmp_path)
@@ -442,7 +465,9 @@ class TestSortOrderSettings:
 
     @pytest.fixture
     def settings_manager(
-        self, tmp_path: Path, make_settings_manager: Callable[[Path, str, str], SettingsManager]
+        self,
+        tmp_path: Path,
+        make_settings_manager: Callable[[Path, str, str], SettingsManager],
     ) -> SettingsManager:
         """Create settings manager with temporary storage."""
         return make_settings_manager(tmp_path)
@@ -470,9 +495,7 @@ class TestSortOrderSettings:
             settings_manager.ui.set_sort_order(tab_id, roundtrip_order)
             assert settings_manager.ui.get_sort_order(tab_id) == roundtrip_order
 
-    def test_set_sort_order_persists(
-        self, settings_manager: SettingsManager
-    ) -> None:
+    def test_set_sort_order_persists(self, settings_manager: SettingsManager) -> None:
         """Test that set_sort_order persists the value."""
         settings_manager.ui.set_sort_order("threede_scenes", "name")
         result = settings_manager.ui.get_sort_order("threede_scenes")
@@ -509,7 +532,9 @@ class TestUIScaleSettings:
 
     @pytest.fixture
     def settings_manager(
-        self, tmp_path: Path, make_settings_manager: Callable[[Path, str, str], SettingsManager]
+        self,
+        tmp_path: Path,
+        make_settings_manager: Callable[[Path, str, str], SettingsManager],
     ) -> SettingsManager:
         """Create settings manager with temporary storage."""
         return make_settings_manager(tmp_path)
@@ -527,10 +552,19 @@ class TestUIScaleSettings:
             (0.8, 0.8),  # At minimum boundary
             (1.5, 1.5),  # At maximum boundary
         ],
-        ids=["valid", "clamps_minimum", "clamps_maximum", "boundary_minimum", "boundary_maximum"],
+        ids=[
+            "valid",
+            "clamps_minimum",
+            "clamps_maximum",
+            "boundary_minimum",
+            "boundary_maximum",
+        ],
     )
     def test_set_ui_scale_boundaries(
-        self, settings_manager: SettingsManager, input_value: float, expected_value: float
+        self,
+        settings_manager: SettingsManager,
+        input_value: float,
+        expected_value: float,
     ) -> None:
         """Test UI scale validation and boundary clamping."""
         settings_manager.ui.set_ui_scale(input_value)

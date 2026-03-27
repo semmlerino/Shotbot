@@ -26,7 +26,9 @@ class TestOpenPlateInRV:
     @patch("discovery.find_main_plate", return_value="/path/to/plate.exr")
     def test_launches_rv_with_correct_command(self, mock_find, mock_popen):
         """Successfully launches RV through Rez with correct flags."""
-        with patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"):
+        with patch(
+            "launch.environment_manager.shutil.which", return_value="/usr/bin/rez"
+        ):
             open_plate_in_rv("/some/workspace")
         mock_popen.assert_called_once()
         args = mock_popen.call_args[0][0]
@@ -63,7 +65,9 @@ class TestOpenPlateInRV:
     def test_rv_not_found_error(self, mock_find, mock_popen):
         """FileNotFoundError shows RV Not Found notification."""
         with (
-            patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"),
+            patch(
+                "launch.environment_manager.shutil.which", return_value="/usr/bin/rez"
+            ),
             patch.object(NotificationManager, "error") as mock_notify,
         ):
             open_plate_in_rv("/some/workspace")
@@ -75,7 +79,9 @@ class TestOpenPlateInRV:
     def test_generic_launch_error(self, mock_find, mock_popen):
         """Generic exception shows RV Launch Failed notification."""
         with (
-            patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"),
+            patch(
+                "launch.environment_manager.shutil.which", return_value="/usr/bin/rez"
+            ),
             patch.object(NotificationManager, "error") as mock_notify,
         ):
             open_plate_in_rv("/some/workspace")

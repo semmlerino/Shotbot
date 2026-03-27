@@ -11,7 +11,7 @@ from PySide6.QtTest import QSignalSpy
 
 from config import Config
 from shots.shot_model import AsyncShotLoader, ShotModel
-from tests.fixtures.test_doubles import TestProcessPool
+from tests.fixtures.process_fixtures import TestProcessPool
 
 # Local application imports
 from ui.base_shot_model import BaseShotModel
@@ -65,9 +65,7 @@ class TestAsyncShotLoader:
         # Create BaseShotModel instance to get the parse function
         # Use isolated shot_cache from fixture
         base_model = BaseShotModel(cache_manager=shot_cache)
-        loader = AsyncShotLoader(
-            pool, parse_function=base_model._parse_ws_output
-        )
+        loader = AsyncShotLoader(pool, parse_function=base_model._parse_ws_output)
         # AsyncShotLoader is a QThread, not a QWidget, so we don't use addWidget
         # Instead, ensure it gets properly cleaned up
         yield loader
@@ -128,7 +126,9 @@ class TestAsyncShotLoader:
         slow_pool = TestProcessPool(allow_main_thread=True)
         slow_pool.simulated_delay = 0.1  # Simulate slow operation
         shows_root = Config.SHOWS_ROOT
-        slow_pool.set_outputs(f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010")
+        slow_pool.set_outputs(
+            f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010"
+        )
 
         base_model = BaseShotModel(cache_manager=shot_cache)
         loader = AsyncShotLoader(slow_pool, parse_function=base_model._parse_ws_output)
@@ -217,7 +217,9 @@ class TestShotModelSignals:
         # Use TestProcessPool boundary mock to avoid real subprocess
         test_pool = TestProcessPool(allow_main_thread=True)
         shows_root = Config.SHOWS_ROOT
-        test_pool.set_outputs(f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010")
+        test_pool.set_outputs(
+            f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010"
+        )
         optimized_model._process_pool = test_pool
 
         # Initialize async
@@ -246,11 +248,9 @@ class TestShotModelSignals:
         from type_definitions import (
             Shot,
         )
+
         initial_shot = Shot(
-            show="OLD",
-            sequence="seq01",
-            shot="0010",
-            workspace_path="/test/workspace"
+            show="OLD", sequence="seq01", shot="0010", workspace_path="/test/workspace"
         )
         # Cache the initial data so initialize_async will load it
         optimized_model.cache_manager.cache_shots([initial_shot])
@@ -311,7 +311,9 @@ class TestShotModelSignals:
         assert result.success is True
 
         # First emission: empty list (initial load with no cache)
-        assert shots_loaded_spy.count() == 1, "First shots_loaded should emit immediately"
+        assert shots_loaded_spy.count() == 1, (
+            "First shots_loaded should emit immediately"
+        )
         first_emission_shots = shots_loaded_spy.at(0)[0]
         assert len(first_emission_shots) == 0, "First emission should have empty list"
 
@@ -319,14 +321,14 @@ class TestShotModelSignals:
         qtbot.waitUntil(lambda: len(model.shots) > 0, timeout=5000)
 
         # Second emission: actual shots (CRITICAL - this was missing before fix)
-        assert (
-            shots_loaded_spy.count() == 2
-        ), "shots_loaded should emit twice: empty init + loaded shots"
+        assert shots_loaded_spy.count() == 2, (
+            "shots_loaded should emit twice: empty init + loaded shots"
+        )
 
         second_emission_shots = shots_loaded_spy.at(1)[0]
-        assert (
-            len(second_emission_shots) == 2
-        ), "Second emission should have actual shots"
+        assert len(second_emission_shots) == 2, (
+            "Second emission should have actual shots"
+        )
         assert second_emission_shots[0].show == "TEST"
         assert second_emission_shots[0].sequence == "seq01"
 

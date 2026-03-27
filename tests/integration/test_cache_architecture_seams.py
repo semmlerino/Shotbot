@@ -89,13 +89,14 @@ class TestSceneDiscoverySingleCache:
             coordinator, "_find_scenes_for_shot_local", return_value=[]
         ) as mock_find:
             # Each call should invoke the discovery method
-            _ = coordinator.find_scenes_for_shot(
-                "/workspace", "SHOW", "SEQ", "0010"
-            )
+            _ = coordinator.find_scenes_for_shot("/workspace", "SHOW", "SEQ", "0010")
             assert mock_find.call_count == 1
 
             _ = coordinator.find_scenes_for_shot(
-                "/workspace", "SHOW", "SEQ", "0010",
+                "/workspace",
+                "SHOW",
+                "SEQ",
+                "0010",
             )
             assert mock_find.call_count == 2  # Always calls through
 

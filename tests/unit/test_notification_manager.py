@@ -76,7 +76,9 @@ class TestNotificationManager:
     @pytest.fixture
     def manager_with_ui(
         self,
-        make_manager_with_ui: Callable[[], tuple[NotificationManager, QMainWindow, QStatusBar]],
+        make_manager_with_ui: Callable[
+            [], tuple[NotificationManager, QMainWindow, QStatusBar]
+        ],
     ) -> tuple[NotificationManager, QMainWindow, QStatusBar]:
         """Create notification manager with UI components."""
         return make_manager_with_ui()
@@ -109,6 +111,7 @@ class TestNotificationManager:
 
         # Use monkeypatch.setattr to override the autouse fixture's mock
         from unittest.mock import MagicMock
+
         mock_critical = MagicMock(return_value=QMessageBox.StandardButton.Ok)
         monkeypatch.setattr(QMessageBox, "critical", mock_critical)
 
@@ -130,6 +133,7 @@ class TestNotificationManager:
 
         # Use monkeypatch.setattr to override the autouse fixture's mock
         from unittest.mock import MagicMock
+
         mock_warning = MagicMock(return_value=QMessageBox.StandardButton.Ok)
         monkeypatch.setattr(QMessageBox, "warning", mock_warning)
 
@@ -141,7 +145,9 @@ class TestNotificationManager:
         assert "Test Warning" in args[1]
 
     def test_info_notification(
-        self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar], qtbot: QtBot
+        self,
+        manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar],
+        qtbot: QtBot,
     ) -> None:
         """Test info message in status bar."""
         _manager, _main_window, status_bar = manager_with_ui
@@ -153,8 +159,10 @@ class TestNotificationManager:
 
         # Wait for message to clear or remain
         qtbot.waitUntil(
-            lambda: status_bar.currentMessage() == ""
-            or "Info message" in status_bar.currentMessage(),
+            lambda: (
+                status_bar.currentMessage() == ""
+                or "Info message" in status_bar.currentMessage()
+            ),
             timeout=250,
         )
 
@@ -246,4 +254,3 @@ class TestNotificationManager:
         assert NotificationManager._status_bar is None
         assert NotificationManager._current_progress is None
         mock_progress.close.assert_called_once()
-

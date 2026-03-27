@@ -265,10 +265,7 @@ class TestProgressManagerContextManager:
 class TestProgressCancellation:
     """Test operation cancellation behavior."""
 
-
-    def test_is_cancelled_reflects_state(
-        self, mock_notification_manager: Mock
-    ) -> None:
+    def test_is_cancelled_reflects_state(self, mock_notification_manager: Mock) -> None:
         """ProgressManager.is_cancelled() mirrors the current operation's state."""
         op = ProgressManager.start_operation("Test")
         assert not ProgressManager.is_cancelled()
@@ -279,7 +276,6 @@ class TestProgressCancellation:
     def test_is_cancelled_with_no_operation(self) -> None:
         """ProgressManager.is_cancelled() returns False when no operation is active."""
         assert ProgressManager.is_cancelled() is False
-
 
 
 # =============================================================================

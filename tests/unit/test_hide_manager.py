@@ -41,9 +41,24 @@ def hide_manager(cache_dir: Path) -> HideManager:
 def sample_shots() -> list[Shot]:
     """Provide realistic shot data for testing."""
     return [
-        Shot("test_show", "seq01", "shot010", f"{Config.SHOWS_ROOT}/test_show/seq01/shot010"),
-        Shot("test_show", "seq01", "shot020", f"{Config.SHOWS_ROOT}/test_show/seq01/shot020"),
-        Shot("test_show", "seq02", "shot030", f"{Config.SHOWS_ROOT}/test_show/seq02/shot030"),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot010",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
+        ),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot020",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
+        ),
+        Shot(
+            "test_show",
+            "seq02",
+            "shot030",
+            f"{Config.SHOWS_ROOT}/test_show/seq02/shot030",
+        ),
     ]
 
 
@@ -150,9 +165,7 @@ class TestPersistence:
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
-    def test_different_shot_objects_same_key(
-        self, hide_manager: HideManager
-    ) -> None:
+    def test_different_shot_objects_same_key(self, hide_manager: HideManager) -> None:
         """Different Shot objects with same key should be treated as same."""
         shot1 = Shot("show", "seq", "shot", "/path1")
         shot2 = Shot("show", "seq", "shot", "/path2")  # Different path, same key

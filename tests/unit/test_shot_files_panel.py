@@ -147,7 +147,10 @@ class TestFileListItem:
     ) -> None:
         """Test that init displays the filename."""
         # The widget should have a tooltip with the full path
-        assert scene_file.name in file_list_item.toolTip() or str(scene_file.path) in file_list_item.toolTip()
+        assert (
+            scene_file.name in file_list_item.toolTip()
+            or str(scene_file.path) in file_list_item.toolTip()
+        )
 
     def test_init_sets_tooltip_to_path(
         self, qtbot: QtBot, file_list_item: FileListItem, scene_file: SceneFile
@@ -159,7 +162,9 @@ class TestFileListItem:
         self, qtbot: QtBot, file_list_item: FileListItem
     ) -> None:
         """Test that custom context menu policy is set."""
-        assert file_list_item.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
+        assert (
+            file_list_item.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
+        )
 
     @pytest.mark.allow_dialogs
     def test_open_requested_signal_defined(
@@ -169,7 +174,6 @@ class TestFileListItem:
         assert hasattr(file_list_item, "open_requested")
         signal_spy = QSignalSpy(file_list_item.open_requested)
         assert signal_spy is not None
-
 
 
 class TestFileListItemContextMenu:
@@ -210,7 +214,9 @@ class TestFileListItemContextMenu:
             mock_open.assert_called_once()
             # Verify it was called with a URI for the parent folder
             call_arg = str(mock_open.call_args[0][0])
-            assert "file://" in call_arg.lower() or str(scene_file.path.parent) in call_arg
+            assert (
+                "file://" in call_arg.lower() or str(scene_file.path.parent) in call_arg
+            )
 
 
 # ============================================================================
@@ -342,7 +348,9 @@ class TestFileTypeSectionFiles:
         self, qtbot: QtBot, file_type_section: FileTypeSection
     ) -> None:
         """Test that clear removes all files."""
-        file_type_section.set_files([create_scene_file(), create_scene_file(name="other.3de")])
+        file_type_section.set_files(
+            [create_scene_file(), create_scene_file(name="other.3de")]
+        )
         process_qt_events()
 
         file_type_section.clear()
@@ -351,7 +359,6 @@ class TestFileTypeSectionFiles:
         assert "(0)" in file_type_section._chip_button.text()
         # Section should be hidden when cleared
         assert file_type_section.isHidden() is True
-
 
 
 # ============================================================================
@@ -384,7 +391,6 @@ class TestShotFilesPanel:
         """Test that init creates ShotFileFinder."""
         assert hasattr(shot_files_panel, "_finder")
         assert shot_files_panel._finder is not None
-
 
 
 class TestShotFilesPanelSetShot:
@@ -484,8 +490,6 @@ class TestShotFilesPanelSetShot:
 
 class TestShotFilesPanelSignalRouting:
     """Test signal routing through ShotFilesPanel."""
-
-
 
 
 # ============================================================================

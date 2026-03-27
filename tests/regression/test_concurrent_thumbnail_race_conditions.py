@@ -73,7 +73,9 @@ class TestConcurrentThumbnailRaceConditions:
                     path_str = f"{base_path}/seq_{i % 10}/shot_{i}"
 
                     # Validate path (triggers cache access)
-                    result = PathValidators.validate_path_exists(path_str, f"Worker {worker_id}")
+                    result = PathValidators.validate_path_exists(
+                        path_str, f"Worker {worker_id}"
+                    )
 
                     # Record result
                     with paths_lock:
@@ -86,7 +88,10 @@ class TestConcurrentThumbnailRaceConditions:
                             if len(_path_cache) < 5001:
                                 # Add dummy entries to trigger cleanup
                                 for j in range(5001 - len(_path_cache)):
-                                    _path_cache[f"/dummy/path/{j}"] = (False, time.time())
+                                    _path_cache[f"/dummy/path/{j}"] = (
+                                        False,
+                                        time.time(),
+                                    )
 
             except Exception as e:
                 print(f"Worker {worker_id} failed: {e}")
@@ -101,25 +106,29 @@ class TestConcurrentThumbnailRaceConditions:
         ]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [
-                executor.submit(worker, i, base_paths[i]) for i in range(3)
-            ]
+            futures = [executor.submit(worker, i, base_paths[i]) for i in range(3)]
             concurrent.futures.wait(futures)
 
         # Check for corruption
-        assert not corruption_detected.is_set(), "Thread encountered exception during execution"
+        assert not corruption_detected.is_set(), (
+            "Thread encountered exception during execution"
+        )
 
         # Validate no path corruption occurred
         for path_str, _result in paths_checked:
             # Check for mixed fragments (the smoking gun of corruption)
             assert "cutrefache" not in path_str, f"Path corruption detected: {path_str}"
-            assert "scene_scene" not in path_str, f"Repeated fragment detected: {path_str}"
+            assert "scene_scene" not in path_str, (
+                f"Repeated fragment detected: {path_str}"
+            )
 
             # Check path is well-formed (no partial strings)
             assert path_str.startswith("/"), f"Invalid path prefix: {path_str}"
             assert "//" not in path_str, f"Double slashes detected: {path_str}"
 
-        print(f"✓ Checked {len(paths_checked)} paths across 3 concurrent threads - no corruption")
+        print(
+            f"✓ Checked {len(paths_checked)} paths across 3 concurrent threads - no corruption"
+        )
 
     def test_concurrent_version_cache_access(self) -> None:
         """Test concurrent access to VersionUtils._version_cache with cleanup.
@@ -172,22 +181,30 @@ class TestConcurrentThumbnailRaceConditions:
         ]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [
-                executor.submit(worker, i, base_paths[i]) for i in range(3)
-            ]
+            futures = [executor.submit(worker, i, base_paths[i]) for i in range(3)]
             concurrent.futures.wait(futures)
 
-        assert not corruption_detected.is_set(), "Thread encountered exception during execution"
+        assert not corruption_detected.is_set(), (
+            "Thread encountered exception during execution"
+        )
 
         # Validate version data integrity
         for versions in versions_checked:
             # Each version should be a valid tuple
             for version_num, version_str in versions:
-                assert isinstance(version_num, int), f"Invalid version number: {version_num}"
-                assert isinstance(version_str, str), f"Invalid version string: {version_str}"
-                assert version_str.startswith("v"), f"Invalid version format: {version_str}"
+                assert isinstance(version_num, int), (
+                    f"Invalid version number: {version_num}"
+                )
+                assert isinstance(version_str, str), (
+                    f"Invalid version string: {version_str}"
+                )
+                assert version_str.startswith("v"), (
+                    f"Invalid version format: {version_str}"
+                )
 
-        print(f"✓ Checked {len(versions_checked)} version queries across 3 concurrent threads - no corruption")
+        print(
+            f"✓ Checked {len(versions_checked)} version queries across 3 concurrent threads - no corruption"
+        )
 
     def test_concurrent_shot_thumbnail_caching(self) -> None:
         """Test concurrent access to Shot._cached_thumbnail_path.
@@ -216,7 +233,9 @@ class TestConcurrentThumbnailRaceConditions:
         discovery_lock = threading.Lock()
 
         # Patch find_shot_thumbnail to count calls
-        def counting_find(shows_root: str, show: str, sequence: str, shot: str) -> Path | None:
+        def counting_find(
+            shows_root: str, show: str, sequence: str, shot: str
+        ) -> Path | None:
             nonlocal discovery_count
             with discovery_lock:
                 discovery_count += 1
@@ -247,12 +266,12 @@ class TestConcurrentThumbnailRaceConditions:
             # Simulate 3 models accessing the SAME shots concurrently
             # This is the key scenario: multiple models see the same Shot instances
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-                futures = [
-                    executor.submit(worker, i, shots) for i in range(3)
-                ]
+                futures = [executor.submit(worker, i, shots) for i in range(3)]
                 concurrent.futures.wait(futures)
 
-            assert not corruption_detected.is_set(), "Thread encountered exception during execution"
+            assert not corruption_detected.is_set(), (
+                "Thread encountered exception during execution"
+            )
 
             # Key validation: With proper double-checked locking,
             # each shot should only trigger ONE discovery call despite 3 threads
@@ -265,11 +284,16 @@ class TestConcurrentThumbnailRaceConditions:
             )
 
             print(f"✓ {len(shots)} shots accessed by 3 concurrent threads")
-            print(f"✓ Only {discovery_count} expensive discoveries (optimal: {len(shots)})")
-            print(f"✓ Double-checked locking prevented {3 * len(shots) - discovery_count} redundant calls")
+            print(
+                f"✓ Only {discovery_count} expensive discoveries (optimal: {len(shots)})"
+            )
+            print(
+                f"✓ Double-checked locking prevented {3 * len(shots) - discovery_count} redundant calls"
+            )
 
             # Validate all results are consistent (no corruption)
             for _worker_id, thumbnail in results:
                 if thumbnail is not None:
-                    assert isinstance(thumbnail, Path), f"Invalid thumbnail type: {type(thumbnail)}"
-
+                    assert isinstance(thumbnail, Path), (
+                        f"Invalid thumbnail type: {type(thumbnail)}"
+                    )

@@ -34,9 +34,7 @@ def test_headless_detection(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Test explicit headless flag (monkeypatch auto-restores after test)
     monkeypatch.setenv("SHOTBOT_HEADLESS", "1")
-    assert HeadlessMode.is_headless_environment(), (
-        "Should detect SHOTBOT_HEADLESS=1"
-    )
+    assert HeadlessMode.is_headless_environment(), "Should detect SHOTBOT_HEADLESS=1"
     logger.info("✅ Detects SHOTBOT_HEADLESS=1")
 
     # Clear and test CI environment
@@ -54,9 +52,7 @@ def test_headless_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     # Test offscreen platform
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
-    assert HeadlessMode.is_headless_environment(), (
-        "Should detect offscreen platform"
-    )
+    assert HeadlessMode.is_headless_environment(), "Should detect offscreen platform"
     logger.info("✅ Detects offscreen platform")
 
 
@@ -75,14 +71,10 @@ def test_headless_qt_config(monkeypatch: pytest.MonkeyPatch) -> None:
     HeadlessMode.configure_qt_for_headless()
 
     # Check environment variables
-    assert os.environ["QT_QPA_PLATFORM"] == "offscreen", (
-        "Should set offscreen platform"
-    )
+    assert os.environ["QT_QPA_PLATFORM"] == "offscreen", "Should set offscreen platform"
     logger.info("✅ Sets QT_QPA_PLATFORM=offscreen")
 
-    assert os.environ["QT_QUICK_BACKEND"] == "software", (
-        "Should set software backend"
-    )
+    assert os.environ["QT_QUICK_BACKEND"] == "software", "Should set software backend"
     logger.info("✅ Sets software rendering backend")
 
     assert "QT_XCB_GL_INTEGRATION" in os.environ, "Should disable GL integration"
@@ -149,7 +141,9 @@ def test_headless_shotbot_command() -> None:
 
     try:
         # Run with timeout to prevent hanging
-        result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=5, env=env)
+        result = subprocess.run(
+            cmd, check=False, capture_output=True, text=True, timeout=5, env=env
+        )
 
         # Check output
         if "HEADLESS MODE" in result.stdout or "HEADLESS MODE" in result.stderr:
@@ -164,7 +158,6 @@ def test_headless_shotbot_command() -> None:
         logger.info("✅ Application started (killed after timeout - expected)")
     except Exception as e:  # noqa: BLE001
         logger.error(f"❌ Error running headless: {e}")
-
 
 
 def main() -> None:

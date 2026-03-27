@@ -46,9 +46,24 @@ def notes_manager(cache_dir: Path) -> NotesManager:
 def sample_shots() -> list[Shot]:
     """Provide realistic shot data for testing."""
     return [
-        Shot("test_show", "seq01", "shot010", f"{Config.SHOWS_ROOT}/test_show/seq01/shot010"),
-        Shot("test_show", "seq01", "shot020", f"{Config.SHOWS_ROOT}/test_show/seq01/shot020"),
-        Shot("test_show", "seq02", "shot030", f"{Config.SHOWS_ROOT}/test_show/seq02/shot030"),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot010",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
+        ),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot020",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
+        ),
+        Shot(
+            "test_show",
+            "seq02",
+            "shot030",
+            f"{Config.SHOWS_ROOT}/test_show/seq02/shot030",
+        ),
     ]
 
 
@@ -143,9 +158,7 @@ class TestHasNote:
 class TestGetNotesCount:
     """Tests for get_notes_count() method."""
 
-    def test_get_notes_count_starts_at_zero(
-        self, notes_manager: NotesManager
-    ) -> None:
+    def test_get_notes_count_starts_at_zero(self, notes_manager: NotesManager) -> None:
         """Initial count should be zero."""
         assert notes_manager.get_notes_count() == 0
 
@@ -224,9 +237,7 @@ class TestPersistence:
         assert nm2.get_note(shot2) == "Note 2"
         assert nm2.get_notes_count() == 2
 
-    def test_cache_file_format(
-        self, cache_dir: Path, sample_shots: list[Shot]
-    ) -> None:
+    def test_cache_file_format(self, cache_dir: Path, sample_shots: list[Shot]) -> None:
         """Cache file should be valid JSON with expected format."""
         shot = sample_shots[0]
 
@@ -251,16 +262,12 @@ class TestPersistence:
 class TestCacheRecovery:
     """Tests for handling corrupted or missing cache."""
 
-    def test_handles_missing_cache_file(
-        self, cache_dir: Path
-    ) -> None:
+    def test_handles_missing_cache_file(self, cache_dir: Path) -> None:
         """Should handle missing cache file gracefully."""
         nm = NotesManager(cache_dir)
         assert nm.get_notes_count() == 0
 
-    def test_handles_corrupted_json(
-        self, cache_dir: Path
-    ) -> None:
+    def test_handles_corrupted_json(self, cache_dir: Path) -> None:
         """Should handle corrupted JSON gracefully."""
         # Write corrupted JSON
         cache_file = cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
@@ -271,9 +278,7 @@ class TestCacheRecovery:
         nm = NotesManager(cache_dir)
         assert nm.get_notes_count() == 0
 
-    def test_handles_invalid_cache_format(
-        self, cache_dir: Path
-    ) -> None:
+    def test_handles_invalid_cache_format(self, cache_dir: Path) -> None:
         """Should handle invalid cache format gracefully."""
         # Write valid JSON but wrong format (list instead of dict)
         cache_file = cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
@@ -291,9 +296,7 @@ class TestCacheRecovery:
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
-    def test_different_shot_objects_same_key(
-        self, notes_manager: NotesManager
-    ) -> None:
+    def test_different_shot_objects_same_key(self, notes_manager: NotesManager) -> None:
         """Different Shot objects with same key should share notes."""
         shot1 = Shot("show", "seq", "shot", "/path1")
         shot2 = Shot("show", "seq", "shot", "/path2")  # Different path, same key
@@ -314,6 +317,7 @@ class TestEdgeCases:
 
         # Reload and verify
         from managers.notes_manager import NotesManager as NotesManagerReload
+
         nm2 = NotesManagerReload(notes_manager._cache_dir)
         assert nm2.get_note(shot) == multiline_note
 
@@ -329,6 +333,7 @@ class TestEdgeCases:
 
         # Reload and verify
         from managers.notes_manager import NotesManager as NotesManagerReload
+
         nm2 = NotesManagerReload(notes_manager._cache_dir)
         assert nm2.get_note(shot) == unicode_note
 

@@ -352,12 +352,7 @@ class TestParse3DEFilePathInvalidPaths:
     ) -> None:
         """Paths without user/publish directory return None."""
         weird_path = (
-            tmp_show_path
-            / "shots"
-            / "seq01"
-            / "seq01_0010"
-            / "other"
-            / "scene.3de"
+            tmp_show_path / "shots" / "seq01" / "seq01_0010" / "other" / "scene.3de"
         )
         weird_path.parent.mkdir(parents=True)
 
@@ -394,13 +389,7 @@ class TestParse3DEFilePathShotExtraction:
         sequence = shot_dir.split("_", maxsplit=1)[0]
         show_path = tmp_path / "myshow"
         threede_file = (
-            show_path
-            / "shots"
-            / sequence
-            / shot_dir
-            / "user"
-            / "artist"
-            / "scene.3de"
+            show_path / "shots" / sequence / shot_dir / "user" / "artist" / "scene.3de"
         )
         threede_file.parent.mkdir(parents=True)
         threede_file.touch()

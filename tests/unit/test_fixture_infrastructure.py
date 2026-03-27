@@ -115,9 +115,15 @@ def test_reset_all_calls_reset_in_order(
     monkeypatch.setattr(SingletonRegistry, "_get_class", classmethod(patched_get_class))
 
     # Register in non-sorted order: A=3, B=1, C=2
-    SingletonRegistry._entries.append(SingletonEntry(import_path=path_a, cleanup_order=3))
-    SingletonRegistry._entries.append(SingletonEntry(import_path=path_b, cleanup_order=1))
-    SingletonRegistry._entries.append(SingletonEntry(import_path=path_c, cleanup_order=2))
+    SingletonRegistry._entries.append(
+        SingletonEntry(import_path=path_a, cleanup_order=3)
+    )
+    SingletonRegistry._entries.append(
+        SingletonEntry(import_path=path_b, cleanup_order=1)
+    )
+    SingletonRegistry._entries.append(
+        SingletonEntry(import_path=path_c, cleanup_order=2)
+    )
     SingletonRegistry._entries.sort(key=lambda e: e.cleanup_order)
 
     SingletonRegistry.reset_all()
@@ -226,4 +232,3 @@ def test_set_return_value_overrides_default() -> None:
 
     assert recorder.get_return_value("question", default=99) == 42
     assert recorder.get_return_value("information", default=99) == 99
-

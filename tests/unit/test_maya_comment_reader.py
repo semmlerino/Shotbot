@@ -7,8 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from discovery import load_maya_comments, save_maya_comment
-from discovery.maya_comment_reader import _parse_base
+from dcc.maya_comment_reader import _parse_base, load_maya_comments, save_maya_comment
 
 
 pytestmark = [pytest.mark.unit]
@@ -44,7 +43,7 @@ class TestLoadMayaComments:
 
     def test_returns_empty_when_dir_missing(self, tmp_path: Path) -> None:
         """Returns empty dict when comments directory doesn't exist."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         original = mod._COMMENTS_DIR
         mod._COMMENTS_DIR = tmp_path / "nonexistent"
@@ -56,7 +55,7 @@ class TestLoadMayaComments:
 
     def test_loads_comment_for_matching_path(self, tmp_path: Path) -> None:
         """Returns comment when path matches an entry in the JSON file."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         comments_dir = tmp_path / ".maya_version_up"
         comments_dir.mkdir()
@@ -73,7 +72,7 @@ class TestLoadMayaComments:
 
     def test_returns_empty_for_unmatched_path(self, tmp_path: Path) -> None:
         """Returns empty dict when the path is not in the JSON."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         comments_dir = tmp_path / ".maya_version_up"
         comments_dir.mkdir()
@@ -90,7 +89,7 @@ class TestLoadMayaComments:
 
     def test_handles_corrupt_json(self, tmp_path: Path) -> None:
         """Skips JSON files that are corrupt without crashing."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         comments_dir = tmp_path / ".maya_version_up"
         comments_dir.mkdir()
@@ -107,7 +106,7 @@ class TestLoadMayaComments:
 
     def test_multiple_files_different_bases(self, tmp_path: Path) -> None:
         """Loads comments from multiple JSON files for different bases."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         comments_dir = tmp_path / ".maya_version_up"
         comments_dir.mkdir()
@@ -138,7 +137,7 @@ class TestSaveMayaComment:
 
     def test_creates_dir_and_file(self, tmp_path: Path) -> None:
         """Creates the comments directory and JSON file when they don't exist."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         comments_dir = tmp_path / ".maya_version_up"
         original = mod._COMMENTS_DIR
@@ -155,7 +154,7 @@ class TestSaveMayaComment:
 
     def test_preserves_existing_entries(self, tmp_path: Path) -> None:
         """Preserves other entries in the JSON file when adding a new comment."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         comments_dir = tmp_path / ".maya_version_up"
         comments_dir.mkdir()
@@ -177,7 +176,7 @@ class TestSaveMayaComment:
 
     def test_overwrites_existing_comment(self, tmp_path: Path) -> None:
         """Overwrites an existing comment for the same path."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         comments_dir = tmp_path / ".maya_version_up"
         comments_dir.mkdir()
@@ -196,16 +195,18 @@ class TestSaveMayaComment:
 
     def test_empty_comment_removes_entry(self, tmp_path: Path) -> None:
         """Empty comment removes the entry from the JSON file."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         comments_dir = tmp_path / ".maya_version_up"
         comments_dir.mkdir()
         json_path = comments_dir / "scene.json"
         json_path.write_text(
-            json.dumps({
-                "/shot/scene_v001.ma": "Will be removed",
-                "/shot/scene_v002.ma": "Stays",
-            })
+            json.dumps(
+                {
+                    "/shot/scene_v001.ma": "Will be removed",
+                    "/shot/scene_v002.ma": "Stays",
+                }
+            )
         )
 
         original = mod._COMMENTS_DIR
@@ -220,7 +221,7 @@ class TestSaveMayaComment:
 
     def test_no_version_token_is_noop(self, tmp_path: Path) -> None:
         """Paths without a version token are silently ignored."""
-        import discovery.maya_comment_reader as mod
+        import dcc.maya_comment_reader as mod
 
         comments_dir = tmp_path / ".maya_version_up"
         original = mod._COMMENTS_DIR

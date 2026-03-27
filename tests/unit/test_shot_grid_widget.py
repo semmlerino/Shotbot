@@ -42,7 +42,7 @@ from shots.shot_grid_view import ShotGridView  # Modern Model/View
 from shots.shot_item_model import ShotItemModel
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.fixtures.test_doubles import (
+from tests.fixtures.model_fixtures import (
     TestCacheManager,
     TestShot,
 )
@@ -65,13 +65,30 @@ class TestShotGridView:
     def test_shots(self) -> list[TestShot]:
         """Create test shots for Model/View testing."""
         return [
-            TestShot("show1", "seq1", "0010", f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0010"),
-            TestShot("show1", "seq1", "0020", f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0020"),
-            TestShot("show2", "seq2", "0030", f"{Config.SHOWS_ROOT}/show2/shots/seq2/seq2_0030"),
+            TestShot(
+                "show1",
+                "seq1",
+                "0010",
+                f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0010",
+            ),
+            TestShot(
+                "show1",
+                "seq1",
+                "0020",
+                f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0020",
+            ),
+            TestShot(
+                "show2",
+                "seq2",
+                "0030",
+                f"{Config.SHOWS_ROOT}/show2/shots/seq2/seq2_0030",
+            ),
         ]
 
     @pytest.fixture
-    def shot_item_model(self, test_shots: list[TestShot], tmp_path: Path) -> ShotItemModel:
+    def shot_item_model(
+        self, test_shots: list[TestShot], tmp_path: Path
+    ) -> ShotItemModel:
         """Create real ShotItemModel with TestCacheManager for testing."""
         test_cache_manager = TestCacheManager(cache_dir=tmp_path / "cache")
         model = ShotItemModel(cache_manager=test_cache_manager)
@@ -84,13 +101,17 @@ class TestShotGridView:
         return model
 
     @pytest.fixture
-    def shot_grid_view(self, qtbot: QtBot, shot_item_model: ShotItemModel) -> ShotGridView:
+    def shot_grid_view(
+        self, qtbot: QtBot, shot_item_model: ShotItemModel
+    ) -> ShotGridView:
         """Create ShotGridView widget for testing."""
         view = ShotGridView(model=shot_item_model)
         qtbot.addWidget(view)
         return view
 
-    def test_model_view_initialization(self, shot_grid_view: ShotGridView, shot_item_model: ShotItemModel) -> None:
+    def test_model_view_initialization(
+        self, shot_grid_view: ShotGridView, shot_item_model: ShotItemModel
+    ) -> None:
         """Test Model/View widget initialization."""
         view = shot_grid_view
 
@@ -109,7 +130,9 @@ class TestShotGridView:
         delegate = view.list_view.itemDelegate()
         assert isinstance(delegate, ShotGridDelegate)
 
-    def test_keyboard_navigation(self, qtbot: QtBot, shot_grid_view: ShotGridView) -> None:
+    def test_keyboard_navigation(
+        self, qtbot: QtBot, shot_grid_view: ShotGridView
+    ) -> None:
         """Test keyboard navigation in Model/View."""
         view = shot_grid_view
         model = view.model
@@ -124,7 +147,9 @@ class TestShotGridView:
             # View should handle key events (test doesn't crash)
             assert view.list_view.focusPolicy() != Qt.FocusPolicy.NoFocus
 
-    def test_model_data_changes(self, qtbot: QtBot, shot_grid_view: ShotGridView, test_shots: list[TestShot]) -> None:
+    def test_model_data_changes(
+        self, qtbot: QtBot, shot_grid_view: ShotGridView, test_shots: list[TestShot]
+    ) -> None:
         """Test view responds to model data changes."""
         view = shot_grid_view
         model = view.model
@@ -135,7 +160,12 @@ class TestShotGridView:
         # Add more shots to model
         new_shots = [
             *test_shots,
-            TestShot("show3", "seq3", "0040", f"{Config.SHOWS_ROOT}/show3/shots/seq3/seq3_0040"),
+            TestShot(
+                "show3",
+                "seq3",
+                "0040",
+                f"{Config.SHOWS_ROOT}/show3/shots/seq3/seq3_0040",
+            ),
         ]
 
         # Update model data - convert TestShot to Shot objects
@@ -168,7 +198,9 @@ class TestShotGridIntegration:
     """Integration tests for shot grid components with real Qt interactions."""
 
     @pytest.fixture
-    def integration_shots(self, make_test_shot: Callable[[str, str, str, bool], Shot]) -> list[Shot]:
+    def integration_shots(
+        self, make_test_shot: Callable[[str, str, str, bool], Shot]
+    ) -> list[Shot]:
         """Create shots with real file structure for integration testing."""
         return [
             make_test_shot("show1", "seq1", "0010", with_thumbnail=True),
@@ -177,7 +209,9 @@ class TestShotGridIntegration:
         ]
 
     @pytest.fixture
-    def integrated_grid_view(self, qtbot: QtBot, integration_shots: list[Shot], tmp_path: Path) -> ShotGridView:
+    def integrated_grid_view(
+        self, qtbot: QtBot, integration_shots: list[Shot], tmp_path: Path
+    ) -> ShotGridView:
         """Create fully integrated ShotGridView for testing."""
         # Create model with test cache manager and shots
         test_cache_manager = TestCacheManager(cache_dir=tmp_path / "cache")
@@ -191,7 +225,9 @@ class TestShotGridIntegration:
 
         return view
 
-    def test_integration_widget_creation(self, integrated_grid_view: ShotGridView) -> None:
+    def test_integration_widget_creation(
+        self, integrated_grid_view: ShotGridView
+    ) -> None:
         """Test integrated widget creates successfully."""
         view = integrated_grid_view
 
@@ -199,7 +235,9 @@ class TestShotGridIntegration:
         assert view.model is not None
         assert view.model.rowCount() == 3
 
-    def test_integration_thumbnail_loading(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
+    def test_integration_thumbnail_loading(
+        self, qtbot: QtBot, integrated_grid_view: ShotGridView
+    ) -> None:
         """Test thumbnails load in integrated environment."""
         view = integrated_grid_view
         model = view.model
@@ -210,7 +248,9 @@ class TestShotGridIntegration:
             data = model.data(first_index, Qt.ItemDataRole.DisplayRole)
             assert data is not None
 
-    def test_integration_selection_workflow(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
+    def test_integration_selection_workflow(
+        self, qtbot: QtBot, integrated_grid_view: ShotGridView
+    ) -> None:
         """Test complete selection workflow in integrated environment."""
         view = integrated_grid_view
         model = view.model
@@ -227,8 +267,9 @@ class TestShotGridIntegration:
                     first_index, selection_model.SelectionFlag.Select
                 )
 
-
-    def test_integration_resize_handling(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
+    def test_integration_resize_handling(
+        self, qtbot: QtBot, integrated_grid_view: ShotGridView
+    ) -> None:
         """Test integrated view handles resize correctly."""
         view = integrated_grid_view
 
@@ -245,7 +286,9 @@ class TestShotGridIntegration:
         assert new_size.width() >= new_width - 50  # Allow some flexibility
         assert new_size.height() >= new_height - 50
 
-    def test_integration_focus_handling(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
+    def test_integration_focus_handling(
+        self, qtbot: QtBot, integrated_grid_view: ShotGridView
+    ) -> None:
         """Test integrated view handles focus correctly."""
         view = integrated_grid_view
 
@@ -255,7 +298,9 @@ class TestShotGridIntegration:
         # View should be focusable
         assert view.focusPolicy() != Qt.FocusPolicy.NoFocus
 
-    def test_integration_event_processing(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
+    def test_integration_event_processing(
+        self, qtbot: QtBot, integrated_grid_view: ShotGridView
+    ) -> None:
         """Test view processes Qt events correctly."""
         view = integrated_grid_view
 

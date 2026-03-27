@@ -20,7 +20,7 @@ from config import Config
 
 # Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
-from tests.fixtures.test_doubles import TestCacheManager
+from tests.fixtures.model_fixtures import TestCacheManager
 from threede import ThreeDEItemModel
 from type_definitions import ThreeDEScene
 
@@ -48,7 +48,9 @@ def test_scenes() -> list[ThreeDEScene]:
             workspace_path=f"{Config.SHOWS_ROOT}/proj1/shots/010/0010",
             user="user1",
             plate="proj1_010_0010_plate",
-            scene_path=Path(f"{Config.SHOWS_ROOT}/proj1/shots/010/0010/.3de/proj1_010_0010_v001.3de"),
+            scene_path=Path(
+                f"{Config.SHOWS_ROOT}/proj1/shots/010/0010/.3de/proj1_010_0010_v001.3de"
+            ),
         ),
         ThreeDEScene(
             show="proj2",
@@ -57,7 +59,9 @@ def test_scenes() -> list[ThreeDEScene]:
             workspace_path=f"{Config.SHOWS_ROOT}/proj2/shots/020/0020",
             user="user2",
             plate="proj2_020_0020_plate",
-            scene_path=Path(f"{Config.SHOWS_ROOT}/proj2/shots/020/0020/.3de/proj2_020_0020_v002.3de"),
+            scene_path=Path(
+                f"{Config.SHOWS_ROOT}/proj2/shots/020/0020/.3de/proj2_020_0020_v002.3de"
+            ),
         ),
         ThreeDEScene(
             show="proj3",
@@ -66,7 +70,9 @@ def test_scenes() -> list[ThreeDEScene]:
             workspace_path=f"{Config.SHOWS_ROOT}/proj3/shots/030/0030",
             user="user3",
             plate="proj3_030_0030_plate",
-            scene_path=Path(f"{Config.SHOWS_ROOT}/proj3/shots/030/0030/.3de/proj3_030_0030_v003.3de"),
+            scene_path=Path(
+                f"{Config.SHOWS_ROOT}/proj3/shots/030/0030/.3de/proj3_030_0030_v003.3de"
+            ),
         ),
     ]
 
@@ -131,9 +137,13 @@ class TestThreadSafety:
         )
 
         for _, scene in enumerate(many_scenes[:110]):  # Try to exceed limit
-            if len(model._thumbnail_loader.thumbnail_cache) < 100:  # Respect MAX_CACHE_SIZE
+            if (
+                len(model._thumbnail_loader.thumbnail_cache) < 100
+            ):  # Respect MAX_CACHE_SIZE
                 with QMutexLocker(model._thumbnail_loader.cache_mutex):
-                    model._thumbnail_loader.thumbnail_cache[str(scene.scene_path)] = test_image
+                    model._thumbnail_loader.thumbnail_cache[str(scene.scene_path)] = (
+                        test_image
+                    )
 
         # Cache should not exceed MAX_CACHE_SIZE
         assert len(model._thumbnail_loader.thumbnail_cache) <= 100
@@ -153,8 +163,12 @@ class TestThreadSafety:
         )
 
         with QMutexLocker(model._thumbnail_loader.cache_mutex):
-            model._thumbnail_loader.thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
-            model._thumbnail_loader.loading_states[str(test_scenes[0].scene_path)] = "loaded"
+            model._thumbnail_loader.thumbnail_cache[str(test_scenes[0].scene_path)] = (
+                test_image
+            )
+            model._thumbnail_loader.loading_states[str(test_scenes[0].scene_path)] = (
+                "loaded"
+            )
 
         # Call cleanup
         model.cleanup()
@@ -233,7 +247,9 @@ class TestThreadSafety:
 
         with QMutexLocker(model._thumbnail_loader.cache_mutex):
             for scene in test_scenes[:3]:
-                model._thumbnail_loader.thumbnail_cache[str(scene.scene_path)] = QImage()
+                model._thumbnail_loader.thumbnail_cache[str(scene.scene_path)] = (
+                    QImage()
+                )
 
         # Manually trigger the check
         model._load_visible_thumbnails()
@@ -296,7 +312,9 @@ class TestDataIntegrity:
         )
 
         with QMutexLocker(model._thumbnail_loader.cache_mutex):
-            model._thumbnail_loader.thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
+            model._thumbnail_loader.thumbnail_cache[str(test_scenes[0].scene_path)] = (
+                test_image
+            )
 
         # Reset with same scenes
         model.set_scenes(test_scenes)
@@ -353,7 +371,11 @@ class TestThreeDESorting:
 
         # Item model stores items in insertion order; proxy handles sorting
         assert model.rowCount() == 3
-        assert {s.full_name for s in model.scenes} == {"010_0010", "020_0020", "030_0030"}
+        assert {s.full_name for s in model.scenes} == {
+            "010_0010",
+            "020_0020",
+            "030_0030",
+        }
 
     def test_sort_by_name(
         self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
@@ -372,12 +394,18 @@ class TestThreeDESorting:
     ) -> None:
         """Test that item model stores all scenes regardless of sort_order calls."""
         model.set_scenes(scenes_with_times)
-        model.set_sort_order("name")  # Proxy handles sorting; these calls are no-ops in item model
+        model.set_sort_order(
+            "name"
+        )  # Proxy handles sorting; these calls are no-ops in item model
         model.set_sort_order("date")  # Then back to date
 
         # Item model always has all 3 scenes
         assert model.rowCount() == 3
-        assert {s.full_name for s in model.scenes} == {"010_0010", "020_0020", "030_0030"}
+        assert {s.full_name for s in model.scenes} == {
+            "010_0010",
+            "020_0020",
+            "030_0030",
+        }
 
     def test_sort_order_invalid_value_ignored(
         self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene]
@@ -393,7 +421,10 @@ class TestThreeDESorting:
         assert current_order == original_order
 
     def test_sort_order_no_change_noop(
-        self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene], qtbot: QtBot
+        self,
+        model: ThreeDEItemModel,
+        scenes_with_times: list[ThreeDEScene],
+        qtbot: QtBot,
     ) -> None:
         """Test that setting same sort order is a no-op."""
         model.set_scenes(scenes_with_times)
@@ -403,7 +434,10 @@ class TestThreeDESorting:
             model.set_sort_order("date")  # Already date, should be no-op
 
     def test_sort_order_emits_layout_signals(
-        self, model: ThreeDEItemModel, scenes_with_times: list[ThreeDEScene], qtbot: QtBot
+        self,
+        model: ThreeDEItemModel,
+        scenes_with_times: list[ThreeDEScene],
+        qtbot: QtBot,
     ) -> None:
         """Test that changing sort order emits layout signals."""
         model.set_scenes(scenes_with_times)
@@ -444,18 +478,30 @@ class TestThreeDESorting:
         """Test that name sorting is case-insensitive."""
         scenes = [
             ThreeDEScene(
-                show="proj1", sequence="AAA", shot="0010",
-                workspace_path="/tmp", user="user", plate="plate",
+                show="proj1",
+                sequence="AAA",
+                shot="0010",
+                workspace_path="/tmp",
+                user="user",
+                plate="plate",
                 scene_path=Path("/tmp/aaa.3de"),
             ),
             ThreeDEScene(
-                show="proj2", sequence="bbb", shot="0020",
-                workspace_path="/tmp", user="user", plate="plate",
+                show="proj2",
+                sequence="bbb",
+                shot="0020",
+                workspace_path="/tmp",
+                user="user",
+                plate="plate",
                 scene_path=Path("/tmp/bbb.3de"),
             ),
             ThreeDEScene(
-                show="proj3", sequence="CCC", shot="0030",
-                workspace_path="/tmp", user="user", plate="plate",
+                show="proj3",
+                sequence="CCC",
+                shot="0030",
+                workspace_path="/tmp",
+                user="user",
+                plate="plate",
                 scene_path=Path("/tmp/ccc.3de"),
             ),
         ]

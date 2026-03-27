@@ -86,9 +86,13 @@ class TestLauncherStackSmoke:
         env_manager = EnvironmentManager()
 
         if Config.REZ_MODE == RezMode.AUTO:
-            with patch("launch.environment_manager.shutil.which", return_value="/usr/bin/rez"):
+            with patch(
+                "launch.environment_manager.shutil.which", return_value="/usr/bin/rez"
+            ):
                 should_wrap = env_manager.should_wrap_with_rez(Config)
-            assert should_wrap, "RezMode.AUTO should still resolve explicit app packages"
+            assert should_wrap, (
+                "RezMode.AUTO should still resolve explicit app packages"
+            )
 
     def test_command_builder_validates_paths(self) -> None:
         """validate_path handles various path formats."""

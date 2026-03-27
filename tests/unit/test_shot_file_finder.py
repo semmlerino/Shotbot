@@ -75,16 +75,22 @@ class TestShotFileFinder:
 
         assert finder._extract_version(Path("scene.3de")) is None
         assert finder._extract_version(Path("scene_v1.3de")) is None  # Need 3 digits
-        assert finder._extract_version(Path("scene_v1234.3de")) is None  # Too many digits
+        assert (
+            finder._extract_version(Path("scene_v1234.3de")) is None
+        )  # Too many digits
 
     def test_extract_user_from_path(self) -> None:
         """Test user extraction from file paths."""
         finder = ShotFileFinder()
 
-        path = Path("/shows/test/shots/sq010/sq010_sh0010/user/gabriel-h/mm/3de/scene.3de")
+        path = Path(
+            "/shows/test/shots/sq010/sq010_sh0010/user/gabriel-h/mm/3de/scene.3de"
+        )
         assert finder._extract_user_from_path(path) == "gabriel-h"
 
-        path = Path("/shows/test/shots/sq010/sq010_sh0010/user/john.doe/maya/scenes/test.ma")
+        path = Path(
+            "/shows/test/shots/sq010/sq010_sh0010/user/john.doe/maya/scenes/test.ma"
+        )
         assert finder._extract_user_from_path(path) == "john.doe"
 
     def test_extract_user_from_path_no_user(self) -> None:

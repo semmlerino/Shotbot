@@ -32,9 +32,7 @@ def cache_manager_temp(temp_cache_dir: Path) -> ShotDataCache:
 
 
 @pytest.fixture
-def shot_model_temp(
-    cache_manager_temp: ShotDataCache, test_process_pool
-) -> ShotModel:
+def shot_model_temp(cache_manager_temp: ShotDataCache, test_process_pool) -> ShotModel:
     """Create ShotModel with temporary cache."""
     model = ShotModel(cache_manager=cache_manager_temp, load_cache=False)
     # Inject test process pool
@@ -159,16 +157,14 @@ class TestIncrementalCachingWorkflow:
         # Verify migrated shot names
         migrated_names = {s["shot"] for s in migrated}
         expected_migrated = {"0040", "0050", "0060"}
-        assert (
-            migrated_names == expected_migrated
-        ), "Correct shots should be migrated"
+        assert migrated_names == expected_migrated, "Correct shots should be migrated"
 
         # Verify remaining shot names
         remaining_names = {s.shot for s in shot_model_temp.shots}
         expected_remaining = {"0010", "0020", "0030"}
-        assert (
-            remaining_names == expected_remaining
-        ), "Correct shots should remain active"
+        assert remaining_names == expected_remaining, (
+            "Correct shots should remain active"
+        )
 
     def test_migration_deduplication(
         self, shot_model_temp: ShotModel, test_process_pool, qtbot
@@ -199,23 +195,31 @@ class TestIncrementalCachingWorkflow:
         assert len(migrated) == 3, "All 3 shots should be migrated"
 
         # Verify composite keys work: both shots named "0010" preserved with different shows
-        composite_keys = {
-            (s["show"], s["sequence"], s["shot"]) for s in migrated
-        }
+        composite_keys = {(s["show"], s["sequence"], s["shot"]) for s in migrated}
         expected_keys = {
             ("broken_eggs", "sq0010", "0010"),
             ("broken_eggs", "sq0010", "0020"),
             ("gator", "sq0010", "0010"),  # Same seq/shot, different show
         }
-        assert (
-            composite_keys == expected_keys
-        ), "Composite keys should preserve cross-show uniqueness"
+        assert composite_keys == expected_keys, (
+            "Composite keys should preserve cross-show uniqueness"
+        )
 
         # Test duplicate migration prevention by migrating same shots again
         shot_model_temp.cache_manager.archive_shots_as_previous(
             [
-                {"show": "broken_eggs", "sequence": "sq0010", "shot": "0010", "workspace_path": "/test1"},
-                {"show": "gator", "sequence": "sq0010", "shot": "0010", "workspace_path": "/test2"},
+                {
+                    "show": "broken_eggs",
+                    "sequence": "sq0010",
+                    "shot": "0010",
+                    "workspace_path": "/test1",
+                },
+                {
+                    "show": "gator",
+                    "sequence": "sq0010",
+                    "shot": "0010",
+                    "workspace_path": "/test2",
+                },
             ]
         )
 
@@ -223,4 +227,3 @@ class TestIncrementalCachingWorkflow:
         migrated_final = shot_model_temp.cache_manager.get_shots_archive()
         assert migrated_final is not None
         assert len(migrated_final) == 3, "Deduplication should prevent duplicates"
-

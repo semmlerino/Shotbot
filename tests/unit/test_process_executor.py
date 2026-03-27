@@ -75,7 +75,10 @@ class TestBuildTerminalCommand:
             ("konsole", ["konsole", "-e", "/bin/bash", "-ilc", "cmd"]),
             ("kitty", ["kitty", "/bin/bash", "-ilc", "cmd"]),
             ("xterm", ["xterm", "-e", "/bin/bash", "-ilc", "cmd"]),
-            ("x-terminal-emulator", ["x-terminal-emulator", "-e", "/bin/bash", "-ilc", "cmd"]),
+            (
+                "x-terminal-emulator",
+                ["x-terminal-emulator", "-e", "/bin/bash", "-ilc", "cmd"],
+            ),
             ("xfce4-terminal", ["xfce4-terminal", "-e", "/bin/bash", "-ilc", "cmd"]),
             ("mate-terminal", ["mate-terminal", "-e", "/bin/bash", "-ilc", "cmd"]),
             ("alacritty", ["alacritty", "-e", "/bin/bash", "-ilc", "cmd"]),
@@ -137,7 +140,9 @@ class TestNewTerminalExecution:
         result = executor.execute_in_new_terminal("maya", "maya", "konsole")
 
         assert result is mock_process
-        mock_popen.assert_called_once_with(["konsole", "-e", "/bin/bash", "-ilc", "maya"])
+        mock_popen.assert_called_once_with(
+            ["konsole", "-e", "/bin/bash", "-ilc", "maya"]
+        )
 
     @patch("subprocess.Popen")
     @patch("launch.process_executor.QTimer")
@@ -275,5 +280,6 @@ class TestProcessVerification:
         # Verify signal was emitted successfully
         assert blocker.signal_triggered, "execution_progress signal should be emitted"
         # Signal was emitted, indicating verify_spawn completed without error
-        assert blocker.args is not None, "Signal should have been emitted with arguments"
-
+        assert blocker.args is not None, (
+            "Signal should have been emitted with arguments"
+        )

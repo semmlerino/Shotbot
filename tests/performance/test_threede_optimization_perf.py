@@ -62,5 +62,3 @@ class TestPerformanceRegression:
         assert files_per_second > 300, (
             f"Processing rate too slow: {files_per_second:.1f} files/sec"
         )
-
-

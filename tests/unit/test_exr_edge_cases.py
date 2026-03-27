@@ -69,7 +69,8 @@ class TestCorruptedFiles:
 
         # Should not crash, return None
         result = cache_manager.cache_thumbnail(
-            bad_exr, show="test", sequence="seq", shot="0010"        )
+            bad_exr, show="test", sequence="seq", shot="0010"
+        )
 
         assert result is None or isinstance(result, Path)
 
@@ -85,7 +86,8 @@ class TestCorruptedFiles:
         # Cache manager should handle empty file
         cache_manager = CacheManager(tmp_path / "cache")
         cached = cache_manager.cache_thumbnail(
-            empty_jpg, show="test", sequence="seq", shot="0010"        )
+            empty_jpg, show="test", sequence="seq", shot="0010"
+        )
 
         # Should handle gracefully (return None or empty cache)
         assert cached is None or cached.stat().st_size == 0
@@ -100,7 +102,8 @@ class TestCorruptedFiles:
 
         # Test behavior: should handle gracefully without crashing
         result = cache_manager.cache_thumbnail(
-            truncated, show="test", sequence="seq", shot="0010"        )
+            truncated, show="test", sequence="seq", shot="0010"
+        )
 
         # Should return None for corrupted file, not crash
         assert result is None
@@ -221,7 +224,8 @@ class TestUnusualFormats:
         # Cache manager should handle symlink
         cache_manager = CacheManager(tmp_path / "cache")
         cached = cache_manager.cache_thumbnail(
-            link_jpg, show="test", sequence="seq", shot="0010"        )
+            link_jpg, show="test", sequence="seq", shot="0010"
+        )
 
         # Should process the linked file
         assert cached is None or isinstance(cached, Path)
@@ -257,7 +261,3 @@ class TestUnusualFormats:
             assert result is None or not stat.S_ISFIFO(result.stat().st_mode)
         finally:
             fifo_path.unlink()
-
-
-
-

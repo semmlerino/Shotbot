@@ -93,9 +93,7 @@ class TestParseWorkspaceLineNonPrefix:
     def test_short_shot_name_after_numeric_seq(self) -> None:
         """workspace .../gator/shots/012/012_DC → shot=DC (short suffix)."""
         parser = OptimizedShotParser()
-        result = parser.parse_workspace_line(
-            "workspace /shows/gator/shots/012/012_DC"
-        )
+        result = parser.parse_workspace_line("workspace /shows/gator/shots/012/012_DC")
 
         assert result is not None
         assert result.show == "gator"
@@ -126,9 +124,7 @@ class TestParseWorkspaceLineMultipleUnderscores:
         """A_B sequence with A_B_C_D shot_dir uses prefix stripping → shot=C_D."""
         parser = OptimizedShotParser()
         # sequence='A_B', shot_dir='A_B_C_D' — starts with 'A_B_', so strip prefix
-        result = parser.parse_workspace_line(
-            "workspace /shows/show/shots/A_B/A_B_C_D"
-        )
+        result = parser.parse_workspace_line("workspace /shows/show/shots/A_B/A_B_C_D")
 
         assert result is not None
         assert result.sequence == "A_B"
@@ -168,9 +164,7 @@ class TestParseWorkspaceLineEdgeCases:
     def test_no_underscore_uses_full_directory(self) -> None:
         """shot_dir with no underscore → shot equals the full directory name."""
         parser = OptimizedShotParser()
-        result = parser.parse_workspace_line(
-            "workspace /shows/show/shots/seq/shotonly"
-        )
+        result = parser.parse_workspace_line("workspace /shows/show/shots/seq/shotonly")
 
         assert result is not None
         assert result.shot == "shotonly"
@@ -178,9 +172,7 @@ class TestParseWorkspaceLineEdgeCases:
     def test_non_matching_line_returns_none(self) -> None:
         """Line without 'workspace' prefix returns None."""
         parser = OptimizedShotParser()
-        result = parser.parse_workspace_line(
-            "/shows/demo/shots/seq01/seq01_0010"
-        )
+        result = parser.parse_workspace_line("/shows/demo/shots/seq01/seq01_0010")
 
         assert result is None
 
@@ -362,6 +354,7 @@ class TestPatternCacheIsolation:
         monkeypatch.setattr("config.Config.SHOWS_ROOT", custom_root)
         # Reload module to pick up the new Config value in pattern compilation
         import importlib
+
         importlib.reload(shot_parser)
         shot_parser._PATTERN_CACHE.clear()
 

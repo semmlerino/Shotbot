@@ -63,11 +63,13 @@ class TestParallelDiscoveryIntegration:
             return len(progress_updates) >= cancel_after_updates
 
         # This should be cancelled mid-processing
-        scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
-            user_shots=test_shots,
-            excluded_users=set(),
-            progress_callback=progress_callback,
-            cancel_flag=cancel_flag,
+        scenes = (
+            SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
+                user_shots=test_shots,
+                excluded_users=set(),
+                progress_callback=progress_callback,
+                cancel_flag=cancel_flag,
+            )
         )
 
         # Should have partial results (or empty if cancelled very early)
@@ -95,11 +97,13 @@ class TestParallelDiscoveryIntegration:
             progress_updates.append((count, status))
 
         # Should handle invalid paths gracefully
-        scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
-            user_shots=all_shots,
-            excluded_users=set(),
-            progress_callback=progress_callback,
-            cancel_flag=lambda: False,
+        scenes = (
+            SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
+                user_shots=all_shots,
+                excluded_users=set(),
+                progress_callback=progress_callback,
+                cancel_flag=lambda: False,
+            )
         )
 
         # Should return results from valid paths only
@@ -171,4 +175,3 @@ class TestParallelDiscoveryIntegration:
             assert isinstance(scenes, list)
             assert len(scenes) >= 1
             assert len(progress_updates) >= 1
-

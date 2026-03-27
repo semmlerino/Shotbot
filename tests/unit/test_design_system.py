@@ -61,7 +61,9 @@ from ui.design_system import (
         ("spacing", "thumbnail_spacing", 12),
     ],
 )
-def test_design_system_constant_values(component: str, attr: str, expected: object) -> None:
+def test_design_system_constant_values(
+    component: str, attr: str, expected: object
+) -> None:
     """Snapshot test: all design system constant values match expected."""
     ds = DesignSystem()
     obj = getattr(ds, component)
@@ -163,7 +165,7 @@ class TestColorUtilities:
         assert lightened.startswith("#")
         assert len(lightened) == 7
         for i in range(3):
-            value = int(lightened[1 + i * 2:3 + i * 2], 16)
+            value = int(lightened[1 + i * 2 : 3 + i * 2], 16)
             assert value <= 255
 
     def test_darken_reduces_rgb(self) -> None:

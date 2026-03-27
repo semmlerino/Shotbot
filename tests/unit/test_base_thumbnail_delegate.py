@@ -77,7 +77,9 @@ class ConcreteThumbnailDelegate(BaseThumbnailDelegate):
             "show": item.show,
             "sequence": item.sequence,
             "thumbnail": index.data(Qt.ItemDataRole.DecorationRole),
-            "loading_state": index.data(Qt.ItemDataRole.UserRole + 9),  # LoadingStateRole
+            "loading_state": index.data(
+                Qt.ItemDataRole.UserRole + 9
+            ),  # LoadingStateRole
         }
 
 
@@ -260,9 +262,24 @@ class TestSizeHint:
                 DelegateTheme().text_height,
                 id="default_size",
             ),
-            pytest.param(500, DelegateTheme().padding, DelegateTheme().text_height, id="custom_thumbnail_size"),
-            pytest.param(Config.DEFAULT_THUMBNAIL_SIZE, 16, DelegateTheme().text_height, id="custom_padding"),
-            pytest.param(Config.DEFAULT_THUMBNAIL_SIZE, DelegateTheme().padding, 60, id="custom_text_height"),
+            pytest.param(
+                500,
+                DelegateTheme().padding,
+                DelegateTheme().text_height,
+                id="custom_thumbnail_size",
+            ),
+            pytest.param(
+                Config.DEFAULT_THUMBNAIL_SIZE,
+                16,
+                DelegateTheme().text_height,
+                id="custom_padding",
+            ),
+            pytest.param(
+                Config.DEFAULT_THUMBNAIL_SIZE,
+                DelegateTheme().padding,
+                60,
+                id="custom_text_height",
+            ),
         ],
     )
     def test_size_hint_calculations(
@@ -275,7 +292,9 @@ class TestSizeHint:
             delegate = ConcreteThumbnailDelegate()
             delegate.set_thumbnail_size(thumbnail_size)
         elif padding != default.padding or text_height != default.text_height:
-            delegate = CustomThemeDelegate(DelegateTheme(padding=padding, text_height=text_height))
+            delegate = CustomThemeDelegate(
+                DelegateTheme(padding=padding, text_height=text_height)
+            )
         else:
             delegate = ConcreteThumbnailDelegate()
 
@@ -322,7 +341,9 @@ class TestThumbnailSizeManagement:
     This is a source code bug that should be fixed.
     """
 
-    def test_set_thumbnail_size_updates_size_and_clears_cache_without_parent(self) -> None:
+    def test_set_thumbnail_size_updates_size_and_clears_cache_without_parent(
+        self,
+    ) -> None:
         """Test setting thumbnail size updates internal size and clears metrics cache."""
         delegate = ConcreteThumbnailDelegate()
 
@@ -511,7 +532,9 @@ class TestLoadingStates:
         loading_rows = delegate._get_loading_rows()
 
         # Should return rows 2, 5, 7
-        assert set(loading_rows) == {2, 5, 7}, f"Expected rows {{2, 5, 7}}, got {set(loading_rows)}"
+        assert set(loading_rows) == {2, 5, 7}, (
+            f"Expected rows {{2, 5, 7}}, got {set(loading_rows)}"
+        )
 
     @pytest.mark.parametrize(
         ("parent_setup", "expected"),
@@ -520,12 +543,15 @@ class TestLoadingStates:
             pytest.param("widget_parent", [], id="with_invalid_parent"),
         ],
     )
-    def test_get_loading_rows_without_valid_view(self, qtbot, parent_setup: str, expected: list) -> None:
+    def test_get_loading_rows_without_valid_view(
+        self, qtbot, parent_setup: str, expected: list
+    ) -> None:
         """Test _get_loading_rows returns empty list when delegate has no parent or non-view parent."""
         if parent_setup == "no_parent":
             delegate = ConcreteThumbnailDelegate()
         else:
             from PySide6.QtWidgets import QWidget
+
             widget = QWidget()
             qtbot.addWidget(widget)
             delegate = ConcreteThumbnailDelegate(parent=widget)

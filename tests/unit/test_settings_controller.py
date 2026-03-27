@@ -291,7 +291,9 @@ class TestLoadSettings:
         # Set up all managed fields in settings manager
         window_double.settings_manager._geometry = QByteArray(b"saved_geometry")
         window_double.settings_manager._state = QByteArray(b"saved_state")
-        window_double.settings_manager._splitter_states["main"] = QByteArray(b"main_splitter")
+        window_double.settings_manager._splitter_states["main"] = QByteArray(
+            b"main_splitter"
+        )
         window_double.settings_manager._maximized = True
         window_double.settings_manager._current_tab = 2
         window_double.settings_manager._thumbnail_size = 200
@@ -339,7 +341,9 @@ class TestSaveSettings:
 
         controller.save_settings()
 
-        assert window_double.settings_manager._geometry == QByteArray(b"current_geometry")
+        assert window_double.settings_manager._geometry == QByteArray(
+            b"current_geometry"
+        )
         assert window_double.settings_manager._state == QByteArray(b"current_state")
         assert "main" in window_double.settings_manager._splitter_states
         assert window_double.settings_manager._maximized is True

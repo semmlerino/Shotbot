@@ -375,7 +375,7 @@ class DCCFileTable(QWidget):
         """Show dialog to edit the Maya version-up comment for *file*."""
         from PySide6.QtWidgets import QInputDialog
 
-        from discovery import save_maya_comment
+        from dcc.maya_comment_reader import save_maya_comment
 
         current = file.comment or ""
         new_comment, ok = QInputDialog.getMultiLineText(

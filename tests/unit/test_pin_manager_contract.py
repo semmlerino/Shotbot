@@ -73,9 +73,24 @@ def _make_shot_adapter(cache_dir: Path) -> tuple[PinManagerAdapter, ShotPinManag
     cache_dir.mkdir(parents=True, exist_ok=True)
     mgr = ShotPinManager(cache_dir)
     items: list[Any] = [
-        Shot("test_show", "seq01", "shot010", f"{Config.SHOWS_ROOT}/test_show/seq01/shot010"),
-        Shot("test_show", "seq01", "shot020", f"{Config.SHOWS_ROOT}/test_show/seq01/shot020"),
-        Shot("test_show", "seq02", "shot030", f"{Config.SHOWS_ROOT}/test_show/seq02/shot030"),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot010",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
+        ),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot020",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
+        ),
+        Shot(
+            "test_show",
+            "seq02",
+            "shot030",
+            f"{Config.SHOWS_ROOT}/test_show/seq02/shot030",
+        ),
     ]
     adapter = PinManagerAdapter(
         manager=mgr,
@@ -95,7 +110,9 @@ def _make_shot_adapter(cache_dir: Path) -> tuple[PinManagerAdapter, ShotPinManag
 
 
 @pytest.fixture(params=["file", "shot"])
-def pin_adapter(request: pytest.FixtureRequest, tmp_path: Path) -> Generator[PinManagerAdapter, None, None]:
+def pin_adapter(
+    request: pytest.FixtureRequest, tmp_path: Path
+) -> Generator[PinManagerAdapter, None, None]:
     """Yield a PinManagerAdapter for either FilePinManager or ShotPinManager."""
     cache_dir = tmp_path / "cache"
 
@@ -121,11 +138,15 @@ def pin_factory(
     param: str = request.param
 
     if param == "file":
+
         def factory(cache_dir: Path) -> tuple[PinManagerAdapter, FilePinManager]:
             return _make_file_adapter(cache_dir)
+
         return param, factory
+
     def factory(cache_dir: Path) -> tuple[PinManagerAdapter, ShotPinManager]:  # type: ignore[misc]
         return _make_shot_adapter(cache_dir)
+
     return param, factory
 
 
@@ -282,7 +303,9 @@ class TestPinPersistenceContract:
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Write a corrupt JSON file for whichever cache key this manager uses
-        cache_key = PINNED_FILES_CACHE_KEY if param == "file" else PINNED_SHOTS_CACHE_KEY
+        cache_key = (
+            PINNED_FILES_CACHE_KEY if param == "file" else PINNED_SHOTS_CACHE_KEY
+        )
         cache_file = cache_dir / f"{cache_key}.json"
         cache_file.write_text("not valid json {{{")
 
@@ -301,11 +324,15 @@ class TestPinPersistenceContract:
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        cache_key = PINNED_FILES_CACHE_KEY if param == "file" else PINNED_SHOTS_CACHE_KEY
+        cache_key = (
+            PINNED_FILES_CACHE_KEY if param == "file" else PINNED_SHOTS_CACHE_KEY
+        )
         cache_file = cache_dir / f"{cache_key}.json"
 
         # FilePinManager expects a dict; ShotPinManager expects a list — give each the wrong type
-        wrong_content = json.dumps([{"wrong": "format"}] if param == "file" else {"wrong": "format"})
+        wrong_content = json.dumps(
+            [{"wrong": "format"}] if param == "file" else {"wrong": "format"}
+        )
         cache_file.write_text(wrong_content)
 
         adapter, mgr = factory(cache_dir)
@@ -323,7 +350,9 @@ class TestPinPersistenceContract:
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        cache_key = PINNED_FILES_CACHE_KEY if param == "file" else PINNED_SHOTS_CACHE_KEY
+        cache_key = (
+            PINNED_FILES_CACHE_KEY if param == "file" else PINNED_SHOTS_CACHE_KEY
+        )
         cache_file = cache_dir / f"{cache_key}.json"
 
         if param == "file":
@@ -331,7 +360,10 @@ class TestPinPersistenceContract:
             data: Any = {
                 "/path/to/valid.3de": {"comment": "ok", "pinned_at": "2025-01-01"},
                 "/path/to/invalid.3de": "not a dict",
-                "/path/to/also_valid.mb": {"comment": "also ok", "pinned_at": "2025-01-01"},
+                "/path/to/also_valid.mb": {
+                    "comment": "also ok",
+                    "pinned_at": "2025-01-01",
+                },
             }
             cache_file.write_text(json.dumps(data))
             adapter, mgr = factory(cache_dir)

@@ -156,9 +156,7 @@ class TestVerifySpawnCrash:
 
         executor.cleanup()
 
-    def test_verify_spawn_running_process_emits_progress(
-        self, qtbot: QtBot
-    ) -> None:
+    def test_verify_spawn_running_process_emits_progress(self, qtbot: QtBot) -> None:
         """verify_spawn emits execution_progress when process is still running."""
         executor = ProcessExecutor(Config)
         progress_emissions: list[tuple[str, str]] = []
@@ -276,7 +274,6 @@ class TestValidateWorkspaceBeforeLaunch:
         restricted.mkdir()
         restricted.chmod(0o000)
 
-
         try:
             result = launcher._validate_workspace_before_launch(str(restricted), "maya")
         finally:
@@ -340,7 +337,9 @@ class TestLaunchAppGuardClauses:
     ) -> None:
         """launch returns False for unknown app names even when scene is provided."""
 
-        result = launcher.launch(LaunchRequest(app_name="blender_xyz_unknown", scene=test_scene))
+        result = launcher.launch(
+            LaunchRequest(app_name="blender_xyz_unknown", scene=test_scene)
+        )
 
         assert result is False
 
@@ -491,8 +490,6 @@ class TestConsecutiveTimeoutThenSuccess:
         assert len(reset_calls) == 0
 
 
-
-
 # ---------------------------------------------------------------------------
 # ProcessExecutor cleanup while timers pending
 # ---------------------------------------------------------------------------
@@ -509,7 +506,9 @@ class TestProcessExecutorCleanup:
         running_popen = PopenDouble(args=["3de"], returncode=0)
         running_popen.poll = lambda: None  # type: ignore[method-assign]
 
-        with patch("launch.process_executor.subprocess.Popen", return_value=running_popen):
+        with patch(
+            "launch.process_executor.subprocess.Popen", return_value=running_popen
+        ):
             executor.execute_in_new_terminal(
                 "echo hello", "3de", terminal="gnome-terminal"
             )

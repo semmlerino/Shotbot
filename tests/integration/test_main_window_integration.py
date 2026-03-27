@@ -18,7 +18,7 @@ from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
-from tests.fixtures.test_doubles import (
+from tests.fixtures.process_fixtures import (
     PopenDouble,
     TestProcessPool,
 )

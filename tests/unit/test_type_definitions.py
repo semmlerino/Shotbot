@@ -112,6 +112,7 @@ class TestShotDataclass:
         assert base == same
         assert base != different
 
+
 @pytest.mark.unit
 class TestShotSerialization:
     """Tests for Shot serialization to/from dictionary."""

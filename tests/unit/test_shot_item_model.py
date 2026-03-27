@@ -24,11 +24,10 @@ from ui.base_item_model import BaseItemRole
 
 
 if TYPE_CHECKING:
-
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
-    from tests.fixtures.test_doubles import TestProcessPool
+    from tests.fixtures.process_fixtures import TestProcessPool
     from ui.base_shot_model import BaseShotModel
 
 pytestmark = [
@@ -47,17 +46,35 @@ pytestmark = [
 def test_shots() -> list[Shot]:
     """Create test Shot objects for testing."""
     return [
-        Shot("show1", "seq01", "0010", f"{Config.SHOWS_ROOT}/show1/shots/seq01/seq01_0010"),
-        Shot("show1", "seq01", "0020", f"{Config.SHOWS_ROOT}/show1/shots/seq01/seq01_0020"),
-        Shot("show2", "seq02", "0030", f"{Config.SHOWS_ROOT}/show2/shots/seq02/seq02_0030"),
-        Shot("show2", "seq02", "0040", f"{Config.SHOWS_ROOT}/show2/shots/seq02/seq02_0040"),
+        Shot(
+            "show1",
+            "seq01",
+            "0010",
+            f"{Config.SHOWS_ROOT}/show1/shots/seq01/seq01_0010",
+        ),
+        Shot(
+            "show1",
+            "seq01",
+            "0020",
+            f"{Config.SHOWS_ROOT}/show1/shots/seq01/seq01_0020",
+        ),
+        Shot(
+            "show2",
+            "seq02",
+            "0030",
+            f"{Config.SHOWS_ROOT}/show2/shots/seq02/seq02_0030",
+        ),
+        Shot(
+            "show2",
+            "seq02",
+            "0040",
+            f"{Config.SHOWS_ROOT}/show2/shots/seq02/seq02_0040",
+        ),
     ]
 
 
 @pytest.fixture
-def shot_item_model(
-    qapp: QApplication, cache_manager: object
-) -> ShotItemModel:
+def shot_item_model(qapp: QApplication, cache_manager: object) -> ShotItemModel:
     """Create a ShotItemModel instance for testing."""
     return ShotItemModel(cache_manager=cache_manager)
 
@@ -151,7 +168,9 @@ class TestThumbnailLoading:
 
         # Get initial loading state
         {
-            shot.full_name: shot_item_model._thumbnail_loader.loading_states.get(shot.full_name, "idle")
+            shot.full_name: shot_item_model._thumbnail_loader.loading_states.get(
+                shot.full_name, "idle"
+            )
             for shot in test_shots
         }
 
@@ -162,7 +181,9 @@ class TestThumbnailLoading:
 
         # Verify states are consistent (no duplicate loading)
         for shot in test_shots[:2]:
-            state = shot_item_model._thumbnail_loader.loading_states.get(shot.full_name, "idle")
+            state = shot_item_model._thumbnail_loader.loading_states.get(
+                shot.full_name, "idle"
+            )
             # State should be either idle or loaded, never stuck in loading
             assert state in ("idle", "loading", "loaded")
 
@@ -489,22 +510,33 @@ class TestCleanup:
         # Add to cache
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
         with QMutexLocker(shot_item_model._thumbnail_loader.cache_mutex):
-            shot_item_model._thumbnail_loader.thumbnail_cache[test_shots[0].full_name] = test_image
+            shot_item_model._thumbnail_loader.thumbnail_cache[
+                test_shots[0].full_name
+            ] = test_image
 
         # Set new items - test_shots[0] preserved, test_shots[1] removed
         shot_item_model.set_shots([test_shots[0], test_shots[2]])
 
         # Verify preservation
         assert len(shot_item_model._thumbnail_loader.thumbnail_cache) == 1
-        assert test_shots[0].full_name in shot_item_model._thumbnail_loader.thumbnail_cache
+        assert (
+            test_shots[0].full_name in shot_item_model._thumbnail_loader.thumbnail_cache
+        )
         with QMutexLocker(shot_item_model._thumbnail_loader.cache_mutex):
-            assert shot_item_model._thumbnail_loader.thumbnail_cache[test_shots[0].full_name] is test_image
+            assert (
+                shot_item_model._thumbnail_loader.thumbnail_cache[
+                    test_shots[0].full_name
+                ]
+                is test_image
+            )
 
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    def test_empty_shot_list(self, shot_item_model: ShotItemModel, qtbot: QtBot) -> None:
+    def test_empty_shot_list(
+        self, shot_item_model: ShotItemModel, qtbot: QtBot
+    ) -> None:
         """Test handling empty shot list."""
         shot_item_model.set_shots([])
 

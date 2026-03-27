@@ -47,10 +47,14 @@ class TestExtractFrameNumber:
         ("filename", "expected"),
         [
             pytest.param("shot.jpg", 99999, id="no_frame_number_returns_sentinel"),
-            pytest.param("shot_without_extension", 99999, id="no_extension_returns_sentinel"),
+            pytest.param(
+                "shot_without_extension", 99999, id="no_extension_returns_sentinel"
+            ),
         ],
     )
-    def test_missing_frame_pattern_returns_sentinel(self, filename: str, expected: int) -> None:
+    def test_missing_frame_pattern_returns_sentinel(
+        self, filename: str, expected: int
+    ) -> None:
         """Returns 99999 when filename has no matching frame pattern."""
         assert _extract_frame_number(Path(filename)) == expected
 
@@ -71,9 +75,12 @@ class TestExtractFrameNumber:
 
     def test_long_filename_with_frame(self) -> None:
         """Works with a realistic VFX filename."""
-        assert _extract_frame_number(
-            Path("GG_000_0050_turnover-plate_EL01_lin_sgamut3cine_v001.1001.exr")
-        ) == 1001
+        assert (
+            _extract_frame_number(
+                Path("GG_000_0050_turnover-plate_EL01_lin_sgamut3cine_v001.1001.exr")
+            )
+            == 1001
+        )
 
     def test_three_digit_number_not_matched(self) -> None:
         """A three-digit number does not match (requires exactly four digits)."""
@@ -100,7 +107,10 @@ class TestFindFirstJpegInVersionTree:
         jpeg_file = jpeg_dir / "frame.0001.jpeg"
         jpeg_file.write_bytes(b"JPEG_DATA")
 
-        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"):
+        with patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value="v001",
+        ):
             result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result == jpeg_file
@@ -110,7 +120,10 @@ class TestFindFirstJpegInVersionTree:
         base_path = tmp_path / "undistorted_plate"
         base_path.mkdir()
 
-        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value=None):
+        with patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value=None,
+        ):
             result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result is None
@@ -121,7 +134,10 @@ class TestFindFirstJpegInVersionTree:
         # Create version dir but not the jpeg subdir
         (base_path / "v001").mkdir(parents=True)
 
-        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"):
+        with patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value="v001",
+        ):
             result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result is None
@@ -134,7 +150,10 @@ class TestFindFirstJpegInVersionTree:
         jpg_file = jpg_dir / "cutref.0001.jpg"
         jpg_file.write_bytes(b"JPG_DATA")
 
-        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v002"):
+        with patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value="v002",
+        ):
             result = _find_first_jpeg_in_version_tree(base_path, image_subdir="jpg")
 
         assert result == jpg_file
@@ -147,7 +166,10 @@ class TestFindFirstJpegInVersionTree:
         (jpeg_dir / "frame.0001.exr").write_bytes(b"EXR_DATA")
 
         with (
-            patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"),
+            patch(
+                "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+                return_value="v001",
+            ),
             # get_first_image_file needs to return a non-jpeg
             patch(
                 "discovery.thumbnail_finders.FileUtils.get_first_image_file",
@@ -165,7 +187,10 @@ class TestFindFirstJpegInVersionTree:
         jpeg_base.mkdir(parents=True)
 
         with (
-            patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v001"),
+            patch(
+                "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+                return_value="v001",
+            ),
             patch.object(Path, "iterdir", side_effect=OSError("permission denied")),
         ):
             result = _find_first_jpeg_in_version_tree(base_path)
@@ -190,9 +215,7 @@ class TestShotPath:
 
     def test_builds_path_with_suffix(self) -> None:
         """Appends optional suffix segments correctly."""
-        result = build_workspace_path(
-            "/shows", "demo", "seq01", "0010", "publish"
-        )
+        result = build_workspace_path("/shows", "demo", "seq01", "0010", "publish")
         assert result == Path("/shows/demo/shots/seq01/seq01_0010/publish")
 
     def test_builds_path_with_multiple_suffix_parts(self) -> None:
@@ -230,8 +253,14 @@ class TestFindTurnoverPlateThumbnail:
         """Returns None gracefully when iterdir raises OSError."""
         base = (
             tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01"
-            / "publish" / "turnover" / "plate"
+            / "shows"
+            / "show"
+            / "shots"
+            / "seq01"
+            / "seq01_shot01"
+            / "publish"
+            / "turnover"
+            / "plate"
         )
         base.mkdir(parents=True)
 
@@ -246,8 +275,15 @@ class TestFindTurnoverPlateThumbnail:
         """Finds plates inside optional input_plate subdirectory."""
         base = (
             tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01"
-            / "publish" / "turnover" / "plate" / "input_plate"
+            / "shows"
+            / "show"
+            / "shots"
+            / "seq01"
+            / "seq01_shot01"
+            / "publish"
+            / "turnover"
+            / "plate"
+            / "input_plate"
         )
         fg_file = self._make_plate(base, "FG01")
 
@@ -269,8 +305,7 @@ class TestFindAnyPublishThumbnail:
     def _make_publish_dir(self, tmp_path: Path) -> Path:
         """Return the publish directory Path after creating it."""
         publish = (
-            tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01" / "publish"
+            tmp_path / "shows" / "show" / "shots" / "seq01" / "seq01_shot01" / "publish"
         )
         publish.mkdir(parents=True)
         return publish
@@ -343,7 +378,10 @@ class TestFindAnyPublishThumbnail:
         publish = self._make_publish_dir(tmp_path)
         (publish / "shot.1001.exr").write_bytes(b"EXR")
 
-        with patch("discovery.thumbnail_finders.os.walk", side_effect=OSError("permission denied")):
+        with patch(
+            "discovery.thumbnail_finders.os.walk",
+            side_effect=OSError("permission denied"),
+        ):
             result = find_any_publish_thumbnail(
                 str(tmp_path / "shows"), "show", "seq01", "shot01"
             )
@@ -467,7 +505,10 @@ class TestFindEditorialCutrefThumbnail:
         jpg_file = jpg_dir / "cutref.0001.jpg"
         jpg_file.write_bytes(b"JPG_DATA")
 
-        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v003"):
+        with patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value="v003",
+        ):
             result = _find_editorial_cutref_thumbnail(editorial_base)
 
         assert result == jpg_file
@@ -477,7 +518,10 @@ class TestFindEditorialCutrefThumbnail:
         editorial_base = tmp_path / "cutref"
         editorial_base.mkdir()
 
-        with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value=None):
+        with patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value=None,
+        ):
             result = _find_editorial_cutref_thumbnail(editorial_base)
 
         assert result is None
@@ -502,8 +546,14 @@ class TestFindUndistortedJpegThumbnail:
         """Returns JPEG found for a plate discovered by FileDiscovery."""
         mm_default = (
             tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01"
-            / "publish" / "mm" / "default"
+            / "shows"
+            / "show"
+            / "shots"
+            / "seq01"
+            / "seq01_shot01"
+            / "publish"
+            / "mm"
+            / "default"
         )
         plate_path = mm_default / "FG01" / "undistorted_plate"
         jpeg_dir = plate_path / "v001" / "jpeg" / "2K"
@@ -535,8 +585,14 @@ class TestFindUndistortedJpegThumbnail:
         """Returns None when FileDiscovery finds no plate directories."""
         mm_default = (
             tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01"
-            / "publish" / "mm" / "default"
+            / "shows"
+            / "show"
+            / "shots"
+            / "seq01"
+            / "seq01_shot01"
+            / "publish"
+            / "mm"
+            / "default"
         )
         mm_default.mkdir(parents=True)
 
@@ -569,8 +625,7 @@ class TestFindUserWorkspaceJpegThumbnail:
     def test_finds_jpeg_in_undistort_output(self, tmp_path: Path) -> None:
         """Returns JPEG from user/username/mm/nuke/outputs/mm-default/undistort structure."""
         user_dir = (
-            tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01" / "user"
+            tmp_path / "shows" / "show" / "shots" / "seq01" / "seq01_shot01" / "user"
         )
         user_path = user_dir / _USERNAME
         mm_default_base = user_path / "mm" / "nuke" / "outputs" / "mm-default"
@@ -607,8 +662,7 @@ class TestFindUserWorkspaceJpegThumbnail:
     def test_returns_none_when_no_mm_default_for_any_user(self, tmp_path: Path) -> None:
         """Returns None when no user has an mm-default Nuke output directory."""
         user_dir = (
-            tmp_path
-            / "shows" / "show" / "shots" / "seq01" / "seq01_shot01" / "user"
+            tmp_path / "shows" / "show" / "shots" / "seq01" / "seq01_shot01" / "user"
         )
         # Create user directory but without the expected mm/nuke/outputs structure
         (user_dir / _USERNAME).mkdir(parents=True)
@@ -1012,9 +1066,7 @@ class TestUserWorkspaceJPEGDiscovery:
         (other_jpeg_dir / "other_work.jpeg").write_text("jpeg from other")
 
         # Current user has no JPEG output structure
-        (shot_path / "user" / _USERNAME / "mm" / "nuke" / "outputs").mkdir(
-            parents=True
-        )
+        (shot_path / "user" / _USERNAME / "mm" / "nuke" / "outputs").mkdir(parents=True)
 
         result = find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
@@ -1062,9 +1114,7 @@ class TestThumbnailFallbackOrder:
         v002_jpeg = v002_dir / "seq01_shot01_editorial-cutref_v002.1001.jpg"
         v002_jpeg.write_text("v002 jpeg")
 
-        result = find_shot_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01"
-        )
+        result = find_shot_thumbnail(str(shows_root), "myshow", "seq01", "shot01")
 
         # Should find v002 (latest version)
         assert result is not None
@@ -1088,9 +1138,7 @@ class TestThumbnailFallbackOrder:
         other_jpeg = other_dir / "other.jpg"
         other_jpeg.write_text("other jpeg")
 
-        result = find_shot_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01"
-        )
+        result = find_shot_thumbnail(str(shows_root), "myshow", "seq01", "shot01")
 
         # Should return None (no editorial/cutref directory)
         assert result is None

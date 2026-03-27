@@ -127,7 +127,9 @@ class TestPreviousShotsFinder:
         assert finder.user_path_pattern == "/user/customuser"
         assert finder._shot_pattern is not None
 
-    def test_finder_initialization_default_user(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_finder_initialization_default_user(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test finder initialization with default user from environment."""
         # Disable mock mode to test actual USER env var behavior
         monkeypatch.delenv("SHOTBOT_MOCK", raising=False)
@@ -272,9 +274,7 @@ class TestPreviousShotsFinder:
         ]
 
         # find_approved_shots will find all user shots, then filter out active ones
-        approved_shots = finder.find_approved_shots(
-            active_shots, real_shows_structure
-        )
+        approved_shots = finder.find_approved_shots(active_shots, real_shows_structure)
 
         # Should find 12 total shots, minus 1 active = 11 approved
         assert len(approved_shots) == 11
@@ -299,7 +299,9 @@ class TestPreviousShotsFinder:
         assert details["shot"] == "0010"
         assert details["workspace_path"] == shot.workspace_path
         assert details["user_path"] == f"{shot.workspace_path}/user/testuser"
-        assert details["status"] == "completed"  # no approved dir → falls back to completed
+        assert (
+            details["status"] == "completed"
+        )  # no approved dir → falls back to completed
 
     def test_get_shot_details_with_real_directory(self, finder, tmp_path) -> None:
         """Test getting shot details with real user directory.

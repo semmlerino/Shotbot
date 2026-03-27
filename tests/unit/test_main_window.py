@@ -713,4 +713,3 @@ class TestGetCurrentWorkspacePath:
         result = main_window._get_current_workspace_path()
         assert result == shot.workspace_path
         assert result != scene.workspace_path
-

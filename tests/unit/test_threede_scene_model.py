@@ -107,10 +107,13 @@ class TestThreeDEScene:
         # Patch in both locations to ensure all imports see the new value
         shows_root = tmp_path / "shows"
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
-        monkeypatch.setattr("discovery.thumbnail_finders.Config.SHOWS_ROOT", str(shows_root))
+        monkeypatch.setattr(
+            "discovery.thumbnail_finders.Config.SHOWS_ROOT", str(shows_root)
+        )
 
         # Clear all caches to ensure they use the new Config.SHOWS_ROOT
         from tests.fixtures.environment_fixtures import clear_all_caches
+
         clear_all_caches()
 
         # Create real directory structure

@@ -152,8 +152,9 @@ class TestEdgeCases:
         finder = MayaLatestFinder()
 
         # Mock iterdir to raise PermissionError
-        with patch.object(
-            Path, "iterdir", side_effect=PermissionError("Access denied")
-        ), pytest.raises(PermissionError):
+        with (
+            patch.object(Path, "iterdir", side_effect=PermissionError("Access denied")),
+            pytest.raises(PermissionError),
+        ):
             # The implementation doesn't catch PermissionError, so it should be raised
             finder.find_latest_scene(str(workspace))

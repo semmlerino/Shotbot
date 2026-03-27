@@ -85,7 +85,9 @@ class UserSequenceFinder:
                     sequences[playblast_type] = latest
 
         except OSError:
-            logger.warning(f"Error scanning Maya playblasts at {base_path}", exc_info=True)
+            logger.warning(
+                f"Error scanning Maya playblasts at {base_path}", exc_info=True
+            )
             return []
 
         # Sort by modified time (newest first)
@@ -343,4 +345,3 @@ class UserSequenceFinder:
             return parts[-2]
 
         return "unknown"
-

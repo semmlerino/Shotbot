@@ -18,7 +18,9 @@ from PySide6.QtWidgets import QApplication
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-def _noop_parse(output: str, frame_ranges: dict[str, tuple[int, int]] | None = None) -> list:
+def _noop_parse(
+    output: str, frame_ranges: dict[str, tuple[int, int]] | None = None
+) -> list:
     """No-op parse function for tests that only exercise thread safety."""
     return []
 
@@ -26,7 +28,7 @@ def _noop_parse(output: str, frame_ranges: dict[str, tuple[int, int]] | None = N
 # Local application imports
 from cache.shot_cache import ShotDataCache
 from shots.shot_model import AsyncShotLoader, RefreshResult, ShotModel
-from tests.fixtures.test_doubles import TestProcessPool
+from tests.fixtures.process_fixtures import TestProcessPool
 
 
 logger = logging.getLogger(__name__)
@@ -56,7 +58,7 @@ class TestQThreadInterruptionFix:
         model = ShotModel(cache_manager)
 
         # Use real AsyncShotLoader with TestProcessPool at boundary
-        from tests.fixtures.test_doubles import TestProcessPool
+        from tests.fixtures.process_fixtures import TestProcessPool
 
         test_pool = TestProcessPool()
         test_pool.set_outputs("workspace /shows/TEST/seq01/0010")
@@ -92,7 +94,7 @@ class TestQThreadInterruptionFix:
     def test_interruption_request_used_in_thread(self) -> None:
         """Test that AsyncShotLoader uses interruption requests."""
         # Use real test double at system boundary
-        from tests.fixtures.test_doubles import TestProcessPool
+        from tests.fixtures.process_fixtures import TestProcessPool
 
         test_pool = TestProcessPool()
         test_pool.set_outputs("")  # Empty output for quick test
@@ -114,7 +116,7 @@ class TestQThreadInterruptionFix:
 
     def test_stop_event_and_interruption_work_together(self) -> None:
         """Test that both stop mechanisms work together."""
-        from tests.fixtures.test_doubles import TestProcessPool
+        from tests.fixtures.process_fixtures import TestProcessPool
 
         test_process_pool = TestProcessPool()
         loader = AsyncShotLoader(test_process_pool, parse_function=_noop_parse)
@@ -303,7 +305,9 @@ class TestMemoryLeakPrevention:
                 model._start_background_refresh()
                 # Wait for loader to actually finish before simulating callback
                 if model._async_loader:
-                    assert model._async_loader.wait(2000), "Loader should finish within 2s"
+                    assert model._async_loader.wait(2000), (
+                        "Loader should finish within 2s"
+                    )
                     model._on_loader_finished()
         finally:
             # Final cleanup - always runs even if test fails
@@ -342,9 +346,6 @@ class TestMemoryLeakPrevention:
         finally:
             # Ensure cleanup even if test fails
             qapp.processEvents()  # Process any pending deletions
-
-
-
 
 
 if __name__ == "__main__":

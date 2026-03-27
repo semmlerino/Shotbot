@@ -41,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.fixtures.test_doubles import TestCacheManager
+from tests.fixtures.model_fixtures import TestCacheManager
 
 
 pytestmark = [
@@ -599,9 +599,7 @@ class TestPreviousShotsModel:
         shots_updated_spy = QSignalSpy(model.shots_updated)
         scan_started_spy = QSignalSpy(model.scan_started)
 
-        with patch(
-            "previous_shots.model.PreviousShotsWorker"
-        ) as mock_worker_cls:
+        with patch("previous_shots.model.PreviousShotsWorker") as mock_worker_cls:
             test_cache_manager.shots_migrated.emit(migrated_payload)
             process_qt_events()
 
@@ -688,4 +686,3 @@ class TestPreviousShotsModel:
 
         assert shots_updated_spy.count() == 0
         assert model.get_shots() == []
-

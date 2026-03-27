@@ -404,9 +404,10 @@ class TestImageUtils:
 
     def test_validate_image_dimensions_uses_config_defaults(self) -> None:
         """Test that image validation uses config defaults when not specified."""
-        with patch.object(
-            Config, "MAX_THUMBNAIL_DIMENSION_PX", 2048
-        ), patch.object(Config, "MAX_THUMBNAIL_MEMORY_MB", 10):
+        with (
+            patch.object(Config, "MAX_THUMBNAIL_DIMENSION_PX", 2048),
+            patch.object(Config, "MAX_THUMBNAIL_MEMORY_MB", 10),
+        ):
             result = ImageUtils.validate_image_dimensions(1920, 1080)
             assert result is True
 
@@ -435,7 +436,9 @@ class TestImageUtils:
 class TestCacheManagement:
     """Test cache management and utility functions."""
 
-    def test_clear_all_caches_and_stats(self, tmp_path: Path, caching_enabled: Path) -> None:
+    def test_clear_all_caches_and_stats(
+        self, tmp_path: Path, caching_enabled: Path
+    ) -> None:
         """Test cache stats reporting and that clear_all_caches resets all cache systems.
 
         Uses caching_enabled fixture for proper isolation in parallel execution.
@@ -465,7 +468,9 @@ class TestCacheManagement:
         assert "version_cache_size" in stats_before
         assert "extract_version_cache_info" in stats_before
         assert stats_before["path_cache_size"] >= 2, "Path cache should have entries"
-        assert stats_before["version_cache_size"] >= 1, "Version cache should have entries"
+        assert stats_before["version_cache_size"] >= 1, (
+            "Version cache should have entries"
+        )
 
         # Clear all caches and verify they are empty
         clear_all_caches()

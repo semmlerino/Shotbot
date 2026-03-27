@@ -39,7 +39,6 @@ from tests.fixtures.process_fixtures import (
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-
     # Lazy import to avoid circular dependency (test_doubles imports from synchronization)
 
 
@@ -107,6 +106,7 @@ class SynchronizationHelpers:
             time.sleep(poll_interval_sec)  # Small sleep for polling
 
         return False
+
 
 # simulate_work_without_sleep is imported from process_doubles (canonical location)
 

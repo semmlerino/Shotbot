@@ -171,14 +171,24 @@ def find_turnover_plate_thumbnail(
     """
     # Build candidate paths in preference order: with input_plate first, then without
     turnover_plate_base = build_workspace_path(
-        shows_root, show, sequence, shot, "publish", "turnover", "plate",
+        shows_root,
+        show,
+        sequence,
+        shot,
+        "publish",
+        "turnover",
+        "plate",
     )
     candidates = [
         turnover_plate_base / "input_plate",
         turnover_plate_base,
     ]
     base_path: Path | None = next(
-        (p for p in candidates if PathValidators.validate_path_exists(p, "Turnover plate directory")),
+        (
+            p
+            for p in candidates
+            if PathValidators.validate_path_exists(p, "Turnover plate directory")
+        ),
         None,
     )
     if base_path is None:
@@ -319,7 +329,13 @@ def find_undistorted_jpeg_thumbnail(
     """
     # Build base path to mm/default directory
     mm_default_path = build_workspace_path(
-        shows_root, show, sequence, shot, "publish", "mm", "default",
+        shows_root,
+        show,
+        sequence,
+        shot,
+        "publish",
+        "mm",
+        "default",
     )
 
     if not PathValidators.validate_path_exists(mm_default_path, "MM default path"):
@@ -336,7 +352,9 @@ def find_undistorted_jpeg_thumbnail(
             continue
 
         plate_path = plate_dir / "undistorted_plate"
-        if not PathValidators.validate_path_exists(plate_path, "Undistorted plate path"):
+        if not PathValidators.validate_path_exists(
+            plate_path, "Undistorted plate path"
+        ):
             continue
 
         # Find latest version directory and first JPEG inside jpeg subdir
@@ -350,9 +368,7 @@ def find_undistorted_jpeg_thumbnail(
             )
             return jpeg_file
 
-    logger.debug(
-        f"No undistorted JPEG thumbnails found for {show}/{sequence}/{shot}"
-    )
+    logger.debug(f"No undistorted JPEG thumbnails found for {show}/{sequence}/{shot}")
     return None
 
 
@@ -507,24 +523,28 @@ def find_shot_thumbnail(
 
     """
     editorial_base = build_workspace_path(
-        shows_root, show, sequence, shot, "publish", "editorial", "cutref",
+        shows_root,
+        show,
+        sequence,
+        shot,
+        "publish",
+        "editorial",
+        "cutref",
     )
 
-    if PathValidators.validate_path_exists(editorial_base, "Editorial cutref directory"):
+    if PathValidators.validate_path_exists(
+        editorial_base, "Editorial cutref directory"
+    ):
         result = _find_editorial_cutref_thumbnail(editorial_base)
         if result is not None:
             return result
 
-    turnover_thumbnail = find_turnover_plate_thumbnail(
-        shows_root, show, sequence, shot
-    )
+    turnover_thumbnail = find_turnover_plate_thumbnail(shows_root, show, sequence, shot)
     if turnover_thumbnail:
         logger.info(f"Found turnover plate thumbnail: {turnover_thumbnail}")
         return turnover_thumbnail
 
-    publish_thumbnail = find_any_publish_thumbnail(
-        shows_root, show, sequence, shot
-    )
+    publish_thumbnail = find_any_publish_thumbnail(shows_root, show, sequence, shot)
     if publish_thumbnail:
         logger.info(f"Found publish thumbnail: {publish_thumbnail}")
         return publish_thumbnail

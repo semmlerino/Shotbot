@@ -337,9 +337,7 @@ class TestEdgeCases:
 
         assert file_pin_manager.get_comment(file_path) == comment
 
-    def test_special_characters_in_path(
-        self, file_pin_manager: FilePinManager
-    ) -> None:
+    def test_special_characters_in_path(self, file_pin_manager: FilePinManager) -> None:
         """Paths with special characters should work."""
         file_path = Path("/shows/test show/shots/seq 01/file with spaces.3de")
 

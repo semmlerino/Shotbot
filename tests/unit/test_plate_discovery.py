@@ -30,7 +30,9 @@ pytestmark = pytest.mark.unit
 class TestPlatePriorityOrdering:
     """Test plate priority ordering system (CRITICAL - recently fixed bug)."""
 
-    def test_plate_priority_ordering(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_plate_priority_ordering(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Verify plate priorities: FG=0, PL=0.5, BG=1, COMP=1.5, EL=2, BC=10."""
         # Create workspace with multiple plate types
         workspace_path = tmp_path / "workspace"
@@ -75,6 +77,7 @@ class TestPlatePriorityOrdering:
         # When discovering plates dynamically, PL should have higher priority (0.5 vs 1)
         # Note: get_available_plates filters to FG/BG only, so we test internal discovery
         from discovery import FileDiscovery
+
         all_plates = FileDiscovery.discover_plate_directories(str(plate_base))
 
         # Should find both plates
@@ -85,7 +88,9 @@ class TestPlatePriorityOrdering:
         # Verify PL01 has higher priority (lower number)
         pl_priority = next(priority for name, priority in all_plates if name == "PL01")
         bg_priority = next(priority for name, priority in all_plates if name == "BG01")
-        assert pl_priority < bg_priority, f"PL priority ({pl_priority}) should be lower than BG ({bg_priority})"
+        assert pl_priority < bg_priority, (
+            f"PL priority ({pl_priority}) should be lower than BG ({bg_priority})"
+        )
 
     def test_fg_always_wins(self, tmp_path: Path) -> None:
         """FG01 always chosen over PL/BG (priority 0 is highest)."""
@@ -114,13 +119,16 @@ class TestPlatePriorityOrdering:
             (plate_base / plate_name).mkdir(parents=True, exist_ok=True)
 
         from discovery import FileDiscovery
+
         all_plates = FileDiscovery.discover_plate_directories(str(plate_base))
 
         # Should only find known plate types (FG, BG)
         plate_names = [name for name, _priority in all_plates]
         assert "FG01" in plate_names
         assert "BG01" in plate_names
-        assert "UNKNOWN01" not in plate_names, "Unknown plate types should be filtered out"
+        assert "UNKNOWN01" not in plate_names, (
+            "Unknown plate types should be filtered out"
+        )
 
     def test_multiple_plates_same_priority(self, tmp_path: Path) -> None:
         """Multiple plates of same type are grouped by priority (FG before BG)."""
@@ -146,7 +154,9 @@ class TestPlatePriorityOrdering:
         # All FG plates should appear before all BG plates
         first_bg_index = result.index(bg_plates[0])
         last_fg_index = result.index(fg_plates[-1])
-        assert last_fg_index < first_bg_index, "All FG plates should appear before BG plates"
+        assert last_fg_index < first_bg_index, (
+            "All FG plates should appear before BG plates"
+        )
 
     def test_discover_available_plates(self, tmp_path: Path) -> None:
         """Lists all available primary plate directories (FG, BG)."""
@@ -167,10 +177,13 @@ class TestPlatePriorityOrdering:
         assert "PL01" not in result, "PL plates should be filtered out"
         assert "COMP01" not in result, "COMP plates should be filtered out"
 
+
 class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_get_highest_resolution_dir_with_multiple_resolutions(self, tmp_path: Path) -> None:
+    def test_get_highest_resolution_dir_with_multiple_resolutions(
+        self, tmp_path: Path
+    ) -> None:
         """Selects highest resolution when multiple exist."""
         plate_dir = tmp_path / "FG01" / "v001" / "exr"
 
@@ -190,7 +203,9 @@ class TestEdgeCases:
         assert result is not None
         assert result.name == "4312x2304", "Should select highest resolution"
 
-    def test_get_highest_resolution_dir_no_resolution_dirs(self, tmp_path: Path) -> None:
+    def test_get_highest_resolution_dir_no_resolution_dirs(
+        self, tmp_path: Path
+    ) -> None:
         """Returns None when no resolution directories exist."""
         plate_dir = tmp_path / "FG01" / "v001" / "exr"
         plate_dir.mkdir(parents=True, exist_ok=True)

@@ -43,7 +43,9 @@ class TestSimpleNukeLauncher:
         mock_exists.return_value = True
         mock_script = Mock(spec=Path)
         mock_script.name = "TEST_0010_mm-default_FG01_scene_v003.nk"
-        mock_script.__str__ = lambda _self: "/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v003.nk"
+        mock_script.__str__ = lambda _self: (
+            "/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v003.nk"
+        )
         mock_glob.return_value = [mock_script]
 
         command, messages = simple_launcher.open_latest_script(
@@ -113,8 +115,12 @@ class TestSimpleNukeLauncher:
         """Test creating a new version when scripts exist."""
         mock_exists.return_value = True
         # Create proper path mocks
-        mock_script_v002 = Path("/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v002.nk")
-        mock_script_v003 = Path("/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v003.nk")
+        mock_script_v002 = Path(
+            "/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v002.nk"
+        )
+        mock_script_v003 = Path(
+            "/test/workspace/user/testuser/mm/nuke/scripts/FG01/TEST_0010_mm-default_FG01_scene_v003.nk"
+        )
         mock_glob.return_value = [mock_script_v002, mock_script_v003]
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
@@ -230,7 +236,9 @@ class TestSimpleNukeLauncher:
         )
 
         # Extract temp script path from command
-        temp_script_path = Path(command.split(" && nuke --script ", 1)[1].strip().strip("'"))
+        temp_script_path = Path(
+            command.split(" && nuke --script ", 1)[1].strip().strip("'")
+        )
 
         # Verify temp file was created
         assert temp_script_path.exists(), "Temp startup script should exist"
@@ -242,7 +250,9 @@ class TestSimpleNukeLauncher:
 
         # Must contain cleanup code
         assert "os.remove(" in script_content, "Script should contain os.remove() call"
-        assert str(temp_script_path) in script_content, "Script should reference its own path for cleanup"
+        assert str(temp_script_path) in script_content, (
+            "Script should reference its own path for cleanup"
+        )
         assert "context_from_path(script_path)" in script_content
         assert "sgtk.platform.change_context(new_context)" in script_content
 
@@ -267,13 +277,13 @@ class TestNukeLaunchHandler:
 
     def test_get_environment_fixes_with_problematic_plugins(self, nuke_handler) -> None:
         """Test environment fixes with problematic plugin paths."""
-        with patch(
-            "nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True
-        ), patch(
-            "nuke.launch_handler.Config.NUKE_SKIP_PROBLEMATIC_PLUGINS", True
-        ), patch(
-            "nuke.launch_handler.Config.NUKE_PROBLEMATIC_PLUGIN_PATHS",
-            ["/bad/plugin1", "/bad/plugin2"],
+        with (
+            patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True),
+            patch("nuke.launch_handler.Config.NUKE_SKIP_PROBLEMATIC_PLUGINS", True),
+            patch(
+                "nuke.launch_handler.Config.NUKE_PROBLEMATIC_PLUGIN_PATHS",
+                ["/bad/plugin1", "/bad/plugin2"],
+            ),
         ):
             fixes = nuke_handler.get_environment_fixes()
 
@@ -283,12 +293,14 @@ class TestNukeLaunchHandler:
 
     def test_get_environment_fixes_with_ocio_fallback(self, nuke_handler) -> None:
         """Test environment fixes with OCIO fallback config."""
-        with patch(
-            "nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True
-        ), patch(
-            "nuke.launch_handler.Config.NUKE_OCIO_FALLBACK_CONFIG",
-            "/test/ocio/config.ocio",
-        ), patch("pathlib.Path.exists") as mock_exists:
+        with (
+            patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True),
+            patch(
+                "nuke.launch_handler.Config.NUKE_OCIO_FALLBACK_CONFIG",
+                "/test/ocio/config.ocio",
+            ),
+            patch("pathlib.Path.exists") as mock_exists,
+        ):
             mock_exists.return_value = True
             fixes = nuke_handler.get_environment_fixes()
 

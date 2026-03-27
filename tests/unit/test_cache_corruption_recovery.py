@@ -134,7 +134,9 @@ class TestInvalidDataStructureRecovery:
         cache_path.mkdir(parents=True, exist_ok=True)
         return ShotDataCache(cache_path)
 
-    def test_rejects_invalid_data_structures(self, cache_manager: ShotDataCache) -> None:
+    def test_rejects_invalid_data_structures(
+        self, cache_manager: ShotDataCache
+    ) -> None:
         """Invalid decoded JSON structures are rejected consistently."""
         cache_file = cache_manager.shots_cache_file
         invalid_cases = [
@@ -154,10 +156,17 @@ class TestInvalidDataStructureRecovery:
         """Valid list and wrapped-list cache formats are accepted."""
         cache_file = cache_manager.shots_cache_file
         valid_cases = [
-            ("valid_list_format", [make_shot_dict(shot="0010"), make_shot_dict(shot="0020")], 2),
+            (
+                "valid_list_format",
+                [make_shot_dict(shot="0010"), make_shot_dict(shot="0020")],
+                2,
+            ),
             (
                 "valid_wrapped_format",
-                {"data": [make_shot_dict(shot="0010")], "cached_at": "2024-01-01T00:00:00"},
+                {
+                    "data": [make_shot_dict(shot="0010")],
+                    "cached_at": "2024-01-01T00:00:00",
+                },
                 1,
             ),
             ("empty_list", [], 0),
@@ -228,9 +237,7 @@ class TestPermissionErrorRecovery:
             # Restore permissions for cleanup
             cache_manager.cache_dir.chmod(0o755)
 
-    def test_nonexistent_file_returns_none(
-        self, cache_manager: ShotDataCache
-    ) -> None:
+    def test_nonexistent_file_returns_none(self, cache_manager: ShotDataCache) -> None:
         """Nonexistent cache file returns None (not an error)."""
         cache_file = cache_manager.cache_dir / "does_not_exist.json"
 
@@ -254,9 +261,7 @@ class TestAtomicWriteGuarantees:
         cache_path.mkdir(parents=True, exist_ok=True)
         return ShotDataCache(cache_path)
 
-    def test_successful_write_creates_file(
-        self, cache_manager: ShotDataCache
-    ) -> None:
+    def test_successful_write_creates_file(self, cache_manager: ShotDataCache) -> None:
         """Successful write creates cache file."""
         cache_file = cache_manager.shots_cache_file
         shots = [make_shot_dict(shot="0010")]
@@ -266,9 +271,7 @@ class TestAtomicWriteGuarantees:
         assert success is True
         assert cache_file.exists()
 
-    def test_successful_write_is_readable(
-        self, cache_manager: ShotDataCache
-    ) -> None:
+    def test_successful_write_is_readable(self, cache_manager: ShotDataCache) -> None:
         """Written cache file is valid and readable."""
         cache_file = cache_manager.shots_cache_file
         shots = [make_shot_dict(shot="0010")]
@@ -309,9 +312,7 @@ class TestAtomicWriteGuarantees:
         assert success is True
         assert cache_file.exists()
 
-    def test_no_temp_files_left_on_success(
-        self, cache_manager: ShotDataCache
-    ) -> None:
+    def test_no_temp_files_left_on_success(self, cache_manager: ShotDataCache) -> None:
         """Successful write leaves no temp files."""
         cache_file = cache_manager.shots_cache_file
         shots = [make_shot_dict()]

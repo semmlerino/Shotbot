@@ -117,7 +117,9 @@ class TestThreadDiagnostics:
         thread = threading.current_thread()
 
         for i in range(3):
-            report = ThreadDiagnostics.capture_thread_state(thread, time.time() - (i + 1))
+            report = ThreadDiagnostics.capture_thread_state(
+                thread, time.time() - (i + 1)
+            )
             ThreadDiagnostics.log_abandonment(thread, f"reason-{i}", report)
 
         metrics = ThreadDiagnostics.get_abandonment_metrics()

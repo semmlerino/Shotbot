@@ -65,8 +65,9 @@ class TestRezAvailability:
         """FORCE mode still depends on the rez executable being present."""
         mock_config.REZ_MODE = RezMode.FORCE
 
-        with patch.dict("os.environ", {"REZ_USED": "1"}), patch(
-            "shutil.which", return_value=None
+        with (
+            patch.dict("os.environ", {"REZ_USED": "1"}),
+            patch("shutil.which", return_value=None),
         ):
             assert env_manager.should_wrap_with_rez(mock_config) is False
 
@@ -128,8 +129,9 @@ class TestRezAvailability:
         """Test that reset_cache clears Rez availability cache."""
         mock_config.REZ_MODE = RezMode.FORCE
 
-        with patch("shutil.which", return_value="/usr/bin/rez"), patch.dict(
-            "os.environ", {}, clear=True
+        with (
+            patch("shutil.which", return_value="/usr/bin/rez"),
+            patch.dict("os.environ", {}, clear=True),
         ):
             # Cache result
             env_manager.should_wrap_with_rez(mock_config)
@@ -211,7 +213,9 @@ class TestTerminalDetection:
         self, mock_which: MagicMock, env_manager: EnvironmentManager
     ) -> None:
         """Test xterm detection (third preference)."""
-        mock_which.side_effect = lambda cmd: "/usr/bin/xterm" if cmd == "xterm" else None
+        mock_which.side_effect = lambda cmd: (
+            "/usr/bin/xterm" if cmd == "xterm" else None
+        )
 
         terminal = env_manager.detect_terminal()
         assert terminal == "xterm"

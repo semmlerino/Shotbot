@@ -280,5 +280,3 @@ class TestClassInheritance:
         # Should use fallback patterns
         assert obj._extract_version("file.v001.ma") == 1  # Fallback pattern
         assert obj._extract_version("file_ver001.ma") == 1  # Another fallback
-
-

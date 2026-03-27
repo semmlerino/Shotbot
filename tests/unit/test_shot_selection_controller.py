@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tests.fixtures.test_doubles import SignalDouble
+from tests.fixtures.model_fixtures import SignalDouble
 
 
 pytestmark = [

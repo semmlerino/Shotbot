@@ -307,9 +307,7 @@ class TestRightPanelWidgetShortcuts:
 
         assert result is False
 
-    def test_handle_unknown_shortcut(
-        self, qtbot: QtBot, mock_shot: MagicMock
-    ) -> None:
+    def test_handle_unknown_shortcut(self, qtbot: QtBot, mock_shot: MagicMock) -> None:
         """Unknown shortcut returns False."""
         panel = RightPanelWidget()
         qtbot.addWidget(panel)

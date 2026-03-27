@@ -26,7 +26,7 @@ import pytest
 from cache.shot_cache import ShotDataCache
 from config import Config
 from previous_shots.model import PreviousShotsModel
-from tests.fixtures.test_doubles import TestShot, TestShotModel
+from tests.fixtures.model_fixtures import TestShot, TestShotModel
 from tests.test_helpers import SynchronizationHelpers, process_qt_events
 from type_definitions import Shot
 
@@ -59,7 +59,9 @@ class TestCacheManagerE2E:
 
         return ShotDataCache(real_cache_dir)
 
-    def test_shots_cache_persists_to_disk(self, real_cache_manager: ShotDataCache) -> None:
+    def test_shots_cache_persists_to_disk(
+        self, real_cache_manager: ShotDataCache
+    ) -> None:
         """Verify shot data is actually written to disk."""
         # Create test shot data
         shots = [
@@ -193,7 +195,10 @@ class TestPreviousShootsCacheIntegration:
 
     @pytest.fixture
     def previous_shots_model(
-        self, mock_shot_model: TestShotModel, cache_manager: ShotDataCache, qtbot: object
+        self,
+        mock_shot_model: TestShotModel,
+        cache_manager: ShotDataCache,
+        qtbot: object,
     ) -> Iterator[PreviousShotsModel]:
         """Create PreviousShotsModel with real cache."""
         model = PreviousShotsModel(mock_shot_model, cache_manager)
@@ -209,8 +214,12 @@ class TestPreviousShootsCacheIntegration:
         """Test cache data format consistency."""
         # Original shots from model
         original_shots = [
-            Shot("show1", "seq1", "shot1", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot1"),
-            Shot("show1", "seq1", "shot2", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot2"),
+            Shot(
+                "show1", "seq1", "shot1", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot1"
+            ),
+            Shot(
+                "show1", "seq1", "shot2", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot2"
+            ),
         ]
 
         # Convert to cache format (as done by model)
@@ -249,7 +258,9 @@ class TestPreviousShootsCacheIntegration:
             assert orig.shot == recon.shot
             assert orig.workspace_path == recon.workspace_path
 
-    def test_persistent_cache_survives_ttl(self, cache_manager: ShotDataCache, temp_cache_dir: Path) -> None:
+    def test_persistent_cache_survives_ttl(
+        self, cache_manager: ShotDataCache, temp_cache_dir: Path
+    ) -> None:
         """Test that previous shots cache persists beyond TTL expiration.
 
         Previous shots use persistent caching (no TTL) for incremental accumulation.
@@ -278,7 +289,9 @@ class TestPreviousShootsCacheIntegration:
 
         # TTL-enforcing method should return None for expired cache
         cached_data_with_ttl = cache_manager.get_cached_previous_shots()
-        assert cached_data_with_ttl is None, "TTL-enforcing method should respect expiration"
+        assert cached_data_with_ttl is None, (
+            "TTL-enforcing method should respect expiration"
+        )
 
         # BUT persistent method should still return the data (no TTL check)
         persistent_data = cache_manager.get_persistent_previous_shots()
@@ -352,7 +365,9 @@ class TestPreviousShootsCacheIntegration:
                 )
                 process_qt_events()  # Flush any remaining queued signals
 
-                assert not previous_shots_model.is_scanning(), "Timeout waiting for scan to finish"
+                assert not previous_shots_model.is_scanning(), (
+                    "Timeout waiting for scan to finish"
+                )
 
                 # Verify data was cached after scan completes
                 cached_data = (

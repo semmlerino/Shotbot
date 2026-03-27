@@ -50,13 +50,32 @@ class TestBasicOperations:
     @pytest.mark.parametrize(
         ("method", "shot_key", "frame", "pre_store"),
         [
-            pytest.param("get_image", "nonexistent/shot", 1001, False, id="get_image_nonexistent_shot"),
-            pytest.param("get_image", "show/seq/shot1", 9999, True, id="get_image_nonexistent_frame"),
-            pytest.param("get_pixmap", "nonexistent", 1001, False, id="get_pixmap_nonexistent"),
+            pytest.param(
+                "get_image",
+                "nonexistent/shot",
+                1001,
+                False,
+                id="get_image_nonexistent_shot",
+            ),
+            pytest.param(
+                "get_image",
+                "show/seq/shot1",
+                9999,
+                True,
+                id="get_image_nonexistent_frame",
+            ),
+            pytest.param(
+                "get_pixmap", "nonexistent", 1001, False, id="get_pixmap_nonexistent"
+            ),
         ],
     )
     def test_get_returns_none_for_missing(
-        self, qapp: QApplication, method: str, shot_key: str, frame: int, pre_store: bool
+        self,
+        qapp: QApplication,
+        method: str,
+        shot_key: str,
+        frame: int,
+        pre_store: bool,
     ) -> None:
         """Test get_image and get_pixmap return None for missing shot or frame."""
         cache = ScrubFrameCache()
@@ -321,12 +340,16 @@ class TestMainThreadAssertion:
 
                 # get_image
                 retrieved = cache.get_image("show/seq/shot1", 1001)
-                results.append("get_image_ok" if retrieved is not None else "get_image_fail")
+                results.append(
+                    "get_image_ok" if retrieved is not None else "get_image_fail"
+                )
 
                 # has_frame
                 exists = cache.has_frame("show/seq/shot1", 1001)
                 not_exists = cache.has_frame("show/seq/shot1", 9999)
-                results.append("has_frame_ok" if (exists and not not_exists) else "has_frame_fail")
+                results.append(
+                    "has_frame_ok" if (exists and not not_exists) else "has_frame_fail"
+                )
             except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
@@ -342,7 +365,9 @@ class TestMainThreadAssertion:
 class TestConcurrentAccess:
     """Test concurrent read/write operations."""
 
-    def test_concurrent_store_read_clear_is_threadsafe(self, qapp: QApplication) -> None:
+    def test_concurrent_store_read_clear_is_threadsafe(
+        self, qapp: QApplication
+    ) -> None:
         """5 threads doing store+read+clear_shot in a loop on shared cache — no errors."""
         cache = ScrubFrameCache(max_frames_per_shot=100, max_shots=20)
         errors: list[Exception] = []
@@ -430,4 +455,3 @@ class TestEdgeCases:
         cache.store("show/seq/shot2", 1001, make_test_image())
         assert not cache.has_frame("show/seq/shot1", 1002)
         assert cache.has_frame("show/seq/shot2", 1001)
-

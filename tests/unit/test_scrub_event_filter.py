@@ -112,49 +112,37 @@ class TestEventFiltering:
 class TestXRatioCalculation:
     """Tests for x-ratio calculation."""
 
-    def test_x_ratio_at_left_edge(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_x_ratio_at_left_edge(self, scrub_filter: ScrubEventFilter) -> None:
         """Test x-ratio is 0.0 at left edge."""
         rect = QRect(100, 50, 200, 100)
         ratio = scrub_filter._calculate_x_ratio(100, rect)
         assert ratio == pytest.approx(0.0)
 
-    def test_x_ratio_at_right_edge(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_x_ratio_at_right_edge(self, scrub_filter: ScrubEventFilter) -> None:
         """Test x-ratio is 1.0 at right edge."""
         rect = QRect(100, 50, 200, 100)
         ratio = scrub_filter._calculate_x_ratio(300, rect)
         assert ratio == pytest.approx(1.0)
 
-    def test_x_ratio_at_center(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_x_ratio_at_center(self, scrub_filter: ScrubEventFilter) -> None:
         """Test x-ratio is 0.5 at center."""
         rect = QRect(100, 50, 200, 100)
         ratio = scrub_filter._calculate_x_ratio(200, rect)
         assert ratio == pytest.approx(0.5)
 
-    def test_x_ratio_clamped_below_zero(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_x_ratio_clamped_below_zero(self, scrub_filter: ScrubEventFilter) -> None:
         """Test x-ratio is clamped to 0.0 if mouse is left of rect."""
         rect = QRect(100, 50, 200, 100)
         ratio = scrub_filter._calculate_x_ratio(50, rect)
         assert ratio == 0.0
 
-    def test_x_ratio_clamped_above_one(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_x_ratio_clamped_above_one(self, scrub_filter: ScrubEventFilter) -> None:
         """Test x-ratio is clamped to 1.0 if mouse is right of rect."""
         rect = QRect(100, 50, 200, 100)
         ratio = scrub_filter._calculate_x_ratio(350, rect)
         assert ratio == 1.0
 
-    def test_x_ratio_with_zero_width_rect(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_x_ratio_with_zero_width_rect(self, scrub_filter: ScrubEventFilter) -> None:
         """Test x-ratio returns 0.5 for zero-width rect."""
         rect = QRect(100, 50, 0, 100)
         ratio = scrub_filter._calculate_x_ratio(100, rect)
@@ -222,9 +210,7 @@ class TestHoverDelayBehavior:
 class TestCancelScrub:
     """Tests for cancel scrub behavior."""
 
-    def test_cancel_scrub_stops_timer(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_cancel_scrub_stops_timer(self, scrub_filter: ScrubEventFilter) -> None:
         """Test cancel_scrub stops hover timer."""
         scrub_filter._hover_timer.start(1000)
         scrub_filter._cancel_scrub()
@@ -293,18 +279,14 @@ class TestCancelScrub:
 class TestProperties:
     """Tests for properties."""
 
-    def test_is_scrubbing_property(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_is_scrubbing_property(self, scrub_filter: ScrubEventFilter) -> None:
         """Test is_scrubbing property returns correct state."""
         assert not scrub_filter.is_scrubbing
 
         scrub_filter._is_scrubbing = True
         assert scrub_filter.is_scrubbing
 
-    def test_current_index_property(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_current_index_property(self, scrub_filter: ScrubEventFilter) -> None:
         """Test current_index property returns correct value."""
         assert scrub_filter.current_index is None
 
@@ -316,9 +298,7 @@ class TestProperties:
 class TestStopMethod:
     """Tests for stop() method."""
 
-    def test_stop_cancels_scrub(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_stop_cancels_scrub(self, scrub_filter: ScrubEventFilter) -> None:
         """Test stop() cancels active scrub."""
         scrub_filter._is_scrubbing = True
         scrub_filter._current_index = QModelIndex()
@@ -328,9 +308,7 @@ class TestStopMethod:
         assert not scrub_filter._is_scrubbing
         assert scrub_filter._current_index is None
 
-    def test_stop_stops_timer(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_stop_stops_timer(self, scrub_filter: ScrubEventFilter) -> None:
         """Test stop() stops hover timer."""
         scrub_filter._hover_timer.start(1000)
 
@@ -383,9 +361,7 @@ class TestHandleMouseMoveIntegration:
 class TestEdgeCases:
     """Tests for edge cases."""
 
-    def test_rapid_index_changes(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_rapid_index_changes(self, scrub_filter: ScrubEventFilter) -> None:
         """Test rapid changes between items work correctly."""
         rect = QRect(0, 0, 200, 100)
 
@@ -398,9 +374,7 @@ class TestEdgeCases:
         assert scrub_filter._hover_pending
         assert scrub_filter._hover_timer.isActive()
 
-    def test_cancel_during_hover_delay(
-        self, scrub_filter: ScrubEventFilter
-    ) -> None:
+    def test_cancel_during_hover_delay(self, scrub_filter: ScrubEventFilter) -> None:
         """Test canceling during hover delay clears properly."""
         index = QModelIndex()
         rect = QRect(0, 0, 200, 100)
@@ -413,9 +387,7 @@ class TestEdgeCases:
         assert not scrub_filter._hover_timer.isActive()
         assert not scrub_filter._hover_pending
 
-    def test_cleanup_on_view_destruction(
-        self, qapp: QApplication
-    ) -> None:
+    def test_cleanup_on_view_destruction(self, qapp: QApplication) -> None:
         """Test filter cleanup when view is destroyed."""
         view = QListView()
         view.show()

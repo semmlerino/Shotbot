@@ -98,6 +98,7 @@ class TestAsyncWorkflowIntegration:
     ) -> Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]]:
         """Create integrated components for testing."""
         from cache.thumbnail_cache import ThumbnailCache
+
         tmp_path, _ = temp_setup
 
         # Use real thumbnail cache with temp directory
@@ -117,7 +118,9 @@ class TestAsyncWorkflowIntegration:
 
     def test_shot_selection_with_async_thumbnail_loading(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
+        integration_components: Callable[
+            [], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]
+        ],
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
@@ -139,7 +142,10 @@ class TestAsyncWorkflowIntegration:
         # Wait for the loading state to be set
         # The timer fires after 100ms and then sets the loading state
         qtbot.waitUntil(
-            lambda: item_model._thumbnail_loader.loading_states.get(test_shots[0].full_name) is not None,
+            lambda: (
+                item_model._thumbnail_loader.loading_states.get(test_shots[0].full_name)
+                is not None
+            ),
             timeout=2000,
         )
 
@@ -149,7 +155,9 @@ class TestAsyncWorkflowIntegration:
         assert test_shots[0].full_name in info_panel.shot_name_label.text()
 
         # Model should have started async loading
-        loading_state = item_model._thumbnail_loader.loading_states.get(test_shots[0].full_name)
+        loading_state = item_model._thumbnail_loader.loading_states.get(
+            test_shots[0].full_name
+        )
         assert loading_state in ["loading", "loaded", "failed"]
 
         # Cleanup - wait for background threads before deleting widgets
@@ -159,7 +167,9 @@ class TestAsyncWorkflowIntegration:
 
     def test_concurrent_model_updates_with_panel_sync(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
+        integration_components: Callable[
+            [], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]
+        ],
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
@@ -198,7 +208,9 @@ class TestAsyncWorkflowIntegration:
 
     def test_rapid_shot_changes_stress_test(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
+        integration_components: Callable[
+            [], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]
+        ],
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
@@ -235,7 +247,9 @@ class TestAsyncWorkflowIntegration:
 
     def test_memory_management_during_async_operations(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
+        integration_components: Callable[
+            [], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]
+        ],
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
@@ -257,8 +271,11 @@ class TestAsyncWorkflowIntegration:
 
         # Wait for cleanup to complete
         qtbot.waitUntil(
-            lambda: len(item_model._thumbnail_loader.thumbnail_cache) == 0 and info_panel._current_shot is None,
-            timeout=2000
+            lambda: (
+                len(item_model._thumbnail_loader.thumbnail_cache) == 0
+                and info_panel._current_shot is None
+            ),
+            timeout=2000,
         )
 
         # Verify cleanup
@@ -267,7 +284,9 @@ class TestAsyncWorkflowIntegration:
 
     def test_error_propagation_across_components(
         self,
-        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]],
+        integration_components: Callable[
+            [], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]
+        ],
         test_shots: list[Shot],
         qtbot: QtBot,
         monkeypatch: pytest.MonkeyPatch,
@@ -297,13 +316,18 @@ class TestAsyncWorkflowIntegration:
 
         # Wait for the loading state to be set (timer fires after 100ms)
         qtbot.waitUntil(
-            lambda: item_model._thumbnail_loader.loading_states.get(bad_shot.full_name) is not None,
+            lambda: (
+                item_model._thumbnail_loader.loading_states.get(bad_shot.full_name)
+                is not None
+            ),
             timeout=2000,
         )
 
         # Both components should handle errors gracefully
         # Model should show failed loading state (non-existent image)
-        loading_state = item_model._thumbnail_loader.loading_states.get(bad_shot.full_name)
+        loading_state = item_model._thumbnail_loader.loading_states.get(
+            bad_shot.full_name
+        )
         assert loading_state in ["failed", "loaded"]  # Should not remain loading/idle
 
         # Panel should show placeholder
@@ -345,6 +369,7 @@ class TestAsyncCallbackIntegration:
         image.save(str(image_path), "JPEG")
 
         from cache.thumbnail_cache import ThumbnailCache
+
         thumbnail_cache = ThumbnailCache(tmp_path / "cache")
         model = ShotItemModel(thumbnail_cache)
 
@@ -399,6 +424,7 @@ class TestAsyncCallbackIntegration:
         image.save(str(image_path), "JPEG")
 
         from cache.thumbnail_cache import ThumbnailCache
+
         thumbnail_cache = ThumbnailCache(tmp_path / "cache")
         panel = ShotInfoPanel(thumbnail_cache)
         qtbot.addWidget(panel)
@@ -418,10 +444,7 @@ class TestAsyncCallbackIntegration:
             qtbot.wait(1)  # Minimal event processing
 
         # Wait for panel to stabilize on final shot
-        qtbot.waitUntil(
-            lambda: panel._current_shot == shots[-1],
-            timeout=2000
-        )
+        qtbot.waitUntil(lambda: panel._current_shot == shots[-1], timeout=2000)
 
         # Panel should show the last shot
         assert panel._current_shot == shots[-1]

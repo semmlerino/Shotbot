@@ -72,7 +72,7 @@ def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
         (1001, 1150)
 
     """
-    from discovery.publish_plate_finder import find_main_plate
+    from discovery.plate_finders import find_main_plate
 
     # Get plate path pattern (returns path with @@@@ for frame numbers)
     plate_pattern = find_main_plate(workspace_path)
@@ -97,9 +97,7 @@ def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
     if at_match:
         num_digits = len(at_match.group())
         # Replace @@@@ with regex pattern that matches that many digits
-        pattern_str = base_name.replace(
-            at_match.group(), rf"(\d{{{num_digits}}})"
-        )
+        pattern_str = base_name.replace(at_match.group(), rf"(\d{{{num_digits}}})")
     else:
         # No @'s found - might be a single frame or different pattern
         logger.debug(f"No frame pattern found in plate path: {plate_pattern}")
@@ -116,9 +114,7 @@ def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
 
         if frame_numbers:
             result = (min(frame_numbers), max(frame_numbers))
-            logger.info(
-                f"Frame range for {workspace_path}: {result[0]}-{result[1]}"
-            )
+            logger.info(f"Frame range for {workspace_path}: {result[0]}-{result[1]}")
             return result
 
         logger.info(f"No matching frame files found in {plate_dir}")

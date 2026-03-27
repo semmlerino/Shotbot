@@ -151,8 +151,6 @@ class TestRealProcessPoolManagerShutdown:
         assert "after_reset" in result
 
 
-
-
 class TestRealProcessPoolManagerErrorHandling:
     """Tests for error handling in real execution."""
 
@@ -176,5 +174,3 @@ class TestRealProcessPoolManagerErrorHandling:
                 cache_ttl=0,
                 timeout=1,  # Short timeout
             )
-
-

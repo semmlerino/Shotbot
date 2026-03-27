@@ -394,9 +394,7 @@ class TestMergeThreadSafety:
         cache_path.mkdir(parents=True, exist_ok=True)
         return SceneDiskCache(cache_path)
 
-    def test_concurrent_shot_merge_no_crash(
-        self, shot_cache: ShotDataCache
-    ) -> None:
+    def test_concurrent_shot_merge_no_crash(self, shot_cache: ShotDataCache) -> None:
         """Multiple threads calling update_shots_cache don't crash."""
         errors: list[Exception] = []
         results: list[ShotMergeResult] = []
@@ -424,9 +422,7 @@ class TestMergeThreadSafety:
         assert len(errors) == 0, f"Thread errors: {errors}"
         assert len(results) == 50
 
-    def test_concurrent_scene_merge_no_crash(
-        self, scene_cache: SceneDiskCache
-    ) -> None:
+    def test_concurrent_scene_merge_no_crash(self, scene_cache: SceneDiskCache) -> None:
         """Multiple threads calling merge_scenes_incremental don't crash."""
         errors: list[Exception] = []
         results: list[SceneMergeResult] = []
@@ -537,9 +533,7 @@ class TestMergeEdgeCases:
         # This is expected - deduplication should happen before merge
         assert len(result.updated_shots) == 2
 
-    def test_merge_preserves_all_fresh_fields(
-        self, shot_cache: ShotDataCache
-    ) -> None:
+    def test_merge_preserves_all_fresh_fields(self, shot_cache: ShotDataCache) -> None:
         """Merge preserves all fields from fresh data."""
         fresh = [
             make_shot_dict(
@@ -570,9 +564,7 @@ class TestMergeEdgeCases:
         cached = [make_scene_dict(shot="0010", last_seen=days_10_ago)]
 
         # With 5 day max age - should be pruned
-        result_5days = scene_cache.merge_scenes_incremental(
-            cached, [], max_age_days=5
-        )
+        result_5days = scene_cache.merge_scenes_incremental(cached, [], max_age_days=5)
         assert result_5days.pruned_count == 1
 
         # With 30 day max age - should be kept

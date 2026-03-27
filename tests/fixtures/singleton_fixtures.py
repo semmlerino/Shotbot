@@ -233,10 +233,20 @@ class SingletonRegistry:
                     full_path = f"{subclass.__module__}.{class_name}"
                     description = getattr(subclass, "_singleton_description", "")
                     try:
-                        cls.register(full_path, cleanup_order=cleanup_order, description=description)
-                        _logger.info("Auto-registered singleton: %s (order=%d)", full_path, cleanup_order)
+                        cls.register(
+                            full_path,
+                            cleanup_order=cleanup_order,
+                            description=description,
+                        )
+                        _logger.info(
+                            "Auto-registered singleton: %s (order=%d)",
+                            full_path,
+                            cleanup_order,
+                        )
                     except ValueError as e:
-                        _logger.warning("Auto-registration failed for %s: %s", full_path, e)
+                        _logger.warning(
+                            "Auto-registration failed for %s: %s", full_path, e
+                        )
                         unregistered.append(full_path)
                 else:
                     full_path = f"{subclass.__module__}.{class_name}"

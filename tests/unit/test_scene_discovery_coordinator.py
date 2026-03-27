@@ -201,11 +201,14 @@ class TestFindScenesForShot:
         scanner_double.set_valid_paths(str(scene.scene_path))
 
         # Patch validation to always pass and the local discovery method to return our scene
-        with patch(
-            "utils.ValidationUtils.validate_shot_components",
-            return_value=True,
-        ), patch.object(
-            coordinator, "_find_scenes_for_shot_local", return_value=[scene]
+        with (
+            patch(
+                "utils.ValidationUtils.validate_shot_components",
+                return_value=True,
+            ),
+            patch.object(
+                coordinator, "_find_scenes_for_shot_local", return_value=[scene]
+            ),
         ):
             result = coordinator.find_scenes_for_shot(
                 "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
@@ -244,13 +247,16 @@ class TestFindScenesForShot:
         # Only the valid scene exists
         scanner_double.set_valid_paths("/valid/scene.3de")
 
-        with patch(
-            "utils.ValidationUtils.validate_shot_components",
-            return_value=True,
-        ), patch.object(
-            coordinator,
-            "_find_scenes_for_shot_local",
-            return_value=[valid_scene, invalid_scene],
+        with (
+            patch(
+                "utils.ValidationUtils.validate_shot_components",
+                return_value=True,
+            ),
+            patch.object(
+                coordinator,
+                "_find_scenes_for_shot_local",
+                return_value=[valid_scene, invalid_scene],
+            ),
         ):
             result = coordinator.find_scenes_for_shot(
                 "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
@@ -265,13 +271,16 @@ class TestFindScenesForShot:
         coordinator,
     ) -> None:
         """Test that find_scenes_for_shot handles discovery errors."""
-        with patch(
-            "utils.ValidationUtils.validate_shot_components",
-            return_value=True,
-        ), patch.object(
-            coordinator,
-            "_find_scenes_for_shot_local",
-            side_effect=RuntimeError("Discovery error"),
+        with (
+            patch(
+                "utils.ValidationUtils.validate_shot_components",
+                return_value=True,
+            ),
+            patch.object(
+                coordinator,
+                "_find_scenes_for_shot_local",
+                side_effect=RuntimeError("Discovery error"),
+            ),
         ):
             result = coordinator.find_scenes_for_shot(
                 "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
@@ -308,11 +317,14 @@ class TestStatistics:
         scene = create_test_scene()
         scanner_double.set_valid_paths(str(scene.scene_path))
 
-        with patch(
-            "utils.ValidationUtils.validate_shot_components",
-            return_value=True,
-        ), patch.object(
-            coordinator, "_find_scenes_for_shot_local", return_value=[scene]
+        with (
+            patch(
+                "utils.ValidationUtils.validate_shot_components",
+                return_value=True,
+            ),
+            patch.object(
+                coordinator, "_find_scenes_for_shot_local", return_value=[scene]
+            ),
         ):
             coordinator.find_scenes_for_shot(
                 "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"

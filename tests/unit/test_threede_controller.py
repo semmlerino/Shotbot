@@ -20,7 +20,7 @@ import pytest
 
 from controllers.threede_controller import ThreeDEController
 from managers.progress_manager import ProgressManager
-from tests.fixtures.test_doubles import SignalDouble
+from tests.fixtures.model_fixtures import SignalDouble
 from type_definitions import ThreeDEScene
 
 

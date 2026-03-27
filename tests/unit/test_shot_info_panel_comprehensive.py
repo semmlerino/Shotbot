@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
 from shots.shot_info_panel import ShotInfoPanel
-from tests.fixtures.test_doubles import TestCacheManager
+from tests.fixtures.model_fixtures import TestCacheManager
 from type_definitions import Shot
 
 
@@ -84,8 +84,7 @@ class TestShotInfoPanelAsyncLoading:
 
         # Wait for async thumbnail loading to complete
         qtbot.waitUntil(
-            lambda: info_panel.thumbnail_label.pixmap() is not None,
-            timeout=2000
+            lambda: info_panel.thumbnail_label.pixmap() is not None, timeout=2000
         )
 
         # Verify thumbnail was loaded (placeholder or actual image)
@@ -128,10 +127,7 @@ class TestShotInfoPanelAsyncLoading:
             qtbot.wait(1)  # Minimal event processing
 
         # Wait for panel to stabilize on final shot
-        qtbot.waitUntil(
-            lambda: info_panel._current_shot == shots[-1],
-            timeout=2000
-        )
+        qtbot.waitUntil(lambda: info_panel._current_shot == shots[-1], timeout=2000)
 
         # Panel should display the last shot without crashing
         assert info_panel._current_shot == shots[-1]
@@ -150,7 +146,7 @@ class TestShotInfoPanelAsyncLoading:
         # Wait for panel to update to "no shot" state
         qtbot.waitUntil(
             lambda: info_panel.shot_name_label.text() == "No Shot Selected",
-            timeout=2000
+            timeout=2000,
         )
 
         # Panel should show "no shot selected" state

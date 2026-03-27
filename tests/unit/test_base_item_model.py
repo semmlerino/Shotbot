@@ -75,8 +75,9 @@ class TestBaseItemModelInitialization:
         thread = Thread(target=create_model)
         thread.start()
         thread.join(timeout=5.0)
-        assert not thread.is_alive(), \
+        assert not thread.is_alive(), (
             "Thread failed to complete within 5 seconds (possible deadlock)"
+        )
 
         assert error_occurred
 
@@ -88,8 +89,18 @@ class TestRowCount:
         """Test row count with items."""
         model = ConcreteTestModel()
         shots = [
-            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
+            Shot(
+                "TEST",
+                "seq01",
+                "0010",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+            ),
+            Shot(
+                "TEST",
+                "seq01",
+                "0020",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+            ),
         ]
         model.set_items(shots)
 
@@ -98,7 +109,14 @@ class TestRowCount:
     def test_invalid_parent(self, qapp: QApplication) -> None:
         """Test row count returns 0 for valid parent (list models have no children)."""
         model = ConcreteTestModel()
-        shots = [Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")]
+        shots = [
+            Shot(
+                "TEST",
+                "seq01",
+                "0010",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+            )
+        ]
         model.set_items(shots)
 
         # List models return 0 for any valid parent
@@ -118,7 +136,10 @@ class TestDataMethod:
             (BaseItemRole.ShowRole, "TEST"),
             (BaseItemRole.SequenceRole, "seq01"),
             (BaseItemRole.FullNameRole, "seq01_0010"),
-            (BaseItemRole.WorkspacePathRole, f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
+            (
+                BaseItemRole.WorkspacePathRole,
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+            ),
             (BaseItemRole.LoadingStateRole, "idle"),
         ],
         ids=[
@@ -132,10 +153,14 @@ class TestDataMethod:
             "LoadingStateRole",
         ],
     )
-    def test_role_data(self, qapp: QApplication, role: object, expected: object) -> None:
+    def test_role_data(
+        self, qapp: QApplication, role: object, expected: object
+    ) -> None:
         """Test data() returns correct value for each role."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         index = model.index(0, 0)
@@ -149,7 +174,9 @@ class TestDataMethod:
     def test_size_hint_role(self, qapp: QApplication) -> None:
         """Test SizeHintRole returns QSize."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         index = model.index(0, 0)
@@ -171,7 +198,9 @@ class TestDataMethod:
     ) -> None:
         """Test data() returns None for invalid or out-of-range index."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         index = make_index(model)  # type: ignore[operator]
@@ -186,7 +215,9 @@ class TestFlags:
     def test_valid_index(self, qapp: QApplication) -> None:
         """Test flags for valid index."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         index = model.index(0, 0)
@@ -209,7 +240,9 @@ class TestSetData:
     def test_set_loading_state(self, qapp: QApplication) -> None:
         """Test setting loading state."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         index = model.index(0, 0)
@@ -218,6 +251,7 @@ class TestSetData:
         assert result is True
         assert model.data(index, BaseItemRole.LoadingStateRole) == "loading"
 
+
 class TestVisibleRange:
     """Test visible range and lazy loading."""
 
@@ -225,7 +259,12 @@ class TestVisibleRange:
         """Test setting visible range."""
         model = ConcreteTestModel()
         shots = [
-            Shot("TEST", "seq01", f"{i:04d}", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_{i:04d}")
+            Shot(
+                "TEST",
+                "seq01",
+                f"{i:04d}",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_{i:04d}",
+            )
             for i in range(10, 60, 10)
         ]
         model.set_items(shots)
@@ -239,8 +278,18 @@ class TestVisibleRange:
         """Test visible range clamps to item bounds."""
         model = ConcreteTestModel()
         shots = [
-            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
+            Shot(
+                "TEST",
+                "seq01",
+                "0010",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+            ),
+            Shot(
+                "TEST",
+                "seq01",
+                "0020",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+            ),
         ]
         model.set_items(shots)
 
@@ -265,7 +314,9 @@ class TestThumbnailCache:
     def test_clear_thumbnail_cache(self, qapp: QApplication) -> None:
         """Test clearing thumbnail cache."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         # Add to cache
@@ -280,7 +331,9 @@ class TestThumbnailCache:
     def test_get_thumbnail_pixmap_cached(self, qapp: QApplication) -> None:
         """Test getting cached thumbnail pixmap."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         # Create and cache a QImage
@@ -296,7 +349,9 @@ class TestThumbnailCache:
     def test_get_thumbnail_pixmap_not_cached(self, qapp: QApplication) -> None:
         """Test getting thumbnail pixmap when not cached."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         pixmap = model._get_thumbnail_pixmap(shot)
@@ -313,8 +368,18 @@ class TestSetItems:
         spy = QSignalSpy(model.items_updated)
 
         shots = [
-            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
+            Shot(
+                "TEST",
+                "seq01",
+                "0010",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+            ),
+            Shot(
+                "TEST",
+                "seq01",
+                "0020",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+            ),
         ]
         model.set_items(shots)
 
@@ -324,8 +389,12 @@ class TestSetItems:
     def test_set_items_preserves_matching_thumbnails(self, qapp: QApplication) -> None:
         """Test setting items preserves thumbnails for items still present."""
         model = ConcreteTestModel()
-        shot1 = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        shot2 = Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020")
+        shot1 = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
+        shot2 = Shot(
+            "TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"
+        )
         model.set_items([shot1, shot2])
 
         # Add to cache (using QImage, not QPixmap)
@@ -335,13 +404,17 @@ class TestSetItems:
         model._thumbnail_loader.thumbnail_cache[shot2.full_name] = image2
 
         # Set new items - shot1 preserved, shot2 removed
-        shot3 = Shot("TEST", "seq02", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq02/seq02_0010")
+        shot3 = Shot(
+            "TEST", "seq02", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq02/seq02_0010"
+        )
         model.set_items([shot1, shot3])
 
         # Verify preservation
         assert len(model._thumbnail_loader.thumbnail_cache) == 1
         assert shot1.full_name in model._thumbnail_loader.thumbnail_cache
-        assert model._thumbnail_loader.thumbnail_cache[shot1.full_name] is image1  # Same object
+        assert (
+            model._thumbnail_loader.thumbnail_cache[shot1.full_name] is image1
+        )  # Same object
         assert shot2.full_name not in model._thumbnail_loader.thumbnail_cache
 
     def test_set_items_initializes_visible_range(self, qapp: QApplication) -> None:
@@ -359,9 +432,24 @@ class TestSetItems:
 
         # Set items
         shots = [
-            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
-            Shot("TEST", "seq01", "0030", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0030"),
+            Shot(
+                "TEST",
+                "seq01",
+                "0010",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+            ),
+            Shot(
+                "TEST",
+                "seq01",
+                "0020",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020",
+            ),
+            Shot(
+                "TEST",
+                "seq01",
+                "0030",
+                f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0030",
+            ),
         ]
         model.set_items(shots)
 
@@ -420,9 +508,9 @@ class TestSetItems:
 
             # Check that visible_end is set to 29 (first 30 items, 0-indexed)
             # NOT 105 (all 106 items)
-            assert (
-                model._visible_end == 29
-            ), f"Expected visible_end=29 for initial load, got {model._visible_end}"
+            assert model._visible_end == 29, (
+                f"Expected visible_end=29 for initial load, got {model._visible_end}"
+            )
 
             # Verify the log message mentions loading 30 items, not 106
             # (This is a behavior verification - the visible range should be limited)
@@ -455,8 +543,7 @@ class TestSetItems:
 
         # Wait for thumbnail loading timer to fire
         qtbot.waitUntil(
-            lambda: len(model._thumbnail_loader.loading_states) > 0,
-            timeout=500
+            lambda: len(model._thumbnail_loader.loading_states) > 0, timeout=500
         )
 
         # Verify thumbnail loading was attempted
@@ -473,7 +560,9 @@ class TestGetItemAtIndex:
     def test_valid_index(self, qapp: QApplication) -> None:
         """Test getting item at valid index."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         index = model.index(0, 0)
@@ -493,16 +582,12 @@ class TestGetItemAtIndex:
     ) -> None:
         """Test get_item_at_index returns None for invalid or out-of-range index."""
         model = ConcreteTestModel()
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot = Shot(
+            "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
+        )
         model.set_items([shot])
 
         index = make_index(model)  # type: ignore[operator]
         item = model.get_item_at_index(index)
 
         assert item is None
-
-
-
-
-
-

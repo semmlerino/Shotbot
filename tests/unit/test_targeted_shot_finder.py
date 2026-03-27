@@ -80,7 +80,9 @@ class TestScanShowForUser:
         mock_proc = MagicMock()
         mock_proc.run.return_value = mock_result
 
-        with patch("shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
+        with patch(
+            "shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
+        ):
             shots = finder._scan_show_for_user("test_show", shows_root)
 
             assert len(shots) > 0
@@ -111,7 +113,9 @@ class TestScanShowForUser:
             "error",
         ],
     )
-    def test_scan_with_subprocess_failure(self, tmp_path: Path, proc_setup: str) -> None:
+    def test_scan_with_subprocess_failure(
+        self, tmp_path: Path, proc_setup: str
+    ) -> None:
         """Test that subprocess timeout and error both return empty shot list."""
         finder = TargetedShotsFinder()
 
@@ -129,7 +133,9 @@ class TestScanShowForUser:
         else:
             mock_proc.run.side_effect = Exception("Process failed")
 
-        with patch("shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
+        with patch(
+            "shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
+        ):
             shots = finder._scan_show_for_user("test_show", shows_root)
 
         assert shots == []
@@ -162,7 +168,9 @@ class TestScanShowForUser:
         mock_proc = MagicMock()
         mock_proc.run.return_value = mock_result
 
-        with patch("shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc):
+        with patch(
+            "shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
+        ):
             shots = finder._scan_show_for_user("myshow", shows_root)
 
             assert len(shots) == 3
@@ -188,7 +196,9 @@ class TestParseShotFromPath:
         assert shot.show == "test_show"
         assert shot.sequence == "010"
         assert shot.shot == "0010"  # Should extract shot number
-        assert shot.workspace_path == f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010"
+        assert (
+            shot.workspace_path == f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010"
+        )
 
     def test_parse_path_without_underscore(
         self, monkeypatch: pytest.MonkeyPatch
@@ -452,8 +462,13 @@ class TestGetShotDetails:
         assert details["show"] == "test_show"
         assert details["sequence"] == "010"
         assert details["shot"] == "0010"
-        assert details["workspace_path"] == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010"
-        assert details["user_path"] == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
+        assert (
+            details["workspace_path"] == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010"
+        )
+        assert (
+            details["user_path"]
+            == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
+        )
         assert (
             details["status"] == "unknown"
         )  # no approved/user dirs → _get_shot_status returns unknown
@@ -514,9 +529,10 @@ class TestEdgeCases:
             mock_executor_class.return_value.__enter__.return_value = mock_executor
             mock_executor.submit.return_value = mock_future
 
-            with patch(
-                "concurrent.futures.as_completed", return_value=[mock_future]
-            ), patch.object(finder.logger, "warning") as mock_warning:
+            with (
+                patch("concurrent.futures.as_completed", return_value=[mock_future]),
+                patch.object(finder.logger, "warning") as mock_warning,
+            ):
                 list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
                 mock_warning.assert_called()
@@ -534,9 +550,10 @@ class TestEdgeCases:
             mock_executor_class.return_value.__enter__.return_value = mock_executor
             mock_executor.submit.return_value = mock_future
 
-            with patch(
-                "concurrent.futures.as_completed", return_value=[mock_future]
-            ), patch.object(finder.logger, "exception") as mock_exception:
+            with (
+                patch("concurrent.futures.as_completed", return_value=[mock_future]),
+                patch.object(finder.logger, "exception") as mock_exception,
+            ):
                 list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
                 mock_exception.assert_called()

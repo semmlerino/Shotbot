@@ -52,7 +52,9 @@ class TestBuildMayaContextCommand:
     def test_custom_script_overrides_default(self) -> None:
         """Custom context_script replaces the default bootstrap."""
         custom = "print('custom')"
-        result = build_maya_context_command("maya", "/path/to/scene.ma", context_script=custom)
+        result = build_maya_context_command(
+            "maya", "/path/to/scene.ma", context_script=custom
+        )
         encoded = result.split("SHOTBOT_MAYA_SCRIPT=")[1].split(" && ")[0]
         decoded = base64.b64decode(encoded).decode()
         assert decoded == custom

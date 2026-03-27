@@ -84,9 +84,7 @@ class TestSceneFinderBudgets:
         """find_scenes_for_shot completes within 2 seconds on a small project."""
         shows_root, _stats = small_project
 
-        test_shot_path = (
-            shows_root / "small_project" / "shots" / "seq01" / "seq01_0010"
-        )
+        test_shot_path = shows_root / "small_project" / "shots" / "seq01" / "seq01_0010"
 
         start = time.perf_counter()
         SceneDiscoveryCoordinator().find_scenes_for_shot(
@@ -110,4 +108,6 @@ class TestSceneFinderBudgets:
         )
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 5.0, f"find_all_3de_files_in_show_targeted too slow: {elapsed:.3f}s > 5.0s"
+        assert elapsed < 5.0, (
+            f"find_all_3de_files_in_show_targeted too slow: {elapsed:.3f}s > 5.0s"
+        )

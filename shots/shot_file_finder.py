@@ -74,7 +74,7 @@ class ShotFileFinder(VersionHandlingMixin):
         """
         from dataclasses import replace
 
-        from discovery import load_maya_comments
+        from dcc.maya_comment_reader import load_maya_comments
 
         paths = MayaLatestFinder.find_all_scenes(shot.workspace_path)
         scene_files = self._paths_to_scene_files(paths, FileType.MAYA)

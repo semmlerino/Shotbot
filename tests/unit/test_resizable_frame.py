@@ -166,9 +166,7 @@ class TestResizableFrameSetHeight:
 class TestResizableFrameSignals:
     """Tests for ResizableFrame signal emission."""
 
-    def test_height_changed_signal_emitted_on_set_height(
-        self, qtbot: QtBot
-    ) -> None:
+    def test_height_changed_signal_emitted_on_set_height(self, qtbot: QtBot) -> None:
         """height_changed signal is NOT emitted on set_height().
 
         The signal is only emitted when user drags the resize handle.

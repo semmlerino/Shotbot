@@ -50,6 +50,7 @@ def make_real_manager(tmp_path: Path, name: str = "test") -> SettingsManager:
     # Bypass the default QSettings(org, app) constructor; inject an INI file
     # QObject.__init__ is called explicitly so signals work.
     from PySide6.QtCore import QObject
+
     QObject.__init__(manager)
     manager.settings = QSettings(ini_path, QSettings.Format.IniFormat)
     manager._initialize_defaults()
@@ -224,6 +225,7 @@ class TestSimulatedCrash:
 
         manager = SettingsManager.__new__(SettingsManager)
         from PySide6.QtCore import QObject
+
         QObject.__init__(manager)
         manager.settings = QSettings(ini_path, QSettings.Format.IniFormat)
         manager._initialize_defaults()
@@ -257,9 +259,7 @@ class TestSimulatedCrash:
         # The garbage bytes were handed to the splitter as-is
         assert window.splitter._state == garbage
 
-    def test_load_settings_after_missing_all_window_keys(
-        self, tmp_path: Path
-    ) -> None:
+    def test_load_settings_after_missing_all_window_keys(self, tmp_path: Path) -> None:
         """load_settings does not raise when the entire window/ category is absent."""
         ini_path = str(tmp_path / "no_window.ini")
         # Write only non-window settings
@@ -267,6 +267,7 @@ class TestSimulatedCrash:
 
         manager = SettingsManager.__new__(SettingsManager)
         from PySide6.QtCore import QObject
+
         QObject.__init__(manager)
         manager.settings = QSettings(ini_path, QSettings.Format.IniFormat)
         manager._initialize_defaults()
@@ -304,7 +305,6 @@ class TestSimulatedCrash:
             def get_cache_expiry_minutes(self) -> int:
                 return 60
 
-
         class _BrokenWindow:
             __test__ = False
             settings_manager = _BrokenManager()
@@ -314,21 +314,50 @@ class TestSimulatedCrash:
             settings_dialog = None
             _size = QSize(0, 0)
 
-            def restoreGeometry(self, g: QByteArray) -> bool: return True
-            def saveGeometry(self) -> QByteArray: return QByteArray()
-            def restoreState(self, s: QByteArray) -> bool: return True
-            def saveState(self) -> QByteArray: return QByteArray()
-            def isMaximized(self) -> bool: return False
-            def showMaximized(self) -> None: pass
-            def resize(self, w: int, h: int) -> None: self._size = QSize(w, h)
-            def get_window_size(self) -> QSize: return self._size
-            def set_thumbnail_size(self, size: int) -> None: pass
-            def get_thumbnail_size(self) -> int: return 150
-            def get_splitter_state(self) -> QByteArray: return self.splitter.saveState()
-            def restore_splitter_state(self, state: QByteArray) -> bool: return self.splitter.restoreState(state)
-            def get_current_tab(self) -> int: return self.tab_widget.currentIndex()
-            def set_current_tab(self, index: int) -> None: self.tab_widget.setCurrentIndex(index)
-            def reset_splitter_sizes(self, sizes: list[int]) -> None: self.splitter.setSizes(sizes)
+            def restoreGeometry(self, g: QByteArray) -> bool:
+                return True
+
+            def saveGeometry(self) -> QByteArray:
+                return QByteArray()
+
+            def restoreState(self, s: QByteArray) -> bool:
+                return True
+
+            def saveState(self) -> QByteArray:
+                return QByteArray()
+
+            def isMaximized(self) -> bool:
+                return False
+
+            def showMaximized(self) -> None:
+                pass
+
+            def resize(self, w: int, h: int) -> None:
+                self._size = QSize(w, h)
+
+            def get_window_size(self) -> QSize:
+                return self._size
+
+            def set_thumbnail_size(self, size: int) -> None:
+                pass
+
+            def get_thumbnail_size(self) -> int:
+                return 150
+
+            def get_splitter_state(self) -> QByteArray:
+                return self.splitter.saveState()
+
+            def restore_splitter_state(self, state: QByteArray) -> bool:
+                return self.splitter.restoreState(state)
+
+            def get_current_tab(self) -> int:
+                return self.tab_widget.currentIndex()
+
+            def set_current_tab(self, index: int) -> None:
+                self.tab_widget.setCurrentIndex(index)
+
+            def reset_splitter_sizes(self, sizes: list[int]) -> None:
+                self.splitter.setSizes(sizes)
 
         broken_window = _BrokenWindow()
         ctrl = SettingsController(broken_window)  # type: ignore[arg-type]
@@ -348,9 +377,7 @@ class TestSimulatedCrash:
 class TestImportExportRoundtrip:
     """export_settings → modify in memory → import_settings restores originals."""
 
-    def test_export_then_import_restores_cache_expiry(
-        self, tmp_path: Path
-    ) -> None:
+    def test_export_then_import_restores_cache_expiry(self, tmp_path: Path) -> None:
         """Exported cache expiry is restored after import."""
         manager = make_real_manager(tmp_path)
         manager.performance.set_cache_expiry_minutes(120)
@@ -402,9 +429,27 @@ class TestEdgeCases:
     @pytest.mark.parametrize(
         ("domain", "setter", "input_value", "getter", "expected"),
         [
-            ("ui", "set_thumbnail_size", 0, "get_thumbnail_size", Config.MIN_THUMBNAIL_SIZE),
-            ("performance", "set_cache_expiry_minutes", 0, "get_cache_expiry_minutes", 5),
-            ("performance", "set_cache_expiry_minutes", 999_999, "get_cache_expiry_minutes", 10080),
+            (
+                "ui",
+                "set_thumbnail_size",
+                0,
+                "get_thumbnail_size",
+                Config.MIN_THUMBNAIL_SIZE,
+            ),
+            (
+                "performance",
+                "set_cache_expiry_minutes",
+                0,
+                "get_cache_expiry_minutes",
+                5,
+            ),
+            (
+                "performance",
+                "set_cache_expiry_minutes",
+                999_999,
+                "get_cache_expiry_minutes",
+                10080,
+            ),
             ("refresh", "set_refresh_interval", 0, "get_refresh_interval", 1),
             ("refresh", "set_refresh_interval", 99_999, "get_refresh_interval", 1440),
         ],

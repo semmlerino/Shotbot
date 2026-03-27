@@ -177,7 +177,9 @@ class TestFindLatestContract:
         self, finder_adapter: FinderAdapter, tmp_path: Path
     ) -> None:
         """Only files from the current user are found; other users are filtered out."""
-        scenes_other = finder_adapter.create_scene_dir(tmp_path, username="other-artist")
+        scenes_other = finder_adapter.create_scene_dir(
+            tmp_path, username="other-artist"
+        )
         finder_adapter.create_versioned_file(scenes_other, 5)
 
         scenes_me = finder_adapter.create_scene_dir(tmp_path, username=_USERNAME)
@@ -254,9 +256,7 @@ class TestFindAllContract:
 
         assert result == []
 
-    def test_empty_path_returns_empty_list(
-        self, finder_adapter: FinderAdapter
-    ) -> None:
+    def test_empty_path_returns_empty_list(self, finder_adapter: FinderAdapter) -> None:
         """Empty string as workspace path returns an empty list."""
         result = finder_adapter.find_all("")
 

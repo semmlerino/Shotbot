@@ -227,7 +227,6 @@ class TestProcessPoolManagerBehavior:
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)
         manager.shutdown()
 
-
     def test_error_recovery_during_execution(self) -> None:
         """Test that manager recovers from execution errors.
 
@@ -260,6 +259,7 @@ class TestProcessPoolManagerBehavior:
         assert result == "recovered"
 
         manager.shutdown()
+
 
 class TestCacheInvalidation:
     """Test cache invalidation strategies."""
@@ -305,8 +305,6 @@ class TestCacheInvalidation:
         manager.shutdown()
 
 
-
-
 class TestShutdownScenarios:
     """Test manager shutdown under various conditions."""
 
@@ -337,10 +335,6 @@ class TestShutdownScenarios:
             shutdown_idempotent = False
 
         assert shutdown_idempotent
-
-
-
-
 
 
 # =============================================================================

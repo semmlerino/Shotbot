@@ -48,9 +48,24 @@ def pin_manager(cache_dir: Path) -> ShotPinManager:
 def sample_shots() -> list[Shot]:
     """Provide realistic shot data for testing."""
     return [
-        Shot("test_show", "seq01", "shot010", f"{Config.SHOWS_ROOT}/test_show/seq01/shot010"),
-        Shot("test_show", "seq01", "shot020", f"{Config.SHOWS_ROOT}/test_show/seq01/shot020"),
-        Shot("test_show", "seq02", "shot030", f"{Config.SHOWS_ROOT}/test_show/seq02/shot030"),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot010",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
+        ),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot020",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
+        ),
+        Shot(
+            "test_show",
+            "seq02",
+            "shot030",
+            f"{Config.SHOWS_ROOT}/test_show/seq02/shot030",
+        ),
     ]
 
 
@@ -119,9 +134,7 @@ class TestGetPinOrder:
 class TestPersistence:
     """Tests for cache persistence."""
 
-    def test_cache_file_format(
-        self, cache_dir: Path, sample_shots: list[Shot]
-    ) -> None:
+    def test_cache_file_format(self, cache_dir: Path, sample_shots: list[Shot]) -> None:
         """Cache file should be valid JSON with expected format."""
         shot = sample_shots[0]
 
@@ -149,9 +162,7 @@ class TestPersistence:
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
-    def test_different_shot_objects_same_key(
-        self, pin_manager: ShotPinManager
-    ) -> None:
+    def test_different_shot_objects_same_key(self, pin_manager: ShotPinManager) -> None:
         """Different Shot objects with same key should be treated as same."""
         shot1 = Shot("show", "seq", "shot", "/path1")
         shot2 = Shot("show", "seq", "shot", "/path2")  # Different path, same key

@@ -44,7 +44,9 @@ class TestSignal:
         self.callbacks: list[Callable[..., object]] = []
 
     def connect(
-        self, callback: Callable[..., object], connection_type: Qt.ConnectionType | None = None
+        self,
+        callback: Callable[..., object],
+        connection_type: Qt.ConnectionType | None = None,
     ) -> None:
         self.callbacks.append(callback)
 
@@ -64,7 +66,9 @@ def make_shot() -> Callable[[str, str, str], Shot]:
         )
 
         # Use correct VFX path format
-        return Shot(show, seq, shot, f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}")
+        return Shot(
+            show, seq, shot, f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
+        )
 
     return _make
 
@@ -75,7 +79,9 @@ def make_model(
     make_shot: Callable[[str, str, str], Shot],
     shot_cache: object,
     mock_process_pool_manager,
-) -> Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel]:
+) -> Callable[
+    [str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel
+]:
     """Factory for creating test models with proper data."""
 
     def _make(
@@ -167,7 +173,10 @@ class TestCommonViewBehavior:
         view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
         model_class: str,
         qtbot: QtBot,
-        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
+        make_model: Callable[
+            [str, list[Shot] | None],
+            ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel,
+        ],
     ) -> None:
         """Test Ctrl+wheel thumbnail resizing (UNIFIED_TESTING_GUIDE: Real events)."""
         # Create view with real model (not mocks)
@@ -248,7 +257,10 @@ class TestCommonViewBehavior:
         view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
         model_class: str,
         qtbot: QtBot,
-        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
+        make_model: Callable[
+            [str, list[Shot] | None],
+            ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel,
+        ],
     ) -> None:
         """Test size slider range and value changes."""
         model = make_model(model_class)
@@ -277,11 +289,15 @@ class TestCommonViewBehavior:
 
         # Test boundary values
         view.size_slider.setValue(Config.MIN_THUMBNAIL_SIZE)
-        qtbot.waitUntil(lambda: view._thumbnail_size == Config.MIN_THUMBNAIL_SIZE, timeout=1000)
+        qtbot.waitUntil(
+            lambda: view._thumbnail_size == Config.MIN_THUMBNAIL_SIZE, timeout=1000
+        )
         assert view._thumbnail_size == Config.MIN_THUMBNAIL_SIZE
 
         view.size_slider.setValue(Config.MAX_THUMBNAIL_SIZE)
-        qtbot.waitUntil(lambda: view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE, timeout=1000)
+        qtbot.waitUntil(
+            lambda: view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE, timeout=1000
+        )
         assert view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE
 
         # Ensure all events are processed before cleanup
@@ -292,7 +308,10 @@ class TestCommonViewBehavior:
         view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
         model_class: str,
         qtbot: QtBot,
-        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
+        make_model: Callable[
+            [str, list[Shot] | None],
+            ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel,
+        ],
     ) -> None:
         """Test visibility timer for lazy loading."""
         model = make_model(model_class)
@@ -300,7 +319,9 @@ class TestCommonViewBehavior:
         qtbot.addWidget(view)
 
         # All views now use the same single-shot timer from BaseGridView
-        assert hasattr(view, "_visibility_timer"), f"View {view_class.__name__} should have _visibility_timer"
+        assert hasattr(view, "_visibility_timer"), (
+            f"View {view_class.__name__} should have _visibility_timer"
+        )
         timer = view._visibility_timer
         assert timer.isSingleShot(), "Visibility timer should be single-shot"
 
@@ -325,7 +346,10 @@ class TestCommonViewBehavior:
         view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
         model_class: str,
         qtbot: QtBot,
-        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
+        make_model: Callable[
+            [str, list[Shot] | None],
+            ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel,
+        ],
     ) -> None:
         """Test that show filter combo box exists and is configured."""
         model = make_model(model_class)
@@ -341,4 +365,3 @@ class TestCommonViewBehavior:
         # Should have at least "All Shows" option
         assert view.show_combo.count() >= 1
         assert view.show_combo.itemText(0) == "All Shows"
-

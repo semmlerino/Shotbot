@@ -80,8 +80,7 @@ def create_test_vfx_structure(
                         work_dir = shot_path / "user" / user / subdir
                         work_dir.mkdir(parents=True, exist_ok=True)
                         scene_file = (
-                            work_dir
-                            / f"{show_name}_{seq_name}_{shot_number}_BG01.3de"
+                            work_dir / f"{show_name}_{seq_name}_{shot_number}_BG01.3de"
                         )
                         scene_file.write_text(
                             f"# 3DE Scene\nversion 1.0\nshow: {show_name}"

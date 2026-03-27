@@ -16,7 +16,7 @@ from config import Config
 from previous_shots.item_model import PreviousShotsItemModel
 
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
-from tests.fixtures.test_doubles import SignalDouble, TestCacheManager
+from tests.fixtures.model_fixtures import SignalDouble, TestCacheManager
 from type_definitions import Shot
 
 
@@ -117,7 +117,9 @@ class TestPreviousShotsThreadSafety:
         # from the old list) is observable on the main thread after set_items() returns
         assert model.rowCount() == len(single_shot)
         index = model.index(0, 0)
-        assert model.data(index, Qt.ItemDataRole.DisplayRole) == single_shot[0].full_name
+        assert (
+            model.data(index, Qt.ItemDataRole.DisplayRole) == single_shot[0].full_name
+        )
         # The old items are fully gone — row 1 is invalid and returns None
         stale_index = model.index(1, 0)
         assert model.data(stale_index, Qt.ItemDataRole.DisplayRole) is None
@@ -272,9 +274,15 @@ class TestPreviousShotsSorting:
         model._update_from_underlying_model()
 
         assert len(model._items) == 3
-        assert {shot.full_name for shot in model._items} == {"010_0010", "020_0020", "030_0030"}
+        assert {shot.full_name for shot in model._items} == {
+            "010_0010",
+            "020_0020",
+            "030_0030",
+        }
 
-    def test_switch_to_name_sort_reorders_items(self, model, shots_with_times, qtbot) -> None:
+    def test_switch_to_name_sort_reorders_items(
+        self, model, shots_with_times, qtbot
+    ) -> None:
         """Switching sort mode should reorder and emit layout signals."""
         model._underlying_model._shots = shots_with_times
         model._update_from_underlying_model()
@@ -284,9 +292,15 @@ class TestPreviousShotsSorting:
         ):
             model.set_sort_order("name")
 
-        assert [shot.full_name for shot in model._items] == ["010_0010", "020_0020", "030_0030"]
+        assert [shot.full_name for shot in model._items] == [
+            "010_0010",
+            "020_0020",
+            "030_0030",
+        ]
 
-    def test_setting_same_sort_order_is_noop(self, model, shots_with_times, qtbot) -> None:
+    def test_setting_same_sort_order_is_noop(
+        self, model, shots_with_times, qtbot
+    ) -> None:
         """Setting the same order should not trigger relayout churn."""
         model._underlying_model._shots = shots_with_times
         model._update_from_underlying_model()

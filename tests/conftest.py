@@ -29,20 +29,14 @@ KEY DESIGN DECISIONS
    Waits of 2ms+ use original timing.
    OPT-OUT: @pytest.mark.real_timing or SHOTBOT_TEST_NO_WAIT_PATCH=1
 
-3. AST-BASED QT DETECTION (lines 302-419)
-   WHY: Tests that import PySide6 directly (without qtbot fixture) still need
-   proper cleanup. Without detection, they leak Qt state.
-   HOW: Parse test module source with AST, detect PySide6 imports (excluding
-   TYPE_CHECKING blocks), and auto-apply cleanup fixtures.
-
-4. XDIST GROUPING STRATEGY (lines 494-510)
+3. XDIST GROUPING STRATEGY
    WHY: Qt tests sharing QApplication must run on the same worker to prevent
    crashes from Qt state contamination.
    HOW: Module-based grouping via xdist_group markers. Tests in the same module
    share a worker; different modules can run in parallel.
    HEAVY TESTS: @pytest.mark.qt_heavy → dedicated "qt_heavy" worker group.
 
-5. SINGLETON REGISTRY VALIDATION (lines 675-710)
+4. SINGLETON REGISTRY VALIDATION
    WHY: Singleton state leaks between tests cause flaky failures. All singletons
    must implement reset() and be registered for proper cleanup.
    HOW: pytest_configure validates that all SingletonMixin subclasses are
@@ -77,7 +71,6 @@ GLOBAL STATE
 ------------
 - _current_test_item: Set by pytest_runtest_setup, used by wait() patch to
   check @pytest.mark.real_timing. Cleared by pytest_runtest_teardown.
-- _qt_detection_cache: Module name → bool cache for AST detection performance.
 - _GLOBAL_QAPP: Session-scoped QApplication created at import time.
 
 ENVIRONMENT VARIABLES
@@ -364,10 +357,16 @@ pytest_plugins = [
 
 
 # Fixtures that indicate a test uses Qt and needs grouping/cleanup
-_QT_FIXTURES = frozenset({
-    "qtbot", "cleanup_qt_state", "qt_cleanup", "qapp",
-    "suppress_qmessagebox", "prevent_qapp_exit",
-})
+_QT_FIXTURES = frozenset(
+    {
+        "qtbot",
+        "cleanup_qt_state",
+        "qt_cleanup",
+        "qapp",
+        "suppress_qmessagebox",
+        "prevent_qapp_exit",
+    }
+)
 
 # Logger for Qt detection messages
 import logging
@@ -385,9 +384,8 @@ def _qt_auto_fixtures(request: pytest.FixtureRequest) -> None:
     approach in pytest_collection_modifyitems which runs too late for fixture resolution.
     """
     fixtures = set(getattr(request.node, "fixturenames", ()) or ())
-    is_qt_test = (
-        request.node.get_closest_marker("qt") is not None
-        or bool(fixtures.intersection(_QT_FIXTURES))
+    is_qt_test = request.node.get_closest_marker("qt") is not None or bool(
+        fixtures.intersection(_QT_FIXTURES)
     )
 
     if is_qt_test:
@@ -397,8 +395,9 @@ def _qt_auto_fixtures(request: pytest.FixtureRequest) -> None:
         request.getfixturevalue("prevent_qapp_exit")
 
 
-
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
     """Group Qt-using tests and auto-enable fixtures based on markers.
 
     GROUPING STRATEGY:
@@ -434,7 +433,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     for item in items:
         # Determine if this is a Qt test via fixtures or marker
         fixtures = set(getattr(item, "fixturenames", ()) or ())
-        is_qt_test = item.get_closest_marker("qt") or fixtures.intersection(_QT_FIXTURES)
+        is_qt_test = item.get_closest_marker("qt") or fixtures.intersection(
+            _QT_FIXTURES
+        )
 
         if is_qt_test:
             # Check for qt_heavy marker - these tests need extra isolation
@@ -449,7 +450,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 # Extract just the test file name for the group
                 group_name = f"qt_{module_name.split('.')[-1]}"
                 item.add_marker(pytest.mark.xdist_group(name=group_name))
-
 
 
 # ==============================================================================
@@ -575,6 +575,7 @@ def pytest_unconfigure(config: pytest.Config) -> None:
     # Ensure any remaining thread pool runnables are cancelled or finished
     try:
         from PySide6.QtCore import QThreadPool
+
         pool = QThreadPool.globalInstance()
         pool.clear()
         pool.waitForDone(2000)

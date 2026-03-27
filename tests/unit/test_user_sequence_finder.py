@@ -69,9 +69,7 @@ class TestFindMayaPlayblasts:
             for frame in range(1001, 1003):
                 (type_dir / f"{ptype}.{frame}.png").touch()
 
-        result = UserSequenceFinder.find_maya_playblasts(
-            str(workspace), username="bob"
-        )
+        result = UserSequenceFinder.find_maya_playblasts(str(workspace), username="bob")
 
         assert len(result) == 2
         types = {s.render_type for s in result}
@@ -88,9 +86,7 @@ class TestFindMayaPlayblasts:
 
         assert result == []
 
-    def test_uses_current_user_when_username_not_provided(
-        self, tmp_path: Path
-    ) -> None:
+    def test_uses_current_user_when_username_not_provided(self, tmp_path: Path) -> None:
         """Test that current username is used when not explicitly provided."""
         workspace = tmp_path / "workspace"
         playblast_dir = workspace / "user" / "testuser" / "mm" / "maya" / "playblast"
@@ -98,7 +94,10 @@ class TestFindMayaPlayblasts:
         version_dir.mkdir(parents=True)
         (version_dir / "Test.1001.png").touch()
 
-        with patch("discovery.user_sequence_finder.get_current_username", return_value="testuser"):
+        with patch(
+            "discovery.user_sequence_finder.get_current_username",
+            return_value="testuser",
+        ):
             result = UserSequenceFinder.find_maya_playblasts(str(workspace))
 
         assert len(result) == 1
@@ -237,14 +236,7 @@ class TestFindNukeRenders:
         """Test that empty exr directories are ignored."""
         workspace = tmp_path / "workspace"
         exr_dir = (
-            workspace
-            / "user"
-            / "john"
-            / "mm"
-            / "nuke"
-            / "outputs"
-            / "empty"
-            / "exr"
+            workspace / "user" / "john" / "mm" / "nuke" / "outputs" / "empty" / "exr"
         )
         exr_dir.mkdir(parents=True)
         # Don't create any EXR files
@@ -352,7 +344,14 @@ class TestImageSequenceCreation:
         """Test ImageSequence attributes for Maya playblast."""
         workspace = tmp_path / "workspace"
         version_dir = (
-            workspace / "user" / "artist" / "mm" / "maya" / "playblast" / "Cones" / "v002"
+            workspace
+            / "user"
+            / "artist"
+            / "mm"
+            / "maya"
+            / "playblast"
+            / "Cones"
+            / "v002"
         )
         version_dir.mkdir(parents=True)
 

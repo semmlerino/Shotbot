@@ -121,7 +121,9 @@ class TestThumbnailCaching:
     ) -> None:
         """Test caching thumbnails produces a resized JPEG for both JPG and PNG input."""
         source_image: Path = request.getfixturevalue(image_fixture)
-        result = thumbnail_cache.cache_thumbnail(source_image, "test_show", "seq01", shot_id)
+        result = thumbnail_cache.cache_thumbnail(
+            source_image, "test_show", "seq01", shot_id
+        )
 
         assert result is not None
         assert result.exists()
@@ -165,7 +167,9 @@ class TestThumbnailCaching:
         os.utime(cached, (old_time, old_time))
 
         # Should still be valid (thumbnails don't expire)
-        still_valid = thumbnail_cache.get_cached_thumbnail("test_show", "seq01", "shot010")
+        still_valid = thumbnail_cache.get_cached_thumbnail(
+            "test_show", "seq01", "shot010"
+        )
         assert still_valid is not None
         assert still_valid == cached
 
@@ -182,7 +186,9 @@ class TestThumbnailCaching:
         self, thumbnail_cache: ThumbnailCache, test_image_jpg: Path
     ) -> None:
         """Test thumbnail caching creates show/sequence directory structure."""
-        thumbnail_cache.cache_thumbnail(test_image_jpg, "new_show", "new_seq", "new_shot")
+        thumbnail_cache.cache_thumbnail(
+            test_image_jpg, "new_show", "new_seq", "new_shot"
+        )
 
         expected_dir = thumbnail_cache.thumbnails_dir / "new_show" / "new_seq"
         assert expected_dir.exists()
@@ -229,5 +235,3 @@ class TestThumbnailErrorHandling:
 # ---------------------------------------------------------------------------
 # TestThreadSafety (thumbnail-specific)
 # ---------------------------------------------------------------------------
-
-

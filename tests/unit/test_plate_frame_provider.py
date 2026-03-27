@@ -87,11 +87,35 @@ class TestPlateSource:
     @pytest.mark.parametrize(
         ("source_path", "frame_start", "frame_end", "frame", "expected_name"),
         [
-            ("/shows/test/plate.1001.exr", 1001, 1100, 1050, "plate.1050.exr"),   # dot separator
-            ("/shows/test/plate_1001.exr", 1001, 1100, 1050, "plate_1050.exr"),   # underscore separator
-            ("/shows/test/plate.1001.exr", 1001, 1100, 50, "plate.0050.exr"),     # 4-digit padding
-            ("/shows/test/plate.10001.exr", 10001, 10100, 50, "plate.00050.exr"), # 5-digit padding
-            ("/shows/test/plate.exr", 1001, 1100, 1050, None),                    # no frame number
+            (
+                "/shows/test/plate.1001.exr",
+                1001,
+                1100,
+                1050,
+                "plate.1050.exr",
+            ),  # dot separator
+            (
+                "/shows/test/plate_1001.exr",
+                1001,
+                1100,
+                1050,
+                "plate_1050.exr",
+            ),  # underscore separator
+            (
+                "/shows/test/plate.1001.exr",
+                1001,
+                1100,
+                50,
+                "plate.0050.exr",
+            ),  # 4-digit padding
+            (
+                "/shows/test/plate.10001.exr",
+                10001,
+                10100,
+                50,
+                "plate.00050.exr",
+            ),  # 5-digit padding
+            ("/shows/test/plate.exr", 1001, 1100, 1050, None),  # no frame number
         ],
     )
     def test_get_exr_path_for_frame(
@@ -267,9 +291,7 @@ class TestPlateFrameProvider:
         # Should not have added new runnable
         assert len(provider._active_runnables) == initial_runnables
 
-    def test_prefetch_frames_calls_extract_for_range(
-        self, qapp: QApplication
-    ) -> None:
+    def test_prefetch_frames_calls_extract_for_range(self, qapp: QApplication) -> None:
         """Test prefetch_frames extracts frames around center."""
         provider = PlateFrameProvider()
 
@@ -294,11 +316,19 @@ class TestPlateFrameProvider:
         assert set(extracted_frames) == {1047, 1048, 1049, 1050, 1051, 1052, 1053}
 
     @pytest.mark.parametrize(
-        ("frame_start", "frame_end", "center_frame", "radius", "expect_min", "expect_max", "expect_empty"),
+        (
+            "frame_start",
+            "frame_end",
+            "center_frame",
+            "radius",
+            "expect_min",
+            "expect_max",
+            "expect_empty",
+        ),
         [
             (1001, 1010, 1003, 5, 1001, None, False),  # respects start bound
             (1001, 1010, 1008, 5, None, 1010, False),  # respects end bound
-            (None, None, 1050, 5, None, None, True),   # no frame range → empty
+            (None, None, 1050, 5, None, None, True),  # no frame range → empty
         ],
     )
     def test_prefetch_frame_bounds(
@@ -329,7 +359,9 @@ class TestPlateFrameProvider:
 
         provider.extract_frame = mock_extract  # type: ignore[method-assign]
 
-        provider.prefetch_frames("test/shot", source, center_frame=center_frame, radius=radius)
+        provider.prefetch_frames(
+            "test/shot", source, center_frame=center_frame, radius=radius
+        )
 
         if expect_empty:
             assert len(extracted_frames) == 0
@@ -386,9 +418,7 @@ class TestPlateFrameProvider:
         assert stats["shot_count"] == 1
         assert stats["total_frames"] == 2
 
-    def test_on_extraction_finished_caches_and_emits(
-        self, qapp: QApplication
-    ) -> None:
+    def test_on_extraction_finished_caches_and_emits(self, qapp: QApplication) -> None:
         """Test _on_extraction_finished caches frame and emits signal."""
         provider = PlateFrameProvider()
 
@@ -446,9 +476,7 @@ class TestPlateFrameProvider:
 class TestDiscoverPlateSource:
     """Tests for plate source discovery (with mocked file operations)."""
 
-    def test_discover_returns_cached_source(
-        self, qapp: QApplication
-    ) -> None:
+    def test_discover_returns_cached_source(self, qapp: QApplication) -> None:
         """Test discover_plate_source returns cached result."""
         provider = PlateFrameProvider()
 

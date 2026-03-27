@@ -132,7 +132,6 @@ class TestSignalDeliveryDuringShutdown:
         assert len(received) == 1
 
 
-
 class TestSingletonResetOrdering:
     """Tests for correct singleton reset ordering."""
 
@@ -169,9 +168,7 @@ class TestSingletonResetOrdering:
 
         missing_reset = SingletonRegistry.verify_all_have_reset()
 
-        assert not missing_reset, (
-            f"Singletons missing reset() method: {missing_reset}"
-        )
+        assert not missing_reset, f"Singletons missing reset() method: {missing_reset}"
 
 
 class TestAppWideShutdown:
@@ -268,4 +265,3 @@ class TestAppWideShutdown:
         assert "started" in active_operations
 
         ProcessPoolManager.reset()
-

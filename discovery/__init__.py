@@ -16,15 +16,12 @@ Re-exports all public types and functions for convenient imports::
 
 from __future__ import annotations
 
-from discovery.file_discovery import FileDiscovery
-from discovery.finder_utils import sanitize_username
+from dcc.maya_comment_reader import load_maya_comments, save_maya_comment
+from discovery.file_discovery import FileDiscovery, sanitize_username
 from discovery.frame_range_extractor import extract_frame_range
 from discovery.latest_file_finder_worker import LatestFileFinderWorker
-from discovery.latest_finder_base import BaseLatestFinder
-from discovery.maya_comment_reader import load_maya_comments, save_maya_comment
-from discovery.maya_latest_finder import MayaLatestFinder
-from discovery.plate_discovery import PlateDiscovery
-from discovery.publish_plate_finder import find_main_plate
+from discovery.latest_finders import BaseLatestFinder, MayaLatestFinder
+from discovery.plate_finders import PlateDiscovery, find_main_plate
 from discovery.thumbnail_finders import (
     find_any_publish_thumbnail,
     find_shot_thumbnail,

@@ -48,7 +48,6 @@ def reset_threede_finder():
     TestThreeDESceneFinder._class_error_to_raise = None
 
 
-
 class TestThreeDESceneFinder:
     """Test double for ThreeDESceneFinder with realistic behavior.
 
@@ -204,8 +203,18 @@ class TestThreeDESceneWorker:
     def test_shots(self) -> list[Shot]:
         """Create test shots (renamed from mock_shots to follow UNIFIED_TESTING_GUIDE)."""
         return [
-            Shot("test_show", "seq01", "0010", f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010"),
-            Shot("test_show", "seq01", "0020", f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0020"),
+            Shot(
+                "test_show",
+                "seq01",
+                "0010",
+                f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010",
+            ),
+            Shot(
+                "test_show",
+                "seq01",
+                "0020",
+                f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0020",
+            ),
         ]
 
     @pytest.fixture
@@ -233,6 +242,7 @@ class TestThreeDESceneWorker:
 
         # CRITICAL: Proper cleanup for QThread to prevent Qt C++ object accumulation
         from tests.test_helpers import cleanup_qthread_properly
+
         cleanup_qthread_properly(worker, signal_handlers=None)
 
     def test_worker_initialization(self, worker, test_shots) -> None:
@@ -253,6 +263,7 @@ class TestThreeDESceneWorker:
 
         def started_handler():
             return started_count.append(True)
+
         def finished_handler(scenes):
             return finished_scenes.append(scenes)
 
@@ -272,6 +283,7 @@ class TestThreeDESceneWorker:
             # Wait for the worker thread directly, then flush queued signals.
             _ = worker.wait(2000)
             from tests.test_helpers import process_qt_events
+
             process_qt_events()
 
             # Check signals were emitted (at least once)
@@ -285,6 +297,7 @@ class TestThreeDESceneWorker:
         finally:
             # Use proper cleanup to prevent Qt C++ object accumulation
             from tests.test_helpers import cleanup_qthread_properly
+
             cleanup_qthread_properly(worker, signal_handlers)
 
     def test_scene_discovery_with_test_double(
@@ -326,8 +339,10 @@ class TestThreeDESceneWorker:
 
         def started_handler():
             return started_count.append(True)
+
         def finished_handler(scenes):
             return finished_scenes.append(scenes)
+
         def progress_handler(*args):
             return progress_updates.append(args)
 
@@ -353,6 +368,7 @@ class TestThreeDESceneWorker:
                 # Wait for the thread to finish, then flush queued signal delivery.
                 _ = worker.wait(3000)
                 from tests.test_helpers import process_qt_events
+
                 process_qt_events()
 
             # Verify signals were emitted (may be >= 1 due to test setup)
@@ -376,6 +392,7 @@ class TestThreeDESceneWorker:
         finally:
             # Use proper cleanup to prevent Qt C++ object accumulation
             from tests.test_helpers import cleanup_qthread_properly
+
             cleanup_qthread_properly(worker, signal_handlers)
 
     def test_error_handling(self, qtbot, test_shots, test_finder) -> None:
@@ -388,6 +405,7 @@ class TestThreeDESceneWorker:
 
         def error_handler(msg):
             return error_messages.append(msg)
+
         def finished_handler(scenes):
             return finished_scenes.append(scenes)
 
@@ -412,6 +430,7 @@ class TestThreeDESceneWorker:
                 # signals is sufficient for this contract test.
                 _ = worker.wait(3000)
                 from tests.test_helpers import process_qt_events
+
                 process_qt_events()
 
             # Should have error message (if we got here)
@@ -422,6 +441,7 @@ class TestThreeDESceneWorker:
         finally:
             # Use proper cleanup to prevent Qt C++ object accumulation
             from tests.test_helpers import cleanup_qthread_properly
+
             cleanup_qthread_properly(worker, signal_handlers)
 
 
@@ -449,12 +469,9 @@ class TestWorkerInterruption:
             return []
 
         shots = [
-            Shot("TEST_SHOW", "SEQ01", f"{i:04d}", "/tmp/workspace")
-            for i in range(5)
+            Shot("TEST_SHOW", "SEQ01", f"{i:04d}", "/tmp/workspace") for i in range(5)
         ]
-        worker = ThreeDESceneWorker(
-            shots=shots, excluded_users=set()
-        )
+        worker = ThreeDESceneWorker(shots=shots, excluded_users=set())
 
         try:
             with patch(
@@ -465,6 +482,7 @@ class TestWorkerInterruption:
 
                 # Wait for the worker to start processing
                 from tests.test_helpers import SynchronizationHelpers
+
                 SynchronizationHelpers.wait_for_condition(
                     lambda: cancel_flag_called[0] >= 0,
                     timeout_ms=1000,
@@ -477,11 +495,12 @@ class TestWorkerInterruption:
 
             # Verify cancellation was detected
             # If cancellation worked, cancel_flag should have been called and returned early
-            assert (
-                not worker.isRunning()
-            ), "Worker should have stopped after cancellation"
+            assert not worker.isRunning(), (
+                "Worker should have stopped after cancellation"
+            )
 
         finally:
             # Use proper cleanup to prevent Qt C++ object accumulation
             from tests.test_helpers import cleanup_qthread_properly
+
             cleanup_qthread_properly(worker, signal_handlers=None)

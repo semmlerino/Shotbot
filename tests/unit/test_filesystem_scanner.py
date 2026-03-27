@@ -666,7 +666,9 @@ class TestThreeDEWorkerStopAndCancel:
         ) as mock_find:
             cancel_was_checked = False
 
-            def short_scan(shots, excluded_users, progress_callback=None, cancel_flag=None):
+            def short_scan(
+                shots, excluded_users, progress_callback=None, cancel_flag=None
+            ):
                 nonlocal cancel_was_checked
                 worker.request_stop()  # Simulate stop request arriving during scan
                 if cancel_flag and cancel_flag():

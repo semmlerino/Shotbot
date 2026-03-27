@@ -67,14 +67,24 @@ class TestPlatePriorityValidation:
         priorities = Config.TURNOVER_PLATE_PRIORITY
 
         # Primary plates (use these) - must be ordered correctly
-        assert priorities["FG"] < priorities["PL"], "FG should have highest priority (lowest value)"
+        assert priorities["FG"] < priorities["PL"], (
+            "FG should have highest priority (lowest value)"
+        )
         assert priorities["PL"] < priorities["BG"], "PL should be between FG and BG"
-        assert priorities["BG"] < priorities["COMP"], "BG should have priority over COMP"
-        assert priorities["COMP"] < priorities["EL"], "COMP should have priority over EL"
+        assert priorities["BG"] < priorities["COMP"], (
+            "BG should have priority over COMP"
+        )
+        assert priorities["COMP"] < priorities["EL"], (
+            "COMP should have priority over EL"
+        )
 
         # Reference plates (skip these) - must have high values
-        assert priorities["BC"] > 5, "BC plates are reference-only, should have high priority value"
-        assert priorities["*"] > priorities["BC"], "Default (*) should be lowest priority (highest value)"
+        assert priorities["BC"] > 5, (
+            "BC plates are reference-only, should have high priority value"
+        )
+        assert priorities["*"] > priorities["BC"], (
+            "Default (*) should be lowest priority (highest value)"
+        )
 
     def test_primary_plates_have_low_priority(self) -> None:
         """Validate primary workflow plates have priority values < 2.
@@ -87,7 +97,9 @@ class TestPlatePriorityValidation:
 
         primary_plates = ["FG", "PL", "BG"]
         for plate in primary_plates:
-            assert plate in priorities, f"Primary plate {plate} missing from TURNOVER_PLATE_PRIORITY"
+            assert plate in priorities, (
+                f"Primary plate {plate} missing from TURNOVER_PLATE_PRIORITY"
+            )
             assert priorities[plate] < 2, (
                 f"Primary plate {plate} has priority {priorities[plate]}, "
                 f"should be < 2 for workflow plates"
@@ -104,7 +116,9 @@ class TestPlatePriorityValidation:
 
         reference_plates = ["BC"]
         for plate in reference_plates:
-            assert plate in priorities, f"Reference plate {plate} missing from TURNOVER_PLATE_PRIORITY"
+            assert plate in priorities, (
+                f"Reference plate {plate} missing from TURNOVER_PLATE_PRIORITY"
+            )
             assert priorities[plate] >= 10, (
                 f"Reference plate {plate} has priority {priorities[plate]}, "
                 f"should be >= 10 to ensure it's skipped"
@@ -152,7 +166,9 @@ class TestPathConfigurationValidation:
         settings_file = Config.SETTINGS_FILE
         assert isinstance(settings_file, Path), "SETTINGS_FILE should be Path object"
         assert settings_file.is_absolute(), "SETTINGS_FILE should be absolute path"
-        assert ".shotbot" in str(settings_file), "SETTINGS_FILE should be in .shotbot directory"
+        assert ".shotbot" in str(settings_file), (
+            "SETTINGS_FILE should be in .shotbot directory"
+        )
 
     def test_path_segments_are_not_empty(self) -> None:
         """Validate path segment lists contain no empty strings.
@@ -170,7 +186,9 @@ class TestPathConfigurationValidation:
             assert len(segments) > 0, f"{name} should not be empty list"
             for segment in segments:
                 assert segment, f"{name} contains empty string: {segments}"
-                assert isinstance(segment, str), f"{name} contains non-string: {segment!r}"
+                assert isinstance(segment, str), (
+                    f"{name} contains non-string: {segment!r}"
+                )
 
 
 class TestTimeoutConfigurationValidation:
@@ -240,9 +258,7 @@ class TestTimeoutConfigurationValidation:
         ]
 
         for name, timeout in timeouts:
-            assert isinstance(timeout, (int, float)), (
-                f"{name} must be numeric"
-            )
+            assert isinstance(timeout, (int, float)), f"{name} must be numeric"
             assert timeout > 0, f"{name} must be positive, got {timeout}"
 
 
@@ -312,7 +328,11 @@ class TestApplicationConfigurationValidation:
             f"MIN_THUMBNAIL_SIZE ({Config.MIN_THUMBNAIL_SIZE}) "
             f">= MAX_THUMBNAIL_SIZE ({Config.MAX_THUMBNAIL_SIZE})"
         )
-        assert Config.MIN_THUMBNAIL_SIZE <= Config.DEFAULT_THUMBNAIL_SIZE <= Config.MAX_THUMBNAIL_SIZE, (
+        assert (
+            Config.MIN_THUMBNAIL_SIZE
+            <= Config.DEFAULT_THUMBNAIL_SIZE
+            <= Config.MAX_THUMBNAIL_SIZE
+        ), (
             f"DEFAULT_THUMBNAIL_SIZE ({Config.DEFAULT_THUMBNAIL_SIZE}) "
             f"not in range [{Config.MIN_THUMBNAIL_SIZE}, {Config.MAX_THUMBNAIL_SIZE}]"
         )
@@ -358,7 +378,9 @@ class TestMemoryConfigurationValidation:
             f"MEMORY_PRESSURE_MODERATE ({moderate}) >= HIGH ({high})"
         )
         assert 0 < normal < 100, f"MEMORY_PRESSURE_NORMAL ({normal}) not in (0, 100)"
-        assert 0 < moderate < 100, f"MEMORY_PRESSURE_MODERATE ({moderate}) not in (0, 100)"
+        assert 0 < moderate < 100, (
+            f"MEMORY_PRESSURE_MODERATE ({moderate}) not in (0, 100)"
+        )
         assert 0 < high <= 100, f"MEMORY_PRESSURE_HIGH ({high}) not in (0, 100]"
 
     def test_cache_size_limits_are_positive(self) -> None:
@@ -403,7 +425,10 @@ class TestThreadConfigurationValidation:
         """
         workers = [
             ("MAX_WORKER_THREADS", ThreadingConfig.MAX_WORKER_THREADS),
-            ("PREVIOUS_SHOTS_PARALLEL_WORKERS", ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS),
+            (
+                "PREVIOUS_SHOTS_PARALLEL_WORKERS",
+                ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS,
+            ),
             ("THREEDE_PARALLEL_WORKERS", ThreadingConfig.THREEDE_PARALLEL_WORKERS),
         ]
 
@@ -426,7 +451,9 @@ class TestThreadConfigurationValidation:
         assert 0 < initial < max_poll, (
             f"POLL_INITIAL_SEC ({initial}) must be < POLL_MAX_SEC ({max_poll})"
         )
-        assert backoff > 1, f"POLL_BACKOFF_FACTOR ({backoff}) must be > 1 for exponential backoff"
+        assert backoff > 1, (
+            f"POLL_BACKOFF_FACTOR ({backoff}) must be > 1 for exponential backoff"
+        )
 
 
 class TestFileExtensionConfigurationValidation:
@@ -497,4 +524,3 @@ class TestProgressConfigurationValidation:
         for name, interval in intervals:
             assert isinstance(interval, int), f"{name} must be integer"
             assert interval > 0, f"{name} must be positive, got {interval}"
-

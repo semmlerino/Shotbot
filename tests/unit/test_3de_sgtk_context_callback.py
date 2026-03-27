@@ -36,7 +36,9 @@ def _load_callback_module(tde4: object):
 class FakeContext:
     """Minimal SGTK context test double."""
 
-    def __init__(self, label: str, task: str | None = None, step: str | None = None) -> None:
+    def __init__(
+        self, label: str, task: str | None = None, step: str | None = None
+    ) -> None:
         self.label = label
         self.task = task
         self.step = step
@@ -80,7 +82,9 @@ class TestThreeDESgtkContextCallback:
             context=current_context,
             sgtk=SimpleNamespace(context_from_path=lambda _path: new_context),
         )
-        change_context = MagicMock(side_effect=lambda ctx: setattr(engine, "context", ctx))
+        change_context = MagicMock(
+            side_effect=lambda ctx: setattr(engine, "context", ctx)
+        )
         sys.modules["sgtk"] = types.SimpleNamespace(
             platform=SimpleNamespace(
                 current_engine=lambda: engine,
@@ -109,7 +113,9 @@ class TestThreeDESgtkContextCallback:
             task="mm-default",
         )
         tde4 = SimpleNamespace(
-            getProjectPath=lambda: "/shows/bob2/shots/BOB_205_017/BOB_205_017_430/mm/scene_v001.3de",
+            getProjectPath=lambda: (
+                "/shows/bob2/shots/BOB_205_017/BOB_205_017_430/mm/scene_v001.3de"
+            ),
             setOpenProjectCallbackFunction=MagicMock(),
         )
         module = _load_callback_module(tde4)

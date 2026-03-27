@@ -1,7 +1,7 @@
 """File and directory discovery utilities for VFX pipeline.
 
 This module provides utilities for discovering and creating files and
-directories in the VFX pipeline structure.
+directories in the VFX pipeline structure, including username sanitization.
 """
 
 from __future__ import annotations
@@ -20,6 +20,43 @@ from version_utils import VersionUtils
 
 
 logger = get_module_logger(__name__)
+
+
+# Compiled regex patterns for performance
+USERNAME_VALIDATION_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+PATH_TRAVERSAL_PATTERN = re.compile(r"[./\\]")
+
+
+def sanitize_username(raw_username: str) -> str:
+    """Sanitize username to prevent security issues.
+
+    Removes path traversal characters and validates the username
+    contains only alphanumeric characters, dashes, and underscores.
+
+    Args:
+        raw_username: Raw username input
+
+    Returns:
+        Sanitized username
+
+    Raises:
+        ValueError: If username is invalid after sanitization
+
+    """
+    # Remove any path traversal characters (., /, \) but keep hyphens
+    username = PATH_TRAVERSAL_PATTERN.sub("", raw_username)
+
+    # Validate that username is not empty after sanitization
+    if not username:
+        msg = f"Invalid username after sanitization: '{raw_username}'"
+        raise ValueError(msg)
+
+    # Additional validation: username should only contain alphanumeric, dash, and underscore
+    if not USERNAME_VALIDATION_PATTERN.match(username):
+        msg = f"Username contains invalid characters: '{username}'"
+        raise ValueError(msg)
+
+    return username
 
 
 class FileDiscovery:
@@ -138,7 +175,11 @@ class FileDiscovery:
 
         """
         try:
-            workspace = Path(workspace_path) if isinstance(workspace_path, str) else workspace_path
+            workspace = (
+                Path(workspace_path)
+                if isinstance(workspace_path, str)
+                else workspace_path
+            )
 
             # Build the path to the plate directory
             plate_base = Path(workspace, *Config.RAW_PLATE_SEGMENTS) / plate_name
@@ -190,7 +231,11 @@ class FileDiscovery:
 
         """
         try:
-            workspace = Path(workspace_path) if isinstance(workspace_path, str) else workspace_path
+            workspace = (
+                Path(workspace_path)
+                if isinstance(workspace_path, str)
+                else workspace_path
+            )
 
             # Build the path to the plate directory
             plate_base = Path(workspace, *Config.RAW_PLATE_SEGMENTS) / plate_name
@@ -209,9 +254,7 @@ class FileDiscovery:
                 return None, None, None
 
             # Find resolution subdirectory (e.g., 4312x2304) — pick highest resolution
-            from discovery.plate_discovery import (
-                PlateDiscovery,
-            )
+            from discovery.plate_finders import PlateDiscovery
 
             exr_files: list[Path]
             resolution_dir = PlateDiscovery.get_highest_resolution_dir(exr_dir)
@@ -297,7 +340,9 @@ class FileDiscovery:
                     logger.debug(f"Skipping non-plate directory: {plate_name}")
 
         except (OSError, PermissionError):
-            logger.warning(f"Error scanning plate directories in {base_path}", exc_info=True)
+            logger.warning(
+                f"Error scanning plate directories in {base_path}", exc_info=True
+            )
 
         # Sort by priority (LOWER number = HIGHER priority as per config documentation)
         found_plates.sort(key=lambda x: x[1])

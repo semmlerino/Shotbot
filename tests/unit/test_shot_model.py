@@ -118,6 +118,7 @@ class TestShot:
         thumbnail_path_cached = shot.get_thumbnail_path()
         assert thumbnail_path_cached is None
 
+
 @pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestShotModel:
     """Test cases for ShotModel class using real components."""
@@ -181,7 +182,9 @@ class TestShotModel:
         self, real_shot_model, test_process_pool
     ) -> None:
         """Test RefreshResult supports tuple unpacking for backwards compatibility."""
-        test_process_pool.set_outputs(f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0010\n")
+        test_process_pool.set_outputs(
+            f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0010\n"
+        )
         real_shot_model._process_pool = test_process_pool
 
         # Test tuple unpacking
@@ -319,7 +322,9 @@ class TestShotModelErrorHandling:
         # Note: has_changes may be True due to workspace_path differences
 
         # Now return different shots
-        test_process_pool.set_outputs(f"workspace {Config.SHOWS_ROOT}/newshow/shots/seq1/seq1_0010")
+        test_process_pool.set_outputs(
+            f"workspace {Config.SHOWS_ROOT}/newshow/shots/seq1/seq1_0010"
+        )
 
         result = real_shot_model.refresh_shots()
         assert result.success is True
@@ -437,7 +442,9 @@ class TestShotModelMergeErrorHandling:
             real_shot_model._on_shots_loaded(fresh_shots)
 
         # Verify: Signal was emitted
-        assert blocker.signal_triggered, "shots_loaded signal should have been emitted for first load"
+        assert blocker.signal_triggered, (
+            "shots_loaded signal should have been emitted for first load"
+        )
 
         # Verify: Shots were updated
         assert len(real_shot_model.shots) == 2, (
@@ -514,7 +521,9 @@ workspace {shows_root}/test/shots/seq3/very_long_complex_shot_name_0050"""
 class TestShotModelRefreshSignals:
     """Tests for refresh signal emission and cache integration (ported from integration suite)."""
 
-    def test_signal_emission_order(self, real_shot_model, test_process_pool, qtbot: QtBot) -> None:
+    def test_signal_emission_order(
+        self, real_shot_model, test_process_pool, qtbot: QtBot
+    ) -> None:
         """Test that signals are emitted in correct order during refresh."""
         test_process_pool.set_outputs(
             f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0010"
@@ -555,6 +564,7 @@ class TestShotModelRefreshSignals:
 
     def test_error_signal_on_failure(self, real_shot_model, qtbot: QtBot) -> None:
         """Test that error_occurred signal is emitted on failures."""
+
         def raise_error(*args: object, **kwargs: object) -> NoReturn:
             raise RuntimeError("Test error")
 
@@ -615,7 +625,9 @@ def test_apply_and_cache_merge_corruption_falls_back_to_fresh(tmp_path):
     model = ShotModel(cache_manager=cache_manager, load_cache=False)
 
     recovery_calls: list[tuple[str, str]] = []
-    model.data_recovery_occurred.connect(lambda title, detail: recovery_calls.append((title, detail)))
+    model.data_recovery_occurred.connect(
+        lambda title, detail: recovery_calls.append((title, detail))
+    )
 
     fresh_mock = MagicMock(spec=Shot)
     fresh_mock.to_dict.return_value = {"name": "SHOW_SEQ_0010"}
@@ -635,4 +647,6 @@ def test_apply_and_cache_merge_corruption_falls_back_to_fresh(tmp_path):
     assert len(recovery_calls) == 1, "Expected one data_recovery_occurred emission"
     assert "corruption" in recovery_calls[0][1].lower()
     assert did_change is True
-    assert model.shots == [fresh_mock], "Expected model.shots to be set to fresh_shots on corruption recovery"
+    assert model.shots == [fresh_mock], (
+        "Expected model.shots to be set to fresh_shots on corruption recovery"
+    )

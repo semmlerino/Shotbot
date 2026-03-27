@@ -99,9 +99,7 @@ class TestSceneCacheOperations:
 
         assert not scene_cache.threede_cache_file.exists()
 
-    def test_set_expiry_minutes_changes_ttl(
-        self, scene_cache: SceneDiskCache
-    ) -> None:
+    def test_set_expiry_minutes_changes_ttl(self, scene_cache: SceneDiskCache) -> None:
         """Test set_expiry_minutes takes effect on subsequent TTL checks."""
         scenes = [
             {
