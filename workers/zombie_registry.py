@@ -1,8 +1,7 @@
 """Zombie thread registry: module-level functions for ThreadSafeWorker zombie tracking.
 
-All state lives on ThreadSafeWorker ClassVars (kept there for backward compatibility
-with tests and callers that access them directly). These functions are the single
-authoritative location for zombie-lifecycle logic.
+All mutable zombie state lives here as module-level variables. These functions are
+the single authoritative location for zombie-lifecycle logic.
 """
 
 from __future__ import annotations
@@ -16,6 +15,7 @@ from typing import TYPE_CHECKING
 # Third-party imports
 from PySide6.QtCore import (
     QCoreApplication,
+    QMutex,
     QMutexLocker,
     QThread,
     QTimer,
@@ -26,17 +26,43 @@ if TYPE_CHECKING:
     from workers.thread_safe_worker import ThreadSafeWorker
 
 
+# Zombie age thresholds and cleanup interval (constants, never reassigned)
+_MAX_ZOMBIE_AGE_SECONDS: int = 60        # Log warning after 60s
+_ZOMBIE_TERMINATE_AGE_SECONDS: int = 300  # Force terminate after 5 min
+_ZOMBIE_CLEANUP_INTERVAL_MS: int = 60000  # Cleanup every 60s
+
+# Mutex and collections mutated in-place (never rebound, no global needed)
+_zombie_mutex: QMutex = QMutex()
+_zombie_threads: list[ThreadSafeWorker] = []
+_zombie_timestamps: dict[int, float] = {}
+
+
+class _ZombieState:
+    """Box for zombie state that needs reassignment (counters and timer).
+
+    Using a class instance avoids the need for `global` statements in functions
+    that reassign these values. The module-level `_state` reference is never
+    rebound, so no `global` declaration is needed to mutate its attributes.
+    """
+
+    created_count: int = 0
+    recovered_count: int = 0
+    terminated_count: int = 0
+    cleanup_timer: QTimer | None = None
+
+
+_state = _ZombieState()
+
+
 def get_zombie_metrics() -> dict[str, int]:
     """Return zombie metrics for monitoring timeout fix effectiveness."""
-    from workers.thread_safe_worker import ThreadSafeWorker
-
     # fmt: off
-    with QMutexLocker(ThreadSafeWorker._zombie_mutex):  # type: ignore[reportPrivateUsage]
+    with QMutexLocker(_zombie_mutex):
         return {
-            "created":    ThreadSafeWorker._zombie_created_count,    # type: ignore[reportPrivateUsage]
-            "recovered":  ThreadSafeWorker._zombie_recovered_count,  # type: ignore[reportPrivateUsage]
-            "terminated": ThreadSafeWorker._zombie_terminated_count, # type: ignore[reportPrivateUsage]
-            "current":    len(ThreadSafeWorker._zombie_threads),     # type: ignore[reportPrivateUsage]
+            "created":    _state.created_count,
+            "recovered":  _state.recovered_count,
+            "terminated": _state.terminated_count,
+            "current":    len(_zombie_threads),
         }
     # fmt: on
 
@@ -106,21 +132,21 @@ def safe_terminate(worker: ThreadSafeWorker) -> None:
                     "Thread will be abandoned (NOT terminated) to prevent crashes."
                 )
                 # DO NOT call terminate() - it's unsafe!
-                # Instead, mark as zombie and add to class collection to prevent GC
+                # Instead, mark as zombie and add to module-level collection to prevent GC
                 # NOTE: State stays at previous value - thread is still running!
                 with QMutexLocker(worker._state_mutex):  # type: ignore[reportPrivateUsage]
                     worker._zombie = True  # type: ignore[reportPrivateUsage]
 
-                # Add to class-level collection to prevent garbage collection
+                # Add to module-level collection to prevent garbage collection
                 # This prevents "QThread: Destroyed while thread is still running" crash
                 # FIXED: Don't call cleanup_old_zombies() from within mutex (DEADLOCK!)
                 # QMutex is NOT recursive - cleanup_old_zombies() tries to acquire
                 # the same mutex again → deadlock. Let periodic cleanup handle it.
-                with QMutexLocker(ThreadSafeWorker._zombie_mutex):  # type: ignore[reportPrivateUsage]
-                    ThreadSafeWorker._zombie_threads.append(worker)  # type: ignore[reportPrivateUsage]
-                    ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()  # type: ignore[reportPrivateUsage]
-                    ThreadSafeWorker._zombie_created_count += 1  # type: ignore[reportPrivateUsage]
-                    zombie_count = len(ThreadSafeWorker._zombie_threads)  # type: ignore[reportPrivateUsage]
+                with QMutexLocker(_zombie_mutex):
+                    _zombie_threads.append(worker)
+                    _zombie_timestamps[id(worker)] = time.time()
+                    _state.created_count += 1
+                    zombie_count = len(_zombie_threads)
 
                 worker.logger.warning(
                     f"Worker {id(worker)}: Added to zombie collection "
@@ -155,8 +181,6 @@ def cleanup_old_zombies() -> int:
         Number of zombies cleaned up
 
     """
-    from workers.thread_safe_worker import ThreadSafeWorker
-
     logger = logging.getLogger(__name__)
     cleaned = 0
     current_time = time.time()
@@ -164,22 +188,23 @@ def cleanup_old_zombies() -> int:
     # CRITICAL: Protect all access to shared zombie collections
     # NOTE: This method should NOT be called from within _zombie_mutex critical section
     # as QMutex is NOT recursive and would cause deadlock.
-    with QMutexLocker(ThreadSafeWorker._zombie_mutex):  # type: ignore[reportPrivateUsage]
+    with QMutexLocker(_zombie_mutex):
         zombies_to_keep: list[ThreadSafeWorker] = []
 
-        for zombie in ThreadSafeWorker._zombie_threads:  # type: ignore[reportPrivateUsage]
+        for zombie in _zombie_threads:
             zombie_id = id(zombie)
-            age = current_time - ThreadSafeWorker._zombie_timestamps.get(zombie_id, current_time)  # type: ignore[reportPrivateUsage]
+            age = current_time - _zombie_timestamps.get(zombie_id, current_time)
 
             if not zombie.isRunning():
                 # Thread finished naturally, safe to remove
-                _ = ThreadSafeWorker._zombie_timestamps.pop(zombie_id, None)  # type: ignore[reportPrivateUsage]
-                ThreadSafeWorker._zombie_recovered_count += 1  # type: ignore[reportPrivateUsage]
+                _ = _zombie_timestamps.pop(zombie_id, None)
+                _state.recovered_count += 1
                 cleaned += 1
                 logger.info(f"Zombie {zombie_id} finished naturally after {age:.0f}s")
-            elif age > ThreadSafeWorker._ZOMBIE_TERMINATE_AGE_SECONDS:  # type: ignore[reportPrivateUsage]
+            elif age > _ZOMBIE_TERMINATE_AGE_SECONDS:
                 # CAPTURE DIAGNOSTICS BEFORE ANY TERMINATE
                 from workers.thread_diagnostics import ThreadDiagnostics
+                from workers.thread_safe_worker import ThreadSafeWorker
 
                 start_time = ThreadSafeWorker._thread_start_times.get(zombie_id)  # type: ignore[reportPrivateUsage]
                 report = ThreadDiagnostics.capture_thread_state(zombie, start_time)
@@ -200,13 +225,13 @@ def cleanup_old_zombies() -> int:
                     )
                     zombie.terminate()
                     _ = zombie.wait(1000)  # Brief wait after terminate
-                    _ = ThreadSafeWorker._zombie_timestamps.pop(zombie_id, None)  # type: ignore[reportPrivateUsage]
-                    ThreadSafeWorker._zombie_terminated_count += 1  # type: ignore[reportPrivateUsage]
+                    _ = _zombie_timestamps.pop(zombie_id, None)
+                    _state.terminated_count += 1
                     cleaned += 1
                 else:
                     # Production: log but don't terminate (process exit will clean up)
                     logger.warning(
-                        f"Zombie {zombie_id} exceeded {ThreadSafeWorker._ZOMBIE_TERMINATE_AGE_SECONDS}s "  # type: ignore[reportPrivateUsage]
+                        f"Zombie {zombie_id} exceeded {_ZOMBIE_TERMINATE_AGE_SECONDS}s "
                         "but terminate disabled in production. "
                         "Will be cleaned on process exit."
                     )
@@ -214,13 +239,14 @@ def cleanup_old_zombies() -> int:
             else:
                 # Keep tracking
                 zombies_to_keep.append(zombie)
-                if age > ThreadSafeWorker._MAX_ZOMBIE_AGE_SECONDS:  # type: ignore[reportPrivateUsage]
+                if age > _MAX_ZOMBIE_AGE_SECONDS:
                     logger.warning(
                         f"Zombie {zombie_id} still running after {age:.0f}s "
-                        f"(will terminate at {ThreadSafeWorker._ZOMBIE_TERMINATE_AGE_SECONDS}s)"  # type: ignore[reportPrivateUsage]
+                        f"(will terminate at {_ZOMBIE_TERMINATE_AGE_SECONDS}s)"
                     )
 
-        ThreadSafeWorker._zombie_threads = zombies_to_keep  # type: ignore[reportPrivateUsage]
+        # In-place slice replacement avoids rebinding the module-level list
+        _zombie_threads[:] = zombies_to_keep
 
     return cleaned
 
@@ -257,18 +283,16 @@ def create_zombie_timer_impl() -> None:
     Uses mutex to prevent race conditions when multiple threads attempt
     to start the timer simultaneously.
     """
-    from workers.thread_safe_worker import ThreadSafeWorker
-
-    with QMutexLocker(ThreadSafeWorker._zombie_mutex):  # type: ignore[reportPrivateUsage]
-        if ThreadSafeWorker._zombie_cleanup_timer is not None:  # type: ignore[reportPrivateUsage]
+    with QMutexLocker(_zombie_mutex):
+        if _state.cleanup_timer is not None:
             # Timer already started (check inside lock to prevent race)
             return
 
         logger = logging.getLogger("ThreadSafeWorker")
 
         # Create timer in main thread context
-        ThreadSafeWorker._zombie_cleanup_timer = QTimer()  # type: ignore[reportPrivateUsage]
-        ThreadSafeWorker._zombie_cleanup_timer.setInterval(ThreadSafeWorker._ZOMBIE_CLEANUP_INTERVAL_MS)  # type: ignore[reportPrivateUsage]
+        _state.cleanup_timer = QTimer()
+        _state.cleanup_timer.setInterval(_ZOMBIE_CLEANUP_INTERVAL_MS)
 
         def cleanup_callback() -> None:
             """Periodic cleanup callback."""
@@ -276,12 +300,12 @@ def create_zombie_timer_impl() -> None:
             if cleaned > 0:
                 logger.info(f"Periodic zombie cleanup: removed {cleaned} finished threads")
 
-        _ = ThreadSafeWorker._zombie_cleanup_timer.timeout.connect(cleanup_callback)  # type: ignore[reportPrivateUsage]
-        ThreadSafeWorker._zombie_cleanup_timer.start()  # type: ignore[reportPrivateUsage]
+        _ = _state.cleanup_timer.timeout.connect(cleanup_callback)
+        _state.cleanup_timer.start()
 
         logger.info(
             f"Started periodic zombie cleanup timer "
-            f"(interval: {ThreadSafeWorker._ZOMBIE_CLEANUP_INTERVAL_MS}ms)"  # type: ignore[reportPrivateUsage]
+            f"(interval: {_ZOMBIE_CLEANUP_INTERVAL_MS}ms)"
         )
 
 
@@ -291,13 +315,11 @@ def stop_zombie_cleanup_timer() -> None:
     Thread-Safe:
         Safe to call from any thread. Uses mutex to prevent race conditions.
     """
-    from workers.thread_safe_worker import ThreadSafeWorker
-
-    with QMutexLocker(ThreadSafeWorker._zombie_mutex):  # type: ignore[reportPrivateUsage]
-        if ThreadSafeWorker._zombie_cleanup_timer is not None:  # type: ignore[reportPrivateUsage]
-            ThreadSafeWorker._zombie_cleanup_timer.stop()  # type: ignore[reportPrivateUsage]
-            ThreadSafeWorker._zombie_cleanup_timer.deleteLater()  # type: ignore[reportPrivateUsage]
-            ThreadSafeWorker._zombie_cleanup_timer = None  # type: ignore[reportPrivateUsage]
+    with QMutexLocker(_zombie_mutex):
+        if _state.cleanup_timer is not None:
+            _state.cleanup_timer.stop()
+            _state.cleanup_timer.deleteLater()
+            _state.cleanup_timer = None
 
 
 def reset_for_testing() -> None:
@@ -306,12 +328,10 @@ def reset_for_testing() -> None:
     Stops the cleanup timer and clears all zombie tracking data.
     Should only be called from ThreadSafeWorker.reset().
     """
-    from workers.thread_safe_worker import ThreadSafeWorker
-
     stop_zombie_cleanup_timer()
-    with QMutexLocker(ThreadSafeWorker._zombie_mutex):  # type: ignore[reportPrivateUsage]
-        ThreadSafeWorker._zombie_threads.clear()  # type: ignore[reportPrivateUsage]
-        ThreadSafeWorker._zombie_timestamps.clear()  # type: ignore[reportPrivateUsage]
-        ThreadSafeWorker._zombie_created_count = 0  # type: ignore[reportPrivateUsage]
-        ThreadSafeWorker._zombie_recovered_count = 0  # type: ignore[reportPrivateUsage]
-        ThreadSafeWorker._zombie_terminated_count = 0  # type: ignore[reportPrivateUsage]
+    with QMutexLocker(_zombie_mutex):
+        _zombie_threads.clear()
+        _zombie_timestamps.clear()
+        _state.created_count = 0
+        _state.recovered_count = 0
+        _state.terminated_count = 0

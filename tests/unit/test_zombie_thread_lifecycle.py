@@ -22,6 +22,7 @@ from unittest.mock import MagicMock
 import pytest
 from PySide6.QtCore import QMutexLocker, QObject
 
+from workers import zombie_registry
 from workers.thread_safe_worker import ThreadSafeWorker
 
 
@@ -101,10 +102,10 @@ class TestZombieCreation:
         with QMutexLocker(worker._state_mutex):
             worker._zombie = True
 
-        with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-            ThreadSafeWorker._zombie_threads.append(worker)
-            ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
-            ThreadSafeWorker._zombie_created_count += 1
+        with QMutexLocker(zombie_registry._zombie_mutex):
+            zombie_registry._zombie_threads.append(worker)
+            zombie_registry._zombie_timestamps[id(worker)] = time.time()
+            zombie_registry._state.created_count += 1
 
         # Worker should now be marked as zombie
         assert worker.is_zombie()
@@ -155,15 +156,15 @@ class TestZombieCollection:
         worker = StubWorker()
 
         # Simulate zombie creation by directly adding to collection
-        with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-            ThreadSafeWorker._zombie_threads.append(worker)
-            ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
-            ThreadSafeWorker._zombie_created_count += 1
+        with QMutexLocker(zombie_registry._zombie_mutex):
+            zombie_registry._zombie_threads.append(worker)
+            zombie_registry._zombie_timestamps[id(worker)] = time.time()
+            zombie_registry._state.created_count += 1
 
         # Verify zombie is in collection
-        with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-            assert worker in ThreadSafeWorker._zombie_threads
-            assert id(worker) in ThreadSafeWorker._zombie_timestamps
+        with QMutexLocker(zombie_registry._zombie_mutex):
+            assert worker in zombie_registry._zombie_threads
+            assert id(worker) in zombie_registry._zombie_timestamps
 
         metrics = ThreadSafeWorker.get_zombie_metrics()
         assert metrics["current"] == 1
@@ -179,10 +180,10 @@ class TestZombieCollection:
 
         # Add all as zombies
         for w in workers:
-            with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-                ThreadSafeWorker._zombie_threads.append(w)
-                ThreadSafeWorker._zombie_timestamps[id(w)] = time.time()
-                ThreadSafeWorker._zombie_created_count += 1
+            with QMutexLocker(zombie_registry._zombie_mutex):
+                zombie_registry._zombie_threads.append(w)
+                zombie_registry._zombie_timestamps[id(w)] = time.time()
+                zombie_registry._state.created_count += 1
 
         metrics = ThreadSafeWorker.get_zombie_metrics()
         assert metrics["current"] == 3
@@ -203,10 +204,10 @@ class TestZombieRecovery:
         worker.isRunning.return_value = False  # Thread finished
 
         # Add to zombie collection
-        with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-            ThreadSafeWorker._zombie_threads.append(worker)
-            ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
-            ThreadSafeWorker._zombie_created_count += 1
+        with QMutexLocker(zombie_registry._zombie_mutex):
+            zombie_registry._zombie_threads.append(worker)
+            zombie_registry._zombie_timestamps[id(worker)] = time.time()
+            zombie_registry._state.created_count += 1
 
         initial_count = ThreadSafeWorker.get_zombie_metrics()["current"]
         assert initial_count == 1
@@ -231,10 +232,10 @@ class TestZombieRecovery:
         worker.isRunning.return_value = True  # Still running
 
         # Add to zombie collection with recent timestamp
-        with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-            ThreadSafeWorker._zombie_threads.append(worker)
-            ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()  # Just now
-            ThreadSafeWorker._zombie_created_count += 1
+        with QMutexLocker(zombie_registry._zombie_mutex):
+            zombie_registry._zombie_threads.append(worker)
+            zombie_registry._zombie_timestamps[id(worker)] = time.time()  # Just now
+            zombie_registry._state.created_count += 1
 
         # Run cleanup
         cleaned = ThreadSafeWorker.cleanup_old_zombies()
@@ -262,11 +263,11 @@ class TestZombieTermination:
         worker.wait.return_value = True  # terminate() works
 
         # Add to zombie collection with OLD timestamp (beyond terminate threshold)
-        old_time = time.time() - ThreadSafeWorker._ZOMBIE_TERMINATE_AGE_SECONDS - 10
-        with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-            ThreadSafeWorker._zombie_threads.append(worker)
-            ThreadSafeWorker._zombie_timestamps[id(worker)] = old_time
-            ThreadSafeWorker._zombie_created_count += 1
+        old_time = time.time() - zombie_registry._ZOMBIE_TERMINATE_AGE_SECONDS - 10
+        with QMutexLocker(zombie_registry._zombie_mutex):
+            zombie_registry._zombie_threads.append(worker)
+            zombie_registry._zombie_timestamps[id(worker)] = old_time
+            zombie_registry._state.created_count += 1
 
         # Run cleanup
         cleaned = ThreadSafeWorker.cleanup_old_zombies()
@@ -287,10 +288,10 @@ class TestZombieMetrics:
     def test_reset_clears_metrics(self) -> None:
         """Reset clears all zombie metrics for test isolation."""
         # Add some zombies first
-        with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-            ThreadSafeWorker._zombie_created_count = 5
-            ThreadSafeWorker._zombie_recovered_count = 3
-            ThreadSafeWorker._zombie_terminated_count = 2
+        with QMutexLocker(zombie_registry._zombie_mutex):
+            zombie_registry._state.created_count = 5
+            zombie_registry._state.recovered_count = 3
+            zombie_registry._state.terminated_count = 2
 
         # Reset
         ThreadSafeWorker.reset()
@@ -311,21 +312,21 @@ class TestZombieCleanupTimer:
         ThreadSafeWorker.reset()
 
         # Initially no timer
-        assert ThreadSafeWorker._zombie_cleanup_timer is None
+        assert zombie_registry._state.cleanup_timer is None
 
         # Start timer
         ThreadSafeWorker.start_zombie_cleanup_timer()
-        timer1 = ThreadSafeWorker._zombie_cleanup_timer
+        timer1 = zombie_registry._state.cleanup_timer
         assert timer1 is not None
         assert timer1.isActive()
 
         # Second start returns same timer (idempotent)
         ThreadSafeWorker.start_zombie_cleanup_timer()
-        assert ThreadSafeWorker._zombie_cleanup_timer is timer1
+        assert zombie_registry._state.cleanup_timer is timer1
 
         # Stop timer
         ThreadSafeWorker.stop_zombie_cleanup_timer()
-        assert ThreadSafeWorker._zombie_cleanup_timer is None
+        assert zombie_registry._state.cleanup_timer is None
 
         ThreadSafeWorker.reset()
 
@@ -334,15 +335,15 @@ class TestZombieCleanupTimer:
         ThreadSafeWorker.reset()
 
         # Stop when not running is safe
-        assert ThreadSafeWorker._zombie_cleanup_timer is None
+        assert zombie_registry._state.cleanup_timer is None
         ThreadSafeWorker.stop_zombie_cleanup_timer()
-        assert ThreadSafeWorker._zombie_cleanup_timer is None
+        assert zombie_registry._state.cleanup_timer is None
 
         # Started timer has correct interval
         ThreadSafeWorker.start_zombie_cleanup_timer()
-        timer = ThreadSafeWorker._zombie_cleanup_timer
+        timer = zombie_registry._state.cleanup_timer
         assert timer is not None
-        assert timer.interval() == ThreadSafeWorker._ZOMBIE_CLEANUP_INTERVAL_MS
+        assert timer.interval() == zombie_registry._ZOMBIE_CLEANUP_INTERVAL_MS
 
         ThreadSafeWorker.reset()
 
@@ -363,10 +364,10 @@ class TestZombieThreadSafety:
                 for _ in range(iterations_per_thread):
                     worker = MagicMock(spec=ThreadSafeWorker)
                     worker.isRunning.return_value = True
-                    with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-                        ThreadSafeWorker._zombie_threads.append(worker)
-                        ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
-                        ThreadSafeWorker._zombie_created_count += 1
+                    with QMutexLocker(zombie_registry._zombie_mutex):
+                        zombie_registry._zombie_threads.append(worker)
+                        zombie_registry._zombie_timestamps[id(worker)] = time.time()
+                        zombie_registry._state.created_count += 1
             except Exception as e:  # noqa: BLE001
                 errors.append(e)
 

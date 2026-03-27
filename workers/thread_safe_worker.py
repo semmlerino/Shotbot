@@ -16,7 +16,6 @@ from PySide6.QtCore import (
     QObject,
     Qt,
     QThread,
-    QTimer,
     QWaitCondition,
     Signal,
     SignalInstance,
@@ -83,21 +82,6 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         WorkerState.ERROR: [WorkerState.STOPPED],
         WorkerState.DELETED: [],  # Terminal state
     }
-
-    # Class-level collection to prevent garbage collection of zombie threads
-    # This prevents "QThread: Destroyed while thread is still running" crashes
-    _zombie_threads: ClassVar[list[ThreadSafeWorker]] = []
-    _zombie_timestamps: ClassVar[dict[int, float]] = {}  # Track when zombified
-    _zombie_mutex: ClassVar[QMutex] = QMutex()  # Protects _zombie_threads access
-    _zombie_cleanup_timer: ClassVar[QTimer | None] = None  # Periodic cleanup timer
-    _MAX_ZOMBIE_AGE_SECONDS: ClassVar[int] = 60  # Log warning after 60s
-    _ZOMBIE_TERMINATE_AGE_SECONDS: ClassVar[int] = 300  # Force terminate after 5 min
-    _ZOMBIE_CLEANUP_INTERVAL_MS: ClassVar[int] = 60000  # Cleanup every 60s
-
-    # Zombie metrics for monitoring effectiveness of timeout fixes
-    _zombie_created_count: ClassVar[int] = 0  # Total zombies created this session
-    _zombie_recovered_count: ClassVar[int] = 0  # Zombies that finished naturally
-    _zombie_terminated_count: ClassVar[int] = 0  # Zombies force-terminated
 
     # Thread start times for diagnostics (track when each thread started)
     _thread_start_times: ClassVar[dict[int, float]] = {}
