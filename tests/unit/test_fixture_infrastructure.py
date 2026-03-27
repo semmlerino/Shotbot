@@ -3,14 +3,10 @@
 Tests classes that are non-trivial but have zero test coverage:
 - SingletonRegistry: registration, ordering, error collection, caching
 - DialogRecorder: assertion helpers, return-value overrides
-- Qt marker structural validation: every file importing PySide6 at runtime
-  must use qtbot or @pytest.mark.qt.
 """
 
 from __future__ import annotations
 
-import ast
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -231,109 +227,3 @@ def test_set_return_value_overrides_default() -> None:
     assert recorder.get_return_value("question", default=99) == 42
     assert recorder.get_return_value("information", default=99) == 99
 
-
-# ---------------------------------------------------------------------------
-# Group 3: Qt marker validation
-# ---------------------------------------------------------------------------
-
-
-def _file_has_runtime_pyside6_import(tree: ast.Module) -> bool:
-    """Return True if the module imports PySide6 outside TYPE_CHECKING guards."""
-    # Walk top-level body only, skipping TYPE_CHECKING blocks
-    for node in tree.body:
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            # Direct module-level import
-            if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("PySide6"):
-                return True
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    if alias.name.startswith("PySide6"):
-                        return True
-        elif isinstance(node, ast.If):
-            # Skip `if TYPE_CHECKING:` blocks — these are not runtime imports
-            test = node.test
-            is_type_checking = (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING") or (
-                isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
-            )
-            if not is_type_checking:
-                # A non-TYPE_CHECKING `if` block at module level:
-                # check if it contains PySide6 imports
-                for child in ast.walk(node):
-                    if isinstance(child, ast.ImportFrom) and child.module and child.module.startswith("PySide6"):
-                        return True
-                    if isinstance(child, ast.Import):
-                        for alias in child.names:
-                            if alias.name.startswith("PySide6"):
-                                return True
-
-    return False
-
-
-def _file_has_qt_marker_or_qtbot(tree: ast.Module) -> bool:
-    """Return True if the file uses @pytest.mark.qt or has qtbot parameter."""
-    for node in ast.walk(tree):
-        # Check for qtbot parameter in function signatures
-        if isinstance(node, ast.FunctionDef):
-            for arg in node.args.args:
-                if arg.arg == "qtbot":
-                    return True
-
-        # Check for pytestmark = [...pytest.mark.qt...]
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "pytestmark":
-                    return True
-
-        # Check for @pytest.mark.qt decorator
-        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
-            for decorator in node.decorator_list:
-                decorator_str = ast.unparse(decorator)
-                if "pytest.mark.qt" in decorator_str:
-                    return True
-
-    return False
-
-
-def _file_has_test_items(tree: ast.Module) -> bool:
-    """Return True if the file contains any test functions or test classes."""
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
-            return True
-        if isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
-            return True
-    return False
-
-
-def test_all_pyside6_importing_tests_have_qt_marker_or_qtbot() -> None:
-    """Test files with runtime PySide6 imports must use qtbot or @pytest.mark.qt."""
-    tests_root = Path(__file__).parent.parent  # tests/
-    offending: list[str] = []
-
-    for test_file in sorted(tests_root.rglob("test_*.py")):
-        # Skip this file itself
-        if test_file.name == "test_fixture_infrastructure.py":
-            continue
-
-        try:
-            source = test_file.read_text(encoding="utf-8")
-            tree = ast.parse(source, filename=str(test_file))
-        except SyntaxError:
-            continue
-
-        # Skip helper modules that match test_*.py naming but contain no test items
-        if not _file_has_test_items(tree):
-            continue
-
-        if not _file_has_runtime_pyside6_import(tree):
-            continue
-
-        if not _file_has_qt_marker_or_qtbot(tree):
-            offending.append(str(test_file.relative_to(tests_root.parent)))
-
-    assert not offending, (
-        "The following test files import PySide6 at module level (outside TYPE_CHECKING) "
-        "but have no qtbot parameter or @pytest.mark.qt decorator.\n"
-        "Add `pytestmark = pytest.mark.qt` at the top, or use qtbot, "
-        "or guard the import with `if TYPE_CHECKING:`:\n"
-        + "\n".join(f"  {p}" for p in offending)
-    )

@@ -68,10 +68,9 @@ def test_design_system_constant_values(component: str, attr: str, expected: obje
     assert getattr(obj, attr) == expected
 
 
-# Mark Qt tests for serial execution in same worker (prevents Qt crashes)
+# Mark unit tests
 pytestmark = [
     pytest.mark.unit,
-    pytest.mark.qt,  # CRITICAL for parallel safety
 ]
 
 

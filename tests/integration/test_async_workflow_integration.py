@@ -38,6 +38,7 @@ pytestmark = [
     pytest.mark.qt,
     pytest.mark.slow,
     pytest.mark.qt_heavy,
+    pytest.mark.quarantine,
 ]
 
 

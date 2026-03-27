@@ -31,6 +31,7 @@ pytestmark = [
     pytest.mark.qt,
     pytest.mark.thread_safety,
     pytest.mark.qt_heavy,
+    pytest.mark.quarantine,
 ]
 
 

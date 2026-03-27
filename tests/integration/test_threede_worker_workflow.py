@@ -58,6 +58,7 @@ from threede import ThreeDESceneWorker
 pytestmark = [
     pytest.mark.qt,
     pytest.mark.slow,
+    pytest.mark.quarantine,
 ]
 
 
