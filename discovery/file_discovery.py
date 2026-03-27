@@ -15,6 +15,7 @@ from config import Config
 from logging_mixin import get_module_logger
 from paths.validators import PathValidators
 from utils import normalize_plate_id
+from version_utils import VersionUtils
 
 
 logger = get_module_logger(__name__)
@@ -75,7 +76,7 @@ class FileDiscovery:
                     break
 
                 # Check if this looks like a version directory (v###)
-                if current.name.startswith("v") and current.name[1:].isdigit():
+                if VersionUtils.is_version_directory(current.name):
                     version_dir = current
                     break
 
@@ -140,7 +141,7 @@ class FileDiscovery:
             # Find version directories (v001, v002, etc.) and get the latest
             version_dirs: list[tuple[int, Path]] = []
             for item in plate_base.iterdir():
-                if item.is_dir() and item.name.startswith("v") and item.name[1:].isdigit():
+                if item.is_dir() and VersionUtils.is_version_directory(item.name):
                     version_num = int(item.name[1:])
                     version_dirs.append((version_num, item))
 
@@ -204,7 +205,7 @@ class FileDiscovery:
             # Find latest version directory
             version_dirs: list[tuple[int, Path]] = []
             for item in plate_base.iterdir():
-                if item.is_dir() and item.name.startswith("v") and item.name[1:].isdigit():
+                if item.is_dir() and VersionUtils.is_version_directory(item.name):
                     version_num = int(item.name[1:])
                     version_dirs.append((version_num, item))
 

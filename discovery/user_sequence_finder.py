@@ -17,6 +17,7 @@ from pathlib import Path
 from dcc.scene_file import ImageSequence
 from logging_mixin import get_module_logger
 from utils import get_current_username
+from version_utils import VersionUtils
 
 
 logger = get_module_logger(__name__)
@@ -187,10 +188,8 @@ class UserSequenceFinder:
         version_dirs: list[tuple[Path, int]] = []
         try:
             for d in type_dir.iterdir():
-                if d.is_dir() and d.name.startswith("v"):
-                    version_str = d.name[1:]
-                    if version_str.isdigit():
-                        version_dirs.append((d, int(version_str)))
+                if d.is_dir() and VersionUtils.is_version_directory(d.name):
+                    version_dirs.append((d, int(d.name[1:])))  # noqa: PERF401
         except OSError:
             return None
 
@@ -345,7 +344,7 @@ class UserSequenceFinder:
                 # resolution is at i-1, v### at i-2, type at i-3
                 potential_type = parts[i - 3]
                 # Verify v### is at i-2
-                if parts[i - 2].startswith("v") and parts[i - 2][1:].isdigit():
+                if VersionUtils.is_version_directory(parts[i - 2]):
                     return potential_type
 
         # Fallback: use parent directory name before exr

@@ -218,3 +218,19 @@ class VersionUtils:
             return 1
 
         return max_version + 1
+
+    @staticmethod
+    def is_version_directory(name: str) -> bool:
+        """Return True if name looks like a version directory (e.g. v1, v001, v12).
+
+        Accepts any number of digits after the leading 'v', unlike
+        VERSION_PATTERN which requires exactly three digits.
+
+        Args:
+            name: Directory or path component name to test
+
+        Returns:
+            True if name starts with 'v' followed by one or more digits only
+
+        """
+        return name.startswith("v") and name[1:].isdigit()
