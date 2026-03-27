@@ -50,7 +50,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
     # Enhanced signals specific to 3DE discovery
     worker_discovery_started: ClassVar[Signal] = Signal()  # Emitted when discovery starts
-    batch_ready: ClassVar[Signal] = Signal(object)  # Emitted with each batch of scenes
     progress: ClassVar[Signal] = Signal(
         int,
         int,
@@ -114,37 +113,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             Config.WORKER_THREAD_PRIORITY,
             QThread.Priority.NormalPriority,
         )
-
-    def stop(self) -> None:
-        """Request the worker to stop processing.
-
-        Uses the thread-safe base class stop mechanism.
-        """
-        self.logger.debug("Stop requested for 3DE scene worker")
-        # Use base class thread-safe stop FIRST (sets _stop_requested = True)
-        _ = self.request_stop()
-        # Then wake up paused thread so it can check stop condition and exit
-        with QMutexLocker(self._pause_mutex):
-            self._pause_condition.wakeAll()
-
-    def pause(self) -> None:
-        """Request the worker to pause processing."""
-        self.logger.debug("Pause requested for 3DE scene worker")
-        with QMutexLocker(self._pause_mutex):
-            self._is_paused = True
-
-    def resume(self) -> None:
-        """Resume processing if paused."""
-        self.logger.debug("Resume requested for 3DE scene worker")
-        with QMutexLocker(self._pause_mutex):
-            if self._is_paused:
-                self._is_paused = False
-                self._pause_condition.wakeAll()
-
-    def is_paused(self) -> bool:
-        """Check if worker is currently paused."""
-        with QMutexLocker(self._pause_mutex):
-            return self._is_paused
 
     @override
     def run(self) -> None:

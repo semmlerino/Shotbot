@@ -287,52 +287,6 @@ class TestExtractRenderTypeFromPath:
         assert render_type == "short"
 
 
-class TestDetectFrameRange:
-    """Test _detect_frame_range static method."""
-
-    def test_detects_frame_range_from_files(self, tmp_path: Path) -> None:
-        """Test frame range detection from existing files."""
-        for frame in [1001, 1050, 1100]:
-            (tmp_path / f"file.{frame}.png").touch()
-
-        first, last = UserSequenceFinder._detect_frame_range(tmp_path, "png")
-
-        assert first == 1001
-        assert last == 1100
-
-    def test_handles_5_digit_frame_numbers(self, tmp_path: Path) -> None:
-        """Test handling of 5-digit frame numbers."""
-        for frame in [10001, 10050, 10100]:
-            (tmp_path / f"file.{frame}.exr").touch()
-
-        first, last = UserSequenceFinder._detect_frame_range(tmp_path, "exr")
-
-        assert first == 10001
-        assert last == 10100
-
-    def test_returns_default_when_no_files(self, tmp_path: Path) -> None:
-        """Test default frame range when no matching files."""
-        first, last = UserSequenceFinder._detect_frame_range(tmp_path, "png")
-
-        assert first == 1001
-        assert last == 1100
-
-    def test_ignores_non_sequence_files(self, tmp_path: Path) -> None:
-        """Test that non-sequence files are ignored."""
-        # Create sequence files
-        for frame in [1001, 1010]:
-            (tmp_path / f"render.{frame}.exr").touch()
-
-        # Create non-sequence files
-        (tmp_path / "thumbnail.exr").touch()
-        (tmp_path / "render.1.exr").touch()  # Only 1 digit, ignored
-
-        first, last = UserSequenceFinder._detect_frame_range(tmp_path, "exr")
-
-        assert first == 1001
-        assert last == 1010
-
-
 class TestFindLatestVersionSequence:
     """Test _find_latest_version_sequence method."""
 

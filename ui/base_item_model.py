@@ -115,8 +115,6 @@ class BaseItemModel(
     """
 
     # Timing constants for thumbnail loading and batching
-    _THUMBNAIL_DEBOUNCE_MS: ClassVar[int] = 250
-    _BATCH_WINDOW_MS: ClassVar[int] = 10
     _INITIAL_LOAD_COUNT: ClassVar[int] = 30
     _INITIAL_LOAD_DELAY_MS: ClassVar[int] = 100
 

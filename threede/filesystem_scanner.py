@@ -14,7 +14,7 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, cast, final
+from typing import TYPE_CHECKING, cast, final
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -42,20 +42,6 @@ class FileSystemScanner(LoggingMixin):
     # Workload size thresholds for strategy selection
     SMALL_WORKLOAD_THRESHOLD = 100  # Use Python-only below this
 
-    # Common excluded directories
-    EXCLUDED_DIRS: ClassVar[set[str]] = {
-        ".git",
-        ".svn",
-        ".hg",
-        "__pycache__",
-        "node_modules",
-        ".venv",
-        "venv",
-        ".cache",
-        ".tmp",
-        "temp",
-        "tmp",
-    }
 
     def __init__(self) -> None:
         """Initialize FileSystemScanner."""

@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from dcc.scene_file import ImageSequence
+from discovery.frame_range_extractor import detect_frame_range
 from logging_mixin import get_module_logger
 from utils import get_current_username
 from version_utils import VersionUtils
@@ -249,7 +250,7 @@ class UserSequenceFinder:
         pattern_path = containing_dir / frame_pattern
 
         # Detect frame range by scanning directory
-        first_frame, last_frame = cls._detect_frame_range(containing_dir, extension)
+        first_frame, last_frame = detect_frame_range(containing_dir, extension)
 
         # Get modification time from sample file
         try:
@@ -343,34 +344,3 @@ class UserSequenceFinder:
 
         return "unknown"
 
-    @staticmethod
-    def _detect_frame_range(directory: Path, extension: str) -> tuple[int, int]:
-        """Detect frame range by scanning files in directory.
-
-        Args:
-            directory: Directory containing sequence files
-            extension: File extension to scan
-
-        Returns:
-            Tuple of (first_frame, last_frame), defaults to (1001, 1100)
-
-        """
-        # Pattern to extract frame numbers from filenames
-        frame_pattern = re.compile(rf"\.(\d{{4,}})\.{extension}$", re.IGNORECASE)
-
-        frames: list[int] = []
-        try:
-            for file_path in directory.iterdir():
-                if not file_path.is_file():
-                    continue
-                match = frame_pattern.search(file_path.name)
-                if match:
-                    frames.append(int(match.group(1)))
-        except OSError:
-            pass
-
-        if frames:
-            return min(frames), max(frames)
-
-        # Default VFX frame range
-        return 1001, 1100
