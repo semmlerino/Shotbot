@@ -15,9 +15,8 @@ from __future__ import annotations
 
 # Standard library imports
 import time
-from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 from unittest.mock import patch
 
 # Third-party imports
@@ -30,10 +29,6 @@ from threede import ThreeDESceneWorker
 from threede.progress_tracker import ProgressCalculator
 from type_definitions import Shot, ThreeDEScene
 
-
-if TYPE_CHECKING:
-    # Standard library imports
-    from collections.abc import Generator
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
@@ -48,7 +43,6 @@ def reset_threede_finder():
     yield
     # Reset all class-level state in test double to prevent cross-test contamination
     TestThreeDESceneFinder._class_scenes_to_return = []
-    TestThreeDESceneFinder._class_progressive_batches = []
     TestThreeDESceneFinder._class_estimate_result = (0, 0)
     TestThreeDESceneFinder._class_should_raise_error = False
     TestThreeDESceneFinder._class_error_to_raise = None
@@ -69,7 +63,6 @@ class TestThreeDESceneFinder:
 
     # Class-level data for static method calls
     _class_scenes_to_return: ClassVar[list[ThreeDEScene]] = []
-    _class_progressive_batches: ClassVar[list[tuple[list[ThreeDEScene], int, int, str]]] = []
     _class_estimate_result: ClassVar[tuple[int, int]] = (0, 0)
     _class_should_raise_error: ClassVar[bool] = False
     _class_error_to_raise: ClassVar[Exception | None] = None
@@ -81,7 +74,6 @@ class TestThreeDESceneFinder:
         self._scenes_to_return = []
         self._should_raise_error = False
         self._error_to_raise = None
-        self._progressive_batches = []
         self._estimate_result = (0, 0)
 
     def set_scenes_to_return(self, scenes: list[ThreeDEScene]) -> None:
@@ -89,14 +81,6 @@ class TestThreeDESceneFinder:
         self._scenes_to_return = scenes.copy()
         # Also set class-level for static method calls
         TestThreeDESceneFinder._class_scenes_to_return = scenes.copy()
-
-    def set_progressive_batches(
-        self, batches: list[tuple[list[ThreeDEScene], int, int, str]]
-    ) -> None:
-        """Configure progressive scan results."""
-        self._progressive_batches = batches.copy()
-        # Also set class-level
-        TestThreeDESceneFinder._class_progressive_batches = batches.copy()
 
     def set_estimate_result(self, users: int, files: int) -> None:
         """Configure estimate_scan_size result."""
@@ -111,22 +95,6 @@ class TestThreeDESceneFinder:
         # Also set class-level for static method calls
         TestThreeDESceneFinder._class_should_raise_error = True
         TestThreeDESceneFinder._class_error_to_raise = error
-
-    @classmethod
-    def find_all_scenes_progressive(
-        cls,
-        _shot_tuples: list[tuple[str, str, str, str]],
-        _excluded_users: set[str],
-        _batch_size: int,
-        cancel_flag: Callable[[], bool] | None = None,
-    ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
-        """Progressive scanning test double (class method version)."""
-        # Yield configured batches from class data
-        for batch in cls._class_progressive_batches:
-            # Check cancellation like the real implementation
-            if cancel_flag and cancel_flag():
-                return
-            yield batch
 
     @classmethod
     def estimate_scan_size(
@@ -178,7 +146,6 @@ class TestThreeDESceneFinder:
         self._scenes_to_return.clear()
         self._should_raise_error = False
         self._error_to_raise = None
-        self._progressive_batches.clear()
         self._estimate_result = (0, 0)
 
 

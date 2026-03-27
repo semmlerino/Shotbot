@@ -1,9 +1,26 @@
 """Command launcher for executing applications in shot context.
 
-This module provides the production launcher system for Shotbot, handling:
-- Application launching with shot context
-- Rez environment integration
-- Process lifecycle management
+Architecture: CommandLauncher uses a 4-component pattern:
+1. CommandLauncher: Orchestrator managing launch lifecycle and state machine (IDLE, VERIFYING_APP,
+   SEARCHING_FILES, EXECUTING)
+2. AppHandler subclasses: Per-DCC logic (NukeAppHandler, ThreeDEAppHandler, MayaAppHandler,
+   RVAppHandler) that build app-specific commands
+3. CommandBuilder functions and LaunchOperation: Command construction and execution, including
+   environment setup, process execution, and file resolution
+4. ResolvedCommand: Immutable representation of the final command with all paths and flags
+
+Callback Injection Pattern: Instead of importing UI or discovery modules directly (which would
+create circular dependencies), callbacks are injected into AppHandlers:
+- emit_error: Logs errors and prevents circular imports with controllers
+- start_async_search: Delegates file discovery to FileSearchCoordinator without direct coupling
+- apply_file_result: Attaches resolved scene paths to commands post-discovery
+This pattern enables unit testing (callbacks are mocked) and maintains separation between launcher,
+UI, and discovery.
+
+Async Launch Lifecycle: For apps that search for files (3DE, Maya):
+- ASYNC_IN_PROGRESS (None, True): File lookup will complete via async callback—handler has already
+  started the search, return True from caller
+- LAUNCH_ERROR (None, False): File resolution failed—handler has emitted error, abort launch
 """
 
 from __future__ import annotations

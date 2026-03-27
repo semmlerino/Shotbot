@@ -18,7 +18,13 @@ from PySide6.QtWidgets import (
 
 from ui.qt_widget_mixin import QtWidgetMixin
 
-from .dcc_section import DEFAULT_DCC_CONFIGS, DCCConfig, DCCSection
+from .dcc_section import (
+    DEFAULT_DCC_CONFIGS,
+    BaseDCCSection,
+    DCCConfig,
+    FileDCCSection,
+    create_dcc_section,
+)
 
 
 if TYPE_CHECKING:
@@ -61,7 +67,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         super().__init__(parent)
         self._configs = configs or DEFAULT_DCC_CONFIGS
         self._settings_manager = settings_manager
-        self._sections: dict[str, DCCSection] = {}
+        self._sections: dict[str, BaseDCCSection] = {}
         self._current_shot: Shot | None = None
 
         self._setup_ui()
@@ -74,7 +80,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         # Create a section for each DCC
         for config in self._configs:
-            section = DCCSection(
+            section = create_dcc_section(
                 config,
                 settings_manager=self._settings_manager,
                 parent=self,
@@ -84,16 +90,18 @@ class DCCAccordion(QtWidgetMixin, QWidget):
             # Forward signals
             _ = section.launch_requested.connect(self._on_section_launch)
 
-            # Forward file_selected signal with app name
-            def make_file_handler(
-                name: str,
-            ) -> Callable[[SceneFile], None]:
-                def on_file_selected(f: SceneFile) -> None:
-                    self._on_section_file_selected(name, f)
+            # Forward file_selected signal with app name (FileDCCSection only)
+            if isinstance(section, FileDCCSection):
 
-                return on_file_selected
+                def make_file_handler(
+                    name: str,
+                ) -> Callable[[SceneFile], None]:
+                    def on_file_selected(f: SceneFile) -> None:
+                        self._on_section_file_selected(name, f)
 
-            _ = section.file_selected.connect(make_file_handler(config.name))
+                    return on_file_selected
+
+                _ = section.file_selected.connect(make_file_handler(config.name))
 
             # Restore expanded state from settings if available
             if self._settings_manager is not None:
@@ -211,14 +219,14 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         for section in self._sections.values():
             section.set_version_info(None, None)
 
-    def get_section(self, app_name: str) -> DCCSection | None:
+    def get_section(self, app_name: str) -> BaseDCCSection | None:
         """Get a specific DCC section by app name.
 
         Args:
             app_name: App name (e.g., "3de", "nuke")
 
         Returns:
-            The DCCSection or None if not found
+            The BaseDCCSection or None if not found
 
         """
         return self._sections.get(app_name)
@@ -253,8 +261,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         """
         return [
-            name for name, section in self._sections.items()
-            if section.is_expanded()
+            name for name, section in self._sections.items() if section.is_expanded()
         ]
 
     def get_options(self, app_name: str) -> dict[str, bool | str | None] | None:
@@ -313,12 +320,10 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         """
         section = self._sections.get(app_name)
-        if section:
+        if isinstance(section, FileDCCSection):
             section.set_files(files)
 
-    def set_default_file_for_dcc(
-        self, app_name: str, file: SceneFile | None
-    ) -> None:
+    def set_default_file_for_dcc(self, app_name: str, file: SceneFile | None) -> None:
         """Set the default file indicator for a DCC section.
 
         Args:
@@ -327,7 +332,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         """
         section = self._sections.get(app_name)
-        if section:
+        if isinstance(section, FileDCCSection):
             section.set_default_file(file)
 
     def get_selected_file(self, app_name: str) -> SceneFile | None:
@@ -341,6 +346,6 @@ class DCCAccordion(QtWidgetMixin, QWidget):
 
         """
         section = self._sections.get(app_name)
-        if section:
+        if isinstance(section, FileDCCSection):
             return section.get_selected_file()
         return None

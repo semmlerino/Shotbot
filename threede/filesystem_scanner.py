@@ -23,7 +23,6 @@ from timeout_config import TimeoutConfig
 
 if TYPE_CHECKING:
     # Standard library imports
-    from collections.abc import Generator
 
     # Local application imports - TYPE_CHECKING to break import cycles
     from paths.filesystem_coordinator import FilesystemCoordinator
@@ -385,76 +384,6 @@ class FileSystemScanner(LoggingMixin):
                 total_estimated_files += 10
 
         return total_estimated_users, total_estimated_files
-
-    def find_all_scenes_progressive(
-        self,
-        shot_tuples: list[tuple[str, str, str, str]],
-        excluded_users: set[str] | None = None,
-        batch_size: int = 10,
-        cancel_flag: Callable[[], bool] | None = None,
-    ) -> Generator[tuple[list[tuple[str, Path]], int, int, str], None, None]:
-        """Progressive scene finder that yields batches of results.
-
-        Args:
-            shot_tuples: List of (workspace_path, show, sequence, shot) tuples
-            excluded_users: Set of usernames to exclude
-            batch_size: Number of files per batch
-            cancel_flag: Optional callback to check if operation should be cancelled
-
-        Yields:
-            Tuple of (file_batch, current_shot, total_shots, status_message)
-            Where file_batch is list of (username, file_path) tuples
-
-        """
-        if not shot_tuples:
-            return
-
-        total_shots = len(shot_tuples)
-        current_batch: list[tuple[str, Path]] = []
-
-        for current_shot_idx, (workspace_path, show, sequence, shot) in enumerate(
-            shot_tuples, 1
-        ):
-            # Check for cancellation at start of each shot iteration
-            if cancel_flag and cancel_flag():
-                self.logger.debug("Scene discovery cancelled by user")
-                return
-
-            status_msg = f"Scanning {show}/{sequence}/{shot}"
-
-            try:
-                # Check user directory
-                shot_path = Path(workspace_path)
-                user_dir = shot_path / "user"
-
-                # Check for cancellation before expensive I/O operation
-                if cancel_flag and cancel_flag():
-                    self.logger.debug("Scene discovery cancelled during shot scan")
-                    return
-
-                if user_dir.exists():
-                    # Find files for this shot using progressive discovery
-                    file_pairs = self.find_3de_files_progressive(
-                        user_dir, excluded_users
-                    )
-                    current_batch.extend(file_pairs)
-
-                # Yield batch when it reaches the target size
-                if len(current_batch) >= batch_size:
-                    yield current_batch, current_shot_idx, total_shots, status_msg
-                    current_batch = []
-                else:
-                    # Yield empty batch with progress update
-                    yield [], current_shot_idx, total_shots, status_msg
-
-            except Exception:
-                self.logger.error(f"Error scanning shot {workspace_path}", exc_info=True)
-                # Yield empty batch to maintain progress
-                yield [], current_shot_idx, total_shots, f"Error: {status_msg}"
-
-        # Yield any remaining files in the final batch
-        if current_batch:
-            yield current_batch, total_shots, total_shots, "Scan complete"
 
     def _run_subprocess_with_streaming_read(
         self,

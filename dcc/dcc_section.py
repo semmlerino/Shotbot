@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, final
 
+from typing_compat import override
+
 
 if TYPE_CHECKING:
     from managers.settings_manager import SettingsManager
@@ -53,8 +55,6 @@ class DCCConfig:
     shortcut: str  # Keyboard shortcut: "3", "N", "M", "R"
     tooltip: str = ""
     checkboxes: list[CheckboxConfig] | None = None
-    has_plate_selector: bool = True
-    has_files_section: bool = False  # Whether to show embedded files sub-section
     file_type: FileType | None = None  # Which FileType this DCC uses (None = no files)
 
 
@@ -85,7 +85,6 @@ DEFAULT_DCC_CONFIGS = [
                 default=True,
             )
         ],
-        has_files_section=True,
         file_type=FileType.THREEDE,
     ),
     DCCConfig(
@@ -102,7 +101,6 @@ DEFAULT_DCC_CONFIGS = [
                 default=True,
             )
         ],
-        has_files_section=True,
         file_type=FileType.MAYA,
     ),
     DCCConfig(
@@ -125,7 +123,6 @@ DEFAULT_DCC_CONFIGS = [
                 default=False,
             ),
         ],
-        has_files_section=True,
         file_type=FileType.NUKE,
     ),
     DCCConfig(
@@ -134,14 +131,12 @@ DEFAULT_DCC_CONFIGS = [
         color="#2b5d4d",
         shortcut="R",
         tooltip="Launch RV for playback and review",
-        has_files_section=False,
         file_type=None,
     ),
 ]
 
 
-@final
-class DCCSection(QtWidgetMixin, QWidget):
+class BaseDCCSection(QtWidgetMixin, QWidget):
     """Collapsible DCC section with launch options.
 
     Shows a header bar with:
@@ -153,18 +148,33 @@ class DCCSection(QtWidgetMixin, QWidget):
     Expands to show:
     - Launch button
     - Option checkboxes
-    - Plate selector (if applicable)
+    - Plate selector
 
     Attributes:
         launch_requested: Signal(str, object) - app_name, options dict
         expanded_changed: Signal(str, bool) - app_name, is_expanded
-        file_selected: Signal(object) - emits SceneFile when user clicks a file
 
     """
 
-    launch_requested = Signal(str, object)  # app_name, options
-    expanded_changed = Signal(str, bool)  # app_name, is_expanded
-    file_selected = Signal(object)  # SceneFile
+    launch_requested: Signal = Signal(str, object)  # app_name, options
+    expanded_changed: Signal = Signal(str, bool)  # app_name, is_expanded
+
+    # Instance attribute type declarations for basedpyright (non-@final class)
+    config: DCCConfig
+    _settings_manager: SettingsManager | None
+    _expanded: bool
+    _launch_in_progress: bool
+    _should_be_enabled: bool
+    _original_button_text: str
+    _search_pending: bool
+    _container: QWidget
+    _expand_btn: QToolButton
+    _name_label: QLabel
+    _version_label: QLabel
+    _content: QWidget
+    _content_layout: QVBoxLayout
+    _launch_btn: QPushButton
+    _launch_description: QLabel
 
     def __init__(
         self,
@@ -194,10 +204,6 @@ class DCCSection(QtWidgetMixin, QWidget):
         # UI components
         self._checkboxes: dict[str, QCheckBox] = {}
         self._plate_selector: QComboBox | None = None
-
-        # Composed sub-widgets (created in _setup_ui if applicable)
-        self._dcc_file_table: DCCFileTable | None = None
-        self._dcc_sequence_table: DCCSequenceTable | None = None
 
         # Store references for dynamic styling
         self._plate_label: QLabel | None = None
@@ -270,9 +276,9 @@ class DCCSection(QtWidgetMixin, QWidget):
         # Content widget (hidden when collapsed)
         self._content = QWidget()
         self._content.setVisible(False)
-        content_layout = QVBoxLayout(self._content)
-        content_layout.setContentsMargins(26, 4, 0, 4)  # Indent under expand arrow
-        content_layout.setSpacing(8)
+        self._content_layout = QVBoxLayout(self._content)
+        self._content_layout.setContentsMargins(26, 4, 0, 4)  # Indent under expand arrow
+        self._content_layout.setSpacing(8)
 
         # Launch button
         self._launch_btn = QPushButton("Launch")
@@ -282,13 +288,13 @@ class DCCSection(QtWidgetMixin, QWidget):
         tooltip = self.config.tooltip or f"Launch {self.config.display_name}"
         tooltip += f" (Shortcut: {self.config.shortcut.upper()})"
         self._launch_btn.setToolTip(tooltip)
-        content_layout.addWidget(self._launch_btn)
+        self._content_layout.addWidget(self._launch_btn)
 
         # Launch description label (shows what will be opened)
         self._launch_description = QLabel()
         self._launch_description.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._launch_description.setVisible(False)
-        content_layout.addWidget(self._launch_description)
+        self._content_layout.addWidget(self._launch_description)
 
         # Checkboxes
         if self.config.checkboxes:
@@ -296,53 +302,25 @@ class DCCSection(QtWidgetMixin, QWidget):
                 checkbox = QCheckBox(cb_config.label)
                 checkbox.setToolTip(cb_config.tooltip)
                 checkbox.setChecked(cb_config.default)
-                content_layout.addWidget(checkbox)
+                self._content_layout.addWidget(checkbox)
                 self._checkboxes[cb_config.key] = checkbox
 
-        # Plate selector
-        if self.config.has_plate_selector:
-            plate_row = QHBoxLayout()
-            plate_row.setContentsMargins(0, 2, 0, 0)
-            plate_row.setSpacing(4)
+        # Plate selector (always present in base)
+        plate_row = QHBoxLayout()
+        plate_row.setContentsMargins(0, 2, 0, 0)
+        plate_row.setSpacing(4)
 
-            self._plate_label = QLabel("Plate:")
-            plate_row.addWidget(self._plate_label)
+        self._plate_label = QLabel("Plate:")
+        plate_row.addWidget(self._plate_label)
 
-            self._plate_selector = QComboBox()
-            self._plate_selector.setEnabled(False)
-            self._plate_selector.setPlaceholderText("Select...")
-            self._plate_selector.setMinimumWidth(80)
-            plate_row.addWidget(self._plate_selector)
-            plate_row.addStretch()
+        self._plate_selector = QComboBox()
+        self._plate_selector.setEnabled(False)
+        self._plate_selector.setPlaceholderText("Select...")
+        self._plate_selector.setMinimumWidth(80)
+        plate_row.addWidget(self._plate_selector)
+        plate_row.addStretch()
 
-            content_layout.addLayout(plate_row)
-
-        # Files sub-section (if configured)
-        if self.config.has_files_section:
-            self._dcc_file_table = DCCFileTable(
-                dcc_name=self.config.name,
-                display_name=self.config.display_name,
-                accent_color=self.config.color,
-                settings_manager=self._settings_manager,
-                parent=self,
-            )
-            _ = self._dcc_file_table.file_selected.connect(self._on_embedded_file_selected)
-            _ = self._dcc_file_table.launch_file_requested.connect(
-                self._on_embedded_file_launch_requested
-            )
-            content_layout.addWidget(self._dcc_file_table)
-
-        # RV sequence sub-sections (Maya Playblasts and Nuke Renders)
-        if self.config.name == "rv":
-            self._dcc_sequence_table = DCCSequenceTable(
-                dcc_name=self.config.name,
-                settings_manager=self._settings_manager,
-                parent=self,
-            )
-            _ = self._dcc_sequence_table.sequence_launch_requested.connect(
-                self._on_sequence_launch_requested
-            )
-            content_layout.addWidget(self._dcc_sequence_table)
+        self._content_layout.addLayout(plate_row)
 
         container_layout.addWidget(self._content)
         layout.addWidget(self._container)
@@ -450,10 +428,6 @@ class DCCSection(QtWidgetMixin, QWidget):
                 QComboBox::down-arrow {{ image: none; }}
             """)
 
-        # Delegate file table styling
-        if self._dcc_file_table is not None:
-            self._dcc_file_table.apply_styles()
-
     def _toggle_expanded(self) -> None:
         """Toggle the expanded state."""
         self.set_expanded(not self._expanded)
@@ -476,7 +450,6 @@ class DCCSection(QtWidgetMixin, QWidget):
     def is_expanded(self) -> bool:
         """Return whether the section is expanded."""
         return self._expanded
-
 
     def _on_launch_clicked(self) -> None:
         """Handle launch button click."""
@@ -596,9 +569,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         text = self._plate_selector.currentText()
         return text or None
 
-    def set_version_info(
-        self, version: str | None, age: str | None = None
-    ) -> None:
+    def set_version_info(self, version: str | None, age: str | None = None) -> None:
         """Set version info displayed in collapsed header.
 
         Args:
@@ -640,12 +611,69 @@ class DCCSection(QtWidgetMixin, QWidget):
         else:
             self._launch_description.setVisible(False)
 
+
+@final
+class FileDCCSection(BaseDCCSection):
+    """DCC section for file-based DCCs: 3DEqualizer, Maya, Nuke.
+
+    Adds an embedded DCCFileTable for browsing scene files.
+
+    Attributes:
+        file_selected: Signal(object) - emits SceneFile when user clicks a file
+
+    """
+
+    file_selected = Signal(object)  # SceneFile
+
+    def __init__(
+        self,
+        config: DCCConfig,
+        settings_manager: SettingsManager | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        """Initialize the FileDCCSection.
+
+        Args:
+            config: Configuration for this DCC
+            settings_manager: Settings manager for height persistence
+            parent: Optional parent widget
+
+        """
+        self._dcc_file_table: DCCFileTable  # Will be set in _setup_ui
+        super().__init__(config, settings_manager=settings_manager, parent=parent)
+
+    @override
+    def _setup_ui(self) -> None:
+        """Set up UI, adding the file table after base chrome."""
+        super()._setup_ui()
+
+        self._dcc_file_table = DCCFileTable(
+            dcc_name=self.config.name,
+            display_name=self.config.display_name,
+            accent_color=self.config.color,
+            settings_manager=self._settings_manager,
+            parent=self,
+        )
+        _ = self._dcc_file_table.file_selected.connect(self._on_embedded_file_selected)
+        _ = self._dcc_file_table.launch_file_requested.connect(
+            self._on_embedded_file_launch_requested
+        )
+        self._content_layout.addWidget(self._dcc_file_table)
+
+    @override
+    def _apply_styles(self) -> None:
+        """Apply styles, including delegating to the file table."""
+        super()._apply_styles()
+        # Guard: _dcc_file_table may not exist yet during super().__init__ → _setup_ui
+        if hasattr(self, "_dcc_file_table"):
+            self._dcc_file_table.apply_styles()
+
     # ========== Embedded File Table Signal Handlers ==========
 
     def _on_embedded_file_selected(self, file: SceneFile) -> None:
         """Handle file_selected from embedded DCCFileTable.
 
-        Updates the launch description and re-emits file_selected on DCCSection.
+        Updates the launch description and re-emits file_selected on FileDCCSection.
 
         Args:
             file: The selected SceneFile.
@@ -657,7 +685,7 @@ class DCCSection(QtWidgetMixin, QWidget):
     def _on_embedded_file_launch_requested(self, file: SceneFile) -> None:
         """Handle launch_file_requested from embedded DCCFileTable.
 
-        Updates the launch description and emits launch_requested on DCCSection.
+        Updates the launch description and emits launch_requested on FileDCCSection.
 
         Args:
             file: The SceneFile the user wants to open.
@@ -679,6 +707,93 @@ class DCCSection(QtWidgetMixin, QWidget):
             plate = self.get_selected_plate()
             self.set_launch_description(version_str, plate)
 
+    def set_files(self, files: list[SceneFile]) -> None:
+        """Set files for the embedded files sub-section.
+
+        Args:
+            files: List of scene files to display.
+
+        """
+        self._dcc_file_table.set_files(files)
+        # Update launch description from auto-selected first file
+        if files:
+            self._update_launch_button_from_file(files[0])
+
+    def get_selected_file(self) -> SceneFile | None:
+        """Get the currently selected file from the embedded table.
+
+        Returns:
+            Selected SceneFile or None.
+
+        """
+        return self._dcc_file_table.get_selected_file()
+
+    def set_default_file(self, file: SceneFile | None) -> None:
+        """Mark a file as the default (shows arrow indicator).
+
+        Args:
+            file: The file to mark as default, or None to clear.
+
+        """
+        self._dcc_file_table.set_default_file(file)
+        if file is not None:
+            self._update_launch_button_from_file(file)
+
+    def set_files_expanded(self, expanded: bool) -> None:
+        """Set the files sub-section expanded state.
+
+        Args:
+            expanded: True to expand, False to collapse.
+
+        """
+        self._dcc_file_table.set_files_expanded(expanded)
+
+    def is_files_expanded(self) -> bool:
+        """Return files sub-section expanded state."""
+        return self._dcc_file_table.is_files_expanded()
+
+
+@final
+class RVSection(BaseDCCSection):
+    """DCC section for RV sequence playback.
+
+    Adds an embedded DCCSequenceTable for browsing Maya playblasts
+    and Nuke render sequences.
+
+    """
+
+    def __init__(
+        self,
+        config: DCCConfig,
+        settings_manager: SettingsManager | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        """Initialize the RVSection.
+
+        Args:
+            config: Configuration for the RV DCC
+            settings_manager: Settings manager for height persistence
+            parent: Optional parent widget
+
+        """
+        self._dcc_sequence_table: DCCSequenceTable  # Will be set in _setup_ui
+        super().__init__(config, settings_manager=settings_manager, parent=parent)
+
+    @override
+    def _setup_ui(self) -> None:
+        """Set up UI, adding the sequence table after base chrome."""
+        super()._setup_ui()
+
+        self._dcc_sequence_table = DCCSequenceTable(
+            dcc_name=self.config.name,
+            settings_manager=self._settings_manager,
+            parent=self,
+        )
+        _ = self._dcc_sequence_table.sequence_launch_requested.connect(
+            self._on_sequence_launch_requested
+        )
+        self._content_layout.addWidget(self._dcc_sequence_table)
+
     # ========== Embedded Sequence Table Signal Handlers ==========
 
     def _on_sequence_launch_requested(self, sequence: ImageSequence) -> None:
@@ -694,60 +809,6 @@ class DCCSection(QtWidgetMixin, QWidget):
         options["sequence_path"] = str(sequence.path)
         self.launch_requested.emit(self.config.name, options)
 
-    def set_files(self, files: list[SceneFile]) -> None:
-        """Set files for the embedded files sub-section.
-
-        Args:
-            files: List of scene files to display.
-
-        """
-        if self._dcc_file_table is not None:
-            self._dcc_file_table.set_files(files)
-            # Update launch description from auto-selected first file
-            if files:
-                self._update_launch_button_from_file(files[0])
-
-    def get_selected_file(self) -> SceneFile | None:
-        """Get the currently selected file from the embedded table.
-
-        Returns:
-            Selected SceneFile or None.
-
-        """
-        if self._dcc_file_table is not None:
-            return self._dcc_file_table.get_selected_file()
-        return None
-
-    def set_default_file(self, file: SceneFile | None) -> None:
-        """Mark a file as the default (shows arrow indicator).
-
-        Args:
-            file: The file to mark as default, or None to clear.
-
-        """
-        if self._dcc_file_table is not None:
-            self._dcc_file_table.set_default_file(file)
-            if file is not None:
-                self._update_launch_button_from_file(file)
-
-    def set_files_expanded(self, expanded: bool) -> None:
-        """Set the files sub-section expanded state.
-
-        Args:
-            expanded: True to expand, False to collapse.
-
-        """
-        if self._dcc_file_table is not None:
-            self._dcc_file_table.set_files_expanded(expanded)
-
-    def is_files_expanded(self) -> bool:
-        """Return files sub-section expanded state."""
-        if self._dcc_file_table is not None:
-            return self._dcc_file_table.is_files_expanded()
-        return False
-
-    # ========== Delegation to DCCSequenceTable ==========
-
     def set_playblast_sequences(self, sequences: list[ImageSequence]) -> None:
         """Set Maya playblast sequences for display.
 
@@ -755,8 +816,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             sequences: List of ImageSequence objects.
 
         """
-        if self._dcc_sequence_table is not None:
-            self._dcc_sequence_table.set_playblast_sequences(sequences)
+        self._dcc_sequence_table.set_playblast_sequences(sequences)
 
     def set_render_sequences(self, sequences: list[ImageSequence]) -> None:
         """Set Nuke render sequences for display.
@@ -765,8 +825,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             sequences: List of ImageSequence objects.
 
         """
-        if self._dcc_sequence_table is not None:
-            self._dcc_sequence_table.set_render_sequences(sequences)
+        self._dcc_sequence_table.set_render_sequences(sequences)
 
     def get_selected_sequence(self) -> ImageSequence | None:
         """Get currently selected sequence for RV launch.
@@ -775,6 +834,30 @@ class DCCSection(QtWidgetMixin, QWidget):
             Selected ImageSequence or None.
 
         """
-        if self._dcc_sequence_table is not None:
-            return self._dcc_sequence_table.get_selected_sequence()
-        return None
+        return self._dcc_sequence_table.get_selected_sequence()
+
+
+def create_dcc_section(
+    config: DCCConfig,
+    *,
+    settings_manager: SettingsManager | None = None,
+    parent: QWidget | None = None,
+) -> BaseDCCSection:
+    """Create the appropriate DCC section for the given config.
+
+    Args:
+        config: DCC configuration
+        settings_manager: Optional settings manager for UI state persistence
+        parent: Optional parent widget
+
+    Returns:
+        RVSection for RV config, FileDCCSection for all others.
+
+    """
+    if config.name == "rv":
+        return RVSection(config, settings_manager=settings_manager, parent=parent)
+    return FileDCCSection(config, settings_manager=settings_manager, parent=parent)
+
+
+# Backwards compatibility alias
+DCCSection = BaseDCCSection

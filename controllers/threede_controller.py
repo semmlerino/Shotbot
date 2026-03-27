@@ -43,15 +43,31 @@ from type_definitions import Shot, ThreeDEScene
 class ThreeDEController(LoggingMixin):
     """Controller for 3DE scene discovery and management.
 
-    This controller encapsulates all 3DE-related functionality that was previously
-    part of MainWindow, providing clean separation of concerns and improved
-    testability. It manages:
+    Architecture: ThreeDEController implements a 5-layer pipeline with single responsibilities:
 
-    - Background worker threads for scene discovery
-    - Thread-safe worker lifecycle management
-    - Progressive batch updates for responsive UI
-    - Scene selection and launching
-    - Cache integration for discovered scenes
+    1. Controller (ThreeDEController): Qt signal routing and UI state management. Dispatches
+       worker creation/cleanup, handles scene selection, and forwards discovery results to UI.
+
+    2. Manager (ThreeDEWorkerManager): Thread lifecycle and mutex protection. Creates/stops the
+       QThread, guards the worker instance with QMutex, and integrates with cache lifecycle.
+
+    3. Worker (ThreeDESceneWorker): QRunnable execution, cancellation, and progress reporting.
+       Encapsulates multi-shot discovery as an atomic cancellable operation with granular
+       progress signals for UI feedback.
+
+    4. Coordinator (ThreeDEDiscoveryCoordinator): Multi-shot orchestration and batching logic.
+       Manages per-shot discovery sequence, coordinates batch window updates, and handles
+       partial failure (continues scanning even if one shot errors).
+
+    5. Scanner (FileSystemScanner): Raw NFS filesystem traversal using subprocess ls for
+       performance. Subprocess approach avoids Python pathlib overhead on high-latency mounts.
+
+    Why Depth is Load-Bearing:
+    - Manager layer provides Qt thread-safety guarantees (mutex guards worker access)
+    - Scanner layer's subprocess approach is necessary for NFS performance (1000+ shots x 10
+      users each = millions of stat calls without subprocess batching)
+    - Worker's QRunnable infrastructure enables cancellable progress (can't interrupt Python
+      for-loops, but can set atomic cancel flag and let Scanner check it between batches)
 
     Attributes:
         window: The target window that implements ThreeDETarget protocol

@@ -15,9 +15,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from dcc.dcc_section import (
     DEFAULT_DCC_CONFIGS,
+    BaseDCCSection,
     CheckboxConfig,
     DCCConfig,
-    DCCSection,
+    FileDCCSection,
+    RVSection,
+    create_dcc_section,
 )
 from dcc.scene_file import FileType, SceneFile
 from tests.test_helpers import process_qt_events
@@ -75,13 +78,12 @@ def nuke_config() -> DCCConfig:
 
 @pytest.fixture
 def config_with_files() -> DCCConfig:
-    """Create config with embedded files section enabled."""
+    """Create config for a file-based DCC."""
     return DCCConfig(
         name="test_dcc",
         display_name="Test DCC",
         color="#333333",
         shortcut="T",
-        has_files_section=True,
         file_type=FileType.THREEDE,
     )
 
@@ -120,7 +122,6 @@ class TestDCCConfigDefaults:
         assert "rv" in names
 
 
-
 class TestDCCSectionInit:
     """Tests for DCCSection initialization."""
 
@@ -128,7 +129,7 @@ class TestDCCSectionInit:
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
         """Section displays the DCC display name."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
 
         assert "3DEqualizer" in section._name_label.text()
@@ -137,7 +138,7 @@ class TestDCCSectionInit:
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
         """Section header no longer displays shortcut badge (removed for cleaner UI)."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
         section.show()
         process_qt_events()
@@ -157,7 +158,7 @@ class TestDCCSectionInit:
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
         """Launch button is disabled until enabled."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
 
         assert not section._launch_btn.isEnabled()
@@ -170,7 +171,7 @@ class TestDCCSectionLaunch:
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
         """Launch button click emits signal with options."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
         section.set_enabled(True)
         section.set_expanded(True)
@@ -189,7 +190,7 @@ class TestDCCSectionLaunch:
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
         """Launch button temporarily disabled during launch."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
         section.set_enabled(True)
         section.set_expanded(True)
@@ -208,11 +209,9 @@ class TestDCCSectionLaunch:
 class TestDCCSectionCheckboxes:
     """Tests for checkbox handling."""
 
-    def test_checkboxes_state(
-        self, qtbot: QtBot, nuke_config: DCCConfig
-    ) -> None:
+    def test_checkboxes_state(self, qtbot: QtBot, nuke_config: DCCConfig) -> None:
         """Checkboxes are created with correct defaults and states are readable."""
-        section = DCCSection(nuke_config)
+        section = FileDCCSection(nuke_config)
         qtbot.addWidget(section)
 
         # Checkboxes exist
@@ -240,7 +239,7 @@ class TestDCCSectionPlateSelector:
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
         """Plate selector exists but is disabled until plates are set."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
 
         assert section._plate_selector is not None
@@ -250,7 +249,7 @@ class TestDCCSectionPlateSelector:
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
         """Setting plates enables selector and allows reading selection; get_options includes plate."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
 
         section.set_available_plates(["FG01", "BG01"])
@@ -263,20 +262,6 @@ class TestDCCSectionPlateSelector:
 
         options = section.get_options()
         assert options["selected_plate"] == "FG01"
-
-    def test_no_plate_selector_when_disabled(self, qtbot: QtBot) -> None:
-        """No plate selector when has_plate_selector is False."""
-        config = DCCConfig(
-            name="test",
-            display_name="Test",
-            color="#333333",  # Must be 6-digit hex for color parsing
-            shortcut="T",
-            has_plate_selector=False,
-        )
-        section = DCCSection(config)
-        qtbot.addWidget(section)
-
-        assert section._plate_selector is None
 
 
 class TestDCCSectionVersionInfo:
@@ -300,7 +285,7 @@ class TestDCCSectionVersionInfo:
         expect_texts: list[str],
     ) -> None:
         """Version label visibility and content matches arguments."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
         section.show()
         process_qt_events()
@@ -319,11 +304,9 @@ class TestDCCSectionVersionInfo:
 class TestDCCSectionEnableDisable:
     """Tests for enable/disable functionality."""
 
-    def test_set_enabled(
-        self, qtbot: QtBot, threede_config: DCCConfig
-    ) -> None:
+    def test_set_enabled(self, qtbot: QtBot, threede_config: DCCConfig) -> None:
         """Can enable/disable the section."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
 
         section.set_enabled(True)
@@ -336,7 +319,7 @@ class TestDCCSectionEnableDisable:
         self, qtbot: QtBot, threede_config: DCCConfig
     ) -> None:
         """Enabled state restored after launch completes."""
-        section = DCCSection(threede_config)
+        section = FileDCCSection(threede_config)
         qtbot.addWidget(section)
         section.set_enabled(True)
         section.set_expanded(True)
@@ -357,23 +340,11 @@ class TestDCCSectionEnableDisable:
 class TestDCCSectionEmbeddedFiles:
     """Tests for embedded files sub-section functionality."""
 
-    @pytest.fixture
-    def config_without_files(self) -> DCCConfig:
-        """Create config with embedded files section disabled."""
-        return DCCConfig(
-            name="test_dcc",
-            display_name="Test DCC",
-            color="#333333",
-            shortcut="T",
-            has_files_section=False,
-            file_type=None,
-        )
-
     def test_files_section_creation_and_population(
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
         """Files section initializes, populates table, and updates header count."""
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
         section.show()
         process_qt_events()
@@ -390,20 +361,11 @@ class TestDCCSectionEmbeddedFiles:
         header_text = section._dcc_file_table._files_header_btn.text()
         assert "2" in header_text
 
-    def test_no_files_section_when_disabled(
-        self, qtbot: QtBot, config_without_files: DCCConfig
-    ) -> None:
-        """No files section when has_files_section is False."""
-        section = DCCSection(config_without_files)
-        qtbot.addWidget(section)
-
-        assert section._dcc_file_table is None
-
     def test_get_selected_file_returns_latest(
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
         """get_selected_file returns the selected (latest) file."""
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
 
         section.set_files(sample_scene_files)
@@ -418,7 +380,7 @@ class TestDCCSectionEmbeddedFiles:
         self, qtbot: QtBot, config_with_files: DCCConfig
     ) -> None:
         """get_selected_file returns None when no files."""
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
 
         selected = section.get_selected_file()
@@ -428,7 +390,7 @@ class TestDCCSectionEmbeddedFiles:
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
         """file_selected signal emitted when file is clicked."""
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
         section.set_expanded(True)
         section.show()
@@ -443,16 +405,15 @@ class TestDCCSectionEmbeddedFiles:
             section._dcc_file_table._file_table.clicked.emit(index)
             process_qt_events()
 
-    def test_default_configs_have_files_section(self, qtbot: QtBot) -> None:
-        """3DE, Maya, Nuke have files sections; RV does not."""
+    def test_default_configs_create_correct_types(self, qtbot: QtBot) -> None:
+        """3DE, Maya, Nuke create FileDCCSection; RV creates RVSection."""
         for config in DEFAULT_DCC_CONFIGS:
-            section = DCCSection(config)
+            section = create_dcc_section(config)
             qtbot.addWidget(section)
-
             if config.name == "rv":
-                assert section._dcc_file_table is None
+                assert isinstance(section, RVSection)
             else:
-                assert section._dcc_file_table is not None
+                assert isinstance(section, FileDCCSection)
 
 
 class TestDCCSectionFileDoubleClick:
@@ -462,7 +423,7 @@ class TestDCCSectionFileDoubleClick:
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
         """Double-clicking a file emits launch_requested, emits file_selected, and updates selected file."""
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
         section.set_enabled(True)
         section.set_expanded(True)
@@ -498,7 +459,7 @@ class TestDCCSectionFileDoubleClick:
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
         """Double-clicking invalid index does not emit signals."""
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
         section.set_enabled(True)
         section.set_expanded(True)
@@ -529,16 +490,19 @@ class TestDCCSectionFileContextMenu:
         self, qtbot: QtBot, config_with_files: DCCConfig
     ) -> None:
         """File table has custom context menu policy."""
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
 
-        assert section._dcc_file_table._file_table.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
+        assert (
+            section._dcc_file_table._file_table.contextMenuPolicy()
+            == Qt.ContextMenuPolicy.CustomContextMenu
+        )
 
     def test_launch_file_emits_and_updates_selection(
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
         """Launching a file emits launch_requested and updates selection state."""
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
         section.set_enabled(True)
         section.show()
@@ -563,7 +527,7 @@ class TestDCCSectionFileContextMenu:
         self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
     ) -> None:
         """Context menu request on empty area does nothing (no crash)."""
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
         section.set_expanded(True)
         section.show()
@@ -603,7 +567,7 @@ class TestDCCSectionFileCopyPath:
         """Copy file path sets clipboard text to file path."""
         from PySide6.QtWidgets import QApplication
 
-        section = DCCSection(config_with_files)
+        section = FileDCCSection(config_with_files)
         qtbot.addWidget(section)
         section.show()
         process_qt_events()
@@ -613,3 +577,54 @@ class TestDCCSectionFileCopyPath:
 
         clipboard = QApplication.clipboard()
         assert clipboard.text() == "/path/to/scene_v005.3de"
+
+
+class TestRVSection:
+    """Tests for RVSection widget."""
+
+    @pytest.fixture
+    def rv_config(self) -> DCCConfig:
+        """Get the RV config from DEFAULT_DCC_CONFIGS."""
+        return next(c for c in DEFAULT_DCC_CONFIGS if c.name == "rv")
+
+    def test_rv_section_instantiation(self, qtbot: QtBot, rv_config: DCCConfig) -> None:
+        """RVSection creates a sequence table unconditionally."""
+        section = RVSection(rv_config)
+        qtbot.addWidget(section)
+
+        assert section._dcc_sequence_table is not None
+
+    def test_rv_section_no_file_table(self, qtbot: QtBot, rv_config: DCCConfig) -> None:
+        """RVSection does not have a _dcc_file_table attribute."""
+        section = RVSection(rv_config)
+        qtbot.addWidget(section)
+
+        assert not hasattr(section, "_dcc_file_table")
+
+    def test_rv_launch_requested_signal(
+        self, qtbot: QtBot, rv_config: DCCConfig
+    ) -> None:
+        """Clicking the RV launch button emits launch_requested."""
+        section = RVSection(rv_config)
+        qtbot.addWidget(section)
+        section.set_enabled(True)
+        section.set_expanded(True)
+        section.show()
+        process_qt_events()
+
+        with qtbot.waitSignal(section.launch_requested, timeout=1000) as blocker:
+            qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
+            process_qt_events()
+
+        app_name, _options = blocker.args
+        assert app_name == "rv"
+
+
+class TestBaseDCCSectionIsAlias:
+    """Tests that DCCSection alias resolves to BaseDCCSection."""
+
+    def test_dcc_section_alias(self) -> None:
+        """DCCSection is BaseDCCSection."""
+        from dcc.dcc_section import DCCSection
+
+        assert DCCSection is BaseDCCSection
