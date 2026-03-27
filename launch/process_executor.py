@@ -8,6 +8,7 @@ This module handles process execution and management:
 
 import logging
 import subprocess
+import sys
 import threading
 import time
 from datetime import UTC, datetime
@@ -375,7 +376,8 @@ class ProcessExecutor(QObject):
             except RuntimeError:
                 pass  # Timer may already be deleted
         self._pending_timers.clear()
-        self.logger.debug("ProcessExecutor cleanup completed")
+        if not sys.is_finalizing():
+            self.logger.debug("ProcessExecutor cleanup completed")
 
     def start_app_verification(
         self,

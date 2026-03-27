@@ -309,7 +309,10 @@ class CommandLauncher(LoggingMixin, QObject):
 
     def __del__(self) -> None:
         """Ensure cleanup on destruction."""
-        self.cleanup()
+        try:
+            self.cleanup()
+        except Exception:  # noqa: BLE001
+            pass
 
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context."""
