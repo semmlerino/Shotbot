@@ -657,6 +657,7 @@ class TestVisibilityTracking:
         """Test that visibility timer is created, single-shot, and not initially active."""
         assert hasattr(grid_view, "_visibility_timer")
         assert grid_view._visibility_timer is not None
+        assert grid_view._visibility_timer.parent() is grid_view
         assert grid_view._visibility_timer.isSingleShot()
         # Single-shot timer is not running until _schedule_visible_range_update is called
         assert not grid_view._visibility_timer.isActive()

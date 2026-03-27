@@ -60,7 +60,7 @@ class HasAvailableShows(Protocol):
 
 
 # Runtime imports (not just type checking)
-from PySide6.QtGui import QAction, QKeyEvent, QKeySequence
+from PySide6.QtGui import QAction, QCloseEvent, QKeyEvent, QKeySequence
 
 
 if TYPE_CHECKING:
@@ -247,7 +247,11 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         events instead of polling. Subclasses connect model signals via
         _connect_model_visibility() in their set_model() methods.
         """
-        self._visibility_timer: QTimer = QTimer()
+        # Parent the timer to the view so Qt tears it down with the widget.
+        # An unparented active timer can outlive the view and later deliver a
+        # timeout into a deleted receiver, which is a common source of
+        # suite-only Qt crashes during subsequent event processing.
+        self._visibility_timer: QTimer = QTimer(self)
         self._visibility_timer.setSingleShot(True)
         _ = self._visibility_timer.timeout.connect(self._update_visible_range)
 
@@ -617,6 +621,12 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         """
         super().resizeEvent(event)
         self._schedule_visible_range_update()
+
+    @override
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Stop delayed callbacks before the widget begins closing."""
+        self._visibility_timer.stop()
+        super().closeEvent(event)
 
     @override
     def keyPressEvent(self, event: QKeyEvent) -> None:

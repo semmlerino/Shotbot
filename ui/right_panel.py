@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from dcc.dcc_accordion import DCCAccordion
+from dcc.dcc_section_rv import RVSection
 from dcc.scene_file import FileType, SceneFile
 from shots.shot_file_finder import ShotFileFinder
 from ui.qt_widget_mixin import QtWidgetMixin
@@ -272,7 +273,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             from discovery import UserSequenceFinder
 
             rv_section = self._dcc_accordion.get_section("rv")
-            if rv_section is None:
+            if not isinstance(rv_section, RVSection):
                 self.logger.warning("RV section not found - cannot display sequences")
                 return
 
@@ -296,7 +297,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
     def _clear_rv_sequences(self) -> None:
         """Clear sequences from RV section."""
         rv_section = self._dcc_accordion.get_section("rv")
-        if rv_section is not None:
+        if isinstance(rv_section, RVSection):
             rv_section.set_playblast_sequences([])
             rv_section.set_render_sequences([])
 

@@ -17,6 +17,7 @@ from PySide6.QtGui import QWheelEvent
 from config import Config
 from previous_shots.view import PreviousShotsView
 from shots.shot_grid_view import ShotGridView
+from tests.test_helpers import process_qt_events
 from threede import ThreeDEGridView
 
 
@@ -325,6 +326,7 @@ class TestCommonViewBehavior:
             f"View {view_class.__name__} should have _visibility_timer"
         )
         timer = view._visibility_timer
+        assert timer.parent() is view
         assert timer.isSingleShot(), "Visibility timer should be single-shot"
 
         # Test that scrolling triggers updates
@@ -342,6 +344,9 @@ class TestCommonViewBehavior:
                 # but we can verify the timer mechanism is working
                 if hasattr(view, "_visibility_timer"):
                     assert view._visibility_timer.isActive()
+
+        view.close()
+        process_qt_events()
 
     def test_show_filter_combo_exists(
         self,
