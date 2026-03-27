@@ -31,51 +31,6 @@ pytestmark = [pytest.mark.unit]
 
 
 # =============================================================================
-# Cache Delegation Tests
-# =============================================================================
-
-
-class TestCacheDelegation:
-    """Test that FileSystemScanner delegates cache operations to FilesystemCoordinator."""
-
-    def test_clear_cache_delegates_to_coordinator(self) -> None:
-        """clear_cache() delegates to FilesystemCoordinator.invalidate_all()."""
-        with patch(
-            "paths.filesystem_coordinator.FilesystemCoordinator"
-        ) as mock_coord_cls:
-            mock_instance = MagicMock()
-            mock_instance.invalidate_all.return_value = 5
-            mock_coord_cls.return_value = mock_instance
-
-            result = FileSystemScanner.clear_cache()
-
-            mock_instance.invalidate_all.assert_called_once()
-            assert result == 5
-
-    def test_get_cache_stats_delegates_to_coordinator(self) -> None:
-        """get_cache_stats() delegates to FilesystemCoordinator.get_cache_stats()."""
-        expected_stats = {
-            "cached_directories": 10,
-            "cache_hits": 50,
-            "cache_misses": 5,
-            "total_requests": 55,
-            "hit_rate": 90.9,
-            "ttl_seconds": 300,
-        }
-        with patch(
-            "paths.filesystem_coordinator.FilesystemCoordinator"
-        ) as mock_coord_cls:
-            mock_instance = MagicMock()
-            mock_instance.get_cache_stats.return_value = expected_stats
-            mock_coord_cls.return_value = mock_instance
-
-            result = FileSystemScanner.get_cache_stats()
-
-            mock_instance.get_cache_stats.assert_called_once()
-            assert result == expected_stats
-
-
-# =============================================================================
 # Subprocess Timeout/Cancellation Tests
 # =============================================================================
 

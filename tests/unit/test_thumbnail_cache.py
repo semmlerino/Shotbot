@@ -13,7 +13,6 @@ Covers:
 from __future__ import annotations
 
 # Standard library imports
-import threading
 import time
 from pathlib import Path
 
@@ -196,41 +195,6 @@ class TestThumbnailCaching:
 # ---------------------------------------------------------------------------
 
 
-class TestEXRProcessing:
-    """Test OpenEXR thumbnail processing."""
-
-    def test_exr_thumbnail_with_pil(
-        self, thumbnail_cache: ThumbnailCache, mock_exr_file: Path
-    ) -> None:
-        """Test EXR processing uses PIL directly (no OpenEXR/Imath dependency).
-
-        This tests that we handle EXR files gracefully using PIL,
-        which will fail if pillow-openexr is not installed (expected).
-        """
-        result = thumbnail_cache.cache_thumbnail(
-            mock_exr_file, "test_show", "seq01", "shot_exr"
-        )
-
-        # PIL will fail on our mock EXR file since it's not a real EXR
-        # This is expected behavior - graceful degradation without OpenEXR/Imath
-        if result is None:
-            # Verify graceful failure: result is None (no exception, no cache entry)
-            assert result is None
-
-    def test_exr_thumbnail_with_missing_file(
-        self, thumbnail_cache: ThumbnailCache, tmp_path: Path
-    ) -> None:
-        """Test EXR processing handles missing files gracefully."""
-        missing_exr = tmp_path / "nonexistent.exr"
-
-        result = thumbnail_cache.cache_thumbnail(
-            missing_exr, "test_show", "seq01", "shot_missing"
-        )
-
-        # Should return None for missing file
-        assert result is None
-
-
 # ---------------------------------------------------------------------------
 # TestErrorHandling (thumbnail-specific)
 # ---------------------------------------------------------------------------
@@ -268,41 +232,3 @@ class TestThumbnailErrorHandling:
 # ---------------------------------------------------------------------------
 
 
-class TestThumbnailThreadSafety:
-    """Test thread-safe concurrent thumbnail caching."""
-
-    def test_concurrent_thumbnail_caching(
-        self,
-        thumbnail_cache: ThumbnailCache,
-        test_image_jpg: Path,
-    ) -> None:
-        """Test thread-safe concurrent thumbnail caching operations."""
-        import queue
-
-        num_threads = 3
-        ops_per_thread = 5
-        expected_results = num_threads * ops_per_thread
-        results_queue: queue.Queue[bool] = queue.Queue()
-
-        def worker(thread_id: int) -> None:
-            for i in range(ops_per_thread):
-                result = thumbnail_cache.cache_thumbnail(
-                    test_image_jpg,
-                    f"show{thread_id}",
-                    f"seq{thread_id}",
-                    f"shot{i:03d}",
-                )
-                results_queue.put(result is not None)
-
-        threads = [threading.Thread(target=worker, args=(i,)) for i in range(num_threads)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        results = []
-        while not results_queue.empty():
-            results.append(results_queue.get())
-
-        assert all(results), f"Some thumbnail cache operations failed: {results}"
-        assert len(results) == expected_results

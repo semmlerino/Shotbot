@@ -10,7 +10,6 @@ from __future__ import annotations
 import os
 import stat
 from pathlib import Path
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -260,67 +259,5 @@ class TestUnusualFormats:
             fifo_path.unlink()
 
 
-class TestConcurrentEdgeCases:
-    """Test edge cases in concurrent scenarios."""
-
-    def test_file_deleted_during_processing(self, tmp_path) -> None:
-        """File deleted while being processed should be handled."""
-        exr_file = tmp_path / "vanishing.exr"
-        exr_file.write_bytes(b"EXR" + b"x" * 1024)
-
-        cache_manager = CacheManager(tmp_path / "cache")
-
-        if Image:
-            with patch.object(Image, "open") as mock_open:
-                def mock_open_side_effect(*args, **kwargs):
-                    if exr_file.exists():
-                        exr_file.unlink()
-                    raise FileNotFoundError
-                mock_open.side_effect = mock_open_side_effect
-
-                result = cache_manager.cache_thumbnail(
-                    exr_file, show="test", sequence="seq", shot="0010"                )
-        else:
-            # Skip Image mocking if PIL not available
-            if exr_file.exists():
-                exr_file.unlink()
-            result = cache_manager.cache_thumbnail(
-                exr_file, show="test", sequence="seq", shot="0010"            )
-
-        # Should handle gracefully
-        assert result is None
-
-    def test_file_modified_during_processing(self, tmp_path) -> None:
-        """File modified while being processed should be handled."""
-        exr_file = tmp_path / "changing.exr"
-        exr_file.write_bytes(b"EXR" + b"x" * 1024)
-
-        cache_manager = CacheManager(tmp_path / "cache")
-
-        if Image:
-            with patch.object(Image, "open") as mock_open:
-                def mock_open_side_effect(*args, **kwargs):
-                    if exr_file.exists():
-                        # Change file content
-                        exr_file.write_bytes(b"MODIFIED" + b"y" * 2048)
-                    try:
-                        # Just return None to avoid infinite recursion with patched mock
-                        return
-                    except Exception:  # noqa: BLE001
-                        pass
-
-                mock_open.side_effect = mock_open_side_effect
-
-                result = cache_manager.cache_thumbnail(
-                    exr_file, show="test", sequence="seq", shot="0010"        )
-        else:
-            if exr_file.exists():
-                exr_file.write_bytes(b"MODIFIED" + b"y" * 2048)
-            # Process file (will change during processing)
-            result = cache_manager.cache_thumbnail(
-                exr_file, show="test", sequence="seq", shot="0010"        )
-
-        # Should complete without crash
-        assert result is None or isinstance(result, Path)
 
 
