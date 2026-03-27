@@ -19,11 +19,11 @@ from PySide6.QtGui import QImage, QPixmap
 
 from scrub.plate_frame_provider import PlateSource
 from scrub.scrub_preview_manager import ScrubPreviewManager, ScrubState
+from tests.fixtures.qt_fixtures import make_mock_index
 from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
-
     from PySide6.QtWidgets import QApplication
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
@@ -64,7 +64,9 @@ class TestScrubState:
         [
             pytest.param(0.0, 1001, id="start"),
             pytest.param(1.0, 1100, id="end"),
-            pytest.param(0.5, 1050, id="middle"),  # 0.5 * 99 = 49.5 → 49; 1001 + 49 = 1050
+            pytest.param(
+                0.5, 1050, id="middle"
+            ),  # 0.5 * 99 = 49.5 → 49; 1001 + 49 = 1050
         ],
     )
     def test_ratio_to_frame(self, ratio: float, expected_frame: int) -> None:
@@ -126,9 +128,7 @@ class TestGetScrubState:
         manager = ScrubPreviewManager()
 
         # Create a mock index
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
 
         result = manager.get_scrub_state(index)
         assert result is None
@@ -150,9 +150,7 @@ class TestGetScrubState:
         manager._scrub_states[5] = state
 
         # Create a mock index
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
 
         result = manager.get_scrub_state(index)
         assert result is state
@@ -165,7 +163,9 @@ class TestInactiveStateReturnsDefault:
         ("method_name", "expected"),
         [
             pytest.param("is_scrubbing", False, id="is_scrubbing_when_not_active"),
-            pytest.param("get_current_frame", None, id="get_current_frame_when_not_active"),
+            pytest.param(
+                "get_current_frame", None, id="get_current_frame_when_not_active"
+            ),
         ],
     )
     def test_returns_default_when_not_active(
@@ -184,9 +184,7 @@ class TestInactiveStateReturnsDefault:
         )
         manager._scrub_states[5] = state
 
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
 
         assert getattr(manager, method_name)(index) == expected
 
@@ -194,9 +192,7 @@ class TestInactiveStateReturnsDefault:
 class TestIsScrubbing:
     """Tests for is_scrubbing method."""
 
-    def test_is_scrubbing_true_when_active(
-        self, qapp: QApplication
-    ) -> None:
+    def test_is_scrubbing_true_when_active(self, qapp: QApplication) -> None:
         """Test is_scrubbing returns True when state is active."""
         manager = ScrubPreviewManager()
 
@@ -209,9 +205,7 @@ class TestIsScrubbing:
         )
         manager._scrub_states[5] = state
 
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
 
         assert manager.is_scrubbing(index)
 
@@ -235,9 +229,7 @@ class TestGetCurrentFrame:
         )
         manager._scrub_states[5] = state
 
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
 
         assert manager.get_current_frame(index) == 1050
 
@@ -262,9 +254,7 @@ class TestGetCurrentPixmap:
         state.current_pixmap = pixmap
         manager._scrub_states[5] = state
 
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
 
         result = manager.get_current_pixmap(index)
         assert result is pixmap
@@ -273,17 +263,13 @@ class TestGetCurrentPixmap:
 class TestEndScrub:
     """Tests for end_scrub method."""
 
-    def test_end_scrub_with_invalid_index(
-        self, qapp: QApplication
-    ) -> None:
+    def test_end_scrub_with_invalid_index(self, qapp: QApplication) -> None:
         """Test end_scrub handles invalid index gracefully."""
         manager = ScrubPreviewManager()
         # Should not raise
         manager.end_scrub(QModelIndex())
 
-    def test_end_scrub_clears_state(
-        self, qapp: QApplication
-    ) -> None:
+    def test_end_scrub_clears_state(self, qapp: QApplication) -> None:
         """Test end_scrub clears scrub state and emits scrub_ended and request_repaint."""
         manager = ScrubPreviewManager()
 
@@ -302,9 +288,7 @@ class TestEndScrub:
         manager.scrub_ended.connect(ended_signals.append)
         manager.request_repaint.connect(repaint_signals.append)
 
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
 
         manager._active_index = index
 
@@ -321,9 +305,7 @@ class TestEndScrub:
 class TestCleanup:
     """Tests for cleanup method."""
 
-    def test_cleanup_clears_all_states(
-        self, qapp: QApplication
-    ) -> None:
+    def test_cleanup_clears_all_states(self, qapp: QApplication) -> None:
         """Test cleanup clears all scrub states."""
         manager = ScrubPreviewManager()
 
@@ -339,7 +321,7 @@ class TestCleanup:
             manager._scrub_states[i] = state
             manager._key_to_row[f"test/shot{i}"] = i
 
-        manager._active_index = MagicMock(spec=QModelIndex)
+        manager._active_index = make_mock_index(row=0)
 
         manager.cleanup()
 
@@ -347,9 +329,7 @@ class TestCleanup:
         assert len(manager._key_to_row) == 0
         assert manager._active_index is None
 
-    def test_cleanup_clears_frame_provider_caches(
-        self, qapp: QApplication
-    ) -> None:
+    def test_cleanup_clears_frame_provider_caches(self, qapp: QApplication) -> None:
         """Test cleanup clears frame provider caches."""
         manager = ScrubPreviewManager()
 
@@ -365,9 +345,7 @@ class TestCleanup:
 class TestOnFrameReady:
     """Tests for _on_frame_ready handler."""
 
-    def test_on_frame_ready_updates_current_pixmap(
-        self, qapp: QApplication
-    ) -> None:
+    def test_on_frame_ready_updates_current_pixmap(self, qapp: QApplication) -> None:
         """Test _on_frame_ready updates current pixmap."""
         manager = ScrubPreviewManager()
 
@@ -382,7 +360,7 @@ class TestOnFrameReady:
         )
         manager._scrub_states[5] = state
         manager._key_to_row["test/shot"] = 5
-        manager._active_index = MagicMock(spec=QModelIndex)
+        manager._active_index = make_mock_index(row=5)
 
         # Call handler
         image = QImage(100, 100, QImage.Format.Format_ARGB32)
@@ -424,9 +402,7 @@ class TestOnFrameReady:
 class TestOnFrameFailed:
     """Tests for _on_frame_failed handler."""
 
-    def test_on_frame_failed_logs_error(
-        self, qapp: QApplication
-    ) -> None:
+    def test_on_frame_failed_logs_error(self, qapp: QApplication) -> None:
         """Test _on_frame_failed logs the error."""
         manager = ScrubPreviewManager()
 
@@ -440,7 +416,9 @@ class TestShotDataExtraction:
     @pytest.mark.parametrize(
         ("show", "sequence", "shot_name", "expected_key"),
         [
-            pytest.param("myshow", "sq010", "sh0010", "myshow/sq010/sh0010", id="shot_object"),
+            pytest.param(
+                "myshow", "sq010", "sh0010", "myshow/sq010/sh0010", id="shot_object"
+            ),
             pytest.param("show", "seq", "shot", "show/seq/shot", id="fallback_naming"),
         ],
     )
@@ -466,7 +444,11 @@ class TestShotDataExtraction:
     @pytest.mark.parametrize(
         ("workspace_path", "expected"),
         [
-            pytest.param("/shows/myshow/shots/sq010/sh0010", "/shows/myshow/shots/sq010/sh0010", id="with_path"),
+            pytest.param(
+                "/shows/myshow/shots/sq010/sh0010",
+                "/shows/myshow/shots/sq010/sh0010",
+                id="with_path",
+            ),
             pytest.param("", "", id="empty_path"),
         ],
     )
@@ -522,9 +504,7 @@ class TestUpdateScrubPosition:
         manager.update_scrub_position(QModelIndex(), 0.5)
 
         # Valid index with no registered state should also not raise
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
         manager.update_scrub_position(index, 0.5)
 
     def test_update_scrub_position_updates_current_frame(
@@ -551,9 +531,7 @@ class TestUpdateScrubPosition:
         )
         manager._scrub_states[5] = state
 
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
 
         manager.update_scrub_position(index, 0.5)
 
@@ -596,14 +574,10 @@ class TestUpdateScrubPosition:
 
         manager._frame_provider.extract_frame = mock_extract  # type: ignore[method-assign]
 
-        index = MagicMock(spec=QModelIndex)
-        index.isValid.return_value = True
-        index.row.return_value = 5
+        index = make_mock_index(row=5)
 
         # Update to same frame
         manager.update_scrub_position(index, 0.5)
 
         # Should not have called extract (same frame)
         assert len(extract_calls) == 0
-
-

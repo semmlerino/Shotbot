@@ -25,8 +25,10 @@ import logging
 import os
 import time as _time
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
+from PySide6.QtCore import Qt
 
 
 if TYPE_CHECKING:
@@ -66,15 +68,17 @@ _THREAD_WAIT_TIMEOUT_MS = int(os.environ.get("SHOTBOT_TEST_THREAD_WAIT_MS", "500
 
 # Thread name allowlist: Known harmless daemon threads that may persist
 # These are system/library threads outside our control, not application leaks
-_EXPECTED_THREAD_PREFIXES: frozenset[str] = frozenset({
-    "_GC_Monitor",       # Python garbage collector monitor (some builds)
-    "pytest_timeout",    # pytest-timeout watchdog thread
-    "QDBusConnection",   # Qt D-Bus integration thread
-    "PoolThread-",       # QThreadPool internal threads (expected to drain)
-    # Thread- daemon threads are allowed at the detection site, not here
-    "pydevd.",           # PyCharm/debugger threads
-    "Dummy-",            # Threading module dummy threads
-})
+_EXPECTED_THREAD_PREFIXES: frozenset[str] = frozenset(
+    {
+        "_GC_Monitor",  # Python garbage collector monitor (some builds)
+        "pytest_timeout",  # pytest-timeout watchdog thread
+        "QDBusConnection",  # Qt D-Bus integration thread
+        "PoolThread-",  # QThreadPool internal threads (expected to drain)
+        # Thread- daemon threads are allowed at the detection site, not here
+        "pydevd.",  # PyCharm/debugger threads
+        "Dummy-",  # Threading module dummy threads
+    }
+)
 
 # Session-level leak tracking (populated in CI/strict mode)
 # Collects leak info for summary at session end instead of per-test spam
@@ -120,7 +124,9 @@ def get_thread_leak_summary() -> str | None:
         lines.append(f"First 5 affected tests (of {len(_thread_leak_summary)}):")
         lines.extend(f"  - {leak['test']}" for leak in _thread_leak_summary[:5])
         lines.append("")
-        lines.append("Run with SHOTBOT_TEST_ALLOW_THREAD_LEAKS=1 to suppress thread leak failures.")
+        lines.append(
+            "Run with SHOTBOT_TEST_ALLOW_THREAD_LEAKS=1 to suppress thread leak failures."
+        )
 
     lines.append("=" * 70)
     lines.append("")
@@ -179,7 +185,9 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         for thread in threading.enumerate():
             if thread.name == "MainThread":
                 continue
-            if _is_expected_thread(thread.name) or (thread.name.startswith("Thread-") and thread.daemon):
+            if _is_expected_thread(thread.name) or (
+                thread.name.startswith("Thread-") and thread.daemon
+            ):
                 continue
             return True
         return False
@@ -207,7 +215,9 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         # Clear Qt caches to prevent memory accumulation
         QPixmapCache.clear()
     except (RuntimeError, SystemError) as e:
-        _logger.warning("Qt cleanup before-test exception (check for orphaned Qt objects): %s", e)
+        _logger.warning(
+            "Qt cleanup before-test exception (check for orphaned Qt objects): %s", e
+        )
         if STRICT_CLEANUP:
             raise
 
@@ -221,7 +231,9 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         # Cancel pending runnables from queue (if supported - some Qt builds may lack clear())
         if hasattr(pool, "clear"):
             pool.clear()
-        pool.waitForDone(_THREAD_WAIT_TIMEOUT_MS)  # Configurable via SHOTBOT_TEST_THREAD_WAIT_MS
+        pool.waitForDone(
+            _THREAD_WAIT_TIMEOUT_MS
+        )  # Configurable via SHOTBOT_TEST_THREAD_WAIT_MS
 
         # Backoff loop if still active - handles slow thread shutdowns
         if pool.activeThreadCount() > 0:
@@ -239,7 +251,10 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
     if _has_unexpected_python_threads():
         start_time = _REAL_MONOTONIC()
         timeout = 0.5
-        while _has_unexpected_python_threads() and (_REAL_MONOTONIC() - start_time) < timeout:
+        while (
+            _has_unexpected_python_threads()
+            and (_REAL_MONOTONIC() - start_time) < timeout
+        ):
             _REAL_SLEEP(0.01)
 
     # Wrap event processing in try-except to prevent crashes from leaked objects
@@ -254,7 +269,9 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         # Clear Qt caches again after test
         QPixmapCache.clear()
     except (RuntimeError, SystemError) as e:
-        _logger.warning("Qt cleanup after-test exception (check for orphaned Qt objects): %s", e)
+        _logger.warning(
+            "Qt cleanup after-test exception (check for orphaned Qt objects): %s", e
+        )
         if STRICT_CLEANUP:
             raise
 
@@ -266,7 +283,9 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
 
         # Track if any leaks detected
         pool_leaked = final_pool_threads > baseline_pool_threads
-        python_leaked = final_python_threads > baseline_python_threads + _THREAD_TOLERANCE
+        python_leaked = (
+            final_python_threads > baseline_python_threads + _THREAD_TOLERANCE
+        )
 
         # Collect surviving thread info for analysis
         all_surviving: list[str] = []
@@ -289,13 +308,15 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
             # Expected daemon threads (pytest_timeout, etc.) are not leaks
             if unexpected_threads:
                 # Collect leak info for session-end summary (no per-test spam)
-                _thread_leak_summary.append({
-                    "test": request.node.nodeid,
-                    "pool": (baseline_pool_threads, final_pool_threads),
-                    "python": (baseline_python_threads, final_python_threads),
-                    "threads": unexpected_threads,
-                    "all_threads": all_surviving,  # Full list for debugging
-                })
+                _thread_leak_summary.append(
+                    {
+                        "test": request.node.nodeid,
+                        "pool": (baseline_pool_threads, final_pool_threads),
+                        "python": (baseline_python_threads, final_python_threads),
+                        "threads": unexpected_threads,
+                        "all_threads": all_surviving,  # Full list for debugging
+                    }
+                )
 
         # FAIL_ON_THREAD_LEAK: Make tests fail immediately (enabled by default)
         # Only fail if there are UNEXPECTED threads (not just daemon count increase)
@@ -395,7 +416,9 @@ class DialogRecorder:
         else:
             matching = [c for c in self.calls if c["method"] == method]
 
-        assert matching, f"No {method or 'any'} dialog was shown. Recorded: {self.calls}"
+        assert matching, (
+            f"No {method or 'any'} dialog was shown. Recorded: {self.calls}"
+        )
 
         if text_contains:
             found = any(text_contains in str(c["args"]) for c in matching)
@@ -473,22 +496,30 @@ def suppress_qmessagebox(
 
     def _record_and_ok(method_name: str):
         def wrapper(*args, **kwargs):
-            recorder.calls.append({"method": method_name, "args": args, "kwargs": kwargs})
+            recorder.calls.append(
+                {"method": method_name, "args": args, "kwargs": kwargs}
+            )
             return recorder.get_return_value(method_name, QMessageBox.StandardButton.Ok)
 
         return wrapper
 
     def _record_and_yes(method_name: str):
         def wrapper(*args, **kwargs):
-            recorder.calls.append({"method": method_name, "args": args, "kwargs": kwargs})
-            return recorder.get_return_value(method_name, QMessageBox.StandardButton.Yes)
+            recorder.calls.append(
+                {"method": method_name, "args": args, "kwargs": kwargs}
+            )
+            return recorder.get_return_value(
+                method_name, QMessageBox.StandardButton.Yes
+            )
 
         return wrapper
 
     # Static method patches
     for name in ("information", "warning", "critical"):
         monkeypatch.setattr(QMessageBox, name, _record_and_ok(name), raising=True)
-    monkeypatch.setattr(QMessageBox, "question", _record_and_yes("question"), raising=True)
+    monkeypatch.setattr(
+        QMessageBox, "question", _record_and_yes("question"), raising=True
+    )
 
     # Instance-style dialog patches (catch .exec() and .open() usage)
     monkeypatch.setattr(QMessageBox, "exec", _record_and_ok("exec"), raising=True)
@@ -595,7 +626,9 @@ def expect_dialog(suppress_qmessagebox: DialogRecorder):
 
     """
     yield suppress_qmessagebox
-    assert suppress_qmessagebox.calls, "Expected at least one dialog but none were shown"
+    assert suppress_qmessagebox.calls, (
+        "Expected at least one dialog but none were shown"
+    )
 
 
 @pytest.fixture
@@ -608,3 +641,67 @@ def expect_no_dialogs(suppress_qmessagebox: DialogRecorder) -> Iterator[DialogRe
     """
     yield suppress_qmessagebox
     suppress_qmessagebox.assert_not_shown()
+
+
+# ==============================================================================
+# QT MOCK FACTORIES
+# ==============================================================================
+# Reusable factories for common Qt mock objects used across test files.
+
+
+def make_mock_index(
+    row: int = 0,
+    column: int = 0,
+    data: Any = None,
+    is_valid: bool = True,
+) -> MagicMock:
+    """Factory for QModelIndex mocks with common defaults.
+
+    Args:
+        row: Row value for the index
+        column: Column value for the index
+        data: Return value for index.data() calls
+        is_valid: Whether the index reports as valid
+
+    Returns:
+        Configured MagicMock with QModelIndex spec
+    """
+    from PySide6.QtCore import QModelIndex
+
+    index = MagicMock(spec=QModelIndex)
+    index.row.return_value = row
+    index.column.return_value = column
+    index.isValid.return_value = is_valid
+    if data is not None:
+        index.data.return_value = data
+    return index
+
+
+def make_mock_wheel_event(
+    delta: int = 120,
+    modifiers: Qt.KeyboardModifier | None = None,
+) -> MagicMock:
+    """Factory for QWheelEvent mocks.
+
+    Args:
+        delta: Scroll delta (positive = up, negative = down). Default 120 = one notch up.
+        modifiers: Keyboard modifiers (e.g. ControlModifier for Ctrl+scroll).
+            Defaults to NoModifier.
+
+    Returns:
+        Configured MagicMock with QWheelEvent spec configured for angleDelta().y()
+    """
+    from PySide6.QtGui import QWheelEvent
+
+    if modifiers is None:
+        modifiers = Qt.KeyboardModifier.NoModifier
+
+    event = MagicMock(spec=QWheelEvent)
+
+    # Configure angleDelta to return a mock QPoint that supports .y() method
+    angle_delta_point = MagicMock()
+    angle_delta_point.y.return_value = delta
+    event.angleDelta.return_value = angle_delta_point
+
+    event.modifiers.return_value = modifiers
+    return event

@@ -28,11 +28,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from PySide6.QtCore import QModelIndex, QSize, Qt
-from PySide6.QtGui import QWheelEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QWidget
 
 from config import Config
+from tests.fixtures.qt_fixtures import make_mock_wheel_event
 from tests.test_helpers import process_qt_events
 from ui.base_grid_view import BaseGridView, HasAvailableShows
 from ui.base_thumbnail_delegate import BaseThumbnailDelegate, DelegateTheme
@@ -160,51 +160,81 @@ def cleanup_qt_state(qtbot: QtBot):
 class TestBaseGridViewInitialization:
     """Test BaseGridView initialization and UI setup."""
 
-    def test_initialization_creates_all_ui_components(self, grid_view: ConcreteGridView) -> None:
+    def test_initialization_creates_all_ui_components(
+        self, grid_view: ConcreteGridView
+    ) -> None:
         """Test that initialization creates all expected UI components with correct configuration."""
         from PySide6.QtWidgets import QListView
 
         # size_slider
         assert hasattr(grid_view, "size_slider"), "size_slider attribute missing"
         assert grid_view.size_slider is not None, "size_slider is None"
-        assert grid_view.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE, "size_slider minimum incorrect"
-        assert grid_view.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE, "size_slider maximum incorrect"
-        assert grid_view.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE, "size_slider default value incorrect"
+        assert grid_view.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE, (
+            "size_slider minimum incorrect"
+        )
+        assert grid_view.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE, (
+            "size_slider maximum incorrect"
+        )
+        assert grid_view.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE, (
+            "size_slider default value incorrect"
+        )
 
         # size_label
         assert hasattr(grid_view, "size_label"), "size_label attribute missing"
         assert grid_view.size_label is not None, "size_label is None"
-        assert grid_view.size_label.text() == f"{Config.DEFAULT_THUMBNAIL_SIZE}px", "size_label text incorrect"
+        assert grid_view.size_label.text() == f"{Config.DEFAULT_THUMBNAIL_SIZE}px", (
+            "size_label text incorrect"
+        )
 
         # show_combo
         assert hasattr(grid_view, "show_combo"), "show_combo attribute missing"
         assert grid_view.show_combo is not None, "show_combo is None"
-        assert grid_view.show_combo.count() == 1, "show_combo should have one item ('All Shows') by default"
-        assert grid_view.show_combo.currentText() == "All Shows", "show_combo default text incorrect"
+        assert grid_view.show_combo.count() == 1, (
+            "show_combo should have one item ('All Shows') by default"
+        )
+        assert grid_view.show_combo.currentText() == "All Shows", (
+            "show_combo default text incorrect"
+        )
 
         # text_filter_input
-        assert hasattr(grid_view, "text_filter_input"), "text_filter_input attribute missing"
+        assert hasattr(grid_view, "text_filter_input"), (
+            "text_filter_input attribute missing"
+        )
         assert grid_view.text_filter_input is not None, "text_filter_input is None"
-        assert grid_view.text_filter_input.placeholderText() == "Filter...", "text_filter_input placeholder incorrect"
-        assert grid_view.text_filter_input.isClearButtonEnabled(), "text_filter_input clear button not enabled"
+        assert grid_view.text_filter_input.placeholderText() == "Filter...", (
+            "text_filter_input placeholder incorrect"
+        )
+        assert grid_view.text_filter_input.isClearButtonEnabled(), (
+            "text_filter_input clear button not enabled"
+        )
 
         # list_view
         assert hasattr(grid_view, "list_view"), "list_view attribute missing"
         assert grid_view.list_view is not None, "list_view is None"
-        assert grid_view.list_view.viewMode() == QListView.ViewMode.IconMode, "list_view not in IconMode"
+        assert grid_view.list_view.viewMode() == QListView.ViewMode.IconMode, (
+            "list_view not in IconMode"
+        )
 
         # delegate
         assert hasattr(grid_view, "_delegate"), "_delegate attribute missing"
         assert grid_view._delegate is not None, "_delegate is None"
-        assert isinstance(grid_view._delegate, MockDelegate), "_delegate is not a MockDelegate"
+        assert isinstance(grid_view._delegate, MockDelegate), (
+            "_delegate is not a MockDelegate"
+        )
 
         # template methods
-        assert grid_view.toolbar_widget_added is True, "_add_toolbar_widgets() was not called"
+        assert grid_view.toolbar_widget_added is True, (
+            "_add_toolbar_widgets() was not called"
+        )
         assert grid_view.top_widget_added is True, "_add_top_widgets() was not called"
 
         # focus policy
-        assert grid_view.focusPolicy() == Qt.FocusPolicy.StrongFocus, "grid_view focus policy incorrect"
-        assert grid_view.list_view.focusPolicy() == Qt.FocusPolicy.StrongFocus, "list_view focus policy incorrect"
+        assert grid_view.focusPolicy() == Qt.FocusPolicy.StrongFocus, (
+            "grid_view focus policy incorrect"
+        )
+        assert grid_view.list_view.focusPolicy() == Qt.FocusPolicy.StrongFocus, (
+            "list_view focus policy incorrect"
+        )
 
     def test_thumbnail_size_property(self, grid_view: ConcreteGridView) -> None:
         """Test thumbnail_size property returns current size."""
@@ -375,9 +405,9 @@ class TestWheelEvent:
         initial_size = grid_view.thumbnail_size
 
         # Create wheel event with Ctrl modifier and positive delta
-        wheel_event = MagicMock(spec=QWheelEvent)
-        wheel_event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
-        wheel_event.angleDelta.return_value.y.return_value = 120  # Positive = up
+        wheel_event = make_mock_wheel_event(
+            delta=120, modifiers=Qt.KeyboardModifier.ControlModifier
+        )
 
         grid_view.wheelEvent(wheel_event)
         process_qt_events()
@@ -397,9 +427,9 @@ class TestWheelEvent:
 
         initial_size = grid_view.thumbnail_size
 
-        wheel_event = MagicMock(spec=QWheelEvent)
-        wheel_event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
-        wheel_event.angleDelta.return_value.y.return_value = -120  # Negative = down
+        wheel_event = make_mock_wheel_event(
+            delta=-120, modifiers=Qt.KeyboardModifier.ControlModifier
+        )
 
         grid_view.wheelEvent(wheel_event)
         process_qt_events()
@@ -413,9 +443,7 @@ class TestWheelEvent:
         """Test that wheel without Ctrl passes to parent."""
         initial_size = grid_view.thumbnail_size
 
-        wheel_event = MagicMock(spec=QWheelEvent)
-        wheel_event.modifiers.return_value = Qt.KeyboardModifier.NoModifier
-        wheel_event.angleDelta.return_value.y.return_value = 120
+        wheel_event = make_mock_wheel_event(delta=120)
 
         with patch.object(QWidget, "wheelEvent") as mock_super:
             grid_view.wheelEvent(wheel_event)
@@ -432,9 +460,9 @@ class TestWheelEvent:
         grid_view.size_slider.setValue(Config.MIN_THUMBNAIL_SIZE)
         process_qt_events()
 
-        wheel_event = MagicMock(spec=QWheelEvent)
-        wheel_event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
-        wheel_event.angleDelta.return_value.y.return_value = -120  # Try to go below min
+        wheel_event = make_mock_wheel_event(
+            delta=-120, modifiers=Qt.KeyboardModifier.ControlModifier
+        )
 
         grid_view.wheelEvent(wheel_event)
         process_qt_events()
@@ -448,9 +476,9 @@ class TestWheelEvent:
         grid_view.size_slider.setValue(Config.MAX_THUMBNAIL_SIZE)
         process_qt_events()
 
-        wheel_event = MagicMock(spec=QWheelEvent)
-        wheel_event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
-        wheel_event.angleDelta.return_value.y.return_value = 120  # Try to go above max
+        wheel_event = make_mock_wheel_event(
+            delta=120, modifiers=Qt.KeyboardModifier.ControlModifier
+        )
 
         grid_view.wheelEvent(wheel_event)
         process_qt_events()
@@ -571,7 +599,13 @@ class TestListViewConfiguration:
             ("spacing", Config.THUMBNAIL_SPACING),
             ("selectionMode", "QAbstractItemView.SelectionMode.SingleSelection"),
         ],
-        ids=["IconMode", "ResizeMode", "UniformItemSizes", "Spacing", "SingleSelection"],
+        ids=[
+            "IconMode",
+            "ResizeMode",
+            "UniformItemSizes",
+            "Spacing",
+            "SingleSelection",
+        ],
     )
     def test_list_view_property(
         self, grid_view: ConcreteGridView, method_name: str, expected: object
@@ -593,12 +627,14 @@ class TestListViewConfiguration:
     def test_list_view_batched_layout(self, grid_view: ConcreteGridView) -> None:
         """Test list view uses batched layout for performance."""
         from PySide6.QtWidgets import QListView
+
         assert grid_view.list_view.layoutMode() == QListView.LayoutMode.Batched
         assert grid_view.list_view.batchSize() == 20
 
     def test_list_view_pixel_scrolling(self, grid_view: ConcreteGridView) -> None:
         """Test list view uses pixel-based scrolling."""
         from PySide6.QtWidgets import QAbstractItemView
+
         assert (
             grid_view.list_view.verticalScrollMode()
             == QAbstractItemView.ScrollMode.ScrollPerPixel
@@ -687,4 +723,3 @@ class TestHasAvailableShowsProtocol:
 
         result = accepts_protocol(provider)
         assert result == {"Show1", "Show2"}
-
