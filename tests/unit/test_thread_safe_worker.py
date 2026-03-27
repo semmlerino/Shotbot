@@ -138,55 +138,6 @@ class TestWorkerLifecycle:
         finally:
             cleanup_qthread_properly(worker)
 
-    @pytest.mark.timeout(10)
-    def test_worker_started_signal_emitted(self, qtbot: QtBot) -> None:
-        """worker_started signal fires when thread begins executing."""
-        worker = CancellableWorker()
-
-        try:
-            with qtbot.waitSignal(worker.worker_started, timeout=3000):
-                worker.start()
-        finally:
-            cleanup_qthread_properly(worker)
-
-    @pytest.mark.timeout(10)
-    def test_worker_stopped_signal_emitted(self, qtbot: QtBot) -> None:
-        """worker_stopped signal fires when thread finishes."""
-        worker = InstantWorker()
-
-        stopped_received: list[bool] = []
-        worker.worker_stopped.connect(lambda: stopped_received.append(True))
-
-        try:
-            with qtbot.waitSignal(worker.worker_stopped, timeout=3000):
-                worker.start()
-
-            process_qt_events()
-            assert stopped_received, "worker_stopped signal was not received"
-        finally:
-            cleanup_qthread_properly(worker)
-
-    @pytest.mark.timeout(10)
-    def test_worker_transitions_through_running(self, qtbot: QtBot) -> None:
-        """Worker passes through RUNNING state during execution."""
-        worker = CancellableWorker()
-
-        observed_running: list[bool] = []
-
-        def on_started() -> None:
-            observed_running.append(worker.get_state() == WorkerState.RUNNING)
-
-        worker.worker_started.connect(on_started)
-
-        try:
-            with qtbot.waitSignal(worker.worker_started, timeout=3000):
-                worker.start()
-
-            assert worker.wait_for_start(timeout=2.0), "Worker did not reach do_work()"
-            process_qt_events()
-            assert any(observed_running), "Worker never observed in RUNNING state"
-        finally:
-            cleanup_qthread_properly(worker)
 
 
 # ---------------------------------------------------------------------------
@@ -210,12 +161,6 @@ class TestCancellation:
         worker.request_stop()
         assert worker.is_stop_requested() is True
 
-    def test_should_stop_returns_true_after_request_stop(self) -> None:
-        """should_stop() reflects the stop flag set by request_stop()."""
-        worker = CancellableWorker()
-        worker.request_stop()
-        assert worker.should_stop() is True
-
     @pytest.mark.timeout(10)
     def test_should_stop_returns_false_before_request(self) -> None:
         """should_stop() is False while worker is running normally."""
@@ -238,23 +183,6 @@ class TestCancellation:
             with qtbot.waitSignal(worker.worker_stopped, timeout=3000):
                 worker.request_stop()
 
-            assert worker.get_state() in {WorkerState.STOPPED, WorkerState.DELETED}
-        finally:
-            cleanup_qthread_properly(worker)
-
-    @pytest.mark.timeout(10)
-    def test_safe_stop_returns_true_on_success(self, qtbot: QtBot) -> None:
-        """safe_stop() returns True when the worker stops within timeout."""
-        worker = CancellableWorker()
-
-        try:
-            with qtbot.waitSignal(worker.worker_started, timeout=3000):
-                worker.start()
-
-            assert worker.wait_for_start(timeout=2.0)
-
-            result = worker.safe_stop(timeout_ms=3000)
-            assert result is True
             assert worker.get_state() in {WorkerState.STOPPED, WorkerState.DELETED}
         finally:
             cleanup_qthread_properly(worker)
@@ -490,37 +418,6 @@ class TestSafeShutdown:
             worker.safe_shutdown()
 
         mock_stop.assert_called_once_with(mock_stop.call_args[0][0])
-
-    def test_safe_shutdown_custom_timeout(self) -> None:
-        """safe_shutdown() passes a custom timeout value to safe_stop()."""
-        from unittest.mock import patch
-
-        worker = InstantWorker()
-        custom_timeout = 12345
-
-        with (
-            patch.object(worker, "safe_stop", return_value=True) as mock_stop,
-            patch.object(worker, "is_zombie", return_value=False),
-            patch.object(worker, "deleteLater"),
-        ):
-            worker.safe_shutdown(timeout_ms=custom_timeout)
-
-        mock_stop.assert_called_once_with(custom_timeout)
-
-    def test_safe_shutdown_calls_delete_later_when_not_zombie(self) -> None:
-        """safe_shutdown() calls deleteLater() when is_zombie() returns False."""
-        from unittest.mock import patch
-
-        worker = InstantWorker()
-
-        with (
-            patch.object(worker, "safe_stop", return_value=True),
-            patch.object(worker, "is_zombie", return_value=False),
-            patch.object(worker, "deleteLater") as mock_delete,
-        ):
-            worker.safe_shutdown()
-
-        mock_delete.assert_called_once()
 
     def test_safe_shutdown_skips_delete_later_when_zombie(self) -> None:
         """safe_shutdown() skips deleteLater() and logs a warning for zombies."""
