@@ -17,6 +17,7 @@ from config import (
 )
 from discovery.file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
+from paths import build_workspace_path
 from paths.validators import PathValidators
 from utils import FileUtils, find_path_case_insensitive, get_current_username
 from version_utils import VersionUtils
@@ -142,18 +143,6 @@ def _find_first_jpeg_in_version_tree(
     return None
 
 
-def _shot_path(
-    shows_root: str,
-    show: str,
-    sequence: str,
-    shot: str,
-    *suffix: str,
-) -> Path:
-    """Build a path rooted at the shot directory, with optional suffix components."""
-    shot_dir = f"{sequence}_{shot}"
-    return Path(shows_root, show, "shots", sequence, shot_dir, *suffix)
-
-
 def find_turnover_plate_thumbnail(
     shows_root: str,
     show: str,
@@ -181,7 +170,7 @@ def find_turnover_plate_thumbnail(
 
     """
     # Build candidate paths in preference order: with input_plate first, then without
-    turnover_plate_base = _shot_path(
+    turnover_plate_base = build_workspace_path(
         shows_root, show, sequence, shot, "publish", "turnover", "plate",
     )
     candidates = [
@@ -270,7 +259,7 @@ def find_any_publish_thumbnail(
 
     """
     # Build path to publish directory
-    publish_path = _shot_path(shows_root, show, sequence, shot, "publish")
+    publish_path = build_workspace_path(shows_root, show, sequence, shot, "publish")
 
     # Check if publish directory exists
     if not publish_path.exists():
@@ -329,7 +318,7 @@ def find_undistorted_jpeg_thumbnail(
 
     """
     # Build base path to mm/default directory
-    mm_default_path = _shot_path(
+    mm_default_path = build_workspace_path(
         shows_root, show, sequence, shot, "publish", "mm", "default",
     )
 
@@ -442,7 +431,7 @@ def find_user_workspace_jpeg_thumbnail(
         Path to first JPEG found in any user workspace, or None
 
     """
-    user_dir = _shot_path(shows_root, show, sequence, shot, "user")
+    user_dir = build_workspace_path(shows_root, show, sequence, shot, "user")
     if not PathValidators.validate_path_exists(user_dir, "User directory"):
         return None
 
@@ -517,7 +506,7 @@ def find_shot_thumbnail(
         Path to first JPEG file from latest editorial cutref version, or None if not found
 
     """
-    editorial_base = _shot_path(
+    editorial_base = build_workspace_path(
         shows_root, show, sequence, shot, "publish", "editorial", "cutref",
     )
 
@@ -542,4 +531,3 @@ def find_shot_thumbnail(
 
     logger.debug(f"No thumbnails found for {show}/{sequence}/{shot}")
     return None
-

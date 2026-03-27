@@ -184,21 +184,11 @@ class UserSequenceFinder:
             ImageSequence for the latest version, or None if not found
 
         """
-        # Find version directories (v001, v002, etc.)
-        version_dirs: list[tuple[Path, int]] = []
-        try:
-            for d in type_dir.iterdir():
-                if d.is_dir() and VersionUtils.is_version_directory(d.name):
-                    version_dirs.append((d, VersionUtils.version_number_from_name(d.name)))  # noqa: PERF401
-        except OSError:
+        # Find latest version directory (v001, v002, etc.)
+        latest_dir = VersionUtils.get_latest_version_path(type_dir)
+        if latest_dir is None:
             return None
-
-        if not version_dirs:
-            return None
-
-        # Sort by version number descending to get latest
-        version_dirs.sort(key=lambda x: x[1], reverse=True)
-        latest_dir, latest_version = version_dirs[0]
+        latest_version = VersionUtils.version_number_from_name(latest_dir.name)
 
         # Find sequence files
         try:

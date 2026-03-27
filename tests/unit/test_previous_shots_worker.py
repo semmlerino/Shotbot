@@ -204,7 +204,7 @@ class TestPreviousShotsWorkerWorkflow:
         # The Qt event loop in waitSignal crashes after ~2100 tests due to state accumulation
         # NOTE: QSignalSpy uses direct C++ connections, so it doesn't need event loop
         # Python callbacks DO need event loop - avoid them in this test
-        error_spy = QSignalSpy(worker.error_occurred)
+        error_spy = QSignalSpy(worker.worker_error)
         finished_spy = QSignalSpy(worker.scan_finished)
 
         # Start worker
@@ -348,7 +348,7 @@ class TestPreviousShotsWorkerWorkflow:
         """Test error handling when finder raises unexpected exception."""
         worker = worker_with_cleanup
 
-        error_spy = QSignalSpy(worker.error_occurred)
+        error_spy = QSignalSpy(worker.worker_error)
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses subprocess.run for testing
@@ -376,10 +376,9 @@ class TestPreviousShotsWorkerWorkflow:
         QCoreApplication.processEvents()
         QCoreApplication.processEvents()  # Second pass to handle deferred deletions
 
-        # Should emit error signal
+        # Should emit error signal (base class emits worker_error with str(e))
         assert error_spy.count() == 1
         error_message = error_spy.at(0)[0]
-        assert "Error during previous shots scan" in error_message
         assert "Critical finder error" in error_message
 
         # Should not emit scan_finished on error

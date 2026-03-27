@@ -687,7 +687,7 @@ class FakePreviousShotsWorker(QObject):
     started = Signal()
     scan_progress = Signal(int, int, str)
     scan_finished = Signal(object)
-    error_occurred = Signal(str)
+    worker_error = Signal(str)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -744,6 +744,15 @@ class FakePreviousShotsWorker(QObject):
     def should_stop(self) -> bool:
         """Check if stop was requested."""
         return self.should_stop_flag
+
+    def is_zombie(self) -> bool:
+        """Test double: never a zombie."""
+        return False
+
+    def safe_shutdown(self, timeout_ms: int = 2000) -> None:
+        """Test double: simulate safe shutdown."""
+        self.stop()
+        self.deleteLater()
 
 
 def create_test_shot(show: str = "test", seq: str = "seq01", shot: str = "0010", path: str | None = None) -> Any:

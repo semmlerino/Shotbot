@@ -658,36 +658,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # 3. Session warmer thread
         if self._session_warmer is not None:
             warmer = self._session_warmer
-            if not warmer.isFinished():
-                self.logger.debug("Requesting session warmer to stop")
-                _ = warmer.request_stop()
-
-                import sys
-
-                is_test_environment = "pytest" in sys.modules
-                session_timeout_ms = (
-                    200 if is_test_environment else TimeoutConfig.SESSION_WARMER_STOP_MS
-                )
-
-                if not warmer.wait(session_timeout_ms):
-                    self.logger.warning(
-                        f"Session warmer didn't finish gracefully within {session_timeout_ms}ms, using safe termination"
-                    )
-                    warmer.safe_terminate()
-
-                    final_timeout_ms = 100 if is_test_environment else 1000
-                    if not warmer.wait(final_timeout_ms):
-                        self.logger.warning(
-                            "Session warmer thread abandoned - will be cleaned on exit"
-                        )
-
-            if warmer.is_zombie():
-                self.logger.warning(
-                    "Session warmer thread is a zombie and will not be deleted"
-                )
-            else:
-                warmer.deleteLater()
-
+            warmer.safe_shutdown(TimeoutConfig.SESSION_WARMER_STOP_MS)
             self._session_warmer = None
 
         # 4. Managers

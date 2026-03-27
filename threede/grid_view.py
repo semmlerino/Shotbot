@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QMenu,
     QProgressBar,
@@ -511,35 +510,13 @@ class ThreeDEGridView(BaseGridView):
             if self._notes_manager
             else False
         )
-        note_label = "Edit Note" if has_note else "Add Note"
-        self._build_standard_actions(
+        display_name = f"{scene.sequence}_{scene.shot}"
+        self._build_shot_standard_actions(
             menu,
-            [
-                (
-                    "Open Shot Folder",
-                    "folder",
-                    "#FFB347",
-                    lambda: self._open_shot_folder(scene),
-                ),
-                (
-                    "Open Main Plate in RV",
-                    "play",
-                    "#FF4757",
-                    lambda: self._open_main_plate_in_rv(scene),
-                ),
-                (
-                    "Copy Shot Path",
-                    "clipboard",
-                    "#95A5A6",
-                    lambda: self._copy_path_to_clipboard(scene.workspace_path),
-                ),
-                (
-                    note_label,
-                    "note",
-                    "#F1C40F",
-                    lambda s=scene: self._edit_scene_note(s),
-                ),
-            ],
+            scene.workspace_path,
+            display_name,
+            has_note,
+            item_for_rv=scene,
         )
 
         _ = menu.exec(self.list_view.mapToGlobal(pos))
@@ -577,26 +554,6 @@ class ThreeDEGridView(BaseGridView):
         clipboard.setText(str(scene.scene_path))
         self.logger.info(f"Copied path to clipboard: {scene.scene_path}")
 
-    def _open_shot_folder(self, scene: ThreeDEScene) -> None:
-        """Open the shot's workspace folder in system file manager.
-
-        Args:
-            scene: Scene object containing workspace path
-
-        """
-        workspace_path = scene.workspace_path
-        if not workspace_path:
-            self.logger.error(f"No workspace path for scene: {scene.scene_path}")
-            return
-
-        if not Path(workspace_path).exists():
-            self.logger.error(f"Workspace path does not exist: {workspace_path}")
-            return
-
-        worker = FolderOpenerWorker(workspace_path)
-        QThreadPool.globalInstance().start(worker)
-        self.logger.info(f"Opening folder: {workspace_path}")
-
     def _pin_scene(self, scene: ThreeDEScene) -> None:
         """Pin a scene (by workspace path).
 
@@ -618,29 +575,6 @@ class ThreeDEGridView(BaseGridView):
         if self._pin_manager:
             self._pin_manager.unpin_by_path(scene.workspace_path)
             self.logger.debug(f"Unpinned scene: {scene.workspace_path}")
-
-    def _edit_scene_note(self, scene: ThreeDEScene) -> None:
-        """Open dialog to edit note for scene.
-
-        Args:
-            scene: Scene to edit note for
-
-        """
-        if not self._notes_manager:
-            return
-
-        # Use workspace_path as the key for notes
-        current_note = self._notes_manager.get_note_by_path(scene.workspace_path)
-        shot_name = f"{scene.sequence}_{scene.shot}"
-        new_note, ok = QInputDialog.getMultiLineText(
-            self,
-            f"Note for {shot_name}",
-            "Note:",
-            current_note,
-        )
-        if ok:
-            self._notes_manager.set_note_by_path(scene.workspace_path, new_note)
-            self.logger.debug(f"Note updated for scene: {shot_name}")
 
     def _setup_return_shortcut(self) -> None:
         """Set up Return/Enter QAction for scene launch."""

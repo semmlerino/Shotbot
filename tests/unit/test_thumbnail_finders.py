@@ -11,13 +11,13 @@ from discovery.thumbnail_finders import (
     _extract_frame_number,
     _find_editorial_cutref_thumbnail,
     _find_first_jpeg_in_version_tree,
-    _shot_path,
     find_any_publish_thumbnail,
     find_shot_thumbnail,
     find_turnover_plate_thumbnail,
     find_undistorted_jpeg_thumbnail,
     find_user_workspace_jpeg_thumbnail,
 )
+from paths import build_workspace_path
 from utils import get_current_username
 
 
@@ -174,30 +174,30 @@ class TestFindFirstJpegInVersionTree:
 
 
 # ==============================================================================
-# _shot_path
+# build_workspace_path (formerly _shot_path, now in paths module)
 # ==============================================================================
 
 
 class TestShotPath:
-    """Tests for _shot_path."""
+    """Tests for build_workspace_path (was _shot_path)."""
 
     def test_builds_correct_path(self) -> None:
         """Constructs the standard VFX shot directory path with correct structure."""
-        result = _shot_path("/shows", "myshow", "ABC", "1234")
+        result = build_workspace_path("/shows", "myshow", "ABC", "1234")
         assert result == Path("/shows/myshow/shots/ABC/ABC_1234")
         assert result.name == "ABC_1234"
         assert "ABC" in result.parts
 
     def test_builds_path_with_suffix(self) -> None:
         """Appends optional suffix segments correctly."""
-        result = _shot_path(
+        result = build_workspace_path(
             "/shows", "demo", "seq01", "0010", "publish"
         )
         assert result == Path("/shows/demo/shots/seq01/seq01_0010/publish")
 
     def test_builds_path_with_multiple_suffix_parts(self) -> None:
         """Appends multiple suffix components."""
-        result = _shot_path(
+        result = build_workspace_path(
             "/shows", "demo", "seq01", "0010", "publish", "editorial", "cutref"
         )
         assert result == Path(

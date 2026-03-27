@@ -8,14 +8,14 @@ This module provides NotesManager which handles:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QTimer
 
 from cache import atomic_json_write
 from logging_mixin import LoggingMixin
+from managers._json_helpers import load_validated_json
 from managers._shot_key import key_from_workspace_path, shot_key
 
 
@@ -68,38 +68,20 @@ class NotesManager(LoggingMixin, QObject):
         """Load notes from cache."""
         cache_file = self._cache_dir / f"{SHOT_NOTES_CACHE_KEY}.json"
 
-        if not cache_file.exists():
-            self._notes_by_key = {}
-            return
+        data = load_validated_json(cache_file, dict, {}, self.logger)
 
-        try:
-            with cache_file.open() as f:
-                raw_data: object = json.load(f)  # pyright: ignore[reportAny] - json.load returns Any
+        # Parse keys from "show|sequence|shot" format
+        self._notes_by_key = {}
+        for key_str, note_text in data.items():
+            if not isinstance(note_text, str):
+                continue
+            parts = key_str.split("|")
+            if len(parts) == 3:
+                key = (parts[0], parts[1], parts[2])
+                if note_text.strip():  # Only store non-empty notes
+                    self._notes_by_key[key] = note_text
 
-            if not isinstance(raw_data, dict):
-                self.logger.warning(f"Invalid notes cache format: {type(raw_data)}")
-                self._notes_by_key = {}
-                return
-
-            # Cast to expected type for iteration
-            data = cast("dict[str, object]", raw_data)
-
-            # Parse keys from "show|sequence|shot" format
-            self._notes_by_key = {}
-            for key_str, note_text in data.items():
-                if not isinstance(note_text, str):
-                    continue
-                parts = key_str.split("|")
-                if len(parts) == 3:
-                    key = (parts[0], parts[1], parts[2])
-                    if note_text.strip():  # Only store non-empty notes
-                        self._notes_by_key[key] = note_text
-
-            self.logger.info(f"Loaded {len(self._notes_by_key)} shot notes from cache")
-
-        except (json.JSONDecodeError, OSError):
-            self.logger.warning("Failed to load shot notes", exc_info=True)
-            self._notes_by_key = {}
+        self.logger.info(f"Loaded {len(self._notes_by_key)} shot notes from cache")
 
     def _schedule_save(self) -> None:
         """Schedule a debounced save."""

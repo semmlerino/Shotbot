@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, cast, final
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal, Slot
 
 # Local application imports
+from cache import resolve_default_cache_dir
 from cache.shot_cache import ShotDataCache
 from logging_mixin import LoggingMixin
 from previous_shots.finder import ParallelShotsFinder
@@ -56,18 +57,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         super().__init__(parent)
 
         if cache_manager is None:
-            import os
-            import sys
-
-            test_cache_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
-            if test_cache_dir:
-                _default_dir = Path(test_cache_dir)
-            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
-                _default_dir = Path.home() / ".shotbot" / "cache_test"
-            elif os.getenv("SHOTBOT_MODE") == "mock":
-                _default_dir = Path.home() / ".shotbot" / "cache" / "mock"
-            else:
-                _default_dir = Path.home() / ".shotbot" / "cache" / "production"
+            _default_dir = resolve_default_cache_dir()
             _default_dir.mkdir(parents=True, exist_ok=True)
             cache_manager = ShotDataCache(_default_dir)
 
@@ -131,17 +121,6 @@ class PreviousShotsModel(LoggingMixin, QObject):
         # Phase 2: Stop, wait, and cleanup OUTSIDE lock (avoids UI freeze)
         self.logger.debug("Safely cleaning up worker thread")
 
-        # Request stop
-        worker.stop()
-
-        # Wait with timeout (prevent hanging)
-        if not worker.wait(2000):
-            self.logger.warning("Worker did not stop gracefully within 2s")
-            # Use safe_terminate which captures diagnostics and avoids raw terminate()
-            if worker.isRunning():
-                worker.safe_terminate()
-                # safe_terminate already handles waiting and zombie tracking
-
         # Disconnect all signals to prevent late emissions
         # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
         # from Qt when attempting to disconnect signals that have no connections.
@@ -149,18 +128,14 @@ class PreviousShotsModel(LoggingMixin, QObject):
         try:
             if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                 _ = worker.scan_finished.disconnect()
-            if worker.error_occurred.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                _ = worker.error_occurred.disconnect()
-            # PreviousShotsWorker uses scan_progress, not progress
-            # ThreeDESceneWorker uses progress signal
-            # Runtime hasattr check handles polymorphism - attribute may not exist
-            if hasattr(worker, "scan_progress") and worker.scan_progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                _ = worker.scan_progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+            if worker.worker_error.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                _ = worker.worker_error.disconnect()
+            if worker.scan_progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                _ = worker.scan_progress.disconnect()
         except (RuntimeError, TypeError, AttributeError):
             pass  # Already disconnected or no connections
 
-        # Schedule deletion on event loop
-        worker.deleteLater()
+        worker.safe_shutdown()
         self.logger.debug("Worker thread cleanup completed")
 
     def refresh_shots(self) -> bool:
@@ -212,7 +187,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             _ = self._worker.scan_progress.connect(
                 self._on_worker_progress, Qt.ConnectionType.QueuedConnection
             )
-            _ = self._worker.error_occurred.connect(
+            _ = self._worker.worker_error.connect(
                 self._on_scan_error, Qt.ConnectionType.QueuedConnection
             )
 

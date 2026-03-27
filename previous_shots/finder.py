@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING, final
 from typing_extensions import Unpack
 
 # Local application imports
-from config import Config, ThreadingConfig
+from config import ThreadingConfig
+from paths import resolve_shows_root
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
 from type_definitions import Shot
@@ -64,14 +65,10 @@ class PreviousShotsFinder(ShotFinderBase):
         """
         shots: list[Shot] = []
 
-        # Ensure shows_root is always a Path object
-        if shows_root is None:
-            shows_root = Path(Config.SHOWS_ROOT)
-        elif isinstance(shows_root, str):
-            shows_root = Path(shows_root)
+        root = resolve_shows_root(shows_root)
 
-        if not shows_root.exists():
-            self.logger.warning(f"Shows root does not exist: {shows_root}")
+        if not root.exists():
+            self.logger.warning(f"Shows root does not exist: {root}")
             return shots
 
         try:
@@ -79,10 +76,10 @@ class PreviousShotsFinder(ShotFinderBase):
             # This avoids subprocess isolation issues with pytest-xdist workers
             # where subprocess commands cannot see directories created by the worker
             pattern = f"**/user/{self.username}"
-            self.logger.debug(f"Searching for pattern: {pattern} in {shows_root}")
+            self.logger.debug(f"Searching for pattern: {pattern} in {root}")
 
             # Find all matching user directories
-            user_dirs = list(shows_root.rglob(pattern))
+            user_dirs = list(root.rglob(pattern))
             self.logger.debug(f"Found {len(user_dirs)} user directories")
 
             # Parse each found path to extract shot information
@@ -180,32 +177,23 @@ class PreviousShotsFinder(ShotFinderBase):
             List of approved/completed shots.
 
         """
-        # Ensure shows_root is always a Path object
-        if shows_root is None:
-            shows_root = Path(Config.SHOWS_ROOT)
-        elif isinstance(shows_root, str):
-            shows_root = Path(shows_root)
-
-        all_user_shots = self.find_user_shots(shows_root)
+        root = resolve_shows_root(shows_root)
+        all_user_shots = self.find_user_shots(root)
         return self.filter_approved_shots(all_user_shots, active_shots)
 
     @override
-    def _get_shot_status(self, shot: Shot) -> str:
-        """Get the status of a shot (approved or active).
+    def _get_unapproved_status(self, shot: Shot) -> str:
+        """Get the status of a shot that is not approved.
+
+        For previous shots, we consider them completed if they're not in active shots.
 
         Args:
             shot: Shot to get status for
 
         Returns:
-            Status string (e.g., "approved", "active")
+            "completed"
 
         """
-        # Check for approved status
-        approved_path = Path(shot.workspace_path) / "publish" / "matchmove" / "approved"
-        if approved_path.exists():
-            return "approved"
-
-        # For previous shots, we consider them completed if they're not in active shots
         return "completed"
 
     @override
@@ -400,16 +388,15 @@ class ParallelShotsFinder(PreviousShotsFinder):
         def should_cancel() -> bool:
             return self._stop_requested or (cancel_flag is not None and cancel_flag())
 
-        if shows_root is None:
-            shows_root = Path(Config.SHOWS_ROOT)
+        root = resolve_shows_root(shows_root)
 
-        if not shows_root.exists():
-            self.logger.warning(f"Shows root does not exist: {shows_root}")
+        if not root.exists():
+            self.logger.warning(f"Shows root does not exist: {root}")
             return
 
         # Stage 1: Quick show discovery
         self._report_progress(0, 100, "Discovering shows...")
-        shows = self._discover_shows(shows_root)
+        shows = self._discover_shows(root)
 
         if not shows:
             self.logger.warning("No shows found to scan")
@@ -480,18 +467,14 @@ class ParallelShotsFinder(PreviousShotsFinder):
             List of Shot objects where user has work directories
 
         """
-        # Ensure shows_root is always a Path object
-        if shows_root is None:
-            shows_root = Path(Config.SHOWS_ROOT)
-        elif isinstance(shows_root, str):
-            shows_root = Path(shows_root)
+        root = resolve_shows_root(shows_root)
 
         # Use parallel implementation
         self.logger.info("Using parallel shot finder with incremental loading")
         start_time = time.time()
 
         # Collect all shots from generator
-        shots = list(self.find_user_shots_parallel(shows_root))
+        shots = list(self.find_user_shots_parallel(root))
 
         elapsed = time.time() - start_time
         self.logger.info(
@@ -520,11 +503,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         # Local application imports
         from shots.targeted_shot_finder import TargetedShotsFinder
 
-        # Ensure shows_root is always a Path object
-        if shows_root is None:
-            shows_root = Path(Config.SHOWS_ROOT)
-        elif isinstance(shows_root, str):
-            shows_root = Path(shows_root)
+        root = resolve_shows_root(shows_root)
 
         # Create targeted finder with same settings
         targeted_finder = TargetedShotsFinder(
@@ -543,7 +522,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         try:
             return targeted_finder.find_approved_shots_targeted(
-                active_shots, shows_root
+                active_shots, root
             )
 
         except Exception as e:  # noqa: BLE001
@@ -551,4 +530,4 @@ class ParallelShotsFinder(PreviousShotsFinder):
                 f"Error in targeted search, falling back to parallel search: {e}"
             )
             # Fallback to existing parallel implementation
-            return self.find_approved_shots(active_shots, shows_root)
+            return self.find_approved_shots(active_shots, root)

@@ -5,7 +5,6 @@ from __future__ import annotations
 # Standard library imports
 import logging
 from collections import defaultdict
-from pathlib import Path
 
 # Local application imports
 from cache.scene_cache_disk import SceneDiskCache
@@ -27,17 +26,8 @@ class ThreeDESceneModel:
         super().__init__()
         self.scenes: list[ThreeDEScene] = []
         if cache_manager is None:
-            import os
-            import sys
-            test_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
-            if test_dir:
-                default_dir = Path(test_dir)
-            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
-                default_dir = Path.home() / ".shotbot" / "cache_test"
-            elif os.getenv("SHOTBOT_MODE") == "mock":
-                default_dir = Path.home() / ".shotbot" / "cache" / "mock"
-            else:
-                default_dir = Path.home() / ".shotbot" / "cache" / "production"
+            from cache import resolve_default_cache_dir
+            default_dir = resolve_default_cache_dir()
             default_dir.mkdir(parents=True, exist_ok=True)
             cache_manager = SceneDiskCache(default_dir)
         self.cache_manager: SceneDiskCache = cache_manager

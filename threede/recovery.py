@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import ClassVar, NamedTuple
 
 # Local application imports
+from threede.latest_finder import ThreeDELatestFinder
 from version_mixin import VersionHandlingMixin
 
 
@@ -74,8 +75,9 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         r"^(.+_v(\d{3}))_crashsave\d+\.3de$"
     )
 
-    # Pattern to match regular 3DE scene files for version checking
-    VERSION_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"_v(\d{3})\.3de$")
+    # Pattern to match regular 3DE scene files for version checking.
+    # Imported from ThreeDELatestFinder — single canonical definition.
+    VERSION_PATTERN: ClassVar[re.Pattern[str]] = ThreeDELatestFinder.VERSION_PATTERN
 
     def find_crash_files(
         self,

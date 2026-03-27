@@ -167,7 +167,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         return details
 
     def _find_thumbnail_for_shot(self, shot: Shot) -> Path | None:
-        """Find thumbnail for a shot using same logic as Shot class.
+        """Find thumbnail for a shot using the canonical thumbnail discovery chain.
 
         Args:
             shot: Shot object to find thumbnail for
@@ -177,38 +177,15 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         """
         # Local application imports
-        from discovery.thumbnail_finders import (
-            find_any_publish_thumbnail,
-            find_turnover_plate_thumbnail,
-        )
-        from utils import FileUtils
+        from discovery.thumbnail_finders import find_shot_thumbnail
 
         try:
-            # Try editorial thumbnail first
-            editorial_dir = Path(shot.workspace_path) / "publish" / "editorial"
-            if editorial_dir.exists():
-                thumbnail = FileUtils.get_first_image_file(editorial_dir)
-                if thumbnail:
-                    return thumbnail
-
-            # Fall back to turnover plate thumbnails
-            thumbnail = find_turnover_plate_thumbnail(
+            return find_shot_thumbnail(
                 Config.SHOWS_ROOT,
                 shot.show,
                 shot.sequence,
                 shot.shot,
             )
-            if thumbnail:
-                return thumbnail
-
-            # Third fallback: any EXR with 1001 in publish folder
-            return find_any_publish_thumbnail(
-                Config.SHOWS_ROOT,
-                shot.show,
-                shot.sequence,
-                shot.shot,
-            )
-
         except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
             return None
@@ -243,15 +220,37 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         return approved_shots
 
-    @abstractmethod
     def _get_shot_status(self, shot: Shot) -> str:
-        """Get the status of a shot (to be implemented by subclasses).
+        """Get the status of a shot.
+
+        Checks for the approved marker first; delegates to _get_unapproved_status
+        for the subclass-specific status when not approved.
 
         Args:
             shot: Shot to get status for
 
         Returns:
-            Status string (e.g., "approved", "active")
+            "approved" if the approved marker directory exists, otherwise the
+            subclass-specific status from _get_unapproved_status.
+
+        """
+        approved_path = Path(shot.workspace_path) / "publish" / "matchmove" / "approved"
+        if approved_path.exists():
+            return "approved"
+        return self._get_unapproved_status(shot)
+
+    @abstractmethod
+    def _get_unapproved_status(self, shot: Shot) -> str:
+        """Get the status of a shot that is not approved.
+
+        Called by _get_shot_status when the approved marker is absent.
+        Subclasses implement this to return their specific non-approved status.
+
+        Args:
+            shot: Shot to get status for
+
+        Returns:
+            Status string (e.g., "active", "completed", "unknown")
 
         """
 

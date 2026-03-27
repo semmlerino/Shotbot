@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from PySide6.QtCore import QObject
 
     from managers.hide_manager import HideManager
-    from managers.shot_pin_manager import ShotPinManager
     from type_definitions import Shot, ThreeDEScene
 
 
@@ -125,7 +124,7 @@ class BaseProxyModel(QSortFilterProxyModel):
         return False
 
 
-class ShotProxyModel(QSortFilterProxyModel):
+class ShotProxyModel(BaseProxyModel):
     """Proxy model for filtering and sorting shots (My Shots tab).
 
     Filters by show name, text substring, and hidden state.
@@ -134,27 +133,8 @@ class ShotProxyModel(QSortFilterProxyModel):
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._show_filter: str | None = None
-        self._text_filter: str | None = None
         self._hide_manager: HideManager | None = None
-        self._pin_manager: ShotPinManager | None = None
         self._show_hidden: bool = False
-        self.setDynamicSortFilter(False)
-
-    # --- Filter property setters ---
-
-    def set_show_filter(self, show: str | None) -> None:
-        """Set show filter (None = all shows)."""
-        if self._show_filter != show:
-            self._show_filter = show
-            self.invalidate()
-
-    def set_text_filter(self, text: str | None) -> None:
-        """Set text filter (None = no filtering)."""
-        normalized = text.strip() if text else None
-        if self._text_filter != normalized:
-            self._text_filter = normalized
-            self.invalidate()
 
     def set_show_hidden(self, show: bool) -> None:
         """Set whether hidden shots are visible."""
@@ -166,67 +146,29 @@ class ShotProxyModel(QSortFilterProxyModel):
         """Set the hide manager."""
         self._hide_manager = manager
 
-    def set_pin_manager(self, manager: ShotPinManager | None) -> None:
-        """Set the pin manager for pin-aware sorting."""
-        self._pin_manager = manager
-
-    def refresh_sort(self) -> None:
-        """Re-sort after pin changes."""
-        self.invalidate()
-
-    # --- QSortFilterProxyModel overrides ---
+    @override
+    def _extra_filter(self, item: Any) -> bool:
+        shot = cast("Shot", item)
+        return not (not self._show_hidden and self._hide_manager and self._hide_manager.is_hidden(shot))
 
     @override
-    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex | QPersistentModelIndex) -> bool:
-        """Filter rows based on show, text, and hidden state."""
-        index = self.sourceModel().index(source_row, 0, source_parent)
-        item = cast("Shot | None", index.data(BaseItemRole.ObjectRole))
-        if item is None:
-            return False
-
-        # Show filter
-        if self._show_filter and item.show != self._show_filter:
-            return False
-
-        # Text filter
-        if self._text_filter and self._text_filter.lower() not in item.full_name.lower():
-            return False
-
-        # Hide filter
-        return not (
-            not self._show_hidden
-            and self._hide_manager
-            and self._hide_manager.is_hidden(item)
-        )
+    def _get_is_pinned(self, item: Any) -> bool:
+        if self._pin_manager is not None:
+            return self._pin_manager.is_pinned(cast("Shot", item))
+        return False
 
     @override
-    def lessThan(
-        self, left: QModelIndex | QPersistentModelIndex, right: QModelIndex | QPersistentModelIndex
-    ) -> bool:
-        """Sort with pinned items first, then alphabetically."""
-        left_item = cast("Shot | None", left.data(BaseItemRole.ObjectRole))
-        right_item = cast("Shot | None", right.data(BaseItemRole.ObjectRole))
+    def _get_pin_order(self, item: Any) -> int | None:
+        if self._pin_manager is not None:
+            return self._pin_manager.get_pin_order(cast("Shot", item))
+        return None
 
-        if left_item is None or right_item is None:
-            return False
-
-        if self._pin_manager:
-            left_pinned = self._pin_manager.is_pinned(left_item)
-            right_pinned = self._pin_manager.is_pinned(right_item)
-
-            if left_pinned != right_pinned:
-                return left_pinned  # Pinned items sort first
-
-            if left_pinned and right_pinned:
-                return (
-                    self._pin_manager.get_pin_order(left_item)
-                    < self._pin_manager.get_pin_order(right_item)
-                )
-
-        return left_item.full_name.lower() < right_item.full_name.lower()
+    @override
+    def _sort_tiebreak(self, left: Any, right: Any) -> bool:
+        return cast("Shot", left).full_name.lower() < cast("Shot", right).full_name.lower()
 
 
-class PreviousShotsProxyModel(QSortFilterProxyModel):
+class PreviousShotsProxyModel(BaseProxyModel):
     """Proxy model for Previous Shots tab.
 
     Same filtering as ShotProxyModel, plus date-based sort option.
@@ -234,28 +176,7 @@ class PreviousShotsProxyModel(QSortFilterProxyModel):
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._show_filter: str | None = None
-        self._text_filter: str | None = None
-        self._pin_manager: ShotPinManager | None = None
         self._sort_order: str = "date"
-        self.setDynamicSortFilter(False)
-
-    def set_show_filter(self, show: str | None) -> None:
-        """Set show filter."""
-        if self._show_filter != show:
-            self._show_filter = show
-            self.invalidate()
-
-    def set_text_filter(self, text: str | None) -> None:
-        """Set text filter."""
-        normalized = text.strip() if text else None
-        if self._text_filter != normalized:
-            self._text_filter = normalized
-            self.invalidate()
-
-    def set_pin_manager(self, manager: ShotPinManager | None) -> None:
-        """Set pin manager."""
-        self._pin_manager = manager
 
     def set_sort_order(self, order: str) -> None:
         """Set sort order ('name' or 'date')."""
@@ -263,55 +184,33 @@ class PreviousShotsProxyModel(QSortFilterProxyModel):
             self._sort_order = order
             self.invalidate()
 
-    def refresh_sort(self) -> None:
-        """Re-sort after pin changes."""
-        self.invalidate()
+    @override
+    def _extra_filter(self, item: Any) -> bool:
+        return True
 
     @override
-    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex | QPersistentModelIndex) -> bool:
-        """Filter by show and text."""
-        index = self.sourceModel().index(source_row, 0, source_parent)
-        item = cast("Shot | None", index.data(BaseItemRole.ObjectRole))
-        if item is None:
-            return False
-
-        if self._show_filter and item.show != self._show_filter:
-            return False
-
-        return not (self._text_filter and self._text_filter.lower() not in item.full_name.lower())
+    def _get_is_pinned(self, item: Any) -> bool:
+        if self._pin_manager is not None:
+            return self._pin_manager.is_pinned(cast("Shot", item))
+        return False
 
     @override
-    def lessThan(
-        self, left: QModelIndex | QPersistentModelIndex, right: QModelIndex | QPersistentModelIndex
-    ) -> bool:
-        """Sort: pinned first, then by name or date."""
-        left_item = cast("Shot | None", left.data(BaseItemRole.ObjectRole))
-        right_item = cast("Shot | None", right.data(BaseItemRole.ObjectRole))
+    def _get_pin_order(self, item: Any) -> int | None:
+        if self._pin_manager is not None:
+            return self._pin_manager.get_pin_order(cast("Shot", item))
+        return None
 
-        if left_item is None or right_item is None:
-            return False
-
-        if self._pin_manager:
-            left_pinned = self._pin_manager.is_pinned(left_item)
-            right_pinned = self._pin_manager.is_pinned(right_item)
-
-            if left_pinned != right_pinned:
-                return left_pinned
-
-            if left_pinned and right_pinned:
-                return (
-                    self._pin_manager.get_pin_order(left_item)
-                    < self._pin_manager.get_pin_order(right_item)
-                )
-
+    @override
+    def _sort_tiebreak(self, left: Any, right: Any) -> bool:
+        left_shot = cast("Shot", left)
+        right_shot = cast("Shot", right)
         if self._sort_order == "name":
-            return left_item.full_name.lower() < right_item.full_name.lower()
-
+            return left_shot.full_name.lower() < right_shot.full_name.lower()
         # Date: newest first (higher discovered_at = earlier in sort)
-        return left_item.discovered_at > right_item.discovered_at
+        return left_shot.discovered_at > right_shot.discovered_at
 
 
-class ThreeDEProxyModel(QSortFilterProxyModel):
+class ThreeDEProxyModel(BaseProxyModel):
     """Proxy model for 3DE scenes tab.
 
     Filters by show, artist, and text. Sorts by name or date.
@@ -319,18 +218,8 @@ class ThreeDEProxyModel(QSortFilterProxyModel):
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._show_filter: str | None = None
         self._artist_filter: str | None = None
-        self._text_filter: str | None = None
-        self._pin_manager: ShotPinManager | None = None
         self._sort_order: str = "date"
-        self.setDynamicSortFilter(False)
-
-    def set_show_filter(self, show: str | None) -> None:
-        """Set show filter."""
-        if self._show_filter != show:
-            self._show_filter = show
-            self.invalidate()
 
     def set_artist_filter(self, artist: str | None) -> None:
         """Set artist filter."""
@@ -338,63 +227,32 @@ class ThreeDEProxyModel(QSortFilterProxyModel):
             self._artist_filter = artist
             self.invalidate()
 
-    def set_text_filter(self, text: str | None) -> None:
-        """Set text filter."""
-        normalized = text.strip() if text else None
-        if self._text_filter != normalized:
-            self._text_filter = normalized
-            self.invalidate()
-
-    def set_pin_manager(self, manager: ShotPinManager | None) -> None:
-        """Set pin manager."""
-        self._pin_manager = manager
-
     def set_sort_order(self, order: str) -> None:
         """Set sort order ('name' or 'date')."""
         if self._sort_order != order:
             self._sort_order = order
             self.invalidate()
 
-    def refresh_sort(self) -> None:
-        """Re-sort after pin changes."""
-        self.invalidate()
+    @override
+    def _extra_filter(self, item: Any) -> bool:
+        scene = cast("ThreeDEScene", item)
+        return not (self._artist_filter and scene.user != self._artist_filter)
 
     @override
-    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex | QPersistentModelIndex) -> bool:
-        """Filter by show, artist, and text."""
-        index = self.sourceModel().index(source_row, 0, source_parent)
-        item = cast("ThreeDEScene | None", index.data(BaseItemRole.ObjectRole))
-        if item is None:
-            return False
-
-        if self._show_filter and item.show != self._show_filter:
-            return False
-
-        if self._artist_filter and item.user != self._artist_filter:
-            return False
-
-        return not (self._text_filter and self._text_filter.lower() not in item.full_name.lower())
+    def _get_is_pinned(self, item: Any) -> bool:
+        if self._pin_manager is not None:
+            return self._pin_manager.is_pinned_by_path(cast("ThreeDEScene", item).workspace_path)
+        return False
 
     @override
-    def lessThan(
-        self, left: QModelIndex | QPersistentModelIndex, right: QModelIndex | QPersistentModelIndex
-    ) -> bool:
-        """Sort: pinned first (by workspace_path), then by name or date."""
-        left_item = cast("ThreeDEScene | None", left.data(BaseItemRole.ObjectRole))
-        right_item = cast("ThreeDEScene | None", right.data(BaseItemRole.ObjectRole))
+    def _get_pin_order(self, item: Any) -> int | None:
+        return None
 
-        if left_item is None or right_item is None:
-            return False
-
-        if self._pin_manager:
-            left_pinned = self._pin_manager.is_pinned_by_path(left_item.workspace_path)
-            right_pinned = self._pin_manager.is_pinned_by_path(right_item.workspace_path)
-
-            if left_pinned != right_pinned:
-                return left_pinned
-
+    @override
+    def _sort_tiebreak(self, left: Any, right: Any) -> bool:
+        left_scene = cast("ThreeDEScene", left)
+        right_scene = cast("ThreeDEScene", right)
         if self._sort_order == "name":
-            return left_item.full_name.lower() < right_item.full_name.lower()
-
+            return left_scene.full_name.lower() < right_scene.full_name.lower()
         # Date: newest first (higher modified_time = earlier in sort)
-        return left_item.modified_time > right_item.modified_time
+        return left_scene.modified_time > right_scene.modified_time

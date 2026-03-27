@@ -29,7 +29,7 @@ def find_main_plate(workspace_path: str) -> str | None:
         return None
 
     # Find latest version directory
-    version_dir = _find_latest_version(fg01_path)
+    version_dir = VersionUtils.get_latest_version_path(fg01_path)
     if version_dir is None:
         return None
 
@@ -38,19 +38,20 @@ def find_main_plate(workspace_path: str) -> str | None:
     if not exr_path.exists():
         return None
 
-    # Find resolution directory (should be one, like 4312x2304)
-    resolution_dirs = [d for d in exr_path.iterdir() if d.is_dir()]
-    if not resolution_dirs:
-        return None
+    # Find highest-resolution directory (e.g., 4312x2304 over 1920x1080)
+    from discovery.plate_discovery import (
+        PlateDiscovery,
+    )
 
-    # Use the first (typically only) resolution directory
-    resolution_dir = resolution_dirs[0]
+    resolution_dir = PlateDiscovery.get_highest_resolution_dir(exr_path)
+    if resolution_dir is None:
+        return None
 
     # Find first .exr file and extract pattern
     return _extract_plate_pattern(resolution_dir)
 
 
-def _find_latest_version(base_path: Path) -> Path | None:
+def _find_latest_version(base_path: Path) -> Path | None:  # pyright: ignore[reportUnusedFunction]
     """Find the latest version directory (v001, v002, etc.).
 
     Args:

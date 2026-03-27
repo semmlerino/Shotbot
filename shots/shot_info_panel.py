@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
-import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
@@ -90,15 +89,8 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         if cache_manager is not None:
             self.cache_manager: ThumbnailCache = cache_manager
         else:
-            test_dir = os.getenv("SHOTBOT_TEST_CACHE_DIR")
-            if test_dir:
-                default_dir = Path(test_dir)
-            elif "pytest" in sys.modules or os.getenv("SHOTBOT_MODE") == "test":
-                default_dir = Path.home() / ".shotbot" / "cache_test"
-            elif os.getenv("SHOTBOT_MODE") == "mock":
-                default_dir = Path.home() / ".shotbot" / "cache" / "mock"
-            else:
-                default_dir = Path.home() / ".shotbot" / "cache" / "production"
+            from cache import resolve_default_cache_dir
+            default_dir = resolve_default_cache_dir()
             default_dir.mkdir(parents=True, exist_ok=True)
             self.cache_manager = ThumbnailCache(default_dir)
 

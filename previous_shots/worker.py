@@ -33,7 +33,6 @@ class PreviousShotsWorker(ThreadSafeWorker):
     # Signals
     scan_progress = Signal(int, int, str)  # current, total, current_operation
     scan_finished = Signal(object)  # List of all shots found
-    error_occurred = Signal(str)  # Error message
 
     def __init__(
         self,
@@ -199,10 +198,8 @@ class PreviousShotsWorker(ThreadSafeWorker):
             # Base class handles state transition and worker_stopped signal
 
         except Exception as e:
-            error_msg = f"Error during previous shots scan: {e}"
-            self.logger.error(error_msg)
-            self.error_occurred.emit(error_msg)
-            # Re-raise to let base class handle error state
+            self.logger.error(f"Error during previous shots scan: {e}")
+            # Re-raise to let base class handle error state and emit worker_error
             raise
 
     def get_found_shots(self) -> list[Shot]:

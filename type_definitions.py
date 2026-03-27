@@ -113,9 +113,9 @@ class Shot:
         """Get thumbnail directory path."""
         # Import here to avoid circular dependency at module level
         from config import Config
+        from paths import build_workspace_path
 
-        shot_dir = f"{self.sequence}_{self.shot}"
-        return Path(Config.SHOWS_ROOT, self.show, "shots", self.sequence, shot_dir, *Config.THUMBNAIL_SEGMENTS)
+        return build_workspace_path(Config.SHOWS_ROOT, self.show, self.sequence, self.shot, *Config.THUMBNAIL_SEGMENTS)
 
     def get_thumbnail_path(self) -> Path | None:
         """Get first available thumbnail or None.
@@ -243,9 +243,9 @@ class ThreeDEScene:
         """Get thumbnail directory path (same as regular shots)."""
         # Import here to avoid circular dependency at module level
         from config import Config
+        from paths import build_workspace_path
 
-        shot_dir = f"{self.sequence}_{self.shot}"
-        return Path(Config.SHOWS_ROOT, self.show, "shots", self.sequence, shot_dir, *Config.THUMBNAIL_SEGMENTS)
+        return build_workspace_path(Config.SHOWS_ROOT, self.show, self.sequence, self.shot, *Config.THUMBNAIL_SEGMENTS)
 
     def get_thumbnail_path(self) -> Path | None:
         """Get first available thumbnail or None.

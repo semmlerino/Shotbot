@@ -8,7 +8,6 @@ from __future__ import annotations
 
 # Standard library imports
 import re
-import time
 from typing import NamedTuple
 
 # Local application imports
@@ -85,100 +84,10 @@ class OptimizedShotParser:
 
         show, sequence, shot_dir = match.groups()
 
-        # Pre-compute workspace path once
-        workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
-
+        from paths import build_workspace_path
         from paths.shot_dir_parser import parse_shot_from_dir
 
         shot = parse_shot_from_dir(sequence, shot_dir)
+        workspace_path = str(build_workspace_path(Config.SHOWS_ROOT, show, sequence, shot))
         return ParseResult(show, sequence, shot, workspace_path)
 
-
-def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
-    """Benchmark parsing performance with test data.
-
-    Args:
-        iterations: Number of test iterations
-
-    Returns:
-        Performance metrics dictionary
-    """
-    # Test data representing typical VFX workspace output
-    test_lines = [
-        f"workspace {Config.SHOWS_ROOT}/demo/shots/seq01/seq01_0010",
-        f"workspace {Config.SHOWS_ROOT}/broken_eggs/shots/BRX/BRX_166",
-        f"workspace {Config.SHOWS_ROOT}/gator/shots/012/012_DC",
-        f"workspace {Config.SHOWS_ROOT}/jack_ryan/shots/100/100_0010",
-        f"workspace {Config.SHOWS_ROOT}/show_abc/shots/seq05/seq05_0230",
-    ]
-
-    # Create single compiled pattern for original
-    original_pattern = re.compile(
-        rf"workspace\s+({re.escape(Config.SHOWS_ROOT)}/([^/]+)/shots/([^/]+)/([^/]+))"
-    )
-
-    # Optimized parser
-    optimized_parser = OptimizedShotParser()
-
-    # Benchmark original implementation (regex + logic)
-    start_time = time.perf_counter()
-    for _ in range(iterations):
-        for line in test_lines:
-            match = original_pattern.search(line)
-            if match:
-                workspace_path, show, sequence, shot_dir = match.groups()
-                # Original slow logic
-                if shot_dir.startswith(sequence):
-                    if len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == "_":
-                        shot = shot_dir[len(sequence) + 1 :]
-                        _ = ParseResult(show, sequence, shot, workspace_path)
-                elif "_" in shot_dir:
-                    shot = shot_dir.rsplit("_", 1)[-1]
-                    _ = ParseResult(show, sequence, shot, workspace_path)
-                else:
-                    _ = ParseResult(show, sequence, shot_dir, workspace_path)
-    original_time = time.perf_counter() - start_time
-
-    # Benchmark optimized parser
-    start_time = time.perf_counter()
-    for _ in range(iterations):
-        for line in test_lines:
-            _ = optimized_parser.parse_workspace_line(line)
-    optimized_time = time.perf_counter() - start_time
-
-    # Calculate metrics
-    original_ops_per_sec = (iterations * len(test_lines)) / original_time
-    optimized_ops_per_sec = (iterations * len(test_lines)) / optimized_time
-    improvement_percent = ((original_time - optimized_time) / original_time) * 100
-
-    return {
-        "original_time": original_time,
-        "optimized_time": optimized_time,
-        "original_ops_per_sec": original_ops_per_sec,
-        "optimized_ops_per_sec": optimized_ops_per_sec,
-        "improvement_percent": improvement_percent,
-        "target_ops_per_sec": 3_000_000,  # 3M+ ops/s target
-    }
-
-
-if __name__ == "__main__":
-    # Demo the optimized parser
-    parser = OptimizedShotParser()
-
-    # Test parsing
-    test_line = f"workspace {Config.SHOWS_ROOT}/demo/shots/seq01/seq01_0010"
-    result = parser.parse_workspace_line(test_line)
-    print(f"Parsed: {result}")
-
-    # Benchmark performance
-    print("\nRunning performance benchmark...")
-    metrics = benchmark_parser_performance(50000)
-
-    print(f"Original time: {metrics['original_time']:.3f}s")
-    print(f"Optimized time: {metrics['optimized_time']:.3f}s")
-    print(f"Original ops/sec: {metrics['original_ops_per_sec']:,.0f}")
-    print(f"Optimized ops/sec: {metrics['optimized_ops_per_sec']:,.0f}")
-    print(f"Performance improvement: {metrics['improvement_percent']:.1f}%")
-    print(
-        f"Target met: {metrics['optimized_ops_per_sec'] >= metrics['target_ops_per_sec']}"
-    )

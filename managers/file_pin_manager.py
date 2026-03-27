@@ -6,7 +6,6 @@ to mark important file versions with optional comments.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import ClassVar, cast
@@ -15,6 +14,7 @@ from PySide6.QtCore import QObject, Signal
 
 from cache import atomic_json_write
 from logging_mixin import LoggingMixin
+from managers._json_helpers import load_validated_json
 
 
 # Cache key for pinned files
@@ -159,41 +159,23 @@ class FilePinManager(LoggingMixin, QObject):
         """Load pins from cache file."""
         cache_file = self._cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
 
-        if not cache_file.exists():
-            self._pins = {}
-            return
+        data = load_validated_json(cache_file, dict, {}, self.logger)
 
-        try:
-            with cache_file.open() as f:
-                raw_data: object = json.load(f)  # pyright: ignore[reportAny] - json.load returns Any
+        # Validate structure and load pins
+        self._pins = {}
+        for path, pin_data_raw in data.items():
+            # Runtime check since JSON can have any structure
+            if not isinstance(pin_data_raw, dict):
+                continue
+            pin_data = cast("dict[str, object]", pin_data_raw)
+            comment_val = pin_data.get("comment", "")
+            pinned_at_val = pin_data.get("pinned_at", "")
+            self._pins[path] = {
+                "comment": str(comment_val) if comment_val else "",
+                "pinned_at": str(pinned_at_val) if pinned_at_val else "",
+            }
 
-            if not isinstance(raw_data, dict):
-                self.logger.warning(
-                    f"Invalid pinned files cache format: {type(raw_data)}"
-                )
-                self._pins = {}
-                return
-
-            # Validate structure and load pins
-            self._pins = {}
-            data = cast("dict[str, object]", raw_data)
-            for path, pin_data_raw in data.items():
-                # Runtime check since JSON can have any structure
-                if not isinstance(pin_data_raw, dict):
-                    continue
-                pin_data = cast("dict[str, object]", pin_data_raw)
-                comment_val = pin_data.get("comment", "")
-                pinned_at_val = pin_data.get("pinned_at", "")
-                self._pins[path] = {
-                    "comment": str(comment_val) if comment_val else "",
-                    "pinned_at": str(pinned_at_val) if pinned_at_val else "",
-                }
-
-            self.logger.info(f"Loaded {len(self._pins)} pinned files from cache")
-
-        except (json.JSONDecodeError, OSError):
-            self.logger.warning("Failed to load pinned files", exc_info=True)
-            self._pins = {}
+        self.logger.info(f"Loaded {len(self._pins)} pinned files from cache")
 
     def _save_pins(self) -> None:
         """Save pins to cache file (atomic write)."""

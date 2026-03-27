@@ -18,6 +18,8 @@ from typing_extensions import Unpack
 
 # Local application imports
 from config import Config, ThreadingConfig
+from paths import build_workspace_path, resolve_shows_root
+from paths.shot_dir_parser import parse_shot_from_dir
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
 from type_definitions import Shot
@@ -102,19 +104,13 @@ class TargetedShotsFinder(ShotFinderBase):
             List of Shot objects found in this show
 
         """
-        # Local application imports
-        from config import Config
-
         shots: list[Shot] = []
 
         if self._stop_requested:
             return shots
 
-        # Ensure shows_root is always a Path object
-        if shows_root is None:
-            shows_root = Path(Config.SHOWS_ROOT)
-
-        show_path = shows_root / show_name / "shots"
+        root = resolve_shows_root(shows_root)
+        show_path = root / show_name / "shots"
         if not show_path.exists():
             self.logger.debug(f"Shots directory does not exist: {show_path}")
             return shots
@@ -184,23 +180,15 @@ class TargetedShotsFinder(ShotFinderBase):
         if match:
             show, sequence, shot_dir = match.groups()
 
-            # Extract shot number from directory name to match ws -sg parsing
-            # The shot directory format is {sequence}_{shot}
-            if shot_dir.startswith(f"{sequence}_"):
-                # Remove the sequence prefix to get the shot number
-                shot = shot_dir[len(sequence) + 1 :]  # +1 for the underscore
-            else:
-                # Fallback: use the last part after underscore
-                shot_parts = shot_dir.rsplit("_", 1)
-                shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
+            # Extract shot number from directory name using canonical parser
+            shot = parse_shot_from_dir(sequence, shot_dir)
 
             # Validate shot is not empty
             if not shot:
                 self.logger.debug(f"Empty shot extracted from path {path}")
                 return None
 
-            # Build the workspace path using the full directory name
-            workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
+            workspace_path = str(build_workspace_path(Config.SHOWS_ROOT, show, sequence, shot))
 
             try:
                 return Shot(
@@ -227,19 +215,13 @@ class TargetedShotsFinder(ShotFinderBase):
             Shot objects as they are discovered
 
         """
-        # Local application imports
-        from config import Config
-
         if not target_shows:
             self.logger.warning("No target shows provided for search")
             return
 
-        # Ensure shows_root is always a Path object
-        if shows_root is None:
-            shows_root = Path(Config.SHOWS_ROOT)
-
-        if not shows_root.exists():
-            self.logger.warning(f"Shows root does not exist: {shows_root}")
+        root = resolve_shows_root(shows_root)
+        if not root.exists():
+            self.logger.warning(f"Shows root does not exist: {root}")
             return
 
         total_shows = len(target_shows)
@@ -254,7 +236,7 @@ class TargetedShotsFinder(ShotFinderBase):
         ) as executor:
             # Submit search tasks for each target show
             future_to_show = {
-                executor.submit(self._scan_show_for_user, show, shows_root): show
+                executor.submit(self._scan_show_for_user, show, root): show
                 for show in target_shows
             }
 
@@ -308,14 +290,9 @@ class TargetedShotsFinder(ShotFinderBase):
         # Standard library imports
         import time
 
-        # Local application imports
-        from config import Config
-
         start_time = time.time()
 
-        # Ensure shows_root is always a Path object
-        if shows_root is None:
-            shows_root = Path(Config.SHOWS_ROOT)
+        root = resolve_shows_root(shows_root)
 
         # Extract target shows from active shots
         target_shows = self.extract_shows_from_active_shots(active_shots)
@@ -330,7 +307,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         # Find all user shots in target shows
         self._report_progress(5, 100, "Finding user shots in targeted shows...")
-        all_user_shots = list(self.find_user_shots_in_shows(target_shows, shows_root))
+        all_user_shots = list(self.find_user_shots_in_shows(target_shows, root))
 
         if self._stop_requested:
             self.logger.info("Targeted search stopped by user request")
@@ -352,26 +329,19 @@ class TargetedShotsFinder(ShotFinderBase):
         return approved_shots
 
     @override
-    def _get_shot_status(self, shot: Shot) -> str:
-        """Get the status of a shot.
+    def _get_unapproved_status(self, shot: Shot) -> str:
+        """Get the status of a shot that is not approved.
 
         Args:
             shot: Shot to get status for
 
         Returns:
-            Status string (e.g., "approved", "active")
+            "active" if user has work in this shot, otherwise "unknown"
 
         """
-        # Check for approved status
-        approved_path = Path(shot.workspace_path) / "publish" / "matchmove" / "approved"
-        if approved_path.exists():
-            return "approved"
-
-        # Check if user has work in this shot
         user_path = Path(shot.workspace_path) / "user" / self.username
         if user_path.exists():
             return "active"
-
         return "unknown"
 
     @override

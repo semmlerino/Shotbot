@@ -7,16 +7,19 @@ validation and error handling, avoiding duplication across managers.
 from __future__ import annotations
 
 import json
-from logging import Logger
+from logging import Logger, LoggerAdapter
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 
 T = TypeVar("T")
 
 
 def load_validated_json(
-    path: Path, expected_type: type[T], default: T, logger: Logger
+    path: Path,
+    expected_type: type[T],
+    default: T,
+    logger: Logger | LoggerAdapter[Any],
 ) -> T:
     """Load JSON file with type validation and error handling.
 

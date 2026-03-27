@@ -8,7 +8,6 @@ class and delegates all worker management through it.
 from __future__ import annotations
 
 # Standard library imports
-import sys
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -128,38 +127,15 @@ class ThreeDEWorkerManager(LoggingMixin):
         if worker_to_cleanup is None:
             return
 
-        if not worker_to_cleanup.isFinished():
-            self.logger.debug("Stopping 3DE worker during shutdown")
-            worker_to_cleanup.stop()
-
-            is_test_environment = "pytest" in sys.modules
-            worker_timeout_ms = (
-                500 if is_test_environment else TimeoutConfig.WORKER_COORDINATION_STOP_MS
-            )
-
-            if not worker_to_cleanup.wait(worker_timeout_ms):
-                self.logger.warning(
-                    f"3DE worker didn't stop gracefully within {worker_timeout_ms}ms, using safe termination"
-                )
-                worker_to_cleanup.safe_terminate()
-                final_timeout_ms = 200 if is_test_environment else 1000
-                _ = worker_to_cleanup.wait(final_timeout_ms)
-
-        # Disconnect signals after worker has stopped
+        # Disconnect signals before shutdown to prevent stale deliveries
         self._disconnect_worker_signals(worker_to_cleanup)
+
+        worker_to_cleanup.safe_shutdown(TimeoutConfig.WORKER_COORDINATION_STOP_MS)
 
         # Clear reference
         with QMutexLocker(self._worker_mutex):
             if self._threede_worker == worker_to_cleanup:
                 self._threede_worker = None
-
-        # Only delete if not a zombie thread
-        if hasattr(worker_to_cleanup, "is_zombie") and worker_to_cleanup.is_zombie():
-            self.logger.warning(
-                "3DE worker thread is a zombie and will not be deleted to prevent crash"
-            )
-        else:
-            worker_to_cleanup.deleteLater()
 
     @property
     def has_active_worker(self) -> bool:
@@ -192,23 +168,10 @@ class ThreeDEWorkerManager(LoggingMixin):
             worker_to_stop: The worker thread to stop.  Must not be ``None``.
 
         """
-        worker_to_stop.stop()
-        if not worker_to_stop.wait(TimeoutConfig.WORKER_COORDINATION_STOP_MS):
-            self.logger.warning(
-                "Failed to stop 3DE worker gracefully, using safe termination",
-            )
-            worker_to_stop.safe_terminate()
-
-        # Disconnect signals before deletion to prevent stale deliveries
+        # Disconnect signals before shutdown to prevent stale deliveries
         self._disconnect_worker_signals(worker_to_stop)
 
-        # Only delete if not a zombie (prevents crash)
-        if hasattr(worker_to_stop, "is_zombie") and worker_to_stop.is_zombie():
-            self.logger.warning(
-                "3DE worker thread is a zombie and will not be deleted"
-            )
-        else:
-            worker_to_stop.deleteLater()
+        worker_to_stop.safe_shutdown(TimeoutConfig.WORKER_COORDINATION_STOP_MS)
 
         # Clear reference after worker is stopped, with mutex protection
         with QMutexLocker(self._worker_mutex):

@@ -442,7 +442,8 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             else:
                 # User is NOT assigned to this shot - construct a valid workspace path
                 # This allows viewing 3DE work from other users on any shot in the show
-                workspace_path = f"{shows_root}/{show_name}/shots/{seq}/{seq}_{shot}"
+                from paths import build_workspace_path
+                workspace_path = str(build_workspace_path(shows_root, show_name, seq, shot))
 
             scene = SceneParser.create_scene_from_file_info(
                 scene_path, show_name, seq, shot, user, plate, workspace_path

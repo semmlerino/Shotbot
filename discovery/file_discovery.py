@@ -12,6 +12,7 @@ from pathlib import Path
 
 # Local application imports
 from config import Config
+from discovery.frame_range_extractor import detect_frame_range
 from logging_mixin import get_module_logger
 from paths.validators import PathValidators
 from utils import normalize_plate_id
@@ -47,6 +48,23 @@ class FileDiscovery:
         except (OSError, PermissionError):
             logger.exception(f"Failed to create {description} {path_obj}")
             return False
+
+    @staticmethod
+    def _find_mov_in_dir(directory: Path) -> Path | None:
+        """Return the first MOV file found in directory, or None.
+
+        Args:
+            directory: Directory to search for MOV files
+
+        Returns:
+            Path to the first MOV file (sorted for consistency), or None if not found
+
+        """
+        mov_files = sorted(directory.glob("*.mov")) + sorted(directory.glob("*.MOV"))
+        if not mov_files:
+            logger.debug(f"No MOV files found in: {directory}")
+            return None
+        return mov_files[0]
 
     @staticmethod
     def find_mov_file_for_path(thumbnail_path: Path) -> Path | None:
@@ -95,16 +113,7 @@ class FileDiscovery:
                 return None
 
             # Find MOV files in the directory
-            mov_files = list(mov_dir.glob("*.mov")) + list(mov_dir.glob("*.MOV"))
-
-            if not mov_files:
-                logger.debug(f"No MOV files found in: {mov_dir}")
-                return None
-
-            # Return the first MOV file found (could be sorted by name if needed)
-            mov_file = sorted(mov_files)[0]
-            logger.debug(f"Found MOV file: {mov_file.name}")
-            return mov_file
+            return FileDiscovery._find_mov_in_dir(mov_dir)
 
         except (OSError, PermissionError) as e:
             logger.debug(f"Error searching for MOV file: {e}")
@@ -132,26 +141,17 @@ class FileDiscovery:
             workspace = Path(workspace_path) if isinstance(workspace_path, str) else workspace_path
 
             # Build the path to the plate directory
-            plate_base = workspace / "publish" / "turnover" / "plate" / "input_plate" / plate_name
+            plate_base = Path(workspace, *Config.RAW_PLATE_SEGMENTS) / plate_name
 
             if not plate_base.exists():
                 logger.debug(f"Plate directory not found: {plate_base}")
                 return None
 
-            # Find version directories (v001, v002, etc.) and get the latest
-            version_dirs: list[tuple[int, Path]] = []
-            for item in plate_base.iterdir():
-                if item.is_dir() and VersionUtils.is_version_directory(item.name):
-                    version_num = VersionUtils.version_number_from_name(item.name)
-                    version_dirs.append((version_num, item))
-
-            if not version_dirs:
+            # Find latest version directory
+            latest_version_dir = VersionUtils.get_latest_version_path(plate_base)
+            if latest_version_dir is None:
                 logger.debug(f"No version directories found in: {plate_base}")
                 return None
-
-            # Sort by version number descending (latest first)
-            version_dirs.sort(key=lambda x: x[0], reverse=True)
-            latest_version_dir: Path = version_dirs[0][1]
 
             # Look for mov/ subdirectory
             mov_dir: Path = latest_version_dir / "mov"
@@ -160,14 +160,10 @@ class FileDiscovery:
                 return None
 
             # Find MOV files in the directory
-            mov_files: list[Path] = list(mov_dir.glob("*.mov")) + list(mov_dir.glob("*.MOV"))
-
-            if not mov_files:
-                logger.debug(f"No MOV files found in: {mov_dir}")
+            mov_file = FileDiscovery._find_mov_in_dir(mov_dir)
+            if mov_file is None:
                 return None
 
-            # Return the first MOV file found (sorted for consistency)
-            mov_file: Path = sorted(mov_files)[0]
             logger.debug(f"Found plate MOV proxy: {mov_file}")
             return mov_file
 
@@ -197,59 +193,40 @@ class FileDiscovery:
             workspace = Path(workspace_path) if isinstance(workspace_path, str) else workspace_path
 
             # Build the path to the plate directory
-            plate_base = workspace / "publish" / "turnover" / "plate" / "input_plate" / plate_name
+            plate_base = Path(workspace, *Config.RAW_PLATE_SEGMENTS) / plate_name
 
             if not plate_base.exists():
                 return None, None, None
 
             # Find latest version directory
-            version_dirs: list[tuple[int, Path]] = []
-            for item in plate_base.iterdir():
-                if item.is_dir() and VersionUtils.is_version_directory(item.name):
-                    version_num = VersionUtils.version_number_from_name(item.name)
-                    version_dirs.append((version_num, item))
-
-            if not version_dirs:
+            latest_version_dir = VersionUtils.get_latest_version_path(plate_base)
+            if latest_version_dir is None:
                 return None, None, None
-
-            version_dirs.sort(key=lambda x: x[0], reverse=True)
-            latest_version_dir: Path = version_dirs[0][1]
 
             # Look for exr/ subdirectory
             exr_dir: Path = latest_version_dir / "exr"
             if not exr_dir.exists():
                 return None, None, None
 
-            # Find resolution subdirectory (e.g., 4312x2304)
-            resolution_dirs: list[Path] = [d for d in exr_dir.iterdir() if d.is_dir()]
+            # Find resolution subdirectory (e.g., 4312x2304) — pick highest resolution
+            from discovery.plate_discovery import (
+                PlateDiscovery,
+            )
+
             exr_files: list[Path]
-            if not resolution_dirs:
+            resolution_dir = PlateDiscovery.get_highest_resolution_dir(exr_dir)
+            if resolution_dir is None:
                 # Maybe EXRs are directly in exr/ directory
                 exr_files = sorted(exr_dir.glob("*.exr"))
             else:
-                # Use the first resolution directory found
-                resolution_dir: Path = sorted(resolution_dirs)[0]
                 exr_files = sorted(resolution_dir.glob("*.exr"))
 
             if not exr_files:
                 return None, None, None
 
-            # Extract frame numbers from filenames
-            frame_pattern = re.compile(r"\.(\d{4,})\.exr$", re.IGNORECASE)
-            frame_numbers: list[int] = []
-            for f in exr_files:
-                match = frame_pattern.search(f.name)
-                if match:
-                    frame_numbers.append(int(match.group(1)))
-
-            if not frame_numbers:
-                first_exr: Path = exr_files[0]
-                return first_exr, None, None
-
-            frame_numbers.sort()
-            first_exr = exr_files[0]
-            start_frame: int = frame_numbers[0]
-            end_frame: int = frame_numbers[-1]
+            first_exr: Path = exr_files[0]
+            scan_dir = resolution_dir if resolution_dir is not None else exr_dir
+            start_frame, end_frame = detect_frame_range(scan_dir, "exr")
             return first_exr, start_frame, end_frame
 
         except (OSError, PermissionError) as e:
