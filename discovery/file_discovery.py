@@ -142,7 +142,7 @@ class FileDiscovery:
             version_dirs: list[tuple[int, Path]] = []
             for item in plate_base.iterdir():
                 if item.is_dir() and VersionUtils.is_version_directory(item.name):
-                    version_num = int(item.name[1:])
+                    version_num = VersionUtils.version_number_from_name(item.name)
                     version_dirs.append((version_num, item))
 
             if not version_dirs:
@@ -206,7 +206,7 @@ class FileDiscovery:
             version_dirs: list[tuple[int, Path]] = []
             for item in plate_base.iterdir():
                 if item.is_dir() and VersionUtils.is_version_directory(item.name):
-                    version_num = int(item.name[1:])
+                    version_num = VersionUtils.version_number_from_name(item.name)
                     version_dirs.append((version_num, item))
 
             if not version_dirs:

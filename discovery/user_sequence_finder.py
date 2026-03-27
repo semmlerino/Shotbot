@@ -189,7 +189,7 @@ class UserSequenceFinder:
         try:
             for d in type_dir.iterdir():
                 if d.is_dir() and VersionUtils.is_version_directory(d.name):
-                    version_dirs.append((d, int(d.name[1:])))  # noqa: PERF401
+                    version_dirs.append((d, VersionUtils.version_number_from_name(d.name)))  # noqa: PERF401
         except OSError:
             return None
 
