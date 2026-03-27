@@ -171,6 +171,20 @@ def setup_logging() -> None:
     logger.debug(f"Logging initialized: {log_file} (console: {logging.getLevelName(console_level)})")
 
 
+def _get_qapplication_class():
+    """Resolve QApplication lazily so tests can override it without poisoning imports."""
+    from PySide6.QtWidgets import QApplication
+
+    return QApplication
+
+
+def _get_main_window_class():
+    """Resolve MainWindow lazily so tests can replace it without importing it under mocks."""
+    from main_window import MainWindow
+
+    return MainWindow
+
+
 def main() -> None:
     """Main entry point."""
     # Parse command-line arguments
@@ -253,7 +267,8 @@ Environment Variables:
     # This ensures PIL logging is suppressed before PIL is imported
     # Third-party imports
     from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QApplication
+
+    qapplication_type = _get_qapplication_class()
 
     # Create application (headless-aware)
     if headless_mode:
@@ -262,10 +277,10 @@ Environment Variables:
 
         app = HeadlessMode.create_headless_application(sys.argv)
     else:
-        app = QApplication(sys.argv)
+        app = qapplication_type(sys.argv)
 
     # Local application imports
-    from main_window import MainWindow
+    main_window_class = _get_main_window_class()
 
     # Set application info
     app.setApplicationName("ShotBot")
@@ -320,7 +335,7 @@ Environment Variables:
     app.setPalette(palette)
 
     # Create main window
-    window = MainWindow()
+    window = main_window_class()
 
     # Start periodic zombie thread cleanup (prevents memory leaks)
     from workers.thread_safe_worker import ThreadSafeWorker

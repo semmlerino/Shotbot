@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, final
 # Third-party imports
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QApplication,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -92,6 +91,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Initialization order matters — see app_services.py and controllers/startup_orchestrator.py
 
         from PySide6.QtCore import QCoreApplication
+        from PySide6.QtWidgets import QApplication as QApplicationType
 
         app_instance = QCoreApplication.instance()
         if app_instance is None:
@@ -104,7 +104,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
 
-        if not is_test_environment and not isinstance(app_instance, QApplication):
+        if not is_test_environment and not isinstance(app_instance, QApplicationType):
             msg = (
                 "MainWindow: QCoreApplication instance is not a QApplication. "
                 f"Type: {type(app_instance)}"
@@ -691,7 +691,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 self.logger.exception("Error cleaning up PreviousShotsItemModel")
 
         # Final: process events, clean QRunnables, GC
-        app = QApplication.instance()
+        from PySide6.QtWidgets import QApplication as QApplicationType
+
+        app = QApplicationType.instance()
         if app:
             app.processEvents()
 

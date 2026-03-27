@@ -173,8 +173,8 @@ class TestShotbotMain:
         """Test that main() calls setup_logging first."""
         with (
             patch("shotbot.Path.home") as mock_home,
-            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
-            patch("main_window.MainWindow") as mock_window_class,
+            patch("shotbot._get_qapplication_class") as mock_app_factory,
+            patch("shotbot._get_main_window_class") as mock_window_factory,
             patch("sys.exit") as mock_exit,
         ):
             mock_home.return_value = tmp_path
@@ -182,8 +182,8 @@ class TestShotbotMain:
             # Set up test doubles
             test_app = _TestQApplicationDouble(sys.argv)
             test_window = _TestMainWindowDouble()
-            mock_app_class.return_value = test_app
-            mock_window_class.return_value = test_window
+            mock_app_factory.return_value = lambda _args: test_app
+            mock_window_factory.return_value = lambda: test_window
             mock_exit.return_value = None
 
             # Local application imports
@@ -201,15 +201,15 @@ class TestShotbotMain:
         """Test that main() creates QApplication with proper configuration."""
         with (
             patch("shotbot.setup_logging"),
-            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
-            patch("main_window.MainWindow") as mock_window_class,
+            patch("shotbot._get_qapplication_class") as mock_app_factory,
+            patch("shotbot._get_main_window_class") as mock_window_factory,
             patch("sys.exit") as mock_exit,
         ):
             # Set up test doubles
             test_app = _TestQApplicationDouble(sys.argv)
             test_window = _TestMainWindowDouble()
-            mock_app_class.return_value = test_app
-            mock_window_class.return_value = test_window
+            mock_app_factory.return_value = lambda _args: test_app
+            mock_window_factory.return_value = lambda: test_window
             mock_exit.return_value = None
 
             # Local application imports
@@ -229,15 +229,15 @@ class TestShotbotMain:
         """Test that main() configures dark theme palette."""
         with (
             patch("shotbot.setup_logging"),
-            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
-            patch("main_window.MainWindow") as mock_window_class,
+            patch("shotbot._get_qapplication_class") as mock_app_factory,
+            patch("shotbot._get_main_window_class") as mock_window_factory,
             patch("sys.exit") as mock_exit,
         ):
             # Set up test doubles
             test_app = _TestQApplicationDouble(sys.argv)
             test_window = _TestMainWindowDouble()
-            mock_app_class.return_value = test_app
-            mock_window_class.return_value = test_window
+            mock_app_factory.return_value = lambda _args: test_app
+            mock_window_factory.return_value = lambda: test_window
             mock_exit.return_value = None
 
             # Local application imports
@@ -265,15 +265,15 @@ class TestShotbotMain:
         """Test that main() creates and shows MainWindow."""
         with (
             patch("shotbot.setup_logging"),
-            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
-            patch("main_window.MainWindow") as mock_window_class,
+            patch("shotbot._get_qapplication_class") as mock_app_factory,
+            patch("shotbot._get_main_window_class") as mock_window_factory,
             patch("sys.exit") as mock_exit,
         ):
             # Set up test doubles
             test_app = _TestQApplicationDouble(sys.argv)
             test_window = _TestMainWindowDouble()
-            mock_app_class.return_value = test_app
-            mock_window_class.return_value = test_window
+            mock_app_factory.return_value = lambda _args: test_app
+            mock_window_factory.return_value = lambda: test_window
             mock_exit.return_value = None
 
             # Local application imports
@@ -291,15 +291,15 @@ class TestShotbotMain:
         """Test that main() executes the app and calls sys.exit."""
         with (
             patch("shotbot.setup_logging"),
-            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
-            patch("main_window.MainWindow") as mock_window_class,
+            patch("shotbot._get_qapplication_class") as mock_app_factory,
+            patch("shotbot._get_main_window_class") as mock_window_factory,
             patch("sys.exit") as mock_exit,
         ):
             # Set up test doubles
             test_app = _TestQApplicationDouble(sys.argv)
             test_window = _TestMainWindowDouble()
-            mock_app_class.return_value = test_app
-            mock_window_class.return_value = test_window
+            mock_app_factory.return_value = lambda _args: test_app
+            mock_window_factory.return_value = lambda: test_window
             mock_exit.return_value = None
 
             # Local application imports
@@ -328,10 +328,15 @@ class TestShotbotMain:
 
         with (
             patch("shotbot.setup_logging") as mock_setup_logging,
-            patch("PySide6.QtWidgets.QApplication"),
-            patch("main_window.MainWindow"),
+            patch("shotbot._get_qapplication_class") as mock_app_factory,
+            patch("shotbot._get_main_window_class") as mock_window_factory,
             patch("sys.exit"),
         ):
+            test_app = _TestQApplicationDouble(sys.argv)
+            test_window = _TestMainWindowDouble()
+            mock_app_factory.return_value = lambda _args: test_app
+            mock_window_factory.return_value = lambda: test_window
+
             # Local application imports
             from shotbot import (
                 main,
