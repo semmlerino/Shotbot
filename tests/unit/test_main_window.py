@@ -289,8 +289,8 @@ class TestStatusBar:
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        # Directly call the handler (simulating signal emission)
-        main_window.data_event_handler.on_background_load_started()
+        # Emit the signal (inlined handler is a lambda in _connect_signals)
+        main_window.shot_model.background_load_started.emit()
 
         # Verify status bar shows fetching message
         assert "Fetching fresh data" in main_window.status_bar.currentMessage()
@@ -526,7 +526,7 @@ class TestRightPanelFileLaunch:
         ) as mock_launch:
             # Simulate right panel launch with selected file
             options = {"selected_file": maya_file}
-            main_window.launch_coordinator.on_right_panel_launch("maya", options)
+            main_window._on_right_panel_launch("maya", options)
 
             # Verify launch was called with correct LaunchRequest
             mock_launch.assert_called_once()
@@ -573,7 +573,7 @@ class TestRightPanelFileLaunch:
             main_window.command_launcher, "launch", return_value=True
         ) as mock_launch:
             options = {"selected_file": maya_file}
-            main_window.launch_coordinator.on_right_panel_launch("maya", options)
+            main_window._on_right_panel_launch("maya", options)
 
             # Verify launch was called with scene's workspace
             mock_launch.assert_called_once()
@@ -604,7 +604,7 @@ class TestRightPanelFileLaunch:
         )
 
         options = {"selected_file": nuke_file}
-        main_window.launch_coordinator.on_right_panel_launch("nuke", options)
+        main_window._on_right_panel_launch("nuke", options)
 
         # Verify a critical error dialog was shown with correct message
         expect_dialog.assert_shown("critical", "Cannot Launch File")
@@ -628,7 +628,7 @@ class TestRightPanelFileLaunch:
         ) as mock_launch:
             # Launch without selected_file
             options = {"open_latest_maya": True}
-            main_window.launch_coordinator.on_right_panel_launch("maya", options)
+            main_window._on_right_panel_launch("maya", options)
 
             # Verify launch was called with no file_path (standard launch)
             mock_launch.assert_called_once()
@@ -685,7 +685,7 @@ class TestGetCurrentWorkspacePath:
             main_window.threede_shot_grid._selected_scene = None
             expected = None
 
-        result = main_window.launch_coordinator.get_current_workspace_path()
+        result = main_window._get_current_workspace_path()
         assert result == expected
 
     def test_prefers_shot_over_scene(self, qtbot: QtBot, tmp_path: Path) -> None:
@@ -710,7 +710,7 @@ class TestGetCurrentWorkspacePath:
         main_window.threede_shot_grid._selected_scene = scene
 
         # Verify shot workspace is preferred
-        result = main_window.launch_coordinator.get_current_workspace_path()
+        result = main_window._get_current_workspace_path()
         assert result == shot.workspace_path
         assert result != scene.workspace_path
 

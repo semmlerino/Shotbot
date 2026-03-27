@@ -6,9 +6,7 @@ aspect of functionality with clear separation of concerns.
 
 Controllers:
     - CrashRecovery: Manages crash recovery and state restoration
-    - DataEventHandler: Handles data-driven events and updates
     - FilterCoordinator: Coordinates filtering operations across the application
-    - LaunchCoordinator: Manages application launching and custom launchers
     - RefreshCoordinator: Coordinates shot refresh across tabs
     - SettingsController: Manages application settings and preferences
     - ShotSelectionController: Handles shot selection and navigation

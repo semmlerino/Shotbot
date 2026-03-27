@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, final
+from typing import TYPE_CHECKING, Any, ClassVar, final
 
 # Third-party imports
 from PySide6.QtCore import Qt, Signal
@@ -42,9 +42,7 @@ if TYPE_CHECKING:
 # Local application imports
 from app_services import build_infrastructure, build_models
 from config import Config, is_mock_mode
-from controllers.data_event_handler import DataEventHandler
 from controllers.filter_coordinator import FilterCoordinator
-from controllers.launch_coordinator import LaunchCoordinator
 from controllers.shot_selection_controller import (
     ShotSelectionController,  # Refactored shot selection management
 )
@@ -183,18 +181,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             status_bar=self.status_bar,
         )
 
-        self.data_event_handler = DataEventHandler(
-            shot_proxy=self.shot_proxy,
-            previous_shots_proxy=self.previous_shots_proxy,
-            pin_manager=self.pin_manager,
-            status_bar=self.status_bar,
-        )
-
-        self.launch_coordinator = LaunchCoordinator(
-            command_launcher=self.command_launcher,
-            threede_shot_grid=self.threede_shot_grid,
-        )
-
         self.threede_controller = ThreeDEController(
             self,
             command_launcher=self.command_launcher,
@@ -317,23 +303,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Connect signals."""
         # Shot model -> RefreshCoordinator connections
         self.refresh_coordinator.setup_signals()
-        _ = self.shot_model.error_occurred.connect(
-            self.data_event_handler.on_shot_error
-        )
+        _ = self.shot_model.error_occurred.connect(self._on_shot_error)
         # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
-        _ = self.shot_model.cache_updated.connect(
-            self.data_event_handler.on_cache_updated
-        )
-        _ = self.shot_model.data_recovery_occurred.connect(
-            self.data_event_handler.on_data_recovery
-        )
+        # Note: cache_updated only logged debug — connection removed
+        _ = self.shot_model.data_recovery_occurred.connect(self._on_data_recovery)
         # Background load signals for status feedback during initial async load
         _ = self.shot_model.background_load_started.connect(
-            self.data_event_handler.on_background_load_started
+            lambda: self.status_bar.showMessage("Fetching fresh data...")
         )
-        _ = self.shot_model.background_load_finished.connect(
-            self.data_event_handler.on_background_load_finished
-        )
+        # Note: background_load_finished had body `pass` — connection removed
 
         # Shot selection - handled by ShotSelectionController when active
         # Controller handles shot_selected, shot_double_clicked, recover_crashes_requested
@@ -377,10 +355,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             )
         )
         _ = self.shot_grid.shot_visibility_changed.connect(
-            self.data_event_handler.on_shot_visibility_changed
+            lambda: self.shot_proxy.invalidate()
         )
         _ = self.shot_grid.show_hidden_changed.connect(
-            self.data_event_handler.on_show_hidden_changed
+            self.shot_proxy.set_show_hidden
         )
 
         # 3DE scene selection - handled by controller
@@ -405,10 +383,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Pin sort-order refresh — fallback path when view has no pin_manager set
         _ = self.shot_grid.pin_shot_requested.connect(
-            self.data_event_handler.on_shot_grid_pin_requested
+            self._on_shot_grid_pin_requested
         )
         _ = self.previous_shots_grid.pin_shot_requested.connect(
-            self.data_event_handler.on_previous_shots_pin_requested
+            self._on_previous_shots_pin_requested
         )
 
         _ = self.shot_selection_controller.settings_save_requested.connect(
@@ -424,9 +402,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.tab_widget.currentChanged.connect(
             self.threede_controller.on_tab_activated
         )  # pyright: ignore[reportAny]
-        _ = self.right_panel.launch_requested.connect(
-            self.launch_coordinator.on_right_panel_launch
-        )
+        _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
         _ = self.right_panel.status_message.connect(self.update_status)
 
         # Async file search state - update launch button during search
@@ -454,6 +430,87 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 self.previous_shots_item_model,
             )
         )
+
+
+    # ---------------------------------------------------------------------------
+    # Inlined from DataEventHandler
+    # ---------------------------------------------------------------------------
+
+    def _on_shot_error(self, error_msg: str) -> None:
+        """Handle error signal from shot model."""
+        self.logger.error(f"Shot model error: {error_msg}")
+        self.status_bar.showMessage(f"Error: {error_msg}")
+
+    def _on_data_recovery(self, title: str, details: str) -> None:
+        """Handle data recovery notification from shot model."""
+        self.logger.warning(f"Data recovery: {title} - {details}")
+        NotificationManager.warning(title, details)
+
+    def _on_shot_grid_pin_requested(self, shot: Shot) -> None:
+        """Handle pin request from the My Shots grid."""
+        self.pin_manager.pin_shot(shot)
+        self.shot_proxy.refresh_sort()
+
+    def _on_previous_shots_pin_requested(self, shot: Shot) -> None:
+        """Handle pin request from the Previous Shots grid."""
+        self.pin_manager.pin_shot(shot)
+        self.previous_shots_proxy.refresh_sort()
+
+    # ---------------------------------------------------------------------------
+    # Inlined from LaunchCoordinator
+    # ---------------------------------------------------------------------------
+
+    def _on_right_panel_launch(self, app_name: str, options: dict[str, Any]) -> None:
+        """Handle launch request from right panel DCC section."""
+        from dcc.scene_file import SceneFile
+
+        selected_file = options.get("selected_file")
+        if isinstance(selected_file, SceneFile):
+            workspace_path = self._get_current_workspace_path()
+            if workspace_path:
+                from launch.launch_request import LaunchRequest as _LaunchRequest
+
+                _ = self.command_launcher.launch(
+                    _LaunchRequest(
+                        app_name=app_name,
+                        file_path=selected_file.path,
+                        workspace_path=workspace_path,
+                    )
+                )
+                return
+            NotificationManager.error(
+                "Cannot Launch File",
+                "No shot or scene context available. Select a shot first.",
+            )
+            return
+
+        from launch.command_launcher import LaunchContext
+        from launch.launch_request import LaunchRequest as _LaunchRequest
+
+        context = LaunchContext(
+            open_latest_threede=bool(options.get("open_latest_threede", False)),  # pyright: ignore[reportAny]
+            open_latest_maya=bool(options.get("open_latest_maya", False)),  # pyright: ignore[reportAny]
+            open_latest_scene=bool(options.get("open_latest_scene", False)),  # pyright: ignore[reportAny]
+            create_new_file=bool(options.get("create_new_file", False)),  # pyright: ignore[reportAny]
+            selected_plate=options.get("selected_plate"),
+            sequence_path=options.get("sequence_path"),
+        )
+        _ = self.command_launcher.launch(
+            _LaunchRequest(
+                app_name=app_name,
+                context=context,
+            )
+        )
+
+    def _get_current_workspace_path(self) -> str | None:
+        """Get workspace path from current shot or selected 3DE scene."""
+        current_shot = self.command_launcher.current_shot
+        if current_shot:
+            return current_shot.workspace_path
+        selected_scene = self.threede_shot_grid.selected_scene
+        if selected_scene:
+            return selected_scene.workspace_path
+        return None
 
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
