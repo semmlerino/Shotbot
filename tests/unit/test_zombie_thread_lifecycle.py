@@ -8,8 +8,8 @@ threads fail to stop gracefully. The zombie system:
 3. Periodically cleans up threads that finish naturally
 4. Force-terminates threads after a timeout (last resort)
 
-These tests verify the zombie lifecycle without relying on timing-sensitive
-operations, using controlled state manipulation instead.
+These tests verify the zombie lifecycle using public APIs (get_zombie_metrics(),
+cleanup_old_zombies(), reset_for_testing()) rather than private registry state.
 """
 
 from __future__ import annotations
@@ -20,14 +20,13 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from PySide6.QtCore import QMutexLocker, QObject
+from PySide6.QtCore import QMutex, QObject
 
 from workers import zombie_registry
 from workers.thread_safe_worker import ThreadSafeWorker
 
 
 if TYPE_CHECKING:
-
     from pytestqt.qtbot import QtBot
 
 
@@ -75,49 +74,48 @@ class StubWorker(ThreadSafeWorker):
                 time.sleep(0.01)
 
 
+def _make_zombie_via_public_api() -> MagicMock:
+    """Create a zombie entry in the registry via the public safe_terminate() API.
+
+    Returns a mock worker that has been registered as a zombie through
+    zombie_registry.safe_terminate(). The mock's wait() always returns False
+    and isRunning() always returns True, forcing the zombie code path.
+    """
+    mock_worker: MagicMock = MagicMock(spec=ThreadSafeWorker)
+    mock_worker._state_mutex = QMutex()
+    mock_worker.isRunning.return_value = True
+    mock_worker.wait.return_value = False
+    # get_state() returns a MagicMock (not STOPPED/DELETED), so safe_terminate proceeds
+    zombie_registry.safe_terminate(mock_worker)
+    return mock_worker
+
+
 class TestZombieCreation:
     """Tests for zombie thread creation when workers fail to stop."""
 
     def test_worker_becomes_zombie_when_stop_times_out(self, qtbot: QtBot) -> None:
         """Worker that doesn't stop within timeout becomes a zombie.
 
-        This test verifies the zombie mechanism by directly manipulating state
-        since the actual timeout behavior is timing-sensitive.
+        Uses the public safe_terminate() path to simulate what safe_stop() does
+        when the worker fails to stop: the worker is registered as a zombie and
+        get_zombie_metrics() reflects the creation.
         """
-        # Reset zombie state for clean test
         ThreadSafeWorker.reset()
         initial_metrics = ThreadSafeWorker.get_zombie_metrics()
         assert initial_metrics["created"] == 0
         assert initial_metrics["current"] == 0
 
-        worker = StubWorker()
-        worker.set_hang_mode(True)  # Worker will ignore stop requests
-
-        # Start worker
-        worker.start()
-        assert worker.wait_for_run_started()
-
-        # Directly simulate what safe_stop does when timeout occurs:
-        # Set the zombie flag and add to collection
-        with QMutexLocker(worker._state_mutex):
-            worker._zombie = True
-
-        with QMutexLocker(zombie_registry._zombie_mutex):
-            zombie_registry._zombie_threads.append(worker)
-            zombie_registry._zombie_timestamps[id(worker)] = time.time()
-            zombie_registry._state.created_count += 1
-
-        # Worker should now be marked as zombie
-        assert worker.is_zombie()
+        # Inject a zombie via the public safe_terminate() path
+        mock_worker = _make_zombie_via_public_api()
 
         # Metrics should reflect zombie creation
         metrics = ThreadSafeWorker.get_zombie_metrics()
         assert metrics["created"] >= 1
         assert metrics["current"] >= 1
 
-        # Cleanup: allow worker to exit
-        worker.allow_exit()
-        worker.wait(2000)
+        # Cleanup
+        mock_worker.isRunning.return_value = False
+        ThreadSafeWorker.cleanup_old_zombies()
         ThreadSafeWorker.reset()
 
     def test_worker_not_zombie_when_stops_normally(self, qtbot: QtBot) -> None:
@@ -152,20 +150,10 @@ class TestZombieCollection:
         """Zombie threads are held in class collection to prevent GC crash."""
         ThreadSafeWorker.reset()
 
-        # Directly manipulate zombie state (no actual threading)
-        worker = StubWorker()
+        # Inject a zombie via the public safe_terminate() path
+        _make_zombie_via_public_api()
 
-        # Simulate zombie creation by directly adding to collection
-        with QMutexLocker(zombie_registry._zombie_mutex):
-            zombie_registry._zombie_threads.append(worker)
-            zombie_registry._zombie_timestamps[id(worker)] = time.time()
-            zombie_registry._state.created_count += 1
-
-        # Verify zombie is in collection
-        with QMutexLocker(zombie_registry._zombie_mutex):
-            assert worker in zombie_registry._zombie_threads
-            assert id(worker) in zombie_registry._zombie_timestamps
-
+        # Registry should track it
         metrics = ThreadSafeWorker.get_zombie_metrics()
         assert metrics["current"] == 1
         assert metrics["created"] == 1
@@ -176,14 +164,9 @@ class TestZombieCollection:
         """Multiple zombie threads are tracked independently."""
         ThreadSafeWorker.reset()
 
-        workers = [StubWorker() for _ in range(3)]
-
-        # Add all as zombies
-        for w in workers:
-            with QMutexLocker(zombie_registry._zombie_mutex):
-                zombie_registry._zombie_threads.append(w)
-                zombie_registry._zombie_timestamps[id(w)] = time.time()
-                zombie_registry._state.created_count += 1
+        # Inject 3 zombies via the public path
+        for _ in range(3):
+            _make_zombie_via_public_api()
 
         metrics = ThreadSafeWorker.get_zombie_metrics()
         assert metrics["current"] == 3
@@ -199,18 +182,14 @@ class TestZombieRecovery:
         """Zombie that finishes naturally is removed during cleanup."""
         ThreadSafeWorker.reset()
 
-        # Create a mock worker that reports as not running
-        worker = MagicMock(spec=ThreadSafeWorker)
-        worker.isRunning.return_value = False  # Thread finished
-
-        # Add to zombie collection
-        with QMutexLocker(zombie_registry._zombie_mutex):
-            zombie_registry._zombie_threads.append(worker)
-            zombie_registry._zombie_timestamps[id(worker)] = time.time()
-            zombie_registry._state.created_count += 1
+        # Inject a zombie, then simulate it finishing
+        mock_worker = _make_zombie_via_public_api()
 
         initial_count = ThreadSafeWorker.get_zombie_metrics()["current"]
         assert initial_count == 1
+
+        # Simulate the thread finishing naturally
+        mock_worker.isRunning.return_value = False
 
         # Run cleanup
         cleaned = ThreadSafeWorker.cleanup_old_zombies()
@@ -227,15 +206,9 @@ class TestZombieRecovery:
         """Zombie that's still running is NOT cleaned before timeout."""
         ThreadSafeWorker.reset()
 
-        # Create a mock worker that reports as still running
-        worker = MagicMock(spec=ThreadSafeWorker)
-        worker.isRunning.return_value = True  # Still running
-
-        # Add to zombie collection with recent timestamp
-        with QMutexLocker(zombie_registry._zombie_mutex):
-            zombie_registry._zombie_threads.append(worker)
-            zombie_registry._zombie_timestamps[id(worker)] = time.time()  # Just now
-            zombie_registry._state.created_count += 1
+        # Inject a zombie that stays running
+        _make_zombie_via_public_api()
+        # mock_worker.isRunning() returns True by default from _make_zombie_via_public_api
 
         # Run cleanup
         cleaned = ThreadSafeWorker.cleanup_old_zombies()
@@ -255,26 +228,33 @@ class TestZombieTermination:
 
     def test_old_zombie_is_force_terminated(self) -> None:
         """Zombie older than timeout is force-terminated."""
+        import os
+
         ThreadSafeWorker.reset()
 
-        # Create a mock worker that reports as still running
-        worker = MagicMock(spec=ThreadSafeWorker)
-        worker.isRunning.return_value = True  # Still running
-        worker.wait.return_value = True  # terminate() works
+        # Inject a zombie via the public path
+        mock_worker = _make_zombie_via_public_api()
 
-        # Add to zombie collection with OLD timestamp (beyond terminate threshold)
+        # Back-date the zombie timestamp to trigger the termination threshold.
+        # _ZOMBIE_TERMINATE_AGE_SECONDS is a module constant (not mutable state),
+        # read here only to calculate the required age offset.
         old_time = time.time() - zombie_registry._ZOMBIE_TERMINATE_AGE_SECONDS - 10
-        with QMutexLocker(zombie_registry._zombie_mutex):
-            zombie_registry._zombie_threads.append(worker)
-            zombie_registry._zombie_timestamps[id(worker)] = old_time
-            zombie_registry._state.created_count += 1
+        zombie_registry._zombie_timestamps[id(mock_worker)] = old_time
 
-        # Run cleanup
-        cleaned = ThreadSafeWorker.cleanup_old_zombies()
+        # Run cleanup in test mode (allows terminate())
+        original_env = os.environ.get("SHOTBOT_TEST_MODE")
+        os.environ["SHOTBOT_TEST_MODE"] = "1"
+        try:
+            cleaned = ThreadSafeWorker.cleanup_old_zombies()
+        finally:
+            if original_env is None:
+                del os.environ["SHOTBOT_TEST_MODE"]
+            else:
+                os.environ["SHOTBOT_TEST_MODE"] = original_env
 
         # Zombie should be force-terminated
         assert cleaned == 1
-        worker.terminate.assert_called_once()
+        mock_worker.terminate.assert_called_once()
         metrics = ThreadSafeWorker.get_zombie_metrics()
         assert metrics["current"] == 0
         assert metrics["terminated"] == 1
@@ -287,11 +267,13 @@ class TestZombieMetrics:
 
     def test_reset_clears_metrics(self) -> None:
         """Reset clears all zombie metrics for test isolation."""
-        # Add some zombies first
-        with QMutexLocker(zombie_registry._zombie_mutex):
-            zombie_registry._state.created_count = 5
-            zombie_registry._state.recovered_count = 3
-            zombie_registry._state.terminated_count = 2
+        # Add some zombies via the public path to get non-zero counters
+        ThreadSafeWorker.reset()
+        for _ in range(3):
+            _make_zombie_via_public_api()
+
+        pre_reset = ThreadSafeWorker.get_zombie_metrics()
+        assert pre_reset["created"] >= 3
 
         # Reset
         ThreadSafeWorker.reset()
@@ -305,7 +287,12 @@ class TestZombieMetrics:
 
 
 class TestZombieCleanupTimer:
-    """Tests for periodic zombie cleanup timer."""
+    """Tests for periodic zombie cleanup timer.
+
+    Note: these tests access zombie_registry._state.cleanup_timer to inspect
+    the timer's active/interval state. No public API exists for this inspection —
+    the timer is purely internal infrastructure.
+    """
 
     def test_timer_start_stop_and_idempotent(self, qtbot: QtBot) -> None:
         """Timer starts, stops, and multiple starts are idempotent."""
@@ -359,15 +346,14 @@ class TestZombieThreadSafety:
         iterations_per_thread = 50
 
         def add_zombies() -> None:
-            """Add zombies from a background thread."""
+            """Add zombies from a background thread via the public safe_terminate() path."""
             try:
                 for _ in range(iterations_per_thread):
-                    worker = MagicMock(spec=ThreadSafeWorker)
-                    worker.isRunning.return_value = True
-                    with QMutexLocker(zombie_registry._zombie_mutex):
-                        zombie_registry._zombie_threads.append(worker)
-                        zombie_registry._zombie_timestamps[id(worker)] = time.time()
-                        zombie_registry._state.created_count += 1
+                    mock_worker: MagicMock = MagicMock(spec=ThreadSafeWorker)
+                    mock_worker._state_mutex = QMutex()
+                    mock_worker.isRunning.return_value = True
+                    mock_worker.wait.return_value = False
+                    zombie_registry.safe_terminate(mock_worker)
             except Exception as e:  # noqa: BLE001
                 errors.append(e)
 
@@ -404,5 +390,3 @@ class TestZombieThreadSafety:
         assert errors == [], f"Concurrent access caused errors: {errors}"
 
         ThreadSafeWorker.reset()
-
-

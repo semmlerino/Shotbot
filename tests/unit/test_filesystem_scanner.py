@@ -40,7 +40,9 @@ class TestCacheDelegation:
 
     def test_clear_cache_delegates_to_coordinator(self) -> None:
         """clear_cache() delegates to FilesystemCoordinator.invalidate_all()."""
-        with patch("paths.filesystem_coordinator.FilesystemCoordinator") as mock_coord_cls:
+        with patch(
+            "paths.filesystem_coordinator.FilesystemCoordinator"
+        ) as mock_coord_cls:
             mock_instance = MagicMock()
             mock_instance.invalidate_all.return_value = 5
             mock_coord_cls.return_value = mock_instance
@@ -60,7 +62,9 @@ class TestCacheDelegation:
             "hit_rate": 90.9,
             "ttl_seconds": 300,
         }
-        with patch("paths.filesystem_coordinator.FilesystemCoordinator") as mock_coord_cls:
+        with patch(
+            "paths.filesystem_coordinator.FilesystemCoordinator"
+        ) as mock_coord_cls:
             mock_instance = MagicMock()
             mock_instance.get_cache_stats.return_value = expected_stats
             mock_coord_cls.return_value = mock_instance
@@ -108,6 +112,7 @@ class TestSubprocessTimeoutCancellation:
         scanner_with_parser: FileSystemScanner,
     ) -> None:
         """Cancel flag triggers process termination and returns empty list."""
+
         # Mock the streaming read helper to simulate cancellation
         def mock_streaming_read(
             cmd: list[str],
@@ -139,6 +144,7 @@ class TestSubprocessTimeoutCancellation:
         scanner_with_parser: FileSystemScanner,
     ) -> None:
         """Timeout triggers process termination and returns None (not empty list)."""
+
         # Mock the streaming read helper to simulate timeout
         def mock_streaming_read(
             cmd: list[str],
@@ -166,6 +172,7 @@ class TestSubprocessTimeoutCancellation:
         scanner_with_parser: FileSystemScanner,
     ) -> None:
         """Process completing normally returns parsed results."""
+
         # Mock the streaming read helper to return successful output
         def mock_streaming_read(
             cmd: list[str],
@@ -194,6 +201,7 @@ class TestSubprocessTimeoutCancellation:
         scanner_with_parser: FileSystemScanner,
     ) -> None:
         """Non-zero exit code logs stderr but doesn't crash."""
+
         # Mock the streaming read helper to return error
         def mock_streaming_read(
             cmd: list[str],
@@ -309,10 +317,12 @@ class TestStreamingReadLargeOutput:
         output_size = 80_000
         cmd = ["python3", "-c", f"print('x' * {output_size})"]
 
-        returncode, stdout, stderr, status = scanner._run_subprocess_with_streaming_read(
-            cmd=cmd,
-            cancel_flag=None,
-            max_wait_time=10.0,  # 10 seconds should be plenty
+        returncode, stdout, stderr, status = (
+            scanner._run_subprocess_with_streaming_read(
+                cmd=cmd,
+                cancel_flag=None,
+                max_wait_time=10.0,  # 10 seconds should be plenty
+            )
         )
 
         assert status == "ok", f"Expected status 'ok', got '{status}'"
@@ -328,7 +338,11 @@ class TestStreamingReadLargeOutput:
         scanner = FileSystemScanner()
 
         # Start a slow command that outputs data continuously
-        cmd = ["python3", "-c", "import time; [print(f'line {i}') or time.sleep(0.01) for i in range(1000)]"]
+        cmd = [
+            "python3",
+            "-c",
+            "import time; [print(f'line {i}') or time.sleep(0.01) for i in range(1000)]",
+        ]
 
         # Cancel after a brief delay
         cancel_triggered = [False]
@@ -339,10 +353,12 @@ class TestStreamingReadLargeOutput:
                 return False  # Don't cancel on first check
             return True  # Cancel on subsequent checks
 
-        returncode, _stdout, _stderr, status = scanner._run_subprocess_with_streaming_read(
-            cmd=cmd,
-            cancel_flag=cancel_flag,
-            max_wait_time=30.0,
+        returncode, _stdout, _stderr, status = (
+            scanner._run_subprocess_with_streaming_read(
+                cmd=cmd,
+                cancel_flag=cancel_flag,
+                max_wait_time=30.0,
+            )
         )
 
         assert status == "cancelled"
@@ -353,12 +369,18 @@ class TestStreamingReadLargeOutput:
         scanner = FileSystemScanner()
 
         # Command that runs indefinitely
-        cmd = ["python3", "-c", "import time; [print(f'line {i}') or time.sleep(0.1) for i in range(10000)]"]
+        cmd = [
+            "python3",
+            "-c",
+            "import time; [print(f'line {i}') or time.sleep(0.1) for i in range(10000)]",
+        ]
 
-        returncode, _stdout, _stderr, status = scanner._run_subprocess_with_streaming_read(
-            cmd=cmd,
-            cancel_flag=None,
-            max_wait_time=0.5,  # Very short timeout
+        returncode, _stdout, _stderr, status = (
+            scanner._run_subprocess_with_streaming_read(
+                cmd=cmd,
+                cancel_flag=None,
+                max_wait_time=0.5,  # Very short timeout
+            )
         )
 
         assert status == "timeout"
@@ -402,6 +424,7 @@ class TestLazyImportThreadSafety:
                 with scanner._parser_lock:
                     if scanner.parser is None:
                         from threede.scene_parser import SceneParser
+
                         scanner.parser = SceneParser()
                 parser_ids.append(id(scanner.parser))
             except Exception as e:  # noqa: BLE001
@@ -417,7 +440,6 @@ class TestLazyImportThreadSafety:
         # All threads should get the same parser instance
         unique_ids = set(parser_ids)
         assert len(unique_ids) == 1, f"Got {len(unique_ids)} different parser instances"
-
 
 
 # =============================================================================
@@ -469,12 +491,18 @@ class TestProgressiveDiscoveryFallback:
             calls["python"] += 1
             return original_python(*args, **kwargs)
 
-        def tracking_subprocess(*args: object, **kwargs: object) -> list[tuple[str, Path]]:
+        def tracking_subprocess(
+            *args: object, **kwargs: object
+        ) -> list[tuple[str, Path]]:
             calls["subprocess"] += 1
             return original_subprocess(*args, **kwargs)
 
-        monkeypatch.setattr(scanner, "_find_3de_files_python_optimized", tracking_python)
-        monkeypatch.setattr(scanner, "_find_3de_files_subprocess_optimized", tracking_subprocess)
+        monkeypatch.setattr(
+            scanner, "_find_3de_files_python_optimized", tracking_python
+        )
+        monkeypatch.setattr(
+            scanner, "_find_3de_files_subprocess_optimized", tracking_subprocess
+        )
 
         result = scanner.find_3de_files_progressive(user_dir, excluded_users=None)
 
@@ -504,8 +532,7 @@ class TestProgressiveDiscoveryFallback:
 
         # Configure subprocess mock to return some files
         subprocess_mock.set_output(
-            f"{tmp_path}/user/artist0/scene.3de\n"
-            f"{tmp_path}/user/artist1/scene.3de\n"
+            f"{tmp_path}/user/artist0/scene.3de\n{tmp_path}/user/artist1/scene.3de\n"
         )
 
         # Track method calls
@@ -521,7 +548,9 @@ class TestProgressiveDiscoveryFallback:
                 ("artist1", Path(f"{tmp_path}/user/artist1/scene.3de")),
             ]
 
-        monkeypatch.setattr(scanner, "_find_3de_files_subprocess_optimized", tracking_subprocess)
+        monkeypatch.setattr(
+            scanner, "_find_3de_files_subprocess_optimized", tracking_subprocess
+        )
 
         scanner.find_3de_files_progressive(user_dir, excluded_users=None)
 
@@ -568,8 +597,12 @@ class TestProgressiveDiscoveryFallback:
             calls["python"] += 1
             return original_python(user_dir, excluded_users)
 
-        monkeypatch.setattr(scanner, "_find_3de_files_subprocess_optimized", failing_subprocess)
-        monkeypatch.setattr(scanner, "_find_3de_files_python_optimized", tracking_python)
+        monkeypatch.setattr(
+            scanner, "_find_3de_files_subprocess_optimized", failing_subprocess
+        )
+        monkeypatch.setattr(
+            scanner, "_find_3de_files_python_optimized", tracking_python
+        )
 
         # This should trigger subprocess (> threshold), fail, then fallback to python
         result = scanner.find_3de_files_progressive(user_dir, excluded_users=None)
@@ -597,7 +630,9 @@ class TestProgressiveDiscoveryFallback:
             (threede_dir / f"{username}_scene.3de").touch()
 
         excluded = {"excluded_user", "temp"}
-        result = scanner._find_3de_files_python_optimized(user_dir, excluded_users=excluded)
+        result = scanner._find_3de_files_python_optimized(
+            user_dir, excluded_users=excluded
+        )
 
         # Should only find files from non-excluded users
         usernames = {username for username, _ in result}
@@ -626,7 +661,9 @@ class TestProgressiveDiscoveryFallback:
         )
 
         excluded = {"excluded_user", "temp"}
-        result = scanner._find_3de_files_subprocess_optimized(user_dir, excluded_users=excluded)
+        result = scanner._find_3de_files_subprocess_optimized(
+            user_dir, excluded_users=excluded
+        )
 
         # Results should exclude the specified users
         usernames = {username for username, _ in result}
@@ -638,7 +675,6 @@ class TestProgressiveDiscoveryFallback:
 # ThreeDESceneWorker Cancel/Interrupt Tests
 # (merged from test_worker_stop_responsiveness.py)
 # =============================================================================
-
 
 
 from threede import ThreeDESceneWorker
@@ -694,7 +730,8 @@ class TestThreeDEWorkerStopAndCancel:
                 for _ in range(100):
                     if cancel_flag and cancel_flag():
                         return []
-                    threading.Event().wait(timeout=0.1)
+                    scan_iteration_delay = threading.Event()
+                    scan_iteration_delay.wait(timeout=0.1)
                 return []
 
             mock_find.side_effect = long_scan
@@ -735,13 +772,15 @@ class TestThreeDEWorkerStopAndCancel:
                 thread = threading.Thread(target=worker.run, daemon=True)
                 thread.start()
 
-                threading.Event().wait(timeout=0.1)
+                worker_startup_delay = threading.Event()
+                worker_startup_delay.wait(timeout=0.1)
                 worker.stop()
                 thread.join(timeout=1.0)
 
                 assert not thread.is_alive(), f"Cycle {cycle}: thread should be stopped"
 
-            threading.Event().wait(timeout=0.5)
+            thread_settle_delay = threading.Event()
+            thread_settle_delay.wait(timeout=0.5)
             thread_leak = threading.active_count() - active_before
             assert thread_leak <= 2, f"Leaked {thread_leak} threads after rapid cycles"
 
@@ -788,7 +827,8 @@ class TestThreeDEWorkerStopAndCancel:
             thread = threading.Thread(target=worker.run, daemon=True)
             thread.start()
 
-            threading.Event().wait(timeout=0.1)
+            worker_startup_delay = threading.Event()
+            worker_startup_delay.wait(timeout=0.1)
             worker.stop()
             thread.join(timeout=1.0)
 

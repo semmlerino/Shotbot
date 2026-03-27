@@ -413,32 +413,28 @@ class TestSignalConnections:
         worker.safe_connect(worker.worker_stopped, receiver.on_event)  # duplicate
 
         # Only one entry should be tracked
-        assert len(worker._connections) == 1
+        assert worker.connection_count == 1
 
         receiver.deleteLater()
         process_qt_events()
 
     @pytest.mark.timeout(10)
-    def test_disconnect_all_removes_all_tracked_connections(
-        self, qtbot: QtBot
-    ) -> None:
+    def test_disconnect_all_removes_all_tracked_connections(self, qtbot: QtBot) -> None:
         """disconnect_all() clears the connection tracking list."""
         worker = InstantWorker()
         receiver = SignalReceiver()
 
         worker.safe_connect(worker.worker_stopped, receiver.on_event)
-        assert len(worker._connections) == 1
+        assert worker.connection_count == 1
 
         worker.disconnect_all()
-        assert len(worker._connections) == 0
+        assert worker.connection_count == 0
 
         receiver.deleteLater()
         process_qt_events()
 
     @pytest.mark.timeout(10)
-    def test_disconnect_all_prevents_slot_from_being_called(
-        self, qtbot: QtBot
-    ) -> None:
+    def test_disconnect_all_prevents_slot_from_being_called(self, qtbot: QtBot) -> None:
         """After disconnect_all(), the previously connected slot is not called."""
         worker = InstantWorker()
         receiver = SignalReceiver()
@@ -451,9 +447,7 @@ class TestSignalConnections:
                 worker.start()
 
             process_qt_events()
-            assert not receiver.called, (
-                "Slot was called even after disconnect_all()"
-            )
+            assert not receiver.called, "Slot was called even after disconnect_all()"
         finally:
             cleanup_qthread_properly(worker)
             receiver.deleteLater()

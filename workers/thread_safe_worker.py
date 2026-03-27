@@ -296,6 +296,17 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             f"Worker {id(self)}: Connected signal to {slot.__name__} with {connection_type}"
         )
 
+    @property
+    def connection_count(self) -> int:
+        """Return the number of tracked signal connections.
+
+        Returns:
+            Number of active signal connections tracked by this worker.
+
+        """
+        with QMutexLocker(self._state_mutex):
+            return len(self._connections)
+
     @Slot()  # type: ignore[reportAny]
     def disconnect_all(self) -> None:
         """Safely disconnect all tracked signals.
@@ -383,11 +394,15 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 if current_state == WorkerState.RUNNING:
                     # Valid transition: RUNNING -> STOPPING -> STOPPED
                     if not self.set_state(WorkerState.STOPPING):
-                        self.logger.warning("Failed to transition to STOPPING, forcing it")
+                        self.logger.warning(
+                            "Failed to transition to STOPPING, forcing it"
+                        )
                         _ = self.set_state(WorkerState.STOPPING, force=True)
                     # Now transition from STOPPING to STOPPED
                     if not self.set_state(WorkerState.STOPPED):
-                        self.logger.warning("Failed to transition to STOPPED, forcing it")
+                        self.logger.warning(
+                            "Failed to transition to STOPPED, forcing it"
+                        )
                         _ = self.set_state(WorkerState.STOPPED, force=True)
                 elif current_state == WorkerState.ERROR:
                     # Valid transition: ERROR -> STOPPED
@@ -399,7 +414,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 elif current_state not in [WorkerState.STOPPED, WorkerState.DELETED]:
                     # For other states, try direct transition to STOPPED
                     if not self.set_state(WorkerState.STOPPED):
-                        self.logger.warning(f"Forcing STOPPED state from {current_state}")
+                        self.logger.warning(
+                            f"Forcing STOPPED state from {current_state}"
+                        )
                         _ = self.set_state(WorkerState.STOPPED, force=True)
             except (SystemError, RuntimeError):
                 # Can occur during Python shutdown when enum module is being unloaded
@@ -492,7 +509,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         # Prevent self-join deadlock: cannot wait on self from worker thread
         if QThread.currentThread() is self:
-            self.logger.warning("Cannot wait on self from worker thread - returning False")
+            self.logger.warning(
+                "Cannot wait on self from worker thread - returning False"
+            )
             return False
 
         return self.wait(timeout_ms)
