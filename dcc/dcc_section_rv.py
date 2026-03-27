@@ -131,5 +131,3 @@ def create_dcc_section(
     return FileDCCSection(config, settings_manager=settings_manager, parent=parent)
 
 
-# Backwards compatibility alias
-DCCSection = BaseDCCSection

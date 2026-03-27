@@ -519,14 +519,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     # Note: Background refresh methods removed - now handled by reactive signals
 
-    def _refresh_shot_display(self) -> None:  # pyright: ignore[reportUnusedFunction]
-        """Refresh the shot display using Model/View implementation.
-
-        Called by StartupOrchestrator via the StartupTarget protocol.
-        """
-        # Delegate to RefreshCoordinator
-        self.refresh_coordinator.refresh_shot_display()
-
     def get_splitter_state(self) -> QByteArray:
         """Get the main splitter state for settings persistence."""
         return self.splitter.saveState()

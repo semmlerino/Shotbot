@@ -14,7 +14,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from dcc.dcc_accordion import DCCAccordion
 from dcc.dcc_config import DEFAULT_DCC_CONFIGS, DCCConfig
-from dcc.dcc_section_rv import DCCSection
+from dcc.dcc_section_base import BaseDCCSection
 from tests.test_helpers import process_qt_events
 
 
@@ -290,7 +290,7 @@ class TestDCCAccordionSectionAccess:
 
         section = accordion.get_section("nuke")
         assert section is not None
-        assert isinstance(section, DCCSection)
+        assert isinstance(section, BaseDCCSection)
         assert section is accordion._sections["nuke"]
 
     def test_get_section_not_found(self, qtbot: QtBot) -> None:

@@ -555,14 +555,6 @@ class CommandLauncher(LoggingMixin, QObject):
         """Check if an async file search is in progress."""
         return self._file_search_coordinator.is_search_pending
 
-    # Methods removed - now using launch components:
-    # - _get_rez_packages_for_app() → self.env_manager.get_rez_packages(app_name, Config)
-    # - _detect_available_terminal() → self.env_manager.detect_terminal()
-    # - _validate_path_for_shell() → validate_path(path)
-    # - _launch_in_new_terminal() → LaunchOperation._launch_in_new_terminal()
-    # - _append_scene_to_command() → LaunchOperation.append_scene_to_command()
-    # - _apply_file_result() → LaunchOperation.apply_file_result()
-
     def _build_app_command(
         self,
         app_name: str,
@@ -716,10 +708,6 @@ class CommandLauncher(LoggingMixin, QObject):
             command_prefix=sgtk_export,
         )
 
-    # Methods removed - now using launch components:
-    # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
-    # - _verify_spawn() → self.process_executor._verify_spawn(process, app_name)
-
     def _validate_app_name(self, app_name: str) -> bool:
         """Return True if app_name is valid, emit error and return False otherwise."""
         if app_name not in Config.APPS:
@@ -777,13 +765,6 @@ class CommandLauncher(LoggingMixin, QObject):
 
         return True
 
-    # Method removed - now using launch components:
-    # - _add_dispatcher_logging() → add_logging(command)
-
     def _emit_error(self, error: str) -> None:
         """Log an error with timestamp."""
         self.logger.error(error)
-
-    # Old terminal signal handlers removed - now using ProcessExecutor signals:
-    # - _on_terminal_progress() → _on_execution_progress()
-    # - _on_terminal_command_result() → _on_execution_completed()

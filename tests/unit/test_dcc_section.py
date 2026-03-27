@@ -14,7 +14,6 @@ from PySide6.QtCore import Qt
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from dcc.dcc_config import DEFAULT_DCC_CONFIGS, CheckboxConfig, DCCConfig
-from dcc.dcc_section_base import BaseDCCSection
 from dcc.dcc_section_file import FileDCCSection
 from dcc.dcc_section_rv import RVSection, create_dcc_section
 from dcc.scene_file import FileType, SceneFile
@@ -615,11 +614,3 @@ class TestRVSection:
         assert app_name == "rv"
 
 
-class TestBaseDCCSectionIsAlias:
-    """Tests that DCCSection alias resolves to BaseDCCSection."""
-
-    def test_dcc_section_alias(self) -> None:
-        """DCCSection is BaseDCCSection."""
-        from dcc.dcc_section_rv import DCCSection
-
-        assert DCCSection is BaseDCCSection

@@ -506,9 +506,6 @@ class TestMainWindowFilterHandlers:
     def test_refresh_populates_show_filter(self, mock_main_window: Any) -> None:
         """Test that refreshing shots populates the show filter combo."""
         # Local application imports
-        from main_window import (
-            MainWindow,
-        )
 
         # Set up test shots
         test_shots = [
@@ -519,7 +516,7 @@ class TestMainWindowFilterHandlers:
         mock_main_window.shot_item_model.set_shots(test_shots)
 
         # Call refresh method
-        MainWindow._refresh_shot_display(mock_main_window)
+        mock_main_window.refresh_coordinator.refresh_shot_display()
 
         # Check that show filter was populated
         assert mock_main_window.shot_grid.show_combo.count() == 3  # All Shows + 2 shows
