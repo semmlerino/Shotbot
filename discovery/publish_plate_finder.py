@@ -51,29 +51,6 @@ def find_main_plate(workspace_path: str) -> str | None:
     return _extract_plate_pattern(resolution_dir)
 
 
-def _find_latest_version(base_path: Path) -> Path | None:  # pyright: ignore[reportUnusedFunction]
-    """Find the latest version directory (v001, v002, etc.).
-
-    Args:
-        base_path: Path containing version directories
-
-    Returns:
-        Path to latest version directory, or None if none found
-
-    """
-    versions = [
-        (VersionUtils.version_number_from_name(item.name), item)
-        for item in base_path.iterdir()
-        if item.is_dir() and VersionUtils.is_version_directory(item.name)
-    ]
-
-    if not versions:
-        return None
-
-    versions.sort(key=lambda x: x[0], reverse=True)
-    return versions[0][1]
-
-
 def _extract_plate_pattern(resolution_dir: Path) -> str | None:
     """Extract plate pattern from resolution directory.
 
