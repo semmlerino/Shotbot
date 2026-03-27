@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 from config import Config
 from logging_mixin import LoggingMixin
+from utils import get_current_username
 
 
 if TYPE_CHECKING:
@@ -31,6 +32,22 @@ class SimpleNukeLauncher(LoggingMixin):
 
     For complex workflows (generating scripts, loading plates), use NukeLaunchHandler.
     """
+
+    _NUKE_PATH_EXPORT: str = f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
+
+    def _get_script_dir(self, shot: Shot, user: str, plate: str) -> Path:
+        """Return the standard Nuke scripts directory for a shot, user, and plate."""
+        return (
+            Path(shot.workspace_path)
+            / "user"
+            / user
+            / "mm"
+            / "nuke"
+            / "scripts"
+            / "mm-default"
+            / "scene"
+            / plate
+        )
 
     def open_latest_script(
         self,
@@ -53,18 +70,8 @@ class SimpleNukeLauncher(LoggingMixin):
         log_messages: list[str] = []
 
         # Build script directory path
-        user = os.environ.get("USER", Config.DEFAULT_USERNAME)
-        script_dir = (
-            Path(shot.workspace_path)
-            / "user"
-            / user
-            / "mm"
-            / "nuke"
-            / "scripts"
-            / "mm-default"
-            / "scene"
-            / plate
-        )
+        user = get_current_username()
+        script_dir = self._get_script_dir(shot, user, plate)
 
         # Find all scripts matching the pattern
         pattern = f"{shot.full_name}_mm-default_{plate}_scene_v*.nk"
@@ -78,7 +85,7 @@ class SimpleNukeLauncher(LoggingMixin):
                     latest_script = scripts[-1]
                     safe_path = shlex.quote(str(latest_script))
                     command = (
-                        f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
+                        f"{self._NUKE_PATH_EXPORT}"
                         f"export SGTK_FILE_TO_OPEN={safe_path} && nuke {safe_path}"
                     )
                     log_messages.append(f"Opening: {latest_script.name}")
@@ -139,7 +146,7 @@ class SimpleNukeLauncher(LoggingMixin):
         safe_script_path = shlex.quote(str(script_path))
 
         # Get user
-        user = os.environ.get("USER", "unknown")
+        user = get_current_username()
 
         # Create temp file first so we can reference its path in the script
         fd, temp_script = tempfile.mkstemp(suffix=".py", prefix="nuke_create_")
@@ -223,7 +230,7 @@ except OSError:
         self.logger.debug(f"Startup script: {temp_script}")
 
         return (
-            f"export NUKE_PATH={Config.SCRIPTS_DIR}:$NUKE_PATH && "
+            f"{self._NUKE_PATH_EXPORT}"
             f"export SGTK_FILE_TO_OPEN={safe_script_path} && {command}"
         )
 
@@ -245,18 +252,8 @@ except OSError:
         log_messages: list[str] = []
 
         # Build script directory path
-        user = os.environ.get("USER", Config.DEFAULT_USERNAME)
-        script_dir = (
-            Path(shot.workspace_path)
-            / "user"
-            / user
-            / "mm"
-            / "nuke"
-            / "scripts"
-            / "mm-default"
-            / "scene"
-            / plate
-        )
+        user = get_current_username()
+        script_dir = self._get_script_dir(shot, user, plate)
 
         # Find highest version
         pattern = f"{shot.full_name}_mm-default_{plate}_scene_v*.nk"

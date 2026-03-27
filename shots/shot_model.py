@@ -48,7 +48,7 @@ from workers.thread_safe_worker import ThreadSafeWorker
 
 
 # Re-export Shot for backward compatibility with existing imports
-__all__ = ["AsyncShotLoader", "Shot", "ShotModel"]
+__all__ = ["AsyncShotLoader", "ShotModel"]
 
 
 
@@ -72,7 +72,7 @@ class AsyncShotLoader(ThreadSafeWorker):
         process_pool: ProcessPoolInterface,
         parse_function: Callable[
             [str, dict[str, tuple[int, int]] | None], list[Shot]
-        ] | None = None,
+        ],
         model: BaseShotModel | None = None,
         parent: QObject | None = None,
     ) -> None:
@@ -104,32 +104,12 @@ class AsyncShotLoader(ThreadSafeWorker):
             if self.should_stop():
                 return
 
-            # Parse output using provided parse function or fallback
-            if self.parse_function:
-                # Build frame range lookup from cached shots to skip disk scans
-                cached_frame_ranges: dict[str, tuple[int, int]] | None = None
-                if self.model:
-                    cached_frame_ranges = self.model.build_frame_range_lookup()
-                # Use the base class's proper parsing method
-                shots = self.parse_function(output, cached_frame_ranges)
-            else:
-                # Fallback to simple parsing (should not be used in practice)
-                self.logger.warning(
-                    "Using fallback parsing - this may produce incorrect results"
-                )
-                shots = []
-                for line in output.strip().split("\n"):
-                    # Check for interruption in loop for faster response
-                    if self.should_stop():
-                        return
-
-                    if line.startswith("workspace "):
-                        parts = line.split()
-                        if len(parts) >= 2:
-                            # This simple parsing is incorrect and kept only as fallback
-                            # The proper parsing is in BaseShotModel._parse_ws_output
-                            self.logger.error(f"Fallback parsing used for: {line}")
-                            # Don't create shots with wrong data
+            # Build frame range lookup from cached shots to skip disk scans
+            cached_frame_ranges: dict[str, tuple[int, int]] | None = None
+            if self.model:
+                cached_frame_ranges = self.model.build_frame_range_lookup()
+            # Use the base class's proper parsing method
+            shots = self.parse_function(output, cached_frame_ranges)
 
             # Thread-safe check before emitting signal
             if not self.should_stop():

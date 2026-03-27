@@ -18,6 +18,11 @@ from PySide6.QtWidgets import QApplication
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
+def _noop_parse(output: str, frame_ranges: dict[str, tuple[int, int]] | None = None) -> list:
+    """No-op parse function for tests that only exercise thread safety."""
+    return []
+
+
 # Local application imports
 from cache.shot_cache import ShotDataCache
 from shots.shot_model import AsyncShotLoader, RefreshResult, ShotModel
@@ -57,7 +62,7 @@ class TestQThreadInterruptionFix:
         test_pool.set_outputs("workspace /shows/TEST/seq01/0010")
 
         # Create real loader and start it
-        loader = AsyncShotLoader(test_pool)
+        loader = AsyncShotLoader(test_pool, parse_function=_noop_parse)
         loader.start()
 
         # Set the loader in the model
@@ -92,7 +97,7 @@ class TestQThreadInterruptionFix:
         test_pool = TestProcessPool()
         test_pool.set_outputs("")  # Empty output for quick test
 
-        loader = AsyncShotLoader(test_pool)
+        loader = AsyncShotLoader(test_pool, parse_function=_noop_parse)
 
         # Request stop using the proper method
         loader.stop()
@@ -112,7 +117,7 @@ class TestQThreadInterruptionFix:
         from tests.fixtures.test_doubles import TestProcessPool
 
         test_process_pool = TestProcessPool()
-        loader = AsyncShotLoader(test_process_pool)
+        loader = AsyncShotLoader(test_process_pool, parse_function=_noop_parse)
 
         # Call stop (should set both mechanisms)
         loader.stop()
@@ -223,7 +228,7 @@ class TestSignalThreadSafety:
         test_process_pool = TestProcessPool(allow_main_thread=True)
         test_process_pool.set_outputs("workspace /shows/TEST/shots/SEQ01/0010")
 
-        loader = AsyncShotLoader(test_process_pool)
+        loader = AsyncShotLoader(test_process_pool, parse_function=_noop_parse)
 
         # Track signal emissions
         shots_received = []
@@ -250,7 +255,7 @@ class TestSignalThreadSafety:
         # Simulate slow command by setting empty output (loader will stop early)
         test_process_pool.set_outputs("")
 
-        loader = AsyncShotLoader(test_process_pool)
+        loader = AsyncShotLoader(test_process_pool, parse_function=_noop_parse)
 
         # Track emissions
         signals_received = []
@@ -310,7 +315,7 @@ class TestMemoryLeakPrevention:
     def test_deleted_objects_dont_receive_signals(self, qapp: QApplication) -> None:
         """Test that deleted objects don't receive signals."""
         test_process_pool = TestProcessPool(allow_main_thread=True)
-        loader = AsyncShotLoader(test_process_pool)
+        loader = AsyncShotLoader(test_process_pool, parse_function=_noop_parse)
 
         # Create a receiver that will be deleted
         class Receiver(QObject):
