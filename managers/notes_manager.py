@@ -205,7 +205,9 @@ class NotesManager(LoggingMixin, QObject):
             True if shot has a note
 
         """
-        key = self._key_from_path(workspace_path)
+        key = key_from_workspace_path(workspace_path)
+        if key is None:
+            _ = self.logger.warning(f"Could not parse workspace path: {workspace_path}")
         if not key:
             return False
         note = self._notes_by_key.get(key, "")
@@ -221,7 +223,9 @@ class NotesManager(LoggingMixin, QObject):
             Note text, or empty string if no note
 
         """
-        key = self._key_from_path(workspace_path)
+        key = key_from_workspace_path(workspace_path)
+        if key is None:
+            _ = self.logger.warning(f"Could not parse workspace path: {workspace_path}")
         if not key:
             return ""
         return self._notes_by_key.get(key, "")
@@ -234,7 +238,9 @@ class NotesManager(LoggingMixin, QObject):
             note: Note text (empty string removes note)
 
         """
-        key = self._key_from_path(workspace_path)
+        key = key_from_workspace_path(workspace_path)
+        if key is None:
+            _ = self.logger.warning(f"Could not parse workspace path: {workspace_path}")
         if not key:
             return
 
@@ -247,23 +253,6 @@ class NotesManager(LoggingMixin, QObject):
 
         if note != old_note:
             self._schedule_save()
-
-    def _key_from_path(self, workspace_path: str) -> tuple[str, str, str] | None:
-        """Extract (show, sequence, shot) key from workspace path.
-
-        Path format: /shows/{show}/shots/{seq}/{seq}_{shot}
-
-        Args:
-            workspace_path: Full workspace path
-
-        Returns:
-            Tuple key or None if path can't be parsed
-
-        """
-        key = key_from_workspace_path(workspace_path)
-        if key is None:
-            _ = self.logger.warning(f"Could not parse workspace path: {workspace_path}")
-        return key
 
     def get_notes_count(self) -> int:
         """Get the number of shots with notes.
