@@ -7,10 +7,16 @@ from unittest.mock import patch
 
 import pytest
 
-from discovery import ThumbnailFinders
 from discovery.thumbnail_finders import (
     _extract_frame_number,
+    _find_editorial_cutref_thumbnail,
     _find_first_jpeg_in_version_tree,
+    _shot_path,
+    find_any_publish_thumbnail,
+    find_shot_thumbnail,
+    find_turnover_plate_thumbnail,
+    find_undistorted_jpeg_thumbnail,
+    find_user_workspace_jpeg_thumbnail,
 )
 from utils import get_current_username
 
@@ -168,30 +174,30 @@ class TestFindFirstJpegInVersionTree:
 
 
 # ==============================================================================
-# ThumbnailFinders._shot_path
+# _shot_path
 # ==============================================================================
 
 
 class TestShotPath:
-    """Tests for ThumbnailFinders._shot_path."""
+    """Tests for _shot_path."""
 
     def test_builds_correct_path(self) -> None:
         """Constructs the standard VFX shot directory path with correct structure."""
-        result = ThumbnailFinders._shot_path("/shows", "myshow", "ABC", "1234")
+        result = _shot_path("/shows", "myshow", "ABC", "1234")
         assert result == Path("/shows/myshow/shots/ABC/ABC_1234")
         assert result.name == "ABC_1234"
         assert "ABC" in result.parts
 
     def test_builds_path_with_suffix(self) -> None:
         """Appends optional suffix segments correctly."""
-        result = ThumbnailFinders._shot_path(
+        result = _shot_path(
             "/shows", "demo", "seq01", "0010", "publish"
         )
         assert result == Path("/shows/demo/shots/seq01/seq01_0010/publish")
 
     def test_builds_path_with_multiple_suffix_parts(self) -> None:
         """Appends multiple suffix components."""
-        result = ThumbnailFinders._shot_path(
+        result = _shot_path(
             "/shows", "demo", "seq01", "0010", "publish", "editorial", "cutref"
         )
         assert result == Path(
@@ -200,12 +206,12 @@ class TestShotPath:
 
 
 # ==============================================================================
-# ThumbnailFinders.find_turnover_plate_thumbnail
+# find_turnover_plate_thumbnail
 # ==============================================================================
 
 
 class TestFindTurnoverPlateThumbnail:
-    """Tests for ThumbnailFinders.find_turnover_plate_thumbnail."""
+    """Tests for find_turnover_plate_thumbnail."""
 
     def _make_plate(
         self,
@@ -230,7 +236,7 @@ class TestFindTurnoverPlateThumbnail:
         base.mkdir(parents=True)
 
         with patch.object(Path, "iterdir", side_effect=OSError("no access")):
-            result = ThumbnailFinders.find_turnover_plate_thumbnail(
+            result = find_turnover_plate_thumbnail(
                 str(tmp_path / "shows"), "show", "seq01", "shot01"
             )
 
@@ -245,7 +251,7 @@ class TestFindTurnoverPlateThumbnail:
         )
         fg_file = self._make_plate(base, "FG01")
 
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
+        result = find_turnover_plate_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01"
         )
 
@@ -253,12 +259,12 @@ class TestFindTurnoverPlateThumbnail:
 
 
 # ==============================================================================
-# ThumbnailFinders.find_any_publish_thumbnail
+# find_any_publish_thumbnail
 # ==============================================================================
 
 
 class TestFindAnyPublishThumbnail:
-    """Tests for ThumbnailFinders.find_any_publish_thumbnail."""
+    """Tests for find_any_publish_thumbnail."""
 
     def _make_publish_dir(self, tmp_path: Path) -> Path:
         """Return the publish directory Path after creating it."""
@@ -274,7 +280,7 @@ class TestFindAnyPublishThumbnail:
         publish = self._make_publish_dir(tmp_path)
         (publish / "comp.1002.exr").write_bytes(b"EXR")
 
-        result = ThumbnailFinders.find_any_publish_thumbnail(
+        result = find_any_publish_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01"
         )
 
@@ -285,7 +291,7 @@ class TestFindAnyPublishThumbnail:
         publish = self._make_publish_dir(tmp_path)
         (publish / "thumb.1001.jpg").write_bytes(b"JPG")
 
-        result = ThumbnailFinders.find_any_publish_thumbnail(
+        result = find_any_publish_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01"
         )
 
@@ -307,13 +313,13 @@ class TestFindAnyPublishThumbnail:
         (deep / "shot.1001.exr").write_bytes(b"EXR")
 
         # max_depth=4 should NOT reach depth-4 files (depth >= max_depth is skipped)
-        result = ThumbnailFinders.find_any_publish_thumbnail(
+        result = find_any_publish_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01", max_depth=4
         )
         assert result is None
 
         # max_depth=5 should reach the depth-4 file
-        result = ThumbnailFinders.find_any_publish_thumbnail(
+        result = find_any_publish_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01", max_depth=5
         )
         assert result is not None
@@ -326,7 +332,7 @@ class TestFindAnyPublishThumbnail:
         exr = sub / "beauty.1001.exr"
         exr.write_bytes(b"EXR")
 
-        result = ThumbnailFinders.find_any_publish_thumbnail(
+        result = find_any_publish_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01"
         )
 
@@ -338,7 +344,7 @@ class TestFindAnyPublishThumbnail:
         (publish / "shot.1001.exr").write_bytes(b"EXR")
 
         with patch("discovery.thumbnail_finders.os.walk", side_effect=OSError("permission denied")):
-            result = ThumbnailFinders.find_any_publish_thumbnail(
+            result = find_any_publish_thumbnail(
                 str(tmp_path / "shows"), "show", "seq01", "shot01"
             )
 
@@ -346,12 +352,12 @@ class TestFindAnyPublishThumbnail:
 
 
 # ==============================================================================
-# ThumbnailFinders.find_shot_thumbnail (orchestrator)
+# find_shot_thumbnail (orchestrator)
 # ==============================================================================
 
 
 class TestFindShotThumbnail:
-    """Tests for ThumbnailFinders.find_shot_thumbnail (main entry point)."""
+    """Tests for find_shot_thumbnail (main entry point)."""
 
     def _args(self) -> tuple[str, str, str, str]:
         return "/shows", "show", "seq01", "shot01"
@@ -365,18 +371,16 @@ class TestFindShotThumbnail:
                 "discovery.thumbnail_finders.PathValidators.validate_path_exists",
                 return_value=False,
             ),
-            patch.object(
-                ThumbnailFinders,
-                "find_turnover_plate_thumbnail",
+            patch(
+                "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
                 return_value=turnover_exr,
             ),
-            patch.object(
-                ThumbnailFinders,
-                "find_any_publish_thumbnail",
+            patch(
+                "discovery.thumbnail_finders.find_any_publish_thumbnail",
                 return_value=None,
             ),
         ):
-            result = ThumbnailFinders.find_shot_thumbnail(*self._args())
+            result = find_shot_thumbnail(*self._args())
 
         assert result == turnover_exr
 
@@ -389,18 +393,16 @@ class TestFindShotThumbnail:
                 "discovery.thumbnail_finders.PathValidators.validate_path_exists",
                 return_value=False,
             ),
-            patch.object(
-                ThumbnailFinders,
-                "find_turnover_plate_thumbnail",
+            patch(
+                "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
                 return_value=None,
             ),
-            patch.object(
-                ThumbnailFinders,
-                "find_any_publish_thumbnail",
+            patch(
+                "discovery.thumbnail_finders.find_any_publish_thumbnail",
                 return_value=publish_exr,
             ),
         ):
-            result = ThumbnailFinders.find_shot_thumbnail(*self._args())
+            result = find_shot_thumbnail(*self._args())
 
         assert result == publish_exr
 
@@ -411,18 +413,16 @@ class TestFindShotThumbnail:
                 "discovery.thumbnail_finders.PathValidators.validate_path_exists",
                 return_value=False,
             ),
-            patch.object(
-                ThumbnailFinders,
-                "find_turnover_plate_thumbnail",
+            patch(
+                "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
                 return_value=None,
             ),
-            patch.object(
-                ThumbnailFinders,
-                "find_any_publish_thumbnail",
+            patch(
+                "discovery.thumbnail_finders.find_any_publish_thumbnail",
                 return_value=None,
             ),
         ):
-            result = ThumbnailFinders.find_shot_thumbnail(*self._args())
+            result = find_shot_thumbnail(*self._args())
 
         assert result is None
 
@@ -436,30 +436,28 @@ class TestFindShotThumbnail:
                 "discovery.thumbnail_finders.PathValidators.validate_path_exists",
                 return_value=True,
             ),
-            patch.object(
-                ThumbnailFinders,
-                "_find_editorial_cutref_thumbnail",
+            patch(
+                "discovery.thumbnail_finders._find_editorial_cutref_thumbnail",
                 return_value=editorial_jpeg,
             ),
-            patch.object(
-                ThumbnailFinders,
-                "find_turnover_plate_thumbnail",
+            patch(
+                "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
                 return_value=turnover_exr,
             ) as mock_turnover,
         ):
-            result = ThumbnailFinders.find_shot_thumbnail(*self._args())
+            result = find_shot_thumbnail(*self._args())
 
         assert result == editorial_jpeg
         mock_turnover.assert_not_called()
 
 
 # ==============================================================================
-# ThumbnailFinders._find_editorial_cutref_thumbnail
+# _find_editorial_cutref_thumbnail
 # ==============================================================================
 
 
 class TestFindEditorialCutrefThumbnail:
-    """Tests for ThumbnailFinders._find_editorial_cutref_thumbnail."""
+    """Tests for _find_editorial_cutref_thumbnail."""
 
     def test_returns_jpeg_from_version_tree(self, tmp_path: Path) -> None:
         """Returns JPEG found in editorial/version/jpg/resolution structure."""
@@ -470,7 +468,7 @@ class TestFindEditorialCutrefThumbnail:
         jpg_file.write_bytes(b"JPG_DATA")
 
         with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value="v003"):
-            result = ThumbnailFinders._find_editorial_cutref_thumbnail(editorial_base)
+            result = _find_editorial_cutref_thumbnail(editorial_base)
 
         assert result == jpg_file
 
@@ -480,22 +478,22 @@ class TestFindEditorialCutrefThumbnail:
         editorial_base.mkdir()
 
         with patch("discovery.thumbnail_finders.VersionUtils.get_latest_version", return_value=None):
-            result = ThumbnailFinders._find_editorial_cutref_thumbnail(editorial_base)
+            result = _find_editorial_cutref_thumbnail(editorial_base)
 
         assert result is None
 
 
 # ==============================================================================
-# ThumbnailFinders.find_undistorted_jpeg_thumbnail
+# find_undistorted_jpeg_thumbnail
 # ==============================================================================
 
 
 class TestFindUndistortedJpegThumbnail:
-    """Tests for ThumbnailFinders.find_undistorted_jpeg_thumbnail."""
+    """Tests for find_undistorted_jpeg_thumbnail."""
 
     def test_returns_none_when_mm_default_missing(self, tmp_path: Path) -> None:
         """Returns None when publish/mm/default directory doesn't exist."""
-        result = ThumbnailFinders.find_undistorted_jpeg_thumbnail(
+        result = find_undistorted_jpeg_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01"
         )
         assert result is None
@@ -527,7 +525,7 @@ class TestFindUndistortedJpegThumbnail:
                 return_value="v001",
             ),
         ):
-            result = ThumbnailFinders.find_undistorted_jpeg_thumbnail(
+            result = find_undistorted_jpeg_thumbnail(
                 str(tmp_path / "shows"), "show", "seq01", "shot01"
             )
 
@@ -546,7 +544,7 @@ class TestFindUndistortedJpegThumbnail:
             "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
             return_value=[],
         ):
-            result = ThumbnailFinders.find_undistorted_jpeg_thumbnail(
+            result = find_undistorted_jpeg_thumbnail(
                 str(tmp_path / "shows"), "show", "seq01", "shot01"
             )
 
@@ -554,16 +552,16 @@ class TestFindUndistortedJpegThumbnail:
 
 
 # ==============================================================================
-# ThumbnailFinders.find_user_workspace_jpeg_thumbnail
+# find_user_workspace_jpeg_thumbnail
 # ==============================================================================
 
 
 class TestFindUserWorkspaceJpegThumbnail:
-    """Tests for ThumbnailFinders.find_user_workspace_jpeg_thumbnail."""
+    """Tests for find_user_workspace_jpeg_thumbnail."""
 
     def test_returns_none_when_user_dir_missing(self, tmp_path: Path) -> None:
         """Returns None when the user directory doesn't exist."""
-        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
+        result = find_user_workspace_jpeg_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01"
         )
         assert result is None
@@ -600,7 +598,7 @@ class TestFindUserWorkspaceJpegThumbnail:
                 return_value=jpeg_file,
             ),
         ):
-            result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
+            result = find_user_workspace_jpeg_thumbnail(
                 str(tmp_path / "shows"), "show", "seq01", "shot01"
             )
 
@@ -615,7 +613,7 @@ class TestFindUserWorkspaceJpegThumbnail:
         # Create user directory but without the expected mm/nuke/outputs structure
         (user_dir / _USERNAME).mkdir(parents=True)
 
-        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
+        result = find_user_workspace_jpeg_thumbnail(
             str(tmp_path / "shows"), "show", "seq01", "shot01"
         )
 
@@ -656,7 +654,7 @@ class TestFindTurnoverPlateThumbnailIntegration:
         )
         test_frame.write_text("fake exr content")
 
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
+        result = find_turnover_plate_thumbnail(
             str(shows_root),
             "myshow",
             "seq01",
@@ -691,7 +689,7 @@ class TestFindTurnoverPlateThumbnailIntegration:
             plate_path.mkdir(parents=True)
             (plate_path / f"shot_{plate}.1001.exr").write_text(f"{plate} content")
 
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
+        result = find_turnover_plate_thumbnail(
             str(shows_root),
             "myshow",
             "seq01",
@@ -725,7 +723,7 @@ class TestFindTurnoverPlateThumbnailIntegration:
         (plate_path / "shot.1001.exr").write_text("frame 1001")  # Should be first
         (plate_path / "shot.1005.exr").write_text("frame 1005")
 
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
+        result = find_turnover_plate_thumbnail(
             str(shows_root),
             "myshow",
             "seq01",
@@ -737,7 +735,7 @@ class TestFindTurnoverPlateThumbnailIntegration:
 
     def test_find_turnover_plate_thumbnail_no_base_path(self) -> None:
         """Test turnover plate discovery when base path doesn't exist."""
-        result = ThumbnailFinders.find_turnover_plate_thumbnail(
+        result = find_turnover_plate_thumbnail(
             "/nonexistent",
             "show",
             "seq",
@@ -768,7 +766,7 @@ class TestFindAnyPublishThumbnailIntegration:
         (deep_path / "comp_v001.1002.exr").write_text("other frame")
         (deep_path / "comp_v001.jpg").write_text("wrong extension")
 
-        result = ThumbnailFinders.find_any_publish_thumbnail(
+        result = find_any_publish_thumbnail(
             str(tmp_path / "shows"),
             "testshow",
             "seq01",
@@ -796,7 +794,7 @@ class TestFindAnyPublishThumbnailIntegration:
         shallow_file = shallow / "shallow.1001.exr"
         shallow_file.write_text("shallow")
 
-        result = ThumbnailFinders.find_any_publish_thumbnail(
+        result = find_any_publish_thumbnail(
             str(shows_root),
             "testshow",
             "seq01",
@@ -812,7 +810,7 @@ class TestFindAnyPublishThumbnailIntegration:
         shows_root = tmp_path / "shows"
         shows_root.mkdir()
 
-        result = ThumbnailFinders.find_any_publish_thumbnail(
+        result = find_any_publish_thumbnail(
             str(shows_root),
             "testshow",
             "seq01",
@@ -879,7 +877,7 @@ class TestUserWorkspaceJPEGDiscovery:
         jpeg_file = jpeg_dir / filename
         jpeg_file.write_text("fake jpeg content")
 
-        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
+        result = find_user_workspace_jpeg_thumbnail(
             str(shows_root), "jack_ryan", seq, shot
         )
 
@@ -933,7 +931,7 @@ class TestUserWorkspaceJPEGDiscovery:
         scene_jpeg.parent.mkdir(parents=True)
         scene_jpeg.write_text("scene jpeg")
 
-        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
+        result = find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -968,7 +966,7 @@ class TestUserWorkspaceJPEGDiscovery:
         jpeg_file = jpeg_dir / "lowercase_plate.jpeg"
         jpeg_file.write_text("jpeg")
 
-        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
+        result = find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -983,7 +981,7 @@ class TestUserWorkspaceJPEGDiscovery:
         shot_path.mkdir(parents=True)
         # No user/ directory created
 
-        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
+        result = find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -1018,7 +1016,7 @@ class TestUserWorkspaceJPEGDiscovery:
             parents=True
         )
 
-        result = ThumbnailFinders.find_user_workspace_jpeg_thumbnail(
+        result = find_user_workspace_jpeg_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -1064,7 +1062,7 @@ class TestThumbnailFallbackOrder:
         v002_jpeg = v002_dir / "seq01_shot01_editorial-cutref_v002.1001.jpg"
         v002_jpeg.write_text("v002 jpeg")
 
-        result = ThumbnailFinders.find_shot_thumbnail(
+        result = find_shot_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
@@ -1090,7 +1088,7 @@ class TestThumbnailFallbackOrder:
         other_jpeg = other_dir / "other.jpg"
         other_jpeg.write_text("other jpeg")
 
-        result = ThumbnailFinders.find_shot_thumbnail(
+        result = find_shot_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 

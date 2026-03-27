@@ -177,7 +177,10 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         """
         # Local application imports
-        from discovery import ThumbnailFinders
+        from discovery.thumbnail_finders import (
+            find_any_publish_thumbnail,
+            find_turnover_plate_thumbnail,
+        )
         from utils import FileUtils
 
         try:
@@ -189,7 +192,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
                     return thumbnail
 
             # Fall back to turnover plate thumbnails
-            thumbnail = ThumbnailFinders.find_turnover_plate_thumbnail(
+            thumbnail = find_turnover_plate_thumbnail(
                 Config.SHOWS_ROOT,
                 shot.show,
                 shot.sequence,
@@ -199,7 +202,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
                 return thumbnail
 
             # Third fallback: any EXR with 1001 in publish folder
-            return ThumbnailFinders.find_any_publish_thumbnail(
+            return find_any_publish_thumbnail(
                 Config.SHOWS_ROOT,
                 shot.show,
                 shot.sequence,

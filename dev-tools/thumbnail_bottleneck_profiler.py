@@ -33,7 +33,11 @@ try:
     from shot_model import Shot
 
     from config import Config
-    from discovery import ThumbnailFinders
+    from discovery.thumbnail_finders import (
+        find_any_publish_thumbnail,
+        find_shot_thumbnail,
+        find_turnover_plate_thumbnail,
+    )
     from paths.validators import PathValidators
     from utils import FileUtils, get_cache_stats
 
@@ -200,7 +204,7 @@ class ThumbnailBottleneckProfiler:
 
             # Stage 2: Turnover plate thumbnails
             start = time.perf_counter()
-            turnover_thumbnail = ThumbnailFinders.find_turnover_plate_thumbnail(
+            turnover_thumbnail = find_turnover_plate_thumbnail(
                 Config.SHOWS_ROOT, show, sequence, shot
             )
             filesystem_operations += 3  # Multiple path validations
@@ -211,7 +215,7 @@ class ThumbnailBottleneckProfiler:
 
             # Stage 3: Publish folder fallback
             start = time.perf_counter()
-            ThumbnailFinders.find_any_publish_thumbnail(
+            find_any_publish_thumbnail(
                 Config.SHOWS_ROOT, show, sequence, shot, max_depth=3
             )
             filesystem_operations += 5  # Recursive search
@@ -455,7 +459,7 @@ class ThumbnailBottleneckProfiler:
 
         count = 0
         for i in range(10):
-            ThumbnailFinders.find_shot_thumbnail(
+            find_shot_thumbnail(
                 "/fake/root", f"Show{i}", f"0{i:02d}", f"00{i:02d}"
             )
             count += 1

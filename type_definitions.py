@@ -142,10 +142,10 @@ class Shot:
 
             # Import here to avoid circular dependency at module level
             from config import Config
-            from discovery import ThumbnailFinders
+            from discovery.thumbnail_finders import find_shot_thumbnail
 
             # Use the unified thumbnail discovery method
-            thumbnail = ThumbnailFinders.find_shot_thumbnail(
+            thumbnail = find_shot_thumbnail(
                 Config.SHOWS_ROOT,
                 self.show,
                 self.sequence,
@@ -262,10 +262,10 @@ class ThreeDEScene:
 
         # Import here to avoid circular dependency at module level
         from config import Config
-        from discovery import ThumbnailFinders
+        from discovery.thumbnail_finders import find_shot_thumbnail
 
         # Use the unified thumbnail discovery method
-        thumbnail = ThumbnailFinders.find_shot_thumbnail(
+        thumbnail = find_shot_thumbnail(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,

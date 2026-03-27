@@ -23,12 +23,12 @@ import concurrent.futures
 import threading
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from discovery import ThumbnailFinders
-
 # Local application imports
+from discovery.thumbnail_finders import find_shot_thumbnail
 from paths.validators import (  # type: ignore[reportPrivateUsage]
     PathValidators,
     _path_cache,
@@ -214,18 +214,17 @@ class TestConcurrentThumbnailRaceConditions:
         discovery_count = 0
         discovery_lock = threading.Lock()
 
-        # Monkey-patch ThumbnailFinders.find_shot_thumbnail to count calls
-        original_find = ThumbnailFinders.find_shot_thumbnail
-
+        # Patch find_shot_thumbnail to count calls
         def counting_find(shows_root: str, show: str, sequence: str, shot: str) -> Path | None:
             nonlocal discovery_count
             with discovery_lock:
                 discovery_count += 1
-            return original_find(shows_root, show, sequence, shot)
+            return find_shot_thumbnail(shows_root, show, sequence, shot)
 
-        ThumbnailFinders.find_shot_thumbnail = counting_find  # type: ignore[method-assign]
-
-        try:
+        with patch(
+            "discovery.thumbnail_finders.find_shot_thumbnail",
+            side_effect=counting_find,
+        ):
             results: list[tuple[int, Path | None]] = []
             results_lock = threading.Lock()
             corruption_detected = threading.Event()
@@ -272,10 +271,6 @@ class TestConcurrentThumbnailRaceConditions:
             for _worker_id, thumbnail in results:
                 if thumbnail is not None:
                     assert isinstance(thumbnail, Path), f"Invalid thumbnail type: {type(thumbnail)}"
-
-        finally:
-            # Restore original function
-            ThumbnailFinders.find_shot_thumbnail = original_find  # type: ignore[method-assign]
 
     @pytest.mark.slow
     def test_massive_concurrent_load_stress_test(self) -> None:
