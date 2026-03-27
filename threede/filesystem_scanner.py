@@ -4,6 +4,7 @@ This module handles efficient filesystem scanning operations for finding .3de fi
 with various optimization strategies including caching, subprocess fallback, and
 progressive discovery.
 """
+
 from __future__ import annotations
 
 # Standard library imports
@@ -42,7 +43,6 @@ class FileSystemScanner(LoggingMixin):
     # Workload size thresholds for strategy selection
     SMALL_WORKLOAD_THRESHOLD = 100  # Use Python-only below this
 
-
     def __init__(self) -> None:
         """Initialize FileSystemScanner."""
         super().__init__()
@@ -57,6 +57,7 @@ class FileSystemScanner(LoggingMixin):
     def get_cache_stats(cls) -> dict[str, int | float]:
         """Get directory cache statistics from FilesystemCoordinator."""
         from paths.filesystem_coordinator import FilesystemCoordinator
+
         return FilesystemCoordinator().get_cache_stats()
 
     @classmethod
@@ -70,6 +71,7 @@ class FileSystemScanner(LoggingMixin):
             Number of entries cleared.
         """
         from paths.filesystem_coordinator import FilesystemCoordinator
+
         return FilesystemCoordinator().invalidate_all()
 
     def get_directory_listing_cached(self, path: Path) -> list[tuple[str, bool, bool]]:
@@ -124,9 +126,7 @@ class FileSystemScanner(LoggingMixin):
                             ):
                                 files.append((entry_name, threede_file))
                                 found_count += 1
-                                self.logger.debug(
-                                    f"Found .3de file: {threede_file}"
-                                )
+                                self.logger.debug(f"Found .3de file: {threede_file}")
 
                         if found_count > 0:
                             self.logger.info(
@@ -139,7 +139,9 @@ class FileSystemScanner(LoggingMixin):
                         continue
 
         except (OSError, PermissionError):
-            self.logger.warning(f"Permission denied accessing {user_dir}", exc_info=True)
+            self.logger.warning(
+                f"Permission denied accessing {user_dir}", exc_info=True
+            )
 
         return files
 
@@ -174,7 +176,13 @@ class FileSystemScanner(LoggingMixin):
                 *exclusions,
             ]
 
-            result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=TimeoutConfig.THREEDE_SCAN_SEC)
+            result = subprocess.run(
+                cmd,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=TimeoutConfig.THREEDE_SCAN_SEC,
+            )
 
             if result.returncode == 0 and result.stdout:
                 for file_path_str in result.stdout.strip().split("\n"):
@@ -397,7 +405,10 @@ class FileSystemScanner(LoggingMixin):
         """
         stdout_chunks: list[str] = []
         stderr_chunks: list[str] = []
-        chunks: dict[str, list[str]] = {"stdout": stdout_chunks, "stderr": stderr_chunks}
+        chunks: dict[str, list[str]] = {
+            "stdout": stdout_chunks,
+            "stderr": stderr_chunks,
+        }
 
         process = subprocess.Popen(
             cmd,
@@ -491,8 +502,10 @@ class FileSystemScanner(LoggingMixin):
 
         try:
             # Use streaming read to avoid pipe buffer deadlock on large outputs
-            returncode, stdout, stderr, status = self._run_subprocess_with_streaming_read(
-                find_cmd, cancel_flag, max_wait_time
+            returncode, stdout, stderr, status = (
+                self._run_subprocess_with_streaming_read(
+                    find_cmd, cancel_flag, max_wait_time
+                )
             )
 
             # Handle cancellation and timeout
@@ -543,9 +556,7 @@ class FileSystemScanner(LoggingMixin):
 
                     self.parser = SceneParser()
 
-    def _build_find_commands(
-        self, shots_dir: Path
-    ) -> tuple[list[str], list[str]]:
+    def _build_find_commands(self, shots_dir: Path) -> tuple[list[str], list[str]]:
         """Build the two find commands for the dual-search strategy.
 
         Returns:
@@ -554,11 +565,30 @@ class FileSystemScanner(LoggingMixin):
         """
         # Directories to aggressively prune
         prune_dirs = [
-            "render", "comp", "output", "cache", "tmp", "temp", "backup",
-            "plates", "elements", "assets", "textures", "footage",
-            "turnover", "reference", "editorial", "audio",
-            ".git", ".svn", "__pycache__", "node_modules",
-            "versions", ".backup", "old", "archive",
+            "render",
+            "comp",
+            "output",
+            "cache",
+            "tmp",
+            "temp",
+            "backup",
+            "plates",
+            "elements",
+            "assets",
+            "textures",
+            "footage",
+            "turnover",
+            "reference",
+            "editorial",
+            "audio",
+            ".git",
+            ".svn",
+            "__pycache__",
+            "node_modules",
+            "versions",
+            ".backup",
+            "old",
+            "archive",
         ]
 
         prune_expr: list[str] = []
@@ -568,19 +598,34 @@ class FileSystemScanner(LoggingMixin):
             prune_expr.extend(["-path", f"*/{dir_name}"])
 
         find_cmd_user = [
-            "find", str(shots_dir),
-            "(", *prune_expr, ")", "-prune",
+            "find",
+            str(shots_dir),
+            "(",
+            *prune_expr,
+            ")",
+            "-prune",
             "-o",
-            "-type", "f",
-            "-path", "*/user/*",
-            "(", "-name", "*.3de", "-o", "-name", "*.3DE", ")",
+            "-type",
+            "f",
+            "-path",
+            "*/user/*",
+            "(",
+            "-name",
+            "*.3de",
+            "-o",
+            "-name",
+            "*.3DE",
+            ")",
             "-print",
         ]
 
         find_cmd_publish_dirs = [
-            "find", str(shots_dir),
-            "-type", "d",
-            "-path", "*/publish/mm",
+            "find",
+            str(shots_dir),
+            "-type",
+            "d",
+            "-path",
+            "*/publish/mm",
             "-print",
         ]
 
@@ -599,8 +644,10 @@ class FileSystemScanner(LoggingMixin):
         """
         shots_with_published_mm: set[tuple[str, str]] = set()
         try:
-            returncode, stdout, _stderr, status = self._run_subprocess_with_streaming_read(
-                find_cmd_publish_dirs, cancel_flag, max_wait_time=30.0
+            returncode, stdout, _stderr, status = (
+                self._run_subprocess_with_streaming_read(
+                    find_cmd_publish_dirs, cancel_flag, max_wait_time=30.0
+                )
             )
 
             if status == "cancelled":
@@ -622,11 +669,17 @@ class FileSystemScanner(LoggingMixin):
 
                         if shot:
                             shots_with_published_mm.add((sequence, shot))
-                            self.logger.debug(f"Found published MM for: {sequence}/{shot}")
+                            self.logger.debug(
+                                f"Found published MM for: {sequence}/{shot}"
+                            )
                         else:
-                            self.logger.debug(f"Skipping empty shot name from: {shot_dir}")
+                            self.logger.debug(
+                                f"Skipping empty shot name from: {shot_dir}"
+                            )
                     except (IndexError, AttributeError) as e:
-                        self.logger.debug(f"Could not parse publish/mm path {line}: {e}")
+                        self.logger.debug(
+                            f"Could not parse publish/mm path {line}: {e}"
+                        )
 
             self.logger.info(
                 f"Found {len(shots_with_published_mm)} shots with published matchmove"
@@ -658,7 +711,8 @@ class FileSystemScanner(LoggingMixin):
         """
         if shots_with_published_mm:
             results = [
-                result for result in user_results
+                result
+                for result in user_results
                 if (result[2], result[3]) in shots_with_published_mm
             ]
             msg_prefix = "Partial results (timeout):" if user_timed_out else "Filtered"
@@ -762,7 +816,12 @@ class FileSystemScanner(LoggingMixin):
             # Search 1: user directories — actual .3de files
             self.logger.debug(f"Search 1 (user): {' '.join(find_cmd_user)}")
             user_results_raw = self._run_find_and_parse(
-                find_cmd_user, show_path, show, excluded_users, cancel_flag, max_wait_time=150
+                find_cmd_user,
+                show_path,
+                show,
+                excluded_users,
+                cancel_flag,
+                max_wait_time=150,
             )
             user_timed_out = user_results_raw is None
             user_results = user_results_raw if user_results_raw is not None else []
@@ -771,7 +830,9 @@ class FileSystemScanner(LoggingMixin):
                 return []
 
             # Search 2: publish/mm directories — which shots have published matchmove
-            self.logger.debug(f"Search 2 (publish/mm dirs): {' '.join(find_cmd_publish_dirs)}")
+            self.logger.debug(
+                f"Search 2 (publish/mm dirs): {' '.join(find_cmd_publish_dirs)}"
+            )
             shots_with_mm = self._find_shots_with_published_mm(
                 find_cmd_publish_dirs, cancel_flag
             )
@@ -792,7 +853,9 @@ class FileSystemScanner(LoggingMixin):
                 self.logger.info(
                     "No results from user directory search, falling back to Python-based search"
                 )
-                return self._fallback_python_search(shots_dir, show_path, show, excluded_users)
+                return self._fallback_python_search(
+                    shots_dir, show_path, show, excluded_users
+                )
 
         except Exception:
             self.logger.exception("Error in optimized search")

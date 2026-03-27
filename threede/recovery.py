@@ -131,8 +131,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
             # Filter out crash files from version calculation
             regular_files = [
-                f for f in existing_files
-                if not self.CRASH_PATTERN.match(f.name)
+                f for f in existing_files if not self.CRASH_PATTERN.match(f.name)
             ]
 
             # Calculate next available version
@@ -156,7 +155,9 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
             )
 
             crash_files.append(info)
-            self.logger.debug(f"Found crash file: {crash_file.name} (v{current_version:03d} → v{next_version:03d})")
+            self.logger.debug(
+                f"Found crash file: {crash_file.name} (v{current_version:03d} → v{next_version:03d})"
+            )
 
         # Sort by modification time (newest first)
         crash_files.sort(key=lambda x: x.modification_time, reverse=True)
@@ -189,7 +190,9 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         )
 
         latest = sorted_files[0]
-        self.logger.info(f"Latest crash file: {latest.crash_path.name} (modified: {latest.modification_time})")
+        self.logger.info(
+            f"Latest crash file: {latest.crash_path.name} (modified: {latest.modification_time})"
+        )
         return latest
 
     def recover_crash_file(
@@ -281,9 +284,7 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
 
         archive_path = crash_path.parent / archive_name
 
-        self.logger.info(
-            f"Archiving crash file: {crash_path.name} → {archive_name}"
-        )
+        self.logger.info(f"Archiving crash file: {crash_path.name} → {archive_name}")
         _ = crash_path.rename(archive_path)
 
         return archive_path
@@ -336,6 +337,8 @@ class ThreeDERecoveryManager(VersionHandlingMixin):
         # Step 2: Archive the original crash file
         archived_path = self.archive_crash_file(crash_info)
 
-        self.logger.info(f"Recovery complete: {recovery_path.name}\nArchived: {archived_path.name}")
+        self.logger.info(
+            f"Recovery complete: {recovery_path.name}\nArchived: {archived_path.name}"
+        )
 
         return (recovery_path, archived_path)

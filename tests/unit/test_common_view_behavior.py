@@ -106,10 +106,12 @@ def make_model(
             return item_model
 
         if model_class_name == "ThreeDEItemModel":
+            from unittest.mock import MagicMock
+
             from threede import ThreeDESceneModel
             from threede.scene_model import ThreeDEScene
 
-            scene_model = ThreeDESceneModel(load_cache=False)
+            scene_model = ThreeDESceneModel(cache_manager=MagicMock(), load_cache=False)
             # Convert shots to scenes for testing
             scenes = [
                 ThreeDEScene(

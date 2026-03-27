@@ -138,7 +138,9 @@ class LaunchOperation(LoggingMixin):
         # Build the full app command: prefix + Nuke env fixes + DCC command
         try:
             safe_workspace_path = validate_path(workspace_path)
-            env_fixes = nuke_commands.build_nuke_environment_prefix(self._nuke_env, app_name)
+            env_fixes = nuke_commands.build_nuke_environment_prefix(
+                self._nuke_env, app_name
+            )
             app_command = f"{self._command_prefix}{env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
@@ -171,9 +173,7 @@ class LaunchOperation(LoggingMixin):
             self._log_suffix,
         )
 
-        return self._launch_in_new_terminal(
-            full_command, app_name, self._error_context
-        )
+        return self._launch_in_new_terminal(full_command, app_name, self._error_context)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -204,7 +204,9 @@ class LaunchOperation(LoggingMixin):
             and self._settings_manager.launch.get_background_gui_apps()
         ):
             full_command = wrap_for_background(full_command)
-            self.logger.info("Backgrounding %s — terminal will close immediately", app_name)
+            self.logger.info(
+                "Backgrounding %s — terminal will close immediately", app_name
+            )
 
         # Guard against silent truncation by terminal emulators
         cmd_length = len(full_command)
@@ -305,6 +307,7 @@ class LaunchOperation(LoggingMixin):
 
         # Unsupported app — caller should not reach this path
         import logging
+
         logging.getLogger(__name__).warning(
             "append_scene_to_command called for unsupported app: %s", app_name
         )

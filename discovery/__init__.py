@@ -3,7 +3,6 @@
 Re-exports all public types and functions for convenient imports::
 
     from discovery import BaseLatestFinder, MayaLatestFinder
-    from discovery import LatestFileFinderWorker
     from discovery import FileDiscovery, PlateDiscovery
     from discovery import UserSequenceFinder
     from discovery import extract_frame_range, find_main_plate
@@ -19,7 +18,6 @@ from __future__ import annotations
 from dcc.maya_comment_reader import load_maya_comments, save_maya_comment
 from discovery.file_discovery import FileDiscovery, sanitize_username
 from discovery.frame_range_extractor import extract_frame_range
-from discovery.latest_file_finder_worker import LatestFileFinderWorker
 from discovery.latest_finders import BaseLatestFinder, MayaLatestFinder
 from discovery.plate_finders import PlateDiscovery, find_main_plate
 from discovery.thumbnail_finders import (
@@ -35,7 +33,6 @@ from discovery.user_sequence_finder import UserSequenceFinder
 __all__ = [
     "BaseLatestFinder",
     "FileDiscovery",
-    "LatestFileFinderWorker",
     "MayaLatestFinder",
     "PlateDiscovery",
     "UserSequenceFinder",

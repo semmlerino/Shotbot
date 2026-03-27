@@ -84,7 +84,9 @@ class ShotDataCache(LoggingMixin, QObject):
             List of shot dictionaries or None if not cached
 
         """
-        result = read_json_cache(self.shots_cache_file, self._cache_ttl, check_ttl=False)
+        result = read_json_cache(
+            self.shots_cache_file, self._cache_ttl, check_ttl=False
+        )
         return cast("list[ShotDict] | None", result)
 
     def get_shots_archive(self) -> list[ShotDict] | None:
@@ -175,7 +177,9 @@ class ShotDataCache(LoggingMixin, QObject):
             shots: Sequence of Shot objects or shot dictionaries
 
         """
-        self._write_shots_to_cache(shots, self.previous_shots_cache_file, "previous_shots")
+        self._write_shots_to_cache(
+            shots, self.previous_shots_cache_file, "previous_shots"
+        )
 
     def archive_shots_as_previous(self, shots: Sequence[Shot | ShotDict]) -> bool:
         """Move removed shots to Previous Shots migration cache.
@@ -244,7 +248,6 @@ class ShotDataCache(LoggingMixin, QObject):
     # Incremental merge
     # ========================================================================
 
-
     def update_shots_cache(
         self,
         cached: Sequence[Shot | ShotDict] | None,
@@ -280,8 +283,8 @@ class ShotDataCache(LoggingMixin, QObject):
         """
         # Phase 1: Convert and build lookups under lock (minimal critical section)
         with QMutexLocker(self._lock):
-            cached_dicts, fresh_dicts, cached_by_key, fresh_keys = (
-                build_merge_lookups(cached, fresh, shot_to_dict, get_shot_key)
+            cached_dicts, fresh_dicts, cached_by_key, fresh_keys = build_merge_lookups(
+                cached, fresh, shot_to_dict, get_shot_key
             )
 
         # Phase 2: All merge logic outside lock (CPU-bound, no shared state)
@@ -373,7 +376,6 @@ class ShotDataCache(LoggingMixin, QObject):
         return [self.shots_cache_file, self.previous_shots_cache_file]
 
 
-
 def make_default_shot_cache(base_dir: Path | None = None) -> ShotDataCache:
     """Create a ShotDataCache using the env-resolved default directory.
 
@@ -381,6 +383,7 @@ def make_default_shot_cache(base_dir: Path | None = None) -> ShotDataCache:
         base_dir: Override directory. If None, resolves from environment variables.
     """
     from cache._dir_resolver import resolve_default_cache_dir
+
     resolved = base_dir if base_dir is not None else resolve_default_cache_dir()
     resolved.mkdir(parents=True, exist_ok=True)
     return ShotDataCache(resolved)

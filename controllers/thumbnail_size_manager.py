@@ -93,11 +93,11 @@ class ThumbnailSizeManager(LoggingMixin):
         """
         # Block signals temporarily to prevent recursion
         shot_grid_was_blocked = self.window.shot_grid.size_slider.blockSignals(True)
-        threede_grid_was_blocked = self.window.threede_shot_grid.size_slider.blockSignals(
-            True
+        threede_grid_was_blocked = (
+            self.window.threede_shot_grid.size_slider.blockSignals(True)
         )
-        previous_grid_was_blocked = self.window.previous_shots_grid.size_slider.blockSignals(
-            True
+        previous_grid_was_blocked = (
+            self.window.previous_shots_grid.size_slider.blockSignals(True)
         )
 
         try:

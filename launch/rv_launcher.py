@@ -35,7 +35,9 @@ def open_plate_in_rv(workspace_path: str) -> None:
 
     if plate_path is None:
         logger.warning(f"No plate found for shot at {workspace_path}")
-        NotificationManager.error("No Plate Found", f"No plate found for shot at {workspace_path}")
+        NotificationManager.error(
+            "No Plate Found", f"No plate found for shot at {workspace_path}"
+        )
         return
 
     logger.info(f"Opening plate in RV: {plate_path}")
@@ -43,7 +45,15 @@ def open_plate_in_rv(workspace_path: str) -> None:
         from config import Config, RezMode
         from launch.environment_manager import EnvironmentManager
 
-        launch_cmd = ["rv", plate_path, "-fps", "12", "-play", "-eval", "setPlayMode(2)"]
+        launch_cmd = [
+            "rv",
+            plate_path,
+            "-fps",
+            "12",
+            "-play",
+            "-eval",
+            "setPlayMode(2)",
+        ]
 
         if Config.REZ_MODE != RezMode.DISABLED:
             env_manager = EnvironmentManager()
@@ -65,7 +75,9 @@ def open_plate_in_rv(workspace_path: str) -> None:
         _ = subprocess.Popen(launch_cmd)
     except FileNotFoundError:
         logger.error("RV not found. Please ensure RV is installed and in PATH.")
-        NotificationManager.error("RV Not Found", "Could not launch RV. Check that RV is installed.")
+        NotificationManager.error(
+            "RV Not Found", "Could not launch RV. Check that RV is installed."
+        )
     except Exception as e:
         logger.exception("Failed to open RV")
         NotificationManager.error("RV Launch Failed", f"Failed to open RV: {e}")

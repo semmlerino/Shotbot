@@ -174,4 +174,3 @@ class HeadlessMode:
                 logger.debug(
                     f"Patched {obj.__class__.__name__}.{method_name} for headless"
                 )
-

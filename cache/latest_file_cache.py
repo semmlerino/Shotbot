@@ -158,9 +158,7 @@ class LatestFileCache(LoggingMixin):
 
         """
         try:
-            atomic_json_write(
-                self.latest_files_cache_file, data, indent=2, fsync=False
-            )
+            atomic_json_write(self.latest_files_cache_file, data, indent=2, fsync=False)
             return True
         except Exception:
             self.logger.exception("Failed to write latest files cache")
@@ -176,10 +174,10 @@ class LatestFileCache(LoggingMixin):
         return [self.latest_files_cache_file]
 
 
-
 def make_default_latest_file_cache(base_dir: Path | None = None) -> LatestFileCache:
     """Create a LatestFileCache using the env-resolved default directory."""
     from cache._dir_resolver import resolve_default_cache_dir
+
     resolved = base_dir if base_dir is not None else resolve_default_cache_dir()
     resolved.mkdir(parents=True, exist_ok=True)
     return LatestFileCache(resolved)

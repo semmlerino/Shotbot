@@ -21,7 +21,9 @@ def build_merge_lookups(
     fresh: Sequence[_S],
     to_dict_fn: Callable[[_S], _D],
     get_key_fn: Callable[[_D], tuple[str, str, str]],
-) -> tuple[list[_D], list[_D], dict[tuple[str, str, str], _D], set[tuple[str, str, str]]]:
+) -> tuple[
+    list[_D], list[_D], dict[tuple[str, str, str], _D], set[tuple[str, str, str]]
+]:
     """Build lookup structures shared by cache merge operations.
 
     Lock acquisition is NOT done here — callers are responsible for holding

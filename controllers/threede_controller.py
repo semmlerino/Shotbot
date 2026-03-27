@@ -8,7 +8,8 @@ a focused, testable component. It handles:
 - Thread-safe worker management with QMutex protection
 - Progressive batch updates for responsive UI
 - Complex signal chains for discovery lifecycle
-- Scene selection and double-click handling
+- Scene selection and double-click handling (via ThreeDESelectionHandler)
+- Cache loading and writing (via ThreeDECacheAdapter)
 - Proper cleanup on shutdown
 """
 
@@ -29,15 +30,16 @@ if TYPE_CHECKING:
     from launch.command_launcher import CommandLauncher
     from managers.progress_manager import ProgressOperation as _ProgressOperation
     from protocols import ThreeDETarget
+    from type_definitions import ThreeDEScene
 
 # Runtime imports (needed at runtime)
-from config import Config
+from controllers.threede_cache_adapter import ThreeDECacheAdapter
+from controllers.threede_selection_handler import ThreeDESelectionHandler
 from controllers.threede_worker_manager import ThreeDEWorkerManager
 from logging_mixin import LoggingMixin
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
 from timeout_config import TimeoutConfig
-from type_definitions import Shot, ThreeDEScene
 
 
 class ThreeDEController(LoggingMixin):
@@ -73,6 +75,8 @@ class ThreeDEController(LoggingMixin):
         window: The target window that implements ThreeDETarget protocol
         logger: Logger instance for this controller
         _worker_manager: Manages the background worker lifecycle
+        _cache_adapter: Handles cache I/O
+        _selection_handler: Handles scene selection, filters, and tab activation
 
     """
 
@@ -102,6 +106,19 @@ class ThreeDEController(LoggingMixin):
             on_scan_progress=self.on_scan_progress,  # pyright: ignore[reportAny]
         )
 
+        # Cache I/O collaborator
+        self._cache_adapter: ThreeDECacheAdapter = ThreeDECacheAdapter(
+            scene_disk_cache=window.scene_disk_cache,
+            threede_scene_model=window.threede_scene_model,
+        )
+
+        # Selection / interaction collaborator
+        self._selection_handler: ThreeDESelectionHandler = ThreeDESelectionHandler(
+            window,  # pyright: ignore[reportArgumentType]
+            command_launcher=command_launcher,
+            refresh_callback=self.refresh_threede_scenes,
+        )
+
         # Shutdown state - set to True when closing_started signal is received
         self._closing: bool = False
 
@@ -120,19 +137,8 @@ class ThreeDEController(LoggingMixin):
         # Connect MainWindow lifecycle signal to track shutdown state
         _ = self.window.closing_started.connect(self._on_closing)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue, reportAny]
 
-        # Connect 3DE grid view signals for scene interaction
-        grid = self.window.threede_shot_grid
-
-        # Scene selection and interaction
-        _ = grid.scene_selected.connect(self.on_scene_selected)  # pyright: ignore[reportAny]
-        _ = grid.scene_double_clicked.connect(self.on_scene_double_clicked)  # pyright: ignore[reportAny]
-
-        # Crash recovery
-        _ = grid.recover_crashes_requested.connect(self.on_recover_crashes_clicked)  # pyright: ignore[reportAny]
-
-        # Filtering
-        _ = grid.show_filter_requested.connect(self._on_show_filter_requested)  # pyright: ignore[reportAny]
-        _ = grid.artist_filter_requested.connect(self._on_artist_filter_requested)  # pyright: ignore[reportAny]
+        # Delegate grid signal wiring to the selection handler
+        self._selection_handler.setup_signals(self.window.threede_shot_grid)
 
         self.logger.debug("ThreeDEController signals connected")
 
@@ -181,7 +187,16 @@ class ThreeDEController(LoggingMixin):
         self._last_scan_time = now
 
         # INSTANT UI UPDATE: Load persistent cache first (no TTL check)
-        cached_scenes = self._load_cached_scenes()
+        cached_scenes = self._cache_adapter.load_cached_scenes()
+
+        # Apply cached scenes to model and update UI if any were found
+        if cached_scenes:
+            self.window.threede_scene_model.set_scenes(cached_scenes)
+            self.update_ui()
+            self.logger.info(
+                f"🚀 Loaded {len(cached_scenes)} cached 3DE scenes immediately "
+                "(scanning for updates in background)"
+            )
 
         # Stop any still-running worker before starting a new one
         if self._worker_manager.has_active_worker:
@@ -377,101 +392,38 @@ class ThreeDEController(LoggingMixin):
             )
 
     # ============================================================================
-    # Scene Selection Handlers (Phase 3.5)
+    # Public Selection Delegation (preserve existing call-sites on controller)
     # ============================================================================
 
     @Slot(object)  # pyright: ignore[reportAny]
     def on_scene_selected(self, scene: ThreeDEScene) -> None:
-        """Handle 3DE scene selection."""
-        # DIAGNOSTIC: Verify signal is firing
-        self.logger.info("📡 ThreeDEController.on_scene_selected() signal received")
-        self.logger.info(f"   Scene: {scene.full_name} (user: {scene.user})")
-
-        # Create a Shot object from the scene for compatibility
-        shot = Shot(
-            show=scene.show,
-            sequence=scene.sequence,
-            shot=scene.shot,
-            workspace_path=scene.workspace_path,
-        )
-
-        # Update right panel with shot info
-        self.window.right_panel.set_shot(shot)
-
-        # Update window title with scene info
-        self.window.setWindowTitle(
-            f"{Config.APP_NAME} - {scene.full_name} ({scene.user} - {scene.plate})",
-        )
-
-        # Update status
-        self.window.update_status(
-            f"Selected: {scene.full_name} - {scene.user} ({scene.plate})",
-        )
+        """Delegate to selection handler."""
+        self._selection_handler.on_scene_selected(scene)
 
     @Slot(object)  # pyright: ignore[reportAny]
     def on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
-        """Handle 3DE scene double click - launch 3de with the scene."""
-        from launch.launch_request import LaunchRequest
-
-        self.logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
-        _ = self._command_launcher.launch(LaunchRequest(app_name="3de", scene=scene))
+        """Delegate to selection handler."""
+        self._selection_handler.on_scene_double_clicked(scene)
 
     @Slot(int)  # pyright: ignore[reportAny]
     def on_tab_activated(self, tab_index: int) -> None:
-        """Handle tab activation — update right panel when 3DE tab is selected."""
-        from ui.tab_constants import TAB_OTHER_3DE
-
-        if tab_index != TAB_OTHER_3DE:
-            return
-
-        selected_scene = self.window.threede_shot_grid.selected_scene
-        if selected_scene is not None:
-            self.on_scene_selected(selected_scene)  # pyright: ignore[reportAny]
-        else:
-            self._command_launcher.set_current_shot(None)
-            self.window.right_panel.set_shot(None)
+        """Delegate to selection handler."""
+        self._selection_handler.on_tab_activated(tab_index)
 
     @Slot()  # pyright: ignore[reportAny]
     def on_recover_crashes_clicked(self) -> None:
-        """Handle recovery crashes button click.
-
-        Scans for crash files in the current workspace and presents
-        a recovery dialog if any are found.
-        """
-        # Get current scene from threede grid
-        scene = self.window.threede_shot_grid.selected_scene
-        if not scene:
-            NotificationManager.warning(
-                "No Scene Selected",
-                "Please select a 3DE scene before attempting crash recovery.",
-            )
-            return
-
-        workspace_path = scene.workspace_path
-        self.logger.info(f"Scanning for crash files in: {workspace_path}")
-
-        from controllers.crash_recovery import execute_crash_recovery
-
-        execute_crash_recovery(
-            workspace_path=workspace_path,
-            display_name=scene.full_name,
-            parent_widget=self.window.threede_shot_grid,
-            post_recovery_callback=self.refresh_threede_scenes,
-        )
+        """Delegate to selection handler."""
+        self._selection_handler.on_recover_crashes_clicked()
 
     @Slot(str)  # pyright: ignore[reportAny]
     def _on_show_filter_requested(self, show: str) -> None:
-        """Handle show filter requests from 3DE grid."""
-        filter_show = show.strip() if show else None
-        self.window.threede_proxy.set_show_filter(filter_show)
-        self.logger.debug(f"3DE show filter applied: {filter_show!r}")
+        """Delegate to selection handler."""
+        self._selection_handler.on_show_filter_requested(show)
 
     @Slot(str)  # pyright: ignore[reportAny]
     def _on_artist_filter_requested(self, artist: str) -> None:
-        """Handle artist filter requests from 3DE grid."""
-        filter_artist = artist.strip() if artist else None
-        self.window.threede_proxy.set_artist_filter(filter_artist)
-        self.logger.debug(f"3DE artist filter applied: {filter_artist!r}")
+        """Delegate to selection handler."""
+        self._selection_handler.on_artist_filter_requested(artist)
 
     # ============================================================================
     # Scene Management Helpers (Phase 3.5)
@@ -521,7 +473,7 @@ class ThreeDEController(LoggingMixin):
         self.window.threede_scene_model.scenes.sort(key=lambda s: (s.full_name, s.user))
 
         # Cache results
-        self.cache_scenes()
+        self._cache_adapter.cache_scenes()
 
         # Update UI
         self.update_ui()
@@ -538,7 +490,7 @@ class ThreeDEController(LoggingMixin):
     def update_scenes_no_changes(self) -> None:
         """Update UI when no scene changes are detected."""
         # Still cache the current state to refresh TTL
-        self.cache_scenes()
+        self._cache_adapter.cache_scenes()
 
         self.logger.info(
             f"❌ No changes detected - existing model has {len(self.window.threede_scene_model.scenes)} scenes"
@@ -556,13 +508,12 @@ class ThreeDEController(LoggingMixin):
         self.window.update_status("3DE scene discovery complete (no changes)")
 
     def cache_scenes(self) -> None:
-        """Cache the current 3DE scenes."""
-        try:
-            self.window.threede_scene_model.cache_manager.cache_threede_scenes(
-                self.window.threede_scene_model.to_dict(),
-            )
-        except Exception:  # noqa: BLE001
-            self.logger.warning("Failed to cache 3DE scenes", exc_info=True)
+        """Cache the current 3DE scenes.
+
+        Delegates to ThreeDECacheAdapter.  Kept on controller to avoid breaking
+        any existing call-sites.
+        """
+        self._cache_adapter.cache_scenes()
 
     def update_ui(self) -> None:
         """Update the 3DE UI elements with current scenes."""
@@ -587,44 +538,6 @@ class ThreeDEController(LoggingMixin):
             visible_count,
             total_count,
         )
-
-    # ============================================================================
-    # Private Helper Methods
-    # ============================================================================
-
-    def _load_cached_scenes(self) -> list[ThreeDEScene]:
-        """Load 3DE scenes from persistent cache and populate the UI immediately.
-
-        Fetches cached scene data, converts each entry to a ThreeDEScene object
-        (skipping any that fail to deserialize), and if any valid scenes are
-        found, updates the scene model and refreshes the UI without waiting for
-        the background worker.
-
-        Returns:
-            List of successfully deserialized ThreeDEScene objects from the
-            cache.  An empty list indicates either no cache or no valid entries.
-
-        """
-        cached_data = self.window.scene_disk_cache.get_persistent_threede_scenes()
-        if not cached_data:
-            return []
-
-        scenes: list[ThreeDEScene] = []
-        for scene_data in cached_data:
-            try:
-                scenes.append(ThreeDEScene.from_dict(scene_data))
-            except (KeyError, TypeError, ValueError) as e:
-                self.logger.debug(f"Skipping invalid cached 3DE scene: {e}")
-                continue
-
-        if scenes:
-            self.window.threede_scene_model.set_scenes(scenes)
-            self.update_ui()
-            self.logger.info(
-                f"🚀 Loaded {len(scenes)} cached 3DE scenes immediately (scanning for updates in background)"
-            )
-
-        return scenes
 
     # ============================================================================
     # Properties and State Access

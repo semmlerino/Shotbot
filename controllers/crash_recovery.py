@@ -48,8 +48,7 @@ def execute_crash_recovery(
     except Exception:
         logger.exception("Error scanning for crash files")
         NotificationManager.error(
-            "Scan Error",
-            f"Failed to scan for crash files in {workspace_path}"
+            "Scan Error", f"Failed to scan for crash files in {workspace_path}"
         )
         return
 
@@ -65,7 +64,9 @@ def execute_crash_recovery(
     def on_recovery_requested(crash_info: CrashFileInfo) -> None:
         logger.info(f"Recovery requested for: {crash_info.crash_path.name}")
         try:
-            recovered_path, archived_path = recovery_manager.recover_and_archive(crash_info)
+            recovered_path, archived_path = recovery_manager.recover_and_archive(
+                crash_info
+            )
 
             result_dialog = ThreeDERecoveryResultDialog(
                 success=True,
@@ -90,8 +91,7 @@ def execute_crash_recovery(
             _ = result_dialog.exec()
 
             NotificationManager.error(
-                "Recovery Failed",
-                f"Failed to recover crash file: {e}"
+                "Recovery Failed", f"Failed to recover crash file: {e}"
             )
 
     _ = dialog.recovery_requested.connect(on_recovery_requested)

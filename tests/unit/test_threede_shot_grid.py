@@ -60,7 +60,9 @@ def sample_scenes():
 @pytest.fixture
 def scene_model(sample_scenes):
     """Create a ThreeDESceneModel with sample scenes."""
-    model = ThreeDESceneModel()
+    from unittest.mock import MagicMock
+
+    model = ThreeDESceneModel(cache_manager=MagicMock())
     model.scenes = sample_scenes
     return model
 

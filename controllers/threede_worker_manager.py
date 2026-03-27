@@ -65,8 +65,12 @@ class ThreeDEWorkerManager(LoggingMixin):
         super().__init__()
 
         self._on_discovery_started: Callable[[], None] = on_discovery_started
-        self._on_discovery_progress: Callable[[int, int, float, str, str], None] = on_discovery_progress
-        self._on_discovery_finished: Callable[[list[ThreeDEScene]], None] = on_discovery_finished
+        self._on_discovery_progress: Callable[[int, int, float, str, str], None] = (
+            on_discovery_progress
+        )
+        self._on_discovery_finished: Callable[[list[ThreeDEScene]], None] = (
+            on_discovery_finished
+        )
         self._on_discovery_error: Callable[[str], None] = on_discovery_error
         self._on_scan_progress: Callable[[int, int, str], None] = on_scan_progress
 

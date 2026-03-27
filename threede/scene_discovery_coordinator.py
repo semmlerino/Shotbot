@@ -7,6 +7,7 @@ maintaining backward compatibility.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
+
 from __future__ import annotations
 
 # Standard library imports
@@ -146,7 +147,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                         scenes.append(scene)
 
                     except Exception:  # noqa: BLE001
-                        self.logger.warning(f"Error processing {threede_file}", exc_info=True)
+                        self.logger.warning(
+                            f"Error processing {threede_file}", exc_info=True
+                        )
                         continue
 
             # Also scan publish directory
@@ -415,7 +418,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             _logger.exception("Error scanning show %s", show)
             return show_scenes
 
-        for i, (scene_path, show_name, seq, shot, user, plate) in enumerate(file_tuples):
+        for i, (scene_path, show_name, seq, shot, user, plate) in enumerate(
+            file_tuples
+        ):
             # Check cancellation every 10 items to balance responsiveness with performance
             if i % 10 == 0 and cancel_flag():
                 return show_scenes
@@ -443,7 +448,10 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                 # User is NOT assigned to this shot - construct a valid workspace path
                 # This allows viewing 3DE work from other users on any shot in the show
                 from paths import build_workspace_path
-                workspace_path = str(build_workspace_path(shows_root, show_name, seq, shot))
+
+                workspace_path = str(
+                    build_workspace_path(shows_root, show_name, seq, shot)
+                )
 
             scene = SceneParser.create_scene_from_file_info(
                 scene_path, show_name, seq, shot, user, plate, workspace_path
@@ -559,12 +567,18 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         shows_root = SceneDiscoveryCoordinator._resolve_shows_root(user_shots)
 
         # Process shows in parallel using ThreadPoolExecutor
-        max_workers = min(len(shows), 3)  # Limit to 3 parallel searches for network filesystem
+        max_workers = min(
+            len(shows), 3
+        )  # Limit to 3 parallel searches for network filesystem
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_show = {
                 executor.submit(
                     SceneDiscoveryCoordinator._process_show,
-                    show, shows_root, user_shots, excluded_users, _cancel,
+                    show,
+                    shows_root,
+                    user_shots,
+                    excluded_users,
+                    _cancel,
                 ): show
                 for show in shows
             }

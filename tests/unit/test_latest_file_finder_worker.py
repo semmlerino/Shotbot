@@ -20,7 +20,7 @@ import pytest
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
-from discovery import LatestFileFinderWorker
+from launch.latest_file_finder_worker import LatestFileFinderWorker
 from tests.test_helpers import process_qt_events
 from utils import get_current_username
 
@@ -316,7 +316,7 @@ class TestLatestFileFinderWorkerErrorHandling:
 
         # Mock the finder creation to raise an error
         with patch(
-            "discovery.latest_file_finder_worker.MayaLatestFinder"
+            "launch.latest_file_finder_worker.MayaLatestFinder"
         ) as mock_finder_class:
             mock_finder = MagicMock()
             mock_finder.find_latest_scene.side_effect = RuntimeError("Test error")

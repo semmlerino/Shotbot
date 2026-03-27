@@ -441,8 +441,8 @@ class TestSignalSetup:
             ("scene_selected", "on_scene_selected"),
             ("scene_double_clicked", "on_scene_double_clicked"),
             ("recover_crashes_requested", "on_recover_crashes_clicked"),
-            ("artist_filter_requested", "_on_artist_filter_requested"),
-            ("show_filter_requested", "_on_show_filter_requested"),
+            ("artist_filter_requested", "on_artist_filter_requested"),
+            ("show_filter_requested", "on_show_filter_requested"),
         ],
     )
     def test_signal_connected(
@@ -452,11 +452,11 @@ class TestSignalSetup:
         signal_name: str,
         handler_attr: str,
     ) -> None:
-        """Test that all grid signals are connected to their handlers."""
+        """Test that all grid signals are connected to the selection handler's slots."""
         grid = window_double.threede_shot_grid
         signal = getattr(grid, signal_name)
-        handler = getattr(controller, handler_attr)
-        assert handler in signal.callbacks
+        slot = getattr(controller._selection_handler, handler_attr)
+        assert slot in signal.callbacks
 
 
 # ============================================================================
@@ -816,7 +816,7 @@ class TestWorkerManagement:
         # Simulate a worker that exists but is finished
         mock_worker = MagicMock()
         mock_worker.isFinished.return_value = True
-        controller._threede_worker = mock_worker
+        controller._worker_manager._threede_worker = mock_worker
 
         # Cleanup should clear the progress operation
         controller.cleanup_worker()

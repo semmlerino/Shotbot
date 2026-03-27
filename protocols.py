@@ -200,6 +200,23 @@ class ThreeDETarget(Protocol):
     closing_started: ClassVar[Signal]  # pyright: ignore[reportAny]  # skylos: ignore
 
 
+class ThreeDESelectionTarget(Protocol):
+    """Protocol defining the window interface used by ThreeDESelectionHandler.
+
+    This is a narrower subset of ThreeDETarget — only the attributes and
+    methods that the selection handler actually touches.
+    """
+
+    # Widget references needed for selection handling
+    threede_shot_grid: ThreeDEGridView  # skylos: ignore
+    right_panel: RightPanelWidget  # skylos: ignore
+    threede_proxy: ThreeDEProxyModel  # skylos: ignore
+
+    # Required methods
+    def setWindowTitle(self, __title: str) -> None: ...
+    def update_status(self, message: str) -> None: ...
+
+
 class ThumbnailSizeTarget(Protocol):
     """Protocol defining interface required by ThumbnailSizeManager.
 

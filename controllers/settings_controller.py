@@ -88,7 +88,9 @@ class SettingsController(LoggingMixin):
 
         # Splitter
         try:
-            main_splitter_state = self.window.settings_manager.window.get_splitter_state("main")
+            main_splitter_state = (
+                self.window.settings_manager.window.get_splitter_state("main")
+            )
             if not main_splitter_state.isEmpty():
                 _ = self.window.restore_splitter_state(main_splitter_state)
         except Exception:
@@ -128,9 +130,15 @@ class SettingsController(LoggingMixin):
         """Save settings to settings manager."""
         try:
             # Save window geometry and state
-            self.window.settings_manager.window.set_window_geometry(self.window.saveGeometry())
-            self.window.settings_manager.window.set_window_state(self.window.saveState())
-            self.window.settings_manager.window.set_window_maximized(self.window.isMaximized())
+            self.window.settings_manager.window.set_window_geometry(
+                self.window.saveGeometry()
+            )
+            self.window.settings_manager.window.set_window_state(
+                self.window.saveState()
+            )
+            self.window.settings_manager.window.set_window_maximized(
+                self.window.isMaximized()
+            )
 
             # Save splitter states
             self.window.settings_manager.window.set_splitter_state(
@@ -159,7 +167,9 @@ class SettingsController(LoggingMixin):
         """Apply cache settings from settings manager."""
         try:
             # Apply cache expiry
-            expiry_minutes = self.window.settings_manager.performance.get_cache_expiry_minutes()
+            expiry_minutes = (
+                self.window.settings_manager.performance.get_cache_expiry_minutes()
+            )
             if hasattr(self.window.cache_coordinator, "set_expiry_minutes"):
                 self.window.cache_coordinator.set_expiry_minutes(expiry_minutes)
 

@@ -12,8 +12,6 @@ if TYPE_CHECKING:
     from type_definitions import Shot, ShotDict, ThreeDEScene, ThreeDESceneDict
 
 
-
-
 # Incremental merging support
 class ShotMergeResult(NamedTuple):
     """Result of incremental shot merge operation."""
@@ -29,7 +27,9 @@ class SceneMergeResult(NamedTuple):
 
     updated_scenes: list[ThreeDESceneDict]  # All scenes (kept + new)
     new_scenes: list[ThreeDESceneDict]  # Just new additions
-    stale_scenes: list[ThreeDESceneDict]  # In cache but not in current scan (retained within retention window)
+    stale_scenes: list[
+        ThreeDESceneDict
+    ]  # In cache but not in current scan (retained within retention window)
     has_changes: bool  # Any changes detected
     pruned_count: int = 0  # Scenes removed due to age-based pruning
 

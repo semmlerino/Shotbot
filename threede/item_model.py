@@ -133,8 +133,6 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         self.set_items(scenes)
         self.logger.info(f"Set {len(scenes)} scenes in model")
 
-
-
     def get_scene(self, index: QModelIndex) -> ThreeDEScene | None:
         """Get scene at the given index.
 

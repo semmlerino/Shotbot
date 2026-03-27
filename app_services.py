@@ -70,7 +70,9 @@ class AppModels:
     command_launcher: CommandLauncher
 
 
-def build_infrastructure(cache_dir: Path | None, parent: QObject | None) -> AppInfrastructure:
+def build_infrastructure(
+    cache_dir: Path | None, parent: QObject | None
+) -> AppInfrastructure:
     """Create process pool, caches, managers, and settings infrastructure."""
     process_pool: ProcessPoolInterface
     if is_mock_mode():
@@ -87,7 +89,11 @@ def build_infrastructure(cache_dir: Path | None, parent: QObject | None) -> AppI
     _cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Create domain-specific cache managers
-    thumbnail_cache = ThumbnailCache(_cache_dir)
+    from discovery.file_discovery import FileDiscovery
+
+    thumbnail_cache = ThumbnailCache(
+        _cache_dir, mov_finder=FileDiscovery.find_mov_file_for_path
+    )
     shot_cache = ShotDataCache(_cache_dir)
     scene_disk_cache = SceneDiskCache(_cache_dir)
     latest_file_cache = LatestFileCache(_cache_dir)

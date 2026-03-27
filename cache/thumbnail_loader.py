@@ -277,9 +277,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
             with QMutexLocker(self._pending_loads_mutex):
                 self._active_runnables[item.full_name] = runnable
 
-            def on_finished(
-                name: str, path: Path, captured_row: int = row
-            ) -> None:
+            def on_finished(name: str, path: Path, captured_row: int = row) -> None:
                 try:
                     self._on_thumbnail_loaded(name, path, captured_row)
                 except RuntimeError:
@@ -311,9 +309,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
             _ = self._active_runnables.pop(full_name, None)
             self._pending_loads.discard(full_name)
 
-    def _on_thumbnail_loaded(
-        self, full_name: str, cached_path: Path, row: int
-    ) -> None:
+    def _on_thumbnail_loaded(self, full_name: str, cached_path: Path, row: int) -> None:
         self._cleanup_thumbnail_load(full_name)
 
         items = self._get_items()
@@ -343,9 +339,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
         if row < len(items):
             self._schedule_data_changed(row, [BaseItemRole.LoadingStateRole])
 
-    def _load_cached_pixmap(
-        self, cached_path: Path, row: int, item: T
-    ) -> None:
+    def _load_cached_pixmap(self, cached_path: Path, row: int, item: T) -> None:
         from ui.base_item_model import BaseItemRole
 
         pixmap = QPixmap(str(cached_path))

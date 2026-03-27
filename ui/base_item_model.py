@@ -143,6 +143,7 @@ class BaseItemModel(
         self._sort_order: str = "date"
         if cache_manager is None:
             from cache.thumbnail_cache import make_default_thumbnail_cache
+
             cache_manager = make_default_thumbnail_cache()
         self._cache_manager: ThumbnailCache = cache_manager
 
@@ -156,6 +157,7 @@ class BaseItemModel(
 
         # Thumbnail subsystem — owns all async loading state and timers
         from cache.thumbnail_loader import ThumbnailLoader as _ThumbnailLoader
+
         self._thumbnail_loader: ThumbnailLoader[T] = _ThumbnailLoader(
             cache_manager,
             get_items=lambda: self._items,
@@ -476,8 +478,12 @@ class BaseItemModel(
             initial_load_count = min(self._INITIAL_LOAD_COUNT, len(self._items))
             self._visible_end = initial_load_count - 1
             # Schedule immediate thumbnail load for initial visible items only
-            self.logger.debug(f"Scheduling thumbnail load timer for {initial_load_count} items (total: {len(self._items)})")
-            QTimer.singleShot(self._INITIAL_LOAD_DELAY_MS, self._do_load_visible_thumbnails)
+            self.logger.debug(
+                f"Scheduling thumbnail load timer for {initial_load_count} items (total: {len(self._items)})"
+            )
+            QTimer.singleShot(
+                self._INITIAL_LOAD_DELAY_MS, self._do_load_visible_thumbnails
+            )
 
     # ============= Shared shot-model methods =============
 

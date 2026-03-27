@@ -49,7 +49,9 @@ class ThreeDESceneWorker(ThreadSafeWorker):
     """
 
     # Enhanced signals specific to 3DE discovery
-    worker_discovery_started: ClassVar[Signal] = Signal()  # Emitted when discovery starts
+    worker_discovery_started: ClassVar[Signal] = (
+        Signal()
+    )  # Emitted when discovery starts
     progress: ClassVar[Signal] = Signal(
         int,
         int,
@@ -57,8 +59,12 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         str,
         str,
     )  # (current, total, percentage, description, eta)
-    scan_progress: ClassVar[Signal] = Signal(int, int, str)  # Emitted during individual shot scanning
-    discovery_finished: ClassVar[Signal] = Signal(object)  # Emitted with complete list of scenes
+    scan_progress: ClassVar[Signal] = Signal(
+        int, int, str
+    )  # Emitted during individual shot scanning
+    discovery_finished: ClassVar[Signal] = Signal(
+        object
+    )  # Emitted with complete list of scenes
     error: ClassVar[Signal] = Signal(str)  # Emitted when an error occurs
 
     def __init__(
@@ -150,11 +156,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             self._finished_emitted = True
 
         # Emit outside the lock to prevent deadlocks
-        scenes_to_emit = (
-            scenes
-            if scenes is not None
-            else (self._all_scenes or [])
-        )
+        scenes_to_emit = scenes if scenes is not None else (self._all_scenes or [])
 
         if not scenes_to_emit:
             self.logger.debug(
@@ -343,4 +345,3 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             )
 
         return other_scenes
-

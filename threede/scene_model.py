@@ -5,11 +5,15 @@ from __future__ import annotations
 # Standard library imports
 import logging
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 # Local application imports
-from cache.scene_cache_disk import SceneDiskCache
 from type_definitions import ThreeDEScene, ThreeDESceneDict
 from utils import get_excluded_users
+
+
+if TYPE_CHECKING:
+    from cache.scene_cache_disk import SceneDiskCache
 
 
 logger = logging.getLogger(__name__)
@@ -20,16 +24,11 @@ class ThreeDESceneModel:
 
     def __init__(
         self,
-        cache_manager: SceneDiskCache | None = None,
+        cache_manager: SceneDiskCache,
         load_cache: bool = True,
     ) -> None:
         super().__init__()
         self.scenes: list[ThreeDEScene] = []
-        if cache_manager is None:
-            from cache import resolve_default_cache_dir
-            default_dir = resolve_default_cache_dir()
-            default_dir.mkdir(parents=True, exist_ok=True)
-            cache_manager = SceneDiskCache(default_dir)
         self.cache_manager: SceneDiskCache = cache_manager
         # Get excluded users dynamically (current user + any additional)
         self._excluded_users: set[str] = get_excluded_users()
@@ -134,4 +133,3 @@ class ThreeDESceneModel:
         """Get sorted list of unique artist names from all scenes."""
         artists = {scene.user for scene in self.scenes}
         return sorted(artists, key=str.casefold)
-

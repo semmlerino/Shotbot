@@ -23,13 +23,16 @@ JSONValue: TypeAlias = (
 
 # File locking configuration (enabled by default, opt-out via environment variable)
 # Disable with: SHOTBOT_FILE_LOCKING=disabled
-FILE_LOCKING_ENABLED = os.getenv("SHOTBOT_FILE_LOCKING", "enabled").lower() != "disabled"
+FILE_LOCKING_ENABLED = (
+    os.getenv("SHOTBOT_FILE_LOCKING", "enabled").lower() != "disabled"
+)
 
 # Check if fcntl is available (not on Windows)
 # Import as optional module to avoid type errors
 _fcntl: _types.ModuleType | None
 try:
     import fcntl as _fcntl_module
+
     _fcntl = _fcntl_module
 except ImportError:
     _fcntl = None
@@ -101,6 +104,7 @@ def read_json_cache(
         Cached data or None if not found/expired/invalid
 
     """
+
     def _is_valid_dict_list(data: list[JSONValue]) -> bool:
         """Return True if data is empty or all elements are dicts."""
         if data and not all(isinstance(item, dict) for item in data):
@@ -158,9 +162,7 @@ def read_json_cache(
                 return cast("list[ShotDict | ThreeDESceneDict]", result)
             return None
 
-        logger.warning(
-            f"Unexpected cache format: {cache_file}, type: {type(raw_data)}"
-        )
+        logger.warning(f"Unexpected cache format: {cache_file}, type: {type(raw_data)}")
         return None
 
     except (OSError, json.JSONDecodeError, ValueError):

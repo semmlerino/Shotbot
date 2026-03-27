@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from config import Config
 else:
     import config
+
     Config = config.Config
 
 
@@ -38,7 +39,7 @@ DANGEROUS_CHARS: Final[tuple[str, ...]] = (
     "\n",
     "\r",  # Newlines that could break out
     "${",
-    "$((", # Variable/arithmetic expansion
+    "$((",  # Variable/arithmetic expansion
 )
 
 
@@ -82,9 +83,7 @@ def validate_path(path: str) -> str:
     for char in DANGEROUS_CHARS:
         if char in normalized:
             msg = f"Path contains dangerous character '{char}' that could allow command injection: {normalized[:100]}"
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
     # Use shlex.quote for safe shell escaping
     return shlex.quote(normalized)

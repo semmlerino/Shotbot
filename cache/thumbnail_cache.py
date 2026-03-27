@@ -15,6 +15,7 @@ from __future__ import annotations
 import contextlib
 import time
 from collections import OrderedDict
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
@@ -38,20 +39,21 @@ if TYPE_CHECKING:
 
 THUMBNAIL_SIZE = 256
 THUMBNAIL_QUALITY = 85
-STAT_CACHE_TTL = 2.0          # Cache stat results for 2 seconds to reduce filesystem I/O
-STAT_CACHE_MAX_SIZE = 1000    # Maximum entries in stat cache (LRU eviction)
+STAT_CACHE_TTL = 2.0  # Cache stat results for 2 seconds to reduce filesystem I/O
+STAT_CACHE_MAX_SIZE = 1000  # Maximum entries in stat cache (LRU eviction)
 
 
 # ---------------------------------------------------------------------------
 # Background loader helpers
 # ---------------------------------------------------------------------------
 
+
 @final
 class ThumbnailCacheLoaderSignals(QObject):
     """Signals for ThumbnailCacheLoader."""
 
     loaded = Signal(str, str, str, Path)  # show, sequence, shot, cache_path
-    failed = Signal(str, str, str, str)   # show, sequence, shot, error_message
+    failed = Signal(str, str, str, str)  # show, sequence, shot, error_message
 
 
 @final
@@ -94,16 +96,24 @@ class ThumbnailCacheLoader(TrackedQRunnable):
 # ThumbnailCache
 # ---------------------------------------------------------------------------
 
+
 @final
 class ThumbnailCache(LoggingMixin):
     """Thumbnail caching with stat result LRU cache."""
 
-    def __init__(self, cache_dir: Path) -> None:
+    def __init__(
+        self,
+        cache_dir: Path,
+        mov_finder: Callable[[Path], Path | None] | None = None,
+    ) -> None:
         """Initialise thumbnail cache.
 
         Args:
             cache_dir: Root cache directory. Thumbnails are stored under
                        ``cache_dir / "thumbnails"``.
+            mov_finder: Optional callable that locates a sibling MOV file for a
+                        given source path. Used by ``_try_mov_fallback``.  When
+                        ``None``, MOV-based fallback is skipped.
 
         """
         # Thread safety — guards _stat_cache only
@@ -114,6 +124,8 @@ class ThumbnailCache(LoggingMixin):
 
         self.thumbnails_dir = cache_dir / "thumbnails"
         self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
+
+        self._mov_finder: Callable[[Path], Path | None] | None = mov_finder
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -180,7 +192,9 @@ class ThumbnailCache(LoggingMixin):
         temp_path = output.with_suffix(".tmp")
         try:
             with Image.open(source) as img:
-                img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
+                img.thumbnail(
+                    (THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS
+                )
                 img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
             _ = temp_path.replace(output)
         except Exception:
@@ -216,7 +230,9 @@ class ThumbnailCache(LoggingMixin):
                 return fallback_result
 
             # If MOV fallback didn't work, raise original error
-            self.logger.exception("PIL thumbnail processing failed and MOV fallback unavailable")
+            self.logger.exception(
+                "PIL thumbnail processing failed and MOV fallback unavailable"
+            )
             msg = f"Failed to process thumbnail: {e}"
             raise ThumbnailError(msg) from e
 
@@ -235,10 +251,9 @@ class ThumbnailCache(LoggingMixin):
             Path to the created thumbnail on success, or None on any failure
 
         """
-        from discovery import FileDiscovery
         from ui.image_utils import ImageUtils
 
-        mov_path = FileDiscovery.find_mov_file_for_path(source)
+        mov_path = self._mov_finder(source) if self._mov_finder is not None else None
         if not mov_path:
             self.logger.debug(f"No MOV file found for fallback: {source}")
             return None
@@ -259,7 +274,9 @@ class ThumbnailCache(LoggingMixin):
                 self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
                 return output
             except Exception as fallback_error:  # noqa: BLE001
-                self.logger.error(f"Failed to process MOV fallback frame: {fallback_error}")
+                self.logger.error(
+                    f"Failed to process MOV fallback frame: {fallback_error}"
+                )
                 return None
         finally:
             # Always clean up extracted frame temp file
@@ -437,9 +454,13 @@ class ThumbnailCache(LoggingMixin):
             return None
 
 
-def make_default_thumbnail_cache(base_dir: Path | None = None) -> ThumbnailCache:
+def make_default_thumbnail_cache(
+    base_dir: Path | None = None,
+    mov_finder: Callable[[Path], Path | None] | None = None,
+) -> ThumbnailCache:
     """Create a ThumbnailCache using the env-resolved default directory."""
     from cache._dir_resolver import resolve_default_cache_dir
+
     resolved = base_dir if base_dir is not None else resolve_default_cache_dir()
     resolved.mkdir(parents=True, exist_ok=True)
-    return ThumbnailCache(resolved)
+    return ThumbnailCache(resolved, mov_finder=mov_finder)

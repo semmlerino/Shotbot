@@ -140,9 +140,7 @@ class ProcessExecutor(QObject):
         ws_values = {k: os.environ.get(k, "<not set>") for k in workspace_vars}
         logger.debug(f"Workspace environment vars: {ws_values}")
 
-    def _build_terminal_command(
-        self, terminal: str | None, command: str
-    ) -> list[str]:
+    def _build_terminal_command(self, terminal: str | None, command: str) -> list[str]:
         """Build terminal-specific command list.
 
         Args:
@@ -297,7 +295,9 @@ class ProcessExecutor(QObject):
             self.launch_crash_detected.emit(app_name)
         else:
             # Process spawned successfully
-            self.logger.debug(f"{app_name} process spawned successfully (PID {process.pid})")
+            self.logger.debug(
+                f"{app_name} process spawned successfully (PID {process.pid})"
+            )
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             try:
                 self.execution_progress.emit(
@@ -465,7 +465,9 @@ class ProcessExecutor(QObject):
         while time.monotonic() - start_time < timeout_sec:
             # Check shutdown flag - exit cleanly if ProcessExecutor is being deleted
             if self._shutdown_flag.is_set():
-                self.logger.debug(f"Verification thread for {app_name} exiting due to shutdown")
+                self.logger.debug(
+                    f"Verification thread for {app_name} exiting due to shutdown"
+                )
                 return
 
             try:
@@ -490,7 +492,9 @@ class ProcessExecutor(QObject):
                                 if not self._shutdown_flag.is_set():
                                     QTimer.singleShot(
                                         0,
-                                        partial(self._emit_verified, app_name, found_pid),
+                                        partial(
+                                            self._emit_verified, app_name, found_pid
+                                        ),
                                     )
                                 return
                     except (

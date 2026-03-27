@@ -51,7 +51,9 @@ class SceneDiskCache(LoggingMixin, QObject):
             List of scene dictionaries or None if not cached
 
         """
-        result = read_json_cache(self.threede_cache_file, self._cache_ttl, check_ttl=False)
+        result = read_json_cache(
+            self.threede_cache_file, self._cache_ttl, check_ttl=False
+        )
         return cast("list[ThreeDESceneDict] | None", result)
 
     def has_valid_threede_cache(self) -> bool:
@@ -84,7 +86,6 @@ class SceneDiskCache(LoggingMixin, QObject):
             self.logger.warning(
                 "Failed to write 3DE scenes cache - data may not persist across restarts"
             )
-
 
     def merge_scenes_incremental(
         self,
@@ -123,8 +124,8 @@ class SceneDiskCache(LoggingMixin, QObject):
 
         # Phase 1: Convert and build lookups under lock (minimal critical section)
         with QMutexLocker(self._lock):
-            _, fresh_dicts, cached_by_key, fresh_keys = (
-                build_merge_lookups(cached, fresh, scene_to_dict, get_scene_key)
+            _, fresh_dicts, cached_by_key, fresh_keys = build_merge_lookups(
+                cached, fresh, scene_to_dict, get_scene_key
             )
 
         # Phase 2: All CPU-bound merge logic OUTSIDE lock
@@ -197,4 +198,3 @@ class SceneDiskCache(LoggingMixin, QObject):
 
         """
         return [self.threede_cache_file]
-

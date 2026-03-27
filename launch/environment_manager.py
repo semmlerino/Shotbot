@@ -155,7 +155,8 @@ class EnvironmentManager:
         try:
             result = subprocess.run(
                 ["bash", "-ilc", "command -v ws"],
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
                 text=True,
                 timeout=self.WS_AVAILABILITY_TIMEOUT_SEC,
             )
@@ -273,6 +274,7 @@ class EnvironmentManager:
         Sets _cache_warm_event when complete so is_ws_available() can avoid
         blocking if called during warmup.
         """
+
         def _warm() -> None:
             try:
                 # These calls will populate the caches
@@ -285,5 +287,7 @@ class EnvironmentManager:
                 # Always signal completion so waiters don't block forever
                 self._cache_warm_event.set()
 
-        thread = threading.Thread(target=_warm, daemon=True, name="EnvironmentCacheWarm")
+        thread = threading.Thread(
+            target=_warm, daemon=True, name="EnvironmentCacheWarm"
+        )
         thread.start()

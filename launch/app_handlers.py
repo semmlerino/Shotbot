@@ -6,6 +6,7 @@ and one dict entry in CommandLauncher._app_handlers.
 
 AppHandler is a Protocol (structural subtyping) — no base class required.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
@@ -138,8 +139,12 @@ class ThreeDEAppHandler:
     ) -> None:
         self._scripts_dir: str = scripts_dir
         self._cache_manager: LatestFileCache = cache_manager
-        self._start_async_search: Callable[[str, LaunchContext, str], None] = start_async_search
-        self._apply_file_result: Callable[[str, str, Path | None], str | None] = apply_file_result
+        self._start_async_search: Callable[[str, LaunchContext, str], None] = (
+            start_async_search
+        )
+        self._apply_file_result: Callable[[str, str, Path | None], str | None] = (
+            apply_file_result
+        )
         self._emit_error: Callable[[str], None] = emit_error
 
     def build_file_command(self, base_cmd: str, safe_file_path: str) -> str:
@@ -160,7 +165,9 @@ class ThreeDEAppHandler:
             return command, False
 
         workspace = current_shot.workspace_path
-        cache_result = self._cache_manager.get_latest_file_cache_result(workspace, "threede")
+        cache_result = self._cache_manager.get_latest_file_cache_result(
+            workspace, "threede"
+        )
 
         if cache_result.status == "miss":
             self._start_async_search("3de", context, command)
@@ -185,12 +192,18 @@ class MayaAppHandler:
     ) -> None:
         self._bootstrap_script: str = bootstrap_script
         self._cache_manager: LatestFileCache = cache_manager
-        self._start_async_search: Callable[[str, LaunchContext, str], None] = start_async_search
-        self._apply_file_result: Callable[[str, str, Path | None], str | None] = apply_file_result
+        self._start_async_search: Callable[[str, LaunchContext, str], None] = (
+            start_async_search
+        )
+        self._apply_file_result: Callable[[str, str, Path | None], str | None] = (
+            apply_file_result
+        )
         self._emit_error: Callable[[str], None] = emit_error
 
     def build_file_command(self, base_cmd: str, safe_file_path: str) -> str:
-        return build_maya_context_command(base_cmd, safe_file_path, self._bootstrap_script)
+        return build_maya_context_command(
+            base_cmd, safe_file_path, self._bootstrap_script
+        )
 
     def needs_sgtk_file_to_open(self) -> bool:
         return True
@@ -206,7 +219,9 @@ class MayaAppHandler:
             return command, False
 
         workspace = current_shot.workspace_path
-        cache_result = self._cache_manager.get_latest_file_cache_result(workspace, "maya")
+        cache_result = self._cache_manager.get_latest_file_cache_result(
+            workspace, "maya"
+        )
 
         if cache_result.status == "miss":
             self._start_async_search("maya", context, command)

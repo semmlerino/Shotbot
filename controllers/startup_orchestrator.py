@@ -27,7 +27,9 @@ class StartupOrchestrator:
     _PAINT_YIELD_MS: int = 500
     _EVENT_LOOP_YIELD_MS: int = 100
 
-    def __init__(self, target: StartupTarget, process_pool: ProcessPoolInterface) -> None:
+    def __init__(
+        self, target: StartupTarget, process_pool: ProcessPoolInterface
+    ) -> None:
         self._target: StartupTarget = target
         self._process_pool: ProcessPoolInterface = process_pool
         self._session_warmer: StartupCoordinator | None = None
@@ -56,17 +58,25 @@ class StartupOrchestrator:
         # Show cached shots immediately if available
         if has_cached_shots:
             target.refresh_coordinator.refresh_shot_display()
-            logger.info(f"Displayed {len(target.shot_model.shots)} cached shots instantly")
+            logger.info(
+                f"Displayed {len(target.shot_model.shots)} cached shots instantly"
+            )
         else:
-            logger.info("No cached shots found on initial check, attempting explicit cache load")
+            logger.info(
+                "No cached shots found on initial check, attempting explicit cache load"
+            )
             if target.shot_model.try_load_from_cache():
                 has_cached_shots = True
                 target.refresh_coordinator.refresh_shot_display()
-                logger.info(f"Loaded and displayed {len(target.shot_model.shots)} shots from cache")
+                logger.info(
+                    f"Loaded and displayed {len(target.shot_model.shots)} shots from cache"
+                )
 
             # Restore last selected shot if available
             if isinstance(target.last_selected_shot_name, str):
-                shot = target.shot_model.find_shot_by_name(target.last_selected_shot_name)
+                shot = target.shot_model.find_shot_by_name(
+                    target.last_selected_shot_name
+                )
                 if shot:
                     target.shot_grid.select_shot_by_name(shot.full_name)
 
@@ -83,10 +93,16 @@ class StartupOrchestrator:
                 f"Loaded {len(target.shot_model.shots)} shots and "
                 f"{len(target.threede_scene_model.scenes)} 3DE scenes from cache"
             )
-            QTimer.singleShot(paint_yield_ms, lambda: target.refresh_coordinator.refresh_tab(0))
+            QTimer.singleShot(
+                paint_yield_ms, lambda: target.refresh_coordinator.refresh_tab(0)
+            )
         elif has_cached_shots:
-            target.update_status(f"Loaded {len(target.shot_model.shots)} shots from cache")
-            QTimer.singleShot(paint_yield_ms, lambda: target.refresh_coordinator.refresh_tab(0))
+            target.update_status(
+                f"Loaded {len(target.shot_model.shots)} shots from cache"
+            )
+            QTimer.singleShot(
+                paint_yield_ms, lambda: target.refresh_coordinator.refresh_tab(0)
+            )
         elif has_cached_scenes:
             target.update_status(
                 f"Loaded {len(target.threede_scene_model.scenes)} 3DE scenes from cache"
@@ -97,14 +113,21 @@ class StartupOrchestrator:
 
         # If shots are already loaded from cache, trigger refresh immediately
         if target.shot_model.shots:
-            logger.info("Shots already loaded from cache, triggering previous shots refresh immediately")
-            QTimer.singleShot(event_loop_yield_ms, target.previous_shots_model.refresh_shots)
+            logger.info(
+                "Shots already loaded from cache, triggering previous shots refresh immediately"
+            )
+            QTimer.singleShot(
+                event_loop_yield_ms, target.previous_shots_model.refresh_shots
+            )
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
         if has_cached_shots:
             if not target.scene_disk_cache.has_valid_threede_cache():
                 logger.debug("3DE cache invalid/expired - starting discovery")
                 if target.threede_controller:
-                    QTimer.singleShot(event_loop_yield_ms, target.threede_controller.refresh_threede_scenes)
+                    QTimer.singleShot(
+                        event_loop_yield_ms,
+                        target.threede_controller.refresh_threede_scenes,
+                    )
             else:
                 logger.debug("3DE cache valid - skipping initial scan")
