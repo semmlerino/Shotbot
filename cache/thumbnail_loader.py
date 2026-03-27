@@ -124,7 +124,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
         self._thumbnail_debounce_timer: QTimer = QTimer(self)
         self._thumbnail_debounce_timer.setSingleShot(True)
         self._thumbnail_debounce_timer.setInterval(self.THUMBNAIL_DEBOUNCE_MS)
-        _ = self._thumbnail_debounce_timer.timeout.connect(self._load_visible_thumbnails)
+        _ = self._thumbnail_debounce_timer.timeout.connect(self.load_visible_thumbnails)
 
         self._pending_updates: dict[int, set[int]] = {}
         self._batch_timer: QTimer = QTimer(self)
@@ -182,14 +182,6 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
         """Timer that batches data-changed emissions."""
         return self._batch_timer
 
-    def load_visible_thumbnails(self) -> None:
-        """Check if visible range changed and schedule actual load (public wrapper)."""
-        self._load_visible_thumbnails()
-
-    def do_load_visible_thumbnails(self) -> None:
-        """Actually load thumbnails for visible range (public wrapper)."""
-        self._do_load_visible_thumbnails()
-
     def get_pixmap(self, item: T) -> QPixmap | None:
         with QMutexLocker(self._cache_mutex):
             pixmap = self._pixmap_cache.get(item.full_name)
@@ -214,19 +206,19 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
             self._pixmap_cache.clear()
             self._loading_states.clear()
 
-    def _load_visible_thumbnails(self) -> None:
+    def load_visible_thumbnails(self) -> None:
         visible_range = self._get_visible_range()
 
         if visible_range == self._last_visible_range:
             self.logger.debug(
-                f"_load_visible_thumbnails: range unchanged ({visible_range[0]}-{visible_range[1]}), skipping"
+                f"load_visible_thumbnails: range unchanged ({visible_range[0]}-{visible_range[1]}), skipping"
             )
             return
 
         self._last_visible_range = visible_range
-        self._do_load_visible_thumbnails()
+        self.do_load_visible_thumbnails()
 
-    def _do_load_visible_thumbnails(self) -> None:
+    def do_load_visible_thumbnails(self) -> None:
         visible_start, visible_end = self._get_visible_range()
         items = self._get_items()
 
@@ -236,7 +228,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
 
         if items:
             self.logger.debug(
-                f"_do_load_visible_thumbnails: checking {end - start} items (range {start}-{end}, total items: {len(items)})"
+                f"do_load_visible_thumbnails: checking {end - start} items (range {start}-{end}, total items: {len(items)})"
             )
 
         items_to_load: list[tuple[int, T]] = []
