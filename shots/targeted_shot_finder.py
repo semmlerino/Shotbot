@@ -315,7 +315,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         # Filter to get only approved shots using base class implementation
         self._report_progress(95, 100, "Filtering approved shots...")
-        approved_shots = self._filter_approved_shots(all_user_shots, active_shots)
+        approved_shots = self.filter_approved_shots(all_user_shots, active_shots)
 
         elapsed = time.time() - start_time
         self.logger.info(

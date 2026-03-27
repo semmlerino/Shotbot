@@ -145,22 +145,6 @@ class PreviousShotsFinder(ShotFinderBase):
             self.logger.debug(f"Could not create Shot from path {path}: {e}")
             return None
 
-    def filter_approved_shots(
-        self, all_user_shots: list[Shot], active_shots: list[Shot]
-    ) -> list[Shot]:
-        """Filter out active shots to get only approved/completed ones.
-
-        Args:
-            all_user_shots: All shots where user has work.
-            active_shots: Currently active shots from workspace.
-
-        Returns:
-            List of approved shots (user shots minus active shots).
-
-        """
-        # Delegate to base class implementation
-        return self._filter_approved_shots(all_user_shots, active_shots)
-
     def find_approved_shots(
         self, active_shots: list[Shot], shows_root: Path | None = None
     ) -> list[Shot]:

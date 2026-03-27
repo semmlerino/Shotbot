@@ -190,7 +190,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
             self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
             return None
 
-    def _filter_approved_shots(
+    def filter_approved_shots(
         self, all_user_shots: list[Shot], active_shots: list[Shot]
     ) -> list[Shot]:
         """Filter out active shots to get only approved/completed ones.
