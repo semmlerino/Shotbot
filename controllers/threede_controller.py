@@ -26,7 +26,6 @@ from PySide6.QtCore import (
 
 if TYPE_CHECKING:
     # Local application imports
-    from controllers.launch_coordinator import LaunchCoordinator
     from launch.command_launcher import CommandLauncher
     from managers.progress_manager import ProgressOperation as _ProgressOperation
     from protocols import ThreeDETarget
@@ -66,20 +65,17 @@ class ThreeDEController(LoggingMixin):
         window: ThreeDETarget,
         *,
         command_launcher: CommandLauncher,
-        launch_coordinator: LaunchCoordinator,
     ) -> None:
         """Initialize the 3DE controller.
 
         Args:
             window: MainWindow implementing ThreeDETarget protocol
             command_launcher: Launcher for DCC commands
-            launch_coordinator: Coordinator for launching apps with scene files
 
         """
         super().__init__()
         self.window: ThreeDETarget = window
         self._command_launcher: CommandLauncher = command_launcher
-        self._launch_coordinator: LaunchCoordinator = launch_coordinator
 
         # Worker lifecycle management — owns the worker instance and mutex
         self._worker_manager: ThreeDEWorkerManager = ThreeDEWorkerManager(
@@ -399,8 +395,10 @@ class ThreeDEController(LoggingMixin):
     @Slot(object)  # pyright: ignore[reportAny]
     def on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene double click - launch 3de with the scene."""
+        from launch.launch_request import LaunchRequest
+
         self.logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
-        self._launch_coordinator.launch_app_opening_scene_file("3de", scene)
+        _ = self._command_launcher.launch(LaunchRequest(app_name="3de", scene=scene))
 
     @Slot(int)  # pyright: ignore[reportAny]
     def on_tab_activated(self, tab_index: int) -> None:

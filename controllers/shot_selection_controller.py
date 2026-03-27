@@ -237,7 +237,9 @@ class ShotSelectionController(QObject, LoggingMixin):
     @Slot(object)  # pyright: ignore[reportAny]
     def on_shot_double_clicked(self, _shot: Shot) -> None:
         """Handle shot double click - launch default app."""
-        _ = self._command_launcher.launch_app(Config.DEFAULT_APP)
+        from launch.launch_request import LaunchRequest
+
+        _ = self._command_launcher.launch(LaunchRequest(app_name=Config.DEFAULT_APP))
 
     @Slot(object)  # pyright: ignore[reportAny]
     def _on_discovery_complete(self, result: dict[str, object]) -> None:

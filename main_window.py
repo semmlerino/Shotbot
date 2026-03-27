@@ -53,6 +53,7 @@ from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
 from controllers.thumbnail_size_manager import ThumbnailSizeManager
+from launch.launch_request import LaunchRequest
 from logging_mixin import LoggingMixin, get_module_logger
 from managers.notification_manager import NotificationManager
 from managers.progress_manager import ProgressManager
@@ -197,7 +198,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.threede_controller = ThreeDEController(
             self,
             command_launcher=self.command_launcher,
-            launch_coordinator=self.launch_coordinator,
         )
 
         self.shot_selection_controller: ShotSelectionController = (
@@ -372,7 +372,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
 
         _ = self.shot_grid.app_launch_requested.connect(
-            self.command_launcher.launch_app
+            lambda app_name: self.command_launcher.launch(  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
+                LaunchRequest(app_name=app_name)  # pyright: ignore[reportUnknownArgumentType]
+            )
         )
         _ = self.shot_grid.shot_visibility_changed.connect(
             self.data_event_handler.on_shot_visibility_changed
@@ -385,7 +387,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Controller handles its own signal connections in __init__
         # Handle app launch with scene context (signal emits app_name, scene)
         _ = self.threede_shot_grid.app_launch_requested.connect(
-            self.launch_coordinator.launch_app_opening_scene_file
+            lambda app_name, scene: self.command_launcher.launch(  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
+                LaunchRequest(app_name=app_name, scene=scene)  # pyright: ignore[reportUnknownArgumentType]
+            )
         )
 
         # 3DE show filter - handled by controller
@@ -394,7 +398,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Previous shots selection - handled by ShotSelectionController when active
         # Controller handles shot_selected and shot_double_clicked
         _ = self.previous_shots_grid.app_launch_requested.connect(
-            self.command_launcher.launch_app
+            lambda app_name: self.command_launcher.launch(  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
+                LaunchRequest(app_name=app_name)  # pyright: ignore[reportUnknownArgumentType]
+            )
         )
 
         # Pin sort-order refresh — fallback path when view has no pin_manager set
@@ -535,7 +541,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def launch_app(self, app_name: str) -> None:
         """Public method to launch an application."""
-        _ = self.command_launcher.launch_app(app_name)
+        _ = self.command_launcher.launch(LaunchRequest(app_name=app_name))
 
     def get_active_shots(self) -> list[Shot]:
         """Get currently active shots for cross-controller queries."""

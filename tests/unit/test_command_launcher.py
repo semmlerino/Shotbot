@@ -21,6 +21,7 @@ from hypothesis import strategies as st
 from config import Config
 from launch import CommandBuilder
 from launch.command_launcher import CommandLauncher, LaunchContext
+from launch.launch_request import LaunchRequest
 from tests.fixtures.process_fixtures import PopenDouble
 from tests.test_helpers import process_qt_events
 from type_definitions import Shot, ThreeDEScene
@@ -148,7 +149,7 @@ class TestCommandLauncher:
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
         ):
             mock_popen.return_value = _running_process_double(app_name)
-            result = launcher.launch_app(app_name)
+            result = launcher.launch(LaunchRequest(app_name=app_name))
 
         assert result is True
         process_qt_events()
@@ -192,7 +193,7 @@ class TestCommandLauncher:
             scene_path=Path("/path/to/scene.nk"),
         )
 
-        result = launcher.launch_app_opening_scene_file("nuke", nuke_scene)
+        result = launcher.launch(LaunchRequest(app_name="nuke", scene=nuke_scene))
 
         assert result is True
         process_qt_events()
@@ -221,7 +222,7 @@ class TestCommandLauncher:
         mock_popen.return_value = _running_process_double("3de")
 
         # Launch 3DE with scene
-        result = launcher.launch_app_opening_scene_file("3de", test_scene)
+        result = launcher.launch(LaunchRequest(app_name="3de", scene=test_scene))
 
         # Verify launch was successful
         assert result is True
@@ -262,9 +263,9 @@ class TestCommandLauncher:
         mock_popen.return_value = _running_process_double("rv")
 
         if sequence_path:
-            result = launcher.launch_app("rv", LaunchContext(sequence_path=sequence_path))
+            result = launcher.launch(LaunchRequest(app_name="rv", context=LaunchContext(sequence_path=sequence_path)))
         else:
-            result = launcher.launch_app("rv")
+            result = launcher.launch(LaunchRequest(app_name="rv"))
 
         assert result is True
         process_qt_events()
@@ -302,7 +303,7 @@ class TestCommandLauncher:
         mock_popen.side_effect = FileNotFoundError("terminal not found")
 
         # Launch app should fail
-        result = launcher.launch_app("nuke")
+        result = launcher.launch(LaunchRequest(app_name="nuke"))
 
         # Should return False when subprocess fails
         assert result is False
@@ -337,7 +338,7 @@ class TestCommandLauncher:
         mock_popen.return_value = _running_process_double("nuke")
 
         # Launch app - should succeed even without terminal
-        result = launcher.launch_app("nuke")
+        result = launcher.launch(LaunchRequest(app_name="nuke"))
 
         # Verify launch was successful (headless mode)
         assert result is True
@@ -377,7 +378,7 @@ class TestCommandLauncher:
         mock_popen.return_value = _running_process_double("3de")
 
         with patch.object(launcher._settings_manager.launch, "get_background_gui_apps", return_value=background):
-            result = launcher.launch_app("3de")
+            result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is True
         process_qt_events()
@@ -423,7 +424,7 @@ class TestCommandLauncherSignals:
             mock_popen.return_value = _running_process_double("nuke")
 
             # Launch should succeed
-            result = launcher.launch_app("nuke")
+            result = launcher.launch(LaunchRequest(app_name="nuke"))
             assert result is True
 
             # Wait for QTimer.singleShot(100ms) callback to complete
@@ -549,7 +550,7 @@ class TestScriptsDirValidation:
         shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         launcher.set_current_shot(shot)
 
-        result = launcher.launch_app("nuke")
+        result = launcher.launch(LaunchRequest(app_name="nuke"))
 
         assert result is False
 
@@ -583,7 +584,7 @@ class TestScriptsDirValidation:
             patch("launch.process_executor.subprocess.Popen") as mock_popen,
         ):
             mock_popen.return_value = PopenDouble(args=["maya"], returncode=0)
-            result = launcher.launch_app("maya")
+            result = launcher.launch(LaunchRequest(app_name="maya"))
 
         assert result is True
         process_qt_events()

@@ -272,28 +272,15 @@ class CommandLauncherDouble:
     __test__ = False
 
     def __init__(self) -> None:
-        self._launched_apps: list[tuple[str, Any]] = []
-        self._launched_with_scene: list[tuple[str, Any]] = []
+        self._launched: list[Any] = []
+        self.current_shot: Any = None
 
-    def launch_app(self, app_name: str, context: Any = None) -> None:
-        self._launched_apps.append((app_name, context))
-
-    def launch_app_opening_scene_file(self, app_name: str, scene: Any) -> bool:
-        """Launch app opening the specific scene file."""
-        self._launched_with_scene.append((app_name, scene))
+    def launch(self, request: Any) -> bool:
+        self._launched.append(request)
         return True
 
-
-class LaunchCoordinatorDouble:
-    """Test double for LaunchCoordinator."""
-
-    __test__ = False
-
-    def __init__(self) -> None:
-        self._launched: list[tuple[str, Any]] = []
-
-    def launch_app_opening_scene_file(self, app_name: str, scene: Any) -> None:
-        self._launched.append((app_name, scene))
+    def set_current_shot(self, shot: Any) -> None:
+        self.current_shot = shot
 
 
 class StatusBarDouble:
@@ -351,9 +338,6 @@ class ThreeDETargetDouble:
 
     def get_active_shots(self) -> list[Shot]:
         return self.shot_model.shots
-
-    def launch_app(self, app_name: str, context: Any = None) -> None:
-        self.command_launcher.launch_app(app_name, context)
 
 
 # ============================================================================
@@ -432,7 +416,6 @@ def controller(window_double: ThreeDETargetDouble) -> ThreeDEController:
     return ThreeDEController(
         window_double,  # type: ignore[arg-type]
         command_launcher=window_double.command_launcher,  # type: ignore[arg-type]
-        launch_coordinator=LaunchCoordinatorDouble(),  # type: ignore[arg-type]
     )
 
 

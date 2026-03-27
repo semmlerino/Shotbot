@@ -99,7 +99,7 @@ class CommandLauncherDouble:
     def set_current_shot(self, shot: Any) -> None:
         self._current_shot = shot
 
-    def launch_app(self, app_name: str) -> bool:
+    def launch(self, request: Any) -> bool:
         return True
 
 

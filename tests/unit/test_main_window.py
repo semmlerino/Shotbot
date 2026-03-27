@@ -357,11 +357,13 @@ class TestMainWindowIntegration:
         ]._launch_btn.isEnabled()
 
         with patch.object(
-            main_window.command_launcher, "launch_app", return_value=True
+            main_window.command_launcher, "launch", return_value=True
         ) as mock_launch:
             main_window.launch_app("nuke")
 
-        mock_launch.assert_called_once_with("nuke")
+        mock_launch.assert_called_once()
+        request = mock_launch.call_args.args[0]
+        assert request.app_name == "nuke"
 
 
 class TestCrashRecovery:

@@ -23,6 +23,7 @@ import pytest
 
 from launch.command_launcher import CommandLauncher, LaunchContext
 from launch.launch_operation import LaunchOperation
+from launch.launch_request import LaunchRequest
 from type_definitions import Shot, ThreeDEScene
 
 
@@ -106,7 +107,7 @@ class TestBasicLaunchFlow:
         with patch.object(
             launcher, "_validate_workspace_before_launch", return_value=True
         ):
-            result = launcher.launch_app("3de")
+            result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is False
 
@@ -134,7 +135,7 @@ class TestThreeDECommandBuilding:
         ), patch.object(
             LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
-            result = launcher.launch_app("3de")
+            result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is True
         mock_execute.assert_called_once()
@@ -174,7 +175,7 @@ class TestThreeDECommandBuilding:
         ), patch.object(
             LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
-            result = launcher.launch_app("3de", context)
+            result = launcher.launch(LaunchRequest(app_name="3de", context=context))
 
         assert result is True
 
@@ -210,7 +211,7 @@ class TestThreeDECommandBuilding:
         ), patch.object(
             LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
-            result = launcher.launch_app("3de", context)
+            result = launcher.launch(LaunchRequest(app_name="3de", context=context))
 
         # Should still succeed, just without scene file
         assert result is True
@@ -254,7 +255,7 @@ class TestLaunchWithScene:
         ), patch.object(
             LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
-            result = launcher.launch_app_opening_scene_file("maya", maya_scene)
+            result = launcher.launch(LaunchRequest(app_name="maya", scene=maya_scene))
 
         assert result is True
 
@@ -268,8 +269,8 @@ class TestLaunchWithScene:
     def test_launch_with_scene_rejects_unknown_app(
         self, launcher: CommandLauncher, sample_scene: ThreeDEScene
     ) -> None:
-        """Test that launch_app_opening_scene_file rejects unknown apps."""
-        result = launcher.launch_app_opening_scene_file("unknown_app", sample_scene)
+        """Test that launch rejects unknown apps when scene is provided."""
+        result = launcher.launch(LaunchRequest(app_name="unknown_app", scene=sample_scene))
 
         assert result is False
 
@@ -292,7 +293,7 @@ class TestWorkspaceValidation:
         launcher.set_current_shot(sample_shot)
 
         # Without mocking validation, it should fail for non-existent path
-        result = launcher.launch_app("3de")
+        result = launcher.launch(LaunchRequest(app_name="3de"))
 
         # Since /shows/testshow/... doesn't exist, validation should fail
         assert result is False
@@ -320,7 +321,7 @@ class TestWorkspaceValidation:
         with patch.object(
             LaunchOperation, "_launch_in_new_terminal", return_value=True
         ):
-            result = launcher.launch_app("3de")
+            result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is True
 
@@ -356,7 +357,7 @@ class TestPathEscaping:
         with patch.object(
             LaunchOperation, "_launch_in_new_terminal", return_value=True
         ) as mock_execute:
-            result = launcher.launch_app("3de")
+            result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is True
         # Command should be properly quoted
@@ -393,7 +394,7 @@ class TestPathEscaping:
         ), patch.object(
             LaunchOperation, "_launch_in_new_terminal", return_value=True
         ):
-            result = launcher.launch_app_opening_scene_file("3de", scene)
+            result = launcher.launch(LaunchRequest(app_name="3de", scene=scene))
 
         assert result is True
 
@@ -409,18 +410,18 @@ class TestErrorHandling:
     def test_launch_returns_false_on_no_shot(
         self, launcher: CommandLauncher
     ) -> None:
-        """launch_app returns False when no shot is selected."""
-        result = launcher.launch_app("3de")
+        """launch returns False when no shot is selected."""
+        result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is False
 
     def test_launch_returns_false_on_unknown_app(
         self, launcher: CommandLauncher, sample_shot: Shot
     ) -> None:
-        """launch_app returns False for unknown app."""
+        """launch returns False for unknown app."""
         launcher.set_current_shot(sample_shot)
 
-        result = launcher.launch_app("invalid_app")
+        result = launcher.launch(LaunchRequest(app_name="invalid_app"))
 
         assert result is False
 
@@ -429,7 +430,7 @@ class TestErrorHandling:
         launcher: CommandLauncher,
         sample_scene: ThreeDEScene,
     ) -> None:
-        """launch_app_opening_scene_file returns True for valid scene."""
+        """launch returns True for valid scene."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
 
         with patch.object(
@@ -437,6 +438,6 @@ class TestErrorHandling:
         ), patch.object(
             LaunchOperation, "_launch_in_new_terminal", return_value=True
         ):
-            result = launcher.launch_app_opening_scene_file("3de", sample_scene)
+            result = launcher.launch(LaunchRequest(app_name="3de", scene=sample_scene))
 
         assert result is True

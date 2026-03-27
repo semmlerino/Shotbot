@@ -12,7 +12,6 @@ from managers.notification_manager import NotificationManager
 if TYPE_CHECKING:
     from launch.command_launcher import CommandLauncher
     from threede.grid_view import ThreeDEGridView
-    from type_definitions import ThreeDEScene
 
 
 @final
@@ -69,17 +68,6 @@ class LaunchCoordinator(LoggingMixin):
             LaunchRequest(
                 app_name=app_name,
                 context=context,
-            )
-        )
-
-    def launch_app_opening_scene_file(self, app_name: str, scene: ThreeDEScene) -> None:
-        """Launch an application and open the specific 3DE scene file."""
-        from launch.launch_request import LaunchRequest
-
-        _ = self._command_launcher.launch(
-            LaunchRequest(
-                app_name=app_name,
-                scene=scene,
             )
         )
 

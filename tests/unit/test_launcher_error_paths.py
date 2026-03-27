@@ -24,6 +24,7 @@ import pytest
 
 from config import Config
 from launch.command_launcher import CommandLauncher
+from launch.launch_request import LaunchRequest
 from launch.process_executor import ProcessExecutor
 from tests.fixtures.process_fixtures import PopenDouble
 from tests.test_helpers import process_qt_events
@@ -314,7 +315,7 @@ class TestLaunchAppGuardClauses:
     ) -> None:
         """launch_app returns False immediately when no shot is selected."""
 
-        result = launcher.launch_app("3de")
+        result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is False
 
@@ -327,7 +328,7 @@ class TestLaunchAppGuardClauses:
         """launch_app returns False for an app name not in Config.APPS."""
         launcher.set_current_shot(test_shot)
 
-        result = launcher.launch_app("blender_xyz_unknown")
+        result = launcher.launch(LaunchRequest(app_name="blender_xyz_unknown"))
 
         assert result is False
 
@@ -337,9 +338,9 @@ class TestLaunchAppGuardClauses:
         test_scene: ThreeDEScene,
         qtbot: QtBot,
     ) -> None:
-        """launch_app_opening_scene_file returns False for unknown app names."""
+        """launch returns False for unknown app names even when scene is provided."""
 
-        result = launcher.launch_app_opening_scene_file("blender_xyz_unknown", test_scene)
+        result = launcher.launch(LaunchRequest(app_name="blender_xyz_unknown", scene=test_scene))
 
         assert result is False
 
@@ -384,7 +385,7 @@ class TestInvalidScenePaths:
             modified_time=time.time(),
         )
 
-        result = launcher.launch_app_opening_scene_file("3de", scene)
+        result = launcher.launch(LaunchRequest(app_name="3de", scene=scene))
 
         assert result is False
 

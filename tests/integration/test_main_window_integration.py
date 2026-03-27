@@ -712,7 +712,8 @@ class TestUserWorkflows:
                 return_value=True,
             ),
         ):
-            success = main_window.command_launcher.launch_app("nuke")
+            from launch.launch_request import LaunchRequest
+            success = main_window.command_launcher.launch(LaunchRequest(app_name="nuke"))
 
             assert success is True
 
