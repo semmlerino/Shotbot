@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from version_utils import VersionUtils
+
 
 def find_main_plate(workspace_path: str) -> str | None:
     """Find the main plate (FG01) in publish/turnover for RV preview.
@@ -58,20 +60,15 @@ def _find_latest_version(base_path: Path) -> Path | None:
         Path to latest version directory, or None if none found
 
     """
-    version_pattern = re.compile(r"^v(\d+)$")
-    versions: list[tuple[int, Path]] = []
-
-    for item in base_path.iterdir():
-        if item.is_dir():
-            match = version_pattern.match(item.name)
-            if match:
-                version_num = int(match.group(1))
-                versions.append((version_num, item))
+    versions = [
+        (VersionUtils.version_number_from_name(item.name), item)
+        for item in base_path.iterdir()
+        if item.is_dir() and VersionUtils.is_version_directory(item.name)
+    ]
 
     if not versions:
         return None
 
-    # Sort by version number and return highest
     versions.sort(key=lambda x: x[0], reverse=True)
     return versions[0][1]
 
