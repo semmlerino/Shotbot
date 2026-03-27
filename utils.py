@@ -245,43 +245,6 @@ class FileUtils:
 
         return None
 
-    @staticmethod
-    def validate_file_size(
-        file_path: str | Path,
-        max_size_mb: int | None = None,
-    ) -> bool:
-        """Validate that a file is not too large.
-
-        Args:
-            file_path: Path to file to check
-            max_size_mb: Maximum size in megabytes (uses Config.MAX_FILE_SIZE_MB if None)
-
-        Returns:
-            True if file is within size limit, False otherwise
-
-        """
-        if max_size_mb is None:
-            max_size_mb = Config.MAX_FILE_SIZE_MB
-
-        if not PathValidators.validate_path_exists(file_path, "File"):
-            return False
-
-        path_obj = Path(file_path) if isinstance(file_path, str) else file_path
-        try:
-            size_bytes = path_obj.stat().st_size
-            size_mb = size_bytes / (1024 * 1024)
-
-            if size_mb > max_size_mb:
-                logger.warning(
-                    f"File too large ({size_mb:.1f}MB > {max_size_mb}MB): {path_obj}",
-                )
-                return False
-
-            return True
-        except OSError:
-            logger.warning(f"Error checking file size for {path_obj}", exc_info=True)
-            return False
-
 
 def get_current_username() -> str:
     """Get the current username from environment.

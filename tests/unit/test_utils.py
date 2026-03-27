@@ -169,28 +169,6 @@ class TestFileUtils:
         result = FileUtils.get_first_image_file(tmp_path)
         assert result is None
 
-    @pytest.mark.parametrize(
-        ("file_content", "max_size_mb", "expected"),
-        [
-            ("small content", 1, True),
-            ("x" * (2 * 1024 * 1024), 1, False),
-            (None, 1, False),
-        ],
-        ids=["within_limit", "exceeds_limit", "nonexistent"],
-    )
-    def test_validate_file_size(
-        self, tmp_path: Path, file_content: str | None, max_size_mb: int, expected: bool
-    ) -> None:
-        """Test file size validation for various scenarios."""
-        if file_content is not None:
-            test_file = tmp_path / "test_file.txt"
-            test_file.write_text(file_content)
-        else:
-            test_file = Path("/nonexistent/file.txt")
-
-        result = FileUtils.validate_file_size(test_file, max_size_mb=max_size_mb)
-        assert result is expected
-
 
 class TestVersionUtils:
     """Test VersionUtils functionality with real filesystem operations."""
@@ -287,29 +265,6 @@ class TestVersionUtils:
         assert VersionUtils.extract_version_from_path("file_v003.nk") == "v003"
         assert VersionUtils.extract_version_from_path("/no/version/here.txt") is None
         assert VersionUtils.extract_version_from_path("") is None
-
-    @pytest.mark.parametrize(
-        ("setup_files", "expected"),
-        [
-            (["shot_abc_v001.nk", "shot_abc_v002.nk"], 3),
-            (["unrelated_file.txt"], 1),
-            (None, 1),
-        ],
-        ids=["with_existing", "no_matching", "nonexistent_dir"],
-    )
-    def test_get_next_version_number(
-        self, tmp_path: Path, setup_files: list[str] | None, expected: int
-    ) -> None:
-        """Test next version number detection for various directory states."""
-        if setup_files is None:
-            path = Path("/nonexistent/path")
-        else:
-            path = tmp_path
-            for f in setup_files:
-                (tmp_path / f).touch()
-
-        result = VersionUtils.get_next_version_number(path, "shot_*_v*.nk")
-        assert result == expected
 
     def test_version_number_from_name(self) -> None:
         assert VersionUtils.version_number_from_name("v001") == 1

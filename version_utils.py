@@ -189,53 +189,6 @@ class VersionUtils:
         return None
 
     @staticmethod
-    def get_next_version_number(directory: str | Path, pattern: str) -> int:
-        """Get the next available version number for files matching pattern.
-
-        Args:
-            directory: Directory to search in
-            pattern: Filename pattern with version placeholder (e.g., "shot_*_v*.nk")
-
-        Returns:
-            Next available version number (1 if no files exist)
-
-        """
-        if not PathValidators.validate_path_exists(directory, "Version search directory"):
-            return 1
-
-        dir_path = Path(directory) if isinstance(directory, str) else directory
-
-        # Convert pattern to regex, replacing * with appropriate patterns
-        # Handle patterns like "shot_*_v*.nk" -> "shot_.*_v(\d{3})\.nk"
-        regex_pattern = pattern.replace(".", r"\.")  # Escape dots
-        # Replace v* with version capture BEFORE generic wildcard replacement
-        regex_pattern = regex_pattern.replace("v*", r"v(\d{3})")
-        regex_pattern = regex_pattern.replace("*", ".*")  # Replace remaining wildcards
-
-        try:
-            version_regex = re.compile(regex_pattern)
-        except re.error:
-            logger.warning(f"Invalid pattern for version search: {pattern}")
-            return 1
-
-        max_version = 0
-        try:
-            for file_path in dir_path.iterdir():
-                if file_path.is_file():
-                    match = version_regex.match(file_path.name)
-                    if match:
-                        try:
-                            version = int(match.group(1))
-                            max_version = max(max_version, version)
-                        except (ValueError, IndexError):
-                            continue
-        except (OSError, PermissionError):
-            logger.warning(f"Error scanning directory {dir_path} for versions", exc_info=True)
-            return 1
-
-        return max_version + 1
-
-    @staticmethod
     def is_version_directory(name: str) -> bool:
         """Return True if name looks like a version directory (e.g. v1, v001, v12).
 
