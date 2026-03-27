@@ -18,8 +18,10 @@ from config import Config
 from discovery import sanitize_username
 from progress_mixin import ProgressReportingMixin
 from shots.shot_parser import OptimizedShotParser
+from timeout_config import TimeoutConfig
 from type_definitions import Shot
 from utils import get_current_username
+from workers.process_pool_manager import CancellableSubprocess
 
 
 class FindShotsKwargs(TypedDict, total=False):
@@ -128,6 +130,63 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Could not create Shot from path {path}: {e}")
             return None
+
+    def _run_find_scan(self, search_path: Path, maxdepth: int) -> list[Shot]:
+        """Run a find command to scan a directory for user shot paths.
+
+        Builds and executes a ``find`` command limited to directories matching
+        ``self.user_path_pattern``, handles cancellation and timeout, parses
+        each result line via ``_parse_shot_from_path``, and deduplicates.
+
+        Args:
+            search_path: Directory to search (e.g. ``<show>/shots``).
+            maxdepth: The ``-maxdepth`` argument passed to ``find``.
+
+        Returns:
+            Deduplicated list of Shot objects found, or an empty list on
+            cancellation, timeout, or error.
+
+        """
+        shots: list[Shot] = []
+        cmd = [
+            "find",
+            str(search_path),
+            "-type",
+            "d",
+            "-path",
+            f"*{self.user_path_pattern}",
+            "-maxdepth",
+            str(maxdepth),
+        ]
+
+        try:
+            proc = CancellableSubprocess(cmd, shell=False, text=True)
+            result = proc.run(
+                timeout=TimeoutConfig.PREVIOUS_SHOTS_SCAN_SEC,
+                poll_interval=0.1,
+                cancel_flag=lambda: self._stop_requested,
+            )
+
+            if result.status == "cancelled":
+                self.logger.debug(f"Scan cancelled for path: {search_path}")
+                return shots
+
+            if result.status == "timeout":
+                self.logger.warning(f"Timeout scanning path: {search_path}")
+                return shots
+
+            if result.returncode == 0:
+                for line in result.stdout.strip().split("\n"):
+                    if not line or self._stop_requested:
+                        continue
+                    shot = self._parse_shot_from_path(line)
+                    if shot and shot not in shots:
+                        shots.append(shot)
+
+        except Exception:
+            self.logger.exception(f"Error scanning path {search_path}")
+
+        return shots
 
     def get_shot_details(self, shot: Shot) -> ShotDetailsDict:
         """Get additional details about a shot.

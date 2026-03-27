@@ -10,26 +10,25 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from typing_extensions import Unpack
 
 # Local application imports
-from config import Config, ThreadingConfig
-from paths import build_workspace_path, resolve_shows_root
-from paths.shot_dir_parser import parse_shot_from_dir
+from config import ThreadingConfig
+from paths import resolve_shows_root
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
-from type_definitions import Shot
 from typing_compat import override
-from workers.process_pool_manager import CancellableSubprocess
 
 
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Generator
+
+    # Local application imports
+    from type_definitions import Shot
 
 
 class TargetedShotsFinder(ShotFinderBase):
@@ -60,12 +59,6 @@ class TargetedShotsFinder(ShotFinderBase):
             max_workers or ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS
         )
 
-        # Pattern for parsing shot paths (dynamic based on configured SHOWS_ROOT)
-        shows_root_escaped = re.escape(Config.SHOWS_ROOT)
-        self._shot_pattern: re.Pattern[str] = re.compile(
-            rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
-        )
-
         self.logger.debug(f"TargetedShotsFinder initialized for user: {self.username}")
 
     # Progress methods are inherited from ShotFinderBase (ProgressReportingMixin):
@@ -94,113 +87,18 @@ class TargetedShotsFinder(ShotFinderBase):
     def _scan_show_for_user(
         self, show_name: str, shows_root: Path | None = None
     ) -> list[Shot]:
-        """Scan a specific show for user directories.
-
-        Args:
-            show_name: Name of the show to scan
-            shows_root: Root directory containing shows (uses Config.SHOWS_ROOT if None)
-
-        Returns:
-            List of Shot objects found in this show
-
-        """
-        shots: list[Shot] = []
-
+        """Scan a specific show for user directories."""
         if self._stop_requested:
-            return shots
-
+            return []
         root = resolve_shows_root(shows_root)
         show_path = root / show_name / "shots"
         if not show_path.exists():
             self.logger.debug(f"Shots directory does not exist: {show_path}")
-            return shots
-
-        try:
-            # Use targeted find command for this specific show
-            cmd = [
-                "find",
-                str(show_path),
-                "-type",
-                "d",
-                "-path",
-                f"*{self.user_path_pattern}",
-                "-maxdepth",
-                "4",  # Reduced depth since we're starting from shots/
-            ]
-
-            self.logger.debug(f"Scanning show {show_name}: {' '.join(cmd)}")
-
-            # Run with cancellation support using CancellableSubprocess
-            proc = CancellableSubprocess(cmd, shell=False, text=True)
-            result = proc.run(
-                timeout=TimeoutConfig.PREVIOUS_SHOTS_SCAN_SEC,
-                poll_interval=0.1,
-                cancel_flag=lambda: self._stop_requested,
-            )
-
-            # Handle cancellation
-            if result.status == "cancelled":
-                self.logger.debug(f"Scan cancelled for show: {show_name}")
-                return shots
-
-            # Handle timeout
-            if result.status == "timeout":
-                self.logger.warning(f"Timeout scanning show: {show_name}")
-                return shots
-
-            # Process successful result
-            if result.returncode == 0:
-                for line in result.stdout.strip().split("\n"):
-                    if not line or self._stop_requested:
-                        continue
-
-                    shot = self._parse_shot_from_path(line)
-                    if shot and shot not in shots:
-                        shots.append(shot)
-
-            self.logger.debug(f"Found {len(shots)} shots in show {show_name}")
-
-        except Exception:
-            self.logger.exception(f"Error scanning show {show_name}")
-
+            return []
+        self.logger.debug(f"Scanning show {show_name}")
+        shots = self._run_find_scan(show_path, maxdepth=4)
+        self.logger.debug(f"Found {len(shots)} shots in show {show_name}")
         return shots
-
-    @override
-    def _parse_shot_from_path(self, path: str) -> Shot | None:
-        """Parse shot information from a filesystem path.
-
-        Args:
-            path: Path containing shot information
-
-        Returns:
-            Shot object if path is valid, None otherwise
-
-        """
-        match = self._shot_pattern.search(path)
-        if match:
-            show, sequence, shot_dir = match.groups()
-
-            # Extract shot number from directory name using canonical parser
-            shot = parse_shot_from_dir(sequence, shot_dir)
-
-            # Validate shot is not empty
-            if not shot:
-                self.logger.debug(f"Empty shot extracted from path {path}")
-                return None
-
-            workspace_path = str(build_workspace_path(Config.SHOWS_ROOT, show, sequence, shot))
-
-            try:
-                return Shot(
-                    show=show,
-                    sequence=sequence,
-                    shot=shot,  # Use extracted shot number to match ws -sg
-                    workspace_path=workspace_path,
-                )
-            except Exception as e:  # noqa: BLE001
-                self.logger.debug(f"Could not create Shot from path {path}: {e}")
-
-        return None
 
     def find_user_shots_in_shows(
         self, target_shows: set[str], shows_root: Path | None = None

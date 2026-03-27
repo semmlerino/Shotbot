@@ -81,7 +81,7 @@ class TestScanShowForUser:
         mock_proc.run.return_value = mock_result
 
         with patch(
-            "shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
+            "shots.shot_finder_base.CancellableSubprocess", return_value=mock_proc
         ):
             shots = finder._scan_show_for_user("test_show", shows_root)
 
@@ -134,7 +134,7 @@ class TestScanShowForUser:
             mock_proc.run.side_effect = Exception("Process failed")
 
         with patch(
-            "shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
+            "shots.shot_finder_base.CancellableSubprocess", return_value=mock_proc
         ):
             shots = finder._scan_show_for_user("test_show", shows_root)
 
@@ -169,7 +169,7 @@ class TestScanShowForUser:
         mock_proc.run.return_value = mock_result
 
         with patch(
-            "shots.targeted_shot_finder.CancellableSubprocess", return_value=mock_proc
+            "shots.shot_finder_base.CancellableSubprocess", return_value=mock_proc
         ):
             shots = finder._scan_show_for_user("myshow", shows_root)
 
@@ -182,11 +182,8 @@ class TestScanShowForUser:
 class TestParseShotFromPath:
     """Test _parse_shot_from_path method."""
 
-    def test_parse_standard_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_parse_standard_path(self) -> None:
         """Test parsing standard VFX shot path."""
-        from shots import targeted_shot_finder
-
-        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
         path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010/user/john"
@@ -200,13 +197,8 @@ class TestParseShotFromPath:
             shot.workspace_path == f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010"
         )
 
-    def test_parse_path_without_underscore(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_parse_path_without_underscore(self) -> None:
         """Test parsing path where shot dir has no underscore."""
-        from shots import targeted_shot_finder
-
-        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
         path = f"{Config.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
@@ -215,13 +207,8 @@ class TestParseShotFromPath:
         assert shot is not None
         assert shot.shot == "0010"  # Should use whole name
 
-    def test_parse_path_with_complex_shot_name(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_parse_path_with_complex_shot_name(self) -> None:
         """Test parsing path with complex shot name."""
-        from shots import targeted_shot_finder
-
-        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
         path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010_extra/user/john"
@@ -244,12 +231,9 @@ class TestFindUserShotsInShows:
     """Test find_user_shots_in_shows method."""
 
     def test_find_in_target_shows(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+        self, tmp_path: Path
     ) -> None:
         """Test finding shots in targeted shows."""
-        from shots import targeted_shot_finder
-
-        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder(username="john")
 
         target_shows = {"show1", "show2"}

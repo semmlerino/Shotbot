@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
-import re
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, final
@@ -16,14 +15,15 @@ from config import ThreadingConfig
 from paths import resolve_shows_root
 from shots.shot_finder_base import FindShotsKwargs, ShotFinderBase
 from timeout_config import TimeoutConfig
-from type_definitions import Shot
 from typing_compat import override
-from workers.process_pool_manager import CancellableSubprocess
 
 
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable, Generator
+
+    # Local application imports
+    from type_definitions import Shot
 
 
 class PreviousShotsFinder(ShotFinderBase):
@@ -43,14 +43,6 @@ class PreviousShotsFinder(ShotFinderBase):
         # Initialize parent class (ShotFinderBase) which handles username sanitization
         super().__init__(username=username)
 
-        # Optimized regex pattern for shot parsing
-        # [^/]+ is faster than \w+ for path components
-        # Pattern matches: .../shows/{show}/shots/{sequence}/{shot_dir}/... or end of path
-        # Made flexible to work with any shows root (not just Config.SHOWS_ROOT)
-        # Captures: workspace_path, show, sequence, shot_dir
-        self._shot_pattern: re.Pattern[str] = re.compile(
-            r"(.*?/shows/([^/]+)/shots/([^/]+)/([^/]+))(?:/|$)"
-        )
         self.logger.debug(f"PreviousShotsFinder initialized for user: {self.username}")
 
     def find_user_shots(self, shows_root: Path | None = None) -> list[Shot]:
@@ -104,46 +96,6 @@ class PreviousShotsFinder(ShotFinderBase):
             self.logger.exception("Error finding user shots")
 
         return shots
-
-    @override
-    def _parse_shot_from_path(self, path: str) -> Shot | None:
-        """Parse shot information from a filesystem path.
-
-        Args:
-            path: Path containing shot information.
-
-        Returns:
-            Shot object if path is valid, None otherwise.
-
-        """
-        # Try optimized pattern first (69% faster)
-        match = self._shot_pattern.search(path)
-        if match:
-            # Extract workspace path, show, sequence, and shot directory
-            workspace_path, show, sequence, shot_dir = match.groups()
-
-            # Extract shot number from directory name (consistent with base_shot_model logic)
-            from paths.shot_dir_parser import parse_shot_from_dir
-
-            shot = parse_shot_from_dir(sequence, shot_dir)
-        else:
-            return None
-
-        # Validate shot is not empty
-        if not shot:
-            self.logger.debug(f"Empty shot extracted from path {path}")
-            return None
-
-        try:
-            return Shot(
-                show=show,
-                sequence=sequence,
-                shot=shot,  # Use extracted shot number to match ws -sg
-                workspace_path=workspace_path,
-            )
-        except Exception as e:  # noqa: BLE001
-            self.logger.debug(f"Could not create Shot from path {path}: {e}")
-            return None
 
     def find_approved_shots(
         self, active_shots: list[Shot], shows_root: Path | None = None
@@ -290,66 +242,11 @@ class ParallelShotsFinder(PreviousShotsFinder):
         return shows
 
     def _scan_show_for_user(self, show_path: Path) -> list[Shot]:
-        """Scan a single show for user directories.
-
-        Args:
-            show_path: Path to the show directory
-
-        Returns:
-            List of Shot objects found in this show
-
-        """
-        shots: list[Shot] = []
-
+        """Scan a single show for user directories."""
         if self._stop_requested:
-            return shots
-
-        try:
-            # Use find command limited to this show
-            cmd = [
-                "find",
-                str(show_path / "shots"),
-                "-type",
-                "d",
-                "-path",
-                f"*{self.user_path_pattern}",
-                "-maxdepth",
-                "6",  # Reduced depth since we're starting from shots/
-            ]
-
-            # Run with cancellation support using CancellableSubprocess
-            proc = CancellableSubprocess(cmd, shell=False, text=True)
-            result = proc.run(
-                timeout=TimeoutConfig.PREVIOUS_SHOTS_SCAN_SEC,
-                poll_interval=0.1,
-                cancel_flag=lambda: self._stop_requested,
-            )
-
-            # Handle cancellation
-            if result.status == "cancelled":
-                self.logger.debug(f"Scan cancelled for show: {show_path.name}")
-                return shots
-
-            # Handle timeout
-            if result.status == "timeout":
-                self.logger.warning(f"Timeout scanning show: {show_path.name}")
-                return shots
-
-            # Process successful result
-            if result.returncode == 0:
-                for line in result.stdout.strip().split("\n"):
-                    if not line or self._stop_requested:
-                        continue
-
-                    shot = self._parse_shot_from_path(line)
-                    if shot and shot not in shots:
-                        shots.append(shot)
-
-            self.logger.debug(f"Found {len(shots)} shots in {show_path.name}")
-
-        except Exception:
-            self.logger.exception(f"Error scanning show {show_path.name}")
-
+            return []
+        shots = self._run_find_scan(show_path / "shots", maxdepth=6)
+        self.logger.debug(f"Found {len(shots)} shots in {show_path.name}")
         return shots
 
     def find_user_shots_parallel(

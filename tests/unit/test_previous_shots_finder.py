@@ -125,7 +125,6 @@ class TestPreviousShotsFinder:
 
         assert finder.username == "customuser"
         assert finder.user_path_pattern == "/user/customuser"
-        assert finder._shot_pattern is not None
 
     def test_finder_initialization_default_user(
         self, monkeypatch: pytest.MonkeyPatch
