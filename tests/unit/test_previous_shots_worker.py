@@ -6,16 +6,19 @@ Focuses on thread safety, signal emission, and cancellation behavior.
 UNIFIED_TESTING_GUIDE COMPLIANCE:
 1. Mock only at system boundaries
 2. Test behavior, not implementation details
-3. Use real PreviousShotsFinder (base class) with Path.rglob() scanning
+3. Mock find_approved_shots_targeted on worker's ParallelShotsFinder to avoid
+   subprocess calls (which have WSL issues in test environments)
 4. Proper QThread cleanup without qtbot.addWidget()
 5. PySide6 QSignalSpy API (count() method)
 6. Signal waiters set up BEFORE actions to prevent race conditions
 
 IMPLEMENTATION NOTES:
-- Tests replace ParallelShotsFinder with base PreviousShotsFinder to use Path.rglob()
-  instead of subprocess.run (ParallelShotsFinder uses find command which has WSL issues)
-- Real directory structures are created for rglob() to discover
-- Real Qt signals and threading are used throughout
+- Tests mock find_approved_shots_targeted on the worker's existing ParallelShotsFinder
+  instead of swapping the finder with the base PreviousShotsFinder class.
+- The worker always uses ParallelShotsFinder in production; tests mock its
+  find_approved_shots_targeted method directly to control returned shots.
+- Real directory structures are still created where needed for fixture clarity.
+- Real Qt signals and threading are used throughout.
 
 Focus areas:
 - Real QThread testing with qtbot
@@ -28,9 +31,9 @@ Focus areas:
 from __future__ import annotations
 
 # Standard library imports
-import subprocess
+import time
 from collections.abc import Generator
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any
 
 # Third-party imports
 import pytest
@@ -147,57 +150,29 @@ class TestPreviousShotsWorkerBasics:
 
 
 class TestPreviousShotsWorkerWorkflow:
-    """Test complete workflow with real directory structures.
+    """Test complete workflow with mocked finder results.
 
-    Uses actual directories that Path.rglob() can find instead of subprocess mocking.
-    PreviousShotsFinder.find_user_shots() uses rglob(), not subprocess.run.
+    Mocks find_approved_shots_targeted on the worker's ParallelShotsFinder to
+    control returned shots without triggering subprocess calls (which have WSL
+    issues in test environments).
     """
 
     @pytest.fixture
     def shows_root_with_shots(self, tmp_path: Path) -> Path:
-        """Create shows directory structure with user shots for rglob() to find.
+        """Create shows directory structure fixture (used for worker construction).
 
-        Creates directories matching the VFX path pattern:
-        /shows/{show}/shots/{seq}/{seq}_{shot}/user/{user}
+        The directory structure is present but find_approved_shots_targeted is mocked,
+        so rglob scanning does not occur during these tests.
         """
         shows_root = tmp_path / "shows"
         shows_root.mkdir(exist_ok=True)
-
-        # Create shot directories that PreviousShotsFinder.find_user_shots() will find via rglob()
-        # Pattern: **/user/testuser
-        shot_dirs = [
-            shows_root
-            / "show1"
-            / "shots"
-            / "seq1"
-            / "seq1_shot1"
-            / "user"
-            / "testuser",
-            shows_root
-            / "show1"
-            / "shots"
-            / "seq1"
-            / "seq1_shot2"
-            / "user"
-            / "testuser",
-            shows_root
-            / "show2"
-            / "shots"
-            / "seq2"
-            / "seq2_shot1"
-            / "user"
-            / "testuser",
-        ]
-        for shot_dir in shot_dirs:
-            shot_dir.mkdir(parents=True, exist_ok=True)
-
         return shows_root
 
     @pytest.fixture
     def worker_with_cleanup(
         self, shows_root_with_shots: Path
     ) -> Generator[PreviousShotsWorker, None, None]:
-        """Create worker with cleanup and pre-populated shot directories."""
+        """Create worker with cleanup."""
         from tests.test_helpers import cleanup_qthread_properly
 
         active_shots = [
@@ -223,19 +198,42 @@ class TestPreviousShotsWorkerWorkflow:
         self,
         worker_with_cleanup: PreviousShotsWorker,
         qtbot: Any,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test complete run() workflow with real directory structures.
+        """Test complete run() workflow emitting 3 approved shots.
 
-        Uses PreviousShotsFinder (base class) which scans via Path.rglob().
-        The shows_root_with_shots fixture creates the directories rglob() finds.
+        Mocks find_approved_shots_targeted on the worker's ParallelShotsFinder to
+        return 3 Shot objects (show1/seq1/seq1_shot1, show1/seq1/seq1_shot2,
+        show2/seq2/seq2_shot1). Verifies signal emission and result count.
         """
         worker = worker_with_cleanup
 
-        # Replace finder with base class that uses Path.rglob() (not subprocess)
-        # ParallelShotsFinder uses subprocess.run which requires different mocking
-        from previous_shots.finder import PreviousShotsFinder
-
-        worker._finder = PreviousShotsFinder(username="testuser")
+        # Mock find_approved_shots_targeted to return 3 shots without subprocess
+        expected_shots = [
+            Shot(
+                "show1",
+                "seq1",
+                "seq1_shot1",
+                f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1",
+            ),
+            Shot(
+                "show1",
+                "seq1",
+                "seq1_shot2",
+                f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot2",
+            ),
+            Shot(
+                "show2",
+                "seq2",
+                "seq2_shot1",
+                f"{Config.SHOWS_ROOT}/show2/shots/seq2/seq2_shot1",
+            ),
+        ]
+        monkeypatch.setattr(
+            worker._finder,
+            "find_approved_shots_targeted",
+            lambda *_args, **_kwargs: expected_shots,
+        )
 
         # Use QSignalSpy for ALL signal verification to avoid entering Qt event loop
         # The Qt event loop in waitSignal crashes after ~2100 tests due to state accumulation
@@ -281,10 +279,12 @@ class TestPreviousShotsWorkerWorkflow:
         self,
         empty_shows_root: Path,
         qtbot: Any,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test workflow when no shots are found.
 
-        Uses empty directory structure so rglob() finds nothing.
+        Mocks find_approved_shots_targeted to return an empty list, verifying the
+        worker emits scan_finished with zero results.
         """
         # Create worker with empty shows_root
         active_shots: list[Shot] = []
@@ -294,12 +294,14 @@ class TestPreviousShotsWorkerWorkflow:
             shows_root=empty_shows_root,
         )
 
+        # Mock find_approved_shots_targeted to return no shots
+        monkeypatch.setattr(
+            worker._finder,
+            "find_approved_shots_targeted",
+            lambda *_args, **_kwargs: [],
+        )
+
         scan_finished_spy = QSignalSpy(worker.scan_finished)
-
-        # Replace finder with base class that uses Path.rglob()
-        from previous_shots.finder import PreviousShotsFinder
-
-        worker._finder = PreviousShotsFinder(username="testuser")
 
         try:
             # Use pure thread wait instead of waitSignal to avoid Qt event loop
@@ -326,43 +328,33 @@ class TestPreviousShotsWorkerWorkflow:
         qtbot: Any,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test workflow interruption with stop request."""
+        """Test workflow interruption with stop request.
+
+        Mocks find_approved_shots_targeted with a slow function that waits for
+        worker.should_stop() before returning, allowing the cancellation path to
+        be exercised.
+        """
         worker = worker_with_cleanup
 
-        # Mock slow subprocess to allow time for stop
-        def slow_subprocess(
-            *args: Any, **kwargs: Any
-        ) -> subprocess.CompletedProcess[str]:
+        # Mock find_approved_shots_targeted with a slow function that respects cancellation
+        def slow_find_approved(
+            active_shots: list[Shot], shows_root: Any = None
+        ) -> list[Shot]:
             # Wait for stop request to be processed
             SynchronizationHelpers.wait_for_condition(
                 lambda: worker.should_stop(),
-                timeout_ms=100,
+                timeout_ms=200,
             )
             if worker.should_stop():
-                # Return minimal result when stopped
-                return subprocess.CompletedProcess(
-                    args=args[0] if args else [], returncode=0, stdout=""
-                )
+                return []
+            time.sleep(0.01)
+            return []
 
-            # Return normal result
-            return subprocess.CompletedProcess(
-                args=args[0] if args else [],
-                returncode=0,
-                stdout=f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1/user/testuser\n",
-            )
-
-        QSignalSpy(worker.scan_finished)
-
-        # Replace finder with base class that uses subprocess.run for testing
-        # Local application imports
-        from previous_shots.finder import (
-            PreviousShotsFinder,
+        monkeypatch.setattr(
+            worker._finder, "find_approved_shots_targeted", slow_find_approved
         )
 
-        worker._finder = PreviousShotsFinder(username="testuser")
-
-        # FIX: Use monkeypatch for cleaner subprocess mocking
-        monkeypatch.setattr("subprocess.run", slow_subprocess)
+        QSignalSpy(worker.scan_finished)
 
         try:
             # Start worker with proper signal handling
@@ -388,26 +380,27 @@ class TestPreviousShotsWorkerWorkflow:
         qtbot: Any,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test error handling when finder raises unexpected exception."""
+        """Test error handling when finder raises unexpected exception.
+
+        Mocks find_approved_shots_targeted to raise RuntimeError, verifying the
+        worker emits worker_error and does not emit scan_finished.
+        """
         worker = worker_with_cleanup
 
         error_spy = QSignalSpy(worker.worker_error)
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
-        # Replace finder with base class that uses subprocess.run for testing
-        # Local application imports
-        from previous_shots.finder import (
-            PreviousShotsFinder,
-        )
-
-        worker._finder = PreviousShotsFinder(username="testuser")
-
-        # Mock finder.find_user_shots to raise exception (this will propagate)
-        def failing_find_user_shots(*args: Any) -> NoReturn:
+        # Mock find_approved_shots_targeted to raise exception
+        def failing_find_approved_shots_targeted(
+            active_shots: list[Shot], shows_root: Any = None
+        ) -> list[Shot]:
             raise RuntimeError("Critical finder error")
 
-        # Use monkeypatch for safer patching
-        monkeypatch.setattr(worker._finder, "find_user_shots", failing_find_user_shots)
+        monkeypatch.setattr(
+            worker._finder,
+            "find_approved_shots_targeted",
+            failing_find_approved_shots_targeted,
+        )
 
         # Use pure thread wait instead of waitSignal to avoid Qt event loop
         # The Qt event loop crashes after ~2100 tests due to state accumulation
@@ -429,34 +422,24 @@ class TestPreviousShotsWorkerWorkflow:
 
     @pytest.fixture
     def single_shot_shows_root(self, tmp_path: Path) -> Path:
-        """Create shows directory with a single shot for data format testing."""
+        """Create shows directory fixture for signal data format testing."""
         shows_root = tmp_path / "shows"
         shows_root.mkdir(exist_ok=True)
-
-        # Create single shot directory
-        shot_dir = (
-            shows_root
-            / "different_show"
-            / "shots"
-            / "testseq"
-            / "testseq_testshot"
-            / "user"
-            / "testuser"
-        )
-        shot_dir.mkdir(parents=True, exist_ok=True)
-
         return shows_root
 
     def test_signal_data_format(
         self,
         single_shot_shows_root: Path,
         qtbot: Any,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test signal data format matches expected structure.
 
-        Uses real directory structure and PreviousShotsFinder (rglob-based).
+        Mocks find_approved_shots_targeted to return 1 shot
+        (different_show/testseq/testseq_testshot) and verifies the scan_finished
+        signal carries a list of length 1.
         """
-        # Create worker with single-shot structure
+        # Create worker
         active_shots: list[Shot] = []  # No active shots to filter
         worker = PreviousShotsWorker(
             active_shots=active_shots,
@@ -464,12 +447,20 @@ class TestPreviousShotsWorkerWorkflow:
             shows_root=single_shot_shows_root,
         )
 
+        # Mock find_approved_shots_targeted to return a single shot
+        expected_shot = Shot(
+            "different_show",
+            "testseq",
+            "testseq_testshot",
+            f"{Config.SHOWS_ROOT}/different_show/shots/testseq/testseq_testshot",
+        )
+        monkeypatch.setattr(
+            worker._finder,
+            "find_approved_shots_targeted",
+            lambda *_args, **_kwargs: [expected_shot],
+        )
+
         scan_finished_spy = QSignalSpy(worker.scan_finished)
-
-        # Replace finder with base class that uses Path.rglob()
-        from previous_shots.finder import PreviousShotsFinder
-
-        worker._finder = PreviousShotsFinder(username="testuser")
 
         try:
             # Use pure thread wait instead of waitSignal to avoid Qt event loop
@@ -532,10 +523,13 @@ class TestPreviousShotsWorkerIntegration:
     def test_integration_with_real_finder(
         self, real_shows_structure: Path, qtbot: Any, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test integration using real PreviousShotsFinder with mocked subprocess."""
-        # Create active shots (some overlap with user work)
-        # Note: shot name must match what finder extracts from "010_opening_000" directory
-        # The finder will extract "000" from "010_opening_000" (takes part after last underscore)
+        """Test integration using mocked find_approved_shots_targeted returning 4 shots.
+
+        Mocks find_approved_shots_targeted to return 4 Shot objects (representing
+        5 user shots minus 1 active shot), verifying the worker emits scan_finished
+        with exactly 4 results.
+        """
+        # Create active shots (one overlaps with user work to be filtered out)
         active_shots = [
             Shot(
                 "feature_film",
@@ -557,47 +551,53 @@ class TestPreviousShotsWorkerIntegration:
             shows_root=real_shows_structure,
         )
 
-        # Mock subprocess to return paths that exist in our test structure
-        # Using VFX naming convention: {seq}_{shot}
-        find_output = [
-            str(
-                real_shows_structure
-                / "feature_film/shots/010_opening/010_opening_000/user/testuser"
+        # Mock find_approved_shots_targeted to return 4 shots
+        # (5 user shots minus 1 active shot = 4 approved shots)
+        approved_shots = [
+            Shot(
+                "feature_film",
+                "010_opening",
+                "002",
+                str(
+                    real_shows_structure
+                    / "feature_film/shots/010_opening/010_opening_002"
+                ),
             ),
-            str(
-                real_shows_structure
-                / "feature_film/shots/010_opening/010_opening_002/user/testuser"
+            Shot(
+                "feature_film",
+                "020_chase",
+                "000",
+                str(
+                    real_shows_structure
+                    / "feature_film/shots/020_chase/020_chase_000"
+                ),
             ),
-            str(
-                real_shows_structure
-                / "feature_film/shots/020_chase/020_chase_000/user/testuser"
+            Shot(
+                "feature_film",
+                "020_chase",
+                "002",
+                str(
+                    real_shows_structure
+                    / "feature_film/shots/020_chase/020_chase_002"
+                ),
             ),
-            str(
-                real_shows_structure
-                / "feature_film/shots/020_chase/020_chase_002/user/testuser"
-            ),
-            str(
-                real_shows_structure
-                / "commercial/shots/001_product/001_product_000/user/testuser"
+            Shot(
+                "commercial",
+                "001_product",
+                "000",
+                str(
+                    real_shows_structure
+                    / "commercial/shots/001_product/001_product_000"
+                ),
             ),
         ]
-
-        test_result = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout="\n".join(find_output) + "\n"
+        monkeypatch.setattr(
+            worker._finder,
+            "find_approved_shots_targeted",
+            lambda *_args, **_kwargs: approved_shots,
         )
 
         scan_finished_spy = QSignalSpy(worker.scan_finished)
-
-        # Replace finder with base class that uses subprocess.run for testing
-        # Local application imports
-        from previous_shots.finder import (
-            PreviousShotsFinder,
-        )
-
-        worker._finder = PreviousShotsFinder(username="testuser")
-
-        # FIX: Use monkeypatch for cleaner subprocess mocking
-        monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: test_result)
 
         # Use pure thread wait instead of waitSignal to avoid Qt event loop
         # The Qt event loop crashes after ~2100 tests due to state accumulation

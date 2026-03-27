@@ -81,8 +81,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
     def stop(self) -> None:
         """Request the worker to stop safely."""
         _ = self.request_stop()  # Use base class method for proper state transition
-        if hasattr(self._finder, "request_stop"):
-            self._finder.request_stop()  # Also stop the parallel finder
+        self._finder.request_stop()  # Also stop the parallel finder
         self.logger.debug("Stop requested for PreviousShotsWorker")
 
     @override
@@ -99,89 +98,25 @@ class PreviousShotsWorker(ThreadSafeWorker):
             # Emit initial progress
             self.scan_progress.emit(0, 100, "Initializing scan...")
 
-            # Track whether shot_found signals have already been emitted
-            signals_already_emitted = False
-
-            # Use new targeted search for maximum performance
+            # Use targeted search for maximum performance
             # This searches only in shows where user has active shots
-            if hasattr(self._finder, "find_approved_shots_targeted"):
-                self.logger.info("Using targeted search approach")
-                approved_shots = self._finder.find_approved_shots_targeted(
-                    self._active_shots, self._shows_root
-                )
-
-                signals_already_emitted = True  # Signals emitted in targeted search
-
-            else:
-                # Fallback to original two-step process
-                self.logger.info("Using fallback two-step approach")
-
-                # Use parallel finder with incremental loading
-                all_user_shots: list[Shot] = []
-
-                # Collect shots incrementally from the generator
-                if hasattr(self._finder, "find_user_shots_parallel"):
-                    # Use generator for incremental results
-                    # Pass should_stop as cancel_flag for responsive cancellation
-                    for shot in self._finder.find_user_shots_parallel(
-                        self._shows_root,
-                        cancel_flag=self.should_stop,
-                    ):
-                        if self.should_stop():
-                            break
-                        all_user_shots.append(shot)
-
-                    signals_already_emitted = True  # Signals emitted in parallel search
-
-                else:
-                    # Fallback to regular method - no signals emitted yet
-                    self.scan_progress.emit(10, 100, "Scanning filesystem...")
-                    all_user_shots = self._finder.find_user_shots(self._shows_root)
-                    signals_already_emitted = False  # No signals emitted yet
-
-                if self.should_stop():
-                    self.logger.info("Scan stopped by user request")
-                    return
-
-                self.scan_progress.emit(50, 100, "Filtering approved shots...")
-                # Filter to get only approved shots
-                approved_shots = self._finder.filter_approved_shots(
-                    all_user_shots, self._active_shots
-                )
+            self.logger.info("Using targeted search approach")
+            approved_shots = self._finder.find_approved_shots_targeted(
+                self._active_shots, self._shows_root
+            )
 
             # Convert to dictionaries for signal emission
             shot_dicts: list[dict[str, str]] = []
-            total_shots = len(approved_shots)
 
-            # Build shot_dicts for final emission
-            if not signals_already_emitted:
-                for i, shot in enumerate(approved_shots):
-                    if self.should_stop():
-                        break
-
-                    # Emit progress for processing each shot
-                    progress = 50 + int((i / total_shots) * 40)  # 50-90% range
-                    self.scan_progress.emit(
-                        progress, 100, f"Processing shot {i + 1} of {total_shots}"
-                    )
-
-                    shot_dict = {
-                        "show": shot.show,
-                        "sequence": shot.sequence,
-                        "shot": shot.shot,
-                        "workspace_path": shot.workspace_path,
-                    }
-                    shot_dicts.append(shot_dict)
-            else:
-                # Still need to build shot_dicts for final emission
-                for shot in approved_shots:
-                    shot_dict = {
-                        "show": shot.show,
-                        "sequence": shot.sequence,
-                        "shot": shot.shot,
-                        "workspace_path": shot.workspace_path,
-                    }
-                    shot_dicts.append(shot_dict)
+            # Build shot_dicts for final emission (signals already emitted in targeted search)
+            for shot in approved_shots:
+                shot_dict = {
+                    "show": shot.show,
+                    "sequence": shot.sequence,
+                    "shot": shot.shot,
+                    "workspace_path": shot.workspace_path,
+                }
+                shot_dicts.append(shot_dict)
 
             # Final progress update
             self.scan_progress.emit(100, 100, "Scan completed")
