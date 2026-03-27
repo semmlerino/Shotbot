@@ -234,3 +234,18 @@ class VersionUtils:
 
         """
         return name.startswith("v") and name[1:].isdigit()
+
+    @staticmethod
+    def version_number_from_name(name: str) -> int:
+        """Extract version number from a version directory name (e.g. 'v001' -> 1).
+
+        Caller must have already validated the name via is_version_directory().
+
+        Args:
+            name: Version directory name starting with 'v' followed by digits
+
+        Returns:
+            Integer version number
+
+        """
+        return int(name[1:])

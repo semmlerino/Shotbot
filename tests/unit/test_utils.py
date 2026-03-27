@@ -311,6 +311,12 @@ class TestVersionUtils:
         result = VersionUtils.get_next_version_number(path, "shot_*_v*.nk")
         assert result == expected
 
+    def test_version_number_from_name(self) -> None:
+        assert VersionUtils.version_number_from_name("v001") == 1
+        assert VersionUtils.version_number_from_name("v010") == 10
+        assert VersionUtils.version_number_from_name("v1") == 1
+        assert VersionUtils.version_number_from_name("v999") == 999
+
 
 class TestValidationUtils:
     """Test ValidationUtils functionality."""
