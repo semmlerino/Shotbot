@@ -8,11 +8,11 @@ AppHandler is a Protocol (structural subtyping) — no base class required.
 """
 from __future__ import annotations
 
-import base64
-import shlex
 from typing import TYPE_CHECKING, Protocol
 
 from commands import rv_commands
+from commands.maya_commands import build_maya_context_command
+from commands.threede_commands import build_threede_scripts_export
 
 
 if TYPE_CHECKING:
@@ -143,10 +143,7 @@ class ThreeDEAppHandler:
         self._emit_error: Callable[[str], None] = emit_error
 
     def build_file_command(self, base_cmd: str, safe_file_path: str) -> str:
-        tde_scripts_export = (
-            f"export PYTHON_CUSTOM_SCRIPTS_3DE4={self._scripts_dir}:"
-            "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
-        )
+        tde_scripts_export = build_threede_scripts_export(self._scripts_dir)
         return f"{tde_scripts_export}{base_cmd} -open {safe_file_path}"
 
     def needs_sgtk_file_to_open(self) -> bool:
@@ -193,16 +190,7 @@ class MayaAppHandler:
         self._emit_error: Callable[[str], None] = emit_error
 
     def build_file_command(self, base_cmd: str, safe_file_path: str) -> str:
-        encoded = base64.b64encode(self._bootstrap_script.encode()).decode()
-        mel_bootstrap = (
-            'python("import os,base64;'
-            "s=os.environ.get('SHOTBOT_MAYA_SCRIPT','');"
-            'exec(base64.b64decode(s).decode()) if s else None")'
-        )
-        return (
-            f"export SHOTBOT_MAYA_SCRIPT={encoded} && "
-            f"{base_cmd} -file {safe_file_path} -c {shlex.quote(mel_bootstrap)}"
-        )
+        return build_maya_context_command(base_cmd, safe_file_path, self._bootstrap_script)
 
     def needs_sgtk_file_to_open(self) -> bool:
         return True

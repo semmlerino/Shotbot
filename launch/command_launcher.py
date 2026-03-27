@@ -20,6 +20,7 @@ from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 
 # Local application imports
 from commands import maya_commands
+from commands.threede_commands import build_threede_scripts_export
 from config import Config
 from launch.app_handlers import (
     AppHandler,
@@ -44,7 +45,7 @@ if TYPE_CHECKING:
     # Local application imports
     from cache.latest_file_cache import LatestFileCache
     from launch.launch_request import LaunchRequest
-    from type_definitions import Shot, ThreeDEScene
+    from type_definitions import Shot
 
 
 @dataclass(frozen=True)
@@ -634,10 +635,7 @@ class CommandLauncher(LoggingMixin, QObject):
             safe_scene_path = CommandBuilder.validate_path(str(scene.scene_path))
             command_prefix = ""
             if app_name == "3de":
-                tde_scripts_export = (
-                    f"export PYTHON_CUSTOM_SCRIPTS_3DE4={Config.SCRIPTS_DIR}:"
-                    "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
-                )
+                tde_scripts_export = build_threede_scripts_export(Config.SCRIPTS_DIR)
                 sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
                 command = f"{command} -open {safe_scene_path}"
                 command_prefix = f"{tde_scripts_export}{sgtk_export}"
@@ -697,28 +695,6 @@ class CommandLauncher(LoggingMixin, QObject):
             error_context=" with file",
             command_prefix=sgtk_export,
         )
-
-    def launch_app(
-        self,
-        app_name: str,
-        context: LaunchContext | None = None,
-    ) -> bool:
-        """Launch an application in the current shot context.
-
-        Thin wrapper around :meth:`launch` for backward compatibility.
-        """
-        from launch.launch_request import LaunchRequest
-
-        return self.launch(LaunchRequest(app_name=app_name, context=context))
-
-    def launch_app_opening_scene_file(self, app_name: str, scene: ThreeDEScene) -> bool:
-        """Launch an application and open a specific 3DE scene file.
-
-        Thin wrapper around :meth:`launch` for backward compatibility.
-        """
-        from launch.launch_request import LaunchRequest
-
-        return self.launch(LaunchRequest(app_name=app_name, scene=scene))
 
     # Methods removed - now using launch components:
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)

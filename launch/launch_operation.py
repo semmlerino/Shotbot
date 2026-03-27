@@ -287,10 +287,9 @@ class LaunchOperation(LoggingMixin):
             return None
 
         if app_name == "3de":
-            tde_scripts_export = (
-                f"export PYTHON_CUSTOM_SCRIPTS_3DE4={Config.SCRIPTS_DIR}:"
-                "$PYTHON_CUSTOM_SCRIPTS_3DE4 && "
-            )
+            from commands.threede_commands import build_threede_scripts_export
+
+            tde_scripts_export = build_threede_scripts_export(Config.SCRIPTS_DIR)
             sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_scene_path} && "
             return f"{tde_scripts_export}{sgtk_export}{command} -open {safe_scene_path}"
 
