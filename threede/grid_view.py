@@ -175,7 +175,13 @@ class ThreeDEGridView(BaseGridView):
         )
         layout.addWidget(self.artist_combo)
 
-        self._create_sort_buttons(layout)
+        from ui.sort_button_bar import SortButtonBar
+
+        self._sort_bar = SortButtonBar(
+            on_order_changed=self.sort_order_changed.emit,
+            parent=self,
+        )
+        self._sort_bar.add_to_layout(layout)
 
         # Add some spacing
         layout.addSpacing(10)

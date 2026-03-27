@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from previous_shots.item_model import PreviousShotsItemModel
     from type_definitions import Shot
     from ui.base_thumbnail_delegate import BaseThumbnailDelegate
+    from ui.sort_button_bar import SortButtonBar
 
 
 class PreviousShotsView(BaseShotGridView):
@@ -57,8 +58,9 @@ class PreviousShotsView(BaseShotGridView):
     - 98% memory reduction vs widget-based approach
     """
 
-    # Class-level type annotation for base class _model attribute
+    # Class-level type annotations for base class attributes
     _model: QAbstractItemModel | None
+    _sort_bar: SortButtonBar | None
 
     def __init__(
         self,
@@ -139,7 +141,13 @@ class PreviousShotsView(BaseShotGridView):
 
         header_layout.addStretch()
 
-        self._create_sort_buttons(header_layout)
+        from ui.sort_button_bar import SortButtonBar
+
+        self._sort_bar = SortButtonBar(
+            on_order_changed=self.sort_order_changed.emit,
+            parent=self,
+        )
+        self._sort_bar.add_to_layout(header_layout)
 
         # Add some spacing
         header_layout.addSpacing(10)

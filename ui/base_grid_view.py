@@ -21,14 +21,12 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QButtonGroup,
     QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListView,
-    QPushButton,
     QSlider,
     QVBoxLayout,
     QWidget,
@@ -73,6 +71,7 @@ if TYPE_CHECKING:
     from managers.notes_manager import NotesManager
     from managers.shot_pin_manager import ShotPinManager
     from ui.base_thumbnail_delegate import BaseThumbnailDelegate
+    from ui.sort_button_bar import SortButtonBar
 
 
 class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
@@ -123,10 +122,8 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         # Scrub preview bridge
         self._scrub_bridge: ScrubPreviewBridge = ScrubPreviewBridge(self)
 
-        # Sort button attributes — populated by _create_sort_buttons()
-        self._sort_name_btn: QPushButton | None = None
-        self._sort_date_btn: QPushButton | None = None
-        self._sort_button_group: QButtonGroup | None = None
+        # Sort bar — created by subclasses via SortButtonBar
+        self._sort_bar: SortButtonBar | None = None
 
         # Create the UI
         self._setup_base_ui()
@@ -529,45 +526,6 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         # Default implementation - subclasses should override
         # to call their model's set_visible_range or similar
 
-    def _create_sort_buttons(self, layout: QHBoxLayout) -> None:
-        """Create sort toggle buttons and add them to the given layout.
-
-        Args:
-            layout: The layout to add the sort buttons to
-
-        """
-        sort_label = QLabel("Sort:")
-        layout.addWidget(sort_label)
-
-        self._sort_name_btn = QPushButton("Name")
-        self._sort_name_btn.setCheckable(True)
-        self._sort_name_btn.setToolTip("Sort by shot name alphabetically")
-        self._sort_name_btn.setFixedWidth(50)
-        layout.addWidget(self._sort_name_btn)
-
-        self._sort_date_btn = QPushButton("Date")
-        self._sort_date_btn.setCheckable(True)
-        self._sort_date_btn.setChecked(True)  # Default: date (newest first)
-        self._sort_date_btn.setToolTip("Sort by date (newest first)")
-        self._sort_date_btn.setFixedWidth(50)
-        layout.addWidget(self._sort_date_btn)
-
-        self._sort_button_group = QButtonGroup(self)
-        self._sort_button_group.addButton(self._sort_name_btn, 0)
-        self._sort_button_group.addButton(self._sort_date_btn, 1)
-        _ = self._sort_button_group.idClicked.connect(self._on_sort_button_clicked)
-
-    def _on_sort_button_clicked(self, button_id: int) -> None:
-        """Handle sort button click.
-
-        Args:
-            button_id: ID of clicked button (0=name, 1=date)
-
-        """
-        order = "name" if button_id == 0 else "date"
-        self.sort_order_changed.emit(order)
-        self.logger.info(f"Sort order changed to: {order}")
-
     def set_sort_order(self, order: str) -> None:
         """Set the sort order and update button states.
 
@@ -577,19 +535,8 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
             order: Sort order ("name" or "date")
 
         """
-        if order not in ("name", "date"):
-            return
-
-        # Update button states without emitting signal
-        assert self._sort_button_group is not None
-        assert self._sort_name_btn is not None
-        assert self._sort_date_btn is not None
-        _ = self._sort_button_group.blockSignals(True)
-        if order == "name":
-            self._sort_name_btn.setChecked(True)
-        else:
-            self._sort_date_btn.setChecked(True)
-        _ = self._sort_button_group.blockSignals(False)
+        if self._sort_bar is not None:
+            self._sort_bar.set_order(order)
 
     # Common properties
 
