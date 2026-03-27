@@ -28,6 +28,7 @@ Focus areas:
 from __future__ import annotations
 
 # Standard library imports
+import subprocess
 from collections.abc import Generator
 from typing import TYPE_CHECKING, Any, NoReturn
 
@@ -40,7 +41,6 @@ from config import Config
 
 # Local application imports
 from previous_shots.worker import PreviousShotsWorker
-from tests.fixtures.test_doubles import TestCompletedProcess
 from tests.test_helpers import SynchronizationHelpers
 from type_definitions import Shot
 
@@ -72,8 +72,18 @@ class TestPreviousShotsWorkerBasics:
     def mock_active_shots(self) -> list[Shot]:
         """Create mock active shots for filtering."""
         return [
-            Shot("active_show", "seq1", "shot1", f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1"),
-            Shot("active_show", "seq1", "shot2", f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot2"),
+            Shot(
+                "active_show",
+                "seq1",
+                "shot1",
+                f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1",
+            ),
+            Shot(
+                "active_show",
+                "seq1",
+                "shot2",
+                f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot2",
+            ),
         ]
 
     @pytest.fixture
@@ -123,7 +133,9 @@ class TestPreviousShotsWorkerBasics:
         """Test that get_found_shots returns a copy of internal list."""
         # Add some shots to internal list
         test_shots = [
-            Shot("show1", "seq1", "shot1", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot1"),
+            Shot(
+                "show1", "seq1", "shot1", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot1"
+            ),
         ]
         worker._found_shots = test_shots
 
@@ -154,9 +166,27 @@ class TestPreviousShotsWorkerWorkflow:
         # Create shot directories that PreviousShotsFinder.find_user_shots() will find via rglob()
         # Pattern: **/user/testuser
         shot_dirs = [
-            shows_root / "show1" / "shots" / "seq1" / "seq1_shot1" / "user" / "testuser",
-            shows_root / "show1" / "shots" / "seq1" / "seq1_shot2" / "user" / "testuser",
-            shows_root / "show2" / "shots" / "seq2" / "seq2_shot1" / "user" / "testuser",
+            shows_root
+            / "show1"
+            / "shots"
+            / "seq1"
+            / "seq1_shot1"
+            / "user"
+            / "testuser",
+            shows_root
+            / "show1"
+            / "shots"
+            / "seq1"
+            / "seq1_shot2"
+            / "user"
+            / "testuser",
+            shows_root
+            / "show2"
+            / "shots"
+            / "seq2"
+            / "seq2_shot1"
+            / "user"
+            / "testuser",
         ]
         for shot_dir in shot_dirs:
             shot_dir.mkdir(parents=True, exist_ok=True)
@@ -171,11 +201,18 @@ class TestPreviousShotsWorkerWorkflow:
         from tests.test_helpers import cleanup_qthread_properly
 
         active_shots = [
-            Shot("active_show", "seq1", "shot1", f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1"),
+            Shot(
+                "active_show",
+                "seq1",
+                "shot1",
+                f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1",
+            ),
         ]
 
         worker = PreviousShotsWorker(
-            active_shots=active_shots, username="testuser", shows_root=shows_root_with_shots
+            active_shots=active_shots,
+            username="testuser",
+            shows_root=shows_root_with_shots,
         )
         yield worker
 
@@ -215,7 +252,9 @@ class TestPreviousShotsWorkerWorkflow:
         assert finished, "Worker did not finish within timeout"
 
         # Verify scan_finished was emitted
-        assert finished_spy.count() == 1, f"Expected scan_finished signal, got {finished_spy.count()}"
+        assert finished_spy.count() == 1, (
+            f"Expected scan_finished signal, got {finished_spy.count()}"
+        )
 
         # Verify the result contains 3 shots
         if finished_spy.count() > 0:
@@ -227,7 +266,9 @@ class TestPreviousShotsWorkerWorkflow:
             assert len(shot_list) == 3, f"Expected 3 shots, got {len(shot_list)}"
 
         # Verify no error was emitted
-        assert error_spy.count() == 0, f"Unexpected error: {error_spy.at(0) if error_spy.count() > 0 else 'N/A'}"
+        assert error_spy.count() == 0, (
+            f"Unexpected error: {error_spy.at(0) if error_spy.count() > 0 else 'N/A'}"
+        )
 
     @pytest.fixture
     def empty_shows_root(self, tmp_path: Path) -> Path:
@@ -289,7 +330,9 @@ class TestPreviousShotsWorkerWorkflow:
         worker = worker_with_cleanup
 
         # Mock slow subprocess to allow time for stop
-        def slow_subprocess(*args: Any, **kwargs: Any) -> TestCompletedProcess:
+        def slow_subprocess(
+            *args: Any, **kwargs: Any
+        ) -> subprocess.CompletedProcess[str]:
             # Wait for stop request to be processed
             SynchronizationHelpers.wait_for_condition(
                 lambda: worker.should_stop(),
@@ -297,12 +340,12 @@ class TestPreviousShotsWorkerWorkflow:
             )
             if worker.should_stop():
                 # Return minimal result when stopped
-                return TestCompletedProcess(
+                return subprocess.CompletedProcess(
                     args=args[0] if args else [], returncode=0, stdout=""
                 )
 
             # Return normal result
-            return TestCompletedProcess(
+            return subprocess.CompletedProcess(
                 args=args[0] if args else [],
                 returncode=0,
                 stdout=f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1/user/testuser\n",
@@ -392,8 +435,13 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Create single shot directory
         shot_dir = (
-            shows_root / "different_show" / "shots" / "testseq" / "testseq_testshot"
-            / "user" / "testuser"
+            shows_root
+            / "different_show"
+            / "shots"
+            / "testseq"
+            / "testseq_testshot"
+            / "user"
+            / "testuser"
         )
         shot_dir.mkdir(parents=True, exist_ok=True)
 
@@ -534,7 +582,7 @@ class TestPreviousShotsWorkerIntegration:
             ),
         ]
 
-        test_result = TestCompletedProcess(
+        test_result = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="\n".join(find_output) + "\n"
         )
 

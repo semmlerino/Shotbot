@@ -18,19 +18,17 @@ from PySide6.QtWidgets import (
 
 from ui.qt_widget_mixin import QtWidgetMixin
 
-from .dcc_section import (
-    DEFAULT_DCC_CONFIGS,
-    BaseDCCSection,
-    DCCConfig,
-    FileDCCSection,
-    create_dcc_section,
-)
+from .dcc_config import DEFAULT_DCC_CONFIGS
+from .dcc_section_file import FileDCCSection
+from .dcc_section_rv import create_dcc_section
 
 
 if TYPE_CHECKING:
     from managers.settings_manager import SettingsManager
     from type_definitions import Shot
 
+    from .dcc_config import DCCConfig
+    from .dcc_section_base import BaseDCCSection
     from .scene_file import SceneFile
 
 

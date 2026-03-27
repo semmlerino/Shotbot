@@ -2,8 +2,8 @@
 
 Consolidated from:
 - subprocess_mocking.py: Autouse subprocess mocks, SubprocessMock class, fixtures
-- process_doubles.py:    TestProcessPool, TestCompletedProcess, TestSubprocess, PopenDouble
-- cache_doubles.py:      TestProgressManager, test_process_pool fixture
+- process_doubles.py:    TestProcessPool, TestCompletedProcess, PopenDouble
+- cache_doubles.py:      test_process_pool fixture
 
 Fixtures (autouse):
     mock_process_pool_manager: Patches ProcessPoolManager singleton
@@ -18,9 +18,7 @@ Classes:
     SubprocessMock:          Controllable subprocess mock
     TestProcessPool:         Unified test double for ProcessPoolManager
     TestCompletedProcess:    Test double for subprocess.CompletedProcess
-    TestSubprocess:          Test double for subprocess operations
     PopenDouble:             Test double for subprocess.Popen
-    TestProgressManager:     Test double for progress manager
 """
 
 from __future__ import annotations
@@ -140,9 +138,7 @@ def mock_process_pool_manager(
     ]
 
     # Check for allow_main_thread marker (opt-out from default UI thread guard)
-    allow_main = "allow_main_thread" in [
-        m.name for m in request.node.iter_markers()
-    ]
+    allow_main = "allow_main_thread" in [m.name for m in request.node.iter_markers()]
 
     # Import and create TestProcessPool directly (not via fixture) to avoid
     # interfering with test-local test_process_pool fixtures
@@ -190,7 +186,9 @@ def mock_subprocess_popen(
         return
 
     # Check for permissive_subprocess marker (legacy opt-out)
-    is_permissive = "permissive_subprocess" in [m.name for m in request.node.iter_markers()]
+    is_permissive = "permissive_subprocess" in [
+        m.name for m in request.node.iter_markers()
+    ]
     if is_permissive:
         warnings.warn(
             f"Test '{request.node.name}' uses @pytest.mark.permissive_subprocess. "
@@ -221,7 +219,10 @@ def mock_subprocess_popen(
         # STRICT MODE: Fail on unexpected subprocess calls
         # Unless: permissive mode enabled OR subprocess_mock fixture is active
         current_state = _get_current_state()
-        if not current_state.permissive_mode and not current_state.subprocess_mock_active:
+        if (
+            not current_state.permissive_mode
+            and not current_state.subprocess_mock_active
+        ):
             error_msg = (
                 f"Unexpected subprocess command: {cmd_str}\n\n"
                 f"STRICT MODE is enabled by default. To handle subprocess calls:\n"
@@ -277,7 +278,10 @@ def mock_subprocess_popen(
 
         # STRICT MODE: Fail on unexpected subprocess.run calls
         current_state = _get_current_state()
-        if not current_state.permissive_mode and not current_state.subprocess_mock_active:
+        if (
+            not current_state.permissive_mode
+            and not current_state.subprocess_mock_active
+        ):
             error_msg = (
                 f"Unexpected subprocess.run command: {cmd_str}\n\n"
                 f"STRICT MODE is enabled by default. To handle subprocess.run calls:\n"
@@ -351,7 +355,9 @@ class SubprocessMock:
         def popen_side_effect(args: list[str], **kwargs: object) -> MagicMock:
             if self._should_raise:
                 raise self._should_raise
-            self._calls.append(list(args) if isinstance(args, (list, tuple)) else [str(args)])
+            self._calls.append(
+                list(args) if isinstance(args, (list, tuple)) else [str(args)]
+            )
 
             # Check if text mode requested (text=True, encoding=..., or universal_newlines=True)
             text_mode = (
@@ -388,7 +394,9 @@ class SubprocessMock:
         def run_side_effect(args: list[str], **kwargs: object) -> MagicMock:
             if self._should_raise:
                 raise self._should_raise
-            self._calls.append(list(args) if isinstance(args, (list, tuple)) else [str(args)])
+            self._calls.append(
+                list(args) if isinstance(args, (list, tuple)) else [str(args)]
+            )
 
             # Check if text mode requested
             text_mode = (
@@ -700,7 +708,9 @@ class TestProcessPool:
             raise TimeoutError(f"Command timed out: {command}")
 
         if self.should_fail or self._errors:
-            message = self.fail_with_message or self._errors or f"Command failed: {command}"
+            message = (
+                self.fail_with_message or self._errors or f"Command failed: {command}"
+            )
             self.command_failed.emit(command, message)
             raise RuntimeError(message)
 
@@ -834,6 +844,7 @@ class TestProcessPool:
             return self.command_kwargs.get(last_cmd, {})
         return {}
 
+
 class TestCompletedProcess:
     """Test double for subprocess.CompletedProcess."""
 
@@ -871,146 +882,11 @@ def simulate_work_without_sleep(duration_ms: int = 10) -> None:
 
     """
     import time as _time
+
     start = _time.perf_counter()
     target = start + (duration_ms / 1000.0)
     while _time.perf_counter() < target:
         _time.sleep(0)  # Yield to other threads
-
-
-class TestSubprocess:
-    """Test double for subprocess operations with configurable behavior.
-
-    Replaces @patch("subprocess.Popen") anti-pattern with real behavior testing.
-    """
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    def __init__(self) -> None:
-        """Initialize test subprocess handler."""
-        self.executed_commands: list[str | list[str]] = []
-        self.execution_history: list[dict[str, Any]] = []
-        self.return_code: int = 0
-        self.stdout: str = ""
-        self.stderr: str = ""
-        self.side_effect: Exception | None = None
-        self.delay: float = 0.0  # Simulate execution time
-        self.args: str | list[str] | None = None  # For subprocess compatibility
-
-        # For different commands, different outputs
-        self.command_outputs: dict[str, tuple[int, str, str]] = {}
-
-    def __enter__(self) -> TestSubprocess:
-        """Enter context manager."""
-        return self
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Exit context manager."""
-
-    def communicate(
-        self, input_data: bytes | None = None, timeout: float | None = None
-    ) -> tuple[str, str]:
-        """Simulate communicate method for subprocess compatibility."""
-        return (self.stdout, self.stderr)
-
-    def kill(self) -> None:
-        """Simulate kill method for subprocess compatibility."""
-
-    def poll(self) -> int | None:
-        """Simulate poll method for subprocess compatibility."""
-        return self.return_code if self.return_code != 0 else None
-
-    def run(
-        self,
-        command: str | list[str],
-        shell: bool = False,
-        capture_output: bool = False,
-        text: bool = False,
-        check: bool = False,
-        timeout: float | None = None,
-        **kwargs: Any,
-    ) -> TestCompletedProcess:
-        """Simulate subprocess.run() with real behavior."""
-        self.args = command  # Set args for subprocess compatibility
-        self.executed_commands.append(command)
-        self.execution_history.append(
-            {
-                "command": command,
-                "shell": shell,
-                "capture_output": capture_output,
-                "text": text,
-                "check": check,
-                "timeout": timeout,
-                "kwargs": kwargs,
-                "timestamp": time.time(),
-            }
-        )
-
-        # Simulate delay if configured
-        if self.delay > 0:
-            simulate_work_without_sleep(int(self.delay * 1000))  # Convert to ms
-
-        # Raise exception if configured
-        if self.side_effect:
-            raise self.side_effect
-
-        # Check for command-specific output
-        cmd_str = command if isinstance(command, str) else " ".join(command)
-        for pattern, output in self.command_outputs.items():
-            if pattern in cmd_str:
-                return_code, stdout, stderr = output
-                result = TestCompletedProcess(command, return_code, stdout, stderr)
-                if check:
-                    result.check_returncode()
-                return result
-
-        # Default output
-        result = TestCompletedProcess(
-            command, self.return_code, self.stdout, self.stderr
-        )
-        if check:
-            result.check_returncode()
-        return result
-
-    def Popen(
-        self,
-        command: str | list[str],
-        shell: bool = False,
-        stdout: Any = None,
-        stderr: Any = None,
-        **kwargs: Any,
-    ) -> PopenDouble:
-        """Simulate subprocess.Popen() for process management."""
-        self.executed_commands.append(command)
-
-        # Raise exception if configured (for Popen calls)
-        if self.side_effect:
-            raise self.side_effect
-
-        return PopenDouble(command, self.return_code, self.stdout, self.stderr)
-
-    def set_command_output(
-        self, pattern: str, return_code: int = 0, stdout: str = "", stderr: str = ""
-    ) -> None:
-        """Set specific output for commands matching pattern."""
-        self.command_outputs[pattern] = (return_code, stdout, stderr)
-
-    def clear(self) -> None:
-        """Clear execution history for fresh test."""
-        self.executed_commands.clear()
-        self.execution_history.clear()
-        self.command_outputs.clear()
-
-    def get_last_command(self) -> str | list[str] | None:
-        """Get the last executed command."""
-        return self.executed_commands[-1] if self.executed_commands else None
-
-    def was_called_with(self, pattern: str) -> bool:
-        """Check if any command contained the pattern."""
-        for cmd in self.executed_commands:
-            cmd_str = cmd if isinstance(cmd, str) else " ".join(cmd)
-            if pattern in cmd_str:
-                return True
-        return False
 
 
 class PopenDouble:
@@ -1075,68 +951,6 @@ class PopenDouble:
         return self.stdout, self.stderr
 
 
-# ---------------------------------------------------------------------------
-# cache_doubles contents
-# ---------------------------------------------------------------------------
-
-import time as _time_module
-from typing import ClassVar
-
-
-class TestProgressManager:
-    """Test double for progress manager."""
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    _current_operation: ClassVar[dict[str, Any] | None] = None
-    _operations_started: ClassVar[list[dict[str, Any]]] = []
-    _operations_finished: ClassVar[list[dict[str, Any]]] = []
-
-    @classmethod
-    def start_operation(cls, config: Any) -> dict[str, Any]:
-        """Start a new progress operation."""
-        if isinstance(config, str):
-            operation: dict[str, Any] = {"title": config, "cancelable": False, "progress": 0, "finished": False}
-        else:
-            # Handle config object
-            title = getattr(config, "title", "Test Operation")
-            cancelable = getattr(config, "cancelable", False)
-            operation = {"title": title, "cancelable": cancelable, "progress": 0, "finished": False}
-
-        cls._current_operation = operation
-        cls._operations_started.append(operation)
-        return operation
-
-    @classmethod
-    def finish_operation(cls, success: bool = True, error_message: str = "") -> None:
-        """Finish the current progress operation."""
-        if cls._current_operation:
-            cls._operations_finished.append(
-                {
-                    "operation": cls._current_operation,
-                    "success": success,
-                    "error_message": error_message,
-                    "timestamp": _time_module.time(),
-                }
-            )
-            cls._current_operation = None
-
-    @classmethod
-    def get_current_operation(cls) -> dict[str, Any] | None:
-        """Get the current progress operation."""
-        return cls._current_operation
-
-    @classmethod
-    def get_operations_started_count(cls) -> int:
-        """Get number of operations started (for testing)."""
-        return len(cls._operations_started)
-
-    @classmethod
-    def get_operations_finished_count(cls) -> int:
-        """Get number of operations finished (for testing)."""
-        return len(cls._operations_finished)
-
-
 @pytest.fixture
 def test_process_pool(request: pytest.FixtureRequest) -> TestProcessPool:
     """Provide a TestProcessPool instance for mocking ProcessPoolManager.
@@ -1164,9 +978,7 @@ def test_process_pool(request: pytest.FixtureRequest) -> TestProcessPool:
     enforce_guard = "enforce_thread_guard" in [
         m.name for m in request.node.iter_markers()
     ]
-    allow_main = "allow_main_thread" in [
-        m.name for m in request.node.iter_markers()
-    ]
+    allow_main = "allow_main_thread" in [m.name for m in request.node.iter_markers()]
     return TestProcessPool(
         strict=not is_permissive,
         enforce_thread_guard=enforce_guard,

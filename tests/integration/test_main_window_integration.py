@@ -11,22 +11,16 @@ import traceback
 from collections.abc import Generator, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
-from tests.fixtures.model_fixtures import (
-    MainWindowTestProgressManager,
-    ProgressOperationDouble,
-    TestNotificationManager,
-)
 from tests.fixtures.test_doubles import (
     PopenDouble,
     TestProcessPool,
-    TestSubprocess,
 )
 from tests.test_helpers import process_qt_events
 from type_definitions import Shot, ThreeDEScene
@@ -159,8 +153,10 @@ def main_window_with_real_components(
     monkeypatch.setattr(ProcessPoolManager, "get_instance", mock_get_instance)
 
     from managers.notification_manager import NotificationManager
+    from managers.progress_manager import ProgressManager
 
-    TestNotificationManager.clear()
+    # Use MagicMock for NotificationManager
+    mock_notification_manager = MagicMock()
 
     original_notification_methods = {
         "error": NotificationManager.error,
@@ -168,20 +164,19 @@ def main_window_with_real_components(
         "info": NotificationManager.info,
         "success": NotificationManager.success,
     }
-    NotificationManager.error = TestNotificationManager.error
-    NotificationManager.warning = TestNotificationManager.warning
-    NotificationManager.info = TestNotificationManager.info
-    NotificationManager.success = TestNotificationManager.success
+    NotificationManager.error = mock_notification_manager.error
+    NotificationManager.warning = mock_notification_manager.warning
+    NotificationManager.info = mock_notification_manager.info
+    NotificationManager.success = mock_notification_manager.success
 
-    from managers.progress_manager import ProgressManager
-
-    test_progress_manager = MainWindowTestProgressManager()
+    # Use create_autospec for ProgressManager
+    mock_progress_manager = MagicMock()
     original_operation = ProgressManager.operation
     original_start_operation = ProgressManager.start_operation
     original_finish_operation = ProgressManager.finish_operation
-    ProgressManager.operation = test_progress_manager.operation
-    ProgressManager.start_operation = test_progress_manager.start_operation
-    ProgressManager.finish_operation = test_progress_manager.finish_operation
+    ProgressManager.operation = mock_progress_manager.operation
+    ProgressManager.start_operation = mock_progress_manager.start_operation
+    ProgressManager.finish_operation = mock_progress_manager.finish_operation
 
     import types
 
@@ -207,8 +202,8 @@ def main_window_with_real_components(
     qtbot.addWidget(window)
 
     window._test_process_pool = test_pool
-    window._test_progress_manager = test_progress_manager
-    window._test_notification_manager = TestNotificationManager
+    window._test_progress_manager = mock_progress_manager
+    window._test_notification_manager = mock_notification_manager
 
     window.shot_model._process_pool = test_pool
     window.shot_model._force_sync_refresh = True
@@ -539,18 +534,17 @@ class TestMainWindowErrorScenarios:
         test_pool = window._test_process_pool
         test_pool.set_should_fail(True, "Network error")
 
-        window._test_notification_manager.clear()
         window.shot_model.invalidate_workspace_cache()
         window.refresh_action.trigger()
 
         status_text = window.status_bar.currentMessage()
         assert "failed" in status_text.lower() or "error" in status_text.lower()
 
-        notifications = window._test_notification_manager._notifications
-        error_notifications = [
-            n for n in notifications if n.get("type") in ["error", "warning"]
-        ]
-        assert len(error_notifications) > 0
+        # Verify error/warning methods were called
+        assert (
+            window._test_notification_manager.error.called
+            or window._test_notification_manager.warning.called
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -600,8 +594,6 @@ class TestUserWorkflows:
             },
         ]
 
-        self.test_subprocess = TestSubprocess()
-
         self.test_processes = {
             "nuke": PopenDouble(
                 ["nuke"], returncode=0, stdout="Nuke started", stderr=""
@@ -619,7 +611,7 @@ class TestUserWorkflows:
 
         self.signal_events: list[tuple] = []
 
-        self.progress_operation = ProgressOperationDouble()
+        self.progress_operation = MagicMock()
         self.progress_patcher = patch(
             "managers.progress_manager.ProgressManager.start_operation"
         )
@@ -714,7 +706,10 @@ class TestUserWorkflows:
             ),
         ):
             from launch.launch_request import LaunchRequest
-            success = main_window.command_launcher.launch(LaunchRequest(app_name="nuke"))
+
+            success = main_window.command_launcher.launch(
+                LaunchRequest(app_name="nuke")
+            )
 
             assert success is True
 
@@ -874,7 +869,6 @@ if __name__ == "__main__":
                     "workspace_path": "/shows/feature_film/shots/SEQ_001_FOREST/SEQ_001_FOREST_0010",
                 },
             ]
-            test_instance.test_subprocess = TestSubprocess()
             test_instance.test_processes = {
                 "nuke": PopenDouble(
                     ["nuke"], returncode=0, stdout="Nuke started", stderr=""
@@ -882,7 +876,7 @@ if __name__ == "__main__":
             }
             test_instance.test_processes["nuke"].pid = 11111
             test_instance.signal_events = []
-            test_instance.progress_operation = ProgressOperationDouble()
+            test_instance.progress_operation = MagicMock()
             test_instance.progress_patcher = patch(
                 "managers.progress_manager.ProgressManager.start_operation"
             )

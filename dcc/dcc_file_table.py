@@ -434,7 +434,6 @@ class DCCFileTable(QWidget):
         if self._file_model is not None:
             self._file_model.set_current_default(file)
 
-
     def on_file_double_clicked(self, index: QModelIndex) -> None:
         """Handle a double-click on a file row (public wrapper)."""
         self._on_file_double_clicked(index)

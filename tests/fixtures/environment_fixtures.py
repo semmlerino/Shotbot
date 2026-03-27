@@ -159,7 +159,6 @@ def caching_enabled(tmp_path: Path) -> Iterator[Path]:
         os.environ.pop("SHOTBOT_TEST_CACHE_DIR", None)
 
 
-
 # ---------------------------------------------------------------------------
 # temp_directories contents
 # ---------------------------------------------------------------------------
@@ -205,8 +204,9 @@ def cache_manager(temp_cache_dir: Path) -> Iterator[object]:
     shot_cache = ShotDataCache(temp_cache_dir)
     scene_disk_cache = SceneDiskCache(temp_cache_dir)
     latest_file_cache = LatestFileCache(temp_cache_dir)
-    manager = CacheCoordinator(temp_cache_dir, thumbnail_cache, shot_cache, scene_disk_cache, latest_file_cache)
-    yield manager
+    return CacheCoordinator(
+        temp_cache_dir, thumbnail_cache, shot_cache, scene_disk_cache, latest_file_cache
+    )
 
 
 @pytest.fixture
@@ -272,10 +272,10 @@ def make_test_shot(tmp_path: Path):
 
 @pytest.fixture
 def make_test_filesystem(tmp_path: Path):
-    """Factory fixture for creating TestFileSystem instances.
+    """Factory fixture for creating filesystem structures.
 
-    Returns a callable that creates TestFileSystem instances for
-    testing file operations with VFX directory structures.
+    Returns a callable that creates VFX directory structures for
+    testing file operations with real filesystem operations.
 
     Example usage:
         def test_scene_discovery(make_test_filesystem):
@@ -283,11 +283,83 @@ def make_test_filesystem(tmp_path: Path):
             shot_path = fs.create_vfx_structure("show1", "seq01", "0010")
             fs.create_file(shot_path / "user/artist/scene.3de", "content")
     """
-    from tests.fixtures.model_fixtures import TestFileSystem
 
-    def _make_filesystem() -> TestFileSystem:
-        """Create a TestFileSystem instance with tmp_path as base."""
-        return TestFileSystem(base_path=tmp_path)
+    class SimpleFileSystem:
+        """Minimal filesystem helper for VFX structures."""
+
+        def __init__(self, base_path: Path) -> None:
+            """Initialize with base path."""
+            self.base_path = base_path
+            self.created_files: list[Path] = []
+            self.created_directories: list[Path] = []
+
+        def create_vfx_structure(self, show: str, seq: str, shot: str) -> Path:
+            """Create VFX directory structure for a shot.
+
+            Creates: /shows/{show}/shots/{seq}/{seq}_{shot}
+            With subdirectories: publish/editorial, publish/plates, work/3de, etc.
+
+            Returns:
+                Path to the shot directory
+            """
+            shot_path = (
+                self.base_path / "shows" / show / "shots" / seq / f"{seq}_{shot}"
+            )
+
+            # Create main structure
+            directories = [
+                shot_path,
+                shot_path / "publish" / "editorial",
+                shot_path / "publish" / "plates",
+                shot_path / "publish" / "3de",
+                shot_path / "work" / "3de",
+                shot_path / "work" / "nuke",
+                shot_path / "work" / "maya",
+            ]
+
+            for dir_path in directories:
+                dir_path.mkdir(parents=True, exist_ok=True)
+                self.created_directories.append(dir_path)
+
+            # Create thumbnail
+            thumbnail_path = shot_path / "publish" / "editorial" / "thumbnail.jpg"
+            thumbnail_path.write_bytes(b"fake_thumbnail_data")
+            self.created_files.append(thumbnail_path)
+
+            return shot_path
+
+        def create_file(self, path: Path | str, content: bytes | str = "") -> Path:
+            """Create a file with content.
+
+            Args:
+                path: File path to create
+                content: File content (text or binary)
+
+            Returns:
+                Path object for the created file
+            """
+            path = Path(path) if isinstance(path, str) else path
+
+            # Make absolute if relative
+            if not path.is_absolute():
+                path = self.base_path / path
+
+            # Ensure parent directory exists
+            path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write content
+            if isinstance(content, str):
+                path.write_text(content)
+            else:
+                path.write_bytes(content)
+
+            self.created_files.append(path)
+
+            return path
+
+    def _make_filesystem() -> SimpleFileSystem:
+        """Create a SimpleFileSystem instance with tmp_path as base."""
+        return SimpleFileSystem(base_path=tmp_path)
 
     return _make_filesystem
 
@@ -365,6 +437,8 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
     shows_root.mkdir(exist_ok=True)
 
     # Create ShotModel instance with the shot_cache sub-manager
-    model = ShotModel(cache_manager=cache_manager.shot_cache, process_pool=test_process_pool)
+    model = ShotModel(
+        cache_manager=cache_manager.shot_cache, process_pool=test_process_pool
+    )
     model._force_sync_refresh = True
     return model

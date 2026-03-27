@@ -20,7 +20,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Callable, Generator
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 # Third-party imports
 import pytest
@@ -35,10 +35,10 @@ from previous_shots.model import PreviousShotsModel
 from previous_shots.view import PreviousShotsView
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.fixtures.model_fixtures import create_test_shot, create_test_shots
-from tests.fixtures.test_doubles import (
+from tests.fixtures.model_fixtures import (
     TestCacheManager,
-    TestProgressManager,
+    create_test_shot,
+    create_test_shots,
 )
 from tests.test_helpers import SynchronizationHelpers, process_qt_events
 
@@ -200,15 +200,15 @@ class TestPreviousShotsView:
         assert grid_widget._refresh_button.isEnabled()
         assert grid_widget._refresh_button.text() == "Refresh"
 
-        # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
+        # Mock ProgressManager to avoid Qt lifecycle issues with status bar
         with (
             patch(
                 "previous_shots.view.ProgressManager.start_operation",
-                TestProgressManager.start_operation,
+                MagicMock(return_value={}),
             ),
             patch(
                 "previous_shots.view.ProgressManager.finish_operation",
-                TestProgressManager.finish_operation,
+                MagicMock(),
             ),
         ):
             # Test button click
@@ -225,15 +225,15 @@ class TestPreviousShotsView:
         qtbot: QtBot,
     ) -> None:
         """Test handling of scan state signals."""
-        # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
+        # Mock ProgressManager to avoid Qt lifecycle issues with status bar
         with (
             patch(
                 "previous_shots.view.ProgressManager.start_operation",
-                TestProgressManager.start_operation,
+                MagicMock(return_value={}),
             ),
             patch(
                 "previous_shots.view.ProgressManager.finish_operation",
-                TestProgressManager.finish_operation,
+                MagicMock(),
             ),
         ):
             # Test scan started signal
@@ -477,15 +477,15 @@ class TestPreviousShotsView:
         self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel
     ) -> None:
         """Test that refresh method delegates to model."""
-        # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
+        # Mock ProgressManager to avoid Qt lifecycle issues with status bar
         with (
             patch(
                 "previous_shots.view.ProgressManager.start_operation",
-                TestProgressManager.start_operation,
+                MagicMock(return_value={}),
             ),
             patch(
                 "previous_shots.view.ProgressManager.finish_operation",
-                TestProgressManager.finish_operation,
+                MagicMock(),
             ),
         ):
             grid_widget.refresh()

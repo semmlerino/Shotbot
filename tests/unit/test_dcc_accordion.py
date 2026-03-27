@@ -13,7 +13,8 @@ from PySide6.QtCore import Qt
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from dcc.dcc_accordion import DCCAccordion
-from dcc.dcc_section import DEFAULT_DCC_CONFIGS, DCCConfig, DCCSection
+from dcc.dcc_config import DEFAULT_DCC_CONFIGS, DCCConfig
+from dcc.dcc_section_rv import DCCSection
 from tests.test_helpers import process_qt_events
 
 

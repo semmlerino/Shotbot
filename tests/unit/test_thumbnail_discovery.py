@@ -20,11 +20,6 @@ from discovery.thumbnail_finders import (
     find_turnover_plate_thumbnail,
 )
 
-# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.fixtures.test_doubles import (
-    TestSubprocess,
-)
-
 
 pytestmark = [
     pytest.mark.integration,  # CRITICAL: Qt state must be serialized
@@ -37,8 +32,6 @@ class TestThumbnailDiscoveryIntegration:
     @pytest.fixture(autouse=True)
     def _setup(self, tmp_path: Path) -> None:
         """Minimal setup to avoid pytest fixture overhead."""
-        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
-        self.test_subprocess = TestSubprocess()
         self.temp_dir = tmp_path / "shotbot"
         self.temp_dir.mkdir()
         self.shows_root = self.temp_dir / "shows"
@@ -262,7 +255,6 @@ if __name__ == "__main__":
     test.temp_dir = standalone_temp
     test.shows_root = standalone_temp / "shows"
     test.shows_root.mkdir(parents=True, exist_ok=True)
-    test.test_subprocess = TestSubprocess()
     try:
         print("Running turnover plate discovery integration...")
         test.test_turnover_plate_discovery_integration()

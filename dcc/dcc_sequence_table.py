@@ -191,6 +191,7 @@ class DCCSequenceTable(QWidget):
         def make_height_handler(section_title: str) -> Callable[[int], None]:
             def on_height_changed(h: int) -> None:
                 self._on_sequence_height_changed(section_title, h)
+
             return on_height_changed
 
         _ = list_frame.height_changed.connect(make_height_handler(title))

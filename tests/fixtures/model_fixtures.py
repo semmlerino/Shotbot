@@ -1,15 +1,14 @@
-"""Model, signal, and integration test doubles.
+"""Model and signal test doubles.
 
 Consolidated from:
-- model_doubles.py:       Shot, ShotModel, CacheManager, FileSystem doubles
+- model_doubles.py:       Shot, ShotModel, CacheManager doubles
 - signal_doubles.py:      SignalDouble lightweight signal test double
-- integration_doubles.py: MainWindow integration test doubles
+- integration_doubles.py: Removed (replaced with MagicMock and create_autospec)
 
 Classes (model_doubles):
     TestShot:                Test double for Shot objects
     TestShotModel:           Test double for ShotModel with real Qt signals
     TestCacheManager:        Test double for CacheManager with real Qt signals
-    TestFileSystem:          Test double for file system operations
     FakeShotModel:           Test double for ShotModel (Previous Shots feature)
     FakePreviousShotsFinder: Test double for PreviousShotsFinder
     FakePreviousShotsWorker: Test double for PreviousShotsWorker
@@ -20,13 +19,6 @@ Functions (model_doubles):
 
 Classes (signal_doubles):
     SignalDouble: Lightweight signal test double for non-Qt objects
-
-Classes (integration_doubles):
-    TestProgressContext:             Test double for ProgressManager context
-    MainWindowTestProgressManager:   Test double for ProgressManager (MainWindow scope)
-    TestNotificationManager:         Test double for NotificationManager
-    TestMessageBox:                  Test double for QMessageBox dialog capture
-    ProgressOperationDouble:         Test double for progress operations
 """
 
 from __future__ import annotations
@@ -74,7 +66,9 @@ class SignalDouble:
             except Exception as e:  # noqa: BLE001
                 print(f"SignalDouble callback error: {e}")
 
-    def connect(self, callback: Callable[..., Any], connection_type: Any = None) -> None:
+    def connect(
+        self, callback: Callable[..., Any], connection_type: Any = None
+    ) -> None:
         """Connect a callback to the signal.
 
         Args:
@@ -133,6 +127,7 @@ if TYPE_CHECKING:
 # Imported here to avoid circular import; used only in simulate_work_without_sleep calls
 def _simulate_work(duration_ms: int = 10) -> None:
     from tests.fixtures.process_fixtures import simulate_work_without_sleep
+
     simulate_work_without_sleep(duration_ms)
 
 
@@ -462,114 +457,6 @@ class TestCacheManager(QObject):
 
 
 # =============================================================================
-# FILESYSTEM TEST DOUBLES
-# =============================================================================
-
-
-class TestFileSystem:
-    """Test double for file system operations.
-
-    Use this instead of mocking Path.exists(), os.makedirs(), etc.
-    Works seamlessly with pytest's tmp_path fixture.
-
-    Example usage:
-        def test_shot_creation(tmp_path):
-            fs = TestFileSystem(tmp_path)
-            fs.create_vfx_structure("show1", "seq01", "0010")
-
-            # Verify structure was created
-            assert fs.created_files  # List of all created paths
-
-            # Check specific path
-            shot_path = tmp_path / "shows/show1/shots/seq01/seq01_0010"
-            assert shot_path.exists()  # Real filesystem check
-    """
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    def __init__(self, base_path: Path | None = None) -> None:
-        """Initialize test filesystem.
-
-        Args:
-            base_path: Base directory for operations (e.g., tmp_path from pytest)
-
-        """
-        self.base_path = base_path or Path("/tmp/test_fs")
-        self.created_files: list[Path] = []
-        self.created_directories: list[Path] = []
-
-    def create_vfx_structure(self, show: str, seq: str, shot: str) -> Path:
-        """Create VFX directory structure for a shot.
-
-        Creates: /shows/{show}/shots/{seq}/{seq}_{shot}
-        With subdirectories: publish/editorial, publish/plates, work/3de, etc.
-
-        Returns:
-            Path to the shot directory
-
-        """
-        shot_path = self.base_path / "shows" / show / "shots" / seq / f"{seq}_{shot}"
-
-        # Create main structure
-        directories = [
-            shot_path,
-            shot_path / "publish" / "editorial",
-            shot_path / "publish" / "plates",
-            shot_path / "publish" / "3de",
-            shot_path / "work" / "3de",
-            shot_path / "work" / "nuke",
-            shot_path / "work" / "maya",
-        ]
-
-        for dir_path in directories:
-            dir_path.mkdir(parents=True, exist_ok=True)
-            self.created_directories.append(dir_path)
-
-        # Create thumbnail
-        thumbnail_path = shot_path / "publish" / "editorial" / "thumbnail.jpg"
-        self.create_file(thumbnail_path, b"fake_thumbnail_data")
-
-        return shot_path
-
-    def create_file(self, path: Path | str, content: bytes | str = "") -> Path:
-        """Create a file with content.
-
-        Args:
-            path: File path to create
-            content: File content (text or binary)
-
-        Returns:
-            Path object for the created file
-
-        """
-        path = Path(path) if isinstance(path, str) else path
-
-        # Make absolute if relative
-        if not path.is_absolute():
-            path = self.base_path / path
-
-        # Ensure parent directory exists
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Write content
-        if isinstance(content, str):
-            path.write_text(content)
-        else:
-            path.write_bytes(content)
-
-        self.created_files.append(path)
-
-        return path
-
-    def get_operation_stats(self) -> dict[str, int]:
-        """Get statistics about filesystem operations."""
-        return {
-            "files_created": len(self.created_files),
-            "directories_created": len(self.created_directories),
-        }
-
-
-# =============================================================================
 # PREVIOUS SHOTS FEATURE TEST DOUBLES (merged from doubles_previous_shots.py)
 # =============================================================================
 
@@ -755,9 +642,12 @@ class FakePreviousShotsWorker(QObject):
         self.deleteLater()
 
 
-def create_test_shot(show: str = "test", seq: str = "seq01", shot: str = "0010", path: str | None = None) -> Any:
+def create_test_shot(
+    show: str = "test", seq: str = "seq01", shot: str = "0010", path: str | None = None
+) -> Any:
     """Factory function for creating test shots."""
     from type_definitions import Shot
+
     if path is None:
         path = f"/shows/{show}/shots/{seq}/{shot}"
     return Shot(show=show, sequence=seq, shot=shot, workspace_path=path)
@@ -774,153 +664,3 @@ def create_test_shots(count: int = 3, show: str = "test") -> list[Any]:
 # ---------------------------------------------------------------------------
 # integration_doubles contents
 # ---------------------------------------------------------------------------
-
-from typing import ClassVar
-
-
-if TYPE_CHECKING:
-    from PySide6.QtCore import QObject as _QObject
-
-
-class TestProgressContext:
-    """Test double for ProgressManager context."""
-
-    __test__ = False
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        self.args = args
-        self.kwargs = kwargs
-        self.progress_updates: list[dict[str, Any]] = []
-
-    def __enter__(self) -> TestProgressContext:
-        return self
-
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        pass
-
-    def update(self, value: int, message: str = "") -> None:
-        self.progress_updates.append({"value": value, "message": message})
-
-    def set_indeterminate(self) -> None:
-        self.progress_updates.append(
-            {"type": "indeterminate", "value": -1, "message": "Indeterminate"}
-        )
-
-
-class MainWindowTestProgressManager:
-    """Test double for ProgressManager following UNIFIED_TESTING_GUIDE."""
-
-    __test__ = False
-
-    def __init__(self) -> None:
-        self.operations: list[dict[str, Any]] = []
-        self.active_operations: dict[str, TestProgressContext] = {}
-        self._next_operation_id = 0
-
-    def operation(self, *args: Any, **kwargs: Any) -> TestProgressContext:
-        return TestProgressContext(*args, **kwargs)
-
-    def start_operation(self, config: Any) -> TestProgressContext:
-        operation_id = config.title if hasattr(config, "title") else str(config)
-        self._next_operation_id += 1
-        key = f"{operation_id}_{self._next_operation_id}"
-        self.operations.append({"type": "start", "id": operation_id})
-        ctx = TestProgressContext()
-        self.active_operations[key] = ctx
-        return ctx
-
-    def finish_operation(self, success: bool = True, error_message: str = "") -> None:
-        self.operations.append({"type": "finish", "success": success})
-        if self.active_operations:
-            key = list(self.active_operations.keys())[-1]
-            del self.active_operations[key]
-
-    def clear(self) -> None:
-        self.operations.clear()
-        self.active_operations.clear()
-        self._next_operation_id = 0
-
-
-class TestNotificationManager:
-    """Test double for NotificationManager following UNIFIED_TESTING_GUIDE.
-
-    All methods are @classmethod to match the real NotificationManager interface.
-    """
-
-    __test__ = False
-
-    _notifications: ClassVar[list[dict[str, Any]]] = []
-
-    @classmethod
-    def _record_notification(
-        cls, notif_type: str, title: str, message: str = "", **kwargs: Any
-    ) -> None:
-        cls._notifications.append(
-            {"type": notif_type, "title": title, "message": message, **kwargs}
-        )
-
-    @classmethod
-    def error(cls, title: str, message: str = "", details: str = "") -> None:
-        cls._record_notification("error", title, message, details=details)
-
-    @classmethod
-    def warning(cls, title: str, message: str = "", details: str = "") -> None:
-        cls._record_notification("warning", title, message, details=details)
-
-    @classmethod
-    def info(cls, message: str, timeout: int = 3000) -> None:
-        cls._record_notification("info", "", message, timeout=timeout)
-
-    @classmethod
-    def success(cls, message: str, timeout: int = 3000) -> None:
-        cls._record_notification("success", "", message, timeout=timeout)
-
-    @classmethod
-    def get_last_notification(cls) -> dict[str, Any] | None:
-        return cls._notifications[-1] if cls._notifications else None
-
-    @classmethod
-    def clear(cls) -> None:
-        cls._notifications.clear()
-
-
-class TestMessageBox:
-    """Test double for QMessageBox to capture dialogs."""
-
-    __test__ = False
-
-    def __init__(self) -> None:
-        self.messages: list[dict[str, Any]] = []
-
-    def warning(self, parent: _QObject | None, title: str, message: str) -> None:
-        self.messages.append(
-            {"type": "warning", "parent": parent, "title": title, "message": message}
-        )
-
-    def get_last_message(self) -> dict[str, Any] | None:
-        return self.messages[-1] if self.messages else None
-
-    def clear(self) -> None:
-        self.messages.clear()
-
-
-class ProgressOperationDouble:
-    """Test double for progress operations with real behavior."""
-
-    def __init__(self) -> None:
-        self.is_indeterminate = False
-        self.progress_value = 0
-        self.is_finished = False
-        self.operations: list[tuple] = []
-
-    def set_indeterminate(self, indeterminate: bool = True) -> None:
-        self.is_indeterminate = indeterminate
-        self.operations.append(("set_indeterminate", indeterminate))
-
-    def update(self, progress: int) -> None:
-        self.progress_value = progress
-        self.operations.append(("update", progress))
-
-    def finish(self) -> None:
-        self.is_finished = True
-        self.operations.append(("finish",))

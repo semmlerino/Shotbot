@@ -13,15 +13,10 @@ from PySide6.QtCore import Qt
 # Qt tests must be grouped for parallel execution
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
-from dcc.dcc_section import (
-    DEFAULT_DCC_CONFIGS,
-    BaseDCCSection,
-    CheckboxConfig,
-    DCCConfig,
-    FileDCCSection,
-    RVSection,
-    create_dcc_section,
-)
+from dcc.dcc_config import DEFAULT_DCC_CONFIGS, CheckboxConfig, DCCConfig
+from dcc.dcc_section_base import BaseDCCSection
+from dcc.dcc_section_file import FileDCCSection
+from dcc.dcc_section_rv import RVSection, create_dcc_section
 from dcc.scene_file import FileType, SceneFile
 from tests.test_helpers import process_qt_events
 
@@ -625,6 +620,6 @@ class TestBaseDCCSectionIsAlias:
 
     def test_dcc_section_alias(self) -> None:
         """DCCSection is BaseDCCSection."""
-        from dcc.dcc_section import DCCSection
+        from dcc.dcc_section_rv import DCCSection
 
         assert DCCSection is BaseDCCSection

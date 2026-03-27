@@ -1,8 +1,7 @@
-"""DCC section widget for individual DCC application launching.
+"""Base DCC section widget for individual DCC application launching.
 
-Extracted and improved from AppLauncherSection. Provides a collapsible
-section with launch button, options checkboxes, and plate selector.
-Shows version info in collapsed header for quick reference.
+Provides a collapsible section with launch button, options checkboxes,
+and plate selector. Shows version info in collapsed header for quick reference.
 
 VFX Glossary:
     DCC — Digital Content Creation application (Maya, Nuke, 3DEqualizer, etc.)
@@ -10,14 +9,7 @@ VFX Glossary:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, final
-
-from typing_compat import override
-
-
-if TYPE_CHECKING:
-    from managers.settings_manager import SettingsManager
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
@@ -39,101 +31,11 @@ from ui.design_system import (
 )
 from ui.qt_widget_mixin import QtWidgetMixin
 
-from .dcc_file_table import DCCFileTable
-from .dcc_sequence_table import DCCSequenceTable
-from .scene_file import FileType, ImageSequence, SceneFile
 
+if TYPE_CHECKING:
+    from managers.settings_manager import SettingsManager
 
-@final
-@dataclass
-class DCCConfig:
-    """Configuration for a DCC section."""
-
-    name: str  # Internal name: "3de", "nuke", "maya", "rv"
-    display_name: str  # Display name: "3DEqualizer", "Nuke", etc.
-    color: str  # Accent color hex
-    shortcut: str  # Keyboard shortcut: "3", "N", "M", "R"
-    tooltip: str = ""
-    checkboxes: list[CheckboxConfig] | None = None
-    file_type: FileType | None = None  # Which FileType this DCC uses (None = no files)
-
-
-@final
-@dataclass
-class CheckboxConfig:
-    """Configuration for a checkbox option."""
-
-    label: str
-    tooltip: str
-    key: str  # Settings key for persistence
-    default: bool = False
-
-
-# Default DCC configurations
-DEFAULT_DCC_CONFIGS = [
-    DCCConfig(
-        name="3de",
-        display_name="3DEqualizer",
-        color="#2b4d6f",
-        shortcut="3",
-        tooltip="Launch 3DE for matchmove/tracking",
-        checkboxes=[
-            CheckboxConfig(
-                label="Open latest 3DE scene (when available)",
-                tooltip="Automatically open the latest scene file from the workspace",
-                key="open_latest_threede",
-                default=True,
-            )
-        ],
-        file_type=FileType.THREEDE,
-    ),
-    DCCConfig(
-        name="maya",
-        display_name="Maya",
-        color="#4d2b5d",
-        shortcut="M",
-        tooltip="Launch Maya for 3D work",
-        checkboxes=[
-            CheckboxConfig(
-                label="Open latest Maya scene (when available)",
-                tooltip="Automatically open the latest scene file from the workspace",
-                key="open_latest_maya",
-                default=True,
-            )
-        ],
-        file_type=FileType.MAYA,
-    ),
-    DCCConfig(
-        name="nuke",
-        display_name="Nuke",
-        color="#5d4d2b",
-        shortcut="N",
-        tooltip="Launch Nuke for compositing",
-        checkboxes=[
-            CheckboxConfig(
-                label="Open latest scene",
-                tooltip="Open the most recent Nuke script from workspace",
-                key="open_latest_scene",
-                default=True,
-            ),
-            CheckboxConfig(
-                label="Create new file",
-                tooltip="Always create a new version of the Nuke script",
-                key="create_new_file",
-                default=False,
-            ),
-        ],
-        file_type=FileType.NUKE,
-    ),
-    DCCConfig(
-        name="rv",
-        display_name="RV",
-        color="#2b5d4d",
-        shortcut="R",
-        tooltip="Launch RV for playback and review",
-        file_type=None,
-    ),
-]
+    from .dcc_config import DCCConfig
 
 
 class BaseDCCSection(QtWidgetMixin, QWidget):
@@ -277,7 +179,9 @@ class BaseDCCSection(QtWidgetMixin, QWidget):
         self._content = QWidget()
         self._content.setVisible(False)
         self._content_layout = QVBoxLayout(self._content)
-        self._content_layout.setContentsMargins(26, 4, 0, 4)  # Indent under expand arrow
+        self._content_layout.setContentsMargins(
+            26, 4, 0, 4
+        )  # Indent under expand arrow
         self._content_layout.setSpacing(8)
 
         # Launch button
@@ -610,254 +514,3 @@ class BaseDCCSection(QtWidgetMixin, QWidget):
             self._launch_description.setVisible(True)
         else:
             self._launch_description.setVisible(False)
-
-
-@final
-class FileDCCSection(BaseDCCSection):
-    """DCC section for file-based DCCs: 3DEqualizer, Maya, Nuke.
-
-    Adds an embedded DCCFileTable for browsing scene files.
-
-    Attributes:
-        file_selected: Signal(object) - emits SceneFile when user clicks a file
-
-    """
-
-    file_selected = Signal(object)  # SceneFile
-
-    def __init__(
-        self,
-        config: DCCConfig,
-        settings_manager: SettingsManager | None = None,
-        parent: QWidget | None = None,
-    ) -> None:
-        """Initialize the FileDCCSection.
-
-        Args:
-            config: Configuration for this DCC
-            settings_manager: Settings manager for height persistence
-            parent: Optional parent widget
-
-        """
-        self._dcc_file_table: DCCFileTable  # Will be set in _setup_ui
-        super().__init__(config, settings_manager=settings_manager, parent=parent)
-
-    @override
-    def _setup_ui(self) -> None:
-        """Set up UI, adding the file table after base chrome."""
-        super()._setup_ui()
-
-        self._dcc_file_table = DCCFileTable(
-            dcc_name=self.config.name,
-            display_name=self.config.display_name,
-            accent_color=self.config.color,
-            settings_manager=self._settings_manager,
-            parent=self,
-        )
-        _ = self._dcc_file_table.file_selected.connect(self._on_embedded_file_selected)
-        _ = self._dcc_file_table.launch_file_requested.connect(
-            self._on_embedded_file_launch_requested
-        )
-        self._content_layout.addWidget(self._dcc_file_table)
-
-    @override
-    def _apply_styles(self) -> None:
-        """Apply styles, including delegating to the file table."""
-        super()._apply_styles()
-        # Guard: _dcc_file_table may not exist yet during super().__init__ → _setup_ui
-        if hasattr(self, "_dcc_file_table"):
-            self._dcc_file_table.apply_styles()
-
-    # ========== Embedded File Table Signal Handlers ==========
-
-    def _on_embedded_file_selected(self, file: SceneFile) -> None:
-        """Handle file_selected from embedded DCCFileTable.
-
-        Updates the launch description and re-emits file_selected on FileDCCSection.
-
-        Args:
-            file: The selected SceneFile.
-
-        """
-        self._update_launch_button_from_file(file)
-        self.file_selected.emit(file)
-
-    def _on_embedded_file_launch_requested(self, file: SceneFile) -> None:
-        """Handle launch_file_requested from embedded DCCFileTable.
-
-        Updates the launch description and emits launch_requested on FileDCCSection.
-
-        Args:
-            file: The SceneFile the user wants to open.
-
-        """
-        self._update_launch_button_from_file(file)
-        options = self.get_options()
-        self.launch_requested.emit(self.config.name, options)
-
-    def _update_launch_button_from_file(self, file: SceneFile) -> None:
-        """Update launch button description from selected file.
-
-        Args:
-            file: The selected scene file.
-
-        """
-        if file.version is not None:
-            version_str = f"v{file.version:03d}"
-            plate = self.get_selected_plate()
-            self.set_launch_description(version_str, plate)
-
-    def set_files(self, files: list[SceneFile]) -> None:
-        """Set files for the embedded files sub-section.
-
-        Args:
-            files: List of scene files to display.
-
-        """
-        self._dcc_file_table.set_files(files)
-        # Update launch description from auto-selected first file
-        if files:
-            self._update_launch_button_from_file(files[0])
-
-    def get_selected_file(self) -> SceneFile | None:
-        """Get the currently selected file from the embedded table.
-
-        Returns:
-            Selected SceneFile or None.
-
-        """
-        return self._dcc_file_table.get_selected_file()
-
-    def set_default_file(self, file: SceneFile | None) -> None:
-        """Mark a file as the default (shows arrow indicator).
-
-        Args:
-            file: The file to mark as default, or None to clear.
-
-        """
-        self._dcc_file_table.set_default_file(file)
-        if file is not None:
-            self._update_launch_button_from_file(file)
-
-    def set_files_expanded(self, expanded: bool) -> None:
-        """Set the files sub-section expanded state.
-
-        Args:
-            expanded: True to expand, False to collapse.
-
-        """
-        self._dcc_file_table.set_files_expanded(expanded)
-
-    def is_files_expanded(self) -> bool:
-        """Return files sub-section expanded state."""
-        return self._dcc_file_table.is_files_expanded()
-
-
-@final
-class RVSection(BaseDCCSection):
-    """DCC section for RV sequence playback.
-
-    Adds an embedded DCCSequenceTable for browsing Maya playblasts
-    and Nuke render sequences.
-
-    """
-
-    def __init__(
-        self,
-        config: DCCConfig,
-        settings_manager: SettingsManager | None = None,
-        parent: QWidget | None = None,
-    ) -> None:
-        """Initialize the RVSection.
-
-        Args:
-            config: Configuration for the RV DCC
-            settings_manager: Settings manager for height persistence
-            parent: Optional parent widget
-
-        """
-        self._dcc_sequence_table: DCCSequenceTable  # Will be set in _setup_ui
-        super().__init__(config, settings_manager=settings_manager, parent=parent)
-
-    @override
-    def _setup_ui(self) -> None:
-        """Set up UI, adding the sequence table after base chrome."""
-        super()._setup_ui()
-
-        self._dcc_sequence_table = DCCSequenceTable(
-            dcc_name=self.config.name,
-            settings_manager=self._settings_manager,
-            parent=self,
-        )
-        _ = self._dcc_sequence_table.sequence_launch_requested.connect(
-            self._on_sequence_launch_requested
-        )
-        self._content_layout.addWidget(self._dcc_sequence_table)
-
-    # ========== Embedded Sequence Table Signal Handlers ==========
-
-    def _on_sequence_launch_requested(self, sequence: ImageSequence) -> None:
-        """Handle sequence_launch_requested from embedded DCCSequenceTable.
-
-        Emits launch_requested with sequence_path in options.
-
-        Args:
-            sequence: The ImageSequence to launch.
-
-        """
-        options = self.get_options()
-        options["sequence_path"] = str(sequence.path)
-        self.launch_requested.emit(self.config.name, options)
-
-    def set_playblast_sequences(self, sequences: list[ImageSequence]) -> None:
-        """Set Maya playblast sequences for display.
-
-        Args:
-            sequences: List of ImageSequence objects.
-
-        """
-        self._dcc_sequence_table.set_playblast_sequences(sequences)
-
-    def set_render_sequences(self, sequences: list[ImageSequence]) -> None:
-        """Set Nuke render sequences for display.
-
-        Args:
-            sequences: List of ImageSequence objects.
-
-        """
-        self._dcc_sequence_table.set_render_sequences(sequences)
-
-    def get_selected_sequence(self) -> ImageSequence | None:
-        """Get currently selected sequence for RV launch.
-
-        Returns:
-            Selected ImageSequence or None.
-
-        """
-        return self._dcc_sequence_table.get_selected_sequence()
-
-
-def create_dcc_section(
-    config: DCCConfig,
-    *,
-    settings_manager: SettingsManager | None = None,
-    parent: QWidget | None = None,
-) -> BaseDCCSection:
-    """Create the appropriate DCC section for the given config.
-
-    Args:
-        config: DCC configuration
-        settings_manager: Optional settings manager for UI state persistence
-        parent: Optional parent widget
-
-    Returns:
-        RVSection for RV config, FileDCCSection for all others.
-
-    """
-    if config.name == "rv":
-        return RVSection(config, settings_manager=settings_manager, parent=parent)
-    return FileDCCSection(config, settings_manager=settings_manager, parent=parent)
-
-
-# Backwards compatibility alias
-DCCSection = BaseDCCSection

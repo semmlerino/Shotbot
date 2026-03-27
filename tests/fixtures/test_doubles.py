@@ -2,13 +2,19 @@
 
 All test doubles have been consolidated into domain-specific modules:
 - model_fixtures:   SignalDouble, TestShot, TestShotModel, TestCacheManager,
-                    TestFileSystem, FakeShotModel, FakePreviousShotsFinder,
+                    FakeShotModel, FakePreviousShotsFinder,
                     FakePreviousShotsWorker, create_test_shot, create_test_shots
-- process_fixtures: TestProcessPool, TestCompletedProcess, TestSubprocess,
-                    PopenDouble, simulate_work_without_sleep,
-                    TestProgressManager, test_process_pool
+- process_fixtures: TestProcessPool, TestCompletedProcess, PopenDouble,
+                    SubprocessMock, simulate_work_without_sleep, test_process_pool
 
 Import directly from domain modules for new code.
+Removed in cleanup:
+- TestFileSystem → use make_test_filesystem fixture in environment_fixtures
+- TestProgressContext → use MagicMock()
+- MainWindowTestProgressManager → use MagicMock()
+- TestNotificationManager → use MagicMock()
+- TestMessageBox → use DialogRecorder or MagicMock()
+- ProgressOperationDouble → use MagicMock()
 """
 
 from __future__ import annotations
@@ -19,7 +25,6 @@ from tests.fixtures.model_fixtures import (
     FakeShotModel,
     SignalDouble,
     TestCacheManager,
-    TestFileSystem,
     TestShot,
     TestShotModel,
     create_test_shot,
@@ -29,8 +34,6 @@ from tests.fixtures.process_fixtures import (
     PopenDouble,
     TestCompletedProcess,
     TestProcessPool,
-    TestProgressManager,
-    TestSubprocess,
     simulate_work_without_sleep,
     test_process_pool,
 )
@@ -44,12 +47,9 @@ __all__ = [
     "SignalDouble",
     "TestCacheManager",
     "TestCompletedProcess",
-    "TestFileSystem",
     "TestProcessPool",
-    "TestProgressManager",
     "TestShot",
     "TestShotModel",
-    "TestSubprocess",
     "create_test_shot",
     "create_test_shots",
     "simulate_work_without_sleep",
