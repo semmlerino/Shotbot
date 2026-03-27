@@ -466,3 +466,86 @@ class TestSignalConnections:
         # No connections added
         worker.disconnect_all()  # Should not raise
         worker.disconnect_all()  # Second call also fine
+
+
+# ---------------------------------------------------------------------------
+# e) safe_shutdown() Tests
+# ---------------------------------------------------------------------------
+
+
+class TestSafeShutdown:
+    """safe_shutdown() stops the worker and conditionally schedules deletion."""
+
+    def setup_method(self) -> None:
+        ThreadSafeWorker.reset()
+
+    def teardown_method(self) -> None:
+        ThreadSafeWorker.reset()
+
+    def test_safe_shutdown_calls_safe_stop(self) -> None:
+        """safe_shutdown() calls safe_stop() with the given timeout."""
+        from unittest.mock import patch
+
+        worker = InstantWorker()
+
+        with (
+            patch.object(worker, "safe_stop", return_value=True) as mock_stop,
+            patch.object(worker, "is_zombie", return_value=False),
+            patch.object(worker, "deleteLater"),
+        ):
+            worker.safe_shutdown()
+
+        mock_stop.assert_called_once_with(mock_stop.call_args[0][0])
+
+    def test_safe_shutdown_custom_timeout(self) -> None:
+        """safe_shutdown() passes a custom timeout value to safe_stop()."""
+        from unittest.mock import patch
+
+        worker = InstantWorker()
+        custom_timeout = 12345
+
+        with (
+            patch.object(worker, "safe_stop", return_value=True) as mock_stop,
+            patch.object(worker, "is_zombie", return_value=False),
+            patch.object(worker, "deleteLater"),
+        ):
+            worker.safe_shutdown(timeout_ms=custom_timeout)
+
+        mock_stop.assert_called_once_with(custom_timeout)
+
+    def test_safe_shutdown_calls_delete_later_when_not_zombie(self) -> None:
+        """safe_shutdown() calls deleteLater() when is_zombie() returns False."""
+        from unittest.mock import patch
+
+        worker = InstantWorker()
+
+        with (
+            patch.object(worker, "safe_stop", return_value=True),
+            patch.object(worker, "is_zombie", return_value=False),
+            patch.object(worker, "deleteLater") as mock_delete,
+        ):
+            worker.safe_shutdown()
+
+        mock_delete.assert_called_once()
+
+    def test_safe_shutdown_skips_delete_later_when_zombie(self) -> None:
+        """safe_shutdown() skips deleteLater() and logs a warning for zombies."""
+        from unittest.mock import MagicMock, patch
+
+        worker = InstantWorker()
+
+        # Inject a mock logger via the cache attribute used by LoggingMixin.logger
+        mock_logger = MagicMock()
+        worker._contextual_logger = mock_logger  # type: ignore[attr-defined]
+
+        with (
+            patch.object(worker, "safe_stop", return_value=False),
+            patch.object(worker, "is_zombie", return_value=True),
+            patch.object(worker, "deleteLater") as mock_delete,
+        ):
+            worker.safe_shutdown()
+
+        mock_delete.assert_not_called()
+        mock_logger.warning.assert_called_once()
+        warning_msg: str = mock_logger.warning.call_args[0][0]
+        assert "zombie" in warning_msg.lower()

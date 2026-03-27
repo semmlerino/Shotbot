@@ -14,6 +14,47 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def detect_frame_range(directory: Path, extension: str = "exr") -> tuple[int, int]:
+    """Scan directory for frame-numbered files, return (min_frame, max_frame).
+
+    Searches for files with pattern like filename.1001.ext and extracts frame numbers.
+    Returns (1001, 1100) as default if no frames found.
+
+    Args:
+        directory: Directory to scan for frame-numbered files.
+        extension: File extension to match (default "exr"). Do not include the dot.
+
+    Returns:
+        Tuple of (first_frame, last_frame). Defaults to (1001, 1100) if no frames found.
+
+    Example:
+        >>> from pathlib import Path
+        >>> detect_frame_range(Path("/shots/sh0010/plates"))
+        (1001, 1150)
+
+    """
+    # Pattern to extract frame numbers from filenames
+    # Matches: filename.1001.exr, plate.0001.exr, etc.
+    frame_pattern = re.compile(rf"\.(\d{{4,}})\.{extension}$", re.IGNORECASE)
+
+    frames: list[int] = []
+    try:
+        for file_path in directory.iterdir():
+            if not file_path.is_file():
+                continue
+            match = frame_pattern.search(file_path.name)
+            if match:
+                frames.append(int(match.group(1)))
+    except OSError:
+        logger.debug(f"Error reading directory {directory}", exc_info=True)
+
+    if frames:
+        return min(frames), max(frames)
+
+    # Default VFX frame range
+    return 1001, 1100
+
+
 def extract_frame_range(workspace_path: str) -> tuple[int, int] | None:
     """Extract frame range from turnover plate.
 

@@ -547,6 +547,24 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         return True
 
+    def safe_shutdown(
+        self,
+        timeout_ms: int = TimeoutConfig.WORKER_GRACEFUL_STOP_MS,
+    ) -> None:
+        """Stop the worker and schedule deletion if not a zombie.
+
+        Callers remain responsible for signal disconnection and mutex management.
+
+        Args:
+            timeout_ms: Maximum time to wait for graceful stop in milliseconds.
+
+        """
+        _ = self.safe_stop(timeout_ms)
+        if self.is_zombie():
+            self.logger.warning(f"Worker {id(self)} is a zombie — skipping deleteLater")
+        else:
+            self.deleteLater()
+
     def is_zombie(self) -> bool:
         """Check if the worker thread has been abandoned as a zombie.
 

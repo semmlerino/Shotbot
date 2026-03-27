@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from paths.shot_dir_parser import parse_shot_from_dir, parse_workspace_path
+from pathlib import Path
+from unittest.mock import patch
+
+from paths.shot_dir_parser import (
+    build_workspace_path,
+    parse_shot_from_dir,
+    parse_workspace_path,
+    resolve_shows_root,
+)
 
 
 class TestParseShotFromDir:
@@ -54,3 +62,34 @@ class TestParseWorkspacePath:
 
     def test_too_short(self) -> None:
         assert parse_workspace_path("/shows/demo/shots") is None
+
+
+class TestBuildWorkspacePath:
+    """Tests for build_workspace_path."""
+
+    def test_build_workspace_path_basic(self) -> None:
+        result = build_workspace_path("/shows", "PROJ", "sq010", "sh020")
+        assert result == Path("/shows/PROJ/shots/sq010/sq010_sh020")
+
+    def test_build_workspace_path_with_suffix(self) -> None:
+        result = build_workspace_path("/shows", "PROJ", "sq010", "sh020", "3d", "maya")
+        assert result == Path("/shows/PROJ/shots/sq010/sq010_sh020/3d/maya")
+
+
+class TestResolveShowsRoot:
+    """Tests for resolve_shows_root."""
+
+    def test_resolve_shows_root_with_string(self) -> None:
+        result = resolve_shows_root("/custom/shows")
+        assert result == Path("/custom/shows")
+        assert isinstance(result, Path)
+
+    def test_resolve_shows_root_with_path(self) -> None:
+        result = resolve_shows_root(Path("/custom/shows"))
+        assert result == Path("/custom/shows")
+        assert isinstance(result, Path)
+
+    def test_resolve_shows_root_none_uses_config(self) -> None:
+        with patch("config.Config.SHOWS_ROOT", "/default/shows"):
+            result = resolve_shows_root(None)
+            assert result == Path("/default/shows")

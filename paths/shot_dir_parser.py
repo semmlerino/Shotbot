@@ -55,3 +55,40 @@ def parse_workspace_path(workspace_path: str) -> tuple[str, str, str] | None:
         return (show, sequence, shot)
     except (ValueError, IndexError):
         return None
+
+
+def build_workspace_path(
+    shows_root: str | Path, show: str, sequence: str, shot: str, *suffix: str
+) -> Path:
+    """Build standard VFX workspace path.
+
+    Constructs: {shows_root}/{show}/shots/{sequence}/{sequence}_{shot}[/suffix...]
+
+    Args:
+        shows_root: Root shows directory.
+        show: Show name (e.g. "PROJ").
+        sequence: Sequence name (e.g. "sq010").
+        shot: Shot identifier (e.g. "sh020").
+        *suffix: Optional path components to append.
+
+    Returns:
+        Constructed workspace path as Path object.
+    """
+    shot_dir = f"{sequence}_{shot}"
+    return Path(shows_root, show, "shots", sequence, shot_dir, *suffix)
+
+
+def resolve_shows_root(shows_root: str | Path | None) -> Path:
+    """Normalize shows_root to Path, defaulting to Config.SHOWS_ROOT.
+
+    Args:
+        shows_root: Root shows directory as string, Path, or None.
+
+    Returns:
+        Resolved path as Path object.
+    """
+    if shows_root is None:
+        from config import Config
+
+        return Path(Config.SHOWS_ROOT)
+    return Path(shows_root)

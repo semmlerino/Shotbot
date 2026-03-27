@@ -153,6 +153,22 @@ class VersionUtils:
         return latest_version
 
     @staticmethod
+    def get_latest_version_path(base_path: str | Path) -> Path | None:
+        """Return Path to the highest version directory, or None.
+
+        Args:
+            base_path: Path to search for version directories
+
+        Returns:
+            Path object pointing to the latest version directory, or None if none found
+
+        """
+        version_dirs = VersionUtils.find_version_directories(base_path)
+        if not version_dirs:
+            return None
+        return Path(base_path) / version_dirs[-1][1]
+
+    @staticmethod
     @lru_cache(maxsize=256)
     def extract_version_from_path(path: str | Path) -> str | None:
         """Extract version from a file or directory path.
