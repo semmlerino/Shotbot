@@ -73,10 +73,6 @@ class TimeoutConfig:
     WORKER_PAUSE_CHECK_MS: int = 100  # Check for pause/resume every N ms
     WORKER_POLL_INTERVAL_SEC: float = 0.1  # Polling interval for worker state checks
 
-    # Launch / verification
-    LAUNCH_VERIFICATION_SEC: float = 60.0  # How long to wait for app to start
-    LAUNCH_VERIFICATION_POLL_SEC: float = 0.5  # How often to scan for process
-
     # Subprocess / session
     SUBPROCESS_SEC: float = 30.0  # General subprocess timeout
     SESSION_INIT_SEC: float = 2.0  # Timeout for session initialization

@@ -271,10 +271,6 @@ The launcher exposes multiple public entrypoints with different guarantees:
   provided scene object. Currently only 3DE is supported; non-3DE DCCs fall
   through to a plain workspace launch without opening the scene file.
 
-## Launch Verification
-
-`Config.LAUNCH_VERIFICATION_ENABLED` (default `True`) enables async verification that GUI app launches succeed. Controlled by `LAUNCH_VERIFICATION_TIMEOUT_SEC` (60s) and `LAUNCH_VERIFICATION_POLL_SEC` (0.5s).
-
 ## Debugging Checklist
 
 ```bash
@@ -461,7 +457,7 @@ For other DCCs, use the same heuristic:
 RV can be launched via two independent code paths:
 
 1. `CommandLauncher.launch_app("rv", ...)` — full launch pipeline with workspace
-   setup, Rez wrapping, terminal wrapper, and verification.
+   setup, Rez wrapping, and terminal wrapper.
 2. `rv_launcher.open_plate_in_rv(workspace_path)` — direct `subprocess.Popen`
    call that bypasses all CommandLauncher infrastructure.
 

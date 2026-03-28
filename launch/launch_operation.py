@@ -12,7 +12,6 @@ command_launcher so the two can evolve independently.
 
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, final
@@ -222,7 +221,6 @@ class LaunchOperation:
             return False
 
         terminal = self._env_manager.detect_terminal()
-        enqueue_time = time.time()
 
         process = self._process_executor.execute_in_new_terminal(
             full_command, app_name, terminal
@@ -234,7 +232,6 @@ class LaunchOperation:
             self._env_manager.reset_cache()
             return False
 
-        self._process_executor.start_app_verification(app_name, enqueue_time)
         return True
 
     @staticmethod

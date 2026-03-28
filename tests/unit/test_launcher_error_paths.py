@@ -433,64 +433,6 @@ class TestInvalidWorkspacePathInFinishLaunch:
 
 
 # ---------------------------------------------------------------------------
-# Consecutive timeout → success: counter reset behaviour
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.allow_dialogs
-class TestConsecutiveTimeoutThenSuccess:
-    """Tests for timeout counter edge cases not covered by test_command_launcher.py."""
-
-    @pytest.fixture
-    def timeout_launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
-        """CommandLauncher with env manager cache stub for reset tracking."""
-        from launch import EnvironmentManager
-
-        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
-        return CommandLauncher()
-
-    def test_two_timeouts_do_not_reset_cache(
-        self, timeout_launcher: CommandLauncher
-    ) -> None:
-        """Two consecutive timeouts do not trigger a cache reset (threshold is 3)."""
-        reset_calls: list[None] = []
-        timeout_launcher.env_manager.reset_cache = lambda: reset_calls.append(None)  # type: ignore[method-assign]
-
-        timeout_launcher._consecutive_timeout_count = 0
-        timeout_launcher._on_app_verification_timeout("maya")
-        timeout_launcher._on_app_verification_timeout("maya")
-
-        assert timeout_launcher._consecutive_timeout_count == 2
-        assert len(reset_calls) == 0
-
-    def test_verified_after_two_timeouts_resets_counter_to_zero(
-        self, timeout_launcher: CommandLauncher
-    ) -> None:
-        """Successful verification after 2 timeouts brings counter to 0."""
-        timeout_launcher._consecutive_timeout_count = 2
-        timeout_launcher._on_app_verified("maya", 55555)
-
-        assert timeout_launcher._consecutive_timeout_count == 0
-
-    def test_timeout_after_success_starts_fresh_count(
-        self, timeout_launcher: CommandLauncher
-    ) -> None:
-        """A timeout that follows a success counts as 1, not accumulated."""
-        reset_calls: list[None] = []
-        timeout_launcher.env_manager.reset_cache = lambda: reset_calls.append(None)  # type: ignore[method-assign]
-
-        # Simulate 2 timeouts, then a success, then 1 more timeout
-        timeout_launcher._consecutive_timeout_count = 2
-        timeout_launcher._on_app_verified("3de", 12345)
-        assert timeout_launcher._consecutive_timeout_count == 0
-
-        timeout_launcher._on_app_verification_timeout("3de")
-        assert timeout_launcher._consecutive_timeout_count == 1
-        # Only 1 timeout since reset — should NOT have triggered cache reset
-        assert len(reset_calls) == 0
-
-
-# ---------------------------------------------------------------------------
 # ProcessExecutor cleanup while timers pending
 # ---------------------------------------------------------------------------
 

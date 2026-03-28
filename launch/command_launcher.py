@@ -102,11 +102,6 @@ class PendingLaunch:
     command: str
 
 
-# Number of consecutive verification timeouts before resetting terminal cache.
-# A single timeout is normal (VFX apps boot slowly); repeated failures indicate
-# a broken terminal/environment.
-_TIMEOUT_THRESHOLD_FOR_CACHE_RESET: int = 3
-
 # Named sentinels for _build_app_command return values.
 # Using named constants avoids magic (None, bool) tuples at each return site.
 ASYNC_IN_PROGRESS: tuple[None, bool] = (None, True)
@@ -172,10 +167,6 @@ class CommandLauncher(QObject):
         # Current launch phase (state machine tracking)
         self._phase: LaunchPhase = LaunchPhase.IDLE
 
-        # Counter for consecutive verification timeouts; reset on success.
-        # See _on_app_verification_timeout and _TIMEOUT_THRESHOLD_FOR_CACHE_RESET.
-        self._consecutive_timeout_count: int = 0
-
         # Initialize launch components
         self.env_manager = EnvironmentManager()
         self.env_manager.warm_cache_async()  # Pre-warm caches in background
@@ -224,16 +215,6 @@ class CommandLauncher(QObject):
         self._signal_connections.append(
             self.process_executor.execution_error.connect(
                 self._on_execution_error, Qt.ConnectionType.QueuedConnection
-            )
-        )
-        self._signal_connections.append(
-            self.process_executor.app_verification_timeout.connect(
-                self._on_app_verification_timeout, Qt.ConnectionType.QueuedConnection
-            )
-        )
-        self._signal_connections.append(
-            self.process_executor.app_verified.connect(
-                self._on_app_verified, Qt.ConnectionType.QueuedConnection
             )
         )
         self._signal_connections.append(
@@ -347,57 +328,6 @@ class CommandLauncher(QObject):
     # Maximum command length (bytes) - gnome-terminal buffer is ~8KB, be conservative
     # Linux ARG_MAX is ~131KB but terminal emulators have smaller buffers
     MAX_COMMAND_LENGTH: int = 8000
-
-    def _on_app_verification_timeout(self, app_name: str) -> None:
-        """Handle app verification timeout from ProcessExecutor.
-
-        VFX apps can take 30-60+ seconds to boot (Rez resolution + plugin scanning).
-        A single timeout doesn't necessarily mean the terminal is broken - the app
-        may still be starting. Only reset cache after repeated consecutive failures.
-
-        Args:
-            app_name: Name of the application that failed verification
-
-        """
-        self._set_phase(LaunchPhase.IDLE)
-
-        self._consecutive_timeout_count += 1
-
-        if self._consecutive_timeout_count >= _TIMEOUT_THRESHOLD_FOR_CACHE_RESET:
-            # Multiple consecutive timeouts suggest terminal detection issue
-            self.env_manager.reset_cache()
-            self._consecutive_timeout_count = 0
-            self._emit_error(
-                f"[{app_name}] Verification timeout (repeated) - terminal cache reset for next attempt"
-            )
-        else:
-            # First timeout - app may still be starting, don't reset cache
-            self._emit_error(
-                f"[{app_name}] Verification timeout - app may still be starting"
-            )
-
-        # Show user-visible notification for GUI apps that may have failed to start
-        if self.process_executor.is_gui_app(app_name):
-            NotificationManager.warning(
-                "Launch Verification Failed",
-                f"{app_name} may have failed to start. "
-                "Check terminal or logs for errors.",
-            )
-
-    def _on_app_verified(self, app_name: str, pid: int) -> None:
-        """Handle successful app verification from ProcessExecutor.
-
-        Reset the consecutive timeout counter on successful launch, since
-        the terminal and environment are working correctly.
-
-        Args:
-            app_name: Name of the application that was verified
-            pid: Process ID of the verified application
-
-        """
-        # Reset timeout counter on success - terminal is working
-        self._consecutive_timeout_count = 0
-        logger.debug(f"App {app_name} verified with PID {pid}")
 
     def _on_headless_launch_warning(self, app_name: str) -> None:
         """Handle headless launch warning from ProcessExecutor."""

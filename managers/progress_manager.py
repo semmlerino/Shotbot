@@ -27,16 +27,17 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, ClassVar, final
 
 from PySide6.QtCore import QMutex, QMutexLocker
+from typing_extensions import override
 
+from logging_mixin import get_module_logger
 from managers.notification_manager import NotificationManager
+from singleton_mixin import SingletonMixin
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from PySide6.QtWidgets import QStatusBar
-
-from logging_mixin import get_module_logger
 
 
 logger = get_module_logger(__name__)
@@ -77,30 +78,24 @@ class ProgressOperation:
 
 
 @final
-class ProgressManager:
+class ProgressManager(SingletonMixin):
     """Centralized, singleton progress indicator backed by the status bar."""
 
     _cleanup_order: ClassVar[int] = 15
     _singleton_description: ClassVar[str] = "Progress dialogs and operation tracking"
 
-    _instance: ClassVar[ProgressManager | None] = None
     _operation_stack: ClassVar[list[ProgressOperation]] = []
     _stack_lock: ClassVar[QMutex] = QMutex()
     _status_bar: ClassVar[QStatusBar | None] = None
 
-    def __new__(cls) -> ProgressManager:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
     def __init__(self) -> None:
         super().__init__()
-        if hasattr(self, "_initialized"):
+        if self._is_initialized():
             return
-        self._initialized = True
         ProgressManager._operation_stack = []
         ProgressManager._status_bar = None
         logger.debug("ProgressManager initialized")
+        self._mark_initialized()
 
     @classmethod
     def initialize(cls, status_bar: QStatusBar) -> ProgressManager:
@@ -248,20 +243,25 @@ class ProgressManager:
         with QMutexLocker(cls._stack_lock):
             return cls._operation_stack[-1] if cls._operation_stack else None
 
+    @override
     @classmethod
-    def reset(cls) -> None:
-        """Reset singleton for testing. INTERNAL USE ONLY."""
+    def _cleanup_instance(cls) -> None:
+        """Cancel active operations and clear status bar before instance teardown."""
         with QMutexLocker(cls._stack_lock):
             snapshot = list(cls._operation_stack)
             cls._operation_stack.clear()
 
-        if cls._instance is not None:
-            for op in snapshot:
-                op.cancel()
+        for op in snapshot:
+            op.cancel()
 
         with QMutexLocker(cls._stack_lock):
-            cls._instance = None
             cls._operation_stack.clear()
             cls._status_bar = None
 
         logger.debug("ProgressManager reset for testing")
+
+    @override
+    @classmethod
+    def reset(cls) -> None:
+        """Reset singleton for testing. INTERNAL USE ONLY."""
+        super().reset()

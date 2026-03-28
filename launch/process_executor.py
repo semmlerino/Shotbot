@@ -2,23 +2,17 @@
 
 This module handles process execution and management:
 - New terminal window launching
-- Process verification
+- Process spawn verification (immediate crash detection)
 - Signal-based status reporting
 """
 
 import logging
 import subprocess
 import sys
-import threading
-import time
 from datetime import UTC, datetime
-from functools import partial
-from typing import TYPE_CHECKING, ClassVar, Final, cast
+from typing import TYPE_CHECKING, ClassVar, Final
 
-import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
-
-from timeout_config import TimeoutConfig
 
 
 if TYPE_CHECKING:
@@ -47,9 +41,6 @@ class ProcessExecutor(QObject):
     execution_completed: ClassVar[Signal] = Signal(bool, str)  # success, error_message
     execution_error: ClassVar[Signal] = Signal(str, str)  # timestamp, error_message
 
-    # App verification signals (for GUI app launch verification)
-    app_verified: ClassVar[Signal] = Signal(str, int)  # app_name, pid
-    app_verification_timeout: ClassVar[Signal] = Signal(str)  # app_name
     headless_launch_warning: ClassVar[Signal] = Signal(str)  # app_name
     launch_crash_detected: ClassVar[Signal] = Signal(str)  # app_name
 
@@ -68,10 +59,6 @@ class ProcessExecutor(QObject):
     # Zombie process reaping configuration
     # Reduced from 30s to 2s for better cleanup during high-frequency launches
     REAP_INTERVAL_MS: Final[int] = 2000  # Reap every 2 seconds
-
-    # Clock skew tolerance for process creation time comparisons.
-    # Accounts for minor system clock drift between process enqueue and psutil reads.
-    _CLOCK_SKEW_TOLERANCE: ClassVar[float] = 2.0
 
     def __init__(
         self,
@@ -98,14 +85,6 @@ class ProcessExecutor(QObject):
         self._reap_timer.setInterval(self.REAP_INTERVAL_MS)
         _ = self._reap_timer.timeout.connect(self._reap_zombie_processes)
         self._reap_timer.start()
-
-        # Shutdown flag for daemon thread safety
-        # Daemon threads check this before emitting signals to avoid
-        # "Signal source deleted" errors when ProcessExecutor is cleaned up
-        self._shutdown_flag: threading.Event = threading.Event()
-
-        # Track verification threads for cleanup
-        self._verification_threads: list[threading.Thread] = []
 
     def is_gui_app(self, app_name: str) -> bool:
         """Check if an application is a GUI application.
@@ -349,9 +328,6 @@ class ProcessExecutor(QObject):
         This method is called before deleting the ProcessExecutor instance.
         Stops all pending timers to prevent "Signal source deleted" errors.
         """
-        # Signal daemon threads to stop (they check this before emitting signals)
-        self._shutdown_flag.set()
-
         # Stop reap timer
         try:
             self._reap_timer.stop()
@@ -361,13 +337,6 @@ class ProcessExecutor(QObject):
         # Final reap of any remaining processes
         self._reap_zombie_processes()
         self._spawned_processes.clear()
-
-        # Join verification threads with brief timeout (don't block forever)
-        # Threads check _shutdown_flag and will exit cleanly
-        for thread in self._verification_threads:
-            if thread.is_alive():
-                thread.join(timeout=TimeoutConfig.POLL_MAX_SEC)  # Brief wait per thread
-        self._verification_threads.clear()
 
         # Stop and clean up all pending timers
         for timer in self._pending_timers:
@@ -382,190 +351,3 @@ class ProcessExecutor(QObject):
         self._pending_timers.clear()
         if not sys.is_finalizing():
             logger.debug("ProcessExecutor cleanup completed")
-
-    def start_app_verification(
-        self,
-        app_name: str,
-        enqueue_time: float,
-        timeout_sec: float | None = None,
-        poll_interval_sec: float | None = None,
-    ) -> None:
-        """Start async verification that GUI app actually launched.
-
-        This uses psutil to scan for the app process in a background thread,
-        emitting signals when the process is found or verification times out.
-
-        Args:
-            app_name: Name of the application (e.g., "nuke", "maya", "3de")
-            enqueue_time: Time when command was enqueued (filters out old processes)
-            timeout_sec: How long to wait (default: from config)
-            poll_interval_sec: How often to scan (default: from config)
-
-        Signals emitted:
-            app_verification_started: When verification begins
-            app_verified: When process is found (with PID)
-            app_verification_timeout: When timeout reached without finding process
-            app_verification_failed: On errors
-
-        """
-        if not self.config.LAUNCH_VERIFICATION_ENABLED:
-            logger.debug("Launch verification disabled")
-            return
-
-        if not self.is_gui_app(app_name):
-            logger.debug(f"{app_name} is not a GUI app, skipping verification")
-            return
-
-        if timeout_sec is None:
-            timeout_sec = self.config.LAUNCH_VERIFICATION_TIMEOUT_SEC
-        if poll_interval_sec is None:
-            poll_interval_sec = self.config.LAUNCH_VERIFICATION_POLL_SEC
-
-        # Run verification in background thread
-        thread = threading.Thread(
-            target=self._verify_app_thread,
-            args=(app_name, enqueue_time, timeout_sec, poll_interval_sec),
-            daemon=True,
-            name=f"AppVerify-{app_name}",
-        )
-        self._verification_threads.append(thread)
-        thread.start()
-
-    def _verify_app_thread(
-        self,
-        app_name: str,
-        enqueue_time: float,
-        timeout_sec: float,
-        poll_interval_sec: float,
-    ) -> None:
-        """Background thread for app verification.
-
-        This method runs in a background thread and uses QTimer.singleShot
-        to safely emit signals back to the main thread.
-
-        Note:
-            Checks _shutdown_flag before emitting signals to avoid
-            "Signal source deleted" errors when ProcessExecutor is cleaned up.
-
-        """
-        # Map app names to possible process names
-        app_process_names: dict[str, list[str]] = {
-            "nuke": ["nuke", "nuke.bin", "nukex", "nukex.bin", "nukestudio"],
-            "maya": ["maya", "maya.bin", "mayapy"],
-            "3de": ["3de", "3dequalizer", "tde4"],
-            "rv": ["rv", "rv.bin", "rvio"],
-            "houdini": ["houdini", "houdinifx", "hython"],
-            "mari": ["mari", "mari.bin"],
-            "katana": ["katana", "katana.bin"],
-            "clarisse": ["clarisse", "cnode"],
-        }
-        search_names = app_process_names.get(app_name.lower(), [app_name.lower()])
-
-        # Allow some clock skew tolerance
-        cutoff_time = enqueue_time - self._CLOCK_SKEW_TOLERANCE
-
-        start_time = time.monotonic()
-        while time.monotonic() - start_time < timeout_sec:
-            # Check shutdown flag - exit cleanly if ProcessExecutor is being deleted
-            if self._shutdown_flag.is_set():
-                logger.debug(
-                    f"Verification thread for {app_name} exiting due to shutdown"
-                )
-                return
-
-            try:
-                for proc in psutil.process_iter(["name", "create_time", "pid"]):
-                    # Check between each process entry so shutdown interrupts mid-scan,
-                    # not just at the top of each poll interval.
-                    if self._shutdown_flag.is_set():
-                        return
-
-                    try:
-                        proc_name = (proc.info.get("name") or "").lower()
-                        create_time = cast("float", proc.info.get("create_time", 0))
-                        proc_pid = cast("int", proc.info.get("pid", 0))
-
-                        # Check if process name matches and was created after our command
-                        if any(name in proc_name for name in search_names):
-                            if create_time >= cutoff_time:
-                                found_pid: int = proc_pid or 0
-                                logger.info(
-                                    f"Verified {app_name} process (PID: {found_pid})"
-                                )
-                                # Check shutdown before emitting signal
-                                if not self._shutdown_flag.is_set():
-                                    QTimer.singleShot(
-                                        0,
-                                        partial(
-                                            self._emit_verified, app_name, found_pid
-                                        ),
-                                    )
-                                return
-                    except (
-                        psutil.NoSuchProcess,
-                        psutil.AccessDenied,
-                        psutil.ZombieProcess,
-                    ):
-                        continue
-            except Exception:  # noqa: BLE001
-                logger.warning("Error scanning processes", exc_info=True)
-
-            time.sleep(poll_interval_sec)
-
-        # Timeout - process not found
-        # Check shutdown before emitting timeout signal
-        if self._shutdown_flag.is_set():
-            return
-
-        logger.warning(
-            f"{app_name} process not found after {timeout_sec}s verification"
-        )
-        QTimer.singleShot(0, lambda: self._emit_timeout(app_name))
-
-    def _emit_verified(self, app_name: str, pid: int) -> None:
-        """Emit app_verified signal (called from main thread via QTimer)."""
-        try:
-            self.app_verified.emit(app_name, pid)
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            self.execution_progress.emit(
-                timestamp, f"{app_name} verified running (PID: {pid})"
-            )
-        except RuntimeError:
-            pass  # Object being cleaned up
-
-    def _emit_timeout(self, app_name: str) -> None:
-        """Emit app_verification_timeout signal (called from main thread via QTimer).
-
-        For GUI apps, verification timeout is treated as a potential failure since
-        GUI apps should start quickly. The terminal process may have succeeded but
-        the inner command (ws/rez/app) may have failed silently.
-        """
-        try:
-            self.app_verification_timeout.emit(app_name)
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-
-            # For GUI apps, treat timeout as an ERROR (not just warning)
-            # The inner ws/rez/app command likely failed even if terminal succeeded
-            if self.is_gui_app(app_name):
-                log_hint = "~/.shotbot/logs/dispatcher.out"
-                error_msg = (
-                    f"{app_name} verification timed out - app may have failed to start. "
-                    f"Check terminal or {log_hint} for errors "
-                    "(e.g., 'command not found', rez failures, license issues)."
-                )
-                # Emit as ERROR, not just progress - enables proper error handling
-                self.execution_error.emit(timestamp, error_msg)
-            else:
-                self.execution_progress.emit(
-                    timestamp,
-                    f"Note: Could not verify {app_name} process - may still be starting",
-                )
-        except RuntimeError:
-            pass  # Object being cleaned up
-
-    def __del__(self) -> None:
-        """Cleanup on destruction."""
-        try:
-            self.cleanup()
-        except Exception:  # noqa: BLE001
-            pass  # Ignore errors in destructor
