@@ -30,8 +30,6 @@ def build_rv_command(command: str, sequence_path: str | None) -> str | None:
             safe_sequence_path = validate_path(sequence_path)
             command = f"{command} {safe_sequence_path}"
         except ValueError:
-            logger.error(
-                "Cannot launch RV: Invalid sequence path '%s'", sequence_path
-            )
+            logger.error("Cannot launch RV: Invalid sequence path '%s'", sequence_path)
             return None
     return command

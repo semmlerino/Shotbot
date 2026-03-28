@@ -99,7 +99,9 @@ def build_maya_context_command(
         Full command string with env var export and maya invocation
 
     """
-    script_to_run = context_script if context_script is not None else MAYA_BOOTSTRAP_SCRIPT
+    script_to_run = (
+        context_script if context_script is not None else MAYA_BOOTSTRAP_SCRIPT
+    )
     encoded = base64.b64encode(script_to_run.encode()).decode()
     # Static bootstrap - reads from env var, no dynamic content in -c argument
     # This avoids the quote escaping nightmare when passing through bash -ilc

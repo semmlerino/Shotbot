@@ -229,11 +229,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         """
         try:
-            # Step 1: Validate input
             if not self._validate_shot_input(shot_workspace_path, show, sequence, shot):
                 return []
 
-            # Step 2: Discover scenes using strategy
             with self.logger.context(
                 operation="scene_discovery", shot=f"{show}/{sequence}/{shot}"
             ):
@@ -242,10 +240,8 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                     shot_workspace_path, show, sequence, shot, excluded_users
                 )
 
-            # Step 3: Validate and filter results
             valid_scenes = self._validate_and_filter_scenes(scenes)
 
-            # Step 4: Update statistics and return results
             self.stats["scenes_discovered"] += len(valid_scenes)
             self.logger.info(
                 f"Discovered {len(valid_scenes)} scenes for {show}/{sequence}/{shot}"
@@ -341,6 +337,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         return Config.SHOWS_ROOT
 
+    # Static method to avoid capturing `self` in thread pool executor callbacks.
     @staticmethod
     def _process_show(
         show: str,
@@ -460,11 +457,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             Flat list of all collected ThreeDEScene objects.
 
         """
-        # Standard library imports
-        import threading
-
         all_scenes: list[ThreeDEScene] = []
-        results_lock = threading.Lock()
         shows_completed = 0
 
         def _cancel_remaining() -> None:
@@ -484,14 +477,13 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                 try:
                     # Use a short timeout to be more responsive to cancellation
                     show_scenes = future.result(timeout=TimeoutConfig.POLL_MAX_SEC)
-                    with results_lock:
-                        all_scenes.extend(show_scenes)
-                        shows_completed += 1
-                        if progress_callback:
-                            progress_callback(
-                                int((shows_completed / len(shows)) * 100),
-                                f"Completed {show}: found {len(show_scenes)} scenes",
-                            )
+                    all_scenes.extend(show_scenes)
+                    shows_completed += 1
+                    if progress_callback:
+                        progress_callback(
+                            int((shows_completed / len(shows)) * 100),
+                            f"Completed {show}: found {len(show_scenes)} scenes",
+                        )
 
                 except concurrent.futures.TimeoutError:
                     # If result not ready, check cancellation again
@@ -500,14 +492,12 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                         break
                     # Re-get the result without timeout
                     show_scenes = future.result()
-                    with results_lock:
-                        all_scenes.extend(show_scenes)
-                        shows_completed += 1
+                    all_scenes.extend(show_scenes)
+                    shows_completed += 1
 
                 except Exception:
                     _logger.exception("Error processing show %s", show)
-                    with results_lock:
-                        shows_completed += 1
+                    shows_completed += 1
 
         except Exception:
             _cancel_remaining()
@@ -516,7 +506,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         return all_scenes
 
     @staticmethod
-    def find_all_scenes_in_shows_truly_efficient_parallel(
+    def find_all_scenes_in_shows(
         user_shots: list[Shot],
         excluded_users: set[str] | None = None,
         progress_callback: Callable[[int, str], None] | None = None,

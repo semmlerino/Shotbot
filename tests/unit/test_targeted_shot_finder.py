@@ -230,9 +230,7 @@ class TestParseShotFromPath:
 class TestFindUserShotsInShows:
     """Test find_user_shots_in_shows method."""
 
-    def test_find_in_target_shows(
-        self, tmp_path: Path
-    ) -> None:
+    def test_find_in_target_shows(self, tmp_path: Path) -> None:
         """Test finding shots in targeted shows."""
         finder = TargetedShotsFinder(username="john")
 

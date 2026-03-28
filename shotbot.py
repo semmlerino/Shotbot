@@ -168,7 +168,9 @@ def setup_logging() -> None:
 
     # Log startup (debug level - logging init is a low-level detail)
     logger = logging.getLogger(__name__)
-    logger.debug(f"Logging initialized: {log_file} (console: {logging.getLevelName(console_level)})")
+    logger.debug(
+        f"Logging initialized: {log_file} (console: {logging.getLevelName(console_level)})"
+    )
 
 
 def _get_qapplication_class():
@@ -241,6 +243,7 @@ Environment Variables:
 
     # Check for mock mode from either command line or environment
     from config import is_mock_mode
+
     mock_mode = mock_flag or is_mock_mode()
 
     if headless_mode:

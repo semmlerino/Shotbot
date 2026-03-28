@@ -40,7 +40,9 @@ class MockWorkspacePool(LoggingMixin):
         # Actual filesystem location for file operations
         self.shows_root: Path = self.mock_root / "shows"
         # Demo shots path for testing flexibility
-        self.demo_shots_path: Path = demo_shots_path or (Path(__file__).parent / "demo_shots.json")
+        self.demo_shots_path: Path = demo_shots_path or (
+            Path(__file__).parent / "demo_shots.json"
+        )
 
     def set_shots_from_filesystem(self, mock_root: Path | None = None) -> None:
         """Scan the mock filesystem and set up all available shots.
@@ -96,9 +98,7 @@ class MockWorkspacePool(LoggingMixin):
                         continue
 
                     # Build workspace path using Config.SHOWS_ROOT (what parser expects)
-                    workspace_path = (
-                        f"{self.shows_root_for_parser}/{show_name}/shots/{seq_name}/{shot_name}"
-                    )
+                    workspace_path = f"{self.shows_root_for_parser}/{show_name}/shots/{seq_name}/{shot_name}"
                     self.shots.append(f"workspace {workspace_path}")
 
         self.logger.info(f"Loaded {len(self.shots)} shots from mock filesystem")
@@ -116,7 +116,9 @@ class MockWorkspacePool(LoggingMixin):
             seq = shot.get("seq", "seq01")
             shot_num = shot.get("shot", "0010")
             # Use Config.SHOWS_ROOT for workspace paths (what parser expects)
-            workspace_path = f"{self.shows_root_for_parser}/{show}/shots/{seq}/{seq}_{shot_num}"
+            workspace_path = (
+                f"{self.shows_root_for_parser}/{show}/shots/{seq}/{seq}_{shot_num}"
+            )
             self.shots.append(f"workspace {workspace_path}")
 
         self.logger.info(f"Loaded {len(self.shots)} demo shots")
@@ -170,7 +172,6 @@ class MockWorkspacePool(LoggingMixin):
 
         return result
 
-
     def invalidate_cache(self, pattern: str | None = None) -> None:
         """Invalidate cache entries.
 
@@ -189,7 +190,9 @@ class MockWorkspacePool(LoggingMixin):
         """Shutdown the pool (no-op for mock)."""
 
 
-def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> MockWorkspacePool:
+def create_mock_pool_from_filesystem(
+    demo_shots_path: Path | None = None,
+) -> MockWorkspacePool:
     """Create a mock pool that simulates user-assigned shots only.
 
     In a real VFX environment, 'ws -sg' only returns shots assigned to the
@@ -221,9 +224,7 @@ def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> Moc
             # Runtime validation before casting
             if not isinstance(raw_data, dict):
                 msg = f"Expected dict, got {type(raw_data).__name__}"
-                raise ValueError(
-                    msg
-                )
+                raise ValueError(msg)
 
             # After isinstance check, cast to expected structure
             demo_data = cast("dict[str, object]", raw_data)
@@ -235,9 +236,7 @@ def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> Moc
             raw_shots = demo_data["shots"]
             if not isinstance(raw_shots, list):
                 msg = f"'shots' must be a list, got {type(raw_shots).__name__}"
-                raise ValueError(
-                    msg
-                )
+                raise ValueError(msg)
 
             # After isinstance check, cast to list of objects
             shots_data = cast("list[object]", raw_shots)

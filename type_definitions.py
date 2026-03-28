@@ -65,7 +65,9 @@ class Shot:
     sequence: str
     shot: str
     workspace_path: str
-    discovered_at: float = 0.0  # Unix timestamp when added to previous shots (for sorting)
+    discovered_at: float = (
+        0.0  # Unix timestamp when added to previous shots (for sorting)
+    )
     frame_start: int | None = None  # First frame of main plate (None = no plate found)
     frame_end: int | None = None  # Last frame of main plate (None = no plate found)
     _cached_thumbnail_path: Path | None | _NotSearched = field(
@@ -115,7 +117,13 @@ class Shot:
         from config import Config
         from paths import build_workspace_path
 
-        return build_workspace_path(Config.SHOWS_ROOT, self.show, self.sequence, self.shot, *Config.THUMBNAIL_SEGMENTS)
+        return build_workspace_path(
+            Config.SHOWS_ROOT,
+            self.show,
+            self.sequence,
+            self.shot,
+            *Config.THUMBNAIL_SEGMENTS,
+        )
 
     def get_thumbnail_path(self) -> Path | None:
         """Get first available thumbnail or None.
@@ -172,7 +180,10 @@ class Shot:
             "frame_end": self.frame_end,
         }
         # Persist thumbnail path if discovered (not sentinel)
-        if not isinstance(self._cached_thumbnail_path, _NotSearched) and self._cached_thumbnail_path:
+        if (
+            not isinstance(self._cached_thumbnail_path, _NotSearched)
+            and self._cached_thumbnail_path
+        ):
             data["thumbnail_path"] = str(self._cached_thumbnail_path)
         return data
 
@@ -245,7 +256,13 @@ class ThreeDEScene:
         from config import Config
         from paths import build_workspace_path
 
-        return build_workspace_path(Config.SHOWS_ROOT, self.show, self.sequence, self.shot, *Config.THUMBNAIL_SEGMENTS)
+        return build_workspace_path(
+            Config.SHOWS_ROOT,
+            self.show,
+            self.sequence,
+            self.shot,
+            *Config.THUMBNAIL_SEGMENTS,
+        )
 
     def get_thumbnail_path(self) -> Path | None:
         """Get first available thumbnail or None.
@@ -296,7 +313,10 @@ class ThreeDEScene:
             "frame_end": self.frame_end,
         }
         # Persist thumbnail path if discovered (not sentinel)
-        if not isinstance(self._cached_thumbnail_path, _NotSearched) and self._cached_thumbnail_path:
+        if (
+            not isinstance(self._cached_thumbnail_path, _NotSearched)
+            and self._cached_thumbnail_path
+        ):
             data["thumbnail_path"] = str(self._cached_thumbnail_path)
         return data
 
@@ -357,10 +377,10 @@ class ThreeDESceneDict(TypedDict):
     plate: NotRequired[str]
     frame_start: NotRequired[int | None]
     frame_end: NotRequired[int | None]
-    last_seen: NotRequired[float]  # Timestamp when scene was last discovered (for pruning)
+    last_seen: NotRequired[
+        float
+    ]  # Timestamp when scene was last discovered (for pruning)
     thumbnail_path: NotRequired[str]  # Persisted thumbnail path (validated on restore)
-
-
 
 
 # ==============================================================================

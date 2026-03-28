@@ -97,9 +97,15 @@ class SimpleNukeLauncher(LoggingMixin):
                 # Create v001 via Nuke's API (triggers hooks/templates)
                 log_messages.append(f"No existing scripts found for {plate}")
                 log_messages.append("Creating v001 via Nuke's API...")
-                command = self._create_script_via_nuke_api(shot, plate, script_dir, version=1)
-                log_messages.append(f"Will create: {shot.full_name}_mm-default_{plate}_scene_v001.nk")
-                log_messages.append("Note: Nuke will run onCreate hooks and apply templates")
+                command = self._create_script_via_nuke_api(
+                    shot, plate, script_dir, version=1
+                )
+                log_messages.append(
+                    f"Will create: {shot.full_name}_mm-default_{plate}_scene_v001.nk"
+                )
+                log_messages.append(
+                    "Note: Nuke will run onCreate hooks and apply templates"
+                )
                 return command, log_messages
             # Just open empty Nuke and let user save manually
             log_messages.append(f"No scripts found for {plate}")
@@ -221,9 +227,7 @@ except OSError:
         safe_temp = shlex.quote(temp_script)
         command = f"nuke --script {safe_temp}"
 
-        self.logger.info(
-            f"Generated Nuke startup script to create: {script_path}"
-        )
+        self.logger.info(f"Generated Nuke startup script to create: {script_path}")
         self.logger.info(
             f"Context: SHOW={shot.show} SHOT={shot.full_name} PLATE={plate}"
         )
@@ -271,11 +275,17 @@ except OSError:
                         next_version = int(version_match.group(1)) + 1
 
             # Create new version via Nuke's API (triggers hooks/templates)
-            command = self._create_script_via_nuke_api(shot, plate, script_dir, next_version)
-            filename = f"{shot.full_name}_mm-default_{plate}_scene_v{next_version:03d}.nk"
+            command = self._create_script_via_nuke_api(
+                shot, plate, script_dir, next_version
+            )
+            filename = (
+                f"{shot.full_name}_mm-default_{plate}_scene_v{next_version:03d}.nk"
+            )
             log_messages.append(f"Creating new version: v{next_version:03d}")
             log_messages.append(f"Will create: {filename}")
-            log_messages.append("Note: Nuke will run onCreate hooks and apply templates")
+            log_messages.append(
+                "Note: Nuke will run onCreate hooks and apply templates"
+            )
             self.logger.info(f"Creating Nuke script version {next_version} via API")
             return command, log_messages
 

@@ -172,7 +172,14 @@ def markexpr_filename_suffix(markexpr: str | None) -> str:
 def discover_test_files(markexpr: str | None) -> list[Path]:
     """Use pytest's collector so tracing matches the real configured suite."""
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q", *pytest_collect_args(markexpr)],
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            *pytest_collect_args(markexpr),
+        ],
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
@@ -180,7 +187,9 @@ def discover_test_files(markexpr: str | None) -> list[Path]:
     )
 
     if result.returncode not in (0, 5):
-        detail = result.stderr.strip() or result.stdout.strip() or "unknown collection error"
+        detail = (
+            result.stderr.strip() or result.stdout.strip() or "unknown collection error"
+        )
         message = f"pytest collection failed: {detail}"
         raise RuntimeError(message)
 
@@ -467,7 +476,9 @@ def main() -> None:
                             if result.exit_code < 0
                             else "no_trace",
                             "exit_code": result.exit_code,
-                            "signal": -result.exit_code if result.exit_code < 0 else None,
+                            "signal": -result.exit_code
+                            if result.exit_code < 0
+                            else None,
                             "trace_output": str(trace_out),
                             "had_trace": False,
                             "traced_count": None,
@@ -507,7 +518,9 @@ def main() -> None:
                             "markexpr": markexpr,
                             "status": "pytest_error",
                             "exit_code": result.exit_code,
-                            "signal": -result.exit_code if result.exit_code < 0 else None,
+                            "signal": -result.exit_code
+                            if result.exit_code < 0
+                            else None,
                             "trace_output": str(trace_out),
                             "had_trace": True,
                             "traced_count": result.traced_count,

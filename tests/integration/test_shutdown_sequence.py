@@ -38,40 +38,6 @@ pytestmark = [
 class TestProcessPoolManagerShutdown:
     """Tests for ProcessPoolManager shutdown behavior."""
 
-    @pytest.mark.real_subprocess
-    def test_shutdown_with_hung_task_uses_timeout(self) -> None:
-        """Shutdown uses timeout when task is stuck."""
-        from workers.process_pool_manager import ProcessPoolManager
-
-        # Reset to get fresh instance
-        ProcessPoolManager.reset()
-        pool = ProcessPoolManager.get_instance()
-
-        # Use interruptible wait to avoid orphan threads that crash subsequent Qt tests
-        stop_event = threading.Event()
-
-        # Submit a slow task that won't finish quickly
-        def slow_task() -> str:
-            # Interruptible wait - can be signaled to stop early
-            stop_event.wait(timeout=10.0)
-            return "done"
-
-        _future = pool._executor.submit(slow_task)
-
-        # Shutdown with short timeout
-        start = time.time()
-        pool.shutdown(timeout=0.5)  # Very short timeout
-        elapsed = time.time() - start
-
-        # Should complete around timeout, not wait for task
-        assert elapsed < 2.0, f"Shutdown didn't respect timeout: {elapsed}s"
-
-        # Signal task to stop (CRITICAL for test isolation)
-        stop_event.set()
-
-        # Cleanup
-        ProcessPoolManager.reset()
-
     def test_shutdown_is_idempotent(self) -> None:
         """Multiple shutdown calls don't cause errors."""
         from workers.process_pool_manager import ProcessPoolManager

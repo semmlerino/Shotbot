@@ -293,13 +293,11 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         # Use the new parallel file-first discovery
         self.logger.info("Using parallel discovery with progress reporting")
-        all_scenes = (
-            SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
-                self.user_shots,  # Used to determine which shows to search
-                self.excluded_users,
-                progress_callback=progress_callback,
-                cancel_flag=cancel_flag,
-            )
+        all_scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
+            self.user_shots,  # Used to determine which shows to search
+            self.excluded_users,
+            progress_callback=progress_callback,
+            cancel_flag=cancel_flag,
         )
 
         # Check for cancellation after scan

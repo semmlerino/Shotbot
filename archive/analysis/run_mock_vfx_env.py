@@ -38,7 +38,8 @@ def setup_mock_vfx_environment() -> bool:
                         "recreate_vfx_structure.py",
                         "vfx_structure_complete.json",
                     ],
-                    check=False, cwd=Path(__file__).parent,
+                    check=False,
+                    cwd=Path(__file__).parent,
                     capture_output=True,
                     text=True,
                 )
@@ -133,7 +134,9 @@ def create_shows_symlink() -> bool:
                     raw_data = json.load(f)  # pyright: ignore[reportAny]  # type: ignore[no-untyped-call]
 
                 # Type-safe access to nested JSON structure (raw_data is Any from json.load)
-                demo_dict: dict[str, list[dict[str, str]]] = cast("dict[str, list[dict[str, str]]]", raw_data)  # type: ignore[assignment]
+                demo_dict: dict[str, list[dict[str, str]]] = cast(
+                    "dict[str, list[dict[str, str]]]", raw_data
+                )  # type: ignore[assignment]
 
                 # Update paths to use /tmp/mock_vfx
                 updated = False
@@ -177,7 +180,8 @@ def run_shotbot() -> int:
     try:
         result = subprocess.run(
             cmd,
-            check=False, cwd=Path(__file__).parent,
+            check=False,
+            cwd=Path(__file__).parent,
             env=os.environ,
             text=True,
             capture_output=False,  # Let output go to terminal

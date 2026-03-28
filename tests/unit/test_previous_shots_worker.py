@@ -568,8 +568,7 @@ class TestPreviousShotsWorkerIntegration:
                 "020_chase",
                 "000",
                 str(
-                    real_shows_structure
-                    / "feature_film/shots/020_chase/020_chase_000"
+                    real_shows_structure / "feature_film/shots/020_chase/020_chase_000"
                 ),
             ),
             Shot(
@@ -577,8 +576,7 @@ class TestPreviousShotsWorkerIntegration:
                 "020_chase",
                 "002",
                 str(
-                    real_shows_structure
-                    / "feature_film/shots/020_chase/020_chase_002"
+                    real_shows_structure / "feature_film/shots/020_chase/020_chase_002"
                 ),
             ),
             Shot(

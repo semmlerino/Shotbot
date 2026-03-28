@@ -85,12 +85,16 @@ def _attempt_context_update(log_errors=True):
         new_context = engine.sgtk.context_from_path(project_path)
     except Exception as e:  # noqa: BLE001
         if log_errors:
-            print(f"[Shotbot] Note: Could not derive SGTK context from {project_path}: {e}")
+            print(
+                f"[Shotbot] Note: Could not derive SGTK context from {project_path}: {e}"
+            )
         return "stop"
 
     if not new_context or not getattr(new_context, "task", None):
         if log_errors:
-            print(f"[Shotbot] Note: No task context could be derived from {project_path}")
+            print(
+                f"[Shotbot] Note: No task context could be derived from {project_path}"
+            )
         return "stop"
 
     if _contexts_match(engine.context, new_context):

@@ -31,7 +31,9 @@ def _shotbot_update_sgtk_context():
         # Get context from path
         new_context = engine.sgtk.context_from_path(script_path)
         if new_context and new_context.task:
-            print(f"[Shotbot] Updating SGTK context to include Task: {new_context.task}")
+            print(
+                f"[Shotbot] Updating SGTK context to include Task: {new_context.task}"
+            )
             sgtk.platform.change_context(new_context)
             print("[Shotbot] Context updated - full apps now available")
 
@@ -44,6 +46,7 @@ def _shotbot_update_sgtk_context():
 if os.environ.get("SGTK_FILE_TO_OPEN"):
     try:
         import nuke
+
         nuke.addOnScriptLoad(_shotbot_update_sgtk_context)
         print("[Shotbot] Registered SGTK context update callback")
     except ImportError:

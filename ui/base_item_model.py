@@ -325,10 +325,6 @@ class BaseItemModel(
         self._thumbnail_loader.thumbnail_debounce_timer.start()  # Restart delays execution
 
     def _load_visible_thumbnails(self) -> None:
-        """Check if visible range changed and schedule actual load."""
-        self._thumbnail_loader.load_visible_thumbnails()
-
-    def _do_load_visible_thumbnails(self) -> None:
         """Actually load thumbnails for visible range."""
         self._thumbnail_loader.do_load_visible_thumbnails()  # pyright: ignore[reportAny]
 
@@ -482,7 +478,7 @@ class BaseItemModel(
                 f"Scheduling thumbnail load timer for {initial_load_count} items (total: {len(self._items)})"
             )
             QTimer.singleShot(
-                self._INITIAL_LOAD_DELAY_MS, self._do_load_visible_thumbnails
+                self._INITIAL_LOAD_DELAY_MS, self._load_visible_thumbnails
             )
 
     # ============= Shared shot-model methods =============
@@ -512,12 +508,7 @@ class BaseItemModel(
         return f"{item.show} / {item.sequence} / {item.shot}\n{item.workspace_path}"
 
     def set_shots(self, shots: list[T]) -> None:
-        """Set the shots list.
-
-        Args:
-            shots: List of Shot objects
-
-        """
+        """Alias for set_items(). See set_items() for full semantics."""
         self.set_items(shots)
 
     def _find_shot_by_full_name(self, full_name: str) -> tuple[T, int] | None:
@@ -545,10 +536,9 @@ class BaseItemModel(
         self._pin_manager = pin_manager
 
     def refresh_pin_order(self) -> None:
-        """Re-sort shots to reflect pin changes.
+        """No-op stub for backward compatibility with tests.
 
-        Note: With proxy models, call proxy.refresh_sort() instead.
-        Kept for backward compatibility with tests.
+        Sorting is handled by proxy models, not by the item model.
         """
 
     @property
@@ -674,8 +664,7 @@ class BaseItemModel(
         signal disconnections and additional teardown.
         """
         # Stop thumbnail loader timers
-        if hasattr(self, "_thumbnail_loader"):
-            self._thumbnail_loader.shutdown()
+        self._thumbnail_loader.shutdown()
 
         # Clear caches
         self.clear_thumbnail_cache()

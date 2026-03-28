@@ -29,6 +29,7 @@ for var in ["SHOW", "SEQUENCE", "SHOT", "WORKSPACE_PATH", "PROJECT_PATH"]:
 print("\n[3] SGTK Module:")
 try:
     import sgtk
+
     print(f"    sgtk location: {sgtk.__file__}")
     print(f"    sgtk version: {getattr(sgtk, '__version__', 'unknown')}")
 except ImportError as e:
@@ -72,7 +73,11 @@ if sgtk:
                 # Try to get settings
                 try:
                     settings = wf.settings
-                    for key in ["launch_at_startup", "show_file_open", "file_extensions"]:
+                    for key in [
+                        "launch_at_startup",
+                        "show_file_open",
+                        "file_extensions",
+                    ]:
                         if key in settings:
                             print(f"    {key}: {settings[key]}")
                 except Exception as e:  # noqa: BLE001
@@ -91,6 +96,7 @@ if sgtk:
     except Exception as e:  # noqa: BLE001
         print(f"    Error: {e}")
         import traceback
+
         traceback.print_exc()
 else:
     print("    Cannot check - sgtk not imported")

@@ -326,8 +326,7 @@ class CommandLauncher(LoggingMixin, QObject):
             message: Completion message (empty if success, error if failed)
 
         """
-        self._phase = LaunchPhase.IDLE
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
+        self._set_phase(LaunchPhase.IDLE)
 
         if not success and message:
             self._emit_error(f"Execution failed: {message}")
@@ -357,8 +356,7 @@ class CommandLauncher(LoggingMixin, QObject):
             app_name: Name of the application that failed verification
 
         """
-        self._phase = LaunchPhase.IDLE
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
+        self._set_phase(LaunchPhase.IDLE)
 
         self._consecutive_timeout_count += 1
 
@@ -377,9 +375,6 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Show user-visible notification for GUI apps that may have failed to start
         if self.process_executor.is_gui_app(app_name):
-            # Local application imports
-            from managers.notification_manager import NotificationManager
-
             NotificationManager.warning(
                 "Launch Verification Failed",
                 f"{app_name} may have failed to start. "
@@ -433,8 +428,7 @@ class CommandLauncher(LoggingMixin, QObject):
             command: Base command built so far (before scene path added)
 
         """
-        self._phase = LaunchPhase.SEARCHING_FILES
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
+        self._set_phase(LaunchPhase.SEARCHING_FILES)
 
         if self.current_shot is None:
             self._emit_error("Cannot search for files - no shot selected")
@@ -464,17 +458,17 @@ class CommandLauncher(LoggingMixin, QObject):
             threede_result: Latest 3DE scene found, or None.
 
         """
-        self._phase = LaunchPhase.EXECUTING
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
+        self._set_phase(LaunchPhase.EXECUTING)
 
+        # Qt signals carry arguments as `object`; cast to the expected types
+        # so downstream code gets proper type narrowing and editor support.
         launch: PendingLaunch | None = pending_launch  # type: ignore[assignment]
         maya: Path | None = maya_result  # type: ignore[assignment]
         threede: Path | None = threede_result  # type: ignore[assignment]
 
         if launch is None:
             self.logger.error("Missing pending state after async search")
-            self._phase = LaunchPhase.IDLE
-            self.logger.debug("LaunchPhase: %s", self._phase.value)
+            self._set_phase(LaunchPhase.IDLE)
             return
 
         app_name = launch.app_name
@@ -486,8 +480,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 "3de", command, threede, self._emit_error
             )
             if result is None:
-                self._phase = LaunchPhase.IDLE
-                self.logger.debug("LaunchPhase: %s", self._phase.value)
+                self._set_phase(LaunchPhase.IDLE)
                 return
             command = result
 
@@ -496,8 +489,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 "maya", command, maya, self._emit_error
             )
             if result is None:
-                self._phase = LaunchPhase.IDLE
-                self.logger.debug("LaunchPhase: %s", self._phase.value)
+                self._set_phase(LaunchPhase.IDLE)
                 return
             command = result
 
@@ -546,8 +538,7 @@ class CommandLauncher(LoggingMixin, QObject):
     def cancel_pending_search(self) -> None:
         """Cancel any pending async file search."""
         if self._file_search_coordinator.is_search_pending:
-            self._phase = LaunchPhase.IDLE
-            self.logger.debug("LaunchPhase: %s", self._phase.value)
+            self._set_phase(LaunchPhase.IDLE)
             self._file_search_coordinator.cancel_pending_search()
 
     @property
@@ -599,8 +590,7 @@ class CommandLauncher(LoggingMixin, QObject):
             True if launch was successful or async search started, False otherwise.
         """
 
-        self._phase = LaunchPhase.VERIFYING_APP
-        self.logger.debug("LaunchPhase: %s", self._phase.value)
+        self._set_phase(LaunchPhase.VERIFYING_APP)
 
         # --- Common validation ---
         if not self._validate_app_name(request.app_name):
@@ -676,10 +666,10 @@ class CommandLauncher(LoggingMixin, QObject):
         workspace_path = request.workspace_path
 
         command = Config.APPS[app_name]
+        handler = self._app_handlers.get(app_name, self._default_handler)
 
         try:
             safe_file_path = validate_path(str(file_path))
-            handler = self._app_handlers.get(app_name, self._default_handler)
             command = handler.build_file_command(command, safe_file_path)
             self.logger.debug(
                 f"launch: app={app_name}, file_path={file_path}, "
@@ -692,7 +682,6 @@ class CommandLauncher(LoggingMixin, QObject):
         if not self._validate_workspace_before_launch(workspace_path, app_name):
             return False
 
-        handler = self._app_handlers.get(app_name, self._default_handler)
         if handler.needs_sgtk_file_to_open():
             sgtk_export = f"export SGTK_FILE_TO_OPEN={safe_file_path} && "
             self.logger.debug(f"Setting SGTK_FILE_TO_OPEN={safe_file_path}")
@@ -768,3 +757,8 @@ class CommandLauncher(LoggingMixin, QObject):
     def _emit_error(self, error: str) -> None:
         """Log an error with timestamp."""
         self.logger.error(error)
+
+    def _set_phase(self, phase: LaunchPhase) -> None:
+        """Set the launch phase and log the transition."""
+        self._phase = phase
+        self.logger.debug("LaunchPhase: %s", self._phase.value)

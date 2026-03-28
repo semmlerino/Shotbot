@@ -62,7 +62,9 @@ class BaseProxyModel(QSortFilterProxyModel):
     # --- QSortFilterProxyModel overrides ---
 
     @override
-    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex | QPersistentModelIndex) -> bool:
+    def filterAcceptsRow(
+        self, source_row: int, source_parent: QModelIndex | QPersistentModelIndex
+    ) -> bool:
         """Filter rows based on show, text, and any subclass-specific criteria."""
         index = self.sourceModel().index(source_row, 0, source_parent)
         item = index.data(BaseItemRole.ObjectRole)
@@ -74,14 +76,19 @@ class BaseProxyModel(QSortFilterProxyModel):
             return False
 
         # Text filter
-        if self._text_filter and self._text_filter.lower() not in item.full_name.lower():
+        if (
+            self._text_filter
+            and self._text_filter.lower() not in item.full_name.lower()
+        ):
             return False
 
         return self._extra_filter(item)
 
     @override
     def lessThan(
-        self, left: QModelIndex | QPersistentModelIndex, right: QModelIndex | QPersistentModelIndex
+        self,
+        left: QModelIndex | QPersistentModelIndex,
+        right: QModelIndex | QPersistentModelIndex,
     ) -> bool:
         """Sort with pinned items first, then delegate to subclass tiebreak."""
         left_item = left.data(BaseItemRole.ObjectRole)
@@ -149,7 +156,11 @@ class ShotProxyModel(BaseProxyModel):
     @override
     def _extra_filter(self, item: Any) -> bool:
         shot = cast("Shot", item)
-        return not (not self._show_hidden and self._hide_manager and self._hide_manager.is_hidden(shot))
+        return not (
+            not self._show_hidden
+            and self._hide_manager
+            and self._hide_manager.is_hidden(shot)
+        )
 
     @override
     def _get_is_pinned(self, item: Any) -> bool:
@@ -165,7 +176,9 @@ class ShotProxyModel(BaseProxyModel):
 
     @override
     def _sort_tiebreak(self, left: Any, right: Any) -> bool:
-        return cast("Shot", left).full_name.lower() < cast("Shot", right).full_name.lower()
+        return (
+            cast("Shot", left).full_name.lower() < cast("Shot", right).full_name.lower()
+        )
 
 
 class PreviousShotsProxyModel(BaseProxyModel):
@@ -241,7 +254,9 @@ class ThreeDEProxyModel(BaseProxyModel):
     @override
     def _get_is_pinned(self, item: Any) -> bool:
         if self._pin_manager is not None:
-            return self._pin_manager.is_pinned_by_path(cast("ThreeDEScene", item).workspace_path)
+            return self._pin_manager.is_pinned_by_path(
+                cast("ThreeDEScene", item).workspace_path
+            )
         return False
 
     @override

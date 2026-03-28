@@ -163,9 +163,7 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             options["selected_file"] = selected_file
         self.launch_requested.emit(app_name, options)
 
-    def _on_file_selected_from_dcc(
-        self, app_name: str, scene_file: SceneFile
-    ) -> None:
+    def _on_file_selected_from_dcc(self, app_name: str, scene_file: SceneFile) -> None:
         """Handle file selection from a DCC section.
 
         Stores the selected file for later use in launch options.
@@ -277,7 +275,9 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
                 self.logger.warning("RV section not found - cannot display sequences")
                 return
 
-            self.logger.info(f"Discovering RV sequences for shot: {shot.workspace_path}")
+            self.logger.info(
+                f"Discovering RV sequences for shot: {shot.workspace_path}"
+            )
 
             # Discover sequences for current user
             playblasts = UserSequenceFinder.find_maya_playblasts(shot.workspace_path)

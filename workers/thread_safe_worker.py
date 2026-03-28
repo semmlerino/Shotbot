@@ -161,13 +161,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             # Determine which signal to emit (but don't emit inside mutex!)
             # NOTE: ERROR state does NOT emit here - error signals are emitted
             # from exception handlers with actual context (see run() method)
-            try:
-                if new_state == WorkerState.STOPPED:
-                    signal_to_emit = self.worker_stopped
-                # No emission for ERROR - exception handler emits with real details
-            except (SystemError, RuntimeError):
-                # Can occur during Python shutdown when enum module is being unloaded
-                pass
+            if new_state == WorkerState.STOPPED:
+                signal_to_emit = self.worker_stopped
+            # No emission for ERROR - exception handler emits with real details
 
         # Emit signals outside the mutex to prevent deadlock
         # This prevents any possibility of deadlock if a slot tries to acquire the same mutex
@@ -488,6 +484,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 self.logger.warning(
                     f"Worker {id(self)}: Unexpected state {current.name} in _on_finished"
                 )
+
+            # Wake any threads waiting on state changes (e.g. safe_wait via wait condition)
+            self._state_condition.wakeAll()
 
     def safe_wait(
         self,

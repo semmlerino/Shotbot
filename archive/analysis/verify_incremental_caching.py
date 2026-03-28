@@ -143,7 +143,9 @@ def verify_merge_no_changes(cache_manager: CacheManager) -> bool:
 
     count_unchanged = len(result.updated_shots) == 432
     print_status(
-        "Shot count unchanged", count_unchanged, f"Expected 432, got {len(result.updated_shots)}"
+        "Shot count unchanged",
+        count_unchanged,
+        f"Expected 432, got {len(result.updated_shots)}",
     )
 
     return no_changes and no_new and no_removed and count_unchanged
@@ -292,7 +294,10 @@ def verify_performance(cache_manager: CacheManager) -> bool:
     cached_dicts = [s.to_dict() for s in cached_shots]
 
     # Generate fresh data with 1 new shot
-    fresh_shots = [*cached_shots, Shot(show="test", sequence="sq9999", shot="shot_9999", workspace_path="/test")]
+    fresh_shots = [
+        *cached_shots,
+        Shot(show="test", sequence="sq9999", shot="shot_9999", workspace_path="/test"),
+    ]
     fresh_dicts = [s.to_dict() for s in fresh_shots]
 
     # Benchmark merge operation
@@ -302,9 +307,7 @@ def verify_performance(cache_manager: CacheManager) -> bool:
 
     # Verify performance requirement (<10ms)
     fast_enough = elapsed_ms < 10.0
-    print_status(
-        "Merge completes in <10ms", fast_enough, f"Actual: {elapsed_ms:.2f}ms"
-    )
+    print_status("Merge completes in <10ms", fast_enough, f"Actual: {elapsed_ms:.2f}ms")
 
     # Verify correctness
     correct_count = len(result.updated_shots) == 501

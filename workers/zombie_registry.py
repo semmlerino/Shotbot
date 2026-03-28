@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 
 # Zombie age thresholds and cleanup interval (constants, never reassigned)
-_MAX_ZOMBIE_AGE_SECONDS: int = 60        # Log warning after 60s
+_MAX_ZOMBIE_AGE_SECONDS: int = 60  # Log warning after 60s
 _ZOMBIE_TERMINATE_AGE_SECONDS: int = 300  # Force terminate after 5 min
 _ZOMBIE_CLEANUP_INTERVAL_MS: int = 60000  # Cleanup every 60s
 
@@ -298,7 +298,9 @@ def create_zombie_timer_impl() -> None:
             """Periodic cleanup callback."""
             cleaned = cleanup_old_zombies()
             if cleaned > 0:
-                logger.info(f"Periodic zombie cleanup: removed {cleaned} finished threads")
+                logger.info(
+                    f"Periodic zombie cleanup: removed {cleaned} finished threads"
+                )
 
         _ = _state.cleanup_timer.timeout.connect(cleanup_callback)
         _state.cleanup_timer.start()

@@ -357,9 +357,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.shot_grid.shot_visibility_changed.connect(
             lambda: self.shot_proxy.invalidate()
         )
-        _ = self.shot_grid.show_hidden_changed.connect(
-            self.shot_proxy.set_show_hidden
-        )
+        _ = self.shot_grid.show_hidden_changed.connect(self.shot_proxy.set_show_hidden)
 
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
@@ -382,9 +380,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
 
         # Pin sort-order refresh — fallback path when view has no pin_manager set
-        _ = self.shot_grid.pin_shot_requested.connect(
-            self._on_shot_grid_pin_requested
-        )
+        _ = self.shot_grid.pin_shot_requested.connect(self._on_shot_grid_pin_requested)
         _ = self.previous_shots_grid.pin_shot_requested.connect(
             self._on_previous_shots_pin_requested
         )
@@ -430,7 +426,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 self.previous_shots_item_model,
             )
         )
-
 
     # ---------------------------------------------------------------------------
     # Inlined from DataEventHandler

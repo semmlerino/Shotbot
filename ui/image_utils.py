@@ -203,16 +203,26 @@ class ImageUtils:
 
         cmd = [
             "ffmpeg",
-            "-i", str(mov_path),
+            "-i",
+            str(mov_path),
             "-an",
-            "-vf", "select=eq(n\\,4)",
-            "-vframes", "1",
-            "-q:v", "2",
+            "-vf",
+            "select=eq(n\\,4)",
+            "-vframes",
+            "1",
+            "-q:v",
+            "2",
             "-y",
             str(output_path),
         ]
 
-        result = ImageUtils._run_image_tool(mov_path, cmd, output_path, timeout=TimeoutConfig.IMAGE_TOOL_STANDARD, tool_name="FFmpeg")
+        result = ImageUtils._run_image_tool(
+            mov_path,
+            cmd,
+            output_path,
+            timeout=TimeoutConfig.IMAGE_TOOL_STANDARD,
+            tool_name="FFmpeg",
+        )
         if result:
             logger.debug(f"Successfully extracted frame #5 from MOV: {mov_path.name}")
         return result
@@ -248,17 +258,28 @@ class ImageUtils:
 
         cmd = [
             "ffmpeg",
-            "-ss", str(time_seconds),
-            "-i", str(mov_path),
+            "-ss",
+            str(time_seconds),
+            "-i",
+            str(mov_path),
             "-an",
-            "-vf", f"scale={width}:-1",
-            "-vframes", "1",
-            "-q:v", "2",
+            "-vf",
+            f"scale={width}:-1",
+            "-vframes",
+            "1",
+            "-q:v",
+            "2",
             "-y",
             str(output_path),
         ]
 
-        return ImageUtils._run_image_tool(mov_path, cmd, output_path, timeout=TimeoutConfig.IMAGE_TOOL_STANDARD, tool_name="FFmpeg")
+        return ImageUtils._run_image_tool(
+            mov_path,
+            cmd,
+            output_path,
+            timeout=TimeoutConfig.IMAGE_TOOL_STANDARD,
+            tool_name="FFmpeg",
+        )
 
     @staticmethod
     def extract_frame_from_exr(
@@ -288,11 +309,19 @@ class ImageUtils:
         cmd = [
             "oiiotool",
             str(exr_path),
-            "--resize", f"{width}x0",
-            "-o", str(output_path),
+            "--resize",
+            f"{width}x0",
+            "-o",
+            str(output_path),
         ]
 
-        return ImageUtils._run_image_tool(exr_path, cmd, output_path, timeout=TimeoutConfig.IMAGE_TOOL_STANDARD, tool_name="oiiotool")
+        return ImageUtils._run_image_tool(
+            exr_path,
+            cmd,
+            output_path,
+            timeout=TimeoutConfig.IMAGE_TOOL_STANDARD,
+            tool_name="oiiotool",
+        )
 
     @staticmethod
     def get_mov_duration(mov_path: Path) -> float | None:
@@ -312,9 +341,12 @@ class ImageUtils:
         try:
             cmd = [
                 "ffprobe",
-                "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
                 str(mov_path),
             ]
 

@@ -198,9 +198,7 @@ def create_icon(icon_type: str, color: str, size: int = 33) -> QIcon:
         positions = [(0.35, 0.25), (0.6, 0.22), (0.78, 0.35), (0.7, 0.55), (0.45, 0.5)]
         for c, (px, py) in zip(paint_colors, positions, strict=True):
             painter.setBrush(QColor(c))
-            painter.drawEllipse(
-                int(s * px), int(s * py), int(s * 0.15), int(s * 0.15)
-            )
+            painter.drawEllipse(int(s * px), int(s * py), int(s * 0.15), int(s * 0.15))
 
     elif icon_type == "cube":
         # 3D cube with visible edges
@@ -259,12 +257,8 @@ def create_icon(icon_type: str, color: str, size: int = 33) -> QIcon:
         )
         # Checkmark (white)
         painter.setPen(QPen(QColor("#FFFFFF"), max(2, int(s * 0.12))))
-        painter.drawLine(
-            int(s * 0.25), int(s * 0.55), int(s * 0.42), int(s * 0.75)
-        )
-        painter.drawLine(
-            int(s * 0.42), int(s * 0.75), int(s * 0.75), int(s * 0.35)
-        )
+        painter.drawLine(int(s * 0.25), int(s * 0.55), int(s * 0.42), int(s * 0.75))
+        painter.drawLine(int(s * 0.42), int(s * 0.75), int(s * 0.75), int(s * 0.35))
 
     elif icon_type == "note":
         # Sticky note with folded corner

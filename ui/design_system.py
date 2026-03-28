@@ -229,7 +229,9 @@ class DesignSystem(QObject):
     """Central design system with all design tokens."""
 
     _cleanup_order: ClassVar[int] = 40
-    _singleton_description: ClassVar[str] = "Design system with colors, typography, spacing, borders, shadows, and animation"
+    _singleton_description: ClassVar[str] = (
+        "Design system with colors, typography, spacing, borders, shadows, and animation"
+    )
 
     # Emitted when UI scale changes, for live preview updates
     scale_changed = Signal(float)
@@ -239,7 +241,9 @@ class DesignSystem(QObject):
         self._ui_scale: float = 1.0  # Default 100% scale
         self._base_typography = Typography()
         self.colors = ColorPalette()
-        self.typography = ScaledTypography(self._base_typography, lambda: self._ui_scale)
+        self.typography = ScaledTypography(
+            self._base_typography, lambda: self._ui_scale
+        )
         self.spacing = Spacing()
 
     def set_ui_scale(self, scale: float) -> None:
@@ -300,7 +304,9 @@ def darken_color(color: str) -> str:
     return color
 
 
-def get_tinted_background(accent: str, base: str = "#252525", blend: float = 0.12) -> str:
+def get_tinted_background(
+    accent: str, base: str = "#252525", blend: float = 0.12
+) -> str:
     """Blend an accent color into a dark base for a subtle tint."""
     if not accent.startswith("#") or not base.startswith("#"):
         return base

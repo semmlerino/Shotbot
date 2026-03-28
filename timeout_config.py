@@ -64,7 +64,9 @@ class TimeoutConfig:
     FUTURE_RESULT_QUICK: int = 5  # 5 seconds for quick future.result() calls
 
     # Worker lifecycle (milliseconds unless noted)
-    WORKER_COORDINATION_STOP_MS: int = 5000  # Outer coordination wait (threede_worker_manager)
+    WORKER_COORDINATION_STOP_MS: int = (
+        5000  # Outer coordination wait (threede_worker_manager)
+    )
     WORKER_GRACEFUL_STOP_MS: int = 2000  # Inner safe_stop / ThreadingConfig equivalent
     WORKER_TERMINATE_MS: int = 1000  # Time before force termination
     WORKER_SHUTDOWN_MS: int = 5000  # Maximum time to wait for worker shutdown
@@ -153,6 +155,7 @@ class TimeoutConfig:
         """Reset all timeout values to defaults. Used in test isolation."""
         for attr_name, default_value in cls.initial_defaults.items():
             setattr(cls, attr_name, default_value)
+
 
 def _capture_timeout_defaults(cls: type[TimeoutConfig]) -> None:
     """Capture current TimeoutConfig class attribute values as reset defaults."""

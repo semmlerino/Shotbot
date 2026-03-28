@@ -142,4 +142,3 @@ class ProgressReportingMixin(LoggingMixin):
                     )
             return True
         return False
-

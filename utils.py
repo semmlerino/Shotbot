@@ -257,7 +257,9 @@ def get_current_username() -> str:
 
     # In mock mode, always use the default username to match production data
     if is_mock_mode():
-        logger.debug(f"Mock mode: using production username '{Config.DEFAULT_USERNAME}'")
+        logger.debug(
+            f"Mock mode: using production username '{Config.DEFAULT_USERNAME}'"
+        )
         return Config.DEFAULT_USERNAME
 
     # Try multiple environment variables in order of preference
@@ -344,5 +346,3 @@ class ValidationUtils:
             shot,
             names=["show", "sequence", "shot"],
         )
-
-

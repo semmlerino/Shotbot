@@ -259,9 +259,7 @@ class BaseShotGridView(BaseGridView):
 
         _ = menu.addSeparator()
 
-        has_note = (
-            self._notes_manager.has_note(shot) if self._notes_manager else False
-        )
+        has_note = self._notes_manager.has_note(shot) if self._notes_manager else False
         note_label = "Edit Note" if has_note else "Add Note"
         self._build_standard_actions(
             menu,

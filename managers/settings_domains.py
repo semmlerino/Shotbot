@@ -114,7 +114,9 @@ class RefreshSettings:
     def get_refresh_interval(self) -> int:
         """Get refresh interval in minutes."""
         value = self._get("refresh_interval")
-        return value if isinstance(value, int) else Config.CACHE_REFRESH_INTERVAL_MINUTES
+        return (
+            value if isinstance(value, int) else Config.CACHE_REFRESH_INTERVAL_MINUTES
+        )
 
     def set_refresh_interval(self, minutes: int) -> None:
         """Set refresh interval in minutes."""
@@ -225,7 +227,11 @@ class UIAppearanceSettings:
             Sort order string ("name" or "date")
 
         """
-        defaults = {"my_shots": "name", "threede_scenes": "date", "previous_shots": "date"}
+        defaults = {
+            "my_shots": "name",
+            "threede_scenes": "date",
+            "previous_shots": "date",
+        }
         stored = self._settings.value(
             f"ui/sort_order_{tab_id}", defaults.get(tab_id, "name")
         )

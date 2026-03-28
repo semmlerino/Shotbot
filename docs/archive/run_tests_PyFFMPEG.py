@@ -40,31 +40,22 @@ def main():
         nargs="?",
         default="all",
         choices=["all", "unit", "integration", "coverage", "quick"],
-        help="Test suite to run (default: all)"
+        help="Test suite to run (default: all)",
     )
     _ = parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Verbose output"
+        "--verbose", "-v", action="store_true", help="Verbose output"
     )
     _ = parser.add_argument(
-        "--no-cov",
-        action="store_true",
-        help="Disable coverage reporting"
+        "--no-cov", action="store_true", help="Disable coverage reporting"
     )
     _ = parser.add_argument(
-        "--module", "-m",
-        help="Run tests for specific module (e.g., file_list_widget)"
+        "--module", "-m", help="Run tests for specific module (e.g., file_list_widget)"
     )
     _ = parser.add_argument(
-        "--failed-first", "-f",
-        action="store_true",
-        help="Run failed tests first"
+        "--failed-first", "-f", action="store_true", help="Run failed tests first"
     )
     _ = parser.add_argument(
-        "--pdb",
-        action="store_true",
-        help="Drop into debugger on failures"
+        "--pdb", action="store_true", help="Drop into debugger on failures"
     )
 
     args = parser.parse_args()
@@ -96,16 +87,18 @@ def main():
 
     # Coverage options
     if not no_cov and suite != "quick":
-        cmd.extend([
-            "--cov=.",
-            "--cov-exclude=tests/*",
-            "--cov-exclude=venv/*",
-            "--cov-exclude=__pycache__/*",
-            "--cov-exclude=PyMPEG.py",
-            "--cov-exclude=archive/*",
-            "--cov-report=term-missing",
-            "--cov-report=html:coverage_html"
-        ])
+        cmd.extend(
+            [
+                "--cov=.",
+                "--cov-exclude=tests/*",
+                "--cov-exclude=venv/*",
+                "--cov-exclude=__pycache__/*",
+                "--cov-exclude=PyMPEG.py",
+                "--cov-exclude=archive/*",
+                "--cov-report=term-missing",
+                "--cov-report=html:coverage_html",
+            ]
+        )
 
     # Select test suite
     if suite == "unit" or (suite == "all" and not module):

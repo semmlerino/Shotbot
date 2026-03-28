@@ -48,6 +48,7 @@ T = TypeVar("T")
 
 def require_main_thread(func: Callable[..., T]) -> Callable[..., T]:
     """Decorator that raises RuntimeError if called from non-main thread."""
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> T:
         app = QCoreApplication.instance()
@@ -58,6 +59,7 @@ def require_main_thread(func: Callable[..., T]) -> Callable[..., T]:
             )
             raise RuntimeError(msg)
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -100,7 +102,9 @@ class QtWidgetMixin(LoggingMixin):
         settings = QSettings()
         if settings.contains(f"{self._geometry_key}/geometry"):
             geometry_value = settings.value(f"{self._geometry_key}/geometry")
-            if isinstance(geometry_value, QByteArray) and hasattr(self, "restoreGeometry"):
+            if isinstance(geometry_value, QByteArray) and hasattr(
+                self, "restoreGeometry"
+            ):
                 self.restoreGeometry(geometry_value)
         else:
             if hasattr(self, "resize"):
@@ -119,5 +123,7 @@ class QtWidgetMixin(LoggingMixin):
         """Handle close event with cleanup."""
         self.save_window_geometry()
         if hasattr(super(), "closeEvent"):
-            close_event_method = cast("Callable[[QCloseEvent], None]", super().closeEvent)
+            close_event_method = cast(
+                "Callable[[QCloseEvent], None]", super().closeEvent
+            )
             close_event_method(event)

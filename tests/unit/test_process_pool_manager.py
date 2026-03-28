@@ -128,12 +128,9 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 
         return QObject.__new__(cls)
 
-    def __init__(self, max_workers: int = 4) -> None:
+    def __init__(self) -> None:
         """Initialize with optional session injection."""
         # Initialize directly without calling super().__init__() to avoid singleton issues
-        # Standard library imports
-        import concurrent.futures
-
         from PySide6.QtCore import (
             QMutex,
             QObject,
@@ -144,7 +141,6 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 
         QObject.__init__(self)  # Initialize QObject directly
 
-        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self._session_pools: dict[str, list[BashSessionDouble]] = {}
         self._session_round_robin: dict[str, int] = {}
         self._sessions_per_type = 3
@@ -153,7 +149,6 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         self._session_lock = threading.RLock()
         # Add condition variable for proper thread synchronization
         self._session_condition = threading.Condition(self._session_lock)
-        self._initialized = True
         self._test_session: BashSessionDouble | None = None
         # Instance-level mutex and shutdown flag (added to parent class)
         self._mutex = QMutex()

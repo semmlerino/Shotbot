@@ -262,8 +262,8 @@ class TestThumbnailSizeControl:
         assert grid_view._delegate._thumbnail_size == new_size
 
         # Grid size calculation uses 16:9 aspect ratio for plate images
-        padding = 8
-        text_height = 50
+        padding = grid_view._delegate.theme.padding
+        text_height = grid_view._delegate.theme.text_height
         expected_width = new_size + 2 * padding
         thumbnail_height = int(new_size / Config.THUMBNAIL_ASPECT_RATIO)
         expected_height = thumbnail_height + text_height + 2 * padding

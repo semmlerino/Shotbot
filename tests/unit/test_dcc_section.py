@@ -612,5 +612,3 @@ class TestRVSection:
 
         app_name, _options = blocker.args
         assert app_name == "rv"
-
-

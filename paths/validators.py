@@ -98,7 +98,9 @@ class PathValidators:
                 if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:
                     # Return cached result without verification to avoid performance issues
                     if not cached_exists:
-                        logger.debug(f"{description} does not exist (cached): {path_str}")
+                        logger.debug(
+                            f"{description} does not exist (cached): {path_str}"
+                        )
                     return cached_exists
 
         # Cache miss or expired - check actual path existence (outside lock)
@@ -148,7 +150,9 @@ class PathValidators:
             # This prevents other threads from seeing an empty cache mid-operation
             _path_cache = dict(sorted_items[:2500])
 
-            logger.debug(f"Cleaned path cache, kept {len(_path_cache)} most recent entries")
+            logger.debug(
+                f"Cleaned path cache, kept {len(_path_cache)} most recent entries"
+            )
 
     @staticmethod
     def batch_validate_paths(paths: list[str | Path]) -> dict[str, bool]:
@@ -171,7 +175,10 @@ class PathValidators:
                 path_str = str(path)
                 if path_str in _path_cache:
                     cached_exists, timestamp = _path_cache[path_str]
-                    if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:
+                    if (
+                        _PATH_CACHE_TTL == 0
+                        or current_time - timestamp < _PATH_CACHE_TTL
+                    ):
                         # Use cached result without verification
                         results[path_str] = cached_exists
                         continue

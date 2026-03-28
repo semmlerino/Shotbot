@@ -237,7 +237,9 @@ class ApplicationBundler:
 
         """
         # Check gitignore patterns first (skip for force-included dirs)
-        if not self._in_force_include_dir(file_path) and self.gitignore_parser.should_exclude(file_path):
+        if not self._in_force_include_dir(
+            file_path
+        ) and self.gitignore_parser.should_exclude(file_path):
             return False
 
         file_name = Path(file_path).name

@@ -49,6 +49,7 @@ def find_sgtk_module() -> None:
 
     try:
         import sgtk
+
         print(f"  sgtk module found: {sgtk.__file__}")
         print(f"  sgtk version: {getattr(sgtk, '__version__', 'unknown')}")
 
@@ -100,7 +101,9 @@ def search_paths() -> list[Path]:
     return paths
 
 
-def find_files(base_paths: list[Path], patterns: list[str], max_depth: int = 5) -> list[Path]:
+def find_files(
+    base_paths: list[Path], patterns: list[str], max_depth: int = 5
+) -> list[Path]:
     """Find files matching patterns under base paths."""
     found = []
 

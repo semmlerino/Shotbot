@@ -51,7 +51,6 @@ from workers.thread_safe_worker import ThreadSafeWorker
 __all__ = ["AsyncShotLoader", "ShotModel"]
 
 
-
 @final
 class AsyncShotLoader(ThreadSafeWorker):
     """Background worker for loading shots without blocking UI.
@@ -70,9 +69,7 @@ class AsyncShotLoader(ThreadSafeWorker):
     def __init__(
         self,
         process_pool: ProcessPoolInterface,
-        parse_function: Callable[
-            [str, dict[str, tuple[int, int]] | None], list[Shot]
-        ],
+        parse_function: Callable[[str, dict[str, tuple[int, int]] | None], list[Shot]],
         model: BaseShotModel | None = None,
         parent: QObject | None = None,
     ) -> None:
@@ -209,7 +206,7 @@ class ShotModel(BaseShotModel):
             if persistent_cache:
                 self.logger.info(
                     f"Cache expired ({len(persistent_cache)} shots exist), "
-                     "starting background refresh for fresh data"
+                    "starting background refresh for fresh data"
                 )
             else:
                 self.logger.info("No cached shots, starting background load")
@@ -260,7 +257,9 @@ class ShotModel(BaseShotModel):
         old_loader: AsyncShotLoader | None = None
         with QMutexLocker(self._loader_lock):
             if self._loading_in_progress:
-                self.logger.warning("Background load already in progress - returning early")
+                self.logger.warning(
+                    "Background load already in progress - returning early"
+                )
                 return
             # Capture old loader reference for cleanup outside lock
             old_loader = self._async_loader
@@ -278,7 +277,9 @@ class ShotModel(BaseShotModel):
         with QMutexLocker(self._loader_lock):
             # Re-check after cleanup (another thread may have started)
             if self._loading_in_progress:
-                self.logger.warning("Background load started by another thread - returning")
+                self.logger.warning(
+                    "Background load started by another thread - returning"
+                )
                 return
 
             self._loading_in_progress = True
@@ -345,7 +346,9 @@ class ShotModel(BaseShotModel):
                 cached_dicts, fresh_dicts
             )
         except (KeyError, TypeError, ValueError) as e:
-            self.logger.warning("Cache corruption detected, using fresh data only", exc_info=True)
+            self.logger.warning(
+                "Cache corruption detected, using fresh data only", exc_info=True
+            )
             merge_result = ShotMergeResult(
                 updated_shots=[s.to_dict() for s in fresh_shots],
                 new_shots=[s.to_dict() for s in fresh_shots],
@@ -528,13 +531,17 @@ class ShotModel(BaseShotModel):
             return self.initialize_async()
         if not loading:
             # For subsequent refreshes, start background refresh only if not already loading
-            self.logger.info("Shots already loaded and not loading - starting background refresh")
+            self.logger.info(
+                "Shots already loaded and not loading - starting background refresh"
+            )
             self._start_background_refresh()
             # Return immediately with current state
             self.logger.info("Returning immediately (background refresh started)")
             return RefreshResult(success=True, has_changes=False)
         # Already loading - return True to indicate no error (operation in progress)
-        self.logger.info("Already loading - skipping refresh request (returning success=True)")
+        self.logger.info(
+            "Already loading - skipping refresh request (returning success=True)"
+        )
         return RefreshResult(success=True, has_changes=False)
 
     @override
@@ -651,7 +658,9 @@ class ShotModel(BaseShotModel):
 
             # Process shot merge with error handling and migration
             try:
-                merge_result = self._process_shot_merge(fresh_shots, operation_name="sync")
+                merge_result = self._process_shot_merge(
+                    fresh_shots, operation_name="sync"
+                )
             except Exception as e:
                 # Unexpected merge failure - report error and abort
                 error_msg = f"Merge operation failed: {e}"

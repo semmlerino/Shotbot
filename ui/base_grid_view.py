@@ -314,17 +314,10 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
             action = QAction(self.list_view)
             action.setShortcut(QKeySequence(key))
             action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-            _ = action.triggered.connect(partial(self._on_shortcut_launch, app_name))
+            _ = action.triggered.connect(
+                partial(self.app_launch_requested.emit, app_name)
+            )
             self.list_view.addAction(action)
-
-    def _on_shortcut_launch(self, app_name: str) -> None:
-        """Handle shortcut-triggered app launch.
-
-        Args:
-            app_name: Name of the app to launch
-
-        """
-        self.app_launch_requested.emit(app_name)
 
     def _on_scrub_repaint_requested(self, index: QModelIndex) -> None:
         """Handle request to repaint an item during scrub.
@@ -397,7 +390,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         Must be implemented by subclasses to handle specific data types.
 
         Args:
-            index: The clicked model index
+            _index: The clicked model index
 
         """
         raise NotImplementedError
@@ -408,7 +401,7 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         Must be implemented by subclasses to handle specific data types.
 
         Args:
-            index: The double-clicked model index
+            _index: The double-clicked model index
 
         """
         raise NotImplementedError
@@ -462,8 +455,8 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""
         # Calculate item size including padding and text height
-        padding = 8
-        text_height = 50
+        padding = self._delegate.theme.padding
+        text_height = self._delegate.theme.text_height
         item_width = self._thumbnail_size + 2 * padding
         # Calculate height based on 16:9 aspect ratio for plate images
         thumbnail_height = int(self._thumbnail_size / Config.THUMBNAIL_ASPECT_RATIO)
@@ -567,6 +560,9 @@ class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
         """
         # Handle case where subclass passes a protocol object
         if not isinstance(shows, list):
+            self.logger.debug(
+                f"populate_show_filter received {type(shows).__name__}, not a list; skipping"
+            )
             return  # Subclass will extract shows and call super()
 
         # Type narrowing: shows is list[str] after isinstance check

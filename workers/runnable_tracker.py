@@ -3,6 +3,7 @@
 This module provides a singleton tracker for QRunnable instances to ensure
 proper cleanup and prevent memory leaks from untracked thread pool tasks.
 """
+
 # Standard library imports
 import contextlib
 import logging
@@ -108,8 +109,7 @@ class QRunnableTracker(SingletonMixin):
                 active_count = len(self._active_runnables)
 
             logger.debug(
-                f"Unregistered {runnable.__class__.__name__} "
-                f"(active: {active_count})"
+                f"Unregistered {runnable.__class__.__name__} (active: {active_count})"
             )
         except Exception:  # noqa: BLE001
             logger.warning("Error unregistering runnable", exc_info=True)

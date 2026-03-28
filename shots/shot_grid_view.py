@@ -130,7 +130,9 @@ class ShotGridView(BaseShotGridView):
         layout.addWidget(self.recover_button)
 
         self.publish_button = QPushButton("Publish  (P)")
-        self.publish_button.setToolTip("Launch publish_standalone for the selected shot")
+        self.publish_button.setToolTip(
+            "Launch publish_standalone for the selected shot"
+        )
         self.publish_button.setEnabled(False)
         _ = self.publish_button.clicked.connect(
             lambda: self.app_launch_requested.emit("publish")
@@ -177,7 +179,9 @@ class ShotGridView(BaseShotGridView):
         """
         return self._thumbnail_size
 
-    def set_model(self, model: ShotItemModel, proxy: QSortFilterProxyModel | None = None) -> None:
+    def set_model(
+        self, model: ShotItemModel, proxy: QSortFilterProxyModel | None = None
+    ) -> None:
         """Set the data model for the view.
 
         Args:
@@ -208,9 +212,7 @@ class ShotGridView(BaseShotGridView):
             # Use duck typing instead of isinstance for test compatibility
             if not hasattr(shows, "get_available_shows"):
                 msg = f"Expected list[str] or HasAvailableShows protocol, got {type(shows).__name__}"
-                raise TypeError(
-                    msg
-                )
+                raise TypeError(msg)
             show_list: list[str] = list(shows.get_available_shows())
             super().populate_show_filter(show_list)
             show_count = len(show_list)

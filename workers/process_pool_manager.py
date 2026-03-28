@@ -1,12 +1,10 @@
 """Process Pool Manager for optimized subprocess handling.
 
 This module provides centralized process management with:
-- Parallel execution via ThreadPoolExecutor (the "pool" in the name)
 - Command caching to avoid redundant subprocess calls
 - Centralized workspace command execution
 
-Note: Each command spawns a fresh bash subprocess. The "pool" refers to
-the thread pool for parallel execution, not session reuse. Caching provides
+Note: Each command spawns a fresh bash subprocess. Caching provides
 the primary performance benefit by avoiding repeated shell invocations.
 """
 
@@ -15,7 +13,6 @@ the primary performance benefit by avoiding repeated shell invocations.
 from __future__ import annotations
 
 # Standard library imports
-import concurrent.futures
 import gc
 import selectors
 import subprocess
@@ -189,17 +186,15 @@ class CancellableSubprocess:
 
 @final
 class ProcessPoolManager(LoggingMixin, QObject):
-    """Centralized process management with thread pooling and caching.
+    """Centralized process management with caching.
 
     This singleton class manages all subprocess operations for the application,
     providing:
-    - Parallel execution via ThreadPoolExecutor
     - Command caching to avoid redundant subprocess calls
     - Centralized workspace command handling
 
-    The "pool" in ProcessPoolManager refers to the thread pool for parallelism,
-    not bash session pooling. Each command spawns a fresh subprocess, with
-    caching providing the primary performance optimization.
+    Each command spawns a fresh subprocess, with caching providing the primary
+    performance optimization.
 
     Singleton Pattern Notes:
         This class uses a custom singleton pattern instead of SingletonMixin because:
@@ -221,17 +216,16 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
     # Singleton instance
     _instance: ClassVar[ProcessPoolManager | None] = None
-    _lock: ClassVar[threading.Lock] = threading.Lock()  # Use Python's threading.Lock for singleton access
-    _initialized: ClassVar[bool] = False  # Class-level flag to track singleton initialization
+    _lock: ClassVar[threading.Lock] = (
+        threading.Lock()
+    )  # Use Python's threading.Lock for singleton access
 
-    def __new__(cls, max_workers: int = 4) -> ProcessPoolManager:
+    def __new__(cls) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety.
 
         CRITICAL: Holds lock across both __new__ and __init__ to prevent race where
         another thread gets uninitialized instance between __new__ and __init__.
 
-        Note: Parameters are intentionally unused in __new__ (singleton returns existing
-        instance) but must match __init__ signature for type checker consistency.
         """
         # Fast path - no lock if already initialized
         if cls._instance is None:
@@ -241,18 +235,13 @@ class ProcessPoolManager(LoggingMixin, QObject):
                     # Create instance but DON'T set cls._instance yet
                     instance = super().__new__(cls)
                     # Initialize BEFORE making visible (call __init__ manually)
-                    instance.__init__(max_workers)
+                    instance.__init__()
                     # Now safe to expose - fully initialized
                     cls._instance = instance
-                    # Set flag so __init__ doesn't run again
-                    cls._initialized = True
         return cls._instance
 
-    def __init__(self, max_workers: int = 4) -> None:
+    def __init__(self) -> None:
         """Initialize process pool manager.
-
-        Args:
-            max_workers: Maximum concurrent workers
 
         Note: __new__ calls this manually under lock, so we don't need lock here.
         If called directly (e.g., by Python after __new__), check if already initialized.
@@ -264,9 +253,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         super().__init__()
 
-        self._executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=max_workers,
-        )
         self._cache: TTLCache[str, str] = TTLCache(maxsize=500, ttl=30)  # pyright: ignore[reportInvalidTypeArguments] - vendored cachetools lacks type stubs
         self._cache_lock = QMutex()
         # Instance-level mutex and shutdown flag for thread-safe shutdown
@@ -276,7 +262,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # Mark initialization as complete
         self._init_done = True
 
-        self.logger.debug(f"ProcessPoolManager initialized ({max_workers} workers)")
+        self.logger.debug("ProcessPoolManager initialized")
 
     @classmethod
     def get_instance(cls) -> ProcessPoolManager:
@@ -344,9 +330,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 "Use AsyncShotLoader or background workers instead.\n"
                 f"Command attempted: {command[:100]}..."
             )
-            raise RuntimeError(
-                msg
-            )
+            raise RuntimeError(msg)
 
         if timeout is None:
             timeout = int(TimeoutConfig.SUBPROCESS_SEC)
@@ -412,7 +396,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
             self.logger.exception(f"Command execution failed ({command[:80]!r})")
             raise
 
-
     def invalidate_cache(self, pattern: str | None = None) -> None:
         """Invalidate command cache.
 
@@ -433,15 +416,10 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 )
 
     def shutdown(self, timeout: float = 5.0) -> None:
-        """Shutdown the process pool manager with enhanced error handling.
+        """Shutdown the process pool manager.
 
         Args:
-            timeout: Maximum time to wait for executor shutdown in seconds
-
-        Note:
-            Uses a timeout wrapper around executor.shutdown() to prevent
-            indefinite blocking if tasks are stuck. If the graceful shutdown
-            takes longer than timeout, a forced shutdown is triggered.
+            timeout: Unused; kept for call-site compatibility.
 
         """
         with QMutexLocker(self._mutex):
@@ -452,63 +430,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 return
             self._shutdown_requested = True
 
-        self.logger.debug(f"Starting ProcessPoolManager shutdown (timeout={timeout}s)")
+        self.logger.debug("Starting ProcessPoolManager shutdown")
 
-        # Stage 1: Graceful executor shutdown with timeout wrapper
-        # ThreadPoolExecutor.shutdown() doesn't support timeout parameter,
-        # so we wrap it in a background thread with our own timeout
-        shutdown_successful = False
-        shutdown_complete = threading.Event()
-
-        def _do_shutdown() -> None:
-            """Perform executor shutdown in background thread."""
-            try:
-                # Python 3.11+ guaranteed to support cancel_futures parameter
-                self._executor.shutdown(wait=True, cancel_futures=True)
-            except Exception as e:  # noqa: BLE001
-                self.logger.debug(f"Executor shutdown exception in thread: {e}")
-            finally:
-                shutdown_complete.set()
-
-        try:
-            self.logger.debug("Initiating ThreadPoolExecutor shutdown")
-            shutdown_thread = threading.Thread(
-                target=_do_shutdown, daemon=True, name="ExecutorShutdown"
-            )
-            shutdown_thread.start()
-
-            # Wait for shutdown with timeout
-            if shutdown_complete.wait(timeout=timeout):
-                shutdown_successful = True
-                self.logger.debug("ThreadPoolExecutor shutdown completed within timeout")
-            else:
-                # Timeout reached - force shutdown
-                # Note: Python threads cannot be forcibly terminated. shutdown(wait=False)
-                # abandons running threads but they will continue until completion.
-                # cancel_futures=True cancels pending (not-yet-started) tasks.
-                self.logger.warning(
-                    f"Executor shutdown timed out after {timeout}s, forcing non-blocking shutdown"
-                )
-                try:
-                    self._executor.shutdown(wait=False, cancel_futures=True)
-
-                    # Log any threads still running after timeout (helps diagnose leaks)
-                    if hasattr(self._executor, "_threads"):
-                        alive_threads = [
-                            t for t in self._executor._threads if t.is_alive()
-                        ]
-                        if alive_threads:
-                            thread_names = [t.name for t in alive_threads]
-                            self.logger.warning(
-                                f"Abandoned {len(alive_threads)} threads after timeout: {thread_names}"
-                            )
-                except Exception as e:  # noqa: BLE001
-                    self.logger.debug(f"Force shutdown exception: {e}")
-
-        except Exception:
-            self.logger.exception("Error during ProcessPoolManager executor shutdown")
-
-        # Stage 2: Clean up any remaining resources
+        # Clear cache and force garbage collection to clean up circular references
         try:
             cache_size = len(self._cache)
             self._cache.clear()
@@ -518,27 +442,23 @@ class ProcessPoolManager(LoggingMixin, QObject):
         except Exception:  # noqa: BLE001
             self.logger.warning("Error during resource cleanup", exc_info=True)
 
-        # Stage 3: Force garbage collection to clean up circular references
         try:
             _ = gc.collect()
         except Exception as e:  # noqa: BLE001
             self.logger.debug(f"Error during garbage collection: {e}")
 
-        status = "successful" if shutdown_successful else "with timeout"
-        self.logger.info(f"ProcessPoolManager shutdown complete ({status})")
+        self.logger.info("ProcessPoolManager shutdown complete")
 
     def __del__(self) -> None:
         """Ensure cleanup on destruction.
-
-        CRITICAL BUG FIX #36: Ensure ThreadPoolExecutor is shut down even if
-        shutdown() not called explicitly. ThreadPoolExecutor has threads that
-        need explicit shutdown - Python's garbage collector won't clean them up.
 
         This provides defensive cleanup but explicit shutdown() is preferred.
         """
         try:
             if getattr(self, "_init_done", False) and not self._shutdown_requested:
-                self.logger.debug("ProcessPoolManager.__del__ called - triggering shutdown")
+                self.logger.debug(
+                    "ProcessPoolManager.__del__ called - triggering shutdown"
+                )
                 self.shutdown(timeout=2.0)
         except Exception:  # noqa: BLE001
             # Ignore errors in destructor - we're being destroyed anyway
@@ -576,6 +496,5 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # Reset singleton state
         with cls._lock:
             cls._instance = None
-            cls._initialized = False
 
         logger.debug("ProcessPoolManager reset for testing")

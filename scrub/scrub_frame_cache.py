@@ -79,9 +79,7 @@ class ScrubFrameCache:
                 f"QPixmap {operation} attempted from worker thread '{thread_name}'. "
                 "QPixmap operations must only happen on the main Qt thread."
             )
-            raise RuntimeError(
-                msg
-            )
+            raise RuntimeError(msg)
 
     def _evict_oldest_shot(self) -> None:
         """Evict the oldest (least recently used) shot from cache.
@@ -134,7 +132,10 @@ class ScrubFrameCache:
             frame_cache = self._image_cache[shot_key]
 
             # Check if we need to evict a frame (only if this is a new frame)
-            if frame not in frame_cache and len(frame_cache) >= self._max_frames_per_shot:
+            if (
+                frame not in frame_cache
+                and len(frame_cache) >= self._max_frames_per_shot
+            ):
                 self._evict_oldest_frame(shot_key)
 
             # Store the image (this moves it to end of OrderedDict = most recent)

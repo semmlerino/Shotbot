@@ -69,6 +69,10 @@ class ProcessExecutor(QObject):
     # Reduced from 30s to 2s for better cleanup during high-frequency launches
     REAP_INTERVAL_MS: Final[int] = 2000  # Reap every 2 seconds
 
+    # Clock skew tolerance for process creation time comparisons.
+    # Accounts for minor system clock drift between process enqueue and psutil reads.
+    _CLOCK_SKEW_TOLERANCE: ClassVar[float] = 2.0
+
     def __init__(
         self,
         config: "type[Config]",
@@ -458,8 +462,7 @@ class ProcessExecutor(QObject):
         search_names = app_process_names.get(app_name.lower(), [app_name.lower()])
 
         # Allow some clock skew tolerance
-        clock_skew_tolerance = 2.0
-        cutoff_time = enqueue_time - clock_skew_tolerance
+        cutoff_time = enqueue_time - self._CLOCK_SKEW_TOLERANCE
 
         start_time = time.monotonic()
         while time.monotonic() - start_time < timeout_sec:
@@ -472,7 +475,8 @@ class ProcessExecutor(QObject):
 
             try:
                 for proc in psutil.process_iter(["name", "create_time", "pid"]):
-                    # Check shutdown flag frequently to respond quickly
+                    # Check between each process entry so shutdown interrupts mid-scan,
+                    # not just at the top of each poll interval.
                     if self._shutdown_flag.is_set():
                         return
 

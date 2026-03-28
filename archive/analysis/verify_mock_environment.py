@@ -72,10 +72,11 @@ def test_shot_model() -> int:
     """Test that ShotModel properly loads all shots."""
     # Local application imports
     from cache_manager import CacheManager
+    from shot_model import ShotModel
+
     from mock_workspace_pool import (
         create_mock_pool_from_filesystem,
     )
-    from shot_model import ShotModel
 
     logger.info("\n" + "=" * 70)
     logger.info("TESTING SHOT MODEL")

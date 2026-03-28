@@ -127,5 +127,3 @@ class ThumbnailError(ShotBotError):
         super().__init__(
             message=message, details=error_details, error_code="THUMBNAIL_ERROR"
         )
-
-

@@ -232,7 +232,9 @@ def main() -> None:
         full_name = candidate.get("full_name") or candidate.get("name") or "<unknown>"
         kind = candidate.get("type", "<unknown>")
         confidence = candidate.get("confidence", "?")
-        basename = candidate.get("basename") or Path(str(candidate.get("file", ""))).name
+        basename = (
+            candidate.get("basename") or Path(str(candidate.get("file", ""))).name
+        )
         line = candidate.get("line", "?")
         pattern_info = ", ".join(labels) if labels else "no patterns"
 

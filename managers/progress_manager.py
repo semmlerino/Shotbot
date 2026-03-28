@@ -102,7 +102,6 @@ class ProgressManager:
         ProgressManager._status_bar = None
         logger.debug("ProgressManager initialized")
 
-
     @classmethod
     def initialize(cls, status_bar: QStatusBar) -> ProgressManager:
         """Attach the status bar for progress display.
@@ -203,7 +202,9 @@ class ProgressManager:
                 )
                 NotificationManager.success(f"{op.label} completed {elapsed_str}")
         else:
-            NotificationManager.error("Operation Failed", f"{op.label} failed", error_message)
+            NotificationManager.error(
+                "Operation Failed", f"{op.label} failed", error_message
+            )
 
         logger.debug(f"Finished progress operation: {op.label} (success: {success})")
 
@@ -246,9 +247,6 @@ class ProgressManager:
         _ = cls()  # ensure singleton is initialized
         with QMutexLocker(cls._stack_lock):
             return cls._operation_stack[-1] if cls._operation_stack else None
-
-
-
 
     @classmethod
     def reset(cls) -> None:

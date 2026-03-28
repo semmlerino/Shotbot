@@ -199,13 +199,6 @@ class ThreeDEController(LoggingMixin):
                 "(scanning for updates in background)"
             )
 
-        # Stop any still-running worker before starting a new one
-        if self._worker_manager.has_active_worker:
-            self.logger.debug(
-                "3DE worker still running, will stop before starting new one",
-            )
-            self._worker_manager.stop_worker()
-
         # Check once more if closing (could have changed while stopping worker)
         if self._closing:
             return

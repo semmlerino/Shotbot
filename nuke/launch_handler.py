@@ -37,7 +37,7 @@ class NukeLaunchHandler(LoggingMixin):
         ):
             self.logger.info(
                 f"Setting up runtime filter for {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
-                 f"plugin paths in NUKE_PATH"
+                f"plugin paths in NUKE_PATH"
             )
 
             # Build grep patterns for all problematic paths
@@ -52,8 +52,8 @@ class NukeLaunchHandler(LoggingMixin):
             # Create a bash command that filters NUKE_PATH at runtime
             filter_command = (
                 'FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\\n" | '
-                 f'grep -v {grep_pattern_str} | tr "\\n" ":" | sed "s/:$//") && '
-                 'export NUKE_PATH="$FILTERED_NUKE_PATH"'
+                f'grep -v {grep_pattern_str} | tr "\\n" ":" | sed "s/:$//") && '
+                'export NUKE_PATH="$FILTERED_NUKE_PATH"'
             )
 
             env_exports.append(filter_command)

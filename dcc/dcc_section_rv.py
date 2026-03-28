@@ -129,5 +129,3 @@ def create_dcc_section(
     if config.name == "rv":
         return RVSection(config, settings_manager=settings_manager, parent=parent)
     return FileDCCSection(config, settings_manager=settings_manager, parent=parent)
-
-

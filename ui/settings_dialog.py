@@ -475,7 +475,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             f"Settings File: {self.settings_manager.get_settings_file_path()}"
         )
         settings_path_label.setWordWrap(True)
-        settings_path_label.setStyleSheet(f"font-family: monospace; font-size: {design_system.typography.size_micro}px;")
+        settings_path_label.setStyleSheet(
+            f"font-family: monospace; font-size: {design_system.typography.size_micro}px;"
+        )
         system_layout.addWidget(settings_path_label)
 
         scroll_layout.addWidget(system_group)
@@ -532,7 +534,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
     def load_current_settings(self) -> None:
         """Load current settings into the dialog controls."""
         # General tab
-        self.thumbnail_size_slider.setValue(self.settings_manager.ui.get_thumbnail_size())
+        self.thumbnail_size_slider.setValue(
+            self.settings_manager.ui.get_thumbnail_size()
+        )
         self.update_thumbnail_preview()  # pyright: ignore[reportAny]
 
         # UI Scale - convert from float (0.8-1.5) to percent (80-150)
@@ -540,7 +544,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.ui_scale_slider.setValue(int(ui_scale * 100))
         self.update_ui_scale_preview()  # pyright: ignore[reportAny]
 
-        self.animations_check.setChecked(self.settings_manager.ui.get_enable_animations())
+        self.animations_check.setChecked(
+            self.settings_manager.ui.get_enable_animations()
+        )
 
         self.refresh_interval_spin.setValue(
             self.settings_manager.refresh.get_refresh_interval()
@@ -554,19 +560,25 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         action = self.settings_manager.launch.get_double_click_action()
         self.double_click_combo.setCurrentIndex(action_map.get(action, 0))
 
-        self.terminal_edit.setText(self.settings_manager.launch.get_preferred_terminal())
+        self.terminal_edit.setText(
+            self.settings_manager.launch.get_preferred_terminal()
+        )
 
         # Performance tab
         self.max_threads_spin.setValue(
             self.settings_manager.performance.get_max_thumbnail_threads()
         )
-        self.cache_memory_spin.setValue(self.settings_manager.performance.get_max_cache_memory_mb())
+        self.cache_memory_spin.setValue(
+            self.settings_manager.performance.get_max_cache_memory_mb()
+        )
         self.cache_expiry_spin.setValue(
             self.settings_manager.performance.get_cache_expiry_minutes()
         )
 
         # Applications tab
-        self.default_app_combo.setCurrentText(self.settings_manager.launch.get_default_app())
+        self.default_app_combo.setCurrentText(
+            self.settings_manager.launch.get_default_app()
+        )
         self.background_gui_apps_check.setChecked(
             self.settings_manager.launch.get_background_gui_apps()
         )
@@ -618,7 +630,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 self, "Validation Success", "Custom launchers JSON is valid."
             )
         except json.JSONDecodeError as e:
-            _ = QMessageBox.warning(self, "Validation Error", f"Invalid JSON format:\n{e}")
+            _ = QMessageBox.warning(
+                self, "Validation Error", f"Invalid JSON format:\n{e}"
+            )
 
     def handle_button_click(self, button: QAbstractButton) -> None:
         """Handle custom button clicks."""
@@ -667,15 +681,19 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
                     self, "Export Success", f"Settings exported to:\n{file_path}"
                 )
             else:
-                _ = QMessageBox.warning(self, "Export Error", "Failed to export settings.")
+                _ = QMessageBox.warning(
+                    self, "Export Error", "Failed to export settings."
+                )
 
     def reset_all_settings(self) -> None:
         """Reset all settings to defaults."""
         reply = QMessageBox.question(
             self,
             "Reset All Settings",
-            ("Are you sure you want to reset all settings to defaults?\n"
-            "This action cannot be undone."),
+            (
+                "Are you sure you want to reset all settings to defaults?\n"
+                "This action cannot be undone."
+            ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -754,9 +772,13 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Update design system with new scale
         design_system.set_ui_scale(ui_scale)
 
-        self.settings_manager.ui.set_enable_animations(self.animations_check.isChecked())
+        self.settings_manager.ui.set_enable_animations(
+            self.animations_check.isChecked()
+        )
 
-        self.settings_manager.refresh.set_refresh_interval(self.refresh_interval_spin.value())
+        self.settings_manager.refresh.set_refresh_interval(
+            self.refresh_interval_spin.value()
+        )
         self.settings_manager.refresh.set_background_refresh(
             self.background_refresh_check.isChecked()
         )
@@ -771,12 +793,20 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.settings_manager.launch.set_preferred_terminal(self.terminal_edit.text())
 
         # Performance settings
-        self.settings_manager.performance.set_max_thumbnail_threads(self.max_threads_spin.value())
-        self.settings_manager.performance.set_max_cache_memory_mb(self.cache_memory_spin.value())
-        self.settings_manager.performance.set_cache_expiry_minutes(self.cache_expiry_spin.value())
+        self.settings_manager.performance.set_max_thumbnail_threads(
+            self.max_threads_spin.value()
+        )
+        self.settings_manager.performance.set_max_cache_memory_mb(
+            self.cache_memory_spin.value()
+        )
+        self.settings_manager.performance.set_cache_expiry_minutes(
+            self.cache_expiry_spin.value()
+        )
 
         # Application settings
-        self.settings_manager.launch.set_default_app(self.default_app_combo.currentText())
+        self.settings_manager.launch.set_default_app(
+            self.default_app_combo.currentText()
+        )
         self.settings_manager.launch.set_background_gui_apps(
             self.background_gui_apps_check.isChecked()
         )
@@ -831,7 +861,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.settings_manager.sync()
 
         self.logger.info("Settings saved successfully")
-        NotificationManager.success("Settings saved", timeout=TimeoutConfig.NOTIFICATION_SETTINGS_MS)
+        NotificationManager.success(
+            "Settings saved", timeout=TimeoutConfig.NOTIFICATION_SETTINGS_MS
+        )
 
     # Override mixin event handlers with proper keyword parameter signatures
     @override

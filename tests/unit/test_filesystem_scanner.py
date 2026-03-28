@@ -661,8 +661,7 @@ class TestThreeDEWorkerStopAndCancel:
         worker = ThreeDESceneWorker(shots=[self._make_shot()], excluded_users=set())
 
         with patch(
-            "threede.scene_worker.SceneDiscoveryCoordinator"
-            ".find_all_scenes_in_shows_truly_efficient_parallel"
+            "threede.scene_worker.SceneDiscoveryCoordinator.find_all_scenes_in_shows"
         ) as mock_find:
             cancel_was_checked = False
 
@@ -717,8 +716,7 @@ class TestThreeDEWorkerStopAndCancel:
             return []
 
         with patch(
-            "threede.scene_worker.SceneDiscoveryCoordinator"
-            ".find_all_scenes_in_shows_truly_efficient_parallel",
+            "threede.scene_worker.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
             side_effect=mock_find,
         ):
             worker.run()  # Run inline, no separate thread

@@ -42,17 +42,7 @@ class ScrubState:
     current_frame: int = 0
     plate_source: PlateSource | None = None
     is_active: bool = False
-    _current_pixmap: QPixmap | None = field(default=None, repr=False)
-
-    @property
-    def current_pixmap(self) -> QPixmap | None:
-        """Get the current frame's pixmap."""
-        return self._current_pixmap
-
-    @current_pixmap.setter
-    def current_pixmap(self, value: QPixmap | None) -> None:
-        """Set the current frame's pixmap."""
-        self._current_pixmap = value
+    current_pixmap: QPixmap | None = field(default=None, repr=False)
 
     @property
     def frame_count(self) -> int:
@@ -159,13 +149,17 @@ class ScrubPreviewManager(QObject):
 
         # Extract shot info
         if not isinstance(shot_data, SceneDataProtocol):
-            logger.info(f"start_scrub: shot_data does not implement SceneDataProtocol for index {index.row()}")
+            logger.info(
+                f"start_scrub: shot_data does not implement SceneDataProtocol for index {index.row()}"
+            )
             return
-        shot_key = self._get_shot_key(shot_data)
-        workspace_path = self._get_workspace_path(shot_data)
-        frame_start, frame_end = self._get_frame_range(shot_data)
+        shot_key = f"{shot_data.show}/{shot_data.sequence}/{shot_data.shot}"
+        workspace_path = shot_data.workspace_path
+        frame_start, frame_end = shot_data.frame_start, shot_data.frame_end
 
-        logger.info(f"start_scrub: {shot_key}, frames {frame_start}-{frame_end}, workspace: {workspace_path}")
+        logger.info(
+            f"start_scrub: {shot_key}, frames {frame_start}-{frame_end}, workspace: {workspace_path}"
+        )
 
         if frame_start is None or frame_end is None:
             logger.info(f"start_scrub: No frame range for {shot_key}")
@@ -178,10 +172,14 @@ class ScrubPreviewManager(QObject):
         # Discover plate source
         plate_source = self._frame_provider.discover_plate_source(workspace_path)
         if plate_source is None:
-            logger.info(f"start_scrub: No plate source for {shot_key} at {workspace_path}")
+            logger.info(
+                f"start_scrub: No plate source for {shot_key} at {workspace_path}"
+            )
             return
 
-        logger.info(f"start_scrub: Found plate source {plate_source.source_type} at {plate_source.source_path}")
+        logger.info(
+            f"start_scrub: Found plate source {plate_source.source_type} at {plate_source.source_path}"
+        )
 
         # Create scrub state
         state = ScrubState(
@@ -245,12 +243,18 @@ class ScrubPreviewManager(QObject):
                 state.current_pixmap = QPixmap.fromImage(image)
                 self.scrub_frame_ready.emit(index, target_frame, state.current_pixmap)
                 self.request_repaint.emit(index)
-                logger.debug(f"update_scrub_position: frame {target_frame} CACHED, displaying")
+                logger.debug(
+                    f"update_scrub_position: frame {target_frame} CACHED, displaying"
+                )
             else:
-                logger.debug(f"update_scrub_position: frame {target_frame} has_cached=True but get_cached=None")
+                logger.debug(
+                    f"update_scrub_position: frame {target_frame} has_cached=True but get_cached=None"
+                )
         else:
             # Request extraction for the target frame
-            logger.debug(f"update_scrub_position: frame {old_frame}->{target_frame} NOT cached, requesting extraction")
+            logger.debug(
+                f"update_scrub_position: frame {old_frame}->{target_frame} NOT cached, requesting extraction"
+            )
             if state.plate_source is not None:
                 self._frame_provider.extract_frame(
                     state.shot_key, state.plate_source, target_frame
@@ -267,13 +271,19 @@ class ScrubPreviewManager(QObject):
             # This provides visual feedback during scrubbing even when frames aren't ready
             nearest_frame = self._find_nearest_cached_frame(state, target_frame)
             if nearest_frame is not None:
-                image = self._frame_provider.get_cached_frame(state.shot_key, nearest_frame)
+                image = self._frame_provider.get_cached_frame(
+                    state.shot_key, nearest_frame
+                )
                 if image is not None:
                     state.current_pixmap = QPixmap.fromImage(image)
                     # Emit with target_frame (for frame indicator) but show nearest cached frame
-                    self.scrub_frame_ready.emit(index, target_frame, state.current_pixmap)
+                    self.scrub_frame_ready.emit(
+                        index, target_frame, state.current_pixmap
+                    )
                     self.request_repaint.emit(index)
-                    logger.debug(f"update_scrub_position: showing nearest cached frame {nearest_frame} while waiting for {target_frame}")
+                    logger.debug(
+                        f"update_scrub_position: showing nearest cached frame {nearest_frame} while waiting for {target_frame}"
+                    )
 
     @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def end_scrub(self, index: QModelIndex) -> None:
@@ -378,7 +388,9 @@ class ScrubPreviewManager(QObject):
         # Clear frame provider caches
         self._frame_provider.clear_all_caches()
 
-    def _find_nearest_cached_frame(self, state: ScrubState, target_frame: int) -> int | None:
+    def _find_nearest_cached_frame(
+        self, state: ScrubState, target_frame: int
+    ) -> int | None:
         """Find the nearest cached frame to the target frame.
 
         Args:
@@ -393,16 +405,7 @@ class ScrubPreviewManager(QObject):
         if not cached_frames:
             return None
 
-        # Find the closest frame
-        min_distance = float("inf")
-        nearest = None
-        for frame in cached_frames:
-            distance = abs(frame - target_frame)
-            if distance < min_distance:
-                min_distance = distance
-                nearest = frame
-
-        return nearest
+        return min(cached_frames, key=lambda f: abs(f - target_frame))
 
     def _on_frame_ready(self, shot_key: str, frame: int, image: QImage) -> None:
         """Handle frame extraction completion.
@@ -420,7 +423,9 @@ class ScrubPreviewManager(QObject):
 
         state = self._scrub_states.get(row)
         if state is None or not state.is_active:
-            logger.debug(f"_on_frame_ready: {shot_key}:{frame} - state inactive or None")
+            logger.debug(
+                f"_on_frame_ready: {shot_key}:{frame} - state inactive or None"
+            )
             return
 
         # Only update if this is the current frame
@@ -432,10 +437,14 @@ class ScrubPreviewManager(QObject):
             if self._active_index is not None:
                 self.scrub_frame_ready.emit(self._active_index, frame, pixmap)
                 self.request_repaint.emit(self._active_index)
-                logger.debug(f"_on_frame_ready: {shot_key}:{frame} - DISPLAYED (matches current)")
+                logger.debug(
+                    f"_on_frame_ready: {shot_key}:{frame} - DISPLAYED (matches current)"
+                )
         else:
             # Frame was extracted but user has moved on - it's now cached for later
-            logger.debug(f"_on_frame_ready: {shot_key}:{frame} - CACHED ONLY (current is {state.current_frame})")
+            logger.debug(
+                f"_on_frame_ready: {shot_key}:{frame} - CACHED ONLY (current is {state.current_frame})"
+            )
 
     def _on_frame_failed(self, shot_key: str, frame: int, error: str) -> None:
         """Handle frame extraction failure.
@@ -447,39 +456,3 @@ class ScrubPreviewManager(QObject):
 
         """
         logger.debug(f"Frame extraction failed for {shot_key}:{frame} - {error}")
-
-    def _get_shot_key(self, shot_data: SceneDataProtocol) -> str:
-        """Extract shot key from shot data.
-
-        Args:
-            shot_data: Shot object or ThreeDEScene
-
-        Returns:
-            Unique shot key string
-
-        """
-        return f"{shot_data.show}/{shot_data.sequence}/{shot_data.shot}"
-
-    def _get_workspace_path(self, shot_data: SceneDataProtocol) -> str:
-        """Extract workspace path from shot data.
-
-        Args:
-            shot_data: Shot object or ThreeDEScene
-
-        Returns:
-            Workspace path string
-
-        """
-        return shot_data.workspace_path
-
-    def _get_frame_range(self, shot_data: SceneDataProtocol) -> tuple[int | None, int | None]:
-        """Extract frame range from shot data.
-
-        Args:
-            shot_data: Shot object or ThreeDEScene
-
-        Returns:
-            Tuple of (frame_start, frame_end)
-
-        """
-        return shot_data.frame_start, shot_data.frame_end

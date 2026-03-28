@@ -256,11 +256,7 @@ class ApplicationBundler:
 
         for root, dirs, files in os.walk(source_dir):
             # Filter out excluded directories
-            dirs[:] = [
-                d
-                for d in dirs
-                if d not in self.config["exclude_dirs"]
-            ]
+            dirs[:] = [d for d in dirs if d not in self.config["exclude_dirs"]]
 
             for file in files:
                 file_path = str(Path(root) / file)
@@ -313,7 +309,9 @@ class ApplicationBundler:
             # Use a deterministic temp directory name derived from the repository name.
             # This keeps the workflow portable while still avoiding bundle buildup.
             project_slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", Path.cwd().name or "bundle")
-            bundle_dir_path = Path(tempfile.gettempdir()) / f"{project_slug}_bundle_temp"
+            bundle_dir_path = (
+                Path(tempfile.gettempdir()) / f"{project_slug}_bundle_temp"
+            )
             # Clean up any existing directory first
             if bundle_dir_path.exists():
                 shutil.rmtree(bundle_dir_path)

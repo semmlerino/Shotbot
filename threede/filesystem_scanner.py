@@ -1,4 +1,4 @@
-"""FileSystemScanner module - Extracted from threede_scene_finder_optimized.py
+"""FileSystemScanner module.
 
 This module handles efficient filesystem scanning operations for finding .3de files
 with various optimization strategies including caching, subprocess fallback, and
@@ -278,107 +278,6 @@ class FileSystemScanner(LoggingMixin):
             )
             return False
 
-    def discover_all_shots_in_show(
-        self, show_root: str, show: str
-    ) -> list[tuple[str, str, str, str]]:
-        """Discover all shots in a show by scanning the filesystem.
-
-        Args:
-            show_root: Root path for shows (e.g., '/shows')
-            show: Show name
-
-        Returns:
-            List of tuples (workspace_path, show, sequence, shot)
-
-        """
-        shots: list[tuple[str, str, str, str]] = []
-        show_path = Path(show_root) / show
-
-        if not show_path.exists():
-            self.logger.warning(f"Show path does not exist: {show_path}")
-            return shots
-
-        # Look for shots directory
-        shots_dir = show_path / "shots"
-        if not shots_dir.exists():
-            self.logger.warning(f"No shots directory found for show {show}")
-            return shots
-
-        try:
-            # Iterate through sequence directories
-            for sequence_dir in shots_dir.iterdir():
-                if not sequence_dir.is_dir():
-                    continue
-
-                sequence = sequence_dir.name
-
-                # Iterate through shot directories
-                for shot_dir in sequence_dir.iterdir():
-                    if not shot_dir.is_dir():
-                        continue
-
-                    shot_name = shot_dir.name
-                    workspace_path = str(shot_dir)
-
-                    # Basic validation - check if it looks like a shot directory
-                    # Could have user/, publish/, or other standard directories
-                    shots.append((workspace_path, show, sequence, shot_name))
-
-            self.logger.info(f"Discovered {len(shots)} shots in show {show}")
-
-        except (OSError, PermissionError):
-            self.logger.exception(f"Error discovering shots in {show}")
-
-        return shots
-
-    def estimate_scan_size(
-        self,
-        shot_tuples: list[tuple[str, str, str, str]],
-        excluded_users: set[str] | None = None,
-    ) -> tuple[int, int]:
-        """Estimate the size of a scan operation.
-
-        Args:
-            shot_tuples: List of (workspace_path, show, sequence, shot) tuples
-            excluded_users: Set of usernames to exclude
-
-        Returns:
-            Tuple of (estimated_users, estimated_files)
-
-        """
-        if not shot_tuples:
-            return 0, 0
-
-        total_estimated_users = 0
-        total_estimated_files = 0
-
-        for workspace_path, _, _, _ in shot_tuples:
-            try:
-                shot_path = Path(workspace_path)
-                user_dir = shot_path / "user"
-
-                if not user_dir.exists():
-                    continue
-
-                # Count user directories
-                user_count = 0
-                with os.scandir(user_dir) as entries:
-                    for entry in entries:
-                        if entry.is_dir() and (
-                            excluded_users is None or entry.name not in excluded_users
-                        ):
-                            user_count += 1
-
-                total_estimated_users += user_count
-                # Estimate 2-3 files per user on average
-                total_estimated_files += user_count * 3
-
-            except (OSError, PermissionError):
-                # Use fallback estimate for inaccessible directories
-                total_estimated_files += 10
-
-        return total_estimated_users, total_estimated_files
-
     def _run_subprocess_with_streaming_read(
         self,
         cmd: list[str],
@@ -642,6 +541,8 @@ class FileSystemScanner(LoggingMixin):
             Set of (sequence, shot) tuples found, or None if cancelled.
 
         """
+        from threede.scene_parser import SceneParser
+
         shots_with_published_mm: set[tuple[str, str]] = set()
         try:
             returncode, stdout, _stderr, status = (
@@ -654,8 +555,6 @@ class FileSystemScanner(LoggingMixin):
                 return None
 
             if returncode == 0 and stdout:
-                from threede.scene_parser import SceneParser
-
                 for line in stdout.strip().split("\n"):
                     if not line:
                         continue

@@ -279,7 +279,6 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
             # Draw hidden overlay (dim the entire cell)
             if is_hidden:
-                from PySide6.QtGui import QColor
                 painter.setOpacity(0.4)
                 painter.fillRect(rect, QColor(0, 0, 0, 180))
                 painter.setOpacity(1.0)
@@ -384,6 +383,38 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             # Clear clipping to allow text drawing below
             painter.setClipping(False)
 
+    def _draw_corner_icon(
+        self,
+        painter: QPainter,
+        rect: QRect,
+        emoji: str,
+        corner: str,
+    ) -> None:
+        """Draw an emoji in a corner of the thumbnail rect.
+
+        Args:
+            painter: QPainter instance
+            rect: Rectangle to draw in (thumbnail area)
+            emoji: Emoji character to draw
+            corner: One of "top-right" or "top-left"
+
+        """
+        margin = 4
+        icon_size = 16
+
+        if corner == "top-right":
+            x = rect.right() - icon_size - margin
+        else:  # top-left
+            x = rect.left() + margin
+        y = rect.top() + margin
+
+        painter.save()
+        font = painter.font()
+        font.setPointSize(12)
+        painter.setFont(font)
+        _ = painter.drawText(x, y + icon_size, emoji)
+        painter.restore()
+
     def _draw_pin_icon(
         self,
         painter: QPainter,
@@ -400,20 +431,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         """
         if not is_pinned:
             return
-
-        # Position in top-right with small margin
-        margin = 4
-        icon_size = 16
-        x = rect.right() - icon_size - margin
-        y = rect.top() + margin
-
-        # Draw pin emoji
-        painter.save()
-        font = painter.font()
-        font.setPointSize(12)
-        painter.setFont(font)
-        _ = painter.drawText(x, y + icon_size, "📌")
-        painter.restore()
+        self._draw_corner_icon(painter, rect, "📌", "top-right")
 
     def _draw_note_icon(
         self,
@@ -431,20 +449,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         """
         if not has_note:
             return
-
-        # Position in top-left with small margin (opposite of pin icon)
-        margin = 4
-        icon_size = 16
-        x = rect.left() + margin
-        y = rect.top() + margin
-
-        # Draw note emoji
-        painter.save()
-        font = painter.font()
-        font.setPointSize(12)
-        painter.setFont(font)
-        _ = painter.drawText(x, y + icon_size, "📝")
-        painter.restore()
+        self._draw_corner_icon(painter, rect, "📝", "top-left")
 
     def _draw_placeholder(self, painter: QPainter, rect: QRect) -> None:
         """Draw a placeholder when no thumbnail is available."""
@@ -626,9 +631,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         # Only repaint items that are actually loading
         for row in self._get_loading_rows():
             index = model.index(row, 0)
-            model.dataChanged.emit(
-                index, index, [Qt.ItemDataRole.DecorationRole]
-            )
+            model.dataChanged.emit(index, index, [Qt.ItemDataRole.DecorationRole])
 
     def _get_loading_rows(self) -> list[int]:
         """Get rows currently in loading state.
@@ -639,15 +642,9 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         """
         loading_rows: list[int] = []
 
-        # Get model from parent view
         parent = self.parent()
-        if not parent:
+        if not parent or not isinstance(parent, QAbstractItemView):
             return loading_rows
-
-        # Check if parent is a view with a model() method
-        if not isinstance(parent, QAbstractItemView):
-            return loading_rows
-
         model = parent.model()
         if not model:
             return loading_rows
@@ -715,6 +712,22 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
     # --- Scrub Preview Support ---
 
+    def _to_model_index(
+        self, index: QModelIndex | QPersistentModelIndex
+    ) -> QModelIndex:
+        """Convert a QPersistentModelIndex to a QModelIndex, or return as-is.
+
+        Args:
+            index: Model index (either type)
+
+        Returns:
+            QModelIndex suitable for passing to ScrubPreviewManager
+
+        """
+        if isinstance(index, QPersistentModelIndex):
+            return QModelIndex(index)  # pyright: ignore[reportArgumentType]
+        return index
+
     def set_scrub_manager(self, manager: ScrubPreviewManager | None) -> None:
         """Set the scrub preview manager.
 
@@ -737,13 +750,11 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         if self._scrub_manager is None:
             return False
 
-        # Convert to QModelIndex if needed (QPersistentModelIndex constructor accepts this)
-        if isinstance(index, QPersistentModelIndex):
-            index = QModelIndex(index)  # type: ignore[reportArgumentType]
+        return self._scrub_manager.is_scrubbing(self._to_model_index(index))
 
-        return self._scrub_manager.is_scrubbing(index)
-
-    def _get_scrub_pixmap(self, index: QModelIndex | QPersistentModelIndex) -> QPixmap | None:
+    def _get_scrub_pixmap(
+        self, index: QModelIndex | QPersistentModelIndex
+    ) -> QPixmap | None:
         """Get the current scrub frame pixmap for an index.
 
         Args:
@@ -756,12 +767,11 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         if self._scrub_manager is None:
             return None
 
-        if isinstance(index, QPersistentModelIndex):
-            index = QModelIndex(index)  # type: ignore[reportArgumentType]
+        return self._scrub_manager.get_current_pixmap(self._to_model_index(index))
 
-        return self._scrub_manager.get_current_pixmap(index)
-
-    def _get_scrub_frame_number(self, index: QModelIndex | QPersistentModelIndex) -> int | None:
+    def _get_scrub_frame_number(
+        self, index: QModelIndex | QPersistentModelIndex
+    ) -> int | None:
         """Get the current scrub frame number for an index.
 
         Args:
@@ -774,10 +784,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         if self._scrub_manager is None:
             return None
 
-        if isinstance(index, QPersistentModelIndex):
-            index = QModelIndex(index)  # type: ignore[reportArgumentType]
-
-        return self._scrub_manager.get_current_frame(index)
+        return self._scrub_manager.get_current_frame(self._to_model_index(index))
 
     def _draw_frame_indicator(
         self, painter: QPainter, rect: QRect, frame_num: int
@@ -832,9 +839,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         painter.restore()
 
-    def _draw_scrub_loading_indicator(
-        self, painter: QPainter, rect: QRect
-    ) -> None:
+    def _draw_scrub_loading_indicator(self, painter: QPainter, rect: QRect) -> None:
         """Draw a small loading indicator for scrub frame loading.
 
         Args:
@@ -854,7 +859,12 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         bg_color = QColor(0, 0, 0, 128)
         painter.setBrush(QBrush(bg_color))
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(center_x - radius - 4, center_y - radius - 4, (radius + 4) * 2, (radius + 4) * 2)
+        painter.drawEllipse(
+            center_x - radius - 4,
+            center_y - radius - 4,
+            (radius + 4) * 2,
+            (radius + 4) * 2,
+        )
 
         # Draw spinning arc
         pen = QPen(QColor("#14ffec"), 2)

@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from managers.notes_manager import NotesManager
 
 
-
 class GridContextMenuMixin:
     """Mixin that provides shared context menu helpers for BaseGridView subclasses.
 

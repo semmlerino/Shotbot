@@ -13,7 +13,6 @@ Or import and call:
 """
 
 
-
 def update_context_from_current_file():
     """Update SGTK context based on the currently open Maya scene."""
     try:
@@ -70,6 +69,7 @@ def update_context_from_current_file():
     except Exception as e:  # noqa: BLE001
         print(f"Error getting context from path: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

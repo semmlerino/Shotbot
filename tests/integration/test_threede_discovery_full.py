@@ -176,7 +176,7 @@ class TestThreeDEDiscoveryIntegration:
         # Mock the shows_root to use our temp structure
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             # Run the actual discovery
-            scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
+            scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
                 user_shots,
                 excluded_users,
                 progress_callback=None,
@@ -305,7 +305,7 @@ class TestThreeDEDiscoveryIntegration:
         )
 
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
-            scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel(
+            scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
                 user_shots,
                 {"gabriel-h"},
                 progress_callback=None,

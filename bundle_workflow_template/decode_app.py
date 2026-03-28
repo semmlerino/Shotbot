@@ -33,7 +33,9 @@ def _cleanup_partial_extraction(output_dir: str, root_name: str | None) -> None:
                 print(f"Warning: Could not clean up partial extraction: {e}")
 
 
-def decode_bundle(encoded_file: str, output_dir: str | None = None, list_only: bool = False) -> bool:
+def decode_bundle(
+    encoded_file: str, output_dir: str | None = None, list_only: bool = False
+) -> bool:
     """Decode a base64-encoded tar.gz bundle and extract it.
 
     Args:
@@ -64,7 +66,7 @@ def decode_bundle(encoded_file: str, output_dir: str | None = None, list_only: b
                 return False
 
             header_line = content[:header_end]
-            encoded_data = content[header_end + 1:]  # Everything after first newline
+            encoded_data = content[header_end + 1 :]  # Everything after first newline
 
             # Parse header: FOLDER_TRANSFER_V1|chunk_num|total_chunks|folder_name
             header_parts = header_line.split("|")
@@ -152,6 +154,7 @@ def decode_bundle(encoded_file: str, output_dir: str | None = None, list_only: b
     except Exception as e:  # noqa: BLE001
         print(f"ERROR: Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -170,24 +173,24 @@ Examples:
 
   # List contents without extracting
   python decode_app.py encoded_app_20251106.txt --list-only
-        """
+        """,
     )
 
     _ = parser.add_argument(
-        "encoded_file",
-        help="Path to the base64-encoded bundle file"
+        "encoded_file", help="Path to the base64-encoded bundle file"
     )
 
     _ = parser.add_argument(
-        "-o", "--output-dir",
+        "-o",
+        "--output-dir",
         help="Output directory (default: current directory)",
-        default=None
+        default=None,
     )
 
     _ = parser.add_argument(
         "--list-only",
         action="store_true",
-        help="Only list archive contents without extracting"
+        help="Only list archive contents without extracting",
     )
 
     args = parser.parse_args()
@@ -196,7 +199,7 @@ Examples:
     success = decode_bundle(
         cast("str", args.encoded_file),
         cast("str | None", args.output_dir),
-        cast("bool", args.list_only)
+        cast("bool", args.list_only),
     )
 
     sys.exit(0 if success else 1)

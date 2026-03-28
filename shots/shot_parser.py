@@ -88,6 +88,7 @@ class OptimizedShotParser:
         from paths.shot_dir_parser import parse_shot_from_dir
 
         shot = parse_shot_from_dir(sequence, shot_dir)
-        workspace_path = str(build_workspace_path(Config.SHOWS_ROOT, show, sequence, shot))
+        workspace_path = str(
+            build_workspace_path(Config.SHOWS_ROOT, show, sequence, shot)
+        )
         return ParseResult(show, sequence, shot, workspace_path)
-

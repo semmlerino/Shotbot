@@ -36,8 +36,12 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
         super().__init__()
 
         # Cache: path -> (listing as (name, is_dir, is_file) tuples, timestamp)
-        self._directory_cache: dict[Path, tuple[list[tuple[str, bool, bool]], float]] = {}
-        self._ttl_seconds: int = TimeoutConfig.FILESYSTEM_CACHE_TTL  # 5 minutes TTL for cached listings
+        self._directory_cache: dict[
+            Path, tuple[list[tuple[str, bool, bool]], float]
+        ] = {}
+        self._ttl_seconds: int = (
+            TimeoutConfig.FILESYSTEM_CACHE_TTL
+        )  # 5 minutes TTL for cached listings
         self._cache_hits: int = 0
         self._cache_misses: int = 0
 
@@ -70,7 +74,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
                     self._cache_hits += 1
                     self.logger.debug(
                         f"Cache hit for {path.name} "
-                         f"(hit rate: {self._get_hit_rate():.1%})"
+                        f"(hit rate: {self._get_hit_rate():.1%})"
                     )
                     return listing.copy()  # Return copy to prevent mutation
 
@@ -89,7 +93,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
                 self.logger.debug(
                     f"Cached {len(listing)} items from {path.name} "
-                     f"(hit rate: {self._get_hit_rate():.1%})"
+                    f"(hit rate: {self._get_hit_rate():.1%})"
                 )
                 return listing
 
@@ -125,7 +129,9 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
             elif recursive and is_dir:
                 # Recursive search
                 results.extend(
-                    self.find_files_with_extension(path / name, extension, recursive=True)
+                    self.find_files_with_extension(
+                        path / name, extension, recursive=True
+                    )
                 )
 
         return results

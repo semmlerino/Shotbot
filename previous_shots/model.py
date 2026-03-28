@@ -82,7 +82,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         if hasattr(self._cache_manager, "shots_migrated"):
             _ = self._cache_manager.shots_migrated.connect(
                 self._on_cache_shots_migrated,  # pyright: ignore[reportAny]
-                Qt.ConnectionType.QueuedConnection
+                Qt.ConnectionType.QueuedConnection,
             )
 
     def _reset_scanning_flag(self) -> None:
@@ -221,7 +221,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
         if not migrated_shots:
             return
 
-        self.logger.info(f"{len(migrated_shots)} shots migrated to Previous Shots cache")
+        self.logger.info(
+            f"{len(migrated_shots)} shots migrated to Previous Shots cache"
+        )
 
         # Build a set of existing (show, sequence, shot) keys for deduplication
         existing_ids = {(s.show, s.sequence, s.shot) for s in self._previous_shots}
@@ -301,7 +303,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 self.shots_updated.emit()
                 self.logger.info(
                     f"Added {len(new_shots)} new shots to cache "
-                     f"(total: {len(self._previous_shots)} shots)"
+                    f"(total: {len(self._previous_shots)} shots)"
                 )
             else:
                 self.logger.debug("No new shots found - cache unchanged")
@@ -432,7 +434,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         self.logger.debug(
             f"Filtered {len(self._previous_shots)} shots to {len(filtered)} "
-             f"(show='{self._filter_show}', text='{self._filter_text}')"
+            f"(show='{self._filter_show}', text='{self._filter_text}')"
         )
         return filtered
 
@@ -459,7 +461,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 "list[ShotDict]",
                 self._cache_manager.get_persistent_previous_shots() or [],  # type: ignore[attr-defined]
             )
-            migrated_data: list[ShotDict] = self._cache_manager.get_shots_archive() or []
+            migrated_data: list[ShotDict] = (
+                self._cache_manager.get_shots_archive() or []
+            )
 
             # Merge with deduplication using composite key
             shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
@@ -470,14 +474,16 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
             for shot_dict in migrated_data:
                 key = (shot_dict["show"], shot_dict["sequence"], shot_dict["shot"])
-                shots_by_key[key] = shot_dict  # Overwrites if duplicate (prefer migrated)
+                shots_by_key[key] = (
+                    shot_dict  # Overwrites if duplicate (prefer migrated)
+                )
 
             # Convert to Shot objects using from_dict() to preserve discovered_at
             shots = [Shot.from_dict(s) for s in shots_by_key.values()]
 
             self.logger.info(
                 f"Loaded {len(scanned_data)} scanned + {len(migrated_data)} migrated "
-                 f"= {len(shots)} total (after dedup)"
+                f"= {len(shots)} total (after dedup)"
             )
 
             return shots
@@ -517,7 +523,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 try:
-                    _ = self._cache_manager.shots_migrated.disconnect(self._on_cache_shots_migrated)  # pyright: ignore[reportAny]
+                    _ = self._cache_manager.shots_migrated.disconnect(
+                        self._on_cache_shots_migrated
+                    )  # pyright: ignore[reportAny]
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
         self._cleanup_worker_safely()  # Use centralized cleanup

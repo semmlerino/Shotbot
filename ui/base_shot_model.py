@@ -67,6 +67,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         if cache_manager is None:
             from cache.shot_cache import make_default_shot_cache
+
             cache_manager = make_default_shot_cache()
 
         self.shots: list[Shot] = []
@@ -80,7 +81,9 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         self._show_hidden: bool = False
 
         # Initialize process pool - use provided instance or default singleton
-        self._process_pool: ProcessPoolInterface = process_pool or ProcessPoolManager.get_instance()
+        self._process_pool: ProcessPoolInterface = (
+            process_pool or ProcessPoolManager.get_instance()
+        )
 
         # Performance metrics
         self._last_refresh_time: float = 0.0
@@ -176,7 +179,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         # Log the first few lines of output for debugging
         self.logger.info(f"Parsing ws output with {len(lines)} lines")
-        if lines and len(lines) > 0:
+        if lines:
             self.logger.info(f"First line of ws output: {lines[0][:200]}")
             # Log first 3 lines for debugging
             for i, line in enumerate(lines[:3]):
@@ -220,10 +223,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                     )
 
                     # Check cache first (permanent cache - frame ranges don't change)
-                    if (
-                        cached_frame_ranges
-                        and workspace_path in cached_frame_ranges
-                    ):
+                    if cached_frame_ranges and workspace_path in cached_frame_ranges:
                         frame_start, frame_end = cached_frame_ranges[workspace_path]
                     else:
                         # Extract frame range from turnover plate (only for new shots)

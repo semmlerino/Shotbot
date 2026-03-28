@@ -79,11 +79,8 @@ def _find_jpeg_in_resolution_dirs(
             if not resolution_dir.is_dir():
                 continue
 
-            jpeg_dir = (
-                resolution_dir / "jpeg"
-                if (resolution_dir / "jpeg").exists()
-                else resolution_dir
-            )
+            jpeg_subdir = resolution_dir / "jpeg"
+            jpeg_dir = jpeg_subdir if jpeg_subdir.exists() else resolution_dir
 
             jpeg_file = FileUtils.get_first_image_file(jpeg_dir)
             if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
@@ -94,7 +91,9 @@ def _find_jpeg_in_resolution_dirs(
                 )
                 return jpeg_file
     except (OSError, PermissionError) as e:
-        logger.debug(f"Error scanning resolution directories in {potential_jpeg_path}: {e}")
+        logger.debug(
+            f"Error scanning resolution directories in {potential_jpeg_path}: {e}"
+        )
 
     return None
 
@@ -401,15 +400,15 @@ def _find_jpeg_in_nuke_output(
             if plate_dir is None:
                 continue
 
-            undistorted_path = plate_dir / "undistorted_plate"
-            if not undistorted_path.exists():
+            plate_path = plate_dir / "undistorted_plate"
+            if not plate_path.exists():
                 continue
 
-            latest_version = VersionUtils.get_latest_version(undistorted_path)
+            latest_version = VersionUtils.get_latest_version(plate_path)
             if not latest_version:
                 continue
 
-            version_path = undistorted_path / latest_version
+            version_path = plate_path / latest_version
             jpeg_subdir = version_path / "jpeg"
             potential_jpeg_path = jpeg_subdir if jpeg_subdir.exists() else version_path
             if not potential_jpeg_path.exists():
@@ -454,24 +453,22 @@ def find_user_workspace_jpeg_thumbnail(
     if not PathValidators.validate_path_exists(user_dir, "User directory"):
         return None
 
+    user_path = user_dir / _CURRENT_USERNAME
+    if not user_path.is_dir():
+        logger.debug(
+            f"No workspace directory for user {_CURRENT_USERNAME} in {user_dir}"
+        )
+        return None
+
     try:
-        for user_path in user_dir.iterdir():
-            if not user_path.is_dir():
-                continue
-
-            if user_path.name != _CURRENT_USERNAME:
-                continue
-
-            mm_default_base = user_path / "mm" / "nuke" / "outputs" / "mm-default"
-            if not mm_default_base.exists():
-                continue
-
+        mm_default_base = user_path / "mm" / "nuke" / "outputs" / "mm-default"
+        if mm_default_base.exists():
             result = _find_jpeg_in_nuke_output(mm_default_base, user_path)
             if result is not None:
                 return result
 
     except (OSError, PermissionError) as e:
-        logger.debug(f"Error scanning user workspaces in {user_dir}: {e}")
+        logger.debug(f"Error scanning user workspace {user_path}: {e}")
 
     logger.debug(f"No user workspace JPEGs found for {show}/{sequence}/{shot}")
     return None

@@ -257,9 +257,7 @@ class ThreeDEGridView(BaseGridView):
             shows_list = shows.get_unique_shows()
 
         self._populate_filter_combo(self.show_combo, shows_list, "All Shows")
-        show_count = len(shows_list)
-        show_word = "show" if show_count == 1 else "shows"
-        self.logger.info(f"Populated show filter with {show_count} {show_word}")
+        self._log_filter_populated("show", len(shows_list))
 
     def populate_artist_filter(self, artists: list[str] | object) -> None:
         """Populate the artist filter combo box with available artists.
@@ -277,9 +275,7 @@ class ThreeDEGridView(BaseGridView):
             artist_list = artists.get_unique_artists()
 
         self._populate_filter_combo(self.artist_combo, artist_list, "All Artists")
-        artist_count = len(artist_list)
-        artist_word = "artist" if artist_count == 1 else "artists"
-        self.logger.info(f"Populated artist filter with {artist_count} {artist_word}")
+        self._log_filter_populated("artist", len(artist_list))
 
     def _populate_filter_combo(
         self,
@@ -370,6 +366,32 @@ class ThreeDEGridView(BaseGridView):
             count = self._threede_model.rowCount()
             self.count_label.setText(f"{count} scene{'s' if count != 1 else ''}")
 
+    def _resolve_source_index(self, index: QModelIndex) -> QModelIndex:
+        """Map a view index through the proxy model to the source model index.
+
+        Args:
+            index: Index from the view (may be a proxy index)
+
+        Returns:
+            Source model index, unchanged if no proxy is active
+
+        """
+        proxy = self.list_view.model()
+        if isinstance(proxy, QSortFilterProxyModel):
+            return proxy.mapToSource(index)
+        return index
+
+    def _log_filter_populated(self, noun: str, count: int) -> None:
+        """Log a 'populated filter' message with correct singular/plural noun.
+
+        Args:
+            noun: Singular form of the item noun (e.g. "show", "artist")
+            count: Number of items populated
+
+        """
+        word = noun if count == 1 else f"{noun}s"
+        self.logger.info(f"Populated {noun} filter with {count} {word}")
+
     @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def _on_item_clicked(self, index: QModelIndex) -> None:
         """Handle item click.
@@ -381,11 +403,7 @@ class ThreeDEGridView(BaseGridView):
         if not self._threede_model:
             return
 
-        # Map proxy index to source if needed
-        source_index = index
-        proxy = self.list_view.model()
-        if isinstance(proxy, QSortFilterProxyModel):
-            source_index = proxy.mapToSource(index)
+        source_index = self._resolve_source_index(index)
         scene = self._threede_model.get_scene(source_index)
         if scene:
             self._selected_scene = scene
@@ -402,10 +420,7 @@ class ThreeDEGridView(BaseGridView):
         if not self._threede_model:
             return
 
-        source_index = index
-        proxy = self.list_view.model()
-        if isinstance(proxy, QSortFilterProxyModel):
-            source_index = proxy.mapToSource(index)
+        source_index = self._resolve_source_index(index)
         scene = self._threede_model.get_scene(source_index)
         if scene:
             self.scene_double_clicked.emit(scene)
@@ -438,10 +453,7 @@ class ThreeDEGridView(BaseGridView):
         if not index.isValid() or not self._threede_model:
             return
 
-        source_index = index
-        proxy = self.list_view.model()
-        if isinstance(proxy, QSortFilterProxyModel):
-            source_index = proxy.mapToSource(index)
+        source_index = self._resolve_source_index(index)
         scene = self._threede_model.get_scene(source_index)
         if not scene:
             return
@@ -591,10 +603,7 @@ class ThreeDEGridView(BaseGridView):
         """Handle Return/Enter key to launch selected scene."""
         current = self.list_view.currentIndex()
         if current.isValid() and self._threede_model:
-            source_index = current
-            proxy = self.list_view.model()
-            if isinstance(proxy, QSortFilterProxyModel):
-                source_index = proxy.mapToSource(current)
+            source_index = self._resolve_source_index(current)
             scene = self._threede_model.get_scene(source_index)
             if scene:
                 self.scene_double_clicked.emit(scene)

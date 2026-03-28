@@ -136,7 +136,9 @@ class FrameExtractionRunnable(TrackedQRunnable):
             if self.plate_source.source_type == "mov":
                 # Extract from MOV using time-based seeking
                 time_seconds = self.plate_source.frame_to_time(self.frame)
-                logger.debug(f"Extracting frame {self.frame} from MOV at {time_seconds:.2f}s: {self.plate_source.source_path}")
+                logger.debug(
+                    f"Extracting frame {self.frame} from MOV at {time_seconds:.2f}s: {self.plate_source.source_path}"
+                )
                 # basedpyright can't resolve new ImageUtils methods (Python 3.13 compat)
                 extracted_path = utils_module.ImageUtils.extract_frame_at_time(  # type: ignore[reportUnknownMemberType]
                     self.plate_source.source_path,
@@ -154,13 +156,17 @@ class FrameExtractionRunnable(TrackedQRunnable):
                         width=self.thumbnail_width,
                     )
                 else:
-                    logger.debug(f"EXR path not found for frame {self.frame}: {exr_path}")
+                    logger.debug(
+                        f"EXR path not found for frame {self.frame}: {exr_path}"
+                    )
 
             if extracted_path is not None and extracted_path.exists():  # type: ignore[reportUnknownMemberType]
                 # Load as QImage (thread-safe)
                 image = QImage(str(extracted_path))  # type: ignore[reportUnknownArgumentType]
                 if not image.isNull():
-                    logger.debug(f"Frame {self.frame} extracted successfully: {extracted_path}")
+                    logger.debug(
+                        f"Frame {self.frame} extracted successfully: {extracted_path}"
+                    )
                     self.signals.finished.emit(self.shot_key, self.frame, image)
                     # Clean up temp file
                     try:
@@ -170,7 +176,9 @@ class FrameExtractionRunnable(TrackedQRunnable):
                     return
                 logger.debug(f"Frame {self.frame} image is null from: {extracted_path}")
 
-            logger.debug(f"Frame {self.frame} extraction failed - no path or path doesn't exist")
+            logger.debug(
+                f"Frame {self.frame} extraction failed - no path or path doesn't exist"
+            )
             self.signals.failed.emit(
                 self.shot_key, self.frame, "Failed to extract frame"
             )
@@ -254,6 +262,13 @@ class PlateFrameProvider(QObject):
             exr_info = FileDiscovery.find_plate_exr_sequence(workspace_path)
             frame_start = exr_info[1] or 1001
             frame_end = exr_info[2] or 1100
+
+            # Warn if using fallback frame range
+            if exr_info[1] is None or exr_info[2] is None:
+                logger.warning(
+                    "Using fallback frame range 1001-1100 for %s (MOV proxy)",
+                    workspace_path,
+                )
 
             source = PlateSource(
                 source_path=mov_path,
@@ -419,9 +434,7 @@ class PlateFrameProvider(QObject):
         """
         return self._cache.get_cached_frames(shot_key)
 
-    def _on_extraction_finished(
-        self, shot_key: str, frame: int, image: QImage
-    ) -> None:
+    def _on_extraction_finished(self, shot_key: str, frame: int, image: QImage) -> None:
         """Handle successful frame extraction.
 
         Args:
@@ -440,7 +453,7 @@ class PlateFrameProvider(QObject):
         self.frame_ready.emit(shot_key, frame, image)
 
         # Clean up runnable reference
-        self._cleanup_finished_runnables()
+        self._trim_runnable_list()
 
     def _on_extraction_failed(self, shot_key: str, frame: int, error: str) -> None:
         """Handle failed frame extraction.
@@ -458,9 +471,9 @@ class PlateFrameProvider(QObject):
         self.frame_failed.emit(shot_key, frame, error)
 
         # Clean up runnable reference
-        self._cleanup_finished_runnables()
+        self._trim_runnable_list()
 
-    def _cleanup_finished_runnables(self) -> None:
+    def _trim_runnable_list(self) -> None:
         """Clean up references to finished runnables."""
         # Remove runnables that are no longer in the thread pool
         # This is a simple cleanup - just keep the list reasonable

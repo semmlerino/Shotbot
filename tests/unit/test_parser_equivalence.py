@@ -14,6 +14,7 @@ from config import Config
 from paths.shot_dir_parser import build_workspace_path, parse_shot_from_dir
 from shots.shot_parser import OptimizedShotParser
 
+
 pytestmark = [pytest.mark.unit]
 
 
@@ -77,7 +78,9 @@ class TestParserEquivalence:
         targeted_result = _targeted_parse(path)
         # Both may be None for paths without trailing slash (targeted requires /)
         if targeted_result is not None:
-            assert base_result is not None, f"Base returned None but targeted returned {targeted_result}"
+            assert base_result is not None, (
+                f"Base returned None but targeted returned {targeted_result}"
+            )
             assert base_result == targeted_result, (
                 f"Mismatch:\n  base:     {base_result}\n  targeted: {targeted_result}"
             )
@@ -87,7 +90,9 @@ class TestParserEquivalence:
         base_result = _base_class_parse(path)
         previous_result = _previous_parse(path)
         if previous_result is not None:
-            assert base_result is not None, f"Base returned None but previous returned {previous_result}"
+            assert base_result is not None, (
+                f"Base returned None but previous returned {previous_result}"
+            )
             assert base_result == previous_result, (
                 f"Mismatch:\n  base:     {base_result}\n  previous: {previous_result}"
             )

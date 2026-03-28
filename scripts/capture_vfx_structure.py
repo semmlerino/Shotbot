@@ -61,7 +61,8 @@ def get_workspace_shots() -> tuple[list[str], list[str]]:
     try:
         result = subprocess.run(
             ["/bin/bash", "-i", "-c", "ws -sg"],
-            check=False, capture_output=True,
+            check=False,
+            capture_output=True,
             text=True,
             timeout=10,
         )

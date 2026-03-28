@@ -43,7 +43,7 @@ def fix_file(filepath, line_numbers):
         if line_num <= len(lines):
             line = lines[line_num - 1]
             stripped = line.lstrip()
-            indent = line[:len(line) - len(stripped)]
+            indent = line[: len(line) - len(stripped)]
 
             # Don't add if already has assignment (shouldn't happen but be safe)
             if "=" in stripped and not stripped.startswith("="):

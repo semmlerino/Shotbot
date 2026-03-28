@@ -72,7 +72,6 @@ def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(NotificationManager, "_instance", None)
     monkeypatch.setattr(ProgressManager, "_instance", None)
     monkeypatch.setattr(ProcessPoolManager, "_instance", None)
-    monkeypatch.setattr(ProcessPoolManager, "_initialized", False)
 
 
 class TestPreviousShotsModel:

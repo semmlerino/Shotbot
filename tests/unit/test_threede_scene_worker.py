@@ -235,7 +235,7 @@ class TestThreeDESceneWorker:
         # Note: FileSystemScanner is no longer used as the worker now uses
         # the parallel discovery path exclusively.
         with patch(
-            "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel",
+            "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
             return_value=[],
         ):
             yield worker
@@ -359,7 +359,7 @@ class TestThreeDESceneWorker:
 
         try:
             with patch(
-                "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel",
+                "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
                 return_value=test_scenes,
             ):
                 # Start worker
@@ -420,7 +420,7 @@ class TestThreeDESceneWorker:
 
         try:
             with patch(
-                "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel",
+                "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
                 side_effect=Exception("Test error"),
             ):
                 worker.start()
@@ -475,7 +475,7 @@ class TestWorkerInterruption:
 
         try:
             with patch(
-                "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows_truly_efficient_parallel",
+                "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
                 side_effect=slow_parallel_discovery,
             ):
                 worker.start()

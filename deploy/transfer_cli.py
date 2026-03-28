@@ -93,12 +93,13 @@ class FolderEncoder:
                 f"(max: {self.MAX_FOLDER_SIZE_MB}MB). "
                 f"Consider excluding large files or using a different transfer method."
             )
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         if self.verbose:
-            print(f"Encoding folder: {folder_path} ({folder_size_mb:.1f}MB)", file=sys.stderr)
+            print(
+                f"Encoding folder: {folder_path} ({folder_size_mb:.1f}MB)",
+                file=sys.stderr,
+            )
 
         # Create tar archive in memory
         tar_buffer = io.BytesIO()
@@ -303,7 +304,10 @@ def main() -> None:
             folder_name = Path(folder_path).name
 
             for i, chunk in enumerate(chunks, 1):
-                chunk_file = Path(chunk_dir) / f"{folder_name}_{timestamp}_chunk_{i:03d}_of_{len(chunks):03d}.txt"
+                chunk_file = (
+                    Path(chunk_dir)
+                    / f"{folder_name}_{timestamp}_chunk_{i:03d}_of_{len(chunks):03d}.txt"
+                )
                 with chunk_file.open("w") as f:
                     _ = f.write(chunk)
                 if verbose:
@@ -314,7 +318,9 @@ def main() -> None:
 
             # Save metadata file if requested
             if metadata:
-                metadata_file = Path(chunk_dir) / f"{folder_name}_{timestamp}_metadata.json"
+                metadata_file = (
+                    Path(chunk_dir) / f"{folder_name}_{timestamp}_metadata.json"
+                )
                 with metadata_file.open("w") as f:
                     json.dump(metadata, f, indent=2)
                 if verbose:

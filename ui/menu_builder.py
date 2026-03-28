@@ -56,11 +56,15 @@ def build_menu(
     _ = file_menu.addSeparator()
 
     import_settings_action = QAction("&Import Settings...", window)
-    _ = import_settings_action.triggered.connect(targets.settings_controller.import_settings)
+    _ = import_settings_action.triggered.connect(
+        targets.settings_controller.import_settings
+    )
     file_menu.addAction(import_settings_action)
 
     export_settings_action = QAction("&Export Settings...", window)
-    _ = export_settings_action.triggered.connect(targets.settings_controller.export_settings)
+    _ = export_settings_action.triggered.connect(
+        targets.settings_controller.export_settings
+    )
     file_menu.addAction(export_settings_action)
 
     _ = file_menu.addSeparator()
@@ -75,12 +79,16 @@ def build_menu(
 
     increase_size_action = QAction("&Increase Thumbnail Size", window)
     increase_size_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
-    _ = increase_size_action.triggered.connect(targets.thumbnail_size_manager.increase_size)
+    _ = increase_size_action.triggered.connect(
+        targets.thumbnail_size_manager.increase_size
+    )
     view_menu.addAction(increase_size_action)
 
     decrease_size_action = QAction("&Decrease Thumbnail Size", window)
     decrease_size_action.setShortcut(QKeySequence.StandardKey.ZoomOut)
-    _ = decrease_size_action.triggered.connect(targets.thumbnail_size_manager.decrease_size)
+    _ = decrease_size_action.triggered.connect(
+        targets.thumbnail_size_manager.decrease_size
+    )
     view_menu.addAction(decrease_size_action)
 
     _ = view_menu.addSeparator()
@@ -94,7 +102,9 @@ def build_menu(
 
     preferences_action = QAction("&Preferences...", window)
     preferences_action.setShortcut("Ctrl+,")
-    _ = preferences_action.triggered.connect(targets.settings_controller.show_preferences)
+    _ = preferences_action.triggered.connect(
+        targets.settings_controller.show_preferences
+    )
     edit_menu.addAction(preferences_action)
 
     # Help menu

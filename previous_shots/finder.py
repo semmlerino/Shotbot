@@ -402,9 +402,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         self.logger.info("Using targeted search approach for maximum performance")
 
         try:
-            return targeted_finder.find_approved_shots_targeted(
-                active_shots, root
-            )
+            return targeted_finder.find_approved_shots_targeted(active_shots, root)
 
         except Exception as e:  # noqa: BLE001
             self.logger.error(

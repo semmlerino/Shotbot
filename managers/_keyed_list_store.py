@@ -32,7 +32,9 @@ class KeyedListStore:
     _logger: ContextualLogger
     _keys: list[ShotKey]
 
-    def __init__(self, cache_dir: Path, cache_key: str, logger: ContextualLogger) -> None:
+    def __init__(
+        self, cache_dir: Path, cache_key: str, logger: ContextualLogger
+    ) -> None:
         """Initialise and load from cache.
 
         Args:
@@ -91,7 +93,11 @@ class KeyedListStore:
                         )
                 elif isinstance(item, list) and len(item) == 3:  # pyright: ignore[reportUnnecessaryIsInstance]
                     v0, v1, v2 = item[0], item[1], item[2]
-                    if isinstance(v0, str) and isinstance(v1, str) and isinstance(v2, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+                    if (
+                        isinstance(v0, str)
+                        and isinstance(v1, str)
+                        and isinstance(v2, str)
+                    ):  # pyright: ignore[reportUnnecessaryIsInstance]
                         self._keys.append((v0, v1, v2))
 
             self._logger.info(f"Loaded {len(self._keys)} {self._cache_key} from cache")

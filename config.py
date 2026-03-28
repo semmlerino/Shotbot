@@ -124,7 +124,9 @@ class Config:
     REZ_MODE: RezMode = RezMode.AUTO
 
     # Launch Verification Configuration
-    LAUNCH_VERIFICATION_ENABLED: bool = True  # Enable async verification of GUI app launches
+    LAUNCH_VERIFICATION_ENABLED: bool = (
+        True  # Enable async verification of GUI app launches
+    )
     # Timeout for app verification. VFX apps under Rez can take 30-60+ seconds to boot:
     # - Rez package resolution: 5-15 seconds
     # - Plugin scanning (Nuke, Maya): 10-30 seconds
@@ -139,7 +141,9 @@ class Config:
     REZ_MAYA_PACKAGES: ClassVar[list[str]] = ["maya"]  # Default rez packages for Maya
     REZ_3DE_PACKAGES: ClassVar[list[str]] = ["3de"]  # Default rez packages for 3DE
     REZ_RV_PACKAGES: ClassVar[list[str]] = ["rv"]  # Default rez packages for RV
-    REZ_PUBLISH_PACKAGES: ClassVar[list[str]] = ["publish_standalone"]  # Rez packages for publish tool
+    REZ_PUBLISH_PACKAGES: ClassVar[list[str]] = [
+        "publish_standalone"
+    ]  # Rez packages for publish tool
 
     NUKE_FIX_OCIO_CRASH: bool = (
         False  # Whether to apply environment fixes to prevent OCIO plugin crashes
@@ -155,8 +159,12 @@ class Config:
     NUKE_OCIO_FALLBACK_CONFIG: str = "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
 
     # Launch logging
-    ENABLE_LAUNCH_LOGGING: bool = True  # Log launch output via tee to ~/.shotbot/logs/dispatcher.out
-    LAUNCH_LOG_MAX_SIZE_MB: int = 10  # Max log file size in MB before rotation (0 = no limit)
+    ENABLE_LAUNCH_LOGGING: bool = (
+        True  # Log launch output via tee to ~/.shotbot/logs/dispatcher.out
+    )
+    LAUNCH_LOG_MAX_SIZE_MB: int = (
+        10  # Max log file size in MB before rotation (0 = no limit)
+    )
 
     # Settings file
     SETTINGS_FILE: Path = Path.home() / ".shotbot" / "settings.json"
@@ -175,13 +183,17 @@ class Config:
 
     # Image and memory limits
     MAX_THUMBNAIL_DIMENSION_PX: int = 4096  # Maximum dimension for thumbnail images
-    MAX_INFO_PANEL_DIMENSION_PX: int = 2048  # Maximum dimension for info panel thumbnails
+    MAX_INFO_PANEL_DIMENSION_PX: int = (
+        2048  # Maximum dimension for info panel thumbnails
+    )
     MAX_CACHE_DIMENSION_PX: int = 10000  # Maximum dimension for cached images
     MAX_THUMBNAIL_MEMORY_MB: int = 50  # Maximum memory usage for thumbnail images
     MAX_FILE_SIZE_MB: int = 100  # Maximum file size for image loading
 
     # Cache settings
-    CACHE_EXPIRY_MINUTES: int = 1440  # Cache for 24 hours (1 day) - data persists longer
+    CACHE_EXPIRY_MINUTES: int = (
+        1440  # Cache for 24 hours (1 day) - data persists longer
+    )
     CACHE_THUMBNAIL_SIZE: int = 512  # Size for cached thumbnails
     CACHE_REFRESH_INTERVAL_MINUTES: int = (
         60  # Background refresh check interval (once per hour)
@@ -237,12 +249,26 @@ class Config:
     THUMBNAIL_MAX_DIRECT_SIZE_MB: int = 10
 
     # Keep IMAGE_EXTENSIONS for general image handling (includes EXR for Nuke, not for thumbnails)
-    IMAGE_EXTENSIONS: ClassVar[list[str]] = [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".exr"]
+    IMAGE_EXTENSIONS: ClassVar[list[str]] = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".tiff",
+        ".tif",
+        ".exr",
+    ]
     NUKE_EXTENSIONS: ClassVar[list[str]] = [".nk", ".nknc"]
     THREEDE_EXTENSIONS: ClassVar[list[str]] = [".3de"]
 
     # Path construction segments
-    THUMBNAIL_SEGMENTS: ClassVar[list[str]] = ["publish", "editorial", "cutref", "v001", "jpg", "1920x1080"]
+    THUMBNAIL_SEGMENTS: ClassVar[list[str]] = [
+        "publish",
+        "editorial",
+        "cutref",
+        "v001",
+        "jpg",
+        "1920x1080",
+    ]
     RAW_PLATE_SEGMENTS: ClassVar[list[str]] = [
         "publish",
         "turnover",
@@ -289,7 +315,13 @@ class Config:
         "film_lin",
     ]
 
-    THREEDE_SCENE_SEGMENTS: ClassVar[list[str]] = ["mm", "3de", "mm-default", "scenes", "scene"]
+    THREEDE_SCENE_SEGMENTS: ClassVar[list[str]] = [
+        "mm",
+        "3de",
+        "mm-default",
+        "scenes",
+        "scene",
+    ]
 
     # Environment variables that may contain 3DE path information
     THREEDE_ENV_VARS: ClassVar[list[str]] = [
@@ -319,8 +351,22 @@ class Config:
         SHOWS_ROOT
     ]  # Root directories where shows are stored (uses configured SHOWS_ROOT)
     MAX_SHOTS_PER_SHOW: int = 1000  # Limit to prevent excessive searching in huge shows
-    SKIP_SEQUENCE_PATTERNS: ClassVar[list[str]] = ["tmp", "temp", "test", "old", "archive", "_dev"]
-    SKIP_SHOT_PATTERNS: ClassVar[list[str]] = ["tmp", "temp", "test", "old", "archive", "_dev"]
+    SKIP_SEQUENCE_PATTERNS: ClassVar[list[str]] = [
+        "tmp",
+        "temp",
+        "test",
+        "old",
+        "archive",
+        "_dev",
+    ]
+    SKIP_SHOT_PATTERNS: ClassVar[list[str]] = [
+        "tmp",
+        "temp",
+        "test",
+        "old",
+        "archive",
+        "_dev",
+    ]
 
     # Progressive file scanning configuration
     PROGRESSIVE_SCAN_ENABLED: bool = True  # Enable progressive/batched file scanning
@@ -355,9 +401,15 @@ class Config:
     THREEDE_SCAN_MAX_DEPTH: int = (
         15  # Max directory depth for find command (increased for deeply nested files)
     )
-    THREEDE_SCAN_PARALLEL_SEQUENCES: int = 4  # Number of sequences to search in parallel
-    THREEDE_SCAN_MAX_FILES_PER_SHOT: int = 1  # Stop after finding ONE .3de file per shot
-    THREEDE_STOP_AFTER_FIRST: bool = True  # New: stop searching shot after first .3de found
+    THREEDE_SCAN_PARALLEL_SEQUENCES: int = (
+        4  # Number of sequences to search in parallel
+    )
+    THREEDE_SCAN_MAX_FILES_PER_SHOT: int = (
+        1  # Stop after finding ONE .3de file per shot
+    )
+    THREEDE_STOP_AFTER_FIRST: bool = (
+        True  # New: stop searching shot after first .3de found
+    )
     THREEDE_CACHE_DISCOVERED_SHOTS: bool = True  # Cache which shots have .3de files
     THREEDE_INCREMENTAL_SCAN: bool = False  # Only scan for changes (future feature)
 
@@ -387,13 +439,17 @@ class ThreadingConfig:
     MAX_WORKER_THREADS: int = 4  # Maximum number of worker threads
 
     # Previous shots parallel scanning
-    PREVIOUS_SHOTS_PARALLEL_WORKERS: int = 4  # Number of parallel workers for shot scanning
+    PREVIOUS_SHOTS_PARALLEL_WORKERS: int = (
+        4  # Number of parallel workers for shot scanning
+    )
     PREVIOUS_SHOTS_CACHE_TTL: int = (
         0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)
     )
 
     # 3DE scene discovery parallel scanning
-    THREEDE_PARALLEL_WORKERS: int = 4  # Number of parallel workers for 3DE file discovery
+    THREEDE_PARALLEL_WORKERS: int = (
+        4  # Number of parallel workers for 3DE file discovery
+    )
     THREEDE_PROGRESS_INTERVAL: int = 10  # Number of files between progress updates
     THREEDE_SCAN_CHUNK_SIZE: int = 100  # Files per batch for processing
     # (Timeout constants moved to TimeoutConfig: WORKER_GRACEFUL_STOP_MS, WORKER_TERMINATE_MS,

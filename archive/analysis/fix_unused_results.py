@@ -60,9 +60,10 @@ def get_warnings() -> list[WarningInfo]:
     uv_path = str(Path("~/.local/bin/uv").expanduser())
     result = subprocess.run(
         [uv_path, "run", "basedpyright"],
-        check=False, capture_output=True,
+        check=False,
+        capture_output=True,
         text=True,
-        shell=False
+        shell=False,
     )
 
     warnings = []
@@ -111,7 +112,7 @@ def needs_review(source_line: str) -> str | None:
 def fix_line(source_line: str) -> str:
     """Add _ = prefix to a line if not already present."""
     stripped = source_line.lstrip()
-    indent = source_line[:len(source_line) - len(stripped)]
+    indent = source_line[: len(source_line) - len(stripped)]
 
     # Don't add if already has assignment
     if "=" in stripped and not stripped.startswith("="):
@@ -120,7 +121,9 @@ def fix_line(source_line: str) -> str:
     return f"{indent}_ = {stripped}"
 
 
-def apply_fixes(warnings_to_fix: list[WarningInfo]) -> dict[str, list[tuple[int, str, str]]]:
+def apply_fixes(
+    warnings_to_fix: list[WarningInfo],
+) -> dict[str, list[tuple[int, str, str]]]:
     """Group fixes by file and prepare changes."""
     fixes_by_file: dict[str, list[tuple[int, str, str]]] = {}
 
@@ -159,9 +162,9 @@ def main():
         else:
             other.append((warning, source_line))
 
-    print("="*80)
+    print("=" * 80)
     print("CATEGORIZATION SUMMARY")
-    print("="*80)
+    print("=" * 80)
     print(f"Safe to auto-fix: {len(safe_fixes)}")
     print(f"Needs manual review: {len(needs_manual_review)}")
     print(f"Other (needs analysis): {len(other)}")
@@ -169,9 +172,9 @@ def main():
 
     # Show safe fixes breakdown
     if safe_fixes:
-        print("="*80)
+        print("=" * 80)
         print("SAFE FIXES (will auto-apply _ = prefix)")
-        print("="*80)
+        print("=" * 80)
         pattern_counts: dict[str, int] = {}
         for _warning, source_line in safe_fixes:
             for pattern in SAFE_PATTERNS:
@@ -185,9 +188,9 @@ def main():
 
     # Show manual review cases
     if needs_manual_review:
-        print("="*80)
+        print("=" * 80)
         print("NEEDS MANUAL REVIEW")
-        print("="*80)
+        print("=" * 80)
         for warning, source_line, pattern in needs_manual_review[:20]:
             print(f"{warning.filepath}:{warning.line_num}")
             print(f"  Type: {warning.return_type}")
@@ -200,9 +203,9 @@ def main():
 
     # Show other cases
     if other:
-        print("="*80)
+        print("=" * 80)
         print("OTHER (needs pattern identification)")
-        print("="*80)
+        print("=" * 80)
         for warning, source_line in other[:20]:
             print(f"{warning.filepath}:{warning.line_num}")
             print(f"  Type: {warning.return_type}")
@@ -214,7 +217,7 @@ def main():
 
     # Ask for confirmation before applying
     if safe_fixes:
-        print("="*80)
+        print("=" * 80)
         response = input(f"Apply fixes to {len(safe_fixes)} safe cases? (yes/no): ")
         if response.lower() in ("yes", "y"):
             fixes_by_file = apply_fixes([w for w, _ in safe_fixes])
@@ -225,7 +228,9 @@ def main():
                     lines = f.readlines()
 
                 # Apply fixes in reverse order to maintain line numbers
-                for line_num, _old_line, new_line in sorted(fixes, reverse=True, key=lambda x: x[0]):
+                for line_num, _old_line, new_line in sorted(
+                    fixes, reverse=True, key=lambda x: x[0]
+                ):
                     lines[line_num - 1] = new_line + "\n"
 
                 with Path(filepath).open("w") as f:

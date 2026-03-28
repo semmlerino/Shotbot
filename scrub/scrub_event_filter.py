@@ -180,10 +180,7 @@ class ScrubEventFilter(QObject):
         )
         current_index = self._view.indexAt(cursor_pos)
 
-        if (
-            not current_index.isValid()
-            or current_index != self._pending_index
-        ):
+        if not current_index.isValid() or current_index != self._pending_index:
             # Mouse moved away during delay
             self._hover_pending = False
             self._pending_index = None
@@ -264,4 +261,3 @@ class ScrubEventFilter(QObject):
         """Stop the event filter and clean up."""
         self._cancel_scrub()
         self._hover_timer.stop()
-

@@ -98,7 +98,6 @@ def reset_threede_singletons() -> None:
         except Exception:  # noqa: BLE001
             pass
     ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
 
     # Reset NotificationManager
     if NotificationManager._instance is not None:
@@ -126,7 +125,6 @@ def reset_threede_singletons() -> None:
 
     # Reset again after test (defense in depth)
     ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
     NotificationManager._instance = None
     ProgressManager._instance = None
 

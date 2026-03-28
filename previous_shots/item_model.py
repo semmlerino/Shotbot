@@ -78,7 +78,9 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             )
         elif hasattr(underlying_model, "shots_updated"):
             # Test double - connect without ConnectionType
-            _ = underlying_model.shots_updated.connect(self._on_underlying_shots_updated)
+            _ = underlying_model.shots_updated.connect(
+                self._on_underlying_shots_updated
+            )
 
         # Initialize with current shots
         self._update_from_underlying_model()

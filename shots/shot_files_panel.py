@@ -69,17 +69,23 @@ class FileListItem(QFrame):
 
         # File name label
         name_label = QLabel(self._scene_file.name)
-        name_label.setStyleSheet(f"color: #ddd; font-size: {design_system.typography.size_tiny}px;")
+        name_label.setStyleSheet(
+            f"color: #ddd; font-size: {design_system.typography.size_tiny}px;"
+        )
         layout.addWidget(name_label, 1)
 
         # User label
         user_label = QLabel(self._scene_file.user)
-        user_label.setStyleSheet(f"color: #888; font-size: {design_system.typography.size_small}px;")
+        user_label.setStyleSheet(
+            f"color: #888; font-size: {design_system.typography.size_small}px;"
+        )
         layout.addWidget(user_label)
 
         # Age label
         age_label = QLabel(self._scene_file.relative_age)
-        age_label.setStyleSheet(f"color: #666; font-size: {design_system.typography.size_small}px;")
+        age_label.setStyleSheet(
+            f"color: #666; font-size: {design_system.typography.size_small}px;"
+        )
         layout.addWidget(age_label)
 
         # Apply pin-aware styling (sets tooltip and stylesheet)

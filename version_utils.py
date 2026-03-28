@@ -29,7 +29,9 @@ class VersionUtils:
 
     # Cache for version directory listings
     _version_cache: ClassVar[dict[str, tuple[list[tuple[int, str]], float]]] = {}
-    _version_cache_lock: ClassVar[threading.Lock] = threading.Lock()  # Thread-safety for version cache
+    _version_cache_lock: ClassVar[threading.Lock] = (
+        threading.Lock()
+    )  # Thread-safety for version cache
 
     @classmethod
     def clear_version_cache(cls) -> None:
@@ -83,7 +85,9 @@ class VersionUtils:
                         version_num = int(match.group(1))
                         version_dirs.append((version_num, item.name))
         except (OSError, PermissionError):
-            logger.warning(f"Error scanning for version directories in {path_obj}", exc_info=True)
+            logger.warning(
+                f"Error scanning for version directories in {path_obj}", exc_info=True
+            )
             return []
 
         # Sort by version number

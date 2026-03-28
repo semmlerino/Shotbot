@@ -90,6 +90,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             self.cache_manager: ThumbnailCache = cache_manager
         else:
             from cache import resolve_default_cache_dir
+
             default_dir = resolve_default_cache_dir()
             default_dir.mkdir(parents=True, exist_ok=True)
             self.cache_manager = ThumbnailCache(default_dir)
@@ -524,7 +525,9 @@ class InfoPanelPixmapLoader(TrackedQRunnable):
                     # Scale to appropriate size for info panel (larger than grid thumbnails)
                     max_size = 256  # Info panel can be larger than grid thumbnails
                     if pil_image.width > max_size or pil_image.height > max_size:
-                        pil_image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+                        pil_image.thumbnail(
+                            (max_size, max_size), Image.Resampling.LANCZOS
+                        )
 
                     rgba_image = pil_image.convert("RGBA")
             except OSError:

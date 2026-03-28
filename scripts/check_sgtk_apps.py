@@ -7,13 +7,13 @@ In Maya Script Editor (Python):
     exec(open(os.environ.get('SHOTBOT_SCRIPTS_DIR', str(Path.home() / 'Python/Shotbot/scripts')) + '/check_sgtk_apps.py').read())
 """
 
-
 print("=" * 60)
 print(" SGTK Apps & Commands Check")
 print("=" * 60)
 
 try:
     import sgtk
+
     engine = sgtk.platform.current_engine()
 
     if engine:
@@ -78,6 +78,7 @@ try:
 except Exception as e:  # noqa: BLE001
     print(f"Error: {e}")
     import traceback
+
     traceback.print_exc()
 
 print("\n" + "=" * 60)
