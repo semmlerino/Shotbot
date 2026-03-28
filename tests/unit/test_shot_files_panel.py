@@ -165,6 +165,7 @@ class TestFileListItem:
         )
 
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_open_requested_signal_defined(
         self, qtbot: QtBot, file_list_item: FileListItem
     ) -> None:
@@ -174,6 +175,7 @@ class TestFileListItem:
         assert signal_spy is not None
 
 
+@pytest.mark.usefixtures("suppress_qmessagebox")
 class TestFileListItemContextMenu:
     """Test FileListItem context menu functionality."""
 

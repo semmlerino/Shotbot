@@ -129,6 +129,7 @@ class TestThreeDEGridViewFilters:
         assert threede_grid.artist_combo.itemText(5) == "user4"
 
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_artist_filter_change_emits_signal(self, threede_grid, scene_model) -> None:
         """Test changing the artist filter emits the selected artist name."""
         threede_grid.populate_artist_filter(scene_model)
@@ -140,6 +141,7 @@ class TestThreeDEGridViewFilters:
         assert signal_spy.at(0)[0] == "user3"
 
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_artist_filter_all_artists_emits_empty_string(
         self, threede_grid, scene_model
     ) -> None:

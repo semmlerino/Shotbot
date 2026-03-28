@@ -48,6 +48,7 @@ pytestmark = [
     pytest.mark.slow,
     pytest.mark.permissive_process_pool,  # MainWindow tests check UI, not subprocess output
     pytest.mark.allow_dialogs,  # MainWindow init triggers error dialogs in test env
+    pytest.mark.usefixtures("suppress_qmessagebox"),
 ]
 
 

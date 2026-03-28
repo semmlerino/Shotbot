@@ -103,6 +103,7 @@ def test_scene(tmp_path: Path) -> ThreeDEScene:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("suppress_qmessagebox")
 class TestVerifySpawnCrash:
     """Tests for ProcessExecutor.verify_spawn when the process exits immediately."""
 

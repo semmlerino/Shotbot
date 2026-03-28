@@ -319,6 +319,7 @@ class TestShowFilter:
         assert grid_view.show_combo.count() == initial_count
 
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_show_filter_change_emits_signal(
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
@@ -333,6 +334,7 @@ class TestShowFilter:
         assert signal_spy.at(0)[0] == "TestShow"
 
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_show_filter_all_shows_emits_empty_string(
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
@@ -354,6 +356,7 @@ class TestShowFilter:
 # ============================================================================
 
 
+@pytest.mark.usefixtures("suppress_qmessagebox")
 class TestTextFilter:
     """Test text filter input functionality."""
 
@@ -498,6 +501,7 @@ class TestKeyboardShortcuts:
     """Test keyboard shortcuts for app launching."""
 
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     @pytest.mark.parametrize(
         ("key", "expected_app"),
         [

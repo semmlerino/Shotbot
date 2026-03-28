@@ -150,6 +150,7 @@ class TestNewTerminalExecution:
         mock_timer.start.assert_called_once()
 
     @pytest.mark.allow_dialogs  # May show warning dialog
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_headless_execution_when_terminal_is_none(
         self,
         fp,

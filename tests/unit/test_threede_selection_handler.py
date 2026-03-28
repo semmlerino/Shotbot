@@ -318,6 +318,7 @@ class TestCrashRecovery:
     """Test crash recovery dispatch."""
 
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_on_recover_crashes_clicked_with_no_scene_shows_warning(
         self, handler: ThreeDESelectionHandler, window: WindowDouble, mocker
     ) -> None:

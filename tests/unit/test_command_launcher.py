@@ -291,6 +291,7 @@ class TestCommandLauncher:
             assert sequence_path in command_str
 
     @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_subprocess_failure(
         self,
         mocker,
@@ -325,6 +326,7 @@ class TestCommandLauncher:
         assert mock_popen.called
 
     @pytest.mark.allow_dialogs  # May show warning dialog
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_launch_headless_mode_when_no_terminal(
         self,
         mocker,
@@ -414,6 +416,7 @@ class TestCommandLauncher:
             assert "disown" not in command_str
 
 
+@pytest.mark.usefixtures("suppress_qmessagebox")
 class TestCommandLauncherSignals:
     """Test CommandLauncher signal emissions."""
 

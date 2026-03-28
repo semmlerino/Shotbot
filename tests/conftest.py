@@ -221,7 +221,6 @@ _QT_FIXTURES = frozenset(
         "cleanup_qt_state",
         "qt_cleanup",
         "qapp",
-        "suppress_qmessagebox",
         "prevent_qapp_exit",
     }
 )
@@ -249,7 +248,6 @@ def _qt_auto_fixtures(request: pytest.FixtureRequest) -> None:
     if is_qt_test:
         request.getfixturevalue("qt_cleanup")
         request.getfixturevalue("reset_singletons")
-        request.getfixturevalue("suppress_qmessagebox")
         request.getfixturevalue("prevent_qapp_exit")
         # Skip subprocess mocking for tests that need real subprocess behavior.
         # @pytest.mark.real_subprocess opts out of both subprocess fixtures.

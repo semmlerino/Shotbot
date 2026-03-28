@@ -551,6 +551,7 @@ class TestDiscoveryCallbacks:
         ["finished", "error"],
     )
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_cleanup_clears_progress_and_loading_state(
         self,
         controller: ThreeDEController,
@@ -589,6 +590,7 @@ class TestDiscoveryCallbacks:
         assert window_double.threede_item_model._loading_state is True
 
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_on_discovery_error_shows_warning(
         self,
         controller: ThreeDEController,
@@ -809,6 +811,7 @@ class TestWorkerManagement:
         controller.cleanup_worker()
 
     @pytest.mark.allow_dialogs
+    @pytest.mark.usefixtures("suppress_qmessagebox")
     def test_cleanup_worker_clears_orphaned_progress(
         self,
         controller: ThreeDEController,

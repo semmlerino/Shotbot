@@ -43,6 +43,7 @@ pytestmark = [
     pytest.mark.qt,
     pytest.mark.allow_dialogs,
     pytest.mark.permissive_process_pool,
+    pytest.mark.usefixtures("suppress_qmessagebox"),
 ]
 
 
