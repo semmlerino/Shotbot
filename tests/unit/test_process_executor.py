@@ -112,6 +112,7 @@ class TestNewTerminalExecution:
     )
     def test_terminal_execution(
         self,
+        fp,
         mocker,
         executor: ProcessExecutor,
         terminal: str,
@@ -121,29 +122,26 @@ class TestNewTerminalExecution:
     ) -> None:
         """Test execution in supported terminal emulators."""
         mock_timer_class = mocker.patch("launch.process_executor.QTimer")
-        mock_popen = mocker.patch("subprocess.Popen")
-        mock_process = MagicMock()
-        mock_popen.return_value = mock_process
         mock_timer = MagicMock()
         mock_timer_class.return_value = mock_timer
+        fp.register(expected_popen_args)
 
         result = executor.execute_in_new_terminal(cmd, app_name, terminal)
 
-        assert result is mock_process
-        mock_popen.assert_called_once_with(expected_popen_args)
+        assert result is not None  # Result is FakePopen from pytest-subprocess
+        assert list(fp.calls[0]) == expected_popen_args
 
     def test_timer_setup_on_success(
         self,
+        fp,
         mocker,
         executor: ProcessExecutor,
     ) -> None:
         """Test that process verification timer is created and started on success."""
         mock_timer_class = mocker.patch("launch.process_executor.QTimer")
-        mock_popen = mocker.patch("subprocess.Popen")
-        mock_process = MagicMock()
-        mock_popen.return_value = mock_process
         mock_timer = MagicMock()
         mock_timer_class.return_value = mock_timer
+        fp.register(["gnome-terminal", "--", "/bin/bash", "-ilc", "nuke"])
 
         executor.execute_in_new_terminal("nuke", "nuke", "gnome-terminal")
 
@@ -154,40 +152,38 @@ class TestNewTerminalExecution:
     @pytest.mark.allow_dialogs  # May show warning dialog
     def test_headless_execution_when_terminal_is_none(
         self,
+        fp,
         mocker,
         executor: ProcessExecutor,
     ) -> None:
         """Test headless mode when terminal is None (no terminal available)."""
         mock_timer_class = mocker.patch("launch.process_executor.QTimer")
-        mock_popen = mocker.patch("subprocess.Popen")
-        mock_process = MagicMock()
-        mock_popen.return_value = mock_process
         mock_timer = MagicMock()
         mock_timer_class.return_value = mock_timer
+        fp.register(["/bin/bash", "-ilc", "echo test"])
 
         # Pass None for terminal to trigger headless mode
         result = executor.execute_in_new_terminal("echo test", "test_app", None)
 
-        assert result is mock_process
-        mock_popen.assert_called_once_with(["/bin/bash", "-ilc", "echo test"])
+        assert result is not None  # Result is FakePopen from pytest-subprocess
+        assert list(fp.calls[0]) == ["/bin/bash", "-ilc", "echo test"]
 
     def test_fallback_execution_for_unknown_terminal(
         self,
+        fp,
         mocker,
         executor: ProcessExecutor,
     ) -> None:
         """Test fallback to direct bash execution for unknown terminal."""
         mock_timer_class = mocker.patch("launch.process_executor.QTimer")
-        mock_popen = mocker.patch("subprocess.Popen")
-        mock_process = MagicMock()
-        mock_popen.return_value = mock_process
         mock_timer = MagicMock()
         mock_timer_class.return_value = mock_timer
+        fp.register(["/bin/bash", "-ilc", "unknown"])
 
         result = executor.execute_in_new_terminal("unknown", "unknown", "unknown-term")
 
-        assert result is mock_process
-        mock_popen.assert_called_once_with(["/bin/bash", "-ilc", "unknown"])
+        assert result is not None  # Result is FakePopen from pytest-subprocess
+        assert list(fp.calls[0]) == ["/bin/bash", "-ilc", "unknown"]
 
     @pytest.mark.parametrize(
         ("exc_type", "exc_msg"),

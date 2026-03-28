@@ -26,6 +26,7 @@ dev = [
     "pytest-timeout~=2.4.0",
     "pytest-randomly~=4.0.0",
     "hypothesis~=6.151.0",
+    "pytest-subprocess~=1.5.0",
     # Development
     "ruff~=0.15.0",
     "basedpyright~=1.38.0",
@@ -328,8 +329,7 @@ markers = [
     "regression: Regression tests for specific bugs",
     "critical: Critical/high priority tests",
     "performance: Performance benchmarks and comparisons (may be skipped in CI/WSL)",
-    "real_subprocess: Skip autouse subprocess mocks for tests needing real process behavior",
-    "permissive_subprocess: Disable strict mode for subprocess mocking (deprecated - use subprocess_mock)",
+    "real_subprocess: Group tests that use real subprocess for xdist isolation",
     "permissive_process_pool: Disable strict mode for ProcessPoolManager mocking",
     "enforce_thread_guard: Enable main-thread rejection in TestProcessPool for contract testing",
     "allow_main_thread: Allow calls from main/UI thread in TestProcessPool (opt-out from default guard)",

@@ -65,7 +65,7 @@ IMPORTANT MARKERS
 - @pytest.mark.qt_heavy              Isolate on single dedicated worker
 - @pytest.mark.real_timing           Bypass wait() patch (timing-sensitive tests)
 - @pytest.mark.skip_if_parallel      Skip test in parallel execution
-- @pytest.mark.real_subprocess       Execute with real subprocess (bypass mocks)
+- @pytest.mark.real_subprocess       Opt Qt tests out of subprocess mocks; groups real-subprocess tests for xdist
 
 GLOBAL STATE
 ------------
@@ -393,6 +393,14 @@ def _qt_auto_fixtures(request: pytest.FixtureRequest) -> None:
         request.getfixturevalue("reset_singletons")
         request.getfixturevalue("suppress_qmessagebox")
         request.getfixturevalue("prevent_qapp_exit")
+        # Skip subprocess mocking for tests that need real subprocess behavior.
+        # @pytest.mark.real_subprocess opts out of both subprocess fixtures.
+        needs_real_subprocess = (
+            request.node.get_closest_marker("real_subprocess") is not None
+        )
+        if not needs_real_subprocess:
+            request.getfixturevalue("mock_process_pool_manager")
+            request.getfixturevalue("mock_subprocess_popen")
 
 
 def pytest_collection_modifyitems(

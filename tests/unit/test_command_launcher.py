@@ -31,7 +31,6 @@ pytestmark = [
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-    from tests.fixtures.process_fixtures import SubprocessMock
 
 
 def _running_process_double(*args: str) -> PopenDouble:
@@ -538,18 +537,16 @@ class TestSubprocessErrorHandling:
 
     def test_error_fixture_integrates_with_launcher_module(
         self,
-        subprocess_error_mock: SubprocessMock,
+        fp,
     ) -> None:
-        """Test that error fixtures properly patch subprocess for launcher error paths."""
+        """Test that subprocess calls can be faked with specific return codes."""
         import subprocess
 
-        # Configure specific error
-        subprocess_error_mock.set_return_code(127)
-        subprocess_error_mock.set_output("", stderr="bash: command not found")
+        fp.register(["test", "cmd"], returncode=127, stderr="bash: command not found")
 
-        # Verify the fixture patches subprocess with the configured return code
+        # Verify the fake process returns the configured return code
         proc = subprocess.Popen(["test", "cmd"])
         assert proc.returncode == 127
 
         # The fixture should have recorded the call
-        assert ["test", "cmd"] in subprocess_error_mock.calls
+        assert list(fp.calls[0]) == ["test", "cmd"]

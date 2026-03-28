@@ -29,7 +29,7 @@ from type_definitions import Shot
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.integration_safe,
-    pytest.mark.real_subprocess,  # Uses find command for 3DE discovery
+    pytest.mark.real_subprocess,  # Uses real find command for 3DE discovery
 ]
 
 

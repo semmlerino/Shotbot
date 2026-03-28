@@ -8,7 +8,7 @@ For the canonical test execution policy and common commands, see `tests/README.m
 | Module | Autouse | Key Fixtures | Purpose |
 |--------|---------|-------------|---------|
 | `qt_fixtures.py` | No (via dispatcher) | `suppress_qmessagebox`, `prevent_qapp_exit`, `qt_cleanup`, `expect_dialog`, `expect_no_dialogs` | Qt safety (prevent modal dialogs/app-exit), Qt cleanup, dialog assertion helpers |
-| `process_fixtures.py` | Yes | `subprocess_mock`, `mock_process_pool_manager`, `subprocess_error_mock` | Subprocess interception and process pool mocking |
+| `process_fixtures.py` | No (via Qt dispatcher) | `subprocess_mock`, `mock_process_pool_manager`, `mock_subprocess_popen`, `subprocess_error_mock` | Subprocess interception and process pool mocking |
 | `singleton_fixtures.py` | Yes | `reset_caches`, `reset_singletons` | Reset singleton state; lite runs for all tests, heavy for Qt tests only |
 | `environment_fixtures.py` | No | `caching_enabled`, `temp_cache_dir`, `cache_manager`, `shot_cache`, `scene_disk_cache`, `make_test_shot`, `make_test_filesystem`, `make_real_3de_file`, `real_shot_model` | Isolated cache instances, cache-enabled test environments, shot/filesystem factories |
 | `model_fixtures.py` | No | `TestShot`, `TestShotModel`, `TestCacheManager`, `create_test_shot` | Test double classes and factory functions for shot data objects |
@@ -22,7 +22,7 @@ For the canonical test execution policy and common commands, see `tests/README.m
 
 ## Test Behavior Markers
 
-- `@pytest.mark.real_subprocess` — bypass autouse subprocess mocking
+- `@pytest.mark.real_subprocess` — group tests that use real subprocess for xdist isolation (no longer used for fixture opt-out)
 - `@pytest.mark.permissive_process_pool` — disable strict `ProcessPoolManager` mock mode for a test
 - `@pytest.mark.enforce_thread_guard` — make `TestProcessPool` reject main-thread calls for contract testing
 - `@pytest.mark.allow_main_thread` — allow main-thread calls through the test process pool when intentional
@@ -42,13 +42,15 @@ Category markers (`unit`, `integration`, `qt`, `slow`, `fast`, `concurrency`, `r
 
 ## Subprocess Mocking Strategy
 
-### Unit Tests: `subprocess_mock` fixture (monkeypatch)
+`mock_subprocess_popen` (strict mode) is auto-injected for all Qt tests via `_qt_auto_fixtures`.
+Non-Qt tests that call subprocess must use `subprocess_mock`, `fp` (pytest-subprocess), or request `mock_subprocess_popen` explicitly.
 
-Use `subprocess_mock` from `process_fixtures.py`.
+### Unit Tests: `subprocess_mock` fixture or `fp` (pytest-subprocess)
 
-- **Strict-by-default**: Any unpatched `subprocess.run()` or `subprocess.Popen()` call raises `AssertionError`
-- Catches accidental real subprocess calls
-- Configure expected commands via `subprocess_mock.set_output(stdout, stderr="")`, `subprocess_mock.set_return_code(code)`, `subprocess_mock.set_exception(exc)`, `subprocess_mock.reset()`
+**`subprocess_mock`** — monkeypatches `subprocess.Popen` and `subprocess.run` with controllable output.
+
+- Configure expected behavior via `set_output(stdout, stderr="")`, `set_return_code(code)`, `set_exception(exc)`, `reset()`
+- Disables strict mode so Qt-test subprocess calls won't raise
 
 ```python
 def test_launcher_builds_command(subprocess_mock):
@@ -56,6 +58,18 @@ def test_launcher_builds_command(subprocess_mock):
     subprocess_mock.set_return_code(0)
     launcher.launch()
     assert len(subprocess_mock.calls) == 1
+```
+
+**`fp`** (pytest-subprocess) — registers fake process invocations per-command.
+
+- Strict-by-default: unregistered commands raise `ProcessNotRegisteredError`
+- Preferred for new tests; use `fp.register(cmd, stdout=..., returncode=...)`, check calls via `fp.calls`
+
+```python
+def test_launches_correct_command(fp):
+    fp.register(["my-tool", "--flag"])
+    code_under_test()
+    assert list(fp.calls[0]) == ["my-tool", "--flag"]
 ```
 
 ### Integration Tests: `TestSubprocess` / `PopenDouble` (injection)
@@ -78,9 +92,8 @@ def test_executor_handles_failure():
 
 | Scenario | Use |
 |----------|-----|
-| Unit test, no DI for subprocess | `subprocess_mock` fixture |
+| Unit test, need to verify exact command args | `subprocess_mock` or `fp` |
+| Unit test, fine-grained per-command faking | `fp` (pytest-subprocess) |
 | Integration test, DI available | `TestSubprocess` / `PopenDouble` |
-| Need to verify exact command args | `subprocess_mock` (captures calls) |
 | Need streaming Popen behavior | `PopenDouble` |
-
-**Do NOT merge these two systems.** They serve different purposes — monkeypatch-based safety net vs. explicit test doubles for composed components.
+| Test needs real subprocess | Request nothing (non-Qt) or don't use `mock_subprocess_popen` |

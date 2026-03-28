@@ -15,7 +15,7 @@ import pytest
 
 pytestmark = [
     pytest.mark.qt,  # CRITICAL: Qt state must be serialized
-    pytest.mark.real_subprocess,  # Uses find command for 3DE discovery
+    pytest.mark.real_subprocess,  # Uses real find command for 3DE discovery
 ]
 
 

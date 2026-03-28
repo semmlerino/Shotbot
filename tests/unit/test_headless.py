@@ -117,7 +117,7 @@ def test_headless_app_creation() -> None:
         app.quit()
 
 
-@pytest.mark.real_subprocess
+@pytest.mark.real_subprocess  # Needs real subprocess to launch shotbot process
 def test_headless_shotbot_command() -> None:
     """Test running shotbot with --headless flag."""
     logger.info("=" * 50)

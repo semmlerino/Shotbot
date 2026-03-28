@@ -14,16 +14,11 @@ from __future__ import annotations
 import subprocess
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
 from threede.filesystem_scanner import FileSystemScanner
-
-
-if TYPE_CHECKING:
-    from tests.fixtures.process_fixtures import SubprocessMock
 
 
 pytestmark = [pytest.mark.unit]
@@ -242,7 +237,6 @@ class TestSubprocessTimeoutCancellation:
 # =============================================================================
 
 
-@pytest.mark.real_subprocess
 class TestStreamingReadLargeOutput:
     """Test the streaming read helper handles large outputs without deadlock.
 
@@ -468,7 +462,6 @@ class TestProgressiveDiscoveryFallback:
         self,
         scanner: FileSystemScanner,
         tmp_path: Path,
-        subprocess_mock: SubprocessMock,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Workloads above SMALL_WORKLOAD_THRESHOLD use subprocess method.
@@ -483,11 +476,6 @@ class TestProgressiveDiscoveryFallback:
         # Create 150 user directories (above threshold of 100)
         for i in range(150):
             (user_dir / f"artist{i}").mkdir()
-
-        # Configure subprocess mock to return some files
-        subprocess_mock.set_output(
-            f"{tmp_path}/user/artist0/scene.3de\n{tmp_path}/user/artist1/scene.3de\n"
-        )
 
         # Track method calls
         calls = {"python": 0, "subprocess": 0}
@@ -598,20 +586,24 @@ class TestProgressiveDiscoveryFallback:
 
     def test_excluded_users_in_subprocess_path(
         self,
+        fp,
         scanner: FileSystemScanner,
         tmp_path: Path,
-        subprocess_mock: SubprocessMock,
     ) -> None:
         """Subprocess method correctly excludes specified users."""
         user_dir = tmp_path / "user"
         user_dir.mkdir()
 
-        # Mock subprocess output containing files from multiple users
-        subprocess_mock.set_output(
-            f"{user_dir}/artist1/scene.3de\n"
-            f"{user_dir}/artist2/scene.3de\n"
-            f"{user_dir}/excluded_user/scene.3de\n"
-            f"{user_dir}/temp/scene.3de\n"
+        # Register the find command with fake output containing files from multiple users.
+        # Use ["find", fp.any()] to match any `find` invocation regardless of args.
+        fp.register(
+            ["find", fp.any()],
+            stdout=(
+                f"{user_dir}/artist1/scene.3de\n"
+                f"{user_dir}/artist2/scene.3de\n"
+                f"{user_dir}/excluded_user/scene.3de\n"
+                f"{user_dir}/temp/scene.3de\n"
+            ),
         )
 
         excluded = {"excluded_user", "temp"}
