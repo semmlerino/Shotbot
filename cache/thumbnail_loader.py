@@ -25,10 +25,10 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QImage, QPixmap
 
+from cache.thumbnail_cache import ThumbnailCacheLoader
 from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
 from protocols import SceneDataProtocol
-from typing_compat import override
 
 
 _logger = get_module_logger(__name__)
@@ -36,51 +36,6 @@ _logger = get_module_logger(__name__)
 T = TypeVar("T", bound=SceneDataProtocol)
 
 LoadingState = Literal["idle", "loading", "loaded", "failed"]
-
-
-from workers.runnable_tracker import TrackedQRunnable
-
-
-class _ThumbnailLoaderSignals(QObject):
-    finished: ClassVar[Signal] = Signal(str, Path)
-    failed: ClassVar[Signal] = Signal(str)
-
-
-class _ThumbnailLoaderRunnable(TrackedQRunnable):
-    def __init__(
-        self,
-        full_name: str,
-        thumbnail_path: Path,
-        show: str,
-        sequence: str,
-        shot: str,
-        cache_manager: ThumbnailCache,
-    ) -> None:
-        super().__init__(auto_delete=False)
-        self.full_name: str = full_name
-        self.thumbnail_path: Path = thumbnail_path
-        self.show: str = show
-        self.sequence: str = sequence
-        self.shot: str = shot
-        self.cache_manager: ThumbnailCache = cache_manager
-        self.signals: _ThumbnailLoaderSignals = _ThumbnailLoaderSignals()
-
-    @override
-    def _do_work(self) -> None:
-        try:
-            cached_result = self.cache_manager.cache_thumbnail(
-                self.thumbnail_path,
-                self.show,
-                self.sequence,
-                self.shot,
-            )
-            if isinstance(cached_result, Path) and cached_result.exists():
-                self.signals.finished.emit(self.full_name, cached_result)
-            else:
-                self.signals.failed.emit(self.full_name)
-        except Exception:
-            _logger.exception(f"Thumbnail cache failed for {self.full_name!r}")
-            self.signals.failed.emit(self.full_name)
 
 
 class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
@@ -118,7 +73,7 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
         self._thumbnail_pool: QThreadPool = QThreadPool.globalInstance()
         self._pending_loads: set[str] = set()
         self._pending_loads_mutex: QMutex = QMutex()
-        self._active_runnables: dict[str, _ThumbnailLoaderRunnable] = {}
+        self._active_runnables: dict[str, ThumbnailCacheLoader] = {}
 
         self._last_visible_range: tuple[int, int] = (-1, -1)
         self._thumbnail_debounce_timer: QTimer = QTimer(self)
@@ -265,32 +220,48 @@ class ThumbnailLoader(QObject, LoggingMixin, Generic[T]):
                     return
                 self._pending_loads.add(item.full_name)
 
-            runnable = _ThumbnailLoaderRunnable(
-                item.full_name,
+            runnable = ThumbnailCacheLoader(
+                self._cache_manager,
                 thumbnail_path,
                 item.show,
                 item.sequence,
                 item.shot,
-                self._cache_manager,
+                auto_delete=False,
             )
 
             with QMutexLocker(self._pending_loads_mutex):
                 self._active_runnables[item.full_name] = runnable
 
-            def on_finished(name: str, path: Path, captured_row: int = row) -> None:
+            captured_full_name = item.full_name
+
+            def on_loaded(
+                _show: str,
+                _seq: str,
+                _shot: str,
+                path: Path,
+                captured_name: str = captured_full_name,
+                captured_row: int = row,
+            ) -> None:
                 try:
-                    self._on_thumbnail_loaded(name, path, captured_row)
+                    self._on_thumbnail_loaded(captured_name, path, captured_row)
                 except RuntimeError:
                     pass  # ThumbnailLoader deleted before callback fired
 
-            def on_failed(name: str, captured_row: int = row) -> None:
+            def on_failed(
+                _show: str,
+                _seq: str,
+                _shot: str,
+                _error: str,
+                captured_name: str = captured_full_name,
+                captured_row: int = row,
+            ) -> None:
                 try:
-                    self._on_thumbnail_failed(name, captured_row)
+                    self._on_thumbnail_failed(captured_name, captured_row)
                 except RuntimeError:
                     pass  # ThumbnailLoader deleted before callback fired
 
-            _ = runnable.signals.finished.connect(
-                on_finished,
+            _ = runnable.signals.loaded.connect(
+                on_loaded,
                 Qt.ConnectionType.QueuedConnection,
             )
             _ = runnable.signals.failed.connect(

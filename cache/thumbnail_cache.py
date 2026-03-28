@@ -67,8 +67,10 @@ class ThumbnailCacheLoader(TrackedQRunnable):
         show: str,
         sequence: str,
         shot: str,
+        *,
+        auto_delete: bool = True,
     ) -> None:
-        super().__init__(auto_delete=True)
+        super().__init__(auto_delete=auto_delete)
         self.cache_manager = cache
         self.source_path = source_path
         self.show = show

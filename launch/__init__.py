@@ -7,7 +7,6 @@ This package contains focused components for managing application launches:
 - AppHandler: Protocol and per-DCC handler classes
 - CommandLauncher: Production launcher orchestrator
 - LaunchContext: Value object for launch parameters
-- open_plate_in_rv: Utility for opening plates in RV
 - HeadlessMode: Headless operation support for CI/CD and testing
 """
 
@@ -32,7 +31,6 @@ from launch.command_launcher import CommandLauncher, LaunchContext
 from launch.environment_manager import EnvironmentManager
 from launch.headless_mode import HeadlessMode
 from launch.process_executor import ProcessExecutor
-from launch.rv_launcher import open_plate_in_rv
 
 
 __all__ = [
@@ -51,7 +49,6 @@ __all__ = [
     "apply_nuke_environment_fixes",
     "build_workspace_command",
     "get_nuke_fix_summary",
-    "open_plate_in_rv",
     "validate_path",
     "wrap_for_background",
     "wrap_with_rez",

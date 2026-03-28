@@ -118,12 +118,20 @@ class BaseProxyModel(QSortFilterProxyModel):
         """Additional filtering beyond show/text. Override in subclasses."""
         return True
 
+    def get_show_filter(self) -> str | None:
+        """Return the current show filter value."""
+        return self._show_filter
+
     def _get_is_pinned(self, item: Any) -> bool:
-        """Check if item is pinned. Override in subclasses."""
+        """Check if item is pinned via pin manager's is_pinned()."""
+        if self._pin_manager is not None:
+            return self._pin_manager.is_pinned(item)
         return False
 
     def _get_pin_order(self, item: Any) -> int | None:
-        """Get pin sort order. Override in subclasses."""
+        """Get pin sort order via pin manager's get_pin_order()."""
+        if self._pin_manager is not None:
+            return self._pin_manager.get_pin_order(item)
         return None
 
     def _sort_tiebreak(self, left: Any, right: Any) -> bool:
@@ -163,18 +171,6 @@ class ShotProxyModel(BaseProxyModel):
         )
 
     @override
-    def _get_is_pinned(self, item: Any) -> bool:
-        if self._pin_manager is not None:
-            return self._pin_manager.is_pinned(cast("Shot", item))
-        return False
-
-    @override
-    def _get_pin_order(self, item: Any) -> int | None:
-        if self._pin_manager is not None:
-            return self._pin_manager.get_pin_order(cast("Shot", item))
-        return None
-
-    @override
     def _sort_tiebreak(self, left: Any, right: Any) -> bool:
         return (
             cast("Shot", left).full_name.lower() < cast("Shot", right).full_name.lower()
@@ -200,18 +196,6 @@ class PreviousShotsProxyModel(BaseProxyModel):
     @override
     def _extra_filter(self, item: Any) -> bool:
         return True
-
-    @override
-    def _get_is_pinned(self, item: Any) -> bool:
-        if self._pin_manager is not None:
-            return self._pin_manager.is_pinned(cast("Shot", item))
-        return False
-
-    @override
-    def _get_pin_order(self, item: Any) -> int | None:
-        if self._pin_manager is not None:
-            return self._pin_manager.get_pin_order(cast("Shot", item))
-        return None
 
     @override
     def _sort_tiebreak(self, left: Any, right: Any) -> bool:

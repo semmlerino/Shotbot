@@ -19,6 +19,7 @@ from ui.icon_painter import create_icon
 if TYPE_CHECKING:
     from PySide6.QtGui import QIcon
 
+    from launch.command_launcher import CommandLauncher
     from managers.notes_manager import NotesManager
 
 
@@ -32,6 +33,9 @@ class GridContextMenuMixin:
         class BaseGridView(GridContextMenuMixin, QtWidgetMixin, LoggingMixin, QWidget):
             ...
 
+    Host classes may optionally expose ``_command_launcher`` (a
+    :class:`~launch.command_launcher.CommandLauncher` instance) to enable
+    routing plate launches through the standard launch pipeline.
     """
 
     # Shared context menu CSS — identical across all three grid views
@@ -137,7 +141,11 @@ class GridContextMenuMixin:
             self.logger.debug(f"Copied path to clipboard: {path}")  # type: ignore[attr-defined]
 
     def _open_main_plate_in_rv(self, item: object) -> None:
-        """Open the main plate in RV.
+        """Open the main plate in RV via the standard launch pipeline.
+
+        Finds the main plate for the item's workspace, then routes the
+        launch through :class:`~launch.command_launcher.CommandLauncher`
+        when one is available on ``self._command_launcher``.
 
         Works with any object that has a ``workspace_path`` attribute,
         including Shot and ThreeDEScene.
@@ -146,9 +154,43 @@ class GridContextMenuMixin:
             item: Object with a workspace_path attribute
 
         """
-        from launch.rv_launcher import open_plate_in_rv
+        from discovery import find_main_plate
+        from managers.notification_manager import NotificationManager
 
-        open_plate_in_rv(item.workspace_path)  # type: ignore[union-attr]
+        workspace_path: str = str(item.workspace_path)  # type: ignore[union-attr]
+        plate_path = find_main_plate(workspace_path)
+
+        if plate_path is None:
+            self.logger.warning(f"No plate found for shot at {workspace_path}")  # type: ignore[attr-defined]
+            NotificationManager.error(
+                "No Plate Found", f"No plate found for shot at {workspace_path}"
+            )
+            return
+
+        command_launcher: CommandLauncher | None = getattr(
+            self, "_command_launcher", None
+        )
+        if command_launcher is None:
+            self.logger.error(  # type: ignore[attr-defined]
+                "Cannot open plate in RV: no CommandLauncher available on this view"
+            )
+            NotificationManager.error(
+                "RV Launch Failed",
+                "Cannot open plate in RV: view is not connected to a launcher.",
+            )
+            return
+
+        from launch.command_launcher import LaunchContext
+        from launch.launch_request import LaunchRequest
+
+        self.logger.info(f"Opening plate in RV: {plate_path}")  # type: ignore[attr-defined]
+        _ = command_launcher.launch(
+            LaunchRequest(
+                app_name="rv",
+                workspace_path=workspace_path,
+                context=LaunchContext(sequence_path=plate_path),
+            )
+        )
 
     def _open_folder(self, path: str) -> None:
         """Open a folder in the system file manager (non-blocking).
