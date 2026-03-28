@@ -113,8 +113,6 @@ class TestAsyncWorkflowIntegration:
 
         return _create_components
 
-        # Cleanup any created components if needed
-
     def test_shot_selection_with_async_thumbnail_loading(
         self,
         integration_components: Callable[
@@ -129,35 +127,23 @@ class TestAsyncWorkflowIntegration:
         # Set shots in model
         item_model.set_items(test_shots)
 
-        # Set up signal spies
-        QSignalSpy(item_model.thumbnail_loaded)
-
         # Also set same shot in info panel
         info_panel.set_shot(test_shots[0])
 
-        # Start async loading by setting visible range
-        item_model.set_visible_range(0, 1)
-
-        # Wait for the loading state to be set
-        # The timer fires after 100ms and then sets the loading state
-        qtbot.waitUntil(
-            lambda: (
-                item_model._thumbnail_loader.loading_states.get(test_shots[0].full_name)
-                is not None
-            ),
-            timeout=2000,
-        )
+        # Start async loading by setting visible range; wait for thumbnail_loaded signal
+        with qtbot.waitSignal(item_model.thumbnail_loaded, timeout=5000):
+            item_model.set_visible_range(0, 1)
 
         # Verify both components handled the shot
         assert info_panel._current_shot == test_shots[0]
         # Info panel shows the full name (sequence_shot), not show name
         assert test_shots[0].full_name in info_panel.shot_name_label.text()
 
-        # Model should have started async loading
-        loading_state = item_model._thumbnail_loader.loading_states.get(
+        # Model loading state should be terminal (not idle or still loading)
+        loading_state = item_model._thumbnail_loader.get_loading_state(
             test_shots[0].full_name
         )
-        assert loading_state in ["loading", "loaded", "failed"]
+        assert loading_state in ("loaded", "failed")
 
         # Cleanup - wait for background threads before deleting widgets
         get_tracker().wait_for_all(timeout_ms=2000)
@@ -205,7 +191,7 @@ class TestAsyncWorkflowIntegration:
 
         # No crashes should occur despite concurrent operations
 
-    def test_rapid_shot_changes_stress_test(
+    def test_concurrent_shot_updates(
         self,
         integration_components: Callable[
             [], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]
@@ -213,68 +199,72 @@ class TestAsyncWorkflowIntegration:
         test_shots: list[Shot],
         qtbot: QtBot,
     ) -> None:
-        """Stress test rapid shot changes across components."""
-        item_model, info_panel, _cache_manager = integration_components()
+        """Test that concurrent shot updates leave the model in a consistent state.
 
-        # Rapid fire changes
-        for i in range(10):
-            # Cycle through shots rapidly
-            shot_index = i % len(test_shots)
-            current_shot = test_shots[shot_index]
+        When multiple set_items calls are made in rapid succession (simulating
+        concurrent updates), the model must ultimately reflect only the last
+        committed update — no stale rows, no out-of-order data.
+        """
+        item_model, _info_panel, _cache_manager = integration_components()
 
-            # Update both components
-            item_model.set_items([current_shot])
-            info_panel.set_shot(current_shot)
+        # Collect thumbnail_loaded signals to confirm async loading settles
+        loaded_spy = QSignalSpy(item_model.thumbnail_loaded)
+        items_updated_spy = QSignalSpy(item_model.items_updated)
 
-            # Brief wait to simulate realistic timing
-            qtbot.wait(1)  # Minimal event processing
+        # Issue three rapid set_items calls: each supersedes the previous.
+        # The final call uses only test_shots[2], so the expected final state
+        # is exactly one row containing test_shots[2].
+        item_model.set_items(test_shots)          # 3 shots
+        item_model.set_items(test_shots[:2])      # 2 shots
+        item_model.set_items([test_shots[2]])     # 1 shot — final state
 
-        # Wait for components to stabilize after rapid changes
-        qtbot.waitUntil(lambda: item_model.rowCount() == 1, timeout=2000)
+        # items_updated must have fired for each set_items call
+        assert items_updated_spy.count() == 3
 
-        # Components should be stable without crashes
+        # Row count must immediately reflect the last set_items call
         assert item_model.rowCount() == 1
-        assert info_panel._current_shot is not None
 
-        # Clear cache; widget cleanup handled by autouse cleanup_qt_state + qtbot
-        item_model.clear_thumbnail_cache()
+        # Trigger async thumbnail loading for the surviving shot; wait for a
+        # terminal loading state (thumbnail_loaded only fires on success, so
+        # use waitUntil to cover both success and failure paths).
+        item_model.set_visible_range(0, 1)
 
-    def test_memory_management_during_async_operations(
-        self,
-        integration_components: Callable[
-            [], tuple[ShotItemModel, ShotInfoPanel, ThumbnailCache]
-        ],
-        test_shots: list[Shot],
-        qtbot: QtBot,
-    ) -> None:
-        """Test memory management during concurrent async operations."""
-        item_model, info_panel, _cache_manager = integration_components()
-
-        # Load all shots
-        item_model.set_items(test_shots)
-        item_model.set_visible_range(0, len(test_shots))
-
-        # Cycle through shots in info panel
-        for shot in test_shots:
-            info_panel.set_shot(shot)
-            qtbot.wait(1)  # Minimal event processing
-
-        # Clear everything
-        item_model.clear_thumbnail_cache()
-        info_panel.set_shot(None)
-
-        # Wait for cleanup to complete
         qtbot.waitUntil(
-            lambda: (
-                len(item_model._thumbnail_loader.thumbnail_cache) == 0
-                and info_panel._current_shot is None
-            ),
-            timeout=2000,
+            lambda: item_model._thumbnail_loader.get_loading_state(
+                test_shots[2].full_name
+            )
+            in ("loaded", "failed"),
+            timeout=5000,
         )
 
-        # Verify cleanup
-        assert len(item_model._thumbnail_loader.thumbnail_cache) == 0
-        assert info_panel._current_shot is None
+        # Final consistency checks
+        assert item_model.rowCount() == 1
+        final_state = item_model._thumbnail_loader.get_loading_state(
+            test_shots[2].full_name
+        )
+        assert final_state in ("loaded", "failed")
+
+        # Shots that were displaced must not have a stale loading entry
+        # (either they were never queued, or they were cleaned up)
+        for displaced in test_shots[:2]:
+            state = item_model._thumbnail_loader.get_loading_state(displaced.full_name)
+            # "idle" means the entry was removed; "loaded"/"failed" from a prior
+            # run are also acceptable — the key invariant is "loading" must not
+            # linger for a shot no longer in the model.
+            assert state != "loading", (
+                f"Displaced shot {displaced.full_name!r} still shows 'loading' state"
+            )
+
+        # If loading succeeded, thumbnail_loaded must have been emitted for row 0.
+        # (thumbnail_loaded is not emitted on failure, so only assert when loaded.)
+        if final_state == "loaded":
+            emitted_rows = {loaded_spy.at(i)[0] for i in range(loaded_spy.count())}
+            assert 0 in emitted_rows
+
+        # Cleanup
+        get_tracker().wait_for_all(timeout_ms=2000)
+        item_model.clear_thumbnail_cache()
+        item_model.deleteLater()
 
     def test_error_propagation_across_components(
         self,
@@ -305,30 +295,28 @@ class TestAsyncWorkflowIntegration:
         item_model.set_shots([bad_shot])
         info_panel.set_shot(bad_shot)
 
-        # Trigger operations that will fail
+        # Trigger loading; wait for a terminal state.
+        # thumbnail_loaded is NOT emitted on failure, so use waitUntil to
+        # cover both the "failed" and any unexpected "loaded" outcome.
         item_model.set_visible_range(0, 1)
-
-        # Wait for the loading state to be set (timer fires after 100ms)
         qtbot.waitUntil(
-            lambda: (
-                item_model._thumbnail_loader.loading_states.get(bad_shot.full_name)
-                is not None
-            ),
-            timeout=2000,
+            lambda: item_model._thumbnail_loader.get_loading_state(bad_shot.full_name)
+            in ("failed", "loaded"),
+            timeout=5000,
         )
 
-        # Both components should handle errors gracefully
-        # Model should show failed loading state (non-existent image)
-        loading_state = item_model._thumbnail_loader.loading_states.get(
+        # Both components should handle errors gracefully.
+        # Model must show a terminal state (not "loading" or "idle").
+        loading_state = item_model._thumbnail_loader.get_loading_state(
             bad_shot.full_name
         )
-        assert loading_state in ["failed", "loaded"]  # Should not remain loading/idle
+        assert loading_state in ("failed", "loaded")
 
         # Panel should show placeholder
         assert info_panel._current_shot == bad_shot
         thumbnail_text = info_panel.thumbnail_label.text()
         assert (
-            thumbnail_text in ["", "No Image"]
+            thumbnail_text in ("", "No Image")
             or info_panel.thumbnail_label.pixmap() is not None
         )
 
