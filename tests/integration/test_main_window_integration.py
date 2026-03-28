@@ -10,7 +10,7 @@ import time
 from collections.abc import Generator, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtGui import QKeySequence
@@ -391,7 +391,7 @@ class TestMainWindowUICoordination:
         assert "nuke" in window.right_panel._dcc_accordion._sections
 
     def test_launcher_execution_workflow(
-        self, main_window_with_real_components: Any, qtbot: Any, tmp_path: Path
+        self, main_window_with_real_components: Any, qtbot: Any, tmp_path: Path, mocker: Any
     ) -> None:
         """Test that the launch button delegates to CommandLauncher."""
         window = main_window_with_real_components
@@ -413,11 +413,11 @@ class TestMainWindowUICoordination:
         if open_latest_checkbox:
             open_latest_checkbox.setChecked(False)
 
-        with patch.object(
+        mock_launch = mocker.patch.object(
             window.command_launcher, "launch", return_value=True
-        ) as mock_launch:
-            section_3de._launch_btn.click()
-            qtbot.wait(1)
+        )
+        section_3de._launch_btn.click()
+        qtbot.wait(1)
 
         mock_launch.assert_called_once()
         assert mock_launch.call_args is not None
@@ -537,7 +537,7 @@ class TestUserWorkflows:
     """Integration tests for critical user workflows in ShotBot."""
 
     @pytest.fixture(autouse=True)
-    def _setup(self, tmp_path: Path, qtbot: Any) -> Iterator[None]:
+    def _setup(self, tmp_path: Path, qtbot: Any, mocker: Any) -> Iterator[None]:
         """Set up test environment with realistic data structures."""
         self.temp_dir = tmp_path / "shotbot"
         self.temp_dir.mkdir()
@@ -591,16 +591,12 @@ class TestUserWorkflows:
         self.signal_events: list[tuple] = []
 
         self.progress_operation = MagicMock()
-        self.progress_patcher = patch(
+        self.mock_progress = mocker.patch(
             "managers.progress_manager.ProgressManager.start_operation"
         )
-        self.mock_progress = self.progress_patcher.start()
         self.mock_progress.return_value = self.progress_operation
 
         yield
-
-        with contextlib.suppress(Exception):
-            self.progress_patcher.stop()
 
         _close_windows(self.test_windows, qtbot)
 
@@ -652,7 +648,7 @@ class TestUserWorkflows:
         return shot_path
 
     @pytest.mark.qt
-    def test_launch_nuke_with_shot(self, qtbot: Any) -> None:
+    def test_launch_nuke_with_shot(self, qtbot: Any, mocker: Any) -> None:
         """Test complete workflow of selecting a shot and launching Nuke."""
         main_window = MainWindow(cache_dir=self.cache_dir)
         qtbot.addWidget(main_window)
@@ -673,41 +669,39 @@ class TestUserWorkflows:
         # Pre-populate rez cache so test doesn't fail on missing rez binary
         main_window.command_launcher.env_manager._rez_available_cache = True
 
-        with (
-            patch(
-                "launch.process_executor.subprocess.Popen",
-                return_value=self.test_processes["nuke"],
-            ) as mock_popen,
-            patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}),
-            patch(
-                "launch.command_launcher.EnvironmentManager.is_ws_available",
-                return_value=True,
-            ),
-        ):
-            from launch.launch_request import LaunchRequest
+        mock_popen = mocker.patch(
+            "launch.process_executor.subprocess.Popen",
+            return_value=self.test_processes["nuke"],
+        )
+        mocker.patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"})
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.is_ws_available",
+            return_value=True,
+        )
+        from launch.launch_request import LaunchRequest
 
-            success = main_window.command_launcher.launch(
-                LaunchRequest(app_name="nuke")
+        success = main_window.command_launcher.launch(
+            LaunchRequest(app_name="nuke")
+        )
+
+        assert success is True
+
+        qtbot.wait(1)
+
+        assert mock_popen.called, "Popen should have been called"
+
+        if mock_popen.call_args:
+            call_args = mock_popen.call_args
+            command_str = " ".join(call_args[0][0]) if call_args[0] else ""
+            assert "nuke" in command_str.lower(), (
+                f"Expected 'nuke' in command: {command_str}"
             )
-
-            assert success is True
-
-            qtbot.wait(1)
-
-            assert mock_popen.called, "Popen should have been called"
-
-            if mock_popen.call_args:
-                call_args = mock_popen.call_args
-                command_str = " ".join(call_args[0][0]) if call_args[0] else ""
-                assert "nuke" in command_str.lower(), (
-                    f"Expected 'nuke' in command: {command_str}"
-                )
 
         assert main_window.command_launcher.current_shot == test_shot
 
     @pytest.mark.qt
     def test_thumbnail_loading_workflow(
-        self, qtbot: Any, monkeypatch: pytest.MonkeyPatch
+        self, qtbot: Any, monkeypatch: pytest.MonkeyPatch, mocker: Any
     ) -> None:
         """Test thumbnail loading and display workflow."""
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -717,11 +711,11 @@ class TestUserWorkflows:
 
         monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
 
-        with patch(
+        mocker.patch(
             "workers.process_pool_manager.ProcessPoolManager.get_instance",
             return_value=test_pool,
-        ):
-            main_window = MainWindow(cache_dir=self.cache_dir)
+        )
+        main_window = MainWindow(cache_dir=self.cache_dir)
 
         qtbot.addWidget(main_window)
         self.test_windows.append(main_window)

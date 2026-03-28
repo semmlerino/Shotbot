@@ -22,7 +22,6 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -110,7 +109,7 @@ class TestFileUtils:
         assert result == []
 
     def test_find_files_by_extension_permission_error(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture, mocker
     ) -> None:
         """Test handling of permission errors during file discovery."""
         # Create directory
@@ -119,12 +118,12 @@ class TestFileUtils:
         (test_dir / "file.txt").write_text("content")
 
         # Mock permission error
-        with patch.object(
+        mocker.patch.object(
             Path,
             "iterdir",
             side_effect=PermissionError("Access denied"),
-        ):
-            result = FileUtils.find_files_by_extension(test_dir, "txt")
+        )
+        result = FileUtils.find_files_by_extension(test_dir, "txt")
 
         assert result == []
         assert any(
@@ -215,7 +214,7 @@ class TestVersionUtils:
         assert result == []
 
     def test_find_version_directories_permission_error(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture, mocker
     ) -> None:
         """Test handling of permission errors during version scanning.
 
@@ -224,12 +223,12 @@ class TestVersionUtils:
         # Clear cache to ensure mock is actually called (cache bypasses iterdir)
         VersionUtils._version_cache.clear()
 
-        with patch.object(
+        mocker.patch.object(
             Path,
             "iterdir",
             side_effect=PermissionError("Access denied"),
-        ):
-            result = VersionUtils.find_version_directories(tmp_path)
+        )
+        result = VersionUtils.find_version_directories(tmp_path)
 
         assert result == []
         assert any(
@@ -317,38 +316,38 @@ class TestValidationUtils:
         result = ValidationUtils.validate_shot_components("show1", None, "shot01")
         assert result is False
 
-    def test_get_current_username_returns_getpass_user(self) -> None:
+    def test_get_current_username_returns_getpass_user(self, mocker) -> None:
         """Test username is returned from getpass.getuser()."""
         from utils import get_current_username
 
-        with patch("getpass.getuser", return_value="testuser"):
-            result = get_current_username()
-            assert result == "testuser"
+        mocker.patch("getpass.getuser", return_value="testuser")
+        result = get_current_username()
+        assert result == "testuser"
 
-    def test_get_current_username_fallback_to_default(self) -> None:
+    def test_get_current_username_fallback_to_default(self, mocker) -> None:
         """Test username fallback when getpass.getuser() raises."""
         from utils import get_current_username
 
-        with patch("getpass.getuser", side_effect=OSError("no user")):
-            result = get_current_username()
-            assert result == Config.DEFAULT_USERNAME
+        mocker.patch("getpass.getuser", side_effect=OSError("no user"))
+        result = get_current_username()
+        assert result == Config.DEFAULT_USERNAME
 
-    def test_get_excluded_users_default(self) -> None:
+    def test_get_excluded_users_default(self, mocker) -> None:
         """Test getting excluded users with current user only."""
         from utils import get_excluded_users
 
-        with patch("utils.get_current_username", return_value="currentuser"):
-            result = get_excluded_users()
-            assert result == {"currentuser"}
+        mocker.patch("utils.get_current_username", return_value="currentuser")
+        result = get_excluded_users()
+        assert result == {"currentuser"}
 
-    def test_get_excluded_users_with_additional(self) -> None:
+    def test_get_excluded_users_with_additional(self, mocker) -> None:
         """Test getting excluded users with additional users."""
         from utils import get_excluded_users
 
         additional = {"user1", "user2"}
-        with patch("utils.get_current_username", return_value="currentuser"):
-            result = get_excluded_users(additional)
-            assert result == {"currentuser", "user1", "user2"}
+        mocker.patch("utils.get_current_username", return_value="currentuser")
+        result = get_excluded_users(additional)
+        assert result == {"currentuser", "user1", "user2"}
 
 
 class TestImageUtils:
@@ -396,14 +395,12 @@ class TestImageUtils:
             for record in caplog.records
         )
 
-    def test_validate_image_dimensions_uses_config_defaults(self) -> None:
+    def test_validate_image_dimensions_uses_config_defaults(self, mocker) -> None:
         """Test that image validation uses config defaults when not specified."""
-        with (
-            patch.object(Config, "MAX_THUMBNAIL_DIMENSION_PX", 2048),
-            patch.object(Config, "MAX_THUMBNAIL_MEMORY_MB", 10),
-        ):
-            result = ImageUtils.validate_image_dimensions(1920, 1080)
-            assert result is True
+        mocker.patch.object(Config, "MAX_THUMBNAIL_DIMENSION_PX", 2048)
+        mocker.patch.object(Config, "MAX_THUMBNAIL_MEMORY_MB", 10)
+        result = ImageUtils.validate_image_dimensions(1920, 1080)
+        assert result is True
 
     @pytest.mark.parametrize(
         ("explicit_size", "config_override", "expected"),
@@ -417,11 +414,12 @@ class TestImageUtils:
         explicit_size: int | None,
         config_override: int | None,
         expected: tuple[int, int],
+        mocker,
     ) -> None:
         """Test safe thumbnail dimensions with explicit size and config default."""
         if config_override is not None:
-            with patch.object(Config, "CACHE_THUMBNAIL_SIZE", config_override):
-                result = ImageUtils.get_safe_dimensions_for_thumbnail()
+            mocker.patch.object(Config, "CACHE_THUMBNAIL_SIZE", config_override)
+            result = ImageUtils.get_safe_dimensions_for_thumbnail()
         else:
             result = ImageUtils.get_safe_dimensions_for_thumbnail(explicit_size)
         assert result == expected

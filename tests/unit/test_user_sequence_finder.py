@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 
 from discovery import UserSequenceFinder
 
@@ -86,7 +85,7 @@ class TestFindMayaPlayblasts:
 
         assert result == []
 
-    def test_uses_current_user_when_username_not_provided(self, tmp_path: Path) -> None:
+    def test_uses_current_user_when_username_not_provided(self, tmp_path: Path, mocker) -> None:
         """Test that current username is used when not explicitly provided."""
         workspace = tmp_path / "workspace"
         playblast_dir = workspace / "user" / "testuser" / "mm" / "maya" / "playblast"
@@ -94,11 +93,11 @@ class TestFindMayaPlayblasts:
         version_dir.mkdir(parents=True)
         (version_dir / "Test.1001.png").touch()
 
-        with patch(
+        mocker.patch(
             "discovery.user_sequence_finder.get_current_username",
             return_value="testuser",
-        ):
-            result = UserSequenceFinder.find_maya_playblasts(str(workspace))
+        )
+        result = UserSequenceFinder.find_maya_playblasts(str(workspace))
 
         assert len(result) == 1
 

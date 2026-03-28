@@ -17,7 +17,6 @@ import threading
 from collections.abc import Generator
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -169,6 +168,7 @@ class TestPreviousShotsModel:
         model: PreviousShotsModel,
         test_finder: FakePreviousShotsFinder,
         qtbot: QtBot,
+        mocker,
     ) -> None:
         """Test signal emission during shot refresh without race conditions.
 
@@ -191,25 +191,25 @@ class TestPreviousShotsModel:
         shots_updated_spy = QSignalSpy(model.shots_updated)
 
         # Mock worker creation to return our test double
-        with patch(
+        mocker.patch(
             "previous_shots.model.PreviousShotsWorker", return_value=test_worker
-        ):
-            # Trigger refresh - will create and use our test worker
-            result = model.refresh_shots()
+        )
+        # Trigger refresh - will create and use our test worker
+        result = model.refresh_shots()
 
-            # Manually trigger worker completion since test worker is synchronous
-            shot_dicts = [
-                {
-                    "show": shot.show,
-                    "sequence": shot.sequence,
-                    "shot": shot.shot,
-                    "workspace_path": shot.workspace_path,
-                }
-                for shot in test_finder.approved_shots_to_return
-            ]
+        # Manually trigger worker completion since test worker is synchronous
+        shot_dicts = [
+            {
+                "show": shot.show,
+                "sequence": shot.sequence,
+                "shot": shot.shot,
+                "workspace_path": shot.workspace_path,
+            }
+            for shot in test_finder.approved_shots_to_return
+        ]
 
-            # Simulate worker completion
-            model._on_scan_finished(shot_dicts)
+        # Simulate worker completion
+        model._on_scan_finished(shot_dicts)
 
         # Verify return value
         assert result is True
@@ -299,7 +299,7 @@ class TestPreviousShotsModel:
             assert len(scan_results) == 300  # 3 threads * 100 checks
 
     def test_refresh_shots_error_handling(
-        self, model: PreviousShotsModel, qtbot: QtBot
+        self, model: PreviousShotsModel, qtbot: QtBot, mocker
     ) -> None:
         """Test error handling during refresh."""
         # Local application imports
@@ -313,13 +313,13 @@ class TestPreviousShotsModel:
         test_worker = FakePreviousShotsWorker()
 
         # Mock worker creation and simulate error in worker
-        with patch(
+        mocker.patch(
             "previous_shots.model.PreviousShotsWorker", return_value=test_worker
-        ):
-            result = model.refresh_shots()
+        )
+        result = model.refresh_shots()
 
-            # Simulate worker error
-            model._on_scan_error("Test error")
+        # Simulate worker error
+        model._on_scan_error("Test error")
 
         # Worker creation succeeded, but error was handled
         assert result is True  # refresh_shots() returns True when worker starts
@@ -373,7 +373,7 @@ class TestPreviousShotsModel:
         assert details["status"] == "approved"
 
     def test_cache_integration_with_real_cache(
-        self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path
+        self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path, mocker
     ) -> None:
         """Test cache saving and loading with real CacheManager."""
         # Local application imports
@@ -394,24 +394,24 @@ class TestPreviousShotsModel:
         test_worker.shots_to_find = test_shots
 
         # Mock worker creation and simulate successful completion
-        with patch(
+        mocker.patch(
             "previous_shots.model.PreviousShotsWorker", return_value=test_worker
-        ):
-            # Refresh should save to cache
-            model.refresh_shots()
+        )
+        # Refresh should save to cache
+        model.refresh_shots()
 
-            # Manually trigger successful completion
-            shot_dicts = [
-                {
-                    "show": shot.show,
-                    "sequence": shot.sequence,
-                    "shot": shot.shot,
-                    "workspace_path": shot.workspace_path,
-                }
-                for shot in test_shots
-            ]
+        # Manually trigger successful completion
+        shot_dicts = [
+            {
+                "show": shot.show,
+                "sequence": shot.sequence,
+                "shot": shot.shot,
+                "workspace_path": shot.workspace_path,
+            }
+            for shot in test_shots
+        ]
 
-            model._on_scan_finished(shot_dicts)
+        model._on_scan_finished(shot_dicts)
 
         # Verify cache file was created
         cache_file = temp_cache_dir / "previous_shots.json"
@@ -441,7 +441,7 @@ class TestPreviousShotsModel:
         process_qt_events()
 
     def test_clear_cache_functionality(
-        self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path
+        self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path, mocker
     ) -> None:
         """Test cache clearing functionality."""
         # Local application imports
@@ -459,19 +459,19 @@ class TestPreviousShotsModel:
         test_worker = FakePreviousShotsWorker()
         test_worker.shots_to_find = [test_shot]
 
-        with patch(
+        mocker.patch(
             "previous_shots.model.PreviousShotsWorker", return_value=test_worker
-        ):
-            model.refresh_shots()
+        )
+        model.refresh_shots()
 
-            # Manually trigger completion to save cache
-            shot_dict = {
-                "show": test_shot.show,
-                "sequence": test_shot.sequence,
-                "shot": test_shot.shot,
-                "workspace_path": test_shot.workspace_path,
-            }
-            model._on_scan_finished([shot_dict])
+        # Manually trigger completion to save cache
+        shot_dict = {
+            "show": test_shot.show,
+            "sequence": test_shot.sequence,
+            "shot": test_shot.shot,
+            "workspace_path": test_shot.workspace_path,
+        }
+        model._on_scan_finished([shot_dict])
 
         # Verify cache exists
         cache_file = temp_cache_dir / "previous_shots.json"
@@ -488,6 +488,7 @@ class TestPreviousShotsModel:
         test_shot_model: FakeShotModel,
         test_cache_manager: TestCacheManager,
         qtbot: QtBot,
+        mocker,
     ) -> None:
         """Test incremental cache merge behavior."""
         # Local application imports
@@ -515,22 +516,22 @@ class TestPreviousShotsModel:
         shots_updated_spy = QSignalSpy(model.shots_updated)
 
         # Mock worker creation and trigger refresh
-        with patch(
+        mocker.patch(
             "previous_shots.model.PreviousShotsWorker", return_value=test_worker
-        ):
-            model.refresh_shots()
+        )
+        model.refresh_shots()
 
-            # Manually trigger completion
-            shot_dicts = [
-                {
-                    "show": shot.show,
-                    "sequence": shot.sequence,
-                    "shot": shot.shot,
-                    "workspace_path": shot.workspace_path,
-                }
-                for shot in new_shots
-            ]
-            model._on_scan_finished(shot_dicts)
+        # Manually trigger completion
+        shot_dicts = [
+            {
+                "show": shot.show,
+                "sequence": shot.sequence,
+                "shot": shot.shot,
+                "workspace_path": shot.workspace_path,
+            }
+            for shot in new_shots
+        ]
+        model._on_scan_finished(shot_dicts)
 
         # Should have merged: 2 existing + 1 new = 3 total
         assert len(model.get_shots()) == 3
@@ -545,6 +546,7 @@ class TestPreviousShotsModel:
         test_shot_model: FakeShotModel,
         test_cache_manager: TestCacheManager,
         qtbot: QtBot,
+        mocker,
     ) -> None:
         """Emitting shots_migrated merges shots without spawning a worker.
 
@@ -574,12 +576,12 @@ class TestPreviousShotsModel:
         shots_updated_spy = QSignalSpy(model.shots_updated)
         scan_started_spy = QSignalSpy(model.scan_started)
 
-        with patch("previous_shots.model.PreviousShotsWorker") as mock_worker_cls:
-            test_cache_manager.shots_migrated.emit(migrated_payload)
-            process_qt_events()
+        mock_worker_cls = mocker.patch("previous_shots.model.PreviousShotsWorker")
+        test_cache_manager.shots_migrated.emit(migrated_payload)
+        process_qt_events()
 
-            # Worker constructor must never have been called
-            mock_worker_cls.assert_not_called()
+        # Worker constructor must never have been called
+        mock_worker_cls.assert_not_called()
 
         # Both shots appear in get_shots()
         shots = model.get_shots()

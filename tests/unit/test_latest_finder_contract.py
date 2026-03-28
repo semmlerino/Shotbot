@@ -10,7 +10,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -352,17 +351,15 @@ class TestMayaSpecific:
         assert latest is not None
         assert _USERNAME in str(latest)
 
-    def test_permission_denied_raises(self, tmp_path: Path) -> None:
+    def test_permission_denied_raises(self, tmp_path: Path, mocker) -> None:
         """PermissionError from iterdir propagates (not silently swallowed)."""
         workspace = tmp_path / "workspace"
         (workspace / "user").mkdir(parents=True)
 
         finder = MayaLatestFinder()
 
-        with (
-            patch.object(Path, "iterdir", side_effect=PermissionError("Access denied")),
-            pytest.raises(PermissionError),
-        ):
+        mocker.patch.object(Path, "iterdir", side_effect=PermissionError("Access denied"))
+        with pytest.raises(PermissionError):
             finder.find_latest_scene(str(workspace))
 
 

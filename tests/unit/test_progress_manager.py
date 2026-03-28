@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from PySide6.QtWidgets import QStatusBar
@@ -30,15 +30,15 @@ pytestmark = [
 
 
 @pytest.fixture
-def mock_notification_manager() -> Generator[Mock, None, None]:
+def mock_notification_manager(mocker) -> Mock:
     """Mock NotificationManager at system boundary."""
-    with patch("managers.progress_manager.NotificationManager") as mock:
-        mock.get_status_bar.return_value = None
-        mock.close_progress.return_value = None
-        mock.success.return_value = None
-        mock.info.return_value = None
-        mock.error.return_value = None
-        yield mock
+    mock = mocker.patch("managers.progress_manager.NotificationManager")
+    mock.get_status_bar.return_value = None
+    mock.close_progress.return_value = None
+    mock.success.return_value = None
+    mock.info.return_value = None
+    mock.error.return_value = None
+    return mock
 
 
 @pytest.fixture
@@ -307,21 +307,21 @@ class TestUIIntegration:
         assert "Processing" in message
         assert "50.0%" in message
 
-    def test_status_bar_handles_deleted_widget(self) -> None:
+    def test_status_bar_handles_deleted_widget(self, mocker) -> None:
         """Gracefully handles a deleted status bar widget."""
         mock_status_bar = Mock(spec=QStatusBar)
         mock_status_bar.showMessage.side_effect = RuntimeError(
             "wrapped C/C++ object has been deleted"
         )
 
-        with patch("managers.progress_manager.NotificationManager") as mock_nm:
-            mock_nm.get_status_bar.return_value = mock_status_bar
+        mock_nm = mocker.patch("managers.progress_manager.NotificationManager")
+        mock_nm.get_status_bar.return_value = mock_status_bar
 
-            op = ProgressManager.start_operation("Test")
-            op.update(50, "Test")  # Should not raise
+        op = ProgressManager.start_operation("Test")
+        op.update(50, "Test")  # Should not raise
 
-            # Reference should be cleared
-            assert ProgressManager._status_bar is None
+        # Reference should be cleared
+        assert ProgressManager._status_bar is None
 
     def test_update_class_method_delegates_to_current_operation(
         self, mock_notification_manager: Mock, status_bar: QStatusBar

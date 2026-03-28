@@ -11,8 +11,6 @@ Tests focus on:
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 from PySide6.QtCore import QEvent, QModelIndex, QPoint, QRect, Qt
 from PySide6.QtGui import QMouseEvent
@@ -319,7 +317,7 @@ class TestHandleMouseMoveIntegration:
     """Integration tests for mouse move handling."""
 
     def test_mouse_move_over_invalid_index_cancels_scrub(
-        self, scrub_filter: ScrubEventFilter, mock_view: QListView
+        self, scrub_filter: ScrubEventFilter, mock_view: QListView, mocker
     ) -> None:
         """Test mouse move over empty area cancels scrub."""
         # Set up scrubbing state
@@ -338,8 +336,8 @@ class TestHandleMouseMoveIntegration:
         )
 
         # Mock indexAt to return invalid index
-        with patch.object(mock_view, "indexAt", return_value=QModelIndex()):
-            scrub_filter._handle_mouse_move(event)
+        mocker.patch.object(mock_view, "indexAt", return_value=QModelIndex())
+        scrub_filter._handle_mouse_move(event)
 
         assert not scrub_filter._is_scrubbing
 

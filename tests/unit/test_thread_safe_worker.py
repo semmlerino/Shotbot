@@ -420,7 +420,7 @@ class TestSafeShutdown:
 
     def test_safe_shutdown_skips_delete_later_when_zombie(self) -> None:
         """safe_shutdown() skips deleteLater() and logs a warning for zombies."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
 
         worker = InstantWorker()
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -33,13 +33,13 @@ class TestSimpleNukeLauncher:
         """Test that launcher initializes correctly."""
         assert simple_launcher is not None
 
-    @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("nuke.simple_launcher.Path.exists")
-    @patch("nuke.simple_launcher.Path.glob")
     def test_open_latest_script_found(
-        self, mock_glob, mock_exists, simple_launcher, mock_shot
+        self, mocker, simple_launcher, mock_shot
     ) -> None:
         """Test opening latest script when scripts exist."""
+        mocker.patch.dict("os.environ", {"USER": "testuser"})
+        mock_exists = mocker.patch("nuke.simple_launcher.Path.exists")
+        mock_glob = mocker.patch("nuke.simple_launcher.Path.glob")
         mock_exists.return_value = True
         mock_script = Mock(spec=Path)
         mock_script.name = "TEST_0010_mm-default_FG01_scene_v003.nk"
@@ -58,12 +58,12 @@ class TestSimpleNukeLauncher:
         assert "TEST_0010_mm-default_FG01_scene_v003.nk" in command
         assert any("Opening:" in msg for msg in messages)
 
-    @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("nuke.simple_launcher.Path.exists")
     def test_open_latest_script_not_found(
-        self, mock_exists, simple_launcher, mock_shot
+        self, mocker, simple_launcher, mock_shot
     ) -> None:
         """Test opening latest script when no scripts exist."""
+        mocker.patch.dict("os.environ", {"USER": "testuser"})
+        mock_exists = mocker.patch("nuke.simple_launcher.Path.exists")
         mock_exists.return_value = False
 
         command, messages = simple_launcher.open_latest_script(
@@ -73,21 +73,18 @@ class TestSimpleNukeLauncher:
         assert command == "nuke"
         assert any("Opening empty Nuke" in msg for msg in messages)
 
-    @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("nuke.simple_launcher.Path.mkdir")
-    @patch("nuke.simple_launcher.Path.exists")
-    @patch("nuke.simple_launcher.Path.glob")
-    @patch("builtins.open", create=True)
     def test_open_latest_script_create_v001(
         self,
-        mock_open,
-        mock_glob,
-        mock_exists,
-        mock_mkdir,
+        mocker,
         simple_launcher,
         mock_shot,
     ) -> None:
         """Test creating v001 when no scripts exist and create_if_missing=True."""
+        mocker.patch.dict("os.environ", {"USER": "testuser"})
+        mocker.patch("nuke.simple_launcher.Path.mkdir")
+        mock_exists = mocker.patch("nuke.simple_launcher.Path.exists")
+        mock_glob = mocker.patch("nuke.simple_launcher.Path.glob")
+        mock_open = mocker.patch("builtins.open", create=True)
         mock_exists.return_value = False
         mock_glob.return_value = []
         mock_file = Mock()
@@ -104,15 +101,15 @@ class TestSimpleNukeLauncher:
         assert any("v001.nk" in msg for msg in messages)
         assert any("onCreate hooks" in msg for msg in messages)
 
-    @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("nuke.simple_launcher.Path.mkdir")
-    @patch("nuke.simple_launcher.Path.exists")
-    @patch("nuke.simple_launcher.Path.glob")
-    @patch("builtins.open", create=True)
     def test_create_new_version(
-        self, mock_open, mock_glob, mock_exists, mock_mkdir, simple_launcher, mock_shot
+        self, mocker, simple_launcher, mock_shot
     ) -> None:
         """Test creating a new version when scripts exist."""
+        mocker.patch.dict("os.environ", {"USER": "testuser"})
+        mocker.patch("nuke.simple_launcher.Path.mkdir")
+        mock_exists = mocker.patch("nuke.simple_launcher.Path.exists")
+        mock_glob = mocker.patch("nuke.simple_launcher.Path.glob")
+        mock_open = mocker.patch("builtins.open", create=True)
         mock_exists.return_value = True
         # Create proper path mocks
         mock_script_v002 = Path(
@@ -134,21 +131,18 @@ class TestSimpleNukeLauncher:
         assert any("v004" in msg for msg in messages)
         assert any("onCreate hooks" in msg for msg in messages)
 
-    @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("nuke.simple_launcher.Path.mkdir")
-    @patch("nuke.simple_launcher.Path.exists")
-    @patch("nuke.simple_launcher.Path.glob")
-    @patch("builtins.open", create=True)
     def test_create_new_version_first(
         self,
-        mock_open,
-        mock_glob,
-        mock_exists,
-        mock_mkdir,
+        mocker,
         simple_launcher,
         mock_shot,
     ) -> None:
         """Test creating first version when no scripts exist."""
+        mocker.patch.dict("os.environ", {"USER": "testuser"})
+        mocker.patch("nuke.simple_launcher.Path.mkdir")
+        mock_exists = mocker.patch("nuke.simple_launcher.Path.exists")
+        mock_glob = mocker.patch("nuke.simple_launcher.Path.glob")
+        mock_open = mocker.patch("builtins.open", create=True)
         mock_exists.return_value = False
         mock_glob.return_value = []
         mock_file = Mock()
@@ -163,21 +157,18 @@ class TestSimpleNukeLauncher:
         assert any("v001" in msg for msg in messages)
         assert any("onCreate hooks" in msg for msg in messages)
 
-    @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("nuke.simple_launcher.Path.exists")
-    @patch("nuke.simple_launcher.Path.glob")
-    @patch("nuke.simple_launcher.Path.mkdir")
-    @patch("builtins.open", create=True)
     def test_create_directory_if_missing(
         self,
-        mock_open,
-        mock_mkdir,
-        mock_glob,
-        mock_exists,
+        mocker,
         simple_launcher,
         mock_shot,
     ) -> None:
         """Test that script directory is created if it doesn't exist."""
+        mocker.patch.dict("os.environ", {"USER": "testuser"})
+        mock_exists = mocker.patch("nuke.simple_launcher.Path.exists")
+        mock_glob = mocker.patch("nuke.simple_launcher.Path.glob")
+        mocker.patch("nuke.simple_launcher.Path.mkdir")
+        mock_open = mocker.patch("builtins.open", create=True)
         mock_exists.return_value = False
         mock_glob.return_value = []
         mock_file = Mock()
@@ -188,19 +179,17 @@ class TestSimpleNukeLauncher:
         # Verify a valid nuke command was produced (directory creation succeeded)
         assert command.startswith("export NUKE_PATH=")
 
-    @patch.dict("os.environ", {"USER": "testuser"})
-    @patch("nuke.simple_launcher.Path.mkdir")
-    @patch("nuke.simple_launcher.Path.exists")
-    @patch("nuke.simple_launcher.Path.glob")
     def test_create_fails_gracefully(
         self,
-        mock_glob,
-        mock_exists,
-        mock_mkdir,
+        mocker,
         simple_launcher,
         mock_shot,
     ) -> None:
         """Test that creation failures are handled gracefully."""
+        mocker.patch.dict("os.environ", {"USER": "testuser"})
+        mock_glob = mocker.patch("nuke.simple_launcher.Path.glob")
+        mock_exists = mocker.patch("nuke.simple_launcher.Path.exists")
+        mock_mkdir = mocker.patch("nuke.simple_launcher.Path.mkdir")
         mock_exists.return_value = False
         mock_glob.return_value = []
         # Make mkdir raise an error to simulate failure
@@ -211,7 +200,6 @@ class TestSimpleNukeLauncher:
         assert command == "nuke"
         assert any("error" in msg.lower() for msg in messages)
 
-    @patch.dict("os.environ", {"USER": "testuser"})
     def test_startup_script_contains_cleanup(
         self, simple_launcher, mock_shot, tmp_path
     ) -> None:
@@ -269,40 +257,36 @@ class TestNukeLaunchHandler:
 
         return NukeLaunchHandler()
 
-    def test_get_environment_fixes_disabled(self, nuke_handler) -> None:
+    def test_get_environment_fixes_disabled(self, mocker, nuke_handler) -> None:
         """Test environment fixes when disabled."""
-        with patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", False):
-            fixes = nuke_handler.get_environment_fixes()
-            assert fixes == ""
+        mocker.patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", False)
+        fixes = nuke_handler.get_environment_fixes()
+        assert fixes == ""
 
-    def test_get_environment_fixes_with_problematic_plugins(self, nuke_handler) -> None:
+    def test_get_environment_fixes_with_problematic_plugins(self, mocker, nuke_handler) -> None:
         """Test environment fixes with problematic plugin paths."""
-        with (
-            patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True),
-            patch("nuke.launch_handler.Config.NUKE_SKIP_PROBLEMATIC_PLUGINS", True),
-            patch(
-                "nuke.launch_handler.Config.NUKE_PROBLEMATIC_PLUGIN_PATHS",
-                ["/bad/plugin1", "/bad/plugin2"],
-            ),
-        ):
-            fixes = nuke_handler.get_environment_fixes()
+        mocker.patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True)
+        mocker.patch("nuke.launch_handler.Config.NUKE_SKIP_PROBLEMATIC_PLUGINS", True)
+        mocker.patch(
+            "nuke.launch_handler.Config.NUKE_PROBLEMATIC_PLUGIN_PATHS",
+            ["/bad/plugin1", "/bad/plugin2"],
+        )
+        fixes = nuke_handler.get_environment_fixes()
 
-            assert "FILTERED_NUKE_PATH" in fixes
-            assert "grep -v" in fixes
-            assert "NUKE_DISABLE_CRASH_REPORTING=1" in fixes
+        assert "FILTERED_NUKE_PATH" in fixes
+        assert "grep -v" in fixes
+        assert "NUKE_DISABLE_CRASH_REPORTING=1" in fixes
 
-    def test_get_environment_fixes_with_ocio_fallback(self, nuke_handler) -> None:
+    def test_get_environment_fixes_with_ocio_fallback(self, mocker, nuke_handler) -> None:
         """Test environment fixes with OCIO fallback config."""
-        with (
-            patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True),
-            patch(
-                "nuke.launch_handler.Config.NUKE_OCIO_FALLBACK_CONFIG",
-                "/test/ocio/config.ocio",
-            ),
-            patch("pathlib.Path.exists") as mock_exists,
-        ):
-            mock_exists.return_value = True
-            fixes = nuke_handler.get_environment_fixes()
+        mocker.patch("nuke.launch_handler.Config.NUKE_FIX_OCIO_CRASH", True)
+        mocker.patch(
+            "nuke.launch_handler.Config.NUKE_OCIO_FALLBACK_CONFIG",
+            "/test/ocio/config.ocio",
+        )
+        mock_exists = mocker.patch("pathlib.Path.exists")
+        mock_exists.return_value = True
+        fixes = nuke_handler.get_environment_fixes()
 
-            assert 'export OCIO="/test/ocio/config.ocio"' in fixes
-            assert "NUKE_DISABLE_CRASH_REPORTING=1" in fixes
+        assert 'export OCIO="/test/ocio/config.ocio"' in fixes
+        assert "NUKE_DISABLE_CRASH_REPORTING=1" in fixes

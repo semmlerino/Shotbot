@@ -13,7 +13,6 @@ import gc
 import threading
 import time
 from typing import ClassVar
-from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import QRunnable, QThreadPool
@@ -289,18 +288,18 @@ class TestQRunnableTrackerWaitAndCleanup:
         thread.join()
         assert result is True
 
-    def test_cleanup_all_clears_runnables(self, tracker: QRunnableTracker) -> None:
+    def test_cleanup_all_clears_runnables(self, tracker: QRunnableTracker, mocker) -> None:
         """cleanup_all() clears all tracked runnables."""
         runnables = [DummyRunnable() for _ in range(5)]
         for r in runnables:
             tracker.register(r)
 
-        with patch.object(
+        mocker.patch.object(
             QThreadPool.globalInstance(),
             "waitForDone",
             return_value=True,
-        ):
-            tracker.cleanup_all()
+        )
+        tracker.cleanup_all()
 
         assert tracker.get_active_count() == 0
 

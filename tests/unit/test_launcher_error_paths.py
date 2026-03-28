@@ -18,7 +18,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 import pytest
 
@@ -188,41 +187,41 @@ class TestVerifySpawnCrash:
 class TestExecuteInNewTerminalErrors:
     """Tests for OS-level errors during process spawning."""
 
-    def test_permission_error_returns_none(self, qtbot: QtBot) -> None:
+    def test_permission_error_returns_none(self, qtbot: QtBot, mocker) -> None:
         """PermissionError during Popen returns None (does not propagate)."""
         executor = ProcessExecutor(Config)
 
-        with patch("launch.process_executor.subprocess.Popen") as mock_popen:
-            mock_popen.side_effect = PermissionError("permission denied")
-            result = executor.execute_in_new_terminal(
-                "echo hello", "3de", terminal="gnome-terminal"
-            )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
+        mock_popen.side_effect = PermissionError("permission denied")
+        result = executor.execute_in_new_terminal(
+            "echo hello", "3de", terminal="gnome-terminal"
+        )
 
         assert result is None
         executor.cleanup()
 
-    def test_os_error_returns_none(self, qtbot: QtBot) -> None:
+    def test_os_error_returns_none(self, qtbot: QtBot, mocker) -> None:
         """Generic OSError during Popen returns None (does not propagate)."""
         executor = ProcessExecutor(Config)
 
-        with patch("launch.process_executor.subprocess.Popen") as mock_popen:
-            mock_popen.side_effect = OSError("no such device")
-            result = executor.execute_in_new_terminal(
-                "echo hello", "maya", terminal="xterm"
-            )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
+        mock_popen.side_effect = OSError("no such device")
+        result = executor.execute_in_new_terminal(
+            "echo hello", "maya", terminal="xterm"
+        )
 
         assert result is None
         executor.cleanup()
 
-    def test_file_not_found_returns_none(self, qtbot: QtBot) -> None:
+    def test_file_not_found_returns_none(self, qtbot: QtBot, mocker) -> None:
         """FileNotFoundError during Popen returns None (terminal binary missing)."""
         executor = ProcessExecutor(Config)
 
-        with patch("launch.process_executor.subprocess.Popen") as mock_popen:
-            mock_popen.side_effect = FileNotFoundError("No such file: gnome-terminal")
-            result = executor.execute_in_new_terminal(
-                "nuke -x", "nuke", terminal="gnome-terminal"
-            )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
+        mock_popen.side_effect = FileNotFoundError("No such file: gnome-terminal")
+        result = executor.execute_in_new_terminal(
+            "nuke -x", "nuke", terminal="gnome-terminal"
+        )
 
         assert result is None
         executor.cleanup()
@@ -401,22 +400,23 @@ class TestInvalidWorkspacePathInFinishLaunch:
         self,
         launcher: CommandLauncher,
         qtbot: QtBot,
+        mocker,
     ) -> None:
         """_finish_launch rejects workspace paths containing shell meta-characters."""
 
         # Pass a dangerous workspace path directly to _finish_launch
         # (bypassing the workspace existence check via a patched validator)
-        with patch.object(
+        mocker.patch.object(
             CommandLauncher,
             "_validate_workspace_before_launch",
             return_value=True,
-        ):
-            # The path itself contains a dangerous character
-            result = launcher._finish_launch(
-                "3de",
-                "3de",
-                workspace_path="/shows/TEST/shots/seq01/0010; malicious_command",
-            )
+        )
+        # The path itself contains a dangerous character
+        result = launcher._finish_launch(
+            "3de",
+            "3de",
+            workspace_path="/shows/TEST/shots/seq01/0010; malicious_command",
+        )
 
         assert result is False
 
@@ -440,7 +440,7 @@ class TestInvalidWorkspacePathInFinishLaunch:
 class TestProcessExecutorCleanup:
     """Tests for ProcessExecutor cleanup behaviour."""
 
-    def test_cleanup_cancels_pending_timers(self, qtbot: QtBot) -> None:
+    def test_cleanup_cancels_pending_timers(self, qtbot: QtBot, mocker) -> None:
         """cleanup() empties the pending timer list so no stale callbacks fire."""
         executor = ProcessExecutor(Config)
 
@@ -448,12 +448,12 @@ class TestProcessExecutorCleanup:
         running_popen = PopenDouble(args=["3de"], returncode=0)
         running_popen.poll = lambda: None  # type: ignore[method-assign]
 
-        with patch(
+        mocker.patch(
             "launch.process_executor.subprocess.Popen", return_value=running_popen
-        ):
-            executor.execute_in_new_terminal(
-                "echo hello", "3de", terminal="gnome-terminal"
-            )
+        )
+        executor.execute_in_new_terminal(
+            "echo hello", "3de", terminal="gnome-terminal"
+        )
 
         assert len(executor._pending_timers) > 0
 

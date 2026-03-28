@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -259,6 +259,7 @@ class TestLatestFileFinderWorkerCancellation:
         self,
         qtbot: QtBot,
         workspace: Path,
+        mocker,
     ) -> None:
         """Worker skips Maya search when stopped after 3DE search."""
         # Use a mock 3DE finder that triggers stop mid-search
@@ -278,13 +279,13 @@ class TestLatestFileFinderWorkerCancellation:
             worker.request_stop()
             return result
 
-        with patch("threede.ThreeDELatestFinder") as mock_cls:
-            mock_instance = MagicMock()
-            mock_instance.find_latest_scene.side_effect = stop_after_threede
-            mock_cls.return_value = mock_instance
+        mock_cls = mocker.patch("threede.ThreeDELatestFinder")
+        mock_instance = MagicMock()
+        mock_instance.find_latest_scene.side_effect = stop_after_threede
+        mock_cls.return_value = mock_instance
 
-            worker.do_work()
-            process_qt_events()
+        worker.do_work()
+        process_qt_events()
 
         # Maya search should be skipped because stop was requested after 3DE
         assert worker.maya_result is None
@@ -302,6 +303,7 @@ class TestLatestFileFinderWorkerErrorHandling:
         self,
         qtbot: QtBot,
         workspace: Path,
+        mocker,
     ) -> None:
         """Worker handles exceptions from MayaLatestFinder."""
         worker = LatestFileFinderWorker(
@@ -315,15 +317,15 @@ class TestLatestFileFinderWorkerErrorHandling:
         worker.search_complete.connect(lambda s: complete_results.append(s))
 
         # Mock the finder creation to raise an error
-        with patch(
+        mock_finder_class = mocker.patch(
             "launch.latest_file_finder_worker.MayaLatestFinder"
-        ) as mock_finder_class:
-            mock_finder = MagicMock()
-            mock_finder.find_latest_scene.side_effect = RuntimeError("Test error")
-            mock_finder_class.return_value = mock_finder
+        )
+        mock_finder = MagicMock()
+        mock_finder.find_latest_scene.side_effect = RuntimeError("Test error")
+        mock_finder_class.return_value = mock_finder
 
-            worker.do_work()
-            process_qt_events()
+        worker.do_work()
+        process_qt_events()
 
         # search_complete should emit False on error
         assert len(complete_results) == 1
@@ -333,6 +335,7 @@ class TestLatestFileFinderWorkerErrorHandling:
         self,
         qtbot: QtBot,
         workspace: Path,
+        mocker,
     ) -> None:
         """Worker handles exceptions from ThreeDELatestFinder."""
         worker = LatestFileFinderWorker(
@@ -345,13 +348,13 @@ class TestLatestFileFinderWorkerErrorHandling:
         complete_results: list[bool] = []
         worker.search_complete.connect(lambda s: complete_results.append(s))
 
-        with patch("threede.ThreeDELatestFinder") as mock_finder_class:
-            mock_finder = MagicMock()
-            mock_finder.find_latest_scene.side_effect = RuntimeError("Test error")
-            mock_finder_class.return_value = mock_finder
+        mock_finder_class = mocker.patch("threede.ThreeDELatestFinder")
+        mock_finder = MagicMock()
+        mock_finder.find_latest_scene.side_effect = RuntimeError("Test error")
+        mock_finder_class.return_value = mock_finder
 
-            worker.do_work()
-            process_qt_events()
+        worker.do_work()
+        process_qt_events()
 
         # search_complete should emit False on error
         assert len(complete_results) == 1

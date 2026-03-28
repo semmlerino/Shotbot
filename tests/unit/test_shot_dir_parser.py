@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 from paths.shot_dir_parser import (
     build_workspace_path,
@@ -89,7 +88,7 @@ class TestResolveShowsRoot:
         assert result == Path("/custom/shows")
         assert isinstance(result, Path)
 
-    def test_resolve_shows_root_none_uses_config(self) -> None:
-        with patch("config.Config.SHOWS_ROOT", "/default/shows"):
-            result = resolve_shows_root(None)
-            assert result == Path("/default/shows")
+    def test_resolve_shows_root_none_uses_config(self, mocker) -> None:
+        mocker.patch("config.Config.SHOWS_ROOT", "/default/shows")
+        result = resolve_shows_root(None)
+        assert result == Path("/default/shows")

@@ -17,7 +17,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -59,21 +59,19 @@ def sample_scene() -> ThreeDEScene:
 
 
 @pytest.fixture
-def launcher(qapp: Any) -> CommandLauncher:
+def launcher(qapp: Any, mocker: Any) -> CommandLauncher:
     """Create a CommandLauncher instance with mocked dependencies."""
-    with (
-        patch("launch.command_launcher.EnvironmentManager.warm_cache_async"),
-        patch("launch.command_launcher.SettingsManager") as mock_settings,
-    ):
-        mock_settings.return_value.get_terminal_emulator.return_value = "gnome-terminal"
+    mocker.patch("launch.command_launcher.EnvironmentManager.warm_cache_async")
+    mock_settings = mocker.patch("launch.command_launcher.SettingsManager")
+    mock_settings.return_value.get_terminal_emulator.return_value = "gnome-terminal"
 
-        launcher = CommandLauncher()
-        # Pre-populate rez cache so tests don't fail on missing rez binary
-        launcher.env_manager._rez_available_cache = True
-        yield launcher
+    launcher = CommandLauncher()
+    # Pre-populate rez cache so tests don't fail on missing rez binary
+    launcher.env_manager._rez_available_cache = True
+    yield launcher
 
-        # Cleanup
-        launcher.cleanup()
+    # Cleanup
+    launcher.cleanup()
 
 
 # ============================================================================
@@ -88,6 +86,7 @@ class TestThreeDECommandBuilding:
         self,
         launcher: CommandLauncher,
         sample_shot: Shot,
+        mocker,
     ) -> None:
         """Test 3DE launch with open_latest_threede option.
 
@@ -107,15 +106,13 @@ class TestThreeDECommandBuilding:
 
         context = LaunchContext(open_latest_threede=True)
 
-        with (
-            patch.object(
-                launcher, "_validate_workspace_before_launch", return_value=True
-            ),
-            patch.object(
-                LaunchOperation, "_launch_in_new_terminal", return_value=True
-            ) as mock_execute,
-        ):
-            result = launcher.launch(LaunchRequest(app_name="3de", context=context))
+        mocker.patch.object(
+            launcher, "_validate_workspace_before_launch", return_value=True
+        )
+        mock_execute = mocker.patch.object(
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
+        )
+        result = launcher.launch(LaunchRequest(app_name="3de", context=context))
 
         assert result is True
 
@@ -138,6 +135,7 @@ class TestLaunchWithScene:
         self,
         launcher: CommandLauncher,
         sample_scene: ThreeDEScene,
+        mocker,
     ) -> None:
         """Test launching Maya with a scene file uses context-only launch."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
@@ -154,15 +152,13 @@ class TestLaunchWithScene:
             modified_time=time.time(),
         )
 
-        with (
-            patch.object(
-                launcher, "_validate_workspace_before_launch", return_value=True
-            ),
-            patch.object(
-                LaunchOperation, "_launch_in_new_terminal", return_value=True
-            ) as mock_execute,
-        ):
-            result = launcher.launch(LaunchRequest(app_name="maya", scene=maya_scene))
+        mocker.patch.object(
+            launcher, "_validate_workspace_before_launch", return_value=True
+        )
+        mock_execute = mocker.patch.object(
+            LaunchOperation, "_launch_in_new_terminal", return_value=True
+        )
+        result = launcher.launch(LaunchRequest(app_name="maya", scene=maya_scene))
 
         assert result is True
 
@@ -186,6 +182,7 @@ class TestPathEscaping:
         self,
         launcher: CommandLauncher,
         tmp_path: Path,
+        mocker,
     ) -> None:
         """Test launch handles workspace paths with spaces."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
@@ -202,10 +199,10 @@ class TestPathEscaping:
         )
         launcher.set_current_shot(shot)
 
-        with patch.object(
+        mock_execute = mocker.patch.object(
             LaunchOperation, "_launch_in_new_terminal", return_value=True
-        ) as mock_execute:
-            result = launcher.launch(LaunchRequest(app_name="3de"))
+        )
+        result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is True
         # Command should be properly quoted
@@ -218,6 +215,7 @@ class TestPathEscaping:
         self,
         launcher: CommandLauncher,
         tmp_path: Path,
+        mocker,
     ) -> None:
         """Test launch handles scene paths with special characters."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
@@ -237,13 +235,11 @@ class TestPathEscaping:
             modified_time=time.time(),
         )
 
-        with (
-            patch.object(
-                launcher, "_validate_workspace_before_launch", return_value=True
-            ),
-            patch.object(LaunchOperation, "_launch_in_new_terminal", return_value=True),
-        ):
-            result = launcher.launch(LaunchRequest(app_name="3de", scene=scene))
+        mocker.patch.object(
+            launcher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch.object(LaunchOperation, "_launch_in_new_terminal", return_value=True)
+        result = launcher.launch(LaunchRequest(app_name="3de", scene=scene))
 
         assert result is True
 
@@ -260,16 +256,15 @@ class TestErrorHandling:
         self,
         launcher: CommandLauncher,
         sample_scene: ThreeDEScene,
+        mocker,
     ) -> None:
         """launch returns True for valid scene."""
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
 
-        with (
-            patch.object(
-                launcher, "_validate_workspace_before_launch", return_value=True
-            ),
-            patch.object(LaunchOperation, "_launch_in_new_terminal", return_value=True),
-        ):
-            result = launcher.launch(LaunchRequest(app_name="3de", scene=sample_scene))
+        mocker.patch.object(
+            launcher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch.object(LaunchOperation, "_launch_in_new_terminal", return_value=True)
+        result = launcher.launch(LaunchRequest(app_name="3de", scene=sample_scene))
 
         assert result is True

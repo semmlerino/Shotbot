@@ -6,7 +6,7 @@ from __future__ import annotations
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 # Third-party imports
 import pytest
@@ -61,7 +61,7 @@ class TestExtractShowsFromActiveShots:
 class TestScanShowForUser:
     """Test _scan_show_for_user method."""
 
-    def test_scan_existing_show(self, tmp_path: Path) -> None:
+    def test_scan_existing_show(self, tmp_path: Path, mocker) -> None:
         """Test scanning a show with user directories."""
         finder = TargetedShotsFinder(username="john")
 
@@ -80,13 +80,13 @@ class TestScanShowForUser:
         mock_proc = MagicMock()
         mock_proc.run.return_value = mock_result
 
-        with patch(
+        mocker.patch(
             "shots.shot_finder_base.CancellableSubprocess", return_value=mock_proc
-        ):
-            shots = finder._scan_show_for_user("test_show", shows_root)
+        )
+        shots = finder._scan_show_for_user("test_show", shows_root)
 
-            assert len(shots) > 0
-            mock_proc.run.assert_called_once()
+        assert len(shots) > 0
+        mock_proc.run.assert_called_once()
 
     def test_scan_nonexistent_show(self, tmp_path: Path) -> None:
         """Test scanning a show that doesn't exist returns empty list."""
@@ -114,7 +114,7 @@ class TestScanShowForUser:
         ],
     )
     def test_scan_with_subprocess_failure(
-        self, tmp_path: Path, proc_setup: str
+        self, tmp_path: Path, proc_setup: str, mocker
     ) -> None:
         """Test that subprocess timeout and error both return empty shot list."""
         finder = TargetedShotsFinder()
@@ -133,14 +133,14 @@ class TestScanShowForUser:
         else:
             mock_proc.run.side_effect = Exception("Process failed")
 
-        with patch(
+        mocker.patch(
             "shots.shot_finder_base.CancellableSubprocess", return_value=mock_proc
-        ):
-            shots = finder._scan_show_for_user("test_show", shows_root)
+        )
+        shots = finder._scan_show_for_user("test_show", shows_root)
 
         assert shots == []
 
-    def test_scan_with_multiple_shots(self, tmp_path: Path, monkeypatch) -> None:
+    def test_scan_with_multiple_shots(self, tmp_path: Path, monkeypatch, mocker) -> None:
         """Test scanning show with multiple shots."""
         # Set SHOWS_ROOT to tmp_path for this test
         shows_root = tmp_path / "shows"
@@ -168,15 +168,15 @@ class TestScanShowForUser:
         mock_proc = MagicMock()
         mock_proc.run.return_value = mock_result
 
-        with patch(
+        mocker.patch(
             "shots.shot_finder_base.CancellableSubprocess", return_value=mock_proc
-        ):
-            shots = finder._scan_show_for_user("myshow", shows_root)
+        )
+        shots = finder._scan_show_for_user("myshow", shows_root)
 
-            assert len(shots) == 3
-            # Check that shots are unique
-            shot_ids = [(s.sequence, s.shot) for s in shots]
-            assert len(shot_ids) == len(set(shot_ids))
+        assert len(shots) == 3
+        # Check that shots are unique
+        shot_ids = [(s.sequence, s.shot) for s in shots]
+        assert len(shot_ids) == len(set(shot_ids))
 
 
 class TestParseShotFromPath:
@@ -230,7 +230,7 @@ class TestParseShotFromPath:
 class TestFindUserShotsInShows:
     """Test find_user_shots_in_shows method."""
 
-    def test_find_in_target_shows(self, tmp_path: Path) -> None:
+    def test_find_in_target_shows(self, tmp_path: Path, mocker) -> None:
         """Test finding shots in targeted shows."""
         finder = TargetedShotsFinder(username="john")
 
@@ -258,23 +258,23 @@ class TestFindUserShotsInShows:
                 ]
             return []
 
-        with patch.object(finder, "_scan_show_for_user", side_effect=mock_scan):
-            shots = list(finder.find_user_shots_in_shows(target_shows, tmp_path))
+        mocker.patch.object(finder, "_scan_show_for_user", side_effect=mock_scan)
+        shots = list(finder.find_user_shots_in_shows(target_shows, tmp_path))
 
-            assert len(shots) == 2
-            assert any(s.show == "show1" for s in shots)
-            assert any(s.show == "show2" for s in shots)
+        assert len(shots) == 2
+        assert any(s.show == "show1" for s in shots)
+        assert any(s.show == "show2" for s in shots)
 
-    def test_find_with_empty_target_shows(self) -> None:
+    def test_find_with_empty_target_shows(self, mocker) -> None:
         """Test finding with no target shows."""
         finder = TargetedShotsFinder()
 
-        with patch("shots.targeted_shot_finder.logger.warning") as mock_warning:
-            shots = list(finder.find_user_shots_in_shows(set(), None))
+        mock_warning = mocker.patch("shots.targeted_shot_finder.logger.warning")
+        shots = list(finder.find_user_shots_in_shows(set(), None))
 
-            assert shots == []
-            mock_warning.assert_called_once()
-            assert "No target shows provided" in mock_warning.call_args[0][0]
+        assert shots == []
+        mock_warning.assert_called_once()
+        assert "No target shows provided" in mock_warning.call_args[0][0]
 
     def test_find_with_nonexistent_shows_root(self) -> None:
         """Test finding with nonexistent shows root returns empty list."""
@@ -283,19 +283,19 @@ class TestFindUserShotsInShows:
         shots = list(finder.find_user_shots_in_shows({"show1"}, Path("/nonexistent")))
         assert shots == []
 
-    def test_find_with_stop_requested(self) -> None:
+    def test_find_with_stop_requested(self, mocker) -> None:
         """Test that finding stops when stop is requested."""
         finder = TargetedShotsFinder()
 
         # Mock scan to return shots
-        with patch.object(finder, "_scan_show_for_user", return_value=[Mock()]):
-            # Request stop during iteration
-            finder._stop_requested = True
-            shots = list(finder.find_user_shots_in_shows({"show1"}, Path("/")))
+        mocker.patch.object(finder, "_scan_show_for_user", return_value=[Mock()])
+        # Request stop during iteration
+        finder._stop_requested = True
+        shots = list(finder.find_user_shots_in_shows({"show1"}, Path("/")))
 
-            assert shots == []  # Should stop early
+        assert shots == []  # Should stop early
 
-    def test_parallel_execution(self, tmp_path: Path) -> None:
+    def test_parallel_execution(self, tmp_path: Path, mocker) -> None:
         """Test parallel execution with ThreadPoolExecutor."""
         finder = TargetedShotsFinder(max_workers=2)
 
@@ -308,13 +308,13 @@ class TestFindUserShotsInShows:
             scanned_shows.append(show_name)
             return []
 
-        with patch.object(finder, "_scan_show_for_user", side_effect=mock_scan):
-            list(finder.find_user_shots_in_shows(target_shows, tmp_path))
+        mocker.patch.object(finder, "_scan_show_for_user", side_effect=mock_scan)
+        list(finder.find_user_shots_in_shows(target_shows, tmp_path))
 
-            # All shows should have been scanned
-            assert set(scanned_shows) == target_shows
+        # All shows should have been scanned
+        assert set(scanned_shows) == target_shows
 
-    def test_progress_reporting(self, tmp_path: Path) -> None:
+    def test_progress_reporting(self, tmp_path: Path, mocker) -> None:
         """Test that progress is reported during search."""
         finder = TargetedShotsFinder()
         progress_callback = MagicMock()
@@ -322,36 +322,34 @@ class TestFindUserShotsInShows:
 
         target_shows = {"show1"}
 
-        with patch.object(finder, "_scan_show_for_user", return_value=[]):
-            list(finder.find_user_shots_in_shows(target_shows, tmp_path))
+        mocker.patch.object(finder, "_scan_show_for_user", return_value=[])
+        list(finder.find_user_shots_in_shows(target_shows, tmp_path))
 
-            # Should have reported progress
-            progress_callback.assert_called()
-            # Should have initial and final progress
-            assert any(
-                "Searching" in str(call) for call in progress_callback.call_args_list
-            )
+        # Should have reported progress
+        progress_callback.assert_called()
+        # Should have initial and final progress
+        assert any(
+            "Searching" in str(call) for call in progress_callback.call_args_list
+        )
 
 
 class TestFindApprovedShotsTargeted:
     """Test find_approved_shots_targeted method."""
 
-    def test_find_approved_with_no_target_shows(self) -> None:
+    def test_find_approved_with_no_target_shows(self, mocker) -> None:
         """Test when no target shows are found."""
         finder = TargetedShotsFinder()
         active_shots = []
 
-        with (
-            patch.object(finder, "extract_shows_from_active_shots", return_value=set()),
-            patch("shots.targeted_shot_finder.logger.warning") as mock_warning,
-        ):
-            approved = finder.find_approved_shots_targeted(active_shots)
+        mocker.patch.object(finder, "extract_shows_from_active_shots", return_value=set())
+        mock_warning = mocker.patch("shots.targeted_shot_finder.logger.warning")
+        approved = finder.find_approved_shots_targeted(active_shots)
 
-            assert approved == []
-            mock_warning.assert_called()
-            assert "No target shows found" in mock_warning.call_args[0][0]
+        assert approved == []
+        mock_warning.assert_called()
+        assert "No target shows found" in mock_warning.call_args[0][0]
 
-    def test_find_approved_with_stop_request(self) -> None:
+    def test_find_approved_with_stop_request(self, mocker) -> None:
         """Test stopping during approved shot finding."""
         finder = TargetedShotsFinder()
         finder._stop_requested = True
@@ -360,13 +358,13 @@ class TestFindApprovedShotsTargeted:
             Shot(show="show1", sequence="010", shot="0010", workspace_path="/path1"),
         ]
 
-        with patch("shots.targeted_shot_finder.logger.info") as mock_info:
-            approved = finder.find_approved_shots_targeted(active_shots)
+        mock_info = mocker.patch("shots.targeted_shot_finder.logger.info")
+        approved = finder.find_approved_shots_targeted(active_shots)
 
-            assert approved == []
-            mock_info.assert_any_call("Targeted search stopped by user request")
+        assert approved == []
+        mock_info.assert_any_call("Targeted search stopped by user request")
 
-    def test_find_approved_with_progress(self) -> None:
+    def test_find_approved_with_progress(self, mocker) -> None:
         """Test progress reporting during approved shot finding."""
         finder = TargetedShotsFinder()
         progress_callback = MagicMock()
@@ -376,20 +374,18 @@ class TestFindApprovedShotsTargeted:
             Shot(show="show1", sequence="010", shot="0010", workspace_path="/path1"),
         ]
 
-        with (
-            patch.object(
-                finder, "extract_shows_from_active_shots", return_value={"show1"}
-            ),
-            patch.object(finder, "find_user_shots_in_shows", return_value=iter([])),
-        ):
-            finder.find_approved_shots_targeted(active_shots)
+        mocker.patch.object(
+            finder, "extract_shows_from_active_shots", return_value={"show1"}
+        )
+        mocker.patch.object(finder, "find_user_shots_in_shows", return_value=iter([]))
+        finder.find_approved_shots_targeted(active_shots)
 
-            # Progress should be reported multiple times
-            assert progress_callback.call_count > 2
-            # Should reach 100%
-            assert any(call[0][0] == 100 for call in progress_callback.call_args_list)
+        # Progress should be reported multiple times
+        assert progress_callback.call_count > 2
+        # Should reach 100%
+        assert any(call[0][0] == 100 for call in progress_callback.call_args_list)
 
-    def test_find_approved_filters_correctly(self) -> None:
+    def test_find_approved_filters_correctly(self, mocker) -> None:
         """Test that filtering works correctly for complex scenarios."""
         finder = TargetedShotsFinder()
 
@@ -409,21 +405,19 @@ class TestFindApprovedShotsTargeted:
             Shot(show="show1", sequence="020", shot="0010", workspace_path="/path5"),
         ]
 
-        with (
-            patch.object(
-                finder, "extract_shows_from_active_shots", return_value={"show1"}
-            ),
-            patch.object(
-                finder, "find_user_shots_in_shows", return_value=iter(all_shots)
-            ),
-        ):
-            approved = finder.find_approved_shots_targeted(active_shots)
+        mocker.patch.object(
+            finder, "extract_shows_from_active_shots", return_value={"show1"}
+        )
+        mocker.patch.object(
+            finder, "find_user_shots_in_shows", return_value=iter(all_shots)
+        )
+        approved = finder.find_approved_shots_targeted(active_shots)
 
-            assert len(approved) == 3
-            shot_numbers = [s.shot for s in approved]
-            assert "0030" in shot_numbers
-            assert "0040" in shot_numbers
-            assert "0010" in shot_numbers  # From sequence 020
+        assert len(approved) == 3
+        shot_numbers = [s.shot for s in approved]
+        assert "0030" in shot_numbers
+        assert "0040" in shot_numbers
+        assert "0010" in shot_numbers  # From sequence 020
 
 
 class TestGetShotDetails:
@@ -498,7 +492,7 @@ class TestGetShotDetails:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_concurrent_future_timeout(self, tmp_path: Path) -> None:
+    def test_concurrent_future_timeout(self, tmp_path: Path, mocker) -> None:
         """Test handling of concurrent.futures timeout."""
         finder = TargetedShotsFinder()
 
@@ -506,40 +500,34 @@ class TestEdgeCases:
         mock_future = MagicMock(spec=Future)
         mock_future.result.side_effect = FuturesTimeoutError()
 
-        with patch("concurrent.futures.ThreadPoolExecutor") as mock_executor_class:
-            mock_executor = MagicMock()
-            mock_executor_class.return_value.__enter__.return_value = mock_executor
-            mock_executor.submit.return_value = mock_future
+        mock_executor_class = mocker.patch("concurrent.futures.ThreadPoolExecutor")
+        mock_executor = MagicMock()
+        mock_executor_class.return_value.__enter__.return_value = mock_executor
+        mock_executor.submit.return_value = mock_future
+        mocker.patch("concurrent.futures.as_completed", return_value=[mock_future])
+        mock_warning = mocker.patch("shots.targeted_shot_finder.logger.warning")
+        list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
-            with (
-                patch("concurrent.futures.as_completed", return_value=[mock_future]),
-                patch("shots.targeted_shot_finder.logger.warning") as mock_warning,
-            ):
-                list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
+        mock_warning.assert_called()
+        assert "Timeout processing" in mock_warning.call_args[0][0]
 
-                mock_warning.assert_called()
-                assert "Timeout processing" in mock_warning.call_args[0][0]
-
-    def test_concurrent_future_exception(self, tmp_path: Path) -> None:
+    def test_concurrent_future_exception(self, tmp_path: Path, mocker) -> None:
         """Test handling of concurrent.futures exceptions."""
         finder = TargetedShotsFinder()
 
         mock_future = MagicMock(spec=Future)
         mock_future.result.side_effect = Exception("Future failed")
 
-        with patch("concurrent.futures.ThreadPoolExecutor") as mock_executor_class:
-            mock_executor = MagicMock()
-            mock_executor_class.return_value.__enter__.return_value = mock_executor
-            mock_executor.submit.return_value = mock_future
+        mock_executor_class = mocker.patch("concurrent.futures.ThreadPoolExecutor")
+        mock_executor = MagicMock()
+        mock_executor_class.return_value.__enter__.return_value = mock_executor
+        mock_executor.submit.return_value = mock_future
+        mocker.patch("concurrent.futures.as_completed", return_value=[mock_future])
+        mock_exception = mocker.patch("shots.targeted_shot_finder.logger.exception")
+        list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
 
-            with (
-                patch("concurrent.futures.as_completed", return_value=[mock_future]),
-                patch("shots.targeted_shot_finder.logger.exception") as mock_exception,
-            ):
-                list(finder.find_user_shots_in_shows({"show1"}, tmp_path))
-
-                mock_exception.assert_called()
-                assert "Error processing" in mock_exception.call_args[0][0]
+        mock_exception.assert_called()
+        assert "Error processing" in mock_exception.call_args[0][0]
 
     def test_mock_mode_username(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test username handling in mock mode."""

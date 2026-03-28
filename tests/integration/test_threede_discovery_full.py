@@ -9,8 +9,6 @@ Following UNIFIED_TESTING_GUIDE:
 from __future__ import annotations
 
 # Standard library imports
-from unittest.mock import patch
-
 # Third-party imports
 import pytest
 
@@ -146,7 +144,7 @@ class TestThreeDEDiscoveryIntegration:
         return _make
 
     def test_parallel_discovery_finds_all_scenes(
-        self, temp_vfx_structure, make_user_shots
+        self, temp_vfx_structure, make_user_shots, mocker
     ) -> None:
         """Test that parallel discovery finds ALL scenes from other users.
 
@@ -167,14 +165,14 @@ class TestThreeDEDiscoveryIntegration:
         excluded_users = {"gabriel-h"}
 
         # Mock the shows_root to use our temp structure
-        with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
-            # Run the actual discovery
-            scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
-                user_shots,
-                excluded_users,
-                progress_callback=None,
-                cancel_flag=lambda: False,
-            )
+        mocker.patch.object(Config, "SHOWS_ROOT", str(shows_root))
+        # Run the actual discovery
+        scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
+            user_shots,
+            excluded_users,
+            progress_callback=None,
+            cancel_flag=lambda: False,
+        )
 
         # CRITICAL ASSERTION: Should find ALL scenes except gabriel-h's
         # With the bug: Would find only 1 (published-mm on MA_074_0340)
@@ -266,7 +264,7 @@ class TestThreeDEDiscoveryIntegration:
         ],
     )
     def test_per_show_discovery(
-        self, temp_vfx_structure, make_user_shots, show, expected_min_scenes
+        self, temp_vfx_structure, make_user_shots, show, expected_min_scenes, mocker
     ) -> None:
         """Test discovery for individual shows (GUIDE line 143 - parametrization)."""
         shows_root, _ = temp_vfx_structure
@@ -292,13 +290,13 @@ class TestThreeDEDiscoveryIntegration:
             SceneDiscoveryCoordinator,
         )
 
-        with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
-            scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
-                user_shots,
-                {"gabriel-h"},
-                progress_callback=None,
-                cancel_flag=lambda: False,
-            )
+        mocker.patch.object(Config, "SHOWS_ROOT", str(shows_root))
+        scenes = SceneDiscoveryCoordinator.find_all_scenes_in_shows(
+            user_shots,
+            {"gabriel-h"},
+            progress_callback=None,
+            cancel_flag=lambda: False,
+        )
 
         show_scenes = [s for s in scenes if s.show == show]
         assert len(show_scenes) >= expected_min_scenes, (

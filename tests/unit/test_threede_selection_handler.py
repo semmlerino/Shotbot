@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -269,14 +269,14 @@ class TestSceneSelection:
         assert len(command_launcher._launched) == 1
 
     def test_on_tab_activated_with_selected_scene_calls_on_scene_selected(
-        self, handler: ThreeDESelectionHandler, window: WindowDouble
+        self, handler: ThreeDESelectionHandler, window: WindowDouble, mocker
     ) -> None:
         """Test that tab activation with a selected scene calls on_scene_selected."""
         scene = make_scene()
         window.threede_shot_grid._selected_scene = scene
 
-        with patch("ui.tab_constants.TAB_OTHER_3DE", 2):
-            handler.on_tab_activated(2)
+        mocker.patch("ui.tab_constants.TAB_OTHER_3DE", 2)
+        handler.on_tab_activated(2)
 
         assert window.right_panel._current_shot is not None
 
@@ -285,24 +285,25 @@ class TestSceneSelection:
         handler: ThreeDESelectionHandler,
         window: WindowDouble,
         command_launcher: CommandLauncherDouble,
+        mocker,
     ) -> None:
         """Test that tab activation with no selected scene clears the right panel."""
         window.threede_shot_grid._selected_scene = None
 
-        with patch("ui.tab_constants.TAB_OTHER_3DE", 2):
-            handler.on_tab_activated(2)
+        mocker.patch("ui.tab_constants.TAB_OTHER_3DE", 2)
+        handler.on_tab_activated(2)
 
         assert window.right_panel._current_shot is None
         assert command_launcher.current_shot is None
 
     def test_on_tab_activated_ignores_other_tabs(
-        self, handler: ThreeDESelectionHandler, window: WindowDouble
+        self, handler: ThreeDESelectionHandler, window: WindowDouble, mocker
     ) -> None:
         """Test that tab activation for non-3DE tabs is ignored."""
         window.threede_shot_grid._selected_scene = make_scene()
 
-        with patch("ui.tab_constants.TAB_OTHER_3DE", 2):
-            handler.on_tab_activated(0)  # Tab 0 is not 3DE
+        mocker.patch("ui.tab_constants.TAB_OTHER_3DE", 2)
+        handler.on_tab_activated(0)  # Tab 0 is not 3DE
 
         # Right panel should not have been updated
         assert window.right_panel._current_shot is None
@@ -318,31 +319,32 @@ class TestCrashRecovery:
 
     @pytest.mark.allow_dialogs
     def test_on_recover_crashes_clicked_with_no_scene_shows_warning(
-        self, handler: ThreeDESelectionHandler, window: WindowDouble
+        self, handler: ThreeDESelectionHandler, window: WindowDouble, mocker
     ) -> None:
         """Test that recovery without a selected scene shows a warning."""
         window.threede_shot_grid._selected_scene = None
 
-        with patch(
+        mock_nm = mocker.patch(
             "controllers.threede_selection_handler.NotificationManager"
-        ) as mock_nm:
-            handler.on_recover_crashes_clicked()
-            mock_nm.warning.assert_called_once()
+        )
+        handler.on_recover_crashes_clicked()
+        mock_nm.warning.assert_called_once()
 
     def test_on_recover_crashes_clicked_with_scene_calls_execute_crash_recovery(
         self,
         handler: ThreeDESelectionHandler,
         window: WindowDouble,
         refresh_callback: MagicMock,
+        mocker,
     ) -> None:
         """Test that recovery with a selected scene dispatches execute_crash_recovery."""
         scene = make_scene()
         window.threede_shot_grid._selected_scene = scene
 
-        with patch(
+        mock_recovery = mocker.patch(
             "controllers.crash_recovery.execute_crash_recovery"
-        ) as mock_recovery:
-            handler.on_recover_crashes_clicked()
+        )
+        handler.on_recover_crashes_clicked()
 
         mock_recovery.assert_called_once()
         call_kwargs = mock_recovery.call_args.kwargs

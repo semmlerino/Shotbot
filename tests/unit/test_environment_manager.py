@@ -8,7 +8,7 @@ This test suite provides comprehensive coverage of environment detection:
 """
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -45,101 +45,97 @@ class TestRezAvailability:
 
         assert env_manager.should_wrap_with_rez(mock_config) is False
 
-    @patch("shutil.which")
     def test_rez_auto_still_requires_rez_command_when_rez_used_is_set(
         self,
-        mock_which: MagicMock,
+        mocker,
         env_manager: EnvironmentManager,
         mock_config: MagicMock,
     ) -> None:
         """AUTO mode still resolves app packages even from a base Rez shell."""
+        mock_which = mocker.patch("shutil.which")
         mock_which.return_value = "/usr/bin/rez"
 
-        with patch.dict("os.environ", {"REZ_USED": "1"}):
-            assert env_manager.should_wrap_with_rez(mock_config) is True
-            mock_which.assert_called_once_with("rez")
+        mocker.patch.dict("os.environ", {"REZ_USED": "1"})
+        assert env_manager.should_wrap_with_rez(mock_config) is True
+        mock_which.assert_called_once_with("rez")
 
     def test_rez_force_mode_checks_rez_command(
-        self, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, mocker, env_manager: EnvironmentManager, mock_config: MagicMock
     ) -> None:
         """FORCE mode still depends on the rez executable being present."""
         mock_config.REZ_MODE = RezMode.FORCE
 
-        with (
-            patch.dict("os.environ", {"REZ_USED": "1"}),
-            patch("shutil.which", return_value=None),
-        ):
-            assert env_manager.should_wrap_with_rez(mock_config) is False
+        mocker.patch("shutil.which", return_value=None)
+        mocker.patch.dict("os.environ", {"REZ_USED": "1"})
+        assert env_manager.should_wrap_with_rez(mock_config) is False
 
-    @patch("shutil.which")
     def test_rez_available_via_command(
         self,
-        mock_which: MagicMock,
+        mocker,
         env_manager: EnvironmentManager,
         mock_config: MagicMock,
     ) -> None:
         """Test Rez detection via 'rez' command availability."""
         mock_config.REZ_MODE = RezMode.FORCE
+        mock_which = mocker.patch("shutil.which")
         mock_which.return_value = "/usr/bin/rez"
 
-        with patch.dict("os.environ", {}, clear=True):
-            assert env_manager.should_wrap_with_rez(mock_config) is True
-            mock_which.assert_called_once_with("rez")
+        mocker.patch.dict("os.environ", {}, clear=True)
+        assert env_manager.should_wrap_with_rez(mock_config) is True
+        mock_which.assert_called_once_with("rez")
 
-    @patch("shutil.which")
     def test_rez_not_available_via_command(
         self,
-        mock_which: MagicMock,
+        mocker,
         env_manager: EnvironmentManager,
         mock_config: MagicMock,
     ) -> None:
         """Test Rez not detected when command not found."""
         mock_config.REZ_MODE = RezMode.FORCE
+        mock_which = mocker.patch("shutil.which")
         mock_which.return_value = None
 
-        with patch.dict("os.environ", {}, clear=True):
-            assert env_manager.should_wrap_with_rez(mock_config) is False
-            mock_which.assert_called_once_with("rez")
+        mocker.patch.dict("os.environ", {}, clear=True)
+        assert env_manager.should_wrap_with_rez(mock_config) is False
+        mock_which.assert_called_once_with("rez")
 
-    @patch("shutil.which")
     def test_rez_availability_caching(
         self,
-        mock_which: MagicMock,
+        mocker,
         env_manager: EnvironmentManager,
         mock_config: MagicMock,
     ) -> None:
         """Test that Rez availability is cached after first check."""
         mock_config.REZ_MODE = RezMode.FORCE
+        mock_which = mocker.patch("shutil.which")
         mock_which.return_value = "/usr/bin/rez"
 
-        with patch.dict("os.environ", {}, clear=True):
-            # First call - should check
-            result1 = env_manager.should_wrap_with_rez(mock_config)
-            assert result1 is True
-            assert mock_which.call_count == 1
+        mocker.patch.dict("os.environ", {}, clear=True)
+        # First call - should check
+        result1 = env_manager.should_wrap_with_rez(mock_config)
+        assert result1 is True
+        assert mock_which.call_count == 1
 
-            # Second call - should use cache
-            result2 = env_manager.should_wrap_with_rez(mock_config)
-            assert result2 is True
-            assert mock_which.call_count == 1  # Not called again
+        # Second call - should use cache
+        result2 = env_manager.should_wrap_with_rez(mock_config)
+        assert result2 is True
+        assert mock_which.call_count == 1  # Not called again
 
     def test_cache_reset_clears_rez_availability(
-        self, env_manager: EnvironmentManager, mock_config: MagicMock
+        self, mocker, env_manager: EnvironmentManager, mock_config: MagicMock
     ) -> None:
         """Test that reset_cache clears Rez availability cache."""
         mock_config.REZ_MODE = RezMode.FORCE
 
-        with (
-            patch("shutil.which", return_value="/usr/bin/rez"),
-            patch.dict("os.environ", {}, clear=True),
-        ):
-            # Cache result
-            env_manager.should_wrap_with_rez(mock_config)
-            assert env_manager._rez_available_cache is True
+        mocker.patch("shutil.which", return_value="/usr/bin/rez")
+        mocker.patch.dict("os.environ", {}, clear=True)
+        # Cache result
+        env_manager.should_wrap_with_rez(mock_config)
+        assert env_manager._rez_available_cache is True
 
-            # Reset cache
-            env_manager.reset_cache()
-            assert env_manager._rez_available_cache is None
+        # Reset cache
+        env_manager.reset_cache()
+        assert env_manager._rez_available_cache is None
 
 
 class TestRezPackages:
@@ -209,46 +205,46 @@ class TestTerminalDetection:
             ("x-terminal-emulator", "/usr/bin/x-terminal-emulator"),
         ],
     )
-    @patch("shutil.which")
     def test_terminal_detected(
         self,
-        mock_which: MagicMock,
+        mocker,
         env_manager: EnvironmentManager,
         terminal_name: str,
         binary_path: str,
     ) -> None:
         """Test that each supported terminal is detected when only it is available."""
+        mock_which = mocker.patch("shutil.which")
         mock_which.side_effect = lambda cmd: binary_path if cmd == terminal_name else None
 
         terminal = env_manager.detect_terminal()
         assert terminal == terminal_name
 
-    @patch("shutil.which")
     def test_preference_order(
-        self, mock_which: MagicMock, env_manager: EnvironmentManager
+        self, mocker, env_manager: EnvironmentManager
     ) -> None:
         """Test that terminals are checked in preference order."""
+        mock_which = mocker.patch("shutil.which")
         # All terminals available - should return gnome-terminal
         mock_which.return_value = "/usr/bin/some-terminal"
 
         terminal = env_manager.detect_terminal()
         assert terminal == "gnome-terminal"
 
-    @patch("shutil.which")
     def test_no_terminal_found(
-        self, mock_which: MagicMock, env_manager: EnvironmentManager
+        self, mocker, env_manager: EnvironmentManager
     ) -> None:
         """Test behavior when no terminal is found."""
+        mock_which = mocker.patch("shutil.which")
         mock_which.return_value = None
 
         terminal = env_manager.detect_terminal()
         assert terminal is None
 
-    @patch("shutil.which")
     def test_terminal_detection_caching(
-        self, mock_which: MagicMock, env_manager: EnvironmentManager
+        self, mocker, env_manager: EnvironmentManager
     ) -> None:
         """Test that terminal detection is cached after first check."""
+        mock_which = mocker.patch("shutil.which")
         mock_which.side_effect = lambda cmd: (
             "/usr/bin/gnome-terminal" if cmd == "gnome-terminal" else None
         )
@@ -264,37 +260,37 @@ class TestTerminalDetection:
         assert mock_which.call_count == initial_call_count  # Not called again
 
     def test_cache_reset_clears_terminal_detection(
-        self, env_manager: EnvironmentManager
+        self, mocker, env_manager: EnvironmentManager
     ) -> None:
         """Test that reset_cache clears terminal detection cache."""
-        with patch("shutil.which", return_value="/usr/bin/gnome-terminal"):
-            # Cache result
-            env_manager.detect_terminal()
-            assert env_manager._available_terminal_cache == "gnome-terminal"
+        mocker.patch("shutil.which", return_value="/usr/bin/gnome-terminal")
+        # Cache result
+        env_manager.detect_terminal()
+        assert env_manager._available_terminal_cache == "gnome-terminal"
 
-            # Reset cache
-            env_manager.reset_cache()
-            assert env_manager._available_terminal_cache is None
+        # Reset cache
+        env_manager.reset_cache()
+        assert env_manager._available_terminal_cache is None
 
 
 class TestCacheManagement:
     """Tests for cache management functionality."""
 
-    @patch("shutil.which")
     def test_reset_cache_clears_all_caches(
         self,
-        mock_which: MagicMock,
+        mocker,
         env_manager: EnvironmentManager,
         mock_config: MagicMock,
     ) -> None:
         """Test that reset_cache clears all cached values."""
         mock_config.REZ_AUTO_DETECT = False
+        mock_which = mocker.patch("shutil.which")
         mock_which.return_value = "/usr/bin/rez"
 
-        with patch.dict(os.environ, {}, clear=True):
-            # Cache Rez availability
-            env_manager.should_wrap_with_rez(mock_config)
-            assert env_manager._rez_available_cache is not None
+        mocker.patch.dict(os.environ, {}, clear=True)
+        # Cache Rez availability
+        env_manager.should_wrap_with_rez(mock_config)
+        assert env_manager._rez_available_cache is not None
 
         mock_which.return_value = "/usr/bin/gnome-terminal"
         # Cache terminal detection
@@ -306,15 +302,15 @@ class TestCacheManagement:
         assert env_manager._rez_available_cache is None
         assert env_manager._available_terminal_cache is None
 
-    def test_independent_cache_instances(self) -> None:
+    def test_independent_cache_instances(self, mocker) -> None:
         """Test that separate instances have independent caches."""
         manager1 = EnvironmentManager()
         manager2 = EnvironmentManager()
 
-        with patch("shutil.which", return_value="/usr/bin/gnome-terminal"):
-            # Cache in manager1
-            manager1.detect_terminal()
-            assert manager1._available_terminal_cache == "gnome-terminal"
+        mocker.patch("shutil.which", return_value="/usr/bin/gnome-terminal")
+        # Cache in manager1
+        manager1.detect_terminal()
+        assert manager1._available_terminal_cache == "gnome-terminal"
 
-            # manager2 should have empty cache
-            assert manager2._available_terminal_cache is None
+        # manager2 should have empty cache
+        assert manager2._available_terminal_cache is None

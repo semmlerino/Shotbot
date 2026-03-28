@@ -15,7 +15,7 @@ import subprocess
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -655,31 +655,31 @@ class TestThreeDEWorkerStopAndCancel:
             shot="0010",
         )
 
-    def test_worker_stops_quickly_during_scan(self) -> None:
+    def test_worker_stops_quickly_during_scan(self, mocker) -> None:
         """Cancel flag propagates through to scanner, causing early exit."""
         worker = ThreeDESceneWorker(shots=[self._make_shot()], excluded_users=set())
 
-        with patch(
+        mock_find = mocker.patch(
             "threede.scene_worker.SceneDiscoveryCoordinator.find_all_scenes_in_shows"
-        ) as mock_find:
-            cancel_was_checked = False
+        )
+        cancel_was_checked = False
 
-            def short_scan(
-                shots, excluded_users, progress_callback=None, cancel_flag=None
-            ):
-                nonlocal cancel_was_checked
-                worker.request_stop()  # Simulate stop request arriving during scan
-                if cancel_flag and cancel_flag():
-                    cancel_was_checked = True
-                    return []
+        def short_scan(
+            shots, excluded_users, progress_callback=None, cancel_flag=None
+        ):
+            nonlocal cancel_was_checked
+            worker.request_stop()  # Simulate stop request arriving during scan
+            if cancel_flag and cancel_flag():
+                cancel_was_checked = True
                 return []
+            return []
 
-            mock_find.side_effect = short_scan
-            worker.run()  # Run inline, no separate thread
+        mock_find.side_effect = short_scan
+        worker.run()  # Run inline, no separate thread
 
-            assert cancel_was_checked, "cancel_flag was not consulted during scan"
+        assert cancel_was_checked, "cancel_flag was not consulted during scan"
 
-    def test_should_stop_consulted_as_cancel_flag(self) -> None:
+    def test_should_stop_consulted_as_cancel_flag(self, mocker) -> None:
         """should_stop() is wired as the cancel_flag passed to filesystem ops.
 
         Verifies the integration: worker.request_stop() → worker.should_stop() returns
@@ -714,12 +714,12 @@ class TestThreeDEWorkerStopAndCancel:
                         return []
             return []
 
-        with patch(
+        mocker.patch(
             "threede.scene_worker.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
             side_effect=mock_find,
-        ):
-            worker.run()  # Run inline, no separate thread
+        )
+        worker.run()  # Run inline, no separate thread
 
-            assert should_stop_calls >= 5, (
-                f"should_stop() only called {should_stop_calls} times"
-            )
+        assert should_stop_calls >= 5, (
+            f"should_stop() only called {should_stop_calls} times"
+        )

@@ -7,7 +7,6 @@ key discrimination, and TTL consistency) works correctly at the integration leve
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
 
 import pytest
 
@@ -80,25 +79,25 @@ class TestDirectoryCacheCoherence:
 class TestSceneDiscoverySingleCache:
     """Verify coordinator discovery calls through to the filesystem on every call."""
 
-    def test_every_call_hits_filesystem(self) -> None:
+    def test_every_call_hits_filesystem(self, mocker) -> None:
         """Without in-memory caching, every find_scenes_for_shot call invokes discovery."""
         coordinator = SceneDiscoveryCoordinator()
 
         # Mock the inlined discovery method to track calls
-        with patch.object(
+        mock_find = mocker.patch.object(
             coordinator, "_find_scenes_for_shot_local", return_value=[]
-        ) as mock_find:
-            # Each call should invoke the discovery method
-            _ = coordinator.find_scenes_for_shot("/workspace", "SHOW", "SEQ", "0010")
-            assert mock_find.call_count == 1
+        )
+        # Each call should invoke the discovery method
+        _ = coordinator.find_scenes_for_shot("/workspace", "SHOW", "SEQ", "0010")
+        assert mock_find.call_count == 1
 
-            _ = coordinator.find_scenes_for_shot(
-                "/workspace",
-                "SHOW",
-                "SEQ",
-                "0010",
-            )
-            assert mock_find.call_count == 2  # Always calls through
+        _ = coordinator.find_scenes_for_shot(
+            "/workspace",
+            "SHOW",
+            "SEQ",
+            "0010",
+        )
+        assert mock_find.call_count == 2  # Always calls through
 
 
 # =============================================================================

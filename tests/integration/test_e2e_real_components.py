@@ -19,7 +19,6 @@ import os
 import time
 from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -325,7 +324,7 @@ class TestPreviousShootsCacheIntegration:
             process_qt_events()
 
     def test_model_cache_integration_on_refresh(
-        self, previous_shots_model: PreviousShotsModel, qtbot: object
+        self, previous_shots_model: PreviousShotsModel, qtbot: object, mocker
     ) -> None:
         """Test model saves to cache after refresh.
 
@@ -342,38 +341,38 @@ class TestPreviousShootsCacheIntegration:
         ]
 
         # Need to patch the ParallelShotsFinder class that the worker uses
-        with patch(
+        mocker.patch(
             "previous_shots.worker.ParallelShotsFinder.find_approved_shots_targeted",
             return_value=mock_approved,
-        ):
-            try:
-                # Refresh should trigger cache save
-                result = previous_shots_model.refresh_shots()
-                assert result is True
+        )
+        try:
+            # Refresh should trigger cache save
+            result = previous_shots_model.refresh_shots()
+            assert result is True
 
-                # Wait for scan to finish
-                SynchronizationHelpers.wait_for_condition(
-                    lambda: not previous_shots_model.is_scanning(),
-                    timeout_ms=5000,
-                    poll_interval_ms=50,
-                )
-                process_qt_events()  # Flush any remaining queued signals
+            # Wait for scan to finish
+            SynchronizationHelpers.wait_for_condition(
+                lambda: not previous_shots_model.is_scanning(),
+                timeout_ms=5000,
+                poll_interval_ms=50,
+            )
+            process_qt_events()  # Flush any remaining queued signals
 
-                assert not previous_shots_model.is_scanning(), (
-                    "Timeout waiting for scan to finish"
-                )
+            assert not previous_shots_model.is_scanning(), (
+                "Timeout waiting for scan to finish"
+            )
 
-                # Verify data was cached after scan completes
-                cached_data = (
-                    previous_shots_model.cache_manager.get_cached_previous_shots()
-                )
-                assert cached_data is not None
-                assert len(cached_data) == 1
-                assert cached_data[0]["show"] == "new_show"
-            finally:
-                # CRITICAL CLEANUP: Stop and wait for any worker threads
-                previous_shots_model._cleanup_worker_safely()
-                process_qt_events()
+            # Verify data was cached after scan completes
+            cached_data = (
+                previous_shots_model.cache_manager.get_cached_previous_shots()
+            )
+            assert cached_data is not None
+            assert len(cached_data) == 1
+            assert cached_data[0]["show"] == "new_show"
+        finally:
+            # CRITICAL CLEANUP: Stop and wait for any worker threads
+            previous_shots_model._cleanup_worker_safely()
+            process_qt_events()
 
 
 @pytest.mark.slow

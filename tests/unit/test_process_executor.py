@@ -7,7 +7,7 @@ This test suite provides comprehensive coverage of process execution:
 - GUI app detection
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from pytestqt.qtbot import QtBot
@@ -110,12 +110,9 @@ class TestNewTerminalExecution:
             ),
         ],
     )
-    @patch("subprocess.Popen")
-    @patch("launch.process_executor.QTimer")
     def test_terminal_execution(
         self,
-        mock_timer_class: MagicMock,
-        mock_popen: MagicMock,
+        mocker,
         executor: ProcessExecutor,
         terminal: str,
         app_name: str,
@@ -123,6 +120,8 @@ class TestNewTerminalExecution:
         expected_popen_args: list[str],
     ) -> None:
         """Test execution in supported terminal emulators."""
+        mock_timer_class = mocker.patch("launch.process_executor.QTimer")
+        mock_popen = mocker.patch("subprocess.Popen")
         mock_process = MagicMock()
         mock_popen.return_value = mock_process
         mock_timer = MagicMock()
@@ -133,15 +132,14 @@ class TestNewTerminalExecution:
         assert result is mock_process
         mock_popen.assert_called_once_with(expected_popen_args)
 
-    @patch("subprocess.Popen")
-    @patch("launch.process_executor.QTimer")
     def test_timer_setup_on_success(
         self,
-        mock_timer_class: MagicMock,
-        mock_popen: MagicMock,
+        mocker,
         executor: ProcessExecutor,
     ) -> None:
         """Test that process verification timer is created and started on success."""
+        mock_timer_class = mocker.patch("launch.process_executor.QTimer")
+        mock_popen = mocker.patch("subprocess.Popen")
         mock_process = MagicMock()
         mock_popen.return_value = mock_process
         mock_timer = MagicMock()
@@ -154,15 +152,14 @@ class TestNewTerminalExecution:
         mock_timer.start.assert_called_once()
 
     @pytest.mark.allow_dialogs  # May show warning dialog
-    @patch("subprocess.Popen")
-    @patch("launch.process_executor.QTimer")
     def test_headless_execution_when_terminal_is_none(
         self,
-        mock_timer_class: MagicMock,
-        mock_popen: MagicMock,
+        mocker,
         executor: ProcessExecutor,
     ) -> None:
         """Test headless mode when terminal is None (no terminal available)."""
+        mock_timer_class = mocker.patch("launch.process_executor.QTimer")
+        mock_popen = mocker.patch("subprocess.Popen")
         mock_process = MagicMock()
         mock_popen.return_value = mock_process
         mock_timer = MagicMock()
@@ -174,15 +171,14 @@ class TestNewTerminalExecution:
         assert result is mock_process
         mock_popen.assert_called_once_with(["/bin/bash", "-ilc", "echo test"])
 
-    @patch("subprocess.Popen")
-    @patch("launch.process_executor.QTimer")
     def test_fallback_execution_for_unknown_terminal(
         self,
-        mock_timer_class: MagicMock,
-        mock_popen: MagicMock,
+        mocker,
         executor: ProcessExecutor,
     ) -> None:
         """Test fallback to direct bash execution for unknown terminal."""
+        mock_timer_class = mocker.patch("launch.process_executor.QTimer")
+        mock_popen = mocker.patch("subprocess.Popen")
         mock_process = MagicMock()
         mock_popen.return_value = mock_process
         mock_timer = MagicMock()
@@ -201,15 +197,15 @@ class TestNewTerminalExecution:
             (OSError, "OS error"),
         ],
     )
-    @patch("subprocess.Popen")
     def test_returns_none_on_popen_error(
         self,
-        mock_popen: MagicMock,
+        mocker,
         executor: ProcessExecutor,
         exc_type: type[Exception],
         exc_msg: str,
     ) -> None:
         """Test that FileNotFoundError, PermissionError, and OSError all return None."""
+        mock_popen = mocker.patch("subprocess.Popen")
         mock_popen.side_effect = exc_type(exc_msg)
 
         result = executor.execute_in_new_terminal("cmd", "app", "gnome-terminal")

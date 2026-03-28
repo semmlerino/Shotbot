@@ -11,7 +11,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 from datetime import UTC
 from pathlib import Path
 from typing import Protocol
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Third-party imports
 import pytest
@@ -210,15 +210,15 @@ class TestShotSelection:
 class TestShotRefresh:
     """Test shot refresh functionality."""
 
-    def test_refresh_shots_updates_display(self, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_refresh_shots_updates_display(self, qtbot: QtBot, tmp_path: Path, mocker) -> None:
         """Test that MainWindow refresh delegates to the refresh orchestrator."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
 
-        with patch.object(
+        mock_refresh_tab = mocker.patch.object(
             main_window.refresh_coordinator, "refresh_tab"
-        ) as mock_refresh_tab:
-            main_window._refresh_shots()
+        )
+        main_window._refresh_shots()
 
         mock_refresh_tab.assert_called_once_with(0)
 
@@ -332,7 +332,7 @@ class TestStatusBar:
 class TestMainWindowIntegration:
     """Integration tests for MainWindow end-to-end workflows."""
 
-    def test_complete_shot_workflow(self, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_complete_shot_workflow(self, qtbot: QtBot, tmp_path: Path, mocker) -> None:
         """Test complete workflow: set a shot, select it, and launch an app."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
         qtbot.addWidget(main_window)
@@ -356,10 +356,10 @@ class TestMainWindowIntegration:
             "nuke"
         ]._launch_btn.isEnabled()
 
-        with patch.object(
+        mock_launch = mocker.patch.object(
             main_window.command_launcher, "launch", return_value=True
-        ) as mock_launch:
-            main_window.launch_app("nuke")
+        )
+        main_window.launch_app("nuke")
 
         mock_launch.assert_called_once()
         request = mock_launch.call_args.args[0]
@@ -371,7 +371,7 @@ class TestCrashRecovery:
 
     @pytest.mark.parametrize("context_type", ["shot", "scene"])
     def test_crash_recovery_with_selection(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch, context_type: str
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, context_type: str, mocker
     ) -> None:
         """Test crash recovery uses workspace_path from the active selection.
 
@@ -407,22 +407,22 @@ class TestCrashRecovery:
         mock_crash_info = MagicMock()
         mock_crash_info.crash_path.name = "test_scene.3de.crash"
 
-        with patch("threede.recovery.ThreeDERecoveryManager") as mock_manager_class:
-            mock_manager = mock_manager_class.return_value
-            mock_manager.find_crash_files.return_value = [mock_crash_info]
+        mock_manager_class = mocker.patch("threede.recovery.ThreeDERecoveryManager")
+        mock_manager = mock_manager_class.return_value
+        mock_manager.find_crash_files.return_value = [mock_crash_info]
 
-            with patch(
-                "threede.recovery_dialog.ThreeDERecoveryDialog"
-            ) as mock_dialog_class:
-                mock_dialog = mock_dialog_class.return_value
-                mock_dialog.exec.return_value = 0
+        mock_dialog_class = mocker.patch(
+            "threede.recovery_dialog.ThreeDERecoveryDialog"
+        )
+        mock_dialog = mock_dialog_class.return_value
+        mock_dialog.exec.return_value = 0
 
-                main_window.shot_selection_controller.on_recover_crashes_requested()
+        main_window.shot_selection_controller.on_recover_crashes_requested()
 
-                mock_manager.find_crash_files.assert_called_once_with(
-                    expected_workspace, recursive=True
-                )
-                mock_dialog_class.assert_called_once()
+        mock_manager.find_crash_files.assert_called_once_with(
+            expected_workspace, recursive=True
+        )
+        mock_dialog_class.assert_called_once()
 
     def test_crash_recovery_no_shot_selected(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
@@ -442,7 +442,7 @@ class TestCrashRecovery:
         expect_dialog.assert_shown("warning", "No Shot Selected")
 
     def test_crash_recovery_no_crash_files_found(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, mocker
     ) -> None:
         """Test crash recovery shows info message when no crash files found."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
@@ -454,20 +454,20 @@ class TestCrashRecovery:
         main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Mock recovery manager to return no crash files
-        with patch("threede.recovery.ThreeDERecoveryManager") as mock_manager_class:
-            mock_manager = mock_manager_class.return_value
-            mock_manager.find_crash_files.return_value = []  # No crash files
+        mock_manager_class = mocker.patch("threede.recovery.ThreeDERecoveryManager")
+        mock_manager = mock_manager_class.return_value
+        mock_manager.find_crash_files.return_value = []  # No crash files
 
-            # Trigger crash recovery
-            main_window.shot_selection_controller.on_recover_crashes_requested()
+        # Trigger crash recovery
+        main_window.shot_selection_controller.on_recover_crashes_requested()
 
-            # Verify info message was shown in the status bar
-            message = main_window.status_bar.currentMessage()
-            assert "No 3DE crash files found" in message
-            assert shot.full_name in message
+        # Verify info message was shown in the status bar
+        message = main_window.status_bar.currentMessage()
+        assert "No 3DE crash files found" in message
+        assert shot.full_name in message
 
     def test_crash_recovery_with_error(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog, mocker
     ) -> None:
         """Test crash recovery handles errors gracefully."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
@@ -479,15 +479,15 @@ class TestCrashRecovery:
         main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Mock recovery manager to raise an error
-        with patch("threede.recovery.ThreeDERecoveryManager") as mock_manager_class:
-            mock_manager = mock_manager_class.return_value
-            mock_manager.find_crash_files.side_effect = Exception("Test error")
+        mock_manager_class = mocker.patch("threede.recovery.ThreeDERecoveryManager")
+        mock_manager = mock_manager_class.return_value
+        mock_manager.find_crash_files.side_effect = Exception("Test error")
 
-            # Trigger crash recovery
-            main_window.shot_selection_controller.on_recover_crashes_requested()
+        # Trigger crash recovery
+        main_window.shot_selection_controller.on_recover_crashes_requested()
 
-            # Verify an error notification was shown
-            expect_dialog.assert_shown("critical", "Scan Error")
+        # Verify an error notification was shown
+        expect_dialog.assert_shown("critical", "Scan Error")
 
 
 class TestRightPanelFileLaunch:
@@ -499,7 +499,7 @@ class TestRightPanelFileLaunch:
     """
 
     def test_launch_with_selected_file_from_shot_context(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, mocker
     ) -> None:
         """Test launching a selected file when shot is selected (My Shots tab)."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
@@ -521,22 +521,22 @@ class TestRightPanelFileLaunch:
         )
 
         # Mock launch to verify it's called correctly
-        with patch.object(
+        mock_launch = mocker.patch.object(
             main_window.command_launcher, "launch", return_value=True
-        ) as mock_launch:
-            # Simulate right panel launch with selected file
-            options = {"selected_file": maya_file}
-            main_window._on_right_panel_launch("maya", options)
+        )
+        # Simulate right panel launch with selected file
+        options = {"selected_file": maya_file}
+        main_window._on_right_panel_launch("maya", options)
 
-            # Verify launch was called with correct LaunchRequest
-            mock_launch.assert_called_once()
-            request = mock_launch.call_args.args[0]
-            assert request.app_name == "maya"
-            assert request.file_path == maya_file.path
-            assert request.workspace_path == shot.workspace_path
+        # Verify launch was called with correct LaunchRequest
+        mock_launch.assert_called_once()
+        request = mock_launch.call_args.args[0]
+        assert request.app_name == "maya"
+        assert request.file_path == maya_file.path
+        assert request.workspace_path == shot.workspace_path
 
     def test_launch_with_selected_file_from_scene_context(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, mocker
     ) -> None:
         """Test launching a selected file when 3DE scene is selected."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
@@ -569,18 +569,18 @@ class TestRightPanelFileLaunch:
         )
 
         # Mock launch
-        with patch.object(
+        mock_launch = mocker.patch.object(
             main_window.command_launcher, "launch", return_value=True
-        ) as mock_launch:
-            options = {"selected_file": maya_file}
-            main_window._on_right_panel_launch("maya", options)
+        )
+        options = {"selected_file": maya_file}
+        main_window._on_right_panel_launch("maya", options)
 
-            # Verify launch was called with scene's workspace
-            mock_launch.assert_called_once()
-            request = mock_launch.call_args.args[0]
-            assert request.app_name == "maya"
-            assert request.file_path == maya_file.path
-            assert request.workspace_path == scene.workspace_path
+        # Verify launch was called with scene's workspace
+        mock_launch.assert_called_once()
+        request = mock_launch.call_args.args[0]
+        assert request.app_name == "maya"
+        assert request.file_path == maya_file.path
+        assert request.workspace_path == scene.workspace_path
 
     def test_launch_with_selected_file_no_context_shows_error(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch, expect_dialog
@@ -611,7 +611,7 @@ class TestRightPanelFileLaunch:
         expect_dialog.assert_shown("critical", "No shot or scene context available")
 
     def test_launch_without_selected_file_uses_launch_app(
-        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch, mocker
     ) -> None:
         """Test that launch without selected_file uses standard launch_app."""
         main_window = MainWindow(cache_dir=tmp_path / "cache")
@@ -623,19 +623,19 @@ class TestRightPanelFileLaunch:
         main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Mock launch
-        with patch.object(
+        mock_launch = mocker.patch.object(
             main_window.command_launcher, "launch", return_value=True
-        ) as mock_launch:
-            # Launch without selected_file
-            options = {"open_latest_maya": True}
-            main_window._on_right_panel_launch("maya", options)
+        )
+        # Launch without selected_file
+        options = {"open_latest_maya": True}
+        main_window._on_right_panel_launch("maya", options)
 
-            # Verify launch was called with no file_path (standard launch)
-            mock_launch.assert_called_once()
-            request = mock_launch.call_args.args[0]
-            assert request.app_name == "maya"
-            assert request.file_path is None
-            assert request.scene is None
+        # Verify launch was called with no file_path (standard launch)
+        mock_launch.assert_called_once()
+        request = mock_launch.call_args.args[0]
+        assert request.app_name == "maya"
+        assert request.file_path is None
+        assert request.scene is None
 
 
 class TestGetCurrentWorkspacePath:

@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -839,53 +839,53 @@ class TestRefreshGuards:
     """Test refresh debouncing and concurrency guards."""
 
     def test_refresh_skipped_when_closing(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble, mocker
     ) -> None:
         """Test that refresh is skipped when window is closing."""
         controller._closing = True
 
         # Should return early without creating worker
-        with patch.object(controller._worker_manager, "start_worker") as mock_start:
-            controller.refresh_threede_scenes()
+        mock_start = mocker.patch.object(controller._worker_manager, "start_worker")
+        controller.refresh_threede_scenes()
 
-            mock_start.assert_not_called()
+        mock_start.assert_not_called()
 
     def test_refresh_debounced_when_called_too_soon(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble, mocker
     ) -> None:
         """Test that refresh is debounced when called within interval."""
         # Set last scan time to now
         controller._last_scan_time = time.time()
 
         # Try to refresh immediately
-        with patch.object(controller._worker_manager, "start_worker") as mock_start:
-            controller.refresh_threede_scenes()
+        mock_start = mocker.patch.object(controller._worker_manager, "start_worker")
+        controller.refresh_threede_scenes()
 
-            # Should be debounced - no new worker created
-            mock_start.assert_not_called()
+        # Should be debounced - no new worker created
+        mock_start.assert_not_called()
 
     def test_refresh_proceeds_after_interval(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble, mocker
     ) -> None:
         """Test that refresh proceeds after minimum interval passes."""
         # Set last scan time to long ago
         controller._last_scan_time = time.time() - 60  # 60 seconds ago
 
         # Mock the worker creation path through the manager
-        with patch(
+        mock_worker_class = mocker.patch(
             "controllers.threede_worker_manager.ThreeDESceneWorker"
-        ) as mock_worker_class:
-            mock_worker = MagicMock()
-            mock_worker.isFinished.return_value = True
-            mock_worker_class.return_value = mock_worker
+        )
+        mock_worker = MagicMock()
+        mock_worker.isFinished.return_value = True
+        mock_worker_class.return_value = mock_worker
 
-            controller.refresh_threede_scenes()
+        controller.refresh_threede_scenes()
 
-            # Worker should have been created
-            mock_worker_class.assert_called_once()
+        # Worker should have been created
+        mock_worker_class.assert_called_once()
 
     def test_concurrent_refresh_blocked(
-        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble, mocker
     ) -> None:
         """Test that concurrent refresh calls are blocked."""
         # Set up a mock worker that appears to be running via the manager
@@ -897,11 +897,11 @@ class TestRefreshGuards:
         controller._last_scan_time = 0
 
         # Try to refresh while worker is running
-        with patch.object(controller._worker_manager, "start_worker") as mock_start:
-            controller.refresh_threede_scenes()
+        mock_start = mocker.patch.object(controller._worker_manager, "start_worker")
+        controller.refresh_threede_scenes()
 
-            # Should NOT create a new worker
-            mock_start.assert_not_called()
+        # Should NOT create a new worker
+        mock_start.assert_not_called()
 
 
 # ============================================================================

@@ -11,7 +11,6 @@ from __future__ import annotations
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -131,6 +130,7 @@ class TestCommandLauncher:
     )
     def test_launch_supported_apps(
         self,
+        mocker,
         launcher: CommandLauncher,
         test_shot: Shot,
         app_name: str,
@@ -139,18 +139,16 @@ class TestCommandLauncher:
         """Test launching supported applications with common expectations."""
         launcher.set_current_shot(test_shot)
 
-        with (
-            patch.object(
-                CommandLauncher, "_validate_workspace_before_launch", return_value=True
-            ),
-            patch(
-                "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
-                return_value=True,
-            ),
-            patch("launch.process_executor.subprocess.Popen") as mock_popen,
-        ):
-            mock_popen.return_value = _running_process_double(app_name)
-            result = launcher.launch(LaunchRequest(app_name=app_name))
+        mocker.patch.object(
+            CommandLauncher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+            return_value=True,
+        )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
+        mock_popen.return_value = _running_process_double(app_name)
+        result = launcher.launch(LaunchRequest(app_name=app_name))
 
         assert result is True
         process_qt_events()
@@ -169,23 +167,21 @@ class TestCommandLauncher:
                 or "/bin/bash" in call_args
             )
 
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch(
-        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
-        return_value=True,
-    )
-    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_nuke_with_scene_gets_plain_workspace_launch(
         self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
+        mocker,
         launcher: CommandLauncher,
         qtbot: QtBot,
     ) -> None:
         """Nuke scene launch gets plain workspace launch without SGTK_FILE_TO_OPEN."""
+        mocker.patch.object(
+            CommandLauncher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+            return_value=True,
+        )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
         mock_popen.return_value = _running_process_double("nuke")
         nuke_scene = ThreeDEScene(
             show="TEST",
@@ -207,24 +203,22 @@ class TestCommandLauncher:
         assert "SGTK_FILE_TO_OPEN" not in command_str
         assert "NUKE_PATH" not in command_str
 
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch(
-        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
-        return_value=True,
-    )
-    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_3de_with_scene(
         self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
+        mocker,
         launcher: CommandLauncher,
         test_scene: ThreeDEScene,
         qtbot: QtBot,
     ) -> None:
         """Test launching 3DE with specific scene."""
+        mocker.patch.object(
+            CommandLauncher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+            return_value=True,
+        )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
         # Setup mock
         mock_popen.return_value = _running_process_double("3de")
 
@@ -254,25 +248,23 @@ class TestCommandLauncher:
         ],
         ids=["without_sequence", "with_sequence"],
     )
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch(
-        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
-        return_value=True,
-    )
-    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_rv_default_settings(
         self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
+        mocker,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
         sequence_path: str | None,
     ) -> None:
         """Test RV launch includes default settings with and without sequence path."""
+        mocker.patch.object(
+            CommandLauncher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+            return_value=True,
+        )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
         launcher.set_current_shot(test_shot)
         mock_popen.return_value = _running_process_double("rv")
 
@@ -300,24 +292,22 @@ class TestCommandLauncher:
             assert sequence_path in command_str
 
     @pytest.mark.allow_dialogs  # Error dialog is expected side-effect
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch(
-        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
-        return_value=True,
-    )
-    @patch("launch.process_executor.subprocess.Popen")
     def test_subprocess_failure(
         self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
+        mocker,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
     ) -> None:
         """Test handling subprocess failure."""
+        mocker.patch.object(
+            CommandLauncher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+            return_value=True,
+        )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
         launcher.set_current_shot(test_shot)
 
         # Setup mock to simulate failure for all terminal types
@@ -336,28 +326,25 @@ class TestCommandLauncher:
         assert mock_popen.called
 
     @pytest.mark.allow_dialogs  # May show warning dialog
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch(
-        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
-        return_value=True,
-    )
-    @patch(
-        "launch.command_launcher.EnvironmentManager.detect_terminal", return_value=None
-    )
-    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_headless_mode_when_no_terminal(
         self,
-        mock_popen: MagicMock,
-        mock_detect_terminal: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
+        mocker,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
     ) -> None:
         """Test that launches succeed in headless mode when no terminal is available."""
+        mocker.patch.object(
+            CommandLauncher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+            return_value=True,
+        )
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.detect_terminal", return_value=None
+        )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
         launcher.set_current_shot(test_shot)
 
         # Setup mock
@@ -387,19 +374,9 @@ class TestCommandLauncher:
         ],
         ids=["background_enabled", "background_disabled"],
     )
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch(
-        "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
-        return_value=True,
-    )
-    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_gui_app_background_setting(
         self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
+        mocker,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
@@ -407,15 +384,23 @@ class TestCommandLauncher:
         expect_disown: bool,
     ) -> None:
         """Test GUI app backgrounding respects the background_gui_apps setting."""
+        mocker.patch.object(
+            CommandLauncher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+            return_value=True,
+        )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
         launcher.set_current_shot(test_shot)
         mock_popen.return_value = _running_process_double("3de")
 
-        with patch.object(
+        mocker.patch.object(
             launcher._settings_manager.launch,
             "get_background_gui_apps",
             return_value=background,
-        ):
-            result = launcher.launch(LaunchRequest(app_name="3de"))
+        )
+        result = launcher.launch(LaunchRequest(app_name="3de"))
 
         assert result is True
         process_qt_events()
@@ -447,34 +432,32 @@ class TestCommandLauncherSignals:
         process_qt_events()
 
     @pytest.mark.allow_dialogs  # Warning dialogs are acceptable in this smoke-style path test
-    def test_signal_data_format(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
+    def test_signal_data_format(self, mocker, launcher: CommandLauncher, qtbot: QtBot) -> None:
         """Test basic launcher functionality."""
         shot = Shot(
             "TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"
         )
         launcher.set_current_shot(shot)
 
-        with (
-            patch.object(
-                CommandLauncher, "_validate_workspace_before_launch", return_value=True
-            ),
-            patch("launch.process_executor.subprocess.Popen") as mock_popen,
-            patch(
-                "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
-                return_value=True,
-            ),
-        ):
-            mock_popen.return_value = _running_process_double("nuke")
+        mocker.patch.object(
+            CommandLauncher, "_validate_workspace_before_launch", return_value=True
+        )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+            return_value=True,
+        )
+        mock_popen.return_value = _running_process_double("nuke")
 
-            # Launch should succeed
-            result = launcher.launch(LaunchRequest(app_name="nuke"))
-            assert result is True
+        # Launch should succeed
+        result = launcher.launch(LaunchRequest(app_name="nuke"))
+        assert result is True
 
-            # Wait for QTimer.singleShot(100ms) callback to complete
-            process_qt_events()
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        process_qt_events()
 
-            # Should have called Popen
-            assert mock_popen.called
+        # Should have called Popen
+        assert mock_popen.called
 
 
 class TestScriptsDirValidation:
@@ -524,6 +507,7 @@ class TestScriptsDirValidation:
 
     def test_maya_skips_scripts_dir_validation(
         self,
+        mocker,
         launcher: CommandLauncher,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -534,18 +518,16 @@ class TestScriptsDirValidation:
         )
         launcher.set_current_shot(shot)
 
-        with (
-            patch.object(
-                CommandLauncher, "_validate_workspace_before_launch", return_value=True
-            ),
-            patch(
-                "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
-                return_value=True,
-            ),
-            patch("launch.process_executor.subprocess.Popen") as mock_popen,
-        ):
-            mock_popen.return_value = PopenDouble(args=["maya"], returncode=0)
-            result = launcher.launch(LaunchRequest(app_name="maya"))
+        mocker.patch.object(
+            CommandLauncher, "_validate_workspace_before_launch", return_value=True
+        )
+        mocker.patch(
+            "launch.command_launcher.EnvironmentManager.should_wrap_with_rez",
+            return_value=True,
+        )
+        mock_popen = mocker.patch("launch.process_executor.subprocess.Popen")
+        mock_popen.return_value = PopenDouble(args=["maya"], returncode=0)
+        result = launcher.launch(LaunchRequest(app_name="maya"))
 
         assert result is True
         process_qt_events()

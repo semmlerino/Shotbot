@@ -17,7 +17,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from typing import ClassVar
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -223,7 +222,7 @@ class TestThreeDESceneWorker:
         return TestThreeDESceneFinder()
 
     @pytest.fixture
-    def worker(self, test_shots, test_finder):
+    def worker(self, test_shots, test_finder, mocker):
         """Create worker instance with test double injection and cleanup."""
         worker = ThreeDESceneWorker(
             shots=test_shots,
@@ -234,11 +233,11 @@ class TestThreeDESceneWorker:
         # Patch SceneDiscoveryCoordinator to delegate to our test double.
         # Note: FileSystemScanner is no longer used as the worker now uses
         # the parallel discovery path exclusively.
-        with patch(
+        mocker.patch(
             "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
             return_value=[],
-        ):
-            yield worker
+        )
+        yield worker
 
         # CRITICAL: Proper cleanup for QThread to prevent Qt C++ object accumulation
         from tests.test_helpers import cleanup_qthread_properly
@@ -301,7 +300,7 @@ class TestThreeDESceneWorker:
             cleanup_qthread_properly(worker, signal_handlers)
 
     def test_scene_discovery_with_test_double(
-        self, qtbot, test_shots, test_finder
+        self, qtbot, test_shots, test_finder, mocker
     ) -> None:
         """Test scene discovery using test double (replaces Mock usage)."""
         # Configure test double to return test scenes
@@ -358,18 +357,18 @@ class TestThreeDESceneWorker:
         ]
 
         try:
-            with patch(
+            mocker.patch(
                 "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
                 return_value=test_scenes,
-            ):
-                # Start worker
-                worker.start()
+            )
+            # Start worker
+            worker.start()
 
-                # Wait for the thread to finish, then flush queued signal delivery.
-                _ = worker.wait(3000)
-                from tests.test_helpers import process_qt_events
+            # Wait for the thread to finish, then flush queued signal delivery.
+            _ = worker.wait(3000)
+            from tests.test_helpers import process_qt_events
 
-                process_qt_events()
+            process_qt_events()
 
             # Verify signals were emitted (may be >= 1 due to test setup)
             assert len(started_count) >= 1
@@ -395,7 +394,7 @@ class TestThreeDESceneWorker:
 
             cleanup_qthread_properly(worker, signal_handlers)
 
-    def test_error_handling(self, qtbot, test_shots, test_finder) -> None:
+    def test_error_handling(self, qtbot, test_shots, test_finder, mocker) -> None:
         """Test error handling during scene discovery using test double."""
         worker = ThreeDESceneWorker(shots=test_shots)
 
@@ -419,19 +418,19 @@ class TestThreeDESceneWorker:
         ]
 
         try:
-            with patch(
+            mocker.patch(
                 "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
                 side_effect=Exception("Test error"),
-            ):
-                worker.start()
+            )
+            worker.start()
 
-                # Avoid nested Qt event loops here; they have been a segfault source
-                # under xdist load. Waiting on the thread and then flushing queued
-                # signals is sufficient for this contract test.
-                _ = worker.wait(3000)
-                from tests.test_helpers import process_qt_events
+            # Avoid nested Qt event loops here; they have been a segfault source
+            # under xdist load. Waiting on the thread and then flushing queued
+            # signals is sufficient for this contract test.
+            _ = worker.wait(3000)
+            from tests.test_helpers import process_qt_events
 
-                process_qt_events()
+            process_qt_events()
 
             # Should have error message (if we got here)
             # Under parallel load, this assertion is best-effort
@@ -448,7 +447,7 @@ class TestThreeDESceneWorker:
 class TestWorkerInterruption:
     """Test suite for worker interruption handling (Phase 3 improvements)."""
 
-    def test_cancel_flag_prevents_filesystem_iteration(self, qtbot) -> None:
+    def test_cancel_flag_prevents_filesystem_iteration(self, qtbot, mocker) -> None:
         """Test that worker respects cancellation during parallel discovery.
 
         Verifies that cancellation is propagated through the cancel_flag callback
@@ -474,24 +473,24 @@ class TestWorkerInterruption:
         worker = ThreeDESceneWorker(shots=shots, excluded_users=set())
 
         try:
-            with patch(
+            mocker.patch(
                 "threede.scene_discovery_coordinator.SceneDiscoveryCoordinator.find_all_scenes_in_shows",
                 side_effect=slow_parallel_discovery,
-            ):
-                worker.start()
+            )
+            worker.start()
 
-                # Wait for the worker to start processing
-                from tests.test_helpers import SynchronizationHelpers
+            # Wait for the worker to start processing
+            from tests.test_helpers import SynchronizationHelpers
 
-                SynchronizationHelpers.wait_for_condition(
-                    lambda: cancel_flag_called[0] >= 0,
-                    timeout_ms=1000,
-                    poll_interval_ms=10,
-                )
+            SynchronizationHelpers.wait_for_condition(
+                lambda: cancel_flag_called[0] >= 0,
+                timeout_ms=1000,
+                poll_interval_ms=10,
+            )
 
-                # Cancel and wait
-                worker.requestInterruption()
-                worker.wait(2000)
+            # Cancel and wait
+            worker.requestInterruption()
+            worker.wait(2000)
 
             # Verify cancellation was detected
             # If cancellation worked, cancel_flag should have been called and returned early

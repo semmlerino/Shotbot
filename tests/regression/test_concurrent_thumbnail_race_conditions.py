@@ -24,7 +24,6 @@ import logging
 import threading
 import time
 from pathlib import Path
-from unittest.mock import patch
 
 
 logger = logging.getLogger(__name__)
@@ -190,7 +189,7 @@ class TestConcurrentThumbnailRaceConditions:
             len(versions_checked),
         )
 
-    def test_concurrent_shot_thumbnail_caching(self) -> None:
+    def test_concurrent_shot_thumbnail_caching(self, mocker) -> None:
         """Test concurrent access to Shot._cached_thumbnail_path.
 
         Simulates multiple models calling get_thumbnail_path() on the same Shot
@@ -225,60 +224,60 @@ class TestConcurrentThumbnailRaceConditions:
                 discovery_count += 1
             return find_shot_thumbnail(shows_root, show, sequence, shot)
 
-        with patch(
+        mocker.patch(
             "discovery.thumbnail_finders.find_shot_thumbnail",
             side_effect=counting_find,
-        ):
-            results: list[tuple[int, Path | None]] = []
-            results_lock = threading.Lock()
-            corruption_detected = threading.Event()
+        )
+        results: list[tuple[int, Path | None]] = []
+        results_lock = threading.Lock()
+        corruption_detected = threading.Event()
 
-            def worker(worker_id: int, shots_subset: list[Shot]) -> None:
-                """Simulate a model loading thumbnails for its shots."""
-                try:
-                    for shot in shots_subset:
-                        thumbnail = shot.get_thumbnail_path()
+        def worker(worker_id: int, shots_subset: list[Shot]) -> None:
+            """Simulate a model loading thumbnails for its shots."""
+            try:
+                for shot in shots_subset:
+                    thumbnail = shot.get_thumbnail_path()
 
-                        with results_lock:
-                            results.append((worker_id, thumbnail))
+                    with results_lock:
+                        results.append((worker_id, thumbnail))
 
-                except Exception as e:
-                    logger.debug("Worker %d failed: %s", worker_id, e)
-                    corruption_detected.set()
-                    raise
+            except Exception as e:
+                logger.debug("Worker %d failed: %s", worker_id, e)
+                corruption_detected.set()
+                raise
 
-            # Simulate 3 models accessing the SAME shots concurrently
-            # This is the key scenario: multiple models see the same Shot instances
-            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-                futures = [executor.submit(worker, i, shots) for i in range(3)]
-                concurrent.futures.wait(futures)
+        # Simulate 3 models accessing the SAME shots concurrently
+        # This is the key scenario: multiple models see the same Shot instances
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(worker, i, shots) for i in range(3)]
+            concurrent.futures.wait(futures)
 
-            assert not corruption_detected.is_set(), (
-                "Thread encountered exception during execution"
-            )
+        assert not corruption_detected.is_set(), (
+            "Thread encountered exception during execution"
+        )
 
-            # Key validation: With proper double-checked locking,
-            # each shot should only trigger ONE discovery call despite 3 threads
-            # In the broken version, we'd see 3x calls (or more with races)
-            expected_max_calls = len(shots) * 1.2  # Allow 20% overhead for edge cases
-            assert discovery_count <= expected_max_calls, (
-                f"Too many discovery calls: {discovery_count} "
-                f"(expected ~{len(shots)}, max {expected_max_calls}). "
-                f"Double-checked locking may not be working correctly."
-            )
+        # Key validation: With proper double-checked locking,
+        # each shot should only trigger ONE discovery call despite 3 threads
+        # In the broken version, we'd see 3x calls (or more with races)
+        expected_max_calls = len(shots) * 1.2  # Allow 20% overhead for edge cases
+        assert discovery_count <= expected_max_calls, (
+            f"Too many discovery calls: {discovery_count} "
+            f"(expected ~{len(shots)}, max {expected_max_calls}). "
+            f"Double-checked locking may not be working correctly."
+        )
 
-            logger.debug("%d shots accessed by 3 concurrent threads", len(shots))
-            logger.debug(
-                "Only %d expensive discoveries (optimal: %d)", discovery_count, len(shots)
-            )
-            logger.debug(
-                "Double-checked locking prevented %d redundant calls",
-                3 * len(shots) - discovery_count,
-            )
+        logger.debug("%d shots accessed by 3 concurrent threads", len(shots))
+        logger.debug(
+            "Only %d expensive discoveries (optimal: %d)", discovery_count, len(shots)
+        )
+        logger.debug(
+            "Double-checked locking prevented %d redundant calls",
+            3 * len(shots) - discovery_count,
+        )
 
-            # Validate all results are consistent (no corruption)
-            for _worker_id, thumbnail in results:
-                if thumbnail is not None:
-                    assert isinstance(thumbnail, Path), (
-                        f"Invalid thumbnail type: {type(thumbnail)}"
-                    )
+        # Validate all results are consistent (no corruption)
+        for _worker_id, thumbnail in results:
+            if thumbnail is not None:
+                assert isinstance(thumbnail, Path), (
+                    f"Invalid thumbnail type: {type(thumbnail)}"
+                )

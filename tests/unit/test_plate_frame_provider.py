@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
 
 import pytest
 from PySide6.QtGui import QImage
@@ -491,17 +490,15 @@ class TestDiscoverPlateSource:
 
         assert result == cached_source
 
-    @patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
-    @patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
-    @patch("scrub.plate_frame_provider.utils_module.ImageUtils.get_mov_duration")
     def test_discover_finds_mov_proxy(
         self,
-        mock_get_duration: MagicMock,
-        mock_exr_seq: MagicMock,
-        mock_mov_proxy: MagicMock,
+        mocker,
         qapp: QApplication,
     ) -> None:
         """Test discover_plate_source finds MOV proxy."""
+        mock_mov_proxy = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
+        mock_exr_seq = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
+        mock_get_duration = mocker.patch("scrub.plate_frame_provider.utils_module.ImageUtils.get_mov_duration")
         provider = PlateFrameProvider()
 
         mov_path = Path("/shows/test/plate/v001/mov/plate.mov")
@@ -517,15 +514,14 @@ class TestDiscoverPlateSource:
         assert result.frame_start == 1001
         assert result.frame_end == 1100
 
-    @patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
-    @patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
     def test_discover_falls_back_to_exr(
         self,
-        mock_exr_seq: MagicMock,
-        mock_mov_proxy: MagicMock,
+        mocker,
         qapp: QApplication,
     ) -> None:
         """Test discover_plate_source falls back to EXR sequence."""
+        mock_mov_proxy = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
+        mock_exr_seq = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
         provider = PlateFrameProvider()
 
         exr_path = Path("/shows/test/plate/v001/exr/plate.1001.exr")
@@ -538,15 +534,14 @@ class TestDiscoverPlateSource:
         assert result.source_type == "exr"
         assert result.source_path == exr_path
 
-    @patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
-    @patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
     def test_discover_caches_none_if_not_found(
         self,
-        mock_exr_seq: MagicMock,
-        mock_mov_proxy: MagicMock,
+        mocker,
         qapp: QApplication,
     ) -> None:
         """Test discover_plate_source caches None if no source found."""
+        mock_mov_proxy = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_mov_proxy")
+        mock_exr_seq = mocker.patch("discovery.file_discovery.FileDiscovery.find_plate_exr_sequence")
         provider = PlateFrameProvider()
 
         mock_mov_proxy.return_value = None

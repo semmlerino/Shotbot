@@ -12,7 +12,7 @@ Following UNIFIED_TESTING_V2.md best practices:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -148,21 +148,22 @@ def strategy_double() -> SceneDiscoveryStrategyDouble:
 @pytest.fixture
 def coordinator(
     scanner_double: FileSystemScannerDouble,
+    mocker,
 ):
     """Create a SceneDiscoveryCoordinator with test doubles injected."""
-    with patch.dict(
+    mocker.patch.dict(
         "sys.modules",
         {
             "filesystem_scanner": MagicMock(FileSystemScanner=lambda: scanner_double),
             "scene_parser": MagicMock(SceneParser=lambda: MagicMock()),
         },
-    ):
-        from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
+    )
+    from threede.scene_discovery_coordinator import SceneDiscoveryCoordinator
 
-        coord = SceneDiscoveryCoordinator()
-        # Inject test doubles
-        coord.scanner = scanner_double
-        return coord
+    coord = SceneDiscoveryCoordinator()
+    # Inject test doubles
+    coord.scanner = scanner_double
+    return coord
 
 
 # ============================================================================
@@ -195,24 +196,23 @@ class TestFindScenesForShot:
         self,
         coordinator,
         scanner_double: FileSystemScannerDouble,
+        mocker,
     ) -> None:
         """Test that find_scenes_for_shot returns discovered scenes."""
         scene = create_test_scene(show="SHOW", sequence="SEQ", shot="0010")
         scanner_double.set_valid_paths(str(scene.scene_path))
 
         # Patch validation to always pass and the local discovery method to return our scene
-        with (
-            patch(
-                "utils.ValidationUtils.validate_shot_components",
-                return_value=True,
-            ),
-            patch.object(
-                coordinator, "_find_scenes_for_shot_local", return_value=[scene]
-            ),
-        ):
-            result = coordinator.find_scenes_for_shot(
-                "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
-            )
+        mocker.patch(
+            "utils.ValidationUtils.validate_shot_components",
+            return_value=True,
+        )
+        mocker.patch.object(
+            coordinator, "_find_scenes_for_shot_local", return_value=[scene]
+        )
+        result = coordinator.find_scenes_for_shot(
+            "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
+        )
 
         assert len(result) == 1
         assert result[0].show == "SHOW"
@@ -221,14 +221,15 @@ class TestFindScenesForShot:
     def test_find_scenes_returns_empty_for_invalid_path(
         self,
         coordinator,
+        mocker,
     ) -> None:
         """Test that find_scenes_for_shot returns empty for invalid input."""
         # Patch validation to fail
-        with patch(
+        mocker.patch(
             "utils.ValidationUtils.validate_shot_components",
             return_value=False,
-        ):
-            result = coordinator.find_scenes_for_shot("", "SHOW", "SEQ", "0010")
+        )
+        result = coordinator.find_scenes_for_shot("", "SHOW", "SEQ", "0010")
 
         assert result == []
 
@@ -236,6 +237,7 @@ class TestFindScenesForShot:
         self,
         coordinator,
         scanner_double: FileSystemScannerDouble,
+        mocker,
     ) -> None:
         """Test that find_scenes_for_shot filters out invalid scenes."""
         valid_scene = create_test_scene(
@@ -247,20 +249,18 @@ class TestFindScenesForShot:
         # Only the valid scene exists
         scanner_double.set_valid_paths("/valid/scene.3de")
 
-        with (
-            patch(
-                "utils.ValidationUtils.validate_shot_components",
-                return_value=True,
-            ),
-            patch.object(
-                coordinator,
-                "_find_scenes_for_shot_local",
-                return_value=[valid_scene, invalid_scene],
-            ),
-        ):
-            result = coordinator.find_scenes_for_shot(
-                "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
-            )
+        mocker.patch(
+            "utils.ValidationUtils.validate_shot_components",
+            return_value=True,
+        )
+        mocker.patch.object(
+            coordinator,
+            "_find_scenes_for_shot_local",
+            return_value=[valid_scene, invalid_scene],
+        )
+        result = coordinator.find_scenes_for_shot(
+            "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
+        )
 
         # Only valid scene should be returned
         assert len(result) == 1
@@ -269,22 +269,21 @@ class TestFindScenesForShot:
     def test_find_scenes_handles_strategy_exception(
         self,
         coordinator,
+        mocker,
     ) -> None:
         """Test that find_scenes_for_shot handles discovery errors."""
-        with (
-            patch(
-                "utils.ValidationUtils.validate_shot_components",
-                return_value=True,
-            ),
-            patch.object(
-                coordinator,
-                "_find_scenes_for_shot_local",
-                side_effect=RuntimeError("Discovery error"),
-            ),
-        ):
-            result = coordinator.find_scenes_for_shot(
-                "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
-            )
+        mocker.patch(
+            "utils.ValidationUtils.validate_shot_components",
+            return_value=True,
+        )
+        mocker.patch.object(
+            coordinator,
+            "_find_scenes_for_shot_local",
+            side_effect=RuntimeError("Discovery error"),
+        )
+        result = coordinator.find_scenes_for_shot(
+            "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
+        )
 
         assert result == []
         assert coordinator.stats["errors"] == 1
@@ -312,23 +311,22 @@ class TestStatistics:
         self,
         coordinator,
         scanner_double: FileSystemScannerDouble,
+        mocker,
     ) -> None:
         """Test that statistics track discovered scenes."""
         scene = create_test_scene()
         scanner_double.set_valid_paths(str(scene.scene_path))
 
-        with (
-            patch(
-                "utils.ValidationUtils.validate_shot_components",
-                return_value=True,
-            ),
-            patch.object(
-                coordinator, "_find_scenes_for_shot_local", return_value=[scene]
-            ),
-        ):
-            coordinator.find_scenes_for_shot(
-                "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
-            )
+        mocker.patch(
+            "utils.ValidationUtils.validate_shot_components",
+            return_value=True,
+        )
+        mocker.patch.object(
+            coordinator, "_find_scenes_for_shot_local", return_value=[scene]
+        )
+        coordinator.find_scenes_for_shot(
+            "/shows/SHOW/shots/SEQ/0010", "SHOW", "SEQ", "0010"
+        )
 
         assert coordinator.stats["scenes_discovered"] == 1
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Callable, Generator
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Third-party imports
 import pytest
@@ -194,6 +194,7 @@ class TestPreviousShotsView:
         grid_widget: PreviousShotsView,
         test_model: FakePreviousShotsModel,
         qtbot: QtBot,
+        mocker,
     ) -> None:
         """Test refresh button click behavior with signal waiting."""
         # Initially button should be enabled
@@ -201,19 +202,17 @@ class TestPreviousShotsView:
         assert grid_widget._refresh_button.text() == "Refresh"
 
         # Mock ProgressManager to avoid Qt lifecycle issues with status bar
-        with (
-            patch(
-                "previous_shots.view.ProgressManager.start_operation",
-                MagicMock(return_value={}),
-            ),
-            patch(
-                "previous_shots.view.ProgressManager.finish_operation",
-                MagicMock(),
-            ),
-        ):
-            # Test button click
-            QTest.mouseClick(grid_widget._refresh_button, Qt.MouseButton.LeftButton)
-            qtbot.wait(1)  # Minimal event processing
+        mocker.patch(
+            "previous_shots.view.ProgressManager.start_operation",
+            MagicMock(return_value={}),
+        )
+        mocker.patch(
+            "previous_shots.view.ProgressManager.finish_operation",
+            MagicMock(),
+        )
+        # Test button click
+        QTest.mouseClick(grid_widget._refresh_button, Qt.MouseButton.LeftButton)
+        qtbot.wait(1)  # Minimal event processing
 
         # Verify refresh was attempted (the important behavior)
         assert len(test_model.refresh_calls) >= 1
@@ -223,26 +222,25 @@ class TestPreviousShotsView:
         grid_widget: PreviousShotsView,
         test_model: FakePreviousShotsModel,
         qtbot: QtBot,
+        mocker,
     ) -> None:
         """Test handling of scan state signals."""
         # Mock ProgressManager to avoid Qt lifecycle issues with status bar
-        with (
-            patch(
-                "previous_shots.view.ProgressManager.start_operation",
-                MagicMock(return_value={}),
-            ),
-            patch(
-                "previous_shots.view.ProgressManager.finish_operation",
-                MagicMock(),
-            ),
-        ):
-            # Test scan started signal
-            test_model.scan_started.emit()
-            qtbot.wait(1)  # Minimal event processing
+        mocker.patch(
+            "previous_shots.view.ProgressManager.start_operation",
+            MagicMock(return_value={}),
+        )
+        mocker.patch(
+            "previous_shots.view.ProgressManager.finish_operation",
+            MagicMock(),
+        )
+        # Test scan started signal
+        test_model.scan_started.emit()
+        qtbot.wait(1)  # Minimal event processing
 
-            # Test scan finished signal
-            test_model.scan_finished.emit()
-            qtbot.wait(1)  # Minimal event processing
+        # Test scan finished signal
+        test_model.scan_finished.emit()
+        qtbot.wait(1)  # Minimal event processing
 
         # The key test is that signals don't crash the widget
         assert grid_widget is not None
@@ -474,21 +472,19 @@ class TestPreviousShotsView:
         )
 
     def test_refresh_method_delegation(
-        self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel
+        self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, mocker
     ) -> None:
         """Test that refresh method delegates to model."""
         # Mock ProgressManager to avoid Qt lifecycle issues with status bar
-        with (
-            patch(
-                "previous_shots.view.ProgressManager.start_operation",
-                MagicMock(return_value={}),
-            ),
-            patch(
-                "previous_shots.view.ProgressManager.finish_operation",
-                MagicMock(),
-            ),
-        ):
-            grid_widget.refresh()
+        mocker.patch(
+            "previous_shots.view.ProgressManager.start_operation",
+            MagicMock(return_value={}),
+        )
+        mocker.patch(
+            "previous_shots.view.ProgressManager.finish_operation",
+            MagicMock(),
+        )
+        grid_widget.refresh()
 
         # The important thing is the refresh call was attempted
         assert len(test_model.refresh_calls) >= 1

@@ -14,7 +14,6 @@ from collections.abc import Callable, Generator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Thread
-from unittest.mock import patch
 
 import pytest
 
@@ -245,7 +244,7 @@ class TestSharedCaching:
     """Test that multiple components share the same cache."""
 
     def test_multiple_models_share_cache(
-        self, make_test_directory: Callable[[str, int, int], Path]
+        self, make_test_directory: Callable[[str, int, int], Path], mocker
     ) -> None:
         """Test that different models access the same cached data.
 
@@ -262,13 +261,13 @@ class TestSharedCaching:
         listing1 = coord1.get_directory_listing(test_dir)
 
         # Track if other models hit cache (mock scandir to detect)
-        with patch("paths.filesystem_coordinator.os.scandir") as mock_scandir:
-            # Other models should use cache, not scan
-            listing2 = coord2.get_directory_listing(test_dir)
-            listing3 = coord3.get_directory_listing(test_dir)
+        mock_scandir = mocker.patch("paths.filesystem_coordinator.os.scandir")
+        # Other models should use cache, not scan
+        listing2 = coord2.get_directory_listing(test_dir)
+        listing3 = coord3.get_directory_listing(test_dir)
 
-            # scandir should not have been called (cache hit)
-            mock_scandir.assert_not_called()
+        # scandir should not have been called (cache hit)
+        mock_scandir.assert_not_called()
 
         # All should have same listing
         assert listing1 == listing2 == listing3
@@ -485,18 +484,18 @@ class TestErrorHandling:
     """Test error handling and edge cases."""
 
     def test_permission_denied(
-        self, coordinator: FilesystemCoordinator, tmp_path: Path
+        self, coordinator: FilesystemCoordinator, tmp_path: Path, mocker
     ) -> None:
         """Test handling of permission denied errors."""
         restricted_dir = tmp_path / "restricted"
         restricted_dir.mkdir()
 
         # Mock OSError for permission denied
-        with patch(
+        mocker.patch(
             "paths.filesystem_coordinator.os.scandir",
             side_effect=PermissionError("Access denied"),
-        ):
-            listing = coordinator.get_directory_listing(restricted_dir)
+        )
+        listing = coordinator.get_directory_listing(restricted_dir)
 
         # Should return empty list on error
         assert listing == []

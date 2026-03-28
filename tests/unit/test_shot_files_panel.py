@@ -20,7 +20,6 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import Qt
@@ -198,7 +197,7 @@ class TestFileListItemContextMenu:
 
     @pytest.mark.allow_dialogs
     def test_open_folder_calls_desktop_services(
-        self, qtbot: QtBot, scene_file: SceneFile
+        self, qtbot: QtBot, scene_file: SceneFile, mocker
     ) -> None:
         """Test that open folder calls QDesktopServices."""
         from PySide6.QtGui import QDesktopServices
@@ -207,16 +206,16 @@ class TestFileListItemContextMenu:
         qtbot.addWidget(item)
 
         # Mock QDesktopServices to avoid actually opening folder
-        with patch.object(QDesktopServices, "openUrl") as mock_open:
-            item._open_folder()
-            process_qt_events()
+        mock_open = mocker.patch.object(QDesktopServices, "openUrl")
+        item._open_folder()
+        process_qt_events()
 
-            mock_open.assert_called_once()
-            # Verify it was called with a URI for the parent folder
-            call_arg = str(mock_open.call_args[0][0])
-            assert (
-                "file://" in call_arg.lower() or str(scene_file.path.parent) in call_arg
-            )
+        mock_open.assert_called_once()
+        # Verify it was called with a URI for the parent folder
+        call_arg = str(mock_open.call_args[0][0])
+        assert (
+            "file://" in call_arg.lower() or str(scene_file.path.parent) in call_arg
+        )
 
 
 # ============================================================================
@@ -397,18 +396,18 @@ class TestShotFilesPanelSetShot:
     """Test ShotFilesPanel.set_shot functionality."""
 
     def test_set_shot_none_clears_all(
-        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel
+        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel, mocker
     ) -> None:
         """Test that set_shot(None) clears all sections."""
         # Mock finder to return files
-        with patch.object(shot_files_panel._finder, "find_all_files") as mock_find:
-            mock_find.return_value = {
-                FileType.THREEDE: [create_scene_file()],
-                FileType.MAYA: [create_scene_file(FileType.MAYA, "scene.ma")],
-                FileType.NUKE: [],
-            }
-            shot_files_panel.set_shot(ShotDouble())  # type: ignore[arg-type]
-            process_qt_events()
+        mock_find = mocker.patch.object(shot_files_panel._finder, "find_all_files")
+        mock_find.return_value = {
+            FileType.THREEDE: [create_scene_file()],
+            FileType.MAYA: [create_scene_file(FileType.MAYA, "scene.ma")],
+            FileType.NUKE: [],
+        }
+        shot_files_panel.set_shot(ShotDouble())  # type: ignore[arg-type]
+        process_qt_events()
 
         # Now clear
         shot_files_panel.set_shot(None)
@@ -419,20 +418,20 @@ class TestShotFilesPanelSetShot:
             assert section.isHidden() is True
 
     def test_set_shot_calls_finder(
-        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel
+        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel, mocker
     ) -> None:
         """Test that set_shot calls the finder with the shot."""
         shot = ShotDouble()
 
-        with patch.object(shot_files_panel._finder, "find_all_files") as mock_find:
-            mock_find.return_value = {}
-            shot_files_panel.set_shot(shot)  # type: ignore[arg-type]
-            process_qt_events()
+        mock_find = mocker.patch.object(shot_files_panel._finder, "find_all_files")
+        mock_find.return_value = {}
+        shot_files_panel.set_shot(shot)  # type: ignore[arg-type]
+        process_qt_events()
 
-            mock_find.assert_called_once_with(shot)
+        mock_find.assert_called_once_with(shot)
 
     def test_set_shot_updates_sections_with_files(
-        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel
+        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel, mocker
     ) -> None:
         """Test that set_shot populates sections with found files."""
         threede_files = [create_scene_file(FileType.THREEDE, "scene1.3de")]
@@ -441,14 +440,14 @@ class TestShotFilesPanelSetShot:
             create_scene_file(FileType.MAYA, "scene2.ma"),
         ]
 
-        with patch.object(shot_files_panel._finder, "find_all_files") as mock_find:
-            mock_find.return_value = {
-                FileType.THREEDE: threede_files,
-                FileType.MAYA: maya_files,
-                FileType.NUKE: [],
-            }
-            shot_files_panel.set_shot(ShotDouble())  # type: ignore[arg-type]
-            process_qt_events()
+        mock_find = mocker.patch.object(shot_files_panel._finder, "find_all_files")
+        mock_find.return_value = {
+            FileType.THREEDE: threede_files,
+            FileType.MAYA: maya_files,
+            FileType.NUKE: [],
+        }
+        shot_files_panel.set_shot(ShotDouble())  # type: ignore[arg-type]
+        process_qt_events()
 
         # Check sections are updated (use isHidden which works without parent being shown)
         # Sections with files should NOT be hidden
@@ -462,28 +461,28 @@ class TestShotFilesPanelSetShot:
         assert "(2)" in shot_files_panel._sections[FileType.MAYA]._chip_button.text()
 
     def test_set_shot_handles_finder_exception(
-        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel
+        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel, mocker
     ) -> None:
         """Test that set_shot handles finder exceptions gracefully."""
-        with patch.object(shot_files_panel._finder, "find_all_files") as mock_find:
-            mock_find.side_effect = Exception("Test error")
-            # Should not raise
-            shot_files_panel.set_shot(ShotDouble())  # type: ignore[arg-type]
-            process_qt_events()
+        mock_find = mocker.patch.object(shot_files_panel._finder, "find_all_files")
+        mock_find.side_effect = Exception("Test error")
+        # Should not raise
+        shot_files_panel.set_shot(ShotDouble())  # type: ignore[arg-type]
+        process_qt_events()
 
         # All sections should be hidden (cleared on error)
         for section in shot_files_panel._sections.values():
             assert section.isHidden() is True
 
     def test_set_shot_stores_current_shot(
-        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel
+        self, qtbot: QtBot, shot_files_panel: ShotFilesPanel, mocker
     ) -> None:
         """Test that set_shot stores the current shot reference."""
         shot = ShotDouble()
 
-        with patch.object(shot_files_panel._finder, "find_all_files") as mock_find:
-            mock_find.return_value = {}
-            shot_files_panel.set_shot(shot)  # type: ignore[arg-type]
+        mock_find = mocker.patch.object(shot_files_panel._finder, "find_all_files")
+        mock_find.return_value = {}
+        shot_files_panel.set_shot(shot)  # type: ignore[arg-type]
 
         assert shot_files_panel._current_shot is shot
 

@@ -9,7 +9,7 @@ it straightforward to test without Qt infrastructure.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -109,30 +109,28 @@ def _make_settings_manager(*, background_gui: bool = False) -> MagicMock:
 class TestExecuteWorkspaceResolution:
     """Workspace path can be provided directly or resolved from current_shot."""
 
-    def test_explicit_workspace_path_is_used(self) -> None:
+    def test_explicit_workspace_path_is_used(self, mocker) -> None:
         """When workspace_path is provided it is used without touching current_shot."""
         from config import RezMode
 
         em = _make_env_manager()
         pe = _make_process_executor()
 
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch(
-                "launch.launch_operation.build_workspace_command", return_value="cmd"
-            ) as mock_ws,
-            patch("launch.launch_operation.add_logging", return_value="cmd"),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch(
-                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
-            ),
-        ):
-            op = _make_operation(
-                workspace_path="/explicit/path",
-                env_manager=em,
-                process_executor=pe,
-            )
-            op.execute()
+        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mock_ws = mocker.patch(
+            "launch.launch_operation.build_workspace_command", return_value="cmd"
+        )
+        mocker.patch("launch.launch_operation.add_logging", return_value="cmd")
+        mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
+        mocker.patch(
+            "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+        )
+        op = _make_operation(
+            workspace_path="/explicit/path",
+            env_manager=em,
+            process_executor=pe,
+        )
+        op.execute()
 
         mock_ws.assert_called_once()
         assert "/explicit/path" in mock_ws.call_args[0][0]
@@ -159,28 +157,26 @@ class TestExecuteWorkspaceResolution:
 class TestExecuteInvalidWorkspacePath:
     """validate_path raises ValueError for dangerous paths."""
 
-    def test_dangerous_workspace_path_emits_error_and_returns_false(self) -> None:
+    def test_dangerous_workspace_path_emits_error_and_returns_false(self, mocker) -> None:
         from config import RezMode
 
         emit_error = MagicMock()
         em = _make_env_manager()
 
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch(
-                "launch.command_builder.validate_path",
-                side_effect=ValueError("dangerous chars"),
-            ),
-            patch(
-                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
-            ),
-        ):
-            op = _make_operation(
-                workspace_path="/bad/path; evil",
-                env_manager=em,
-                emit_error=emit_error,
-            )
-            result = op.execute()
+        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mocker.patch(
+            "launch.command_builder.validate_path",
+            side_effect=ValueError("dangerous chars"),
+        )
+        mocker.patch(
+            "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+        )
+        op = _make_operation(
+            workspace_path="/bad/path; evil",
+            env_manager=em,
+            emit_error=emit_error,
+        )
+        result = op.execute()
 
         assert result is False
         emit_error.assert_called_once()
@@ -194,7 +190,7 @@ class TestExecuteInvalidWorkspacePath:
 class TestExecuteCommandLengthGuard:
     """Commands exceeding MAX_COMMAND_LENGTH are rejected before spawning."""
 
-    def test_oversized_command_emits_error_and_returns_false(self) -> None:
+    def test_oversized_command_emits_error_and_returns_false(self, mocker) -> None:
         from config import RezMode
 
         emit_error = MagicMock()
@@ -202,27 +198,25 @@ class TestExecuteCommandLengthGuard:
         pe = _make_process_executor()
         em = _make_env_manager()
 
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch(
-                "launch.launch_operation.build_workspace_command",
-                return_value=long_command,
-            ),
-            patch(
-                "launch.launch_operation.add_logging",
-                return_value=long_command,
-            ),
-            patch(
-                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
-            ),
-        ):
-            op = _make_operation(
-                process_executor=pe,
-                env_manager=em,
-                emit_error=emit_error,
-            )
-            result = op.execute()
+        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
+        mocker.patch(
+            "launch.launch_operation.build_workspace_command",
+            return_value=long_command,
+        )
+        mocker.patch(
+            "launch.launch_operation.add_logging",
+            return_value=long_command,
+        )
+        mocker.patch(
+            "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+        )
+        op = _make_operation(
+            process_executor=pe,
+            env_manager=em,
+            emit_error=emit_error,
+        )
+        result = op.execute()
 
         assert result is False
         emit_error.assert_called_once()
@@ -237,66 +231,62 @@ class TestExecuteCommandLengthGuard:
 class TestExecuteBackgroundWrapping:
     """GUI apps are background-wrapped when the setting is enabled."""
 
-    def test_gui_app_backgrounded_when_setting_enabled(self) -> None:
+    def test_gui_app_backgrounded_when_setting_enabled(self, mocker) -> None:
         from config import RezMode
 
         pe = _make_process_executor(is_gui=True)
         sm = _make_settings_manager(background_gui=True)
         em = _make_env_manager()
 
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch(
-                "launch.launch_operation.build_workspace_command",
-                return_value="base_cmd",
-            ),
-            patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c),
-            patch(
-                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
-            ),
-            patch(
-                "launch.launch_operation.wrap_for_background", return_value="bg_cmd"
-            ) as mock_bg,
-        ):
-            op = _make_operation(
-                app_name="3de",
-                process_executor=pe,
-                settings_manager=sm,
-                env_manager=em,
-            )
-            result = op.execute()
+        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
+        mocker.patch(
+            "launch.launch_operation.build_workspace_command",
+            return_value="base_cmd",
+        )
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c)
+        mocker.patch(
+            "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+        )
+        mock_bg = mocker.patch(
+            "launch.launch_operation.wrap_for_background", return_value="bg_cmd"
+        )
+        op = _make_operation(
+            app_name="3de",
+            process_executor=pe,
+            settings_manager=sm,
+            env_manager=em,
+        )
+        result = op.execute()
 
         assert result is True
         mock_bg.assert_called_once()
 
-    def test_gui_app_not_backgrounded_when_setting_disabled(self) -> None:
+    def test_gui_app_not_backgrounded_when_setting_disabled(self, mocker) -> None:
         from config import RezMode
 
         pe = _make_process_executor(is_gui=True)
         sm = _make_settings_manager(background_gui=False)
         em = _make_env_manager()
 
-        with (
-            patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED),
-            patch("launch.launch_operation.validate_path", side_effect=lambda p: p),
-            patch(
-                "launch.launch_operation.build_workspace_command",
-                return_value="base_cmd",
-            ),
-            patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c),
-            patch(
-                "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
-            ),
-            patch("launch.launch_operation.wrap_for_background") as mock_bg,
-        ):
-            op = _make_operation(
-                app_name="3de",
-                process_executor=pe,
-                settings_manager=sm,
-                env_manager=em,
-            )
-            op.execute()
+        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.DISABLED)
+        mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
+        mocker.patch(
+            "launch.launch_operation.build_workspace_command",
+            return_value="base_cmd",
+        )
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c)
+        mocker.patch(
+            "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+        )
+        mock_bg = mocker.patch("launch.launch_operation.wrap_for_background")
+        op = _make_operation(
+            app_name="3de",
+            process_executor=pe,
+            settings_manager=sm,
+            env_manager=em,
+        )
+        op.execute()
 
         mock_bg.assert_not_called()
 

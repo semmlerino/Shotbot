@@ -11,8 +11,6 @@ Following UNIFIED_TESTING_V2.md best practices:
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 from PySide6.QtCore import QByteArray, QSize
 
@@ -399,57 +397,57 @@ class TestResetLayout:
     """Test reset layout functionality."""
 
     def test_reset_layout_resets_window_size_on_confirmation(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
+        self, controller: SettingsController, window_double: SettingsTargetDouble, mocker
     ) -> None:
         """Test that reset_layout resets window size when user confirms."""
         # Mock QMessageBox to return Yes
-        with patch(
+        mock_question = mocker.patch(
             "controllers.settings_controller.QMessageBox.question"
-        ) as mock_question:
-            from PySide6.QtWidgets import QMessageBox
+        )
+        from PySide6.QtWidgets import QMessageBox
 
-            mock_question.return_value = QMessageBox.StandardButton.Yes
+        mock_question.return_value = QMessageBox.StandardButton.Yes
 
-            controller.reset_layout()
+        controller.reset_layout()
 
-            # Should have resized to defaults
-            # Config.DEFAULT_WINDOW_WIDTH = 1200, Config.DEFAULT_WINDOW_HEIGHT = 800
-            assert window_double._size.width() == 1200
-            assert window_double._size.height() == 800
+        # Should have resized to defaults
+        # Config.DEFAULT_WINDOW_WIDTH = 1200, Config.DEFAULT_WINDOW_HEIGHT = 800
+        assert window_double._size.width() == 1200
+        assert window_double._size.height() == 800
 
     def test_reset_layout_resets_splitter_on_confirmation(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
+        self, controller: SettingsController, window_double: SettingsTargetDouble, mocker
     ) -> None:
         """Test that reset_layout resets splitter when user confirms."""
-        with patch(
+        mock_question = mocker.patch(
             "controllers.settings_controller.QMessageBox.question"
-        ) as mock_question:
-            from PySide6.QtWidgets import QMessageBox
+        )
+        from PySide6.QtWidgets import QMessageBox
 
-            mock_question.return_value = QMessageBox.StandardButton.Yes
+        mock_question.return_value = QMessageBox.StandardButton.Yes
 
-            controller.reset_layout()
+        controller.reset_layout()
 
-            # Should have reset splitter sizes
-            assert window_double.splitter._sizes == [840, 360]
+        # Should have reset splitter sizes
+        assert window_double.splitter._sizes == [840, 360]
 
     def test_reset_layout_does_nothing_on_cancel(
-        self, controller: SettingsController, window_double: SettingsTargetDouble
+        self, controller: SettingsController, window_double: SettingsTargetDouble, mocker
     ) -> None:
         """Test that reset_layout does nothing when user cancels."""
         original_size = window_double._size
 
-        with patch(
+        mock_question = mocker.patch(
             "controllers.settings_controller.QMessageBox.question"
-        ) as mock_question:
-            from PySide6.QtWidgets import QMessageBox
+        )
+        from PySide6.QtWidgets import QMessageBox
 
-            mock_question.return_value = QMessageBox.StandardButton.No
+        mock_question.return_value = QMessageBox.StandardButton.No
 
-            controller.reset_layout()
+        controller.reset_layout()
 
-            # Size should not have changed
-            assert window_double._size == original_size
+        # Size should not have changed
+        assert window_double._size == original_size
 
 
 # ============================================================================

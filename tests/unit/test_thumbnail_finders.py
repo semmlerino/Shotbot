@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -99,7 +98,7 @@ class TestExtractFrameNumber:
 class TestFindFirstJpegInVersionTree:
     """Tests for _find_first_jpeg_in_version_tree helper."""
 
-    def test_finds_jpeg_in_version_tree(self, tmp_path: Path) -> None:
+    def test_finds_jpeg_in_version_tree(self, tmp_path: Path, mocker) -> None:
         """Returns first JPEG under base_path/version/jpeg/resolution/."""
         base_path = tmp_path / "undistorted_plate"
         jpeg_dir = base_path / "v001" / "jpeg" / "4312x2304"
@@ -107,42 +106,42 @@ class TestFindFirstJpegInVersionTree:
         jpeg_file = jpeg_dir / "frame.0001.jpeg"
         jpeg_file.write_bytes(b"JPEG_DATA")
 
-        with patch(
+        mocker.patch(
             "discovery.thumbnail_finders.VersionUtils.get_latest_version",
             return_value="v001",
-        ):
-            result = _find_first_jpeg_in_version_tree(base_path)
+        )
+        result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result == jpeg_file
 
-    def test_returns_none_when_no_version_found(self, tmp_path: Path) -> None:
+    def test_returns_none_when_no_version_found(self, tmp_path: Path, mocker) -> None:
         """Returns None when VersionUtils finds no version directories."""
         base_path = tmp_path / "undistorted_plate"
         base_path.mkdir()
 
-        with patch(
+        mocker.patch(
             "discovery.thumbnail_finders.VersionUtils.get_latest_version",
             return_value=None,
-        ):
-            result = _find_first_jpeg_in_version_tree(base_path)
+        )
+        result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result is None
 
-    def test_returns_none_when_jpeg_base_path_missing(self, tmp_path: Path) -> None:
+    def test_returns_none_when_jpeg_base_path_missing(self, tmp_path: Path, mocker) -> None:
         """Returns None when the version/jpeg directory doesn't exist."""
         base_path = tmp_path / "undistorted_plate"
         # Create version dir but not the jpeg subdir
         (base_path / "v001").mkdir(parents=True)
 
-        with patch(
+        mocker.patch(
             "discovery.thumbnail_finders.VersionUtils.get_latest_version",
             return_value="v001",
-        ):
-            result = _find_first_jpeg_in_version_tree(base_path)
+        )
+        result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result is None
 
-    def test_uses_custom_image_subdir(self, tmp_path: Path) -> None:
+    def test_uses_custom_image_subdir(self, tmp_path: Path, mocker) -> None:
         """Respects the image_subdir parameter (e.g., 'jpg' for editorial)."""
         base_path = tmp_path / "editorial"
         jpg_dir = base_path / "v002" / "jpg" / "1920x1080"
@@ -150,50 +149,46 @@ class TestFindFirstJpegInVersionTree:
         jpg_file = jpg_dir / "cutref.0001.jpg"
         jpg_file.write_bytes(b"JPG_DATA")
 
-        with patch(
+        mocker.patch(
             "discovery.thumbnail_finders.VersionUtils.get_latest_version",
             return_value="v002",
-        ):
-            result = _find_first_jpeg_in_version_tree(base_path, image_subdir="jpg")
+        )
+        result = _find_first_jpeg_in_version_tree(base_path, image_subdir="jpg")
 
         assert result == jpg_file
 
-    def test_skips_non_jpeg_files(self, tmp_path: Path) -> None:
+    def test_skips_non_jpeg_files(self, tmp_path: Path, mocker) -> None:
         """Returns None when the resolution dir contains only non-JPEG files."""
         base_path = tmp_path / "undistorted_plate"
         jpeg_dir = base_path / "v001" / "jpeg" / "1920x1080"
         jpeg_dir.mkdir(parents=True)
         (jpeg_dir / "frame.0001.exr").write_bytes(b"EXR_DATA")
 
-        with (
-            patch(
-                "discovery.thumbnail_finders.VersionUtils.get_latest_version",
-                return_value="v001",
-            ),
-            # get_first_image_file needs to return a non-jpeg
-            patch(
-                "discovery.thumbnail_finders.FileUtils.get_first_image_file",
-                return_value=jpeg_dir / "frame.0001.exr",
-            ),
-        ):
-            result = _find_first_jpeg_in_version_tree(base_path)
+        mocker.patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value="v001",
+        )
+        # get_first_image_file needs to return a non-jpeg
+        mocker.patch(
+            "discovery.thumbnail_finders.FileUtils.get_first_image_file",
+            return_value=jpeg_dir / "frame.0001.exr",
+        )
+        result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result is None
 
-    def test_handles_oserror_gracefully(self, tmp_path: Path) -> None:
+    def test_handles_oserror_gracefully(self, tmp_path: Path, mocker) -> None:
         """Returns None when iterdir raises OSError."""
         base_path = tmp_path / "undistorted_plate"
         jpeg_base = base_path / "v001" / "jpeg"
         jpeg_base.mkdir(parents=True)
 
-        with (
-            patch(
-                "discovery.thumbnail_finders.VersionUtils.get_latest_version",
-                return_value="v001",
-            ),
-            patch.object(Path, "iterdir", side_effect=OSError("permission denied")),
-        ):
-            result = _find_first_jpeg_in_version_tree(base_path)
+        mocker.patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value="v001",
+        )
+        mocker.patch.object(Path, "iterdir", side_effect=OSError("permission denied"))
+        result = _find_first_jpeg_in_version_tree(base_path)
 
         assert result is None
 
@@ -249,7 +244,7 @@ class TestFindTurnoverPlateThumbnail:
         f.write_bytes(b"EXR")
         return f
 
-    def test_handles_oserror_on_iterdir(self, tmp_path: Path) -> None:
+    def test_handles_oserror_on_iterdir(self, tmp_path: Path, mocker) -> None:
         """Returns None gracefully when iterdir raises OSError."""
         base = (
             tmp_path
@@ -264,10 +259,10 @@ class TestFindTurnoverPlateThumbnail:
         )
         base.mkdir(parents=True)
 
-        with patch.object(Path, "iterdir", side_effect=OSError("no access")):
-            result = find_turnover_plate_thumbnail(
-                str(tmp_path / "shows"), "show", "seq01", "shot01"
-            )
+        mocker.patch.object(Path, "iterdir", side_effect=OSError("no access"))
+        result = find_turnover_plate_thumbnail(
+            str(tmp_path / "shows"), "show", "seq01", "shot01"
+        )
 
         assert result is None
 
@@ -373,18 +368,18 @@ class TestFindAnyPublishThumbnail:
 
         assert result == exr
 
-    def test_handles_oserror_gracefully(self, tmp_path: Path) -> None:
+    def test_handles_oserror_gracefully(self, tmp_path: Path, mocker) -> None:
         """Returns None when os.walk raises OSError."""
         publish = self._make_publish_dir(tmp_path)
         (publish / "shot.1001.exr").write_bytes(b"EXR")
 
-        with patch(
+        mocker.patch(
             "discovery.thumbnail_finders.os.walk",
             side_effect=OSError("permission denied"),
-        ):
-            result = find_any_publish_thumbnail(
-                str(tmp_path / "shows"), "show", "seq01", "shot01"
-            )
+        )
+        result = find_any_publish_thumbnail(
+            str(tmp_path / "shows"), "show", "seq01", "shot01"
+        )
 
         assert result is None
 
@@ -400,90 +395,82 @@ class TestFindShotThumbnail:
     def _args(self) -> tuple[str, str, str, str]:
         return "/shows", "show", "seq01", "shot01"
 
-    def test_falls_through_to_turnover_when_editorial_missing(self) -> None:
+    def test_falls_through_to_turnover_when_editorial_missing(self, mocker) -> None:
         """Falls through to turnover plate when editorial cutref doesn't exist."""
         turnover_exr = Path("/fake/turnover.exr")
 
-        with (
-            patch(
-                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
-                return_value=False,
-            ),
-            patch(
-                "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
-                return_value=turnover_exr,
-            ),
-            patch(
-                "discovery.thumbnail_finders.find_any_publish_thumbnail",
-                return_value=None,
-            ),
-        ):
-            result = find_shot_thumbnail(*self._args())
+        mocker.patch(
+            "discovery.thumbnail_finders.PathValidators.validate_path_exists",
+            return_value=False,
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
+            return_value=turnover_exr,
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.find_any_publish_thumbnail",
+            return_value=None,
+        )
+        result = find_shot_thumbnail(*self._args())
 
         assert result == turnover_exr
 
-    def test_falls_through_to_publish_when_turnover_missing(self) -> None:
+    def test_falls_through_to_publish_when_turnover_missing(self, mocker) -> None:
         """Falls through to any publish EXR when neither editorial nor turnover found."""
         publish_exr = Path("/fake/publish.1001.exr")
 
-        with (
-            patch(
-                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
-                return_value=False,
-            ),
-            patch(
-                "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
-                return_value=None,
-            ),
-            patch(
-                "discovery.thumbnail_finders.find_any_publish_thumbnail",
-                return_value=publish_exr,
-            ),
-        ):
-            result = find_shot_thumbnail(*self._args())
+        mocker.patch(
+            "discovery.thumbnail_finders.PathValidators.validate_path_exists",
+            return_value=False,
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
+            return_value=None,
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.find_any_publish_thumbnail",
+            return_value=publish_exr,
+        )
+        result = find_shot_thumbnail(*self._args())
 
         assert result == publish_exr
 
-    def test_returns_none_when_nothing_found(self) -> None:
+    def test_returns_none_when_nothing_found(self, mocker) -> None:
         """Returns None when all three finders fail."""
-        with (
-            patch(
-                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
-                return_value=False,
-            ),
-            patch(
-                "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
-                return_value=None,
-            ),
-            patch(
-                "discovery.thumbnail_finders.find_any_publish_thumbnail",
-                return_value=None,
-            ),
-        ):
-            result = find_shot_thumbnail(*self._args())
+        mocker.patch(
+            "discovery.thumbnail_finders.PathValidators.validate_path_exists",
+            return_value=False,
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
+            return_value=None,
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.find_any_publish_thumbnail",
+            return_value=None,
+        )
+        result = find_shot_thumbnail(*self._args())
 
         assert result is None
 
-    def test_editorial_result_takes_priority_over_turnover(self) -> None:
+    def test_editorial_result_takes_priority_over_turnover(self, mocker) -> None:
         """Editorial JPEG is returned even when turnover plate also exists."""
         editorial_jpeg = Path("/fake/editorial.jpg")
         turnover_exr = Path("/fake/turnover.exr")
 
-        with (
-            patch(
-                "discovery.thumbnail_finders.PathValidators.validate_path_exists",
-                return_value=True,
-            ),
-            patch(
-                "discovery.thumbnail_finders._find_editorial_cutref_thumbnail",
-                return_value=editorial_jpeg,
-            ),
-            patch(
-                "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
-                return_value=turnover_exr,
-            ) as mock_turnover,
-        ):
-            result = find_shot_thumbnail(*self._args())
+        mocker.patch(
+            "discovery.thumbnail_finders.PathValidators.validate_path_exists",
+            return_value=True,
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders._find_editorial_cutref_thumbnail",
+            return_value=editorial_jpeg,
+        )
+        mock_turnover = mocker.patch(
+            "discovery.thumbnail_finders.find_turnover_plate_thumbnail",
+            return_value=turnover_exr,
+        )
+        result = find_shot_thumbnail(*self._args())
 
         assert result == editorial_jpeg
         mock_turnover.assert_not_called()
@@ -497,7 +484,7 @@ class TestFindShotThumbnail:
 class TestFindEditorialCutrefThumbnail:
     """Tests for _find_editorial_cutref_thumbnail."""
 
-    def test_returns_jpeg_from_version_tree(self, tmp_path: Path) -> None:
+    def test_returns_jpeg_from_version_tree(self, tmp_path: Path, mocker) -> None:
         """Returns JPEG found in editorial/version/jpg/resolution structure."""
         editorial_base = tmp_path / "cutref"
         jpg_dir = editorial_base / "v003" / "jpg" / "1920x1080"
@@ -505,24 +492,24 @@ class TestFindEditorialCutrefThumbnail:
         jpg_file = jpg_dir / "cutref.0001.jpg"
         jpg_file.write_bytes(b"JPG_DATA")
 
-        with patch(
+        mocker.patch(
             "discovery.thumbnail_finders.VersionUtils.get_latest_version",
             return_value="v003",
-        ):
-            result = _find_editorial_cutref_thumbnail(editorial_base)
+        )
+        result = _find_editorial_cutref_thumbnail(editorial_base)
 
         assert result == jpg_file
 
-    def test_returns_none_when_no_version_dirs(self, tmp_path: Path) -> None:
+    def test_returns_none_when_no_version_dirs(self, tmp_path: Path, mocker) -> None:
         """Returns None when no version directories exist."""
         editorial_base = tmp_path / "cutref"
         editorial_base.mkdir()
 
-        with patch(
+        mocker.patch(
             "discovery.thumbnail_finders.VersionUtils.get_latest_version",
             return_value=None,
-        ):
-            result = _find_editorial_cutref_thumbnail(editorial_base)
+        )
+        result = _find_editorial_cutref_thumbnail(editorial_base)
 
         assert result is None
 
@@ -542,7 +529,7 @@ class TestFindUndistortedJpegThumbnail:
         )
         assert result is None
 
-    def test_finds_jpeg_for_known_plate(self, tmp_path: Path) -> None:
+    def test_finds_jpeg_for_known_plate(self, tmp_path: Path, mocker) -> None:
         """Returns JPEG found for a plate discovered by FileDiscovery."""
         mm_default = (
             tmp_path
@@ -561,27 +548,25 @@ class TestFindUndistortedJpegThumbnail:
         jpeg_file = jpeg_dir / "shot.0001.jpeg"
         jpeg_file.write_bytes(b"JPEG")
 
-        with (
-            patch(
-                "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
-                return_value=[("FG01", 0)],
-            ),
-            patch(
-                "discovery.thumbnail_finders.find_path_case_insensitive",
-                side_effect=lambda base, name: base / name,
-            ),
-            patch(
-                "discovery.thumbnail_finders.VersionUtils.get_latest_version",
-                return_value="v001",
-            ),
-        ):
-            result = find_undistorted_jpeg_thumbnail(
-                str(tmp_path / "shows"), "show", "seq01", "shot01"
-            )
+        mocker.patch(
+            "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
+            return_value=[("FG01", 0)],
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.find_path_case_insensitive",
+            side_effect=lambda base, name: base / name,
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value="v001",
+        )
+        result = find_undistorted_jpeg_thumbnail(
+            str(tmp_path / "shows"), "show", "seq01", "shot01"
+        )
 
         assert result == jpeg_file
 
-    def test_returns_none_when_no_plates_discovered(self, tmp_path: Path) -> None:
+    def test_returns_none_when_no_plates_discovered(self, tmp_path: Path, mocker) -> None:
         """Returns None when FileDiscovery finds no plate directories."""
         mm_default = (
             tmp_path
@@ -596,13 +581,13 @@ class TestFindUndistortedJpegThumbnail:
         )
         mm_default.mkdir(parents=True)
 
-        with patch(
+        mocker.patch(
             "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
             return_value=[],
-        ):
-            result = find_undistorted_jpeg_thumbnail(
-                str(tmp_path / "shows"), "show", "seq01", "shot01"
-            )
+        )
+        result = find_undistorted_jpeg_thumbnail(
+            str(tmp_path / "shows"), "show", "seq01", "shot01"
+        )
 
         assert result is None
 
@@ -622,7 +607,7 @@ class TestFindUserWorkspaceJpegThumbnail:
         )
         assert result is None
 
-    def test_finds_jpeg_in_undistort_output(self, tmp_path: Path) -> None:
+    def test_finds_jpeg_in_undistort_output(self, tmp_path: Path, mocker) -> None:
         """Returns JPEG from user/username/mm/nuke/outputs/mm-default/undistort structure."""
         user_dir = (
             tmp_path / "shows" / "show" / "shots" / "seq01" / "seq01_shot01" / "user"
@@ -635,27 +620,25 @@ class TestFindUserWorkspaceJpegThumbnail:
         jpeg_file = jpeg_dir / "frame.0001.jpg"
         jpeg_file.write_bytes(b"JPG")
 
-        with (
-            patch(
-                "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
-                return_value=[("FG01", 0)],
-            ),
-            patch(
-                "discovery.thumbnail_finders.find_path_case_insensitive",
-                side_effect=lambda base, name: base / name,
-            ),
-            patch(
-                "discovery.thumbnail_finders.VersionUtils.get_latest_version",
-                return_value="v001",
-            ),
-            patch(
-                "discovery.thumbnail_finders.FileUtils.get_first_image_file",
-                return_value=jpeg_file,
-            ),
-        ):
-            result = find_user_workspace_jpeg_thumbnail(
-                str(tmp_path / "shows"), "show", "seq01", "shot01"
-            )
+        mocker.patch(
+            "discovery.thumbnail_finders.FileDiscovery.discover_plate_directories",
+            return_value=[("FG01", 0)],
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.find_path_case_insensitive",
+            side_effect=lambda base, name: base / name,
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.VersionUtils.get_latest_version",
+            return_value="v001",
+        )
+        mocker.patch(
+            "discovery.thumbnail_finders.FileUtils.get_first_image_file",
+            return_value=jpeg_file,
+        )
+        result = find_user_workspace_jpeg_thumbnail(
+            str(tmp_path / "shows"), "show", "seq01", "shot01"
+        )
 
         assert result == jpeg_file
 

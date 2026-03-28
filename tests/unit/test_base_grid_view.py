@@ -24,7 +24,7 @@ Test Coverage:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import QModelIndex, QSize, Qt
@@ -438,15 +438,15 @@ class TestWheelEvent:
         assert grid_view.thumbnail_size == expected
 
     def test_wheel_without_ctrl_not_handled(
-        self, qtbot: QtBot, grid_view: ConcreteGridView
+        self, qtbot: QtBot, grid_view: ConcreteGridView, mocker
     ) -> None:
         """Test that wheel without Ctrl passes to parent."""
         initial_size = grid_view.thumbnail_size
 
         wheel_event = make_mock_wheel_event(delta=120)
 
-        with patch.object(QWidget, "wheelEvent") as mock_super:
-            grid_view.wheelEvent(wheel_event)
+        mock_super = mocker.patch.object(QWidget, "wheelEvent")
+        grid_view.wheelEvent(wheel_event)
 
         # Size should not change
         assert grid_view.thumbnail_size == initial_size
@@ -527,14 +527,14 @@ class TestKeyboardShortcuts:
         assert signal_spy.at(0)[0] == expected_app
 
     def test_unhandled_key_passes_to_list_view(
-        self, qtbot: QtBot, grid_view: ConcreteGridView
+        self, qtbot: QtBot, grid_view: ConcreteGridView, mocker
     ) -> None:
         """Test that unhandled keys are passed to list view."""
         # Arrow keys should go to list view for navigation
-        with patch.object(grid_view.list_view, "keyPressEvent") as mock_key:
-            QTest.keyPress(grid_view, Qt.Key.Key_Down)
-            process_qt_events()
-            mock_key.assert_called_once()
+        mock_key = mocker.patch.object(grid_view.list_view, "keyPressEvent")
+        QTest.keyPress(grid_view, Qt.Key.Key_Down)
+        process_qt_events()
+        mock_key.assert_called_once()
 
     def test_launch_actions_installed_on_list_view(
         self, grid_view: ConcreteGridView

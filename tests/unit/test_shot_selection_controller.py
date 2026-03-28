@@ -14,7 +14,7 @@ Tests cover:
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -239,7 +239,7 @@ class TestShotSelectionController:
         # Previous worker should have been cancelled
         mock_worker.cancel.assert_called_once()
 
-    def test_recover_crashes_requires_selection(self) -> None:
+    def test_recover_crashes_requires_selection(self, mocker) -> None:
         """Verify warning when no shot selected."""
         from controllers.shot_selection_controller import ShotSelectionController
 
@@ -251,9 +251,9 @@ class TestShotSelectionController:
             target, command_launcher=target.command_launcher
         )  # type: ignore[arg-type]
 
-        with patch("managers.notification_manager.NotificationManager") as mock_notif:
-            controller.on_recover_crashes_requested()
-            mock_notif.warning.assert_called_once()
+        mock_notif = mocker.patch("managers.notification_manager.NotificationManager")
+        controller.on_recover_crashes_requested()
+        mock_notif.warning.assert_called_once()
 
     def test_cleanup_cancels_active_worker(self) -> None:
         """Verify cleanup cancels any active discovery worker."""

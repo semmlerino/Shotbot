@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import QObject
@@ -69,30 +68,30 @@ def mock_main_window() -> Mock:
 
 
 @pytest.fixture
-def mock_progress_manager() -> Generator[Mock, None, None]:
+def mock_progress_manager(mocker) -> Mock:
     """Mock ProgressManager at system boundary."""
-    with patch("controllers.refresh_coordinator.ProgressManager") as mock:
-        progress_op = Mock()
-        progress_op.set_indeterminate = Mock()
+    mock = mocker.patch("controllers.refresh_coordinator.ProgressManager")
+    progress_op = Mock()
+    progress_op.set_indeterminate = Mock()
 
-        # Support both old context manager pattern and new manual pattern
-        mock.start_operation = Mock(return_value=progress_op)
-        mock.finish_operation = Mock()
-        # Legacy support for any remaining context manager tests
-        progress_op.__enter__ = Mock(return_value=progress_op)
-        progress_op.__exit__ = Mock(return_value=False)
-        mock.operation = Mock(return_value=progress_op)
-        yield mock
+    # Support both old context manager pattern and new manual pattern
+    mock.start_operation = Mock(return_value=progress_op)
+    mock.finish_operation = Mock()
+    # Legacy support for any remaining context manager tests
+    progress_op.__enter__ = Mock(return_value=progress_op)
+    progress_op.__exit__ = Mock(return_value=False)
+    mock.operation = Mock(return_value=progress_op)
+    return mock
 
 
 @pytest.fixture
-def mock_notification_manager() -> Generator[Mock, None, None]:
+def mock_notification_manager(mocker) -> Mock:
     """Mock NotificationManager at system boundary."""
-    with patch("controllers.refresh_coordinator.NotificationManager") as mock:
-        mock.info = Mock()
-        mock.success = Mock()
-        mock.error = Mock()
-        yield mock
+    mock = mocker.patch("controllers.refresh_coordinator.NotificationManager")
+    mock.info = Mock()
+    mock.success = Mock()
+    mock.error = Mock()
+    return mock
 
 
 @pytest.fixture
@@ -120,33 +119,32 @@ def test_initialization(qapp: QApplication, mock_main_window: Mock) -> None:
 
 
 def test_refresh_current_tab_gets_current_index(
-    orchestrator: RefreshCoordinator, mock_main_window: Mock
+    orchestrator: RefreshCoordinator, mock_main_window: Mock, mocker
 ) -> None:
     """Test refresh_current_tab routes to refresh_tab with the current tab index."""
     mock_main_window.tab_widget.currentIndex.return_value = 1
 
-    with patch.object(orchestrator, "refresh_tab") as mock_refresh:
-        orchestrator.refresh_current_tab()
+    mock_refresh = mocker.patch.object(orchestrator, "refresh_tab")
+    orchestrator.refresh_current_tab()
 
-        mock_refresh.assert_called_once_with(1)
+    mock_refresh.assert_called_once_with(1)
 
 
 def test_refresh_tab_ignores_invalid_index(
     orchestrator: RefreshCoordinator,
+    mocker,
 ) -> None:
     """Test refresh_tab ignores invalid tab indices gracefully."""
     # Invalid indices should emit signal but not call any refresh method
-    with (
-        patch.object(orchestrator, "_refresh_shots") as mock_shots,
-        patch.object(orchestrator, "_refresh_threede") as mock_threede,
-        patch.object(orchestrator, "_refresh_previous") as mock_previous,
-    ):
-        orchestrator.refresh_tab(99)  # Invalid index
+    mock_shots = mocker.patch.object(orchestrator, "_refresh_shots")
+    mock_threede = mocker.patch.object(orchestrator, "_refresh_threede")
+    mock_previous = mocker.patch.object(orchestrator, "_refresh_previous")
+    orchestrator.refresh_tab(99)  # Invalid index
 
-        # None of the refresh methods should be called
-        mock_shots.assert_not_called()
-        mock_threede.assert_not_called()
-        mock_previous.assert_not_called()
+    # None of the refresh methods should be called
+    mock_shots.assert_not_called()
+    mock_threede.assert_not_called()
+    mock_previous.assert_not_called()
 
 
 # ============================================================================
