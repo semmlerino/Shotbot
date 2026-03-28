@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import os
-import time
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from typing_extensions import override
 
-from config import Config
+from cachetools import TTLCache
 from logging_mixin import LoggingMixin
 from singleton_mixin import SingletonMixin
 from timeout_config import TimeoutConfig
@@ -37,19 +36,16 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
 
         super().__init__()
 
-        # Cache: path -> (listing as (name, is_dir, is_file) tuples, timestamp)
-        self._directory_cache: dict[
-            Path, tuple[list[tuple[str, bool, bool]], float]
-        ] = {}
-        self._ttl_seconds: int = (
-            TimeoutConfig.FILESYSTEM_CACHE_TTL
-        )  # 5 minutes TTL for cached listings
+        # pyright: ignore needed because vendored cachetools lacks type stubs.
+        self._directory_cache: TTLCache[Path, list[tuple[str, bool, bool]]] = TTLCache(  # pyright: ignore[reportInvalidTypeArguments]
+            maxsize=500, ttl=TimeoutConfig.FILESYSTEM_CACHE_TTL
+        )
         self._cache_hits: int = 0
         self._cache_misses: int = 0
 
         self._mark_initialized()
         self.logger.debug(
-            f"FilesystemCoordinator initialized with {self._ttl_seconds}s TTL"
+            f"FilesystemCoordinator initialized with {TimeoutConfig.FILESYSTEM_CACHE_TTL}s TTL"
         )
 
     def get_directory_listing(self, path: Path) -> list[tuple[str, bool, bool]]:
@@ -66,22 +62,21 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
             List of (name, is_dir, is_file) tuples for each entry
 
         """
-        now = time.time()
-
         with self._lock:
-            # Check cache
-            if cached := self._directory_cache.get(path):
-                listing, timestamp = cached
-                if now - timestamp < self._ttl_seconds:
-                    self._cache_hits += 1
-                    self.logger.debug(
-                        f"Cache hit for {path.name} "
-                        f"(hit rate: {self._get_hit_rate():.1%})"
-                    )
-                    return listing.copy()  # Return copy to prevent mutation
+            # cast() used because vendored cachetools lacks type stubs.
+            cached = cast(
+                "list[tuple[str, bool, bool]] | None",
+                self._directory_cache.get(path),  # pyright: ignore[reportUnknownMemberType]
+            )
+            if cached is not None:
+                self._cache_hits += 1
+                self.logger.debug(
+                    f"Cache hit for {path.name} "
+                    f"(hit rate: {self._get_hit_rate():.1%})"
+                )
+                return cached.copy()  # Return copy to prevent mutation
 
-            # Cache miss or expired - scan directory inside lock to prevent
-            # thundering herd (multiple threads scanning the same cold path)
+            # Cache miss or expired — scan inside lock to prevent thundering herd
             self._cache_misses += 1
             self.logger.debug(f"Cache miss for {path.name}, scanning...")
 
@@ -91,7 +86,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
                     for entry in os.scandir(path)
                 ]
 
-                self._directory_cache[path] = (listing, now)
+                self._directory_cache[path] = listing  # pyright: ignore[reportUnknownMemberType]
 
                 self.logger.debug(
                     f"Cached {len(listing)} items from {path.name} "
@@ -149,7 +144,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
         """
         with self._lock:
             if path in self._directory_cache:
-                del self._directory_cache[path]
+                del self._directory_cache[path]  # pyright: ignore[reportUnknownMemberType]
                 self.logger.debug(f"Invalidated cache for {path}")
 
     def invalidate_all(self) -> int:
@@ -160,7 +155,7 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
         """
         with self._lock:
             count = len(self._directory_cache)
-            self._directory_cache.clear()
+            self._directory_cache.clear()  # pyright: ignore[reportUnknownMemberType]
             self._cache_hits = 0
             self._cache_misses = 0
             self.logger.info(f"Cleared {count} cached directory listings")
@@ -178,14 +173,12 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
             paths: Dictionary of directory -> contents mappings (tuples of name, is_dir, is_file)
 
         """
-        now = time.time()
         shared_count = 0
 
         with self._lock:
             for directory, contents in paths.items():
-                # Only update if not already cached or if newer
                 if directory not in self._directory_cache:
-                    self._directory_cache[directory] = (contents.copy(), now)
+                    self._directory_cache[directory] = contents.copy()  # pyright: ignore[reportUnknownMemberType]
                     shared_count += 1
 
         if shared_count > 0:
@@ -208,63 +201,13 @@ class FilesystemCoordinator(SingletonMixin, LoggingMixin):
                 "cache_misses": self._cache_misses,
                 "total_requests": total_requests,
                 "hit_rate": hit_rate,
-                "ttl_seconds": self._ttl_seconds,
+                "ttl_seconds": TimeoutConfig.FILESYSTEM_CACHE_TTL,
             }
 
     def _get_hit_rate(self) -> float:
         """Calculate cache hit rate."""
         total = self._cache_hits + self._cache_misses
         return self._cache_hits / total if total > 0 else 0.0
-
-    def set_ttl(self, seconds: int) -> None:
-        """Set cache TTL in seconds.
-
-        Args:
-            seconds: New TTL value
-
-        """
-        self._ttl_seconds = seconds
-        self.logger.info(f"Cache TTL updated to {seconds} seconds")
-
-    def cleanup_expired(self) -> int:
-        """Remove expired entries from cache.
-
-        Returns:
-            Number of entries removed
-
-        """
-        now = time.time()
-        removed = 0
-
-        with self._lock:
-            expired_paths = [
-                path
-                for path, (_, timestamp) in self._directory_cache.items()
-                if now - timestamp >= self._ttl_seconds
-            ]
-
-            for path in expired_paths:
-                del self._directory_cache[path]
-                removed += 1
-
-            # Enforce size limit after TTL cleanup
-            max_size = Config.DIR_CACHE_MAX_SIZE  # 500
-            if len(self._directory_cache) > max_size:
-                # Evict oldest entries down to 80% capacity
-                target_size = int(max_size * 0.8)  # 400
-                sorted_paths = sorted(
-                    self._directory_cache.items(),
-                    key=lambda item: item[1][1],  # Sort by timestamp
-                )
-                evict_count = len(self._directory_cache) - target_size
-                for path, _ in sorted_paths[:evict_count]:
-                    del self._directory_cache[path]
-                    removed += 1
-
-        if removed > 0:
-            self.logger.debug(f"Removed {removed} expired cache entries")
-
-        return removed
 
     @classmethod
     @override

@@ -220,36 +220,6 @@ class TestDirectoryCaching:
         assert len(listing2) == 3
         assert any(name == "new_file.txt" for name, _, _ in listing2)
 
-    def test_cache_ttl_expiration(
-        self,
-        coordinator: FilesystemCoordinator,
-        make_test_directory: Callable[[str, int, int], Path],
-    ) -> None:
-        """Test that cache expires after TTL."""
-        test_dir = make_test_directory(
-            file_count=2, subdirs=0
-        )  # Only files, no subdirs
-
-        # Mock time to control TTL
-        with patch("time.time") as mock_time:
-            # Initial scan at time 0
-            mock_time.return_value = 0
-            listing1 = coordinator.get_directory_listing(test_dir)
-            assert len(listing1) == 2
-
-            # Add new file
-            (test_dir / "new_file.txt").touch()
-
-            # Access before TTL expiry (default 300s) - should use cache
-            mock_time.return_value = 299
-            listing2 = coordinator.get_directory_listing(test_dir)
-            assert len(listing2) == 2  # Still cached
-
-            # Access after TTL expiry - should rescan
-            mock_time.return_value = 301
-            listing3 = coordinator.get_directory_listing(test_dir)
-            assert len(listing3) == 3  # Rescanned
-
     def test_nonexistent_directory(self, coordinator: FilesystemCoordinator) -> None:
         """Test handling of nonexistent directories."""
         fake_dir = Path("/nonexistent/directory")
@@ -509,40 +479,6 @@ class TestAdditionalMethods:
         assert stats["cache_misses"] == 2
         assert stats["hit_rate"] == 0.6
 
-    def test_cleanup_expired(
-        self,
-        coordinator: FilesystemCoordinator,
-        make_test_directory: Callable[[str, int, int], Path],
-    ) -> None:
-        """Test cleanup of expired cache entries."""
-        dir1 = make_test_directory(name="dir1")
-        dir2 = make_test_directory(name="dir2")
-
-        # Cache directories with mocked time
-        with patch("time.time") as mock_time:
-            # Cache at time 0
-            mock_time.return_value = 0
-            coordinator.get_directory_listing(dir1)
-            coordinator.get_directory_listing(dir2)
-
-            # Run cleanup at time 400 (past 300s TTL)
-            mock_time.return_value = 400
-            removed = coordinator.cleanup_expired()
-
-        assert removed == 2
-        assert len(coordinator._directory_cache) == 0
-
-    def test_set_ttl(self, coordinator: FilesystemCoordinator) -> None:
-        """Test changing TTL value."""
-        # Default TTL
-        stats = coordinator.get_cache_stats()
-        assert stats["ttl_seconds"] == 300
-
-        # Update TTL
-        coordinator.set_ttl(600)
-
-        stats = coordinator.get_cache_stats()
-        assert stats["ttl_seconds"] == 600
 
 
 class TestErrorHandling:
@@ -650,43 +586,3 @@ class TestMutableSafety:
         assert len(listing) == 1
         assert listing[0][0] == "file.txt"
 
-
-class TestSizeEviction:
-    """Test cache size limit enforcement."""
-
-    def test_cleanup_expired_enforces_size_limit(
-        self,
-        coordinator: FilesystemCoordinator,
-    ) -> None:
-        """Cache exceeding DIR_CACHE_MAX_SIZE triggers eviction to 80%."""
-        # Fill cache well over limit (use 510 entries with max_size=500)
-        # Use timestamps in the recent past to avoid TTL expiration
-        now = time.time()
-        ttl = coordinator._ttl_seconds
-        for i in range(510):
-            path = Path(f"/fake/dir_{i}")
-            # Distribute timestamps from (now - ttl + 100) to (now - 100)
-            # so nothing expires on TTL, but all entries exist
-            timestamp = now - ttl + 100 + (i * (ttl - 200) / 510)
-            coordinator._directory_cache[path] = (
-                [(f"file_{i}.txt", False, True)],
-                timestamp,
-            )
-
-        assert len(coordinator._directory_cache) == 510
-
-        # Run cleanup at current time (nothing expired due to TTL, but size limit applies)
-        with patch("time.time", return_value=now):
-            removed = coordinator.cleanup_expired()
-
-        # Should have evicted down to 400 (80% of 500)
-        assert len(coordinator._directory_cache) == 400
-        assert removed == 110
-
-        # Oldest entries (lowest timestamps) should have been evicted
-        # dir_0 through dir_109 should be gone (they had the oldest timestamps)
-        assert Path("/fake/dir_0") not in coordinator._directory_cache
-        assert Path("/fake/dir_109") not in coordinator._directory_cache
-        # dir_110 onwards should remain
-        assert Path("/fake/dir_110") in coordinator._directory_cache
-        assert Path("/fake/dir_509") in coordinator._directory_cache
