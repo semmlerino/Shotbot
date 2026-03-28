@@ -98,8 +98,8 @@ from pathlib import Path
 # ==============================================================================
 # CRITICAL: Qt Environment Setup (MUST be before PySide6 imports)
 # ==============================================================================
-# This MUST be set before any Qt imports to prevent "real widgets" from appearing
-# during tests, which causes crashes in WSL and resource exhaustion.
+# This MUST be set before any Qt imports to prevent real widgets from appearing
+# during tests, which causes resource exhaustion and potential crashes.
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 # Create unique XDG runtime directory per worker

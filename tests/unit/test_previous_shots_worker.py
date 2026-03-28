@@ -7,7 +7,7 @@ UNIFIED_TESTING_GUIDE COMPLIANCE:
 1. Mock only at system boundaries
 2. Test behavior, not implementation details
 3. Mock find_approved_shots_targeted on worker's ParallelShotsFinder to avoid
-   subprocess calls (which have WSL issues in test environments)
+   subprocess calls (system boundary mock per unit test principles)
 4. Proper QThread cleanup without qtbot.addWidget()
 5. PySide6 QSignalSpy API (count() method)
 6. Signal waiters set up BEFORE actions to prevent race conditions
@@ -152,8 +152,8 @@ class TestPreviousShotsWorkerWorkflow:
     """Test complete workflow with mocked finder results.
 
     Mocks find_approved_shots_targeted on the worker's ParallelShotsFinder to
-    control returned shots without triggering subprocess calls (which have WSL
-    issues in test environments).
+    control returned shots without triggering subprocess calls (system boundary
+    mock per unit test principles).
     """
 
     @pytest.fixture

@@ -136,6 +136,7 @@ Each report must include:
 4. **Concrete fixes** (fixture adjustments, teardown additions, removing globals)
 
 No vague statements like “accumulated state” unless you show *which* tests cause it.
+Do **not** attribute segfaults to “known WSL issues” or the platform. Segfaults are bugs — investigate them. WSL is the development environment, not the cause.
 
 ---
 
