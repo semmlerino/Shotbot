@@ -20,12 +20,6 @@ pytestmark = pytest.mark.qt  # CRITICAL: Qt state must be serialized
 
 
 @pytest.fixture
-def temp_cache_dir(tmp_path: Path) -> Path:
-    """Create temporary cache directory."""
-    return tmp_path / "cache"
-
-
-@pytest.fixture
 def cache_manager_temp(temp_cache_dir: Path) -> ShotDataCache:
     """Create ShotDataCache with temporary cache directory."""
     return ShotDataCache(temp_cache_dir)

@@ -75,37 +75,6 @@ def ensure_qt_cleanup(qtbot):
     qtbot.wait(1)  # Minimal event processing
 
 
-@pytest.fixture(autouse=True)
-def reset_threede_singletons() -> None:
-    """Reset 3DE-related singletons to prevent cross-test contamination.
-
-    Resets:
-    - ProcessPoolManager (used by worker for parallel discovery)
-    - NotificationManager (used for progress notifications)
-    - ProgressManager (used for operation tracking)
-    """
-    # Import here to avoid circular dependencies
-    from managers.notification_manager import NotificationManager
-    from managers.progress_manager import ProgressManager
-    from workers.process_pool_manager import ProcessPoolManager
-
-    # Reset all singletons using their proper reset() methods.
-    # This ensures all cleanup hooks are called, including:
-    # - ProcessPoolManager: shutdown() and deleteLater() for Qt cleanup
-    # - NotificationManager: cleanup() and deleteLater() for Qt cleanup
-    # - ProgressManager: operation cancellation and state clearing with locking
-    ProcessPoolManager.reset()
-    NotificationManager.reset()
-    ProgressManager.reset()
-
-    yield
-
-    # Reset again after test (defense in depth)
-    ProcessPoolManager.reset()
-    NotificationManager.reset()
-    ProgressManager.reset()
-
-
 class TestThreeDEWorkerWorkflow:
     """Test complete 3DE worker workflow as triggered by user actions.
 

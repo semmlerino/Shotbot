@@ -9,7 +9,6 @@ Functions (caching):
     clear_all_caches: Clear all utility caches
     disable_caching:  Disable caching for a test
     enable_caching:   Re-enable caching after a test
-    CacheIsolation:   Context manager for cache isolation
 
 Fixtures (caching):
     caching_enabled:        Enable caching with isolated temp directory
@@ -43,7 +42,6 @@ import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from types import TracebackType
 
 
 _logger = logging.getLogger(__name__)
@@ -81,29 +79,6 @@ def enable_caching() -> None:
     enable_path_caching()
     _logger.debug("Caching re-enabled after testing")
 
-
-class CacheIsolation:
-    """Context manager for cache isolation in tests.
-
-    Clears and disables all utility caches for the duration of the block,
-    then re-enables caching on exit.
-    """
-
-    def __enter__(self) -> CacheIsolation:
-        """Enter context with isolated cache."""
-        clear_all_caches()
-        disable_caching()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Exit context and restore caching."""
-        enable_caching()
-        _logger.debug("Cache isolation context exited")
 
 
 # ---------------------------------------------------------------------------
@@ -163,20 +138,18 @@ def caching_enabled(tmp_path: Path) -> Iterator[Path]:
 # temp_directories contents
 # ---------------------------------------------------------------------------
 
-import tempfile
-
 
 @pytest.fixture
-def temp_cache_dir() -> Iterator[Path]:
+def temp_cache_dir(tmp_path: Path) -> Path:
     """Create temporary cache directory for testing.
 
     Yields:
         Path to a temporary directory for cache files
 
     """
-    with tempfile.TemporaryDirectory() as temp_dir:
-        cache_dir = Path(temp_dir)
-        yield cache_dir
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    return cache_dir
 
 
 @pytest.fixture

@@ -171,13 +171,6 @@ class TestPreviousShootsCacheIntegration:
     """Integration tests for Previous Shots cache functionality."""
 
     @pytest.fixture
-    def temp_cache_dir(self, tmp_path: Path) -> Path:
-        """Create temporary cache directory."""
-        cache_dir = tmp_path / "test_cache"
-        cache_dir.mkdir(exist_ok=True)
-        return cache_dir
-
-    @pytest.fixture
     def cache_manager(self, temp_cache_dir: Path) -> ShotDataCache:
         """Create real ShotDataCache with temporary storage."""
         return ShotDataCache(temp_cache_dir)

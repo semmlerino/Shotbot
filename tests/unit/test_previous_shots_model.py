@@ -57,32 +57,8 @@ pytestmark = [
 # - Thread-safe testing patterns
 
 
-@pytest.fixture(autouse=True)
-def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Reset singleton instances before each test to prevent contamination.
-
-    This fixture resets all singleton manager instances that might be used
-    by the code under test, ensuring test isolation in parallel execution.
-    """
-    from managers.notification_manager import NotificationManager
-    from managers.progress_manager import ProgressManager
-    from workers.process_pool_manager import ProcessPoolManager
-
-    # Reset singleton instances
-    monkeypatch.setattr(NotificationManager, "_instance", None)
-    monkeypatch.setattr(ProgressManager, "_instance", None)
-    monkeypatch.setattr(ProcessPoolManager, "_instance", None)
-
-
 class TestPreviousShotsModel:
     """Test cases for PreviousShotsModel with real Qt components."""
-
-    @pytest.fixture
-    def temp_cache_dir(self, tmp_path: Path) -> Path:
-        """Create temporary cache directory."""
-        cache_dir = tmp_path / "cache"
-        cache_dir.mkdir(exist_ok=True)
-        return cache_dir
 
     @pytest.fixture
     def real_cache_manager(self, temp_cache_dir: Path) -> ShotDataCache:
