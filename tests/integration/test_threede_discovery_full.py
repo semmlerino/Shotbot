@@ -13,19 +13,12 @@ from unittest.mock import patch
 
 # Third-party imports
 import pytest
-from PySide6.QtCore import QObject, Signal
 
 
 pytestmark = [
     pytest.mark.qt,  # CRITICAL: Qt state must be serialized
     pytest.mark.real_subprocess,  # Uses find command for 3DE discovery
 ]
-
-
-class MockSignalEmitter(QObject):
-    """Lightweight signal for testing (GUIDE line 413)."""
-
-    signal = Signal(list)
 
 
 class TestThreeDEDiscoveryIntegration:
@@ -187,11 +180,6 @@ class TestThreeDEDiscoveryIntegration:
         # With the bug: Would find only 1 (published-mm on MA_074_0340)
         # With the fix: Should find 6+ scenes from other users (shots with publish/mm)
         found_users = {scene.user for scene in scenes}
-
-        # Debug: Print found scenes
-        print(f"\nFound {len(scenes)} scenes:")
-        for scene in scenes:
-            print(f"  {scene.show}/{scene.sequence}/{scene.shot} - {scene.user}")
 
         assert len(scenes) >= 6, f"Should find at least 6 scenes, found {len(scenes)}"
         assert "gabriel-h" not in found_users, "Should exclude current user"

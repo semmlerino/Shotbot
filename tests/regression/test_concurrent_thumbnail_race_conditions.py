@@ -20,12 +20,14 @@ After thread-safety fixes, this test should pass with:
 from __future__ import annotations
 
 import concurrent.futures
+import logging
 import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
+
+logger = logging.getLogger(__name__)
 
 # Local application imports
 from discovery.thumbnail_finders import find_shot_thumbnail
@@ -91,7 +93,7 @@ class TestConcurrentThumbnailRaceConditions:
                                     )
 
             except Exception as e:
-                print(f"Worker {worker_id} failed: {e}")
+                logger.debug("Worker %d failed: %s", worker_id, e)
                 corruption_detected.set()
                 raise
 
@@ -123,8 +125,9 @@ class TestConcurrentThumbnailRaceConditions:
             assert path_str.startswith("/"), f"Invalid path prefix: {path_str}"
             assert "//" not in path_str, f"Double slashes detected: {path_str}"
 
-        print(
-            f"✓ Checked {len(paths_checked)} paths across 3 concurrent threads - no corruption"
+        logger.debug(
+            "Checked %d paths across 3 concurrent threads - no corruption",
+            len(paths_checked),
         )
 
     def test_concurrent_version_cache_access(self) -> None:
@@ -167,7 +170,7 @@ class TestConcurrentThumbnailRaceConditions:
                                     )
 
             except Exception as e:
-                print(f"Worker {worker_id} failed: {e}")
+                logger.debug("Worker %d failed: %s", worker_id, e)
                 corruption_detected.set()
                 raise
 
@@ -199,8 +202,9 @@ class TestConcurrentThumbnailRaceConditions:
                     f"Invalid version format: {version_str}"
                 )
 
-        print(
-            f"✓ Checked {len(versions_checked)} version queries across 3 concurrent threads - no corruption"
+        logger.debug(
+            "Checked %d version queries across 3 concurrent threads - no corruption",
+            len(versions_checked),
         )
 
     def test_concurrent_shot_thumbnail_caching(self) -> None:
@@ -256,7 +260,7 @@ class TestConcurrentThumbnailRaceConditions:
                             results.append((worker_id, thumbnail))
 
                 except Exception as e:
-                    print(f"Worker {worker_id} failed: {e}")
+                    logger.debug("Worker %d failed: %s", worker_id, e)
                     corruption_detected.set()
                     raise
 
@@ -280,12 +284,13 @@ class TestConcurrentThumbnailRaceConditions:
                 f"Double-checked locking may not be working correctly."
             )
 
-            print(f"✓ {len(shots)} shots accessed by 3 concurrent threads")
-            print(
-                f"✓ Only {discovery_count} expensive discoveries (optimal: {len(shots)})"
+            logger.debug("%d shots accessed by 3 concurrent threads", len(shots))
+            logger.debug(
+                "Only %d expensive discoveries (optimal: %d)", discovery_count, len(shots)
             )
-            print(
-                f"✓ Double-checked locking prevented {3 * len(shots) - discovery_count} redundant calls"
+            logger.debug(
+                "Double-checked locking prevented %d redundant calls",
+                3 * len(shots) - discovery_count,
             )
 
             # Validate all results are consistent (no corruption)

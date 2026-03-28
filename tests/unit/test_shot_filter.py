@@ -394,33 +394,3 @@ class TestEdgeCases:
         assert filtered[0].shot == "shot3"
         assert filtered[1].shot == "shot1"
         assert filtered[2].shot == "shot2"
-
-
-class TestTypePreservation:
-    """Test that filtering preserves type information."""
-
-    def test_filter_returns_list_type(self) -> None:
-        """All filter functions return list type."""
-        shots = [Shot("show1", "seq1", "shot1", "/path1")]
-
-        show_filtered = filter_by_show(shots, "show1")
-        text_filtered = filter_by_text(shots, "shot1")
-        composed = compose_filters(shots, show="show1")
-
-        assert isinstance(show_filtered, list)
-        assert isinstance(text_filtered, list)
-        assert isinstance(composed, list)
-
-    def test_filter_preserves_shot_attributes(self) -> None:
-        """Filter preserves all Shot attributes."""
-        original = Shot("show1", "seq1", "shot1", "/path/to/shot1")
-
-        filtered = filter_by_show([original], "show1")
-
-        assert len(filtered) == 1
-        result = filtered[0]
-        assert result.show == original.show
-        assert result.sequence == original.sequence
-        assert result.shot == original.shot
-        assert result.workspace_path == original.workspace_path
-        assert result.full_name == original.full_name

@@ -5,17 +5,11 @@
 import logging
 import os
 import subprocess
-import sys
 
 # Third-party imports
 import pytest
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
 pytestmark = [pytest.mark.qt, pytest.mark.smoke]
@@ -159,33 +153,3 @@ def test_headless_shotbot_command() -> None:
     except Exception as e:  # noqa: BLE001
         logger.error(f"❌ Error running headless: {e}")
 
-
-def main() -> None:
-    """Run all tests."""
-    logger.info("Starting headless mode tests...")
-
-    try:
-        test_headless_detection()
-        test_headless_qt_config()
-        test_headless_app_creation()
-        test_headless_shotbot_command()
-
-        logger.info("")
-        logger.info("=" * 50)
-        logger.info("✅ ALL HEADLESS TESTS PASSED!")
-        logger.info("=" * 50)
-
-    except AssertionError as e:
-        logger.error(f"❌ Test failed: {e}")
-        sys.exit(1)
-    except Exception as e:  # noqa: BLE001
-        logger.error(f"❌ Unexpected error: {e}")
-        # Standard library imports
-        import traceback
-
-        traceback.print_exc()
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

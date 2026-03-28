@@ -200,53 +200,28 @@ class TestRezPackages:
 class TestTerminalDetection:
     """Tests for terminal emulator detection."""
 
+    @pytest.mark.parametrize(
+        ("terminal_name", "binary_path"),
+        [
+            ("gnome-terminal", "/usr/bin/gnome-terminal"),
+            ("konsole", "/usr/bin/konsole"),
+            ("xterm", "/usr/bin/xterm"),
+            ("x-terminal-emulator", "/usr/bin/x-terminal-emulator"),
+        ],
+    )
     @patch("shutil.which")
-    def test_gnome_terminal_detected(
-        self, mock_which: MagicMock, env_manager: EnvironmentManager
+    def test_terminal_detected(
+        self,
+        mock_which: MagicMock,
+        env_manager: EnvironmentManager,
+        terminal_name: str,
+        binary_path: str,
     ) -> None:
-        """Test gnome-terminal detection (highest preference)."""
-        mock_which.side_effect = lambda cmd: (
-            "/usr/bin/gnome-terminal" if cmd == "gnome-terminal" else None
-        )
+        """Test that each supported terminal is detected when only it is available."""
+        mock_which.side_effect = lambda cmd: binary_path if cmd == terminal_name else None
 
         terminal = env_manager.detect_terminal()
-        assert terminal == "gnome-terminal"
-
-    @patch("shutil.which")
-    def test_konsole_detected(
-        self, mock_which: MagicMock, env_manager: EnvironmentManager
-    ) -> None:
-        """Test konsole detection (second preference)."""
-        mock_which.side_effect = lambda cmd: (
-            "/usr/bin/konsole" if cmd == "konsole" else None
-        )
-
-        terminal = env_manager.detect_terminal()
-        assert terminal == "konsole"
-
-    @patch("shutil.which")
-    def test_xterm_detected(
-        self, mock_which: MagicMock, env_manager: EnvironmentManager
-    ) -> None:
-        """Test xterm detection (third preference)."""
-        mock_which.side_effect = lambda cmd: (
-            "/usr/bin/xterm" if cmd == "xterm" else None
-        )
-
-        terminal = env_manager.detect_terminal()
-        assert terminal == "xterm"
-
-    @patch("shutil.which")
-    def test_x_terminal_emulator_detected(
-        self, mock_which: MagicMock, env_manager: EnvironmentManager
-    ) -> None:
-        """Test x-terminal-emulator detection (lowest preference)."""
-        mock_which.side_effect = lambda cmd: (
-            "/usr/bin/x-terminal-emulator" if cmd == "x-terminal-emulator" else None
-        )
-
-        terminal = env_manager.detect_terminal()
-        assert terminal == "x-terminal-emulator"
+        assert terminal == terminal_name
 
     @patch("shutil.which")
     def test_preference_order(

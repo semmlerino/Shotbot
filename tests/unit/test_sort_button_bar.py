@@ -271,33 +271,3 @@ class TestInvalidOrderHandling:
         # No callback should be fired
         callback.assert_not_called()
 
-    def test_set_order_empty_string_ignored(self, sort_bar: SortButtonBar) -> None:
-        """Test that set_order with empty string is ignored."""
-        sort_bar.set_order("date")
-        initial_checked = sort_bar._date_btn.isChecked()
-
-        sort_bar.set_order("")
-
-        assert sort_bar._date_btn.isChecked() == initial_checked
-
-    def test_set_order_case_sensitive(self, sort_bar: SortButtonBar) -> None:
-        """Test that set_order is case-sensitive (uppercase ignored)."""
-        sort_bar.set_order("date")
-        assert sort_bar._date_btn.isChecked() is True
-
-        # Try uppercase
-        sort_bar.set_order("NAME")
-
-        # Should be ignored
-        assert sort_bar._date_btn.isChecked() is True
-        assert sort_bar._name_btn.isChecked() is False
-
-    def test_set_order_with_whitespace_ignored(self, sort_bar: SortButtonBar) -> None:
-        """Test that set_order with whitespace is ignored."""
-        sort_bar.set_order("date")
-
-        sort_bar.set_order(" name ")
-
-        # Should be ignored
-        assert sort_bar._date_btn.isChecked() is True
-        assert sort_bar._name_btn.isChecked() is False

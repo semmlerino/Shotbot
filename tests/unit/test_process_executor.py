@@ -35,21 +35,10 @@ def executor(mock_config: MagicMock) -> ProcessExecutor:
 class TestGuiAppDetection:
     """Tests for GUI application detection."""
 
-    def test_nuke_is_gui_app(self, executor: ProcessExecutor) -> None:
-        """Test that Nuke is detected as GUI app."""
-        assert executor.is_gui_app("nuke") is True
-
-    def test_maya_is_gui_app(self, executor: ProcessExecutor) -> None:
-        """Test that Maya is detected as GUI app."""
-        assert executor.is_gui_app("maya") is True
-
-    def test_3de_is_gui_app(self, executor: ProcessExecutor) -> None:
-        """Test that 3DEqualizer is detected as GUI app."""
-        assert executor.is_gui_app("3de") is True
-
-    def test_rv_is_gui_app(self, executor: ProcessExecutor) -> None:
-        """Test that RV is detected as GUI app."""
-        assert executor.is_gui_app("rv") is True
+    @pytest.mark.parametrize("app_name", ["nuke", "maya", "3de", "rv"])
+    def test_known_gui_apps(self, executor: ProcessExecutor, app_name: str) -> None:
+        """Test that known DCC apps are detected as GUI apps."""
+        assert executor.is_gui_app(app_name) is True
 
     def test_case_insensitive(self, executor: ProcessExecutor) -> None:
         """Test that GUI app detection is case insensitive."""
@@ -98,70 +87,71 @@ class TestBuildTerminalCommand:
 class TestNewTerminalExecution:
     """Tests for new terminal window execution."""
 
+    @pytest.mark.parametrize(
+        ("terminal", "app_name", "cmd", "expected_popen_args"),
+        [
+            (
+                "gnome-terminal",
+                "nuke",
+                "nuke",
+                ["gnome-terminal", "--", "/bin/bash", "-ilc", "nuke"],
+            ),
+            (
+                "konsole",
+                "maya",
+                "maya",
+                ["konsole", "-e", "/bin/bash", "-ilc", "maya"],
+            ),
+            (
+                "xterm",
+                "3de",
+                "3de",
+                ["xterm", "-e", "/bin/bash", "-ilc", "3de"],
+            ),
+        ],
+    )
     @patch("subprocess.Popen")
     @patch("launch.process_executor.QTimer")
-    def test_gnome_terminal_execution(
+    def test_terminal_execution(
         self,
         mock_timer_class: MagicMock,
         mock_popen: MagicMock,
         executor: ProcessExecutor,
+        terminal: str,
+        app_name: str,
+        cmd: str,
+        expected_popen_args: list[str],
     ) -> None:
-        """Test execution in gnome-terminal."""
+        """Test execution in supported terminal emulators."""
         mock_process = MagicMock()
         mock_popen.return_value = mock_process
         mock_timer = MagicMock()
         mock_timer_class.return_value = mock_timer
 
-        result = executor.execute_in_new_terminal("nuke", "nuke", "gnome-terminal")
+        result = executor.execute_in_new_terminal(cmd, app_name, terminal)
 
-        assert result is mock_process  # Returns Popen object on success
-        mock_popen.assert_called_once_with(
-            ["gnome-terminal", "--", "/bin/bash", "-ilc", "nuke"]
-        )
-        # Verify process verification timer was created and started
+        assert result is mock_process
+        mock_popen.assert_called_once_with(expected_popen_args)
+
+    @patch("subprocess.Popen")
+    @patch("launch.process_executor.QTimer")
+    def test_timer_setup_on_success(
+        self,
+        mock_timer_class: MagicMock,
+        mock_popen: MagicMock,
+        executor: ProcessExecutor,
+    ) -> None:
+        """Test that process verification timer is created and started on success."""
+        mock_process = MagicMock()
+        mock_popen.return_value = mock_process
+        mock_timer = MagicMock()
+        mock_timer_class.return_value = mock_timer
+
+        executor.execute_in_new_terminal("nuke", "nuke", "gnome-terminal")
+
         mock_timer.setSingleShot.assert_called_once_with(True)
         mock_timer.setInterval.assert_called_once_with(100)
         mock_timer.start.assert_called_once()
-
-    @patch("subprocess.Popen")
-    @patch("launch.process_executor.QTimer")
-    def test_konsole_execution(
-        self,
-        mock_timer_class: MagicMock,
-        mock_popen: MagicMock,
-        executor: ProcessExecutor,
-    ) -> None:
-        """Test execution in konsole."""
-        mock_process = MagicMock()
-        mock_popen.return_value = mock_process
-        mock_timer = MagicMock()
-        mock_timer_class.return_value = mock_timer
-
-        result = executor.execute_in_new_terminal("maya", "maya", "konsole")
-
-        assert result is mock_process
-        mock_popen.assert_called_once_with(
-            ["konsole", "-e", "/bin/bash", "-ilc", "maya"]
-        )
-
-    @patch("subprocess.Popen")
-    @patch("launch.process_executor.QTimer")
-    def test_xterm_execution(
-        self,
-        mock_timer_class: MagicMock,
-        mock_popen: MagicMock,
-        executor: ProcessExecutor,
-    ) -> None:
-        """Test execution in xterm."""
-        mock_process = MagicMock()
-        mock_popen.return_value = mock_process
-        mock_timer = MagicMock()
-        mock_timer_class.return_value = mock_timer
-
-        result = executor.execute_in_new_terminal("3de", "3de", "xterm")
-
-        assert result is mock_process
-        mock_popen.assert_called_once_with(["xterm", "-e", "/bin/bash", "-ilc", "3de"])
 
     @pytest.mark.allow_dialogs  # May show warning dialog
     @patch("subprocess.Popen")
@@ -203,40 +193,24 @@ class TestNewTerminalExecution:
         assert result is mock_process
         mock_popen.assert_called_once_with(["/bin/bash", "-ilc", "unknown"])
 
+    @pytest.mark.parametrize(
+        ("exc_type", "exc_msg"),
+        [
+            (FileNotFoundError, "gnome-terminal not found"),
+            (PermissionError, "Permission denied"),
+            (OSError, "OS error"),
+        ],
+    )
     @patch("subprocess.Popen")
-    def test_returns_none_on_file_not_found(
+    def test_returns_none_on_popen_error(
         self,
         mock_popen: MagicMock,
         executor: ProcessExecutor,
+        exc_type: type[Exception],
+        exc_msg: str,
     ) -> None:
-        """Test that FileNotFoundError returns None."""
-        mock_popen.side_effect = FileNotFoundError("gnome-terminal not found")
-
-        result = executor.execute_in_new_terminal("cmd", "app", "gnome-terminal")
-
-        assert result is None
-
-    @patch("subprocess.Popen")
-    def test_returns_none_on_permission_error(
-        self,
-        mock_popen: MagicMock,
-        executor: ProcessExecutor,
-    ) -> None:
-        """Test that PermissionError returns None."""
-        mock_popen.side_effect = PermissionError("Permission denied")
-
-        result = executor.execute_in_new_terminal("cmd", "app", "gnome-terminal")
-
-        assert result is None
-
-    @patch("subprocess.Popen")
-    def test_returns_none_on_os_error(
-        self,
-        mock_popen: MagicMock,
-        executor: ProcessExecutor,
-    ) -> None:
-        """Test that OSError returns None."""
-        mock_popen.side_effect = OSError("OS error")
+        """Test that FileNotFoundError, PermissionError, and OSError all return None."""
+        mock_popen.side_effect = exc_type(exc_msg)
 
         result = executor.execute_in_new_terminal("cmd", "app", "gnome-terminal")
 
