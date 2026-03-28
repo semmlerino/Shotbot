@@ -205,9 +205,10 @@ class TestPreviousShootsCacheIntegration:
         # Note: PreviousShotsModel is QObject, not QWidget - no qtbot.addWidget() needed
         yield model
         # CRITICAL CLEANUP: Stop and wait for worker thread to prevent Qt state pollution
-        if model._worker is not None:
-            model._worker.request_stop()
-            model._worker.wait(2000)  # Wait up to 2 seconds for thread to finish
+        worker = model._worker_host.take()
+        if worker is not None:
+            worker.request_stop()
+            worker.wait(2000)  # Wait up to 2 seconds for thread to finish
         process_qt_events()
 
     def test_cache_data_consistency(self, cache_manager: ShotDataCache) -> None:
@@ -340,7 +341,7 @@ class TestPreviousShootsCacheIntegration:
         """
         # Clear cache to ensure test starts clean
         # This prevents contamination from other tests that may have cached data
-        previous_shots_model._cache_manager.clear_cache()
+        previous_shots_model.cache_manager.clear_cache()
 
         # Mock finder to return approved shots
         mock_approved = [
@@ -371,7 +372,7 @@ class TestPreviousShootsCacheIntegration:
 
                 # Verify data was cached after scan completes
                 cached_data = (
-                    previous_shots_model._cache_manager.get_cached_previous_shots()
+                    previous_shots_model.cache_manager.get_cached_previous_shots()
                 )
                 assert cached_data is not None
                 assert len(cached_data) == 1

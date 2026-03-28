@@ -822,7 +822,7 @@ class TestWorkerManagement:
         # Simulate a worker that exists but is finished
         mock_worker = MagicMock()
         mock_worker.isFinished.return_value = True
-        controller._worker_manager._threede_worker = mock_worker
+        controller._worker_manager._host.store(mock_worker)
 
         # Cleanup should clear the progress operation
         controller.cleanup_worker()
@@ -891,7 +891,7 @@ class TestRefreshGuards:
         # Set up a mock worker that appears to be running via the manager
         mock_worker = MagicMock()
         mock_worker.isFinished.return_value = False
-        controller._worker_manager._threede_worker = mock_worker
+        controller._worker_manager._host.store(mock_worker)
 
         # Reset last scan time to allow refresh based on timing
         controller._last_scan_time = 0

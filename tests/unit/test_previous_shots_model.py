@@ -167,9 +167,9 @@ class TestPreviousShotsModel:
     ) -> None:
         """Test model initialization with dependencies."""
         assert model._shot_model is test_shot_model
-        assert model._cache_manager is test_cache_manager
+        assert model.cache_manager is test_cache_manager
         assert model._finder is not None
-        assert model._previous_shots == []
+        assert model.shots == []
         assert not model._is_scanning
         assert model._scan_lock is not None  # Thread safety lock
 
@@ -180,7 +180,7 @@ class TestPreviousShotsModel:
         test_shots = [
             create_test_shot("show1", "seq1", "shot1"),
         ]
-        model._previous_shots = test_shots
+        model.shots = test_shots
 
         # Save to cache
         model._save_to_cache()
@@ -244,7 +244,7 @@ class TestPreviousShotsModel:
         assert shots_updated_spy.count() == 1  # Should update since shots changed
 
         # Verify shots were stored
-        assert len(model._previous_shots) == 2
+        assert len(model.shots) == 2
         assert model.get_shot_count() == 2
 
     def test_refresh_shots_no_changes(
@@ -255,7 +255,7 @@ class TestPreviousShotsModel:
 
         # Pre-populate with same shots
         existing_shots = test_finder.approved_shots_to_return
-        model._previous_shots = existing_shots
+        model.shots = existing_shots
 
         # Set up signal spy
         shots_updated_spy = QSignalSpy(model.shots_updated)
@@ -355,7 +355,7 @@ class TestPreviousShotsModel:
         original_shots = [
             create_test_shot("show1", "seq1", "shot1"),
         ]
-        model._previous_shots = original_shots
+        model.shots = original_shots
 
         returned_shots = model.get_shots()
 
@@ -369,7 +369,7 @@ class TestPreviousShotsModel:
             create_test_shot("show1", "seq1", "shot1"),
             create_test_shot("show1", "seq1", "shot2"),
         ]
-        model._previous_shots = test_shots
+        model.shots = test_shots
 
         # Test found
         shot = model.get_shot_by_name("shot2")
@@ -442,7 +442,7 @@ class TestPreviousShotsModel:
         assert cache_file.exists()
 
         # Create new model instance - should load from cache
-        new_model = PreviousShotsModel(model._shot_model, model._cache_manager)
+        new_model = PreviousShotsModel(model._shot_model, model.cache_manager)
 
         shots = new_model.get_shots()
         assert len(shots) == 2
@@ -526,7 +526,7 @@ class TestPreviousShotsModel:
             create_test_shot("show1", "seq1", "shot1"),
             create_test_shot("show1", "seq1", "shot2"),
         ]
-        model._previous_shots = existing_shots
+        model.shots = existing_shots
 
         # Create test worker with mix of existing and new shots
         test_worker = FakePreviousShotsWorker()
@@ -637,7 +637,7 @@ class TestPreviousShotsModel:
         model = PreviousShotsModel(test_shot_model, test_cache_manager)
 
         existing = create_test_shot("showB", "seqB", "shot001")
-        model._previous_shots = [existing]
+        model.shots = [existing]
 
         # Migrate one duplicate + one new
         migrated_payload = [

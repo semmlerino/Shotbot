@@ -369,7 +369,7 @@ class TestMainWindowFilterHandlers:
             Shot("showX", "seq1", "shot1", "/workspace/showX/seq1/shot1"),
             Shot("showY", "seq2", "shot2", "/workspace/showY/seq2/shot2"),
         ]
-        mock_main_window.previous_shots_model._previous_shots = test_shots
+        mock_main_window.previous_shots_model.shots = test_shots
 
         mock_main_window.filter_coordinator.on_previous_shots_updated()
 

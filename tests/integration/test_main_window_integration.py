@@ -354,12 +354,12 @@ class TestCrossTabSynchronization:
         from PySide6.QtCore import QMutexLocker
 
         with QMutexLocker(window.shot_model._loader_lock):
-            if window.shot_model._async_loader:
-                window.shot_model._async_loader.stop()
-                window.shot_model._async_loader.wait()
-                window.shot_model._async_loader.deleteLater()
-                window.shot_model._async_loader = None
+            loader = window.shot_model._loader_host.take_unlocked()
             window.shot_model._loading_in_progress = False
+        if loader is not None:
+            loader.stop()
+            loader.wait()
+            loader.deleteLater()
 
         process_qt_events()
 
@@ -750,12 +750,12 @@ class TestUserWorkflows:
         from PySide6.QtCore import QMutexLocker
 
         with QMutexLocker(main_window.shot_model._loader_lock):
-            if main_window.shot_model._async_loader:
-                main_window.shot_model._async_loader.stop()
-                main_window.shot_model._async_loader.wait()
-                main_window.shot_model._async_loader.deleteLater()
-                main_window.shot_model._async_loader = None
+            loader = main_window.shot_model._loader_host.take_unlocked()
             main_window.shot_model._loading_in_progress = False
+        if loader is not None:
+            loader.stop()
+            loader.wait()
+            loader.deleteLater()
 
         main_window.shot_model.shots = []
         main_window.shot_item_model.set_shots([])

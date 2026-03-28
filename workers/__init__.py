@@ -14,6 +14,7 @@ from workers.runnable_tracker import (
 from workers.startup_coordinator import StartupCoordinator
 from workers.thread_diagnostics import ThreadDiagnosticReport, ThreadDiagnostics
 from workers.thread_safe_worker import ThreadSafeWorker, WorkerState
+from workers.worker_host import WorkerHost
 
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "ThreadDiagnostics",
     "ThreadSafeWorker",
     "TrackedQRunnable",
+    "WorkerHost",
     "WorkerState",
     "cleanup_all_runnables",
     "get_tracker",

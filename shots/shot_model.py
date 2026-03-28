@@ -45,6 +45,7 @@ from timeout_config import TimeoutConfig
 from type_definitions import RefreshResult, Shot
 from ui.base_shot_model import BaseShotModel
 from workers.thread_safe_worker import ThreadSafeWorker
+from workers.worker_host import WorkerHost
 
 
 # Re-export Shot for backward compatibility with existing imports
@@ -156,10 +157,13 @@ class ShotModel(BaseShotModel):
     ) -> None:
         super().__init__(cache_manager, load_cache, process_pool)
 
-        # Background loader with thread safety
-        self._async_loader: AsyncShotLoader | None = None
+        # Background loader with thread safety.
+        # _loader_lock guards both _loader_host and _loading_in_progress atomically.
+        self._loader_lock = QMutex()
+        self._loader_host: WorkerHost[AsyncShotLoader] = WorkerHost(
+            shared_mutex=self._loader_lock
+        )
         self._loading_in_progress = False
-        self._loader_lock = QMutex()  # Protect loader creation using Qt's mutex
 
         # Pre-warm strategy
         self._warm_on_startup = True
@@ -262,8 +266,7 @@ class ShotModel(BaseShotModel):
                 )
                 return
             # Capture old loader reference for cleanup outside lock
-            old_loader = self._async_loader
-            self._async_loader = None
+            old_loader = self._loader_host.take_unlocked()
 
         # Phase 2: Clean up old loader OUTSIDE lock (wait() can block for 1s)
         if old_loader:
@@ -285,28 +288,30 @@ class ShotModel(BaseShotModel):
             self._loading_in_progress = True
 
             # Create and configure loader with proper parse function
-            self._async_loader = AsyncShotLoader(
+            loader = AsyncShotLoader(
                 self._process_pool,
                 parse_function=self._parse_ws_output,  # Use base class's correct parsing
                 model=self,  # Pass model for frame range lookup
             )
             # Signal.connect() cannot infer specific callable type from Signal(list)
             # Qt signals use generic signatures, so slot methods appear as Any
-            _ = self._async_loader.shots_loaded.connect(
+            _ = loader.shots_loaded.connect(
                 self._on_shots_loaded,  # type: ignore[reportAny]
                 Qt.ConnectionType.QueuedConnection,
             )
-            _ = self._async_loader.load_failed.connect(
+            _ = loader.load_failed.connect(
                 self._on_load_failed,  # type: ignore[reportAny]
                 Qt.ConnectionType.QueuedConnection,
             )
-            _ = self._async_loader.finished.connect(
+            _ = loader.finished.connect(
                 self._on_loader_finished,  # type: ignore[reportAny]
                 Qt.ConnectionType.QueuedConnection,
             )
 
+            self._loader_host.store_unlocked(loader)
+
             # Start background loading
-            self._async_loader.start()
+            loader.start()
             self.logger.debug("AsyncShotLoader started")
 
         # Phase 4: Emit signal OUTSIDE lock (prevents deadlock if slot re-enters)
@@ -499,9 +504,9 @@ class ShotModel(BaseShotModel):
         with QMutexLocker(self._loader_lock):
             self._loading_in_progress = False
             # Clean up loader
-            if self._async_loader:
-                self._async_loader.deleteLater()
-                self._async_loader = None
+            finished_loader = self._loader_host.take_unlocked()
+        if finished_loader is not None:
+            finished_loader.deleteLater()
 
         # Emit signal outside lock to avoid potential deadlock
         self.background_load_finished.emit()
@@ -568,10 +573,8 @@ class ShotModel(BaseShotModel):
         operations outside lock to prevent deadlocks.
         """
         # Phase 1: Atomically capture and clear loader reference under lock
-        loader: AsyncShotLoader | None = None
         with QMutexLocker(self._loader_lock):
-            loader = self._async_loader
-            self._async_loader = None
+            loader = self._loader_host.take_unlocked()
             self._loading_in_progress = False
 
         # Phase 2: Clean up loader OUTSIDE lock (wait() can block for seconds)
@@ -708,7 +711,7 @@ class ShotModel(BaseShotModel):
         # Check both the loading flag AND loader state under lock
         with QMutexLocker(self._loader_lock):
             loading = self._loading_in_progress
-            loader = self._async_loader if loading else None
+            loader = self._loader_host.peek_unlocked() if loading else None
 
         if loader and loader.isRunning():
             return loader.wait(timeout_ms)

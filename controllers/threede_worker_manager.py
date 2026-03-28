@@ -13,8 +13,6 @@ from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import (
-    QMutex,
-    QMutexLocker,
     Qt,
 )
 
@@ -23,6 +21,7 @@ from logging_mixin import LoggingMixin
 from threede import ThreeDESceneWorker
 from timeout_config import TimeoutConfig
 from utils import safe_disconnect
+from workers.worker_host import WorkerHost
 
 
 if TYPE_CHECKING:
@@ -38,8 +37,7 @@ class ThreeDEWorkerManager(LoggingMixin):
     new worker is started and tears them down on stop/cleanup.
 
     Attributes:
-        _threede_worker: Current background worker thread (if any).
-        _worker_mutex: Mutex for thread-safe worker reference access.
+        _host: Thread-safe container for the current worker reference.
 
     """
 
@@ -75,8 +73,7 @@ class ThreeDEWorkerManager(LoggingMixin):
         self._on_discovery_error: Callable[[str], None] = on_discovery_error
         self._on_scan_progress: Callable[[int, int, str], None] = on_scan_progress
 
-        self._threede_worker: ThreeDESceneWorker | None = None
-        self._worker_mutex: QMutex = QMutex()
+        self._host: WorkerHost[ThreeDESceneWorker] = WorkerHost()
 
     # ============================================================================
     # Public Interface
@@ -101,9 +98,7 @@ class ThreeDEWorkerManager(LoggingMixin):
             batch_size=None,
         )
 
-        with QMutexLocker(self._worker_mutex):
-            self._threede_worker = worker
-
+        self._host.store(worker)
         self._setup_worker_signals(worker)
         worker.start()
         return worker
@@ -114,8 +109,7 @@ class ThreeDEWorkerManager(LoggingMixin):
         Reads the worker reference under mutex, then stops it outside the
         mutex to prevent deadlocks.
         """
-        with QMutexLocker(self._worker_mutex):
-            worker_to_stop = self._threede_worker
+        worker_to_stop = self._host.peek()
 
         if worker_to_stop is not None and not worker_to_stop.isFinished():
             self._stop_existing_worker(worker_to_stop)
@@ -126,8 +120,7 @@ class ThreeDEWorkerManager(LoggingMixin):
         Intended for application shutdown.  Disconnects signals after the
         worker has stopped, then clears the internal reference.
         """
-        with QMutexLocker(self._worker_mutex):
-            worker_to_cleanup = self._threede_worker
+        worker_to_cleanup = self._host.take()
 
         if worker_to_cleanup is None:
             return
@@ -137,25 +130,16 @@ class ThreeDEWorkerManager(LoggingMixin):
 
         worker_to_cleanup.safe_shutdown(TimeoutConfig.WORKER_COORDINATION_STOP_MS)
 
-        # Clear reference
-        with QMutexLocker(self._worker_mutex):
-            if self._threede_worker == worker_to_cleanup:
-                self._threede_worker = None
-
     @property
     def has_active_worker(self) -> bool:
         """Check if there is a currently running worker thread."""
-        with QMutexLocker(self._worker_mutex):
-            return (
-                self._threede_worker is not None
-                and not self._threede_worker.isFinished()
-            )
+        worker = self._host.peek()
+        return worker is not None and not worker.isFinished()
 
     @property
     def current_worker(self) -> ThreeDESceneWorker | None:
         """Return the current worker reference under mutex protection."""
-        with QMutexLocker(self._worker_mutex):
-            return self._threede_worker
+        return self._host.peek()
 
     # ============================================================================
     # Private Helpers
@@ -178,10 +162,9 @@ class ThreeDEWorkerManager(LoggingMixin):
 
         worker_to_stop.safe_shutdown(TimeoutConfig.WORKER_COORDINATION_STOP_MS)
 
-        # Clear reference after worker is stopped, with mutex protection
-        with QMutexLocker(self._worker_mutex):
-            if self._threede_worker == worker_to_stop:
-                self._threede_worker = None
+        # Clear reference after worker is stopped; only clear if it's still the same worker
+        if self._host.peek() is worker_to_stop:
+            _ = self._host.take()
 
     def _setup_worker_signals(self, worker: ThreeDESceneWorker) -> None:
         """Connect all worker signals to the stored callbacks.

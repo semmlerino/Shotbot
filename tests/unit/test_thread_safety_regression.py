@@ -67,8 +67,8 @@ class TestQThreadInterruptionFix:
         loader = AsyncShotLoader(test_pool, parse_function=_noop_parse)
         loader.start()
 
-        # Set the loader in the model
-        model._async_loader = loader
+        # Set the loader in the model via the worker host
+        model._loader_host.store(loader)
 
         # Track if terminate is ever called (which would crash)
         original_terminate = loader.terminate if hasattr(loader, "terminate") else None
@@ -304,8 +304,9 @@ class TestMemoryLeakPrevention:
             for _ in range(5):
                 model._start_background_refresh()
                 # Wait for loader to actually finish before simulating callback
-                if model._async_loader:
-                    assert model._async_loader.wait(2000), (
+                current_loader = model._loader_host.peek()
+                if current_loader is not None:
+                    assert current_loader.wait(2000), (
                         "Loader should finish within 2s"
                     )
                     model._on_loader_finished()
@@ -314,7 +315,7 @@ class TestMemoryLeakPrevention:
             model.cleanup()
 
         # Verify no loader references remain
-        assert model._async_loader is None
+        assert model._loader_host.peek() is None
 
     def test_deleted_objects_dont_receive_signals(self, qapp: QApplication) -> None:
         """Test that deleted objects don't receive signals."""

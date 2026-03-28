@@ -5,83 +5,172 @@ from __future__ import annotations
 # Standard library imports
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, ClassVar, cast, final
 
 # Third-party imports
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal, Slot
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, Signal, Slot
 
 # Local application imports
-from cache import resolve_default_cache_dir
-from cache.shot_cache import ShotDataCache
-from logging_mixin import LoggingMixin
 from previous_shots.finder import ParallelShotsFinder
 from previous_shots.worker import PreviousShotsWorker
 from type_definitions import Shot
+from typing_compat import override
+from ui.base_shot_model import BaseShotModel
 from utils import safe_disconnect
+from workers.worker_host import WorkerHost
 
 
 if TYPE_CHECKING:
     # Local application imports
-    from type_definitions import ShotDict
-    from ui.base_shot_model import BaseShotModel
+    from cache.shot_cache import ShotDataCache
+    from type_definitions import RefreshResult, ShotDict
 
 
 @final
-class PreviousShotsModel(LoggingMixin, QObject):
+class PreviousShotsModel(BaseShotModel):
     """Model for managing approved shots that are no longer active.
 
     This model maintains a list of shots the user has worked on that
     are no longer in the active workspace (i.e., approved/completed).
+
+    Inherits common shot model infrastructure (signals, cache, accessors)
+    from BaseShotModel and overrides cache strategy for persistent
+    incremental caching of previous shots.
     """
 
-    # Signals
-    shots_updated = Signal()
-    scan_started = Signal()
-    scan_finished = Signal()
-    scan_progress = Signal(int, int)  # current, total
+    # Previous shots-specific signals (in addition to inherited BaseShotModel signals)
+    shots_updated: ClassVar[Signal] = Signal()
+    scan_started: ClassVar[Signal] = Signal()
+    scan_finished: ClassVar[Signal] = Signal()
+    scan_progress: ClassVar[Signal] = Signal(int, int)  # current, total
 
     def __init__(
         self,
         shot_model: BaseShotModel,
         cache_manager: ShotDataCache | None = None,
-        parent: QObject | None = None,
     ) -> None:
         """Initialize the previous shots model.
 
         Args:
             shot_model: The active shots model to compare against.
             cache_manager: Optional cache manager for persistence.
-            parent: Optional parent QObject.
 
         """
-        super().__init__(parent)
-
-        if cache_manager is None:
-            _default_dir = resolve_default_cache_dir()
-            _default_dir.mkdir(parents=True, exist_ok=True)
-            cache_manager = ShotDataCache(_default_dir)
+        # Initialize BaseShotModel with load_cache=False; we load via our own
+        # _load_from_cache() override after additional setup is done.
+        super().__init__(cache_manager, load_cache=False, process_pool=None)
 
         self._shot_model = shot_model
-        self._cache_manager: ShotDataCache = cache_manager
         self._finder = ParallelShotsFinder()
-        self._previous_shots: list[Shot] = []
         self._is_scanning = False
-        self._worker: PreviousShotsWorker | None = None
+        self._worker_host: WorkerHost[PreviousShotsWorker] = WorkerHost()
 
         # THREAD SAFETY: Lock for protecting _is_scanning flag
         self._scan_lock = QMutex()
 
         # Load from cache on init (persistent cache - no expiration)
-        self._previous_shots = self._load_from_cache()  # Now returns list
+        # self.shots is populated here via our overridden _load_from_cache()
+        self.shots = self._load_previous_shots_from_cache()
 
         self.logger.debug("PreviousShotsModel initialized")
 
         # Connect directly to cache migration events (bypasses MainWindow relay)
-        if hasattr(self._cache_manager, "shots_migrated"):
-            _ = self._cache_manager.shots_migrated.connect(
+        if hasattr(self.cache_manager, "shots_migrated"):
+            _ = self.cache_manager.shots_migrated.connect(
                 self._on_cache_shots_migrated,  # pyright: ignore[reportAny]
                 Qt.ConnectionType.QueuedConnection,
             )
+
+    @override
+    def _load_from_cache(self) -> bool:
+        """Override base cache loading with previous-shots-specific strategy.
+
+        Returns:
+            False — previous shots cache is loaded separately in __init__
+            via _load_previous_shots_from_cache() to keep the two-source
+            merge logic isolated.
+
+        """
+        # Base class calls this during __init__ when load_cache=True.
+        # We pass load_cache=False so this is never called by the base.
+        # Overridden here as a safety net to prevent the base implementation
+        # from overwriting self.shots with active-shot cache data.
+        return False
+
+    def _load_previous_shots_from_cache(self) -> list[Shot]:
+        """Load previous shots from persistent cache, merging migrated + scanned.
+
+        Returns:
+            List of Shot objects (empty list if no cache)
+
+        """
+        try:
+            # Load both sources (persistent - no TTL expiration)
+            scanned_data: list[ShotDict] = (
+                self.cache_manager.get_persistent_previous_shots() or []
+            )
+            migrated_data: list[ShotDict] = (
+                self.cache_manager.get_shots_archive() or []
+            )
+
+            # Merge with deduplication using composite key
+            shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
+
+            for shot_dict in scanned_data:
+                key = (shot_dict["show"], shot_dict["sequence"], shot_dict["shot"])
+                shots_by_key[key] = shot_dict
+
+            for shot_dict in migrated_data:
+                key = (shot_dict["show"], shot_dict["sequence"], shot_dict["shot"])
+                shots_by_key[key] = (
+                    shot_dict  # Overwrites if duplicate (prefer migrated)
+                )
+
+            # Convert to Shot objects using from_dict() to preserve discovered_at
+            shots = [Shot.from_dict(s) for s in shots_by_key.values()]
+
+            self.logger.info(
+                f"Loaded {len(scanned_data)} scanned + {len(migrated_data)} migrated "
+                f"= {len(shots)} total (after dedup)"
+            )
+
+            return shots
+
+        except Exception:
+            self.logger.exception("Error loading previous shots from cache")
+            return []
+
+    # =========================================================================
+    # BaseShotModel abstract method implementations
+    # =========================================================================
+
+    @override
+    def load_shots(self) -> RefreshResult:
+        """Implement abstract method — delegates to refresh_strategy().
+
+        Returns:
+            RefreshResult with success=True and has_changes=False
+            (previous shots use background scan, not synchronous loading).
+
+        """
+        return self.refresh_strategy()
+
+    @override
+    def refresh_strategy(self) -> RefreshResult:
+        """Implement abstract method — starts background scan.
+
+        Returns:
+            RefreshResult indicating background scan was initiated.
+
+        """
+        from type_definitions import RefreshResult
+
+        _ = self.refresh_shots()
+        return RefreshResult(success=True, has_changes=False)
+
+    # =========================================================================
+    # Previous shots-specific public API
+    # =========================================================================
 
     def _reset_scanning_flag(self) -> None:
         """Reset the scanning flag with proper locking.
@@ -103,15 +192,11 @@ class PreviousShotsModel(LoggingMixin, QObject):
         Uses two-phase pattern to avoid holding lock during blocking wait().
 
         This method ensures proper cleanup sequence:
-        1. Grab reference and clear under lock (fast)
+        1. Grab reference and clear atomically (fast)
         2. Request stop, wait, and cleanup OUTSIDE lock (may block)
         """
-        # Phase 1: Grab reference and clear under lock (fast, non-blocking)
-        worker: PreviousShotsWorker | None = None
-        with QMutexLocker(self._scan_lock):
-            if self._worker is not None:
-                worker = self._worker
-                self._worker = None  # Clear immediately to prevent double-cleanup
+        # Phase 1: Atomically capture and clear the worker reference
+        worker = self._worker_host.take()
 
         if worker is None:
             return
@@ -125,11 +210,16 @@ class PreviousShotsModel(LoggingMixin, QObject):
         worker.safe_shutdown()
         self.logger.debug("Worker thread cleanup completed")
 
-    def refresh_shots(self) -> bool:
+    @override
+    def refresh_shots(self, force_fresh: bool = False) -> bool:  # type: ignore[override]
         """Refresh the list of previous shots using a background worker thread.
 
+        Overrides BaseShotModel.refresh_shots() with background-scan semantics.
         Uses incremental caching strategy: new shots are merged with existing cache.
         The cache is never cleared unless explicitly requested via clear_cache().
+
+        Args:
+            force_fresh: Ignored for previous shots (no ws command cache to bypass).
 
         Returns:
             True if refresh was started, False if already scanning.
@@ -149,7 +239,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         try:
             # Stop any existing worker
-            if self._worker is not None:
+            if self._worker_host.has_worker:
                 self.logger.debug("Stopping existing worker before starting new scan")
                 self._cleanup_worker_safely()
 
@@ -160,7 +250,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             # Local application imports
             from config import Config
 
-            self._worker = PreviousShotsWorker(
+            worker = PreviousShotsWorker(
                 active_shots=active_shots,
                 username=self._finder.username,
                 shows_root=Path(Config.SHOWS_ROOT),  # Use configured shows root
@@ -168,19 +258,21 @@ class PreviousShotsModel(LoggingMixin, QObject):
             )
 
             # Connect worker signals with QueuedConnection for thread safety
-            _ = self._worker.scan_finished.connect(
+            _ = worker.scan_finished.connect(
                 self._on_scan_finished, Qt.ConnectionType.QueuedConnection
             )
-            _ = self._worker.scan_progress.connect(
+            _ = worker.scan_progress.connect(
                 self._on_worker_progress, Qt.ConnectionType.QueuedConnection
             )
-            _ = self._worker.worker_error.connect(
+            _ = worker.worker_error.connect(
                 self._on_scan_error, Qt.ConnectionType.QueuedConnection
             )
 
+            self._worker_host.store(worker)
+
             # Start worker thread
             self.logger.info("Starting previous shots scan in background thread")
-            self._worker.start()
+            worker.start()
 
             return True
 
@@ -213,7 +305,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         )
 
         # Build a set of existing (show, sequence, shot) keys for deduplication
-        existing_ids = {(s.show, s.sequence, s.shot) for s in self._previous_shots}
+        existing_ids = {(s.show, s.sequence, s.shot) for s in self.shots}
 
         # Convert incoming ShotDicts to Shot objects, skipping duplicates
         new_shots = [
@@ -227,12 +319,12 @@ class PreviousShotsModel(LoggingMixin, QObject):
             self.logger.debug("All migrated shots already present — cache unchanged")
             return
 
-        self._previous_shots.extend(new_shots)
+        self.shots.extend(new_shots)
         self._save_to_cache()
         self.shots_updated.emit()
         self.logger.info(
             f"Merged {len(new_shots)} migrated shots "
-            f"(total: {len(self._previous_shots)} shots)"
+            f"(total: {len(self.shots)} shots)"
         )
 
     def _on_scan_finished(self, approved_shots: list[dict[str, str]]) -> None:
@@ -274,7 +366,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
             # Incremental merge: combine existing cache with new findings
             # Create set of existing shot IDs for fast lookup
-            existing_ids = {(s.show, s.sequence, s.shot) for s in self._previous_shots}
+            existing_ids = {(s.show, s.sequence, s.shot) for s in self.shots}
 
             # Find truly new shots (not in existing cache)
             new_shots = [
@@ -285,12 +377,12 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
             if new_shots:
                 # Merge: keep existing + add new
-                self._previous_shots.extend(new_shots)
+                self.shots.extend(new_shots)
                 self._save_to_cache()
                 self.shots_updated.emit()
                 self.logger.info(
                     f"Added {len(new_shots)} new shots to cache "
-                    f"(total: {len(self._previous_shots)} shots)"
+                    f"(total: {len(self.shots)} shots)"
                 )
             else:
                 self.logger.debug("No new shots found - cache unchanged")
@@ -329,23 +421,18 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """
         self.scan_progress.emit(current, total)
 
+    @override
     def get_shots(self) -> list[Shot]:
         """Get the list of previous/approved shots.
 
-        Returns:
-            List of Shot objects for approved shots.
-
-        """
-        return self._previous_shots.copy()
-
-    def get_shot_count(self) -> int:
-        """Get the number of previous shots.
+        Overrides BaseShotModel.get_shots() to return a defensive copy,
+        preventing external mutations of the internal shot list.
 
         Returns:
-            Number of approved shots.
+            Copy of the list of Shot objects for approved shots.
 
         """
-        return len(self._previous_shots)
+        return self.shots.copy()
 
     def get_shot_by_name(self, shot_name: str) -> Shot | None:
         """Get a shot by its name.
@@ -357,7 +444,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             Shot object if found, None otherwise.
 
         """
-        for shot in self._previous_shots:
+        for shot in self.shots:
             if shot.shot == shot_name:
                 return shot
         return None
@@ -378,60 +465,15 @@ class PreviousShotsModel(LoggingMixin, QObject):
         # All fields in ShotDetailsDict are str, so this cast is safe
         return cast("dict[str, str]", dict(details))
 
-    def _load_from_cache(self) -> list[Shot]:
-        """Load previous shots from persistent cache, merging migrated + scanned.
-
-        Returns:
-            List of Shot objects (empty list if no cache)
-
-        """
-        try:
-            # Load both sources (persistent - no TTL expiration)
-            # Cast required because get_persistent_previous_shots is dynamically added
-            scanned_data = cast(
-                "list[ShotDict]",
-                self._cache_manager.get_persistent_previous_shots() or [],  # type: ignore[attr-defined]
-            )
-            migrated_data: list[ShotDict] = (
-                self._cache_manager.get_shots_archive() or []
-            )
-
-            # Merge with deduplication using composite key
-            shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
-
-            for shot_dict in scanned_data:
-                key = (shot_dict["show"], shot_dict["sequence"], shot_dict["shot"])
-                shots_by_key[key] = shot_dict
-
-            for shot_dict in migrated_data:
-                key = (shot_dict["show"], shot_dict["sequence"], shot_dict["shot"])
-                shots_by_key[key] = (
-                    shot_dict  # Overwrites if duplicate (prefer migrated)
-                )
-
-            # Convert to Shot objects using from_dict() to preserve discovered_at
-            shots = [Shot.from_dict(s) for s in shots_by_key.values()]
-
-            self.logger.info(
-                f"Loaded {len(scanned_data)} scanned + {len(migrated_data)} migrated "
-                f"= {len(shots)} total (after dedup)"
-            )
-
-            return shots
-
-        except Exception:
-            self.logger.exception("Error loading previous shots from cache")
-            return []
-
     def _save_to_cache(self) -> None:
         """Save previous shots to cache."""
         try:
             # Use to_dict() to include discovered_at timestamp
-            cache_data: list[ShotDict] = [s.to_dict() for s in self._previous_shots]
+            cache_data: list[ShotDict] = [s.to_dict() for s in self.shots]
             # Use the correct method: cache_previous_shots()
-            self._cache_manager.cache_previous_shots(cache_data)
+            self.cache_manager.cache_previous_shots(cache_data)
             self.logger.debug(
-                f"Saved {len(self._previous_shots)} previous shots to cache"
+                f"Saved {len(self.shots)} previous shots to cache"
             )
         except Exception:
             self.logger.exception("Error saving previous shots to cache")
@@ -439,7 +481,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
     def clear_cache(self) -> None:
         """Clear the cached previous shots."""
         try:
-            self._cache_manager.clear_previous_shots_cache()
+            self.cache_manager.clear_previous_shots_cache()
             self.logger.info("Cleared previous shots cache")
         except Exception:
             self.logger.exception("Error clearing previous shots cache")
@@ -450,11 +492,11 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         self.logger.debug("PreviousShotsModel cleanup initiated")
         # Disconnect cache migration signal (only if it was connected)
-        if hasattr(self._cache_manager, "shots_migrated"):
+        if hasattr(self.cache_manager, "shots_migrated"):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 try:
-                    _ = self._cache_manager.shots_migrated.disconnect(
+                    _ = self.cache_manager.shots_migrated.disconnect(
                         self._on_cache_shots_migrated
                     )  # pyright: ignore[reportAny]
                 except (RuntimeError, TypeError):
