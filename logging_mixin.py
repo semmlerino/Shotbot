@@ -3,42 +3,30 @@
 This module provides:
 - LoggingMixin: A mixin class that provides standardized logging setup
 - ContextualLogger: Enhanced logger with structured context support
-- @log_execution: Decorator for automatic method timing and tracing
 - Thread-safe context management for structured logging
 
 Usage:
     class MyClass(LoggingMixin):
         def my_method(self):
             self.logger.info("This will use proper logger hierarchy")
-
-    @log_execution
-    def my_function():
-        # Automatically logged with timing
-        pass
 """
 
 from __future__ import annotations
 
 # Standard library imports
-import functools
 import logging
 import threading
-import time
 from collections.abc import MutableMapping
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 # Third-party imports
-from typing_extensions import ParamSpec, override
+from typing_extensions import override
 
 
 if TYPE_CHECKING:
     # Standard library imports
-    from collections.abc import Callable, Generator
-
-# Type variables for generic decorator
-P = ParamSpec("P")
-T = TypeVar("T")
+    from collections.abc import Generator
 
 # Thread-local storage for logging context
 _context_storage = threading.local()
@@ -150,127 +138,6 @@ class LoggingMixin:
             setattr(self, cache_attr, ContextualLogger(base_logger))
 
         return cast("ContextualLogger", getattr(self, cache_attr))
-
-
-def log_execution(
-    func: Callable[P, T] | None = None,
-    *,
-    include_args: bool = False,
-    include_result: bool = False,
-    log_level: int = logging.INFO,
-) -> Callable[[Callable[P, T]], Callable[P, T]] | Callable[P, T]:
-    """Decorator to automatically log method/function execution with timing.
-
-    Args:
-        func: Function to decorate (when used without parentheses)
-        include_args: Whether to log function arguments (default: False for privacy)
-        include_result: Whether to log return value (default: False for privacy)
-        log_level: Logging level to use (default: INFO)
-
-    Usage:
-        @log_execution
-        def my_method(self):
-            # Automatically logged with timing
-            pass
-
-        @log_execution(include_args=True, log_level=logging.DEBUG)
-        def debug_method(self, arg1, arg2):
-            # Logged with arguments at DEBUG level
-            pass
-
-    """
-
-    def decorator(inner_func: Callable[P, T]) -> Callable[P, T]:
-        @functools.wraps(inner_func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            # Get logger - try to use instance logger if available, otherwise module logger
-            logger: ContextualLogger
-            if args and hasattr(args[0], "logger"):
-                # Type narrowing: we know args[0] has logger attribute
-                instance_logger = getattr(args[0], "logger", None)
-                if hasattr(instance_logger, "info"):
-                    logger = cast("ContextualLogger", instance_logger)
-                else:
-                    logger = ContextualLogger(logging.getLogger(inner_func.__module__))
-            else:
-                logger = ContextualLogger(logging.getLogger(inner_func.__module__))
-
-            # Create execution context
-            func_name = f"{inner_func.__qualname__}"
-            start_time = time.time()
-
-            # Log function start
-            if log_level <= logging.DEBUG and include_args:
-                # Safely format args (avoid logging sensitive data)
-                safe_args: list[str] = []
-                for arg in args[1:] if args and hasattr(args[0], "logger") else args:
-                    if isinstance(arg, str | int | float | bool):
-                        safe_args.append(repr(arg))
-                    else:
-                        safe_args.append(f"<{type(arg).__name__}>")
-
-                safe_kwargs = {
-                    k: repr(v)
-                    if isinstance(v, str | int | float | bool)
-                    else f"<{type(v).__name__}>"
-                    for k, v in kwargs.items()
-                }
-
-                if log_level == logging.DEBUG:
-                    logger.debug(
-                        f"Starting {func_name}({', '.join(safe_args)}, {safe_kwargs})"
-                    )
-                else:
-                    logger.info(f"Starting {func_name}")
-            elif log_level == logging.DEBUG:
-                logger.debug(f"Starting {func_name}")
-            elif log_level == logging.INFO:
-                logger.info(f"Starting {func_name}")
-
-            try:
-                # Execute function
-                result = inner_func(*args, **kwargs)
-
-                # Calculate execution time
-                execution_time = time.time() - start_time
-
-                # Log success with timing
-                time_str = f"completed in {execution_time:.3f}s"
-                if include_result and result is not None:
-                    if isinstance(result, str | int | float | bool):
-                        if log_level == logging.DEBUG:
-                            logger.debug(f"{func_name} {time_str} -> {result!r}")
-                        else:
-                            logger.info(f"{func_name} {time_str}")
-                    elif log_level == logging.DEBUG:
-                        logger.debug(
-                            f"{func_name} {time_str} -> <{type(result).__name__}>"
-                        )
-                    else:
-                        logger.info(f"{func_name} {time_str}")
-                elif log_level == logging.DEBUG:
-                    logger.debug(f"{func_name} {time_str}")
-                elif log_level == logging.INFO:
-                    logger.info(f"{func_name} {time_str}")
-
-                return result
-
-            except Exception:
-                # Calculate execution time for error case
-                execution_time = time.time() - start_time
-
-                # Log error with timing
-                logger.exception(f"{func_name} failed after {execution_time:.3f}s")
-                raise
-
-        return wrapper
-
-    # Handle both @log_execution and @log_execution() cases
-    if func is None:
-        # Called with parentheses: @log_execution()
-        return decorator
-    # Called without parentheses: @log_execution
-    return decorator(func)
 
 
 # Convenience function for setting up module-level logging

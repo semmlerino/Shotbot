@@ -318,24 +318,19 @@ class TestValidationUtils:
         result = ValidationUtils.validate_shot_components("show1", None, "shot01")
         assert result is False
 
-    def test_get_current_username_from_env(self) -> None:
-        """Test username detection from environment variables."""
-        # Test each environment variable in priority order
+    def test_get_current_username_returns_getpass_user(self) -> None:
+        """Test username is returned from getpass.getuser()."""
         from utils import get_current_username
 
-        env_vars = ["USER", "USERNAME", "LOGNAME"]
-
-        for env_var in env_vars:
-            with patch.dict(os.environ, {env_var: "testuser"}, clear=True):
-                result = get_current_username()
-                assert result == "testuser"
+        with patch("getpass.getuser", return_value="testuser"):
+            result = get_current_username()
+            assert result == "testuser"
 
     def test_get_current_username_fallback_to_default(self) -> None:
-        """Test username fallback when no environment variables are set."""
-        # Clear all username environment variables
+        """Test username fallback when getpass.getuser() raises."""
         from utils import get_current_username
 
-        with patch.dict(os.environ, {}, clear=True):
+        with patch("getpass.getuser", side_effect=OSError("no user")):
             result = get_current_username()
             assert result == Config.DEFAULT_USERNAME
 

@@ -291,7 +291,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
                 border: 2px solid #fff;
             }}
             QPushButton:hover {{
-                background-color: {lighten_color(color, percent=20)};
+                background-color: {lighten_color(color, factor=120)};
             }}
         """)
         layout.addWidget(self._chip_button)

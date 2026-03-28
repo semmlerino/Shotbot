@@ -127,11 +127,7 @@ class TimeoutConfig:
                 and attr_name.isupper()
                 and isinstance(attr_value, int | float)
             ):
-                # Don't scale millisecond values directly, they have _MS suffix
-                if attr_name.endswith("_MS"):
-                    setattr(cls, attr_name, int(attr_value * factor))
-                else:
-                    setattr(cls, attr_name, int(attr_value * factor))
+                setattr(cls, attr_name, type(attr_value)(attr_value * factor))
 
     @classmethod
     def optimize_for_network_latency(cls, latency_ms: int) -> None:

@@ -145,10 +145,10 @@ class TestColorUtilities:
     def test_lighten_passthrough_non_hex(self) -> None:
         assert lighten_color("red") == "red"
 
-    def test_lighten_with_custom_percent(self) -> None:
-        """Test lighten_color with custom percent parameter (interpolation toward white)."""
+    def test_lighten_with_custom_factor(self) -> None:
+        """Test lighten_color with custom factor parameter (Qt lighter operation)."""
         original = "#800000"  # Dark red
-        lightened = lighten_color(original, percent=50)
+        lightened = lighten_color(original, factor=150)
 
         # Parse results
         orig_r = int(original[1:3], 16)
@@ -156,10 +156,10 @@ class TestColorUtilities:
 
         assert light_r > orig_r
 
-    def test_lighten_percent_clamps_at_255(self) -> None:
-        """Test that lighten_color with percent doesn't exceed 255."""
+    def test_lighten_factor_clamps_at_255(self) -> None:
+        """Test that lighten_color with factor doesn't exceed 255."""
         white_ish = "#ffffff"
-        lightened = lighten_color(white_ish, percent=100)
+        lightened = lighten_color(white_ish, factor=200)
 
         # Should still be valid hex and not exceed 255
         assert lightened.startswith("#")

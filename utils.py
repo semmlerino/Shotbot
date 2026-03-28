@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
-import os
+import getpass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -287,18 +287,13 @@ def get_current_username() -> str:
         )
         return Config.DEFAULT_USERNAME
 
-    # Try multiple environment variables in order of preference
-    for env_var in ["USER", "USERNAME", "LOGNAME"]:
-        username = os.environ.get(env_var)
-        if username:
-            logger.debug(f"Found username '{username}' from ${env_var}")
-            return username
-
-    # Fallback to config default
-    logger.debug(
-        f"No username found in environment, using default: {Config.DEFAULT_USERNAME}",
-    )
-    return Config.DEFAULT_USERNAME
+    try:
+        return getpass.getuser()
+    except Exception:  # noqa: BLE001
+        logger.debug(
+            f"getpass.getuser() failed, using default: {Config.DEFAULT_USERNAME}",
+        )
+        return Config.DEFAULT_USERNAME
 
 
 def get_excluded_users(additional_users: set[str] | None = None) -> set[str]:

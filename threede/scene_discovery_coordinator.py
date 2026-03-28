@@ -5,6 +5,7 @@ from __future__ import annotations
 # Standard library imports
 import concurrent.futures
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, final
 
@@ -12,7 +13,7 @@ from typing import TYPE_CHECKING, final
 _logger = logging.getLogger(__name__)
 
 # Local application imports
-from logging_mixin import LoggingMixin, log_execution
+from logging_mixin import LoggingMixin
 from timeout_config import TimeoutConfig
 
 
@@ -206,7 +207,6 @@ class SceneDiscoveryCoordinator(LoggingMixin):
     # Public API
     # ------------------------------------------------------------------
 
-    @log_execution(include_args=False)  # pyright: ignore[reportUntypedFunctionDecorator]
     def find_scenes_for_shot(
         self,
         shot_workspace_path: str,
@@ -228,6 +228,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             List of ThreeDEScene objects
 
         """
+        _t = time.monotonic()
         try:
             if not self._validate_shot_input(shot_workspace_path, show, sequence, shot):
                 return []
@@ -246,6 +247,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             self.logger.info(
                 f"Discovered {len(valid_scenes)} scenes for {show}/{sequence}/{shot}"
             )
+            self.logger.info("find_scenes_for_shot completed in %.3fs", time.monotonic() - _t)
 
             return valid_scenes
 

@@ -275,7 +275,7 @@ class BaseDCCSection(QtWidgetMixin, QWidget):
                 font-size: {design_system.typography.size_tiny}px;
             }}
             QPushButton:hover {{
-                background-color: {lighten_color(self.config.color)};
+                background-color: {lighten_color(self.config.color, factor=120)};
             }}
             QPushButton:pressed {{
                 background-color: {darken_color(self.config.color)};
