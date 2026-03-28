@@ -107,12 +107,8 @@ class TestVersionCacheExpiry:
 
         (tmp_path / "v001").mkdir()
 
-        with (
-            patch("version_utils.time.time") as mock_vtime,
-            patch("paths.validators.time.time") as mock_ptime,
-        ):
+        with patch("version_utils.time.time") as mock_vtime:
             mock_vtime.return_value = 1000.0
-            mock_ptime.return_value = 1000.0
 
             result1 = VersionUtils.find_version_directories(tmp_path)
             assert len(result1) == 1
@@ -123,13 +119,11 @@ class TestVersionCacheExpiry:
 
             # Before TTL expires - still cached
             mock_vtime.return_value = 1050.0
-            mock_ptime.return_value = 1050.0
             result2 = VersionUtils.find_version_directories(tmp_path)
             assert len(result2) == 1  # Still cached
 
             # After TTL expires (60s)
             mock_vtime.return_value = 1061.0
-            mock_ptime.return_value = 1061.0
             result3 = VersionUtils.find_version_directories(tmp_path)
             assert len(result3) == 2
             assert result3[1] == (2, "v002")

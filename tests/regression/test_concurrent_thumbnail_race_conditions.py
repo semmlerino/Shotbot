@@ -31,11 +31,7 @@ logger = logging.getLogger(__name__)
 
 # Local application imports
 from discovery.thumbnail_finders import find_shot_thumbnail
-from paths.validators import (  # type: ignore[reportPrivateUsage]
-    PathValidators,
-    _path_cache,
-    _path_cache_lock,
-)
+from paths.validators import PathValidators, clear_path_cache
 from type_definitions import Shot
 from version_utils import VersionUtils
 
@@ -57,8 +53,7 @@ class TestConcurrentThumbnailRaceConditions:
         - All threads see consistent state
         """
         # Clear cache before test
-        with _path_cache_lock:
-            _path_cache.clear()
+        clear_path_cache()
 
         corruption_detected = threading.Event()
         paths_checked: list[tuple[str, bool]] = []
@@ -79,18 +74,6 @@ class TestConcurrentThumbnailRaceConditions:
                     # Record result
                     with paths_lock:
                         paths_checked.append((path_str, result))
-
-                    # Every 30 iterations, one thread triggers cleanup
-                    if i % 30 == 0 and worker_id == 1:
-                        # Force cache over threshold to trigger cleanup
-                        with _path_cache_lock:
-                            if len(_path_cache) < 5001:
-                                # Add dummy entries to trigger cleanup
-                                for j in range(5001 - len(_path_cache)):
-                                    _path_cache[f"/dummy/path/{j}"] = (
-                                        False,
-                                        time.time(),
-                                    )
 
             except Exception as e:
                 logger.debug("Worker %d failed: %s", worker_id, e)
