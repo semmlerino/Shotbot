@@ -22,6 +22,8 @@ from type_definitions import Shot
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
+    from pytestqt.qtbot import QtBot
+
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
@@ -381,3 +383,456 @@ class TestPinPersistenceContract:
 
         if hasattr(mgr, "deleteLater"):
             mgr.deleteLater()
+
+
+# ---------------------------------------------------------------------------
+# ShotPinManager-specific fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def shot_pin_manager(tmp_path: Path) -> ShotPinManager:
+    """Create a ShotPinManager with a temporary cache directory."""
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return ShotPinManager(cache_dir)
+
+
+@pytest.fixture
+def sample_shots() -> list[Shot]:
+    """Provide realistic shot data for testing."""
+    return [
+        Shot(
+            "test_show",
+            "seq01",
+            "shot010",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
+        ),
+        Shot(
+            "test_show",
+            "seq01",
+            "shot020",
+            f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
+        ),
+        Shot(
+            "test_show",
+            "seq02",
+            "shot030",
+            f"{Config.SHOWS_ROOT}/test_show/seq02/shot030",
+        ),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# FilePinManager-specific fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def file_pin_manager(tmp_path: Path) -> Generator[FilePinManager, None, None]:
+    """Create a FilePinManager with a temporary cache directory."""
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    manager = FilePinManager(cache_dir)
+    yield manager
+    manager.deleteLater()
+
+
+@pytest.fixture
+def sample_file_paths() -> list[Path]:
+    """Provide realistic file paths for testing."""
+    return [
+        Path("/shows/test_show/shots/seq01/seq01_shot010/3de/scene_v001.3de"),
+        Path("/shows/test_show/shots/seq01/seq01_shot010/maya/scene_v002.mb"),
+        Path("/shows/test_show/shots/seq01/seq01_shot020/nuke/comp_v003.nk"),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# ShotPinManager-specific tests
+# ---------------------------------------------------------------------------
+
+
+class TestShotPinOrdering:
+    """Tests for ordering behavior: pins add to front, move to front on re-pin."""
+
+    def test_pin_shot_adds_to_front(
+        self, shot_pin_manager: ShotPinManager, sample_shots: list[Shot]
+    ) -> None:
+        """Pinning a shot should add it to the front of the list."""
+        shot1, shot2, shot3 = sample_shots
+
+        shot_pin_manager.pin_shot(shot1)
+        shot_pin_manager.pin_shot(shot2)
+        shot_pin_manager.pin_shot(shot3)
+
+        # Most recently pinned should be at index 0
+        assert shot_pin_manager.get_pin_order(shot3) == 0
+        assert shot_pin_manager.get_pin_order(shot2) == 1
+        assert shot_pin_manager.get_pin_order(shot1) == 2
+
+    def test_pin_shot_moves_existing_to_front(
+        self, shot_pin_manager: ShotPinManager, sample_shots: list[Shot]
+    ) -> None:
+        """Re-pinning an already pinned shot should move it to the front."""
+        shot1, shot2, shot3 = sample_shots
+
+        shot_pin_manager.pin_shot(shot1)
+        shot_pin_manager.pin_shot(shot2)
+        shot_pin_manager.pin_shot(shot3)
+
+        # Re-pin shot1 (currently at index 2)
+        shot_pin_manager.pin_shot(shot1)
+
+        # shot1 should now be at front
+        assert shot_pin_manager.get_pin_order(shot1) == 0
+        assert shot_pin_manager.get_pin_order(shot3) == 1
+        assert shot_pin_manager.get_pin_order(shot2) == 2
+
+    def test_get_pin_order_returns_correct_index(
+        self, shot_pin_manager: ShotPinManager, sample_shots: list[Shot]
+    ) -> None:
+        """Pin order should reflect position in list (most-recently-pinned first)."""
+        shot1, shot2, shot3 = sample_shots
+
+        shot_pin_manager.pin_shot(shot1)
+        shot_pin_manager.pin_shot(shot2)
+        shot_pin_manager.pin_shot(shot3)
+
+        assert shot_pin_manager.get_pin_order(shot3) == 0
+        assert shot_pin_manager.get_pin_order(shot2) == 1
+        assert shot_pin_manager.get_pin_order(shot1) == 2
+
+
+class TestShotPinEdgeCases:
+    """ShotPinManager-specific edge cases."""
+
+    def test_different_shot_objects_same_key(
+        self, shot_pin_manager: ShotPinManager
+    ) -> None:
+        """Different Shot objects with same key should be treated as the same pin."""
+        shot1 = Shot("show", "seq", "shot", "/path1")
+        shot2 = Shot("show", "seq", "shot", "/path2")  # Different path, same key
+
+        shot_pin_manager.pin_shot(shot1)
+        assert shot_pin_manager.is_pinned(shot2)  # Should match on key, not identity
+
+        shot_pin_manager.unpin_shot(shot2)
+        assert not shot_pin_manager.is_pinned(shot1)
+
+    def test_shot_cache_file_format(
+        self, tmp_path: Path, sample_shots: list[Shot]
+    ) -> None:
+        """ShotPinManager cache file should be a JSON list of dicts with show/sequence/shot keys."""
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        shot = sample_shots[0]
+
+        pm = ShotPinManager(cache_dir)
+        pm.pin_shot(shot)
+
+        cache_file = cache_dir / f"{PINNED_SHOTS_CACHE_KEY}.json"
+        assert cache_file.exists()
+
+        with cache_file.open() as f:
+            data = json.load(f)
+
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0]["show"] == shot.show
+        assert data[0]["sequence"] == shot.sequence
+        assert data[0]["shot"] == shot.shot
+
+
+# ---------------------------------------------------------------------------
+# FilePinManager-specific tests
+# ---------------------------------------------------------------------------
+
+
+class TestFilePinComment:
+    """Tests for FilePinManager comment handling: pin_file, get_comment, set_comment."""
+
+    def test_pin_file_with_comment(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """Pinning with a comment should store it."""
+        file_path = sample_file_paths[0]
+        comment = "Approved tracking version"
+
+        file_pin_manager.pin_file(file_path, comment)
+
+        assert file_pin_manager.is_pinned(file_path)
+        assert file_pin_manager.get_comment(file_path) == comment
+
+    def test_pin_file_without_comment(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """Pinning without a comment should default to an empty string."""
+        file_path = sample_file_paths[0]
+
+        file_pin_manager.pin_file(file_path)
+
+        assert file_pin_manager.get_comment(file_path) == ""
+
+    def test_pin_file_strips_comment_whitespace(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """Leading/trailing whitespace in the comment should be stripped on pin."""
+        file_path = sample_file_paths[0]
+
+        file_pin_manager.pin_file(file_path, "  Some comment with whitespace  \n")
+
+        assert file_pin_manager.get_comment(file_path) == "Some comment with whitespace"
+
+    def test_pin_file_emits_signal(
+        self,
+        qtbot: QtBot,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """pin_file should emit pin_changed with the path string."""
+        file_path = sample_file_paths[0]
+
+        with qtbot.waitSignal(file_pin_manager.pin_changed, timeout=1000) as blocker:
+            file_pin_manager.pin_file(file_path)
+
+        assert blocker.args == [str(file_path)]
+
+    def test_pin_file_accepts_string_path(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """pin_file should accept a plain string path."""
+        file_path_str = str(sample_file_paths[0])
+
+        file_pin_manager.pin_file(file_path_str)
+
+        assert file_pin_manager.is_pinned(file_path_str)
+
+    def test_repin_updates_comment(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """Re-pinning an already-pinned file should update the comment and keep count at 1."""
+        file_path = sample_file_paths[0]
+
+        file_pin_manager.pin_file(file_path, "First comment")
+        file_pin_manager.pin_file(file_path, "Updated comment")
+
+        assert file_pin_manager.get_comment(file_path) == "Updated comment"
+        assert file_pin_manager.get_pinned_count() == 1
+
+    def test_get_comment_returns_empty_for_unpinned(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """get_comment on an unpinned file should return empty string."""
+        assert file_pin_manager.get_comment(sample_file_paths[0]) == ""
+
+    def test_get_comment_returns_stored_comment(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """get_comment should return the exact comment that was stored."""
+        file_path = sample_file_paths[0]
+        comment = "This is my comment"
+
+        file_pin_manager.pin_file(file_path, comment)
+
+        assert file_pin_manager.get_comment(file_path) == comment
+
+    def test_set_comment_updates_existing(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """set_comment should overwrite the previous comment on a pinned file."""
+        file_path = sample_file_paths[0]
+
+        file_pin_manager.pin_file(file_path, "Original comment")
+        file_pin_manager.set_comment(file_path, "New comment")
+
+        assert file_pin_manager.get_comment(file_path) == "New comment"
+
+    def test_set_comment_raises_for_unpinned(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """set_comment on an unpinned file should raise ValueError."""
+        with pytest.raises(ValueError, match="File not pinned"):
+            file_pin_manager.set_comment(sample_file_paths[0], "Some comment")
+
+    def test_set_comment_emits_signal(
+        self,
+        qtbot: QtBot,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """set_comment should emit pin_changed with the path string."""
+        file_path = sample_file_paths[0]
+        file_pin_manager.pin_file(file_path)
+
+        with qtbot.waitSignal(file_pin_manager.pin_changed, timeout=1000) as blocker:
+            file_pin_manager.set_comment(file_path, "Updated comment")
+
+        assert blocker.args == [str(file_path)]
+
+    def test_set_comment_strips_whitespace(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """set_comment should strip leading/trailing whitespace."""
+        file_path = sample_file_paths[0]
+        file_pin_manager.pin_file(file_path)
+        file_pin_manager.set_comment(file_path, "  Whitespace comment  \n")
+
+        assert file_pin_manager.get_comment(file_path) == "Whitespace comment"
+
+    def test_clear_pins_emits_signals(
+        self,
+        qtbot: QtBot,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """clear_pins should emit pin_changed once for each removed pin."""
+        file1, file2, _ = sample_file_paths
+        file_pin_manager.pin_file(file1)
+        file_pin_manager.pin_file(file2)
+
+        signals_received: list[str] = []
+        file_pin_manager.pin_changed.connect(signals_received.append)
+
+        file_pin_manager.clear_pins()
+
+        assert len(signals_received) == 2
+        assert str(file1) in signals_received
+        assert str(file2) in signals_received
+
+
+class TestFilePinPersistence:
+    """FilePinManager-specific persistence tests."""
+
+    def test_comments_persist_across_instances(
+        self, tmp_path: Path, sample_file_paths: list[Path]
+    ) -> None:
+        """Comments written by one instance should be readable by a fresh instance."""
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        file_path = sample_file_paths[0]
+        comment = "This is a persistent comment"
+
+        pm1 = FilePinManager(cache_dir)
+        pm1.pin_file(file_path, comment)
+        pm1.deleteLater()
+
+        pm2 = FilePinManager(cache_dir)
+        assert pm2.get_comment(file_path) == comment
+        pm2.deleteLater()
+
+    def test_file_cache_file_format(
+        self, tmp_path: Path, sample_file_paths: list[Path]
+    ) -> None:
+        """FilePinManager cache file should be a JSON dict keyed by path with comment and pinned_at fields."""
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        file_path = sample_file_paths[0]
+        comment = "Test comment"
+
+        pm = FilePinManager(cache_dir)
+        pm.pin_file(file_path, comment)
+        pm.deleteLater()
+
+        cache_file = cache_dir / f"{PINNED_FILES_CACHE_KEY}.json"
+        assert cache_file.exists()
+
+        with cache_file.open() as f:
+            data = json.load(f)
+
+        assert isinstance(data, dict)
+        path_str = str(file_path)
+        assert path_str in data
+        assert data[path_str]["comment"] == comment
+        assert "pinned_at" in data[path_str]
+
+
+class TestFilePinEdgeCases:
+    """FilePinManager-specific edge cases."""
+
+    def test_path_object_and_string_equivalent(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """Path objects and plain strings should be interchangeable."""
+        path_obj = sample_file_paths[0]
+        path_str = str(path_obj)
+
+        file_pin_manager.pin_file(path_obj, "Comment")
+
+        assert file_pin_manager.is_pinned(path_str)
+        assert file_pin_manager.get_comment(path_str) == "Comment"
+
+        file_pin_manager.unpin_file(path_str)
+        assert not file_pin_manager.is_pinned(path_obj)
+
+    def test_empty_comment_is_valid(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """An empty string comment should be stored and returned correctly."""
+        file_path = sample_file_paths[0]
+
+        file_pin_manager.pin_file(file_path, "")
+
+        assert file_pin_manager.is_pinned(file_path)
+        assert file_pin_manager.get_comment(file_path) == ""
+
+    def test_multiline_comment(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """Multiline comments should round-trip without modification."""
+        file_path = sample_file_paths[0]
+        comment = "Line 1\nLine 2\nLine 3"
+
+        file_pin_manager.pin_file(file_path, comment)
+
+        assert file_pin_manager.get_comment(file_path) == comment
+
+    def test_unicode_comment(
+        self,
+        file_pin_manager: FilePinManager,
+        sample_file_paths: list[Path],
+    ) -> None:
+        """Unicode characters in comments should round-trip correctly."""
+        file_path = sample_file_paths[0]
+        comment = "Contains unicode: \u2764\ufe0f \u2728 \u2705"
+
+        file_pin_manager.pin_file(file_path, comment)
+
+        assert file_pin_manager.get_comment(file_path) == comment
+
+    def test_special_characters_in_path(
+        self, file_pin_manager: FilePinManager
+    ) -> None:
+        """Paths containing spaces and special characters should work correctly."""
+        file_path = Path("/shows/test show/shots/seq 01/file with spaces.3de")
+
+        file_pin_manager.pin_file(file_path, "Comment")
+
+        assert file_pin_manager.is_pinned(file_path)
+        assert file_pin_manager.get_comment(file_path) == "Comment"

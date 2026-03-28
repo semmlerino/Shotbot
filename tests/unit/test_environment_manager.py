@@ -180,6 +180,22 @@ class TestRezPackages:
         packages = env_manager.get_rez_packages("rv", mock_config)
         assert packages == ["rv"]
 
+    def test_get_rez_packages_returns_lists_for_known_apps(self) -> None:
+        """EnvironmentManager.get_rez_packages returns a list for all known apps."""
+        from config import Config
+
+        env_manager = EnvironmentManager()
+
+        nuke_packages = env_manager.get_rez_packages("nuke", Config)
+        maya_packages = env_manager.get_rez_packages("maya", Config)
+        threede_packages = env_manager.get_rez_packages("3dequalizer", Config)
+        rv_packages = env_manager.get_rez_packages("rv", Config)
+
+        assert isinstance(nuke_packages, list)
+        assert isinstance(maya_packages, list)
+        assert isinstance(threede_packages, list)
+        assert isinstance(rv_packages, list)
+
 
 class TestTerminalDetection:
     """Tests for terminal emulator detection."""

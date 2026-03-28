@@ -116,6 +116,16 @@ class TestPathValidation:
         with pytest.raises(ValueError, match="empty"):
             validate_path("")
 
+    def test_validate_path_safe_path_unchanged(self) -> None:
+        """validate_path handles safe paths without modification."""
+        safe_path = validate_path("/shows/myshow/shots/sq010/sh0010")
+        assert safe_path == "/shows/myshow/shots/sq010/sh0010"
+
+    def test_validate_path_with_spaces_does_not_crash(self) -> None:
+        """validate_path handles paths with spaces and returns a valid result."""
+        space_path = validate_path("/shows/my show/shots/sq010/sh0010")
+        assert space_path is not None
+
 
 class TestWorkspaceCommand:
     """Tests for workspace command building."""

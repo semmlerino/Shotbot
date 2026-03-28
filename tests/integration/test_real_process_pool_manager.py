@@ -77,6 +77,49 @@ def cleanup_ppm() -> None:
     ProcessPoolManager.reset()
 
 
+class TestProcessPoolExecuteWorkspaceCommand:
+    """Test that ProcessPoolManager.execute_workspace_command works with real bash."""
+
+    def test_process_pool_execute_workspace_command(self) -> None:
+        """ProcessPoolManager.execute_workspace_command works with real bash."""
+        import threading
+
+        result_container: dict = {"output": None, "error": None}
+
+        # Reset and initialize on main thread to ensure QObject lives in main thread
+        ProcessPoolManager.reset()
+        # Initialize singleton on main thread
+        pool = ProcessPoolManager.get_instance()
+
+        def run_command() -> None:
+            # Worker thread only executes the command
+            try:
+                # We can access pool here because it's already initialized
+                # and get_instance() is thread-safe(ish) or we use the captured variable
+                result_container["output"] = pool.execute_workspace_command(
+                    'echo "LAUNCHER_STACK_OK"',
+                    cache_ttl=0,  # No caching for test
+                    timeout=30,
+                )
+            except Exception as e:  # noqa: BLE001
+                result_container["error"] = str(e)
+
+        # Run in thread because ProcessPoolManager checks for main thread
+        thread = threading.Thread(target=run_command)
+        thread.start()
+        thread.join(timeout=15)
+
+        # Cleanup on main thread
+        try:
+            pool.shutdown(timeout=2.0)
+        finally:
+            ProcessPoolManager.reset()
+
+        assert result_container["error"] is None, f"Error: {result_container['error']}"
+        assert result_container["output"] is not None
+        assert "LAUNCHER_STACK_OK" in result_container["output"]
+
+
 class TestRealProcessPoolManagerExecution:
     """Tests for real command execution."""
 

@@ -17,7 +17,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 # Standard library imports
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
@@ -39,7 +39,6 @@ from threede import ThreeDEGridView, ThreeDEItemModel
 
 
 if TYPE_CHECKING:
-    from _pytest.monkeypatch import MonkeyPatch
     from pytestqt.qtbot import QtBot
 
     from main_window import MainWindow
@@ -150,99 +149,6 @@ class TestBaseGridViewTextFilterUI:
 
 class TestMainWindowTextFilterHandlers:
     """Test Text filter signal handlers in MainWindow."""
-
-    @pytest.fixture
-    def mock_main_window(
-        self, tmp_path: Path, qtbot: QtBot, monkeypatch: MonkeyPatch
-    ) -> MainWindow:
-        """Create a mock MainWindow setup for testing text filter handlers."""
-        # Local application imports
-        from main_window import (
-            MainWindow,
-        )
-
-        # Prevent actual window creation
-        monkeypatch.setattr(MainWindow, "__init__", lambda _self: None)
-
-        window = MainWindow()
-
-        # Set up minimal required attributes
-        window.shot_model = ShotModel(
-            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"),
-            load_cache=False,
-        )
-        window.shot_model._process_pool = TestProcessPool(allow_main_thread=True)
-
-        window.shot_item_model = ShotItemModel(
-            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2")
-        )
-
-        window.previous_shots_model = PreviousShotsModel(
-            window.shot_model,
-            cache_manager=TestCacheManager(cache_dir=tmp_path / "cache3"),
-        )
-        window.previous_shots_item_model = PreviousShotsItemModel(
-            window.previous_shots_model, TestCacheManager(cache_dir=tmp_path / "cache4")
-        )
-
-        # Add RefreshCoordinator for refactored MainWindow
-        from controllers.refresh_coordinator import (
-            RefreshCoordinator,
-        )
-
-        window.refresh_coordinator = RefreshCoordinator(window)
-
-        # Add mock status bar for filter feedback
-        from unittest.mock import Mock
-
-        window.status_bar = Mock()
-        window._contextual_logger = Mock()
-
-        # Add proxy model doubles (filtering moved to proxy in Phase 3)
-        class _ProxyDouble:
-            def __init__(self) -> None:
-                self._show_filter: str | None = None
-                self._text_filter: str | None = None
-
-            def set_show_filter(self, show: str | None) -> None:
-                self._show_filter = show
-
-            def set_text_filter(self, text: str | None) -> None:
-                self._text_filter = text
-
-            def rowCount(self) -> int:
-                return 0
-
-            def sourceModel(self) -> Any:
-                class _Src:
-                    def rowCount(self) -> int:
-                        return 0
-
-                return _Src()
-
-        window.shot_proxy = _ProxyDouble()
-        window.previous_shots_proxy = _ProxyDouble()
-
-        # Build a FilterCoordinator so tests can call it directly
-        from controllers.filter_coordinator import FilterCoordinator
-
-        window.filter_coordinator = FilterCoordinator(
-            shot_proxy=window.shot_proxy,  # type: ignore[arg-type]
-            previous_shots_proxy=window.previous_shots_proxy,  # type: ignore[arg-type]
-            threede_proxy=Mock(),  # type: ignore[arg-type]
-            threede_item_model=Mock(),  # type: ignore[arg-type]
-            previous_shots_item_model=Mock(),  # type: ignore[arg-type]
-            threede_shot_grid=Mock(),  # type: ignore[arg-type]
-            previous_shots_grid=Mock(),  # type: ignore[arg-type]
-            previous_shots_model=Mock(),  # type: ignore[arg-type]
-            settings_manager=Mock(),  # type: ignore[arg-type]
-            status_bar=window.status_bar,  # type: ignore[arg-type]
-        )
-
-        return window
-
-        # Cleanup
-        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
 
     def test_on_shot_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for My Shots text filter request."""

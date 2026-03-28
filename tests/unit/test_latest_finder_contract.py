@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -261,3 +262,294 @@ class TestFindAllContract:
         result = finder_adapter.find_all("")
 
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Maya-specific tests
+# ---------------------------------------------------------------------------
+
+
+class TestMayaSpecific:
+    """Tests for Maya-specific behaviors not covered by the shared contract."""
+
+    def test_find_latest_mixed_extensions(self, tmp_path: Path) -> None:
+        """Mixed .ma and .mb files are all considered; highest version wins."""
+        workspace = tmp_path / "workspace"
+        maya_scenes = workspace / "user" / _USERNAME / "mm" / "maya" / "scenes"
+        maya_scenes.mkdir(parents=True)
+
+        (maya_scenes / "model_v001.ma").touch()
+        (maya_scenes / "model_v002.mb").touch()
+        (maya_scenes / "model_v003.ma").touch()
+
+        finder = MayaLatestFinder()
+        latest = finder.find_latest_scene(str(workspace))
+
+        assert latest is not None
+        assert latest.name == "model_v003.ma"
+
+    def test_exclude_autosave_by_default(self, tmp_path: Path) -> None:
+        """Autosave files are excluded from find_all_scenes results."""
+        workspace = tmp_path / "workspace"
+        maya_scenes = workspace / "user" / _USERNAME / "mm" / "maya" / "scenes"
+        maya_scenes.mkdir(parents=True)
+
+        (maya_scenes / "scene_v001.ma").touch()
+        (maya_scenes / "scene_v001.ma.autosave").touch()
+        (maya_scenes / "backup.autosave.mb").touch()
+
+        all_scenes = MayaLatestFinder.find_all_scenes(str(workspace))
+
+        assert len(all_scenes) == 1
+        assert all_scenes[0].name == "scene_v001.ma"
+
+    def test_autosave_files_always_excluded(self, tmp_path: Path) -> None:
+        """Autosave files are always excluded (no opt-in parameter exists)."""
+        workspace = tmp_path / "workspace"
+        maya_scenes = workspace / "user" / _USERNAME / "mm" / "maya" / "scenes"
+        maya_scenes.mkdir(parents=True)
+
+        (maya_scenes / "scene_v001.ma").touch()
+        (maya_scenes / "scene.ma.autosave").touch()
+        (maya_scenes / "model.autosave.mb").touch()
+
+        all_scenes = MayaLatestFinder.find_all_scenes(str(workspace))
+
+        assert len(all_scenes) == 1
+        assert all_scenes[0].name == "scene_v001.ma"
+
+    def test_version_extraction_ma_and_mb(self, tmp_path: Path) -> None:
+        """_extract_version works for both .ma and .mb files."""
+        finder = MayaLatestFinder()
+
+        ma_file = tmp_path / "scene_v042.ma"
+        ma_file.touch()
+        assert finder._extract_version(ma_file) == 42
+
+        mb_file = tmp_path / "model_v007.mb"
+        mb_file.touch()
+        assert finder._extract_version(mb_file) == 7
+
+        other_file = tmp_path / "scene.ma"
+        other_file.touch()
+        assert finder._extract_version(other_file) is None
+
+    def test_symlinks_in_structure(self, tmp_path: Path) -> None:
+        """Symlinks in the workspace structure do not surface other-user files."""
+        workspace = tmp_path / "workspace"
+        real_scenes = workspace / "user" / _USERNAME / "mm" / "maya" / "scenes"
+        real_scenes.mkdir(parents=True)
+        (real_scenes / "scene_v001.ma").touch()
+
+        # Symlink from another user's directory into current user's maya dir
+        link_target = workspace / "user" / "other-artist"
+        link_target.mkdir(parents=True)
+        symlink = link_target / "maya"
+        symlink.symlink_to(workspace / "user" / _USERNAME / "maya")
+
+        finder = MayaLatestFinder()
+        latest = finder.find_latest_scene(str(workspace))
+
+        assert latest is not None
+        assert _USERNAME in str(latest)
+
+    def test_permission_denied_raises(self, tmp_path: Path) -> None:
+        """PermissionError from iterdir propagates (not silently swallowed)."""
+        workspace = tmp_path / "workspace"
+        (workspace / "user").mkdir(parents=True)
+
+        finder = MayaLatestFinder()
+
+        with (
+            patch.object(Path, "iterdir", side_effect=PermissionError("Access denied")),
+            pytest.raises(PermissionError),
+        ):
+            finder.find_latest_scene(str(workspace))
+
+
+# ---------------------------------------------------------------------------
+# 3DE-specific tests
+# ---------------------------------------------------------------------------
+
+
+class TestThreedeSpecific:
+    """Tests for 3DE-specific behaviors not covered by the shared contract."""
+
+    def _base_3de(self, workspace: Path) -> Path:
+        """Return the base 3DE scenes path (without plate subdirectory)."""
+        return (
+            workspace
+            / "user"
+            / _USERNAME
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
+
+    def test_find_latest_across_plates(self, tmp_path: Path) -> None:
+        """find_latest_scene picks the highest version across all plate directories."""
+        workspace = tmp_path / "workspace"
+        base = self._base_3de(workspace)
+
+        fg_dir = base / "FG01"
+        fg_dir.mkdir(parents=True)
+        (fg_dir / "track_v002.3de").touch()
+        (fg_dir / "track_v004.3de").touch()
+
+        bg_dir = base / "BG01"
+        bg_dir.mkdir(parents=True)
+        (bg_dir / "track_v001.3de").touch()
+
+        pl_dir = base / "PL01"
+        pl_dir.mkdir(parents=True)
+        (pl_dir / "track_v006.3de").touch()
+
+        finder = ThreeDELatestFinder()
+        latest = finder.find_latest_scene(str(workspace))
+
+        assert latest is not None
+        assert latest.name == "track_v006.3de"
+        assert "PL01" in str(latest.parent)
+
+    def test_special_3de_directory_structure(self, tmp_path: Path) -> None:
+        """Only files at the correct directory depth are found; shallower paths ignored."""
+        workspace = tmp_path / "workspace"
+
+        correct_path = self._base_3de(workspace) / "FG01"
+        correct_path.mkdir(parents=True)
+        (correct_path / "track_v001.3de").touch()
+
+        # Wrong structure (missing several intermediate directories)
+        wrong_path = workspace / "user" / _USERNAME / "3de" / "scenes"
+        wrong_path.mkdir(parents=True)
+        (wrong_path / "track_v002.3de").touch()
+
+        finder = ThreeDELatestFinder()
+        latest = finder.find_latest_scene(str(workspace))
+
+        assert latest is not None
+        assert latest.name == "track_v001.3de"
+
+    def test_find_all_across_plates(self, tmp_path: Path) -> None:
+        """find_all_scenes returns one file per plate when each plate has one file."""
+        workspace = tmp_path / "workspace"
+        base = self._base_3de(workspace)
+
+        for plate in ("FG01", "BG01", "PL01"):
+            plate_dir = base / plate
+            plate_dir.mkdir(parents=True)
+            (plate_dir / "track_v001.3de").touch()
+
+        all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
+
+        assert len(all_scenes) == 3
+        parent_dirs = [s.parent.name for s in all_scenes]
+        assert "FG01" in parent_dirs
+        assert "BG01" in parent_dirs
+        assert "PL01" in parent_dirs
+
+    def test_version_extraction_threede(self, tmp_path: Path) -> None:
+        """_extract_version works for .3de files and returns None for unversioned names."""
+        finder = ThreeDELatestFinder()
+
+        versioned = tmp_path / "track_v042.3de"
+        versioned.touch()
+        assert finder._extract_version(versioned) == 42
+
+        unversioned = tmp_path / "track.3de"
+        unversioned.touch()
+        assert finder._extract_version(unversioned) is None
+
+    def test_standard_plate_names(self, tmp_path: Path) -> None:
+        """Standard VFX plate names (FG, BG, PL, BC, MP) are all discovered."""
+        workspace = tmp_path / "workspace"
+        base = self._base_3de(workspace)
+
+        plates = ["FG01", "FG02", "BG01", "BG02", "PL01", "BC01", "MP01"]
+        for plate in plates:
+            plate_dir = base / plate
+            plate_dir.mkdir(parents=True)
+            (plate_dir / f"track_{plate}_v001.3de").touch()
+
+        all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
+
+        assert len(all_scenes) == len(plates)
+        parent_names = {s.parent.name for s in all_scenes}
+        assert parent_names == set(plates)
+
+    def test_non_standard_plate_names(self, tmp_path: Path) -> None:
+        """Non-standard plate directory names are also discovered."""
+        workspace = tmp_path / "workspace"
+        base = self._base_3de(workspace)
+
+        custom_dir = base / "CustomPlate"
+        custom_dir.mkdir(parents=True)
+        (custom_dir / "track_v001.3de").touch()
+
+        num_dir = base / "001"
+        num_dir.mkdir(parents=True)
+        (num_dir / "track_v001.3de").touch()
+
+        all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
+
+        assert len(all_scenes) == 2
+
+    def test_deeply_nested_plates_not_found(self, tmp_path: Path) -> None:
+        """Files nested deeper than the plate directory are not returned."""
+        workspace = tmp_path / "workspace"
+        base = self._base_3de(workspace)
+
+        nested = base / "FG01" / "subfolder"
+        nested.mkdir(parents=True)
+        (nested / "track_v001.3de").touch()
+
+        regular = base / "BG01"
+        regular.mkdir(parents=True)
+        (regular / "track_v002.3de").touch()
+
+        all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
+
+        assert len(all_scenes) == 1
+        assert all_scenes[0].name == "track_v002.3de"
+
+    def test_symlinks_in_structure(self, tmp_path: Path) -> None:
+        """Symlinked plate directories under other-user paths are filtered out."""
+        workspace = tmp_path / "workspace"
+        real_3de = self._base_3de(workspace) / "FG01"
+        real_3de.mkdir(parents=True)
+        (real_3de / "track_v001.3de").touch()
+
+        link_base = (
+            workspace
+            / "user"
+            / "other-artist"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
+        link_base.mkdir(parents=True)
+        symlink = link_base / "FG01"
+        symlink.symlink_to(real_3de)
+
+        all_scenes = ThreeDELatestFinder.find_all_scenes(str(workspace))
+
+        assert len(all_scenes) == 1
+
+    def test_special_characters_in_filenames(self, tmp_path: Path) -> None:
+        """Filenames with hyphens and underscores are handled; highest version wins."""
+        workspace = tmp_path / "workspace"
+        scenes = self._base_3de(workspace) / "FG-01"
+        scenes.mkdir(parents=True)
+
+        (scenes / "track-final_v001.3de").touch()
+        (scenes / "shot_010_track_v002.3de").touch()
+
+        finder = ThreeDELatestFinder()
+        latest = finder.find_latest_scene(str(workspace))
+
+        assert latest is not None
+        assert latest.name == "shot_010_track_v002.3de"
