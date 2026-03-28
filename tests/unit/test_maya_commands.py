@@ -30,6 +30,11 @@ class TestMayaBootstrapScript:
         assert "threading.Thread" in MAYA_BOOTSTRAP_SCRIPT
         assert "_shotbot_wait_for_sgtk" in MAYA_BOOTSTRAP_SCRIPT
 
+    def test_bootstrap_schedules_idle_promotion(self) -> None:
+        """Context promotion is deferred to Maya idle time, not immediate."""
+        assert "_shotbot_schedule_idle_promotion" in MAYA_BOOTSTRAP_SCRIPT
+        assert 'event=["idle"' in MAYA_BOOTSTRAP_SCRIPT
+
 
 class TestBuildMayaContextCommand:
     """Test build_maya_context_command function."""
@@ -58,3 +63,17 @@ class TestBuildMayaContextCommand:
         encoded = result.split("SHOTBOT_MAYA_SCRIPT=")[1].split(" && ")[0]
         decoded = base64.b64decode(encoded).decode()
         assert decoded == custom
+
+    def test_skip_bootstrap_returns_bare_command(self) -> None:
+        """skip_bootstrap=True produces command with only -file, no SHOTBOT_MAYA_SCRIPT."""
+        result = build_maya_context_command(
+            "maya", "/path/to/scene.ma", skip_bootstrap=True
+        )
+        assert result == "maya -file /path/to/scene.ma"
+        assert "SHOTBOT_MAYA_SCRIPT" not in result
+
+    def test_skip_bootstrap_false_preserves_full_command(self) -> None:
+        """skip_bootstrap=False (default) produces full command unchanged."""
+        result = build_maya_context_command("maya", "/path/to/scene.ma")
+        assert "SHOTBOT_MAYA_SCRIPT" in result
+        assert "-file /path/to/scene.ma" in result

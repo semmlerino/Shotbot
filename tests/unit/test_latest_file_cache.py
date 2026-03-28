@@ -136,12 +136,12 @@ class TestNegativeCacheTTL:
     def test_positive_result_uses_full_ttl(
         self, latest_file_cache: LatestFileCache
     ) -> None:
-        """Positive result should still use the full 5-minute TTL."""
+        """Positive result should still use the full 15-minute TTL."""
         test_file = latest_file_cache.latest_files_cache_file.parent / "test.3de"
         test_file.touch()
         latest_file_cache.cache_latest_file("/workspace", "threede", test_file)
 
-        # Set cached_at to 60 seconds ago (well past 30s negative TTL, but within 5min)
+        # Set cached_at to 60 seconds ago (well past 30s negative TTL, but within 15min)
         cache_data = json.loads(
             latest_file_cache.latest_files_cache_file.read_text()
         )

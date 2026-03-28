@@ -147,6 +147,12 @@ class Config:
     ]
     NUKE_OCIO_FALLBACK_CONFIG: str = "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
 
+    # Maya launch optimization
+    MAYA_SKIP_CONTEXT_BOOTSTRAP: ClassVar[bool] = False
+
+    # Per-app Rez bypass — apps in this set skip rez wrapping even when REZ_MODE is AUTO/FORCE
+    REZ_BYPASS_APPS: ClassVar[set[str]] = set()
+
     # Launch logging
     ENABLE_LAUNCH_LOGGING: bool = (
         True  # Log launch output via tee to ~/.shotbot/logs/dispatcher.out
@@ -154,6 +160,7 @@ class Config:
     LAUNCH_LOG_MAX_SIZE_MB: int = (
         10  # Max log file size in MB before rotation (0 = no limit)
     )
+    LAUNCH_LOGGING_TEE_BYPASS_APPS: ClassVar[set[str]] = set()
 
     # Settings file
     SETTINGS_FILE: Path = Path.home() / ".shotbot" / "settings.json"

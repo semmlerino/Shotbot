@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import threading
 import time
+from concurrent.futures import Future
 from typing import TYPE_CHECKING, Final
 
 
@@ -77,7 +78,7 @@ class EnvironmentManager:
         self._ws_available_cache: bool | None = None
         self._available_terminal_cache: str | None = None
         self._terminal_cache_time: float = 0.0
-        self._cache_warm_event: threading.Event = threading.Event()
+        self._ws_probe_future: Future[bool] | None = None
 
     def should_wrap_with_rez(self, config: "type[Config]") -> bool:
         """Determine if commands should be wrapped with rez environment.
@@ -117,6 +118,28 @@ class EnvironmentManager:
         logger.debug("Rez wrapping ENABLED")
         return True
 
+    def _probe_ws(self) -> bool:
+        """Run the ws availability subprocess probe."""
+        try:
+            result = subprocess.run(
+                ["bash", "-ilc", "command -v ws"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=self.WS_AVAILABILITY_TIMEOUT_SEC,
+            )
+            return result.returncode == 0
+        except subprocess.TimeoutExpired:
+            logger.warning(
+                "ws availability check timed out after %.1fs. "
+                "Assuming ws is available (will fail with clear error if not).",
+                self.WS_AVAILABILITY_TIMEOUT_SEC,
+            )
+            return True
+        except OSError:
+            logger.warning("Failed to check ws availability", exc_info=True)
+            return shutil.which("ws") is not None
+
     def is_ws_available(self) -> bool:
         """Check if ws (workspace) command is available.
 
@@ -139,41 +162,19 @@ class EnvironmentManager:
         if self._ws_available_cache is not None:
             return self._ws_available_cache
 
-        # If cache warming is in progress, wait briefly for it to complete
-        # This avoids a 2-second subprocess block if user launches immediately after startup
-        if not self._cache_warm_event.is_set():
-            _ = self._cache_warm_event.wait(timeout=self._CACHE_WARM_WAIT_SEC)
-            # Check again after waiting - warming thread may have populated cache
-            if self._ws_available_cache is not None:
-                return self._ws_available_cache
-
-        # Use bash interactive login shell to check for ws - handles binaries, functions, and aliases
-        # shutil.which() only finds binaries, but ws is often a shell function in VFX studios
-        # CRITICAL: Use -ilc (interactive login) to match actual launch behavior.
-        # The ws function is defined in .bashrc which is only sourced in interactive shells.
-        # Using -lc (non-interactive login) can false-negative if .bash_profile doesn't source .bashrc.
-        try:
-            result = subprocess.run(
-                ["bash", "-ilc", "command -v ws"],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=self.WS_AVAILABILITY_TIMEOUT_SEC,
-            )
-            self._ws_available_cache = result.returncode == 0
-        except subprocess.TimeoutExpired:
-            # Optimistic fallback: assume ws is available
-            # If it doesn't exist, the actual launch will fail with a clear error
-            logger.warning(
-                "ws availability check timed out after %.1fs. "
-                "Assuming ws is available (will fail with clear error if not).",
-                self.WS_AVAILABILITY_TIMEOUT_SEC,
-            )
-            self._ws_available_cache = True
-        except OSError:
-            logger.warning("Failed to check ws availability", exc_info=True)
-            # Fall back to shutil.which (better than nothing)
-            self._ws_available_cache = shutil.which("ws") is not None
+        # If cache warming created a Future, wait for its result
+        future = self._ws_probe_future
+        if future is not None:
+            try:
+                self._ws_available_cache = future.result(
+                    timeout=self.WS_AVAILABILITY_TIMEOUT_SEC
+                )
+            except Exception:  # noqa: BLE001
+                logger.warning("ws probe future failed, running sync probe", exc_info=True)
+                self._ws_available_cache = self._probe_ws()
+        else:
+            # No warmup started — run synchronous probe
+            self._ws_available_cache = self._probe_ws()
 
         logger.debug(f"ws availability cached: {self._ws_available_cache}")
         return self._ws_available_cache
@@ -260,7 +261,7 @@ class EnvironmentManager:
         self._ws_available_cache = None
         self._available_terminal_cache = None
         self._terminal_cache_time = 0.0
-        self._cache_warm_event.clear()
+        self._ws_probe_future = None
         logger.debug("EnvironmentManager cache reset")
 
     def warm_cache_async(self) -> None:
@@ -270,22 +271,21 @@ class EnvironmentManager:
         environment checks. The caches will be populated in the background
         and subsequent calls to should_wrap_with_rez(), is_ws_available(), and
         detect_terminal() will return immediately from cache.
-
-        Sets _cache_warm_event when complete so is_ws_available() can avoid
-        blocking if called during warmup.
         """
+        self._ws_probe_future = Future()
+        future = self._ws_probe_future
 
         def _warm() -> None:
             try:
-                # These calls will populate the caches
-                _ = self.is_ws_available()
+                ws_available = self._probe_ws()
+                future.set_result(ws_available)
+                self._ws_available_cache = ws_available
                 _ = self.detect_terminal()
                 logger.debug("Environment caches pre-warmed successfully")
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
                 logger.warning("Error during cache pre-warming", exc_info=True)
-            finally:
-                # Always signal completion so waiters don't block forever
-                self._cache_warm_event.set()
+                if not future.done():
+                    future.set_exception(exc)
 
         thread = threading.Thread(
             target=_warm, daemon=True, name="EnvironmentCacheWarm"

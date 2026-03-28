@@ -149,22 +149,27 @@ class LaunchOperation:
             return False
 
         if Config.REZ_MODE != RezMode.DISABLED:
-            rez_packages = self._env_manager.get_rez_packages(app_name, Config)
-            if not rez_packages:
-                self._emit_error(
-                    f"Cannot launch {app_name}: no Rez packages are configured for this application."
+            if app_name in Config.REZ_BYPASS_APPS:
+                logger.debug(
+                    "Rez bypass enabled for %s — skipping rez env wrap", app_name
                 )
-                return False
-            if not self._env_manager.should_wrap_with_rez(Config):
-                self._emit_error(
-                    f"Cannot launch {app_name}: Rez is required, but the 'rez' command was not found on PATH."
-                )
-                return False
+            else:
+                rez_packages = self._env_manager.get_rez_packages(app_name, Config)
+                if not rez_packages:
+                    self._emit_error(
+                        f"Cannot launch {app_name}: no Rez packages are configured for this application."
+                    )
+                    return False
+                if not self._env_manager.should_wrap_with_rez(Config):
+                    self._emit_error(
+                        f"Cannot launch {app_name}: Rez is required, but the 'rez' command was not found on PATH."
+                    )
+                    return False
 
-            app_command = wrap_with_rez(app_command, rez_packages)
+                app_command = wrap_with_rez(app_command, rez_packages)
 
         full_command = build_workspace_command(safe_workspace_path, app_command)
-        full_command = add_logging(full_command, Config)
+        full_command = add_logging(full_command, Config, app_name=app_name)
 
         logger.debug(
             "Constructed command for %s:\n  Command: %r\n  Length: %d chars\n  Workspace: %s%s",
@@ -302,7 +307,9 @@ class LaunchOperation:
             return f"{tde_scripts_export}{sgtk_export}{command} -open {safe_scene_path}"
 
         if app_name == "maya":
-            updated = maya_commands.build_maya_context_command(command, safe_scene_path)
+            updated = maya_commands.build_maya_context_command(
+                command, safe_scene_path, skip_bootstrap=Config.MAYA_SKIP_CONTEXT_BOOTSTRAP
+            )
             return f"export SGTK_FILE_TO_OPEN={safe_scene_path} && {updated}"
 
         # Unsupported app — caller should not reach this path

@@ -16,7 +16,7 @@ from cache.types import LatestFileCacheResult
 logger = logging.getLogger(__name__)
 
 
-LATEST_FILES_TTL_MINUTES = 5
+LATEST_FILES_TTL_MINUTES = 15
 LATEST_FILES_NEGATIVE_TTL_SECONDS = 30
 
 

@@ -244,7 +244,7 @@ class TestExecuteBackgroundWrapping:
             "launch.launch_operation.build_workspace_command",
             return_value="base_cmd",
         )
-        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c)
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **kw: c)
         mocker.patch(
             "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
         )
@@ -275,7 +275,7 @@ class TestExecuteBackgroundWrapping:
             "launch.launch_operation.build_workspace_command",
             return_value="base_cmd",
         )
-        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg: c)
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **kw: c)
         mocker.patch(
             "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
         )
@@ -386,3 +386,72 @@ class TestAppendSceneToCommand:
 
         assert result == "rv_cmd"
         emit_error.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# execute() — per-app Rez bypass
+# ---------------------------------------------------------------------------
+
+
+class TestRezBypass:
+    """Per-app Rez bypass via Config.REZ_BYPASS_APPS."""
+
+    def test_app_in_bypass_set_skips_rez_wrap(self, mocker) -> None:
+        """REZ_BYPASS_APPS = {"maya"} → Maya launch skips wrap_with_rez."""
+        from config import RezMode
+
+        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.AUTO)
+        mocker.patch("launch.launch_operation.Config.REZ_BYPASS_APPS", {"maya"})
+        mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
+        mocker.patch(
+            "launch.launch_operation.build_workspace_command",
+            return_value="ws_cmd",
+        )
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **kw: c)
+        mocker.patch(
+            "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+        )
+        mock_rez = mocker.patch("launch.launch_operation.wrap_with_rez")
+
+        em = _make_env_manager()
+        pe = _make_process_executor()
+        op = _make_operation(
+            app_name="maya",
+            env_manager=em,
+            process_executor=pe,
+        )
+        result = op.execute()
+
+        assert result is True
+        mock_rez.assert_not_called()
+
+    def test_empty_bypass_set_still_wraps_with_rez(self, mocker) -> None:
+        """Empty REZ_BYPASS_APPS → all apps still get Rez-wrapped."""
+        from config import RezMode
+
+        mocker.patch("launch.launch_operation.Config.REZ_MODE", RezMode.AUTO)
+        mocker.patch("launch.launch_operation.Config.REZ_BYPASS_APPS", set())
+        mocker.patch("launch.launch_operation.validate_path", side_effect=lambda p: p)
+        mocker.patch(
+            "launch.launch_operation.build_workspace_command",
+            return_value="ws_cmd",
+        )
+        mocker.patch("launch.launch_operation.add_logging", side_effect=lambda c, _cfg, **kw: c)
+        mocker.patch(
+            "commands.nuke_commands.build_nuke_environment_prefix", return_value=""
+        )
+        mock_rez = mocker.patch(
+            "launch.launch_operation.wrap_with_rez", return_value="rez_cmd"
+        )
+
+        em = _make_env_manager()
+        pe = _make_process_executor()
+        op = _make_operation(
+            app_name="nuke",
+            env_manager=em,
+            process_executor=pe,
+        )
+        result = op.execute()
+
+        assert result is True
+        mock_rez.assert_called_once()

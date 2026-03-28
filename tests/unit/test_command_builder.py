@@ -381,6 +381,46 @@ class TestLoggingRedirection:
             "'/home/user with spaces" in result or '"/home/user with spaces' in result
         )
 
+    def test_tee_bypass_uses_redirect(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """App in bypass set → uses >> redirect, no tee."""
+        monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
+        mock_config = MagicMock(spec=Config)
+        mock_config.ENABLE_LAUNCH_LOGGING = True
+        mock_config.LAUNCH_LOG_MAX_SIZE_MB = 10
+        mock_config.LAUNCH_LOGGING_TEE_BYPASS_APPS = {"maya"}
+
+        result = add_logging("maya", mock_config, app_name="maya")
+
+        assert ">>" in result
+        assert "| tee" not in result
+        assert "2>&1" in result
+
+    def test_tee_bypass_not_in_set_uses_tee(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """App not in bypass set → uses tee (unchanged behavior)."""
+        monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
+        mock_config = MagicMock(spec=Config)
+        mock_config.ENABLE_LAUNCH_LOGGING = True
+        mock_config.LAUNCH_LOG_MAX_SIZE_MB = 10
+        mock_config.LAUNCH_LOGGING_TEE_BYPASS_APPS = {"maya"}
+
+        result = add_logging("nuke", mock_config, app_name="nuke")
+
+        assert "tee -a" in result
+
+    def test_no_app_name_uses_tee(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Default empty app_name uses tee (backward compat)."""
+        monkeypatch.setattr("launch.command_builder.Path.home", lambda: tmp_path)
+
+        result = add_logging("nuke")
+
+        assert "tee -a" in result
+
 
 class TestBackgroundWrapping:
     """Tests for background process wrapping."""

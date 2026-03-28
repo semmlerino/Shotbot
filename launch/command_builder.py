@@ -203,16 +203,19 @@ def get_nuke_fix_summary(config: "type[Config]") -> list[str]:
     return fix_details
 
 
-def add_logging(command: str, config: "type[Config] | None" = None) -> str:
+def add_logging(command: str, config: "type[Config] | None" = None, *, app_name: str = "") -> str:
     """Add logging redirection to capture command output.
 
     Args:
         command: Command to add logging to
         config: Application configuration (optional for backward compatibility)
+        app_name: Application name, used to check LAUNCH_LOGGING_TEE_BYPASS_APPS.
+                  If the app is in the bypass set, uses >> redirect instead of tee.
 
     Returns:
         Command with logging redirection and exit code preservation:
         "set -o pipefail; {command} 2>&1 | tee -a {logfile}"
+        Or "{command} >> {logfile} 2>&1" if app is in tee bypass set.
         Or original command if logging is disabled or setup fails
 
     Notes:
@@ -251,6 +254,10 @@ def add_logging(command: str, config: "type[Config] | None" = None) -> str:
         # Quote log file path to handle spaces/special chars
         quoted_log_file = shlex.quote(str(log_file))
         logger.debug(f"Adding logging redirection to: {log_file}")
+
+        if app_name and config is not None and app_name in config.LAUNCH_LOGGING_TEE_BYPASS_APPS:
+            return f"{command} >> {quoted_log_file} 2>&1"
+
         # Use pipefail to preserve exit code from command before pipe
         # Without pipefail, pipeline returns tee's exit code (always 0), hiding app failures
         return f"set -o pipefail; {command} 2>&1 | tee -a {quoted_log_file}"

@@ -314,3 +314,66 @@ class TestCacheManagement:
 
         # manager2 should have empty cache
         assert manager2._available_terminal_cache is None
+
+
+class TestWsProbeDeduplication:
+    """Tests for ws probe deduplication via Future."""
+
+    def test_launch_during_warmup_waits_for_warmup_result(
+        self, mocker, env_manager: EnvironmentManager
+    ) -> None:
+        """When warmup is in progress, is_ws_available waits for the Future."""
+        import threading
+
+        # Block the warmup thread so we can control timing
+        gate = threading.Event()
+        original_probe = env_manager._probe_ws
+
+        call_count = 0
+
+        def counting_probe():
+            nonlocal call_count
+            call_count += 1
+            gate.wait(timeout=5)  # Wait until we release
+            return original_probe()
+
+        mocker.patch.object(env_manager, "_probe_ws", side_effect=counting_probe)
+        mocker.patch(
+            "launch.environment_manager.subprocess.run",
+            return_value=MagicMock(returncode=0),
+        )
+
+        env_manager.warm_cache_async()
+        gate.set()  # Release the warmup thread
+
+        # Give warmup thread time to complete
+        import time
+
+        time.sleep(0.1)
+
+        result = env_manager.is_ws_available()
+        assert result is True
+        # Only ONE probe should have run (from warmup), not a second from is_ws_available
+        assert call_count == 1
+
+    def test_launch_without_warmup_runs_sync_probe(
+        self, mocker, env_manager: EnvironmentManager
+    ) -> None:
+        """When no warmup was started, is_ws_available runs its own probe."""
+        mocker.patch(
+            "launch.environment_manager.subprocess.run",
+            return_value=MagicMock(returncode=0),
+        )
+        # Don't call warm_cache_async — no future exists
+        result = env_manager.is_ws_available()
+        assert result is True
+
+    def test_reset_cache_clears_ws_probe_future(
+        self, env_manager: EnvironmentManager
+    ) -> None:
+        """reset_cache clears the ws probe future."""
+        from concurrent.futures import Future
+
+        env_manager._ws_probe_future = Future()
+        env_manager.reset_cache()
+        assert env_manager._ws_probe_future is None

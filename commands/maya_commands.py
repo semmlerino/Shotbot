@@ -23,13 +23,16 @@ def _shotbot_wait_for_sgtk():
         try:
             import sgtk
             if sgtk.platform.current_engine():
-                maya.utils.executeDeferred(_shotbot_update_context)
+                maya.utils.executeDeferred(_shotbot_schedule_idle_promotion)
                 return
         except ImportError:
             return
     maya.utils.executeDeferred(
         lambda: print("[Shotbot] No SGTK engine available after retries")
     )
+
+def _shotbot_schedule_idle_promotion():
+    maya.cmds.scriptJob(event=["idle", _shotbot_update_context], runOnce=True)
 
 def _shotbot_update_context():
     try:
@@ -82,6 +85,8 @@ def build_maya_context_command(
     base_command: str,
     file_path: str,
     context_script: str | None = None,
+    *,
+    skip_bootstrap: bool = False,
 ) -> str:
     """Build Maya launch command with SGTK context update.
 
@@ -94,11 +99,17 @@ def build_maya_context_command(
         file_path: Path to Maya file to open
         context_script: Python script to execute after file loads.
                         If None, uses MAYA_BOOTSTRAP_SCRIPT.
+        skip_bootstrap: If True, skip the bootstrap script injection and
+                        return a bare command with only the -file flag.
 
     Returns:
-        Full command string with env var export and maya invocation
+        Full command string with env var export and maya invocation,
+        or bare command with only -file if skip_bootstrap is True.
 
     """
+    if skip_bootstrap:
+        return f"{base_command} -file {file_path}"
+
     script_to_run = (
         context_script if context_script is not None else MAYA_BOOTSTRAP_SCRIPT
     )
