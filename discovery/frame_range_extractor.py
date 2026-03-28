@@ -9,6 +9,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import fileseq
+
 from logging_mixin import get_module_logger
 
 
@@ -17,9 +19,6 @@ logger = get_module_logger(__name__)
 
 def detect_frame_range(directory: Path, extension: str = "exr") -> tuple[int, int]:
     """Scan directory for frame-numbered files, return (min_frame, max_frame).
-
-    Searches for files with pattern like filename.1001.ext and extracts frame numbers.
-    Returns (1001, 1100) as default if no frames found.
 
     Args:
         directory: Directory to scan for frame-numbered files.
@@ -34,25 +33,26 @@ def detect_frame_range(directory: Path, extension: str = "exr") -> tuple[int, in
         (1001, 1150)
 
     """
-    # Pattern to extract frame numbers from filenames
-    # Matches: filename.1001.exr, plate.0001.exr, etc.
-    frame_pattern = re.compile(rf"\.(\d{{4,}})\.{extension}$", re.IGNORECASE)
-
-    frames: list[int] = []
+    _min_digits = re.compile(rf"\.(\d{{4,}})\.{re.escape(extension)}$", re.IGNORECASE)
     try:
-        for file_path in directory.iterdir():
-            if not file_path.is_file():
-                continue
-            match = frame_pattern.search(file_path.name)
-            if match:
-                frames.append(int(match.group(1)))
+        names = [
+            p.name for p in directory.iterdir()
+            if p.is_file() and _min_digits.search(p.name)
+        ]
     except OSError:
         logger.debug(f"Error reading directory {directory}", exc_info=True)
+        return 1001, 1100
+
+    sequences = fileseq.findSequencesInList(names)
+    frames: list[int] = []
+    for seq in sequences:
+        frame_set = seq.frameSet()
+        if frame_set is not None:
+            frames.extend(int(f) for f in frame_set)
 
     if frames:
         return min(frames), max(frames)
 
-    # Default VFX frame range
     return 1001, 1100
 
 
