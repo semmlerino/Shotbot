@@ -14,7 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from PySide6.QtGui import QKeySequence
-from PySide6.QtWidgets import QApplication
 
 from tests.fixtures.process_fixtures import (
     PopenDouble,
@@ -25,6 +24,7 @@ from type_definitions import Shot, ThreeDEScene
 
 
 if TYPE_CHECKING:
+    from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
 
