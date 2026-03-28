@@ -283,6 +283,7 @@ required_plugins = [
 # Run with coverage manually: pytest tests/ --cov=. --cov-report=term-missing --cov-report=html:coverage_html
 addopts = [
     "-ra",                  # Show all test summary info
+    "-m", "not quarantine", # Keep known-unstable tests out of the default gate
     "--durations=20",       # Show slowest 20 tests
     "--randomly-seed=last", # Reproduce last run's order (use --randomly-seed=<N> for specific seed)
     "--tb=short",

@@ -242,7 +242,6 @@ class TestSubprocessTimeoutCancellation:
 # =============================================================================
 
 
-@pytest.mark.quarantine
 @pytest.mark.real_subprocess
 class TestStreamingReadLargeOutput:
     """Test the streaming read helper handles large outputs without deadlock.

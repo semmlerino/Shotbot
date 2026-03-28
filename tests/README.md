@@ -6,6 +6,7 @@ Canonical test execution policy and common commands for this repository.
 
 - `uv run pytest tests/` is the default local run and the primary CI correctness gate.
 - `uv run pytest tests/ -n auto` is a secondary isolation check for shared-state, teardown, and worker-safety bugs.
+- Tests marked `quarantine` are excluded from the default gate via pytest `-m "not quarantine"`.
 - Parallel execution is retained for diagnostic value, not because it is materially faster in this codebase.
 - Qt tests require xdist grouping with `--dist=loadgroup`. This is already set in `pyproject.toml`; if you override `--dist`, keep `loadgroup`.
 
@@ -17,6 +18,9 @@ uv run pytest tests/
 
 # Secondary isolation check: parallel with Qt-safe grouping from pyproject.toml
 uv run pytest tests/ -n auto
+
+# Quarantined tests only
+uv run pytest tests/ -m quarantine
 
 # Integration suite only
 uv run pytest tests/integration/ -v

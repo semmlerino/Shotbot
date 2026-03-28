@@ -6,7 +6,7 @@ refactoring preserves functionality.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -58,6 +58,27 @@ class TestSignal:
 
 # Test fixtures following Factory Pattern (UNIFIED_TESTING_GUIDE)
 @pytest.fixture
+def model_cleanups() -> Generator[list[Callable[[], None]], None, None]:
+    """Track non-widget Qt models created by the test and dispose them explicitly.
+
+    qtbot only manages QWidget lifetimes. The backing Qt models created in this
+    module are plain QObjects, so without explicit teardown they accumulate
+    signal connections and deferred deletes across the worker process.
+    """
+    cleanups: list[Callable[[], None]] = []
+    yield cleanups
+
+    for cleanup in reversed(cleanups):
+        try:
+            cleanup()
+        except (RuntimeError, TypeError, AttributeError):
+            pass
+
+    process_qt_events()
+    process_qt_events()
+
+
+@pytest.fixture
 def make_shot() -> Callable[[str, str, str], Shot]:
     """Factory for creating test shots (UNIFIED_TESTING_GUIDE: Factory pattern)."""
 
@@ -80,6 +101,7 @@ def make_model(
     make_shot: Callable[[str, str, str], Shot],
     shot_cache: object,
     mock_process_pool_manager,
+    model_cleanups: list[Callable[[], None]],
 ) -> Callable[
     [str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel
 ]:
@@ -104,6 +126,12 @@ def make_model(
             item_model = ShotItemModel(cache_manager=None)
             # Properly initialize the item model with shots
             item_model.set_items(shots)
+            model_cleanups.extend(
+                [
+                    lambda: shot_model.cleanup() if hasattr(shot_model, "cleanup") else None,
+                    item_model.deleteLater,
+                ]
+            )
             return item_model
 
         if model_class_name == "ThreeDEItemModel":
@@ -132,6 +160,12 @@ def make_model(
             item_model = ThreeDEItemModel(cache_manager=None)
             # Properly initialize the item model with scenes
             item_model.set_items(scenes)
+            model_cleanups.extend(
+                [
+                    lambda: scene_model.cleanup() if hasattr(scene_model, "cleanup") else None,
+                    item_model.deleteLater,
+                ]
+            )
             return item_model
 
         if model_class_name == "PreviousShotsItemModel":
@@ -152,6 +186,16 @@ def make_model(
             item_model = PreviousShotsItemModel(prev_model, cache_manager=None)
             # Manually set items since UnifiedItemModel doesn't have _update_shots()
             item_model.set_items(shots)
+            model_cleanups.extend(
+                [
+                    lambda: shot_model.cleanup() if hasattr(shot_model, "cleanup") else None,
+                    lambda: (
+                        prev_model.cleanup(),
+                        prev_model.deleteLater(),
+                    ),
+                    item_model.deleteLater,
+                ]
+            )
             return item_model
         return None
 

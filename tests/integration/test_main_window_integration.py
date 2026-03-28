@@ -46,7 +46,6 @@ pytestmark = [
     pytest.mark.qt,
     pytest.mark.allow_dialogs,
     pytest.mark.permissive_process_pool,
-    pytest.mark.quarantine,
 ]
 
 
