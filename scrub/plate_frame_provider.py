@@ -7,7 +7,6 @@ or EXR sequences for the scrubbing preview feature.
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Literal
@@ -16,6 +15,7 @@ from PySide6.QtCore import QObject, QThreadPool, Signal
 from PySide6.QtGui import QImage
 
 import ui.image_utils as utils_module
+from discovery.frame_utils import substitute_frame
 from scrub.scrub_frame_cache import ScrubFrameCache
 from typing_compat import override
 
@@ -76,17 +76,9 @@ class PlateSource:
 
         # The source_path is the first EXR file
         # Replace the frame number in the filename
-        name = self.source_path.name
-        # Match patterns like .1001.exr or _1001.exr
-        pattern = re.compile(r"[._](\d{4,})(\.exr)$", re.IGNORECASE)
-        match = pattern.search(name)
-
-        if not match:
+        new_name = substitute_frame(self.source_path.name, frame)
+        if new_name is None:
             return None
-
-        # Replace the frame number
-        frame_str = str(frame).zfill(len(match.group(1)))
-        new_name = name[: match.start() + 1] + frame_str + match.group(2)
         return self.source_path.parent / new_name
 
 

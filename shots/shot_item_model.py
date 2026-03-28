@@ -6,13 +6,13 @@ extending BaseItemModel with shot-specific behavior.
 
 from __future__ import annotations
 
-import contextlib
 from typing import TYPE_CHECKING, ClassVar, Protocol
 
 from PySide6.QtCore import QObject, Signal
 
 from typing_compat import override
 from ui.base_item_model import BaseItemModel
+from utils import safe_disconnect
 
 
 if TYPE_CHECKING:
@@ -164,14 +164,6 @@ class ShotItemModel(BaseItemModel["Shot"]):
         super().cleanup()
 
         # Disconnect signals safely
-        # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
-        # from Qt when attempting to disconnect signals that have no connections.
-        # Qt's receivers() method is not properly typed in PySide6 stubs
-        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-            if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                _ = self.items_updated.disconnect()
-        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-            if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                _ = self.shots_updated.disconnect()
+        safe_disconnect(self.items_updated, self.shots_updated)
 
         self.logger.debug("ShotItemModel cleanup complete")

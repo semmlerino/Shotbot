@@ -14,6 +14,7 @@ from pathlib import Path
 # Local application imports
 from config import Config
 from discovery.file_discovery import FileDiscovery
+from discovery.frame_utils import FRAME_PATTERN
 from logging_mixin import get_module_logger
 from paths.validators import PathValidators
 from version_utils import VersionUtils
@@ -170,16 +171,12 @@ def _extract_plate_pattern(resolution_dir: Path) -> str | None:
         Path pattern with @@@@ for frame numbers, or None if no exr found
 
     """
-    # Pattern to match frame numbers in filename
-    # Example: shot_name_turnover-plate_FG01_lin_sgamut3cine_v001.1001.exr
-    frame_pattern = re.compile(r"^(.+)\.(\d+)\.exr$")
-
     for item in resolution_dir.iterdir():
         if item.is_file() and item.suffix.lower() == ".exr":
-            match = frame_pattern.match(item.name)
+            match = FRAME_PATTERN.search(item.name)
             if match:
-                base_name = match.group(1)
-                frame_digits = len(match.group(2))
+                base_name = item.name[: match.start()]
+                frame_digits = len(match.group(1))
                 # RV uses @@@@ for frame padding
                 frame_placeholder = "@" * frame_digits
                 pattern_name = f"{base_name}.{frame_placeholder}.exr"

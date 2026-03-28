@@ -18,6 +18,7 @@ from previous_shots.finder import ParallelShotsFinder
 from previous_shots.worker import PreviousShotsWorker
 from shots.shot_filter import compose_filters, get_available_shows
 from type_definitions import Shot
+from utils import safe_disconnect
 
 
 if TYPE_CHECKING:
@@ -122,18 +123,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         self.logger.debug("Safely cleaning up worker thread")
 
         # Disconnect all signals to prevent late emissions
-        # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
-        # from Qt when attempting to disconnect signals that have no connections.
-        # Qt's receivers() method is not properly typed in PySide6 stubs
-        try:
-            if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                _ = worker.scan_finished.disconnect()
-            if worker.worker_error.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                _ = worker.worker_error.disconnect()
-            if worker.scan_progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                _ = worker.scan_progress.disconnect()
-        except (RuntimeError, TypeError, AttributeError):
-            pass  # Already disconnected or no connections
+        safe_disconnect(worker.scan_finished, worker.worker_error, worker.scan_progress)
 
         worker.safe_shutdown()
         self.logger.debug("Worker thread cleanup completed")

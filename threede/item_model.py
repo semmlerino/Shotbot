@@ -12,6 +12,7 @@ from PySide6.QtCore import QModelIndex, QObject, Signal
 
 from typing_compat import override
 from ui.base_item_model import BaseItemModel, BaseItemRole
+from utils import safe_disconnect
 
 
 if TYPE_CHECKING:
@@ -202,29 +203,14 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         self.clear_thumbnail_cache()
 
         # Disconnect signals safely
-        # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
-        # from Qt when attempting to disconnect signals that have no connections.
-        # This is especially important during testing where models may be created
-        # without any connected slots.
-        # Qt's receivers() method is not properly typed in PySide6 stubs
-        signals_to_disconnect = [
+        safe_disconnect(
             self.items_updated,
             self.scenes_updated,
             self.thumbnail_loaded,
             self.loading_started,
             self.loading_progress,
             self.loading_finished,
-        ]
-
-        for signal in signals_to_disconnect:
-            try:
-                # Only disconnect if there are receivers
-                # receivers(None) returns total count of all connections
-                # Note: Qt's receivers() method is not properly typed in PySide6 stubs
-                if signal.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                    _ = signal.disconnect()
-            except (RuntimeError, TypeError, AttributeError):
-                pass  # Already disconnected, no connections, or object deleted
+        )
 
         self.logger.debug("ThreeDEItemModel cleanup complete")
 

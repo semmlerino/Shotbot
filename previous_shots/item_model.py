@@ -13,6 +13,7 @@ from PySide6.QtCore import QObject, Qt, Signal
 
 from typing_compat import override
 from ui.base_item_model import BaseItemModel
+from utils import safe_disconnect
 
 
 if TYPE_CHECKING:
@@ -156,14 +157,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
                 except (RuntimeError, TypeError, AttributeError):
                     pass  # Signal not connected or already disconnected
 
-            # Disconnect signals safely
-            try:
-                _ = self.items_updated.disconnect()
-            except (RuntimeError, TypeError):
-                pass  # No connections to disconnect
-            try:
-                _ = self.shots_updated.disconnect()
-            except (RuntimeError, TypeError):
-                pass  # No connections to disconnect
+        # Disconnect signals safely
+        safe_disconnect(self.items_updated, self.shots_updated)
 
         self.logger.debug("PreviousShotsItemModel cleanup complete")

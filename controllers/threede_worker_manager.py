@@ -8,7 +8,6 @@ class and delegates all worker management through it.
 from __future__ import annotations
 
 # Standard library imports
-import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING, final
 
@@ -23,6 +22,7 @@ from PySide6.QtCore import (
 from logging_mixin import LoggingMixin
 from threede import ThreeDESceneWorker
 from timeout_config import TimeoutConfig
+from utils import safe_disconnect
 
 
 if TYPE_CHECKING:
@@ -224,22 +224,11 @@ class ThreeDEWorkerManager(LoggingMixin):
             worker: The worker thread to disconnect signals from.
 
         """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
-            signals_to_disconnect = [
-                worker.worker_discovery_started,
-                worker.progress,
-                worker.scan_progress,
-                worker.discovery_finished,
-                worker.error,
-            ]
-
-            for signal in signals_to_disconnect:
-                try:
-                    if hasattr(signal, "disconnect"):
-                        _ = signal.disconnect()
-                except (RuntimeError, TypeError):
-                    # Signal may already be disconnected or deleted
-                    pass
-
+        safe_disconnect(
+            worker.worker_discovery_started,
+            worker.progress,
+            worker.scan_progress,
+            worker.discovery_finished,
+            worker.error,
+        )
         self.logger.debug("Disconnected worker signals")

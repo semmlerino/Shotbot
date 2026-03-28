@@ -16,6 +16,7 @@ from pathlib import Path
 
 from dcc.scene_file import ImageSequence
 from discovery.frame_range_extractor import detect_frame_range
+from discovery.frame_utils import to_hash_pattern
 from logging_mixin import get_module_logger
 from utils import get_current_username
 from version_utils import VersionUtils
@@ -242,13 +243,7 @@ class UserSequenceFinder:
 
         """
         # Build pattern path (replace frame numbers with ####)
-        # Match 4+ digit frame numbers at end of filename before extension
-        frame_pattern = re.sub(
-            rf"\.(\d{{4,}})\.{extension}$",
-            f".####.{extension}",
-            sample_file.name,
-            flags=re.IGNORECASE,
-        )
+        frame_pattern = to_hash_pattern(sample_file.name, extension)
         pattern_path = containing_dir / frame_pattern
 
         # Detect frame range by scanning directory
